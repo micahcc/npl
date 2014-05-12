@@ -21,19 +21,202 @@ class NDarray
 			int* t = NULL, int* u = NULL, int* v = NULL, int* w = NULL) = 0;
 };
 
+
+/**
+ * @brief Basic storage unity for ND array. Creates a big chunk of memory.
+ *
+ * @tparam D dimension of array
+ * @tparam T type of sample
+ */
 template <int D, typename T>
 class NDArrayStore : public NDarray
 {
 public:
+	NDArrayStore(size_t dim[D]);
+	
+	~NDArrayStore() { delete[] m_data; };
+
+	size_t getAddr(int x = 0, int y = 0, int z = 0, int t = 0, 
+			int u = 0, int v = 0, int w = 0);
+	size_t getAddr(size_t index[D]);
+
+	double getDouble(int x = 0, int y = 0, int z = 0, int t = 0, 
+			int u = 0, int v = 0, int w = 0);
+
+	int getInt(int x = 0, int y = 0, int z = 0, int t = 0, 
+			int u = 0, int v = 0, int w = 0);
+	
+	void setDouble(double newval, int x = 0, int y = 0, int z = 0, 
+			int t = 0, int u = 0, int v = 0, int w = 0);
+
+	void setInt(int newval, int x = 0, int y = 0, int z = 0, int t = 0, 
+			int u = 0, int v = 0, int w = 0);
+
+	T& operator()(int x = 0, int y = 0, int z = 0, int t = 0, int u = 0,
+			int v = 0, int w = 0);
+
+	size_t getBytes();
+	size_t getNDim();
+	void getDim(int* x = NULL, int* y = NULL, int* z = NULL, 
+			int* t = NULL, int* u = NULL, int* v = NULL, int* w = NULL);
+	
+	T* m_data;
+	size_t m_dim[D];	// overall image dimension
+};
+
+
+/**
+ * @brief Initializes an array with a size and a chache size. The layout will
+ * be cubes in each dimension to make the clusters.
+ *
+ * @tparam D
+ * @tparam T
+ * @param dim[D]
+ * @param csize
+ */
+template <int D, typename T>
+NDArrayStore<D,T>::NDArrayStore(size_t dim[D])
+{
+	size_t dsize = 1;
+	for(size_t ii=0; ii<D; ii++) {
+		m_dim[ii] = dim[ii];
+		dsize *= m_dim[ii];
+	}
+
+	m_data = new T[dsize];
+}
+
+template <int D, typename T>
+inline
+size_t NDArrayStore<D,T>::getAddr(int x, int y, int z, int t, int u, int v, int w)
+{
+	size_t tmp[D];
+	switch(D) {
+		case 7:
+			tmp[6] = w;
+		case 6:
+			tmp[5] = v;
+		case 5:
+			tmp[4] = u;
+		case 4:
+			tmp[3] = t;
+		case 3:
+			tmp[2] = z;
+		case 2:
+			tmp[1] = y;
+		case 1:
+			tmp[0] = x;
+	}
+	return getAddr(tmp);
+}
+
+template <int D, typename T>
+inline
+size_t NDArrayStore<D,T>::getAddr(size_t index[D])
+{
+	size_t loc = index[0];
+	size_t jump = m_dim[0];           // jump to global position
+	for(size_t ii=1; ii<D; ii++) {
+		loc += index[ii]*jump;
+		jump *= m_dim[ii];
+	}
+	return loc;
+}
+
+template <int D, typename T>
+double NDArrayStore<D,T>::getDouble(int x, int y, int z, int t, int u, int v, 
+		int w)
+{
+	size_t ii = getAddr(x,y,z,t,u,v,w);
+	return (double)m_data[ii];
+}
+
+template <int D, typename T>
+int NDArrayStore<D,T>::getInt(int x, int y, int z, int t, int u, int v, int w)
+{
+	return (int)m_data[getAddr(x,y,z,t,u,v,w)];
+}
+
+template <int D, typename T>
+void NDArrayStore<D,T>::setDouble(double newval, int x, int y, int z, int t, 
+		int u, int v, int w)
+{
+	m_data[getAddr(x,y,z,t,u,v,w)] = (T)newval;
+}
+
+template <int D, typename T>
+void NDArrayStore<D,T>::setInt(int newval, int x, int y, int z, int t, int u, 
+		int v, int w)
+{
+	m_data[getAddr(x,y,z,t,u,v,w)] = (T)newval;
+}
+
+template <int D, typename T>
+T& NDArrayStore<D,T>::operator()(int x, int y, int z, int t, int u, int v, 
+		int w)
+{
+	return m_data[getAddr(x,y,z,t,u,v,w)];
+}
+
+template <int D, typename T>
+size_t NDArrayStore<D,T>::getBytes()
+{
+	size_t out = 1;
+	for(size_t ii=0; ii<D; ii++)
+		out*= m_dim[ii];
+	return out*sizeof(T);
+}
+
+template <int D, typename T>
+size_t NDArrayStore<D,T>::getNDim() 
+{
+	return D;
+}
+
+template <int D, typename T>
+void NDArrayStore<D,T>::getDim(int* x, int* y, int* z, int* t, int* u, int* v,
+		int* w)
+{
+	switch(D) {
+		case 7:
+			if(w) *w = m_dim[6];
+		case 6:
+			if(v) *w = m_dim[5];
+		case 5:
+			if(u) *u = m_dim[4];
+		case 4:
+			if(t) *t = m_dim[3];
+		case 3:
+			if(z) *z = m_dim[2];
+		case 2:
+			if(y) *y = m_dim[1];
+		case 1:
+			if(x) *x = m_dim[0];
+	}
+}
+
+
+/**
+ * @brief Nonlinear storage for ndarray. I thought this would be faster in some
+ * use cases, but it seems like creating hyper-cubes of memory blocks doesn't 
+ * make any difference
+ *
+ * @tparam D
+ * @tparam T
+ */
+template <int D, typename T>
+class NDArrayNLStore : public NDarray
+{
+public:
 	// make hyper-cubes to match cache
-	NDArrayStore(size_t dim[D], size_t csize = 1024);
+	NDArrayNLStore(size_t dim[D], size_t csize = 1024);
 	
 	// make strides according to the input (0 indicates to use the entire 
 	// of a dimension as a stride). Thus stride[3] = {0,100, 0} would make
 	// x and z dimensions match the image dimensions
-	NDArrayStore(size_t dim[D], size_t strides[D], size_t csize = 1024);
+	NDArrayNLStore(size_t dim[D], size_t strides[D], size_t csize = 1024);
 	
-	~NDArrayStore() { delete[] m_data; };
+	~NDArrayNLStore() { delete[] m_data; };
 
 	size_t getAddr(int x = 0, int y = 0, int z = 0, int t = 0, 
 			int u = 0, int v = 0, int w = 0);
@@ -75,7 +258,7 @@ public:
  * @param csize
  */
 template <int D, typename T>
-NDArrayStore<D,T>::NDArrayStore(size_t dim[D], size_t csize)
+NDArrayNLStore<D,T>::NDArrayNLStore(size_t dim[D], size_t csize)
 {
 	size_t strides = (size_t)std::pow<double>(csize, 1./D);
 	m_cstride = 1;
@@ -106,7 +289,7 @@ NDArrayStore<D,T>::NDArrayStore(size_t dim[D], size_t csize)
  * @param csize
  */
 template <int D, typename T>
-NDArrayStore<D,T>::NDArrayStore(size_t dim[D], size_t strides[D], size_t csize)
+NDArrayNLStore<D,T>::NDArrayNLStore(size_t dim[D], size_t strides[D], size_t csize)
 {
 	m_cstride = 1;
 	for(size_t ii=0; ii<D; ii++) {
@@ -130,7 +313,7 @@ NDArrayStore<D,T>::NDArrayStore(size_t dim[D], size_t strides[D], size_t csize)
 
 template <int D, typename T>
 inline
-size_t NDArrayStore<D,T>::getAddr(int x, int y, int z, int t, int u, int v, int w)
+size_t NDArrayNLStore<D,T>::getAddr(int x, int y, int z, int t, int u, int v, int w)
 {
 	size_t tmp[D];
 	switch(D) {
@@ -154,7 +337,7 @@ size_t NDArrayStore<D,T>::getAddr(int x, int y, int z, int t, int u, int v, int 
 
 template <int D, typename T>
 inline
-size_t NDArrayStore<D,T>::getAddr(size_t index[D])
+size_t NDArrayNLStore<D,T>::getAddr(size_t index[D])
 {
 	size_t cluster = index[0]/m_csize[0];  // which cluster we are in
 	size_t pixel = index[0]%m_csize[0];
@@ -173,7 +356,7 @@ size_t NDArrayStore<D,T>::getAddr(size_t index[D])
 }
 
 template <int D, typename T>
-double NDArrayStore<D,T>::getDouble(int x, int y, int z, int t, int u, int v, 
+double NDArrayNLStore<D,T>::getDouble(int x, int y, int z, int t, int u, int v, 
 		int w)
 {
 	size_t ii = getAddr(x,y,z,t,u,v,w);
@@ -181,27 +364,27 @@ double NDArrayStore<D,T>::getDouble(int x, int y, int z, int t, int u, int v,
 }
 
 template <int D, typename T>
-int NDArrayStore<D,T>::getInt(int x, int y, int z, int t, int u, int v, int w)
+int NDArrayNLStore<D,T>::getInt(int x, int y, int z, int t, int u, int v, int w)
 {
 	return (int)m_data[getAddr(x,y,z,t,u,v,w)];
 }
 
 template <int D, typename T>
-void NDArrayStore<D,T>::setDouble(double newval, int x, int y, int z, int t, 
+void NDArrayNLStore<D,T>::setDouble(double newval, int x, int y, int z, int t, 
 		int u, int v, int w)
 {
 	m_data[getAddr(x,y,z,t,u,v,w)] = (T)newval;
 }
 
 template <int D, typename T>
-void NDArrayStore<D,T>::setInt(int newval, int x, int y, int z, int t, int u, 
+void NDArrayNLStore<D,T>::setInt(int newval, int x, int y, int z, int t, int u, 
 		int v, int w)
 {
 	m_data[getAddr(x,y,z,t,u,v,w)] = (T)newval;
 }
 
 template <int D, typename T>
-size_t NDArrayStore<D,T>::getBytes()
+size_t NDArrayNLStore<D,T>::getBytes()
 {
 	size_t out = 1;
 	for(size_t ii=0; ii<D; ii++)
@@ -210,13 +393,13 @@ size_t NDArrayStore<D,T>::getBytes()
 }
 
 template <int D, typename T>
-size_t NDArrayStore<D,T>::getNDim() 
+size_t NDArrayNLStore<D,T>::getNDim() 
 {
 	return D;
 }
 
 template <int D, typename T>
-void NDArrayStore<D,T>::getDim(int* x, int* y, int* z, int* t, int* u, int* v,
+void NDArrayNLStore<D,T>::getDim(int* x, int* y, int* z, int* t, int* u, int* v,
 		int* w)
 {
 	switch(D) {

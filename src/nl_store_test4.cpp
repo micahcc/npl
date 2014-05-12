@@ -23,7 +23,7 @@ int main(int argc, char** argv)
 
 	////////////////////////////////////////////////////////////////////////////////////
 	cerr << "4D Test" << endl;
-	size_t dim4[] = {12, 12, 15, 19};
+	size_t dim4[] = {500, 500, 1, 1};
 	NDArrayStore<4, float> array1(dim4,csize);
 	NDArrayStore<4, float> array2(dim4,csize);
 
@@ -70,7 +70,7 @@ int main(int argc, char** argv)
 		}
 	}
 	t = clock() - t;
-	printf("Radius 2 Kernel: %li clicks (%f seconds)\n",t,((float)t)/CLOCKS_PER_SEC);
+	printf("Radius %li Kernel: %li clicks (%f seconds)\n",radius, t,((float)t)/CLOCKS_PER_SEC);
 }
 
 
