@@ -13,12 +13,12 @@ int main()
 	NDArrayStore<1, float> test1(dim1,13);
 	cerr << "Bytes: " << test1.getBytes() << endl;
 
-	for(size_t ii = 0; ii < dim1[0]; ii++) {
+	for(size_t ii = 0; ii < test1.m_dim[0]; ii++) {
 		test1.m_data[ii] = ii;
 		check.insert(ii);
 	}
 	
-	for(size_t ii = 0; ii < dim1[0]; ii++) {
+	for(size_t ii = 0; ii < test1.m_dim[0]; ii++) {
 		double val = test1.getDouble(ii);
 		cerr << ii << "(" << test1.getAddr(ii) << "): " << val << endl;
 		size_t er = check.erase(val);
