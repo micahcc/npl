@@ -7,10 +7,9 @@ using namespace std;
 int main()
 {
 	set<size_t> check;
-	size_t sz = 0;
 
 	size_t dim1[] = {1024};
-	NDArrayNLStore<1, float> test1(dim1,13);
+	NDArrayStore<1, float> test1(dim1);
 	cerr << "Bytes: " << test1.getBytes() << endl;
 
 	for(size_t ii = 0; ii < test1.m_dim[0]; ii++) {
@@ -28,24 +27,18 @@ int main()
 		}
 	}
 	
-	sz = test1.m_pdim[0];
-	size_t diff = sz;
-	sz = test1.m_dim[0];
-	diff -= sz;
-
-	if(check.size() != diff) {
-		cerr << "Should have erased all but " << sz << " but " << diff << "remain" << endl;
+	if(check.size() != 0) {
+		cerr << "Should have erased all but " << check.size() << "remain" << endl;
 		return -1;
 	}
-	check.clear();
 	
 	////////////////////////////////////////////////////////////////////////////////////
 	cerr << "2D Test" << endl;
 	size_t dim2[] = {23, 117};
-	NDArrayNLStore<2, float> test2(dim2,13);
+	NDArrayStore<2, float> test2(dim2);
 
 	cerr << "Filling..." << endl;
-	for(size_t ii = 0; ii < test2.m_pdim[0]*test2.m_pdim[1]; ii++) {
+	for(size_t ii = 0; ii < test2.m_dim[0]*test2.m_dim[1]; ii++) {
 		test2.m_data[ii] = ii;
 		check.insert(ii);
 	}
@@ -65,28 +58,18 @@ int main()
 		}
 	}
 
-	sz = 1;
-	for(size_t ii = 0; ii < 2; ii++) 
-		sz *= test2.m_pdim[ii];
-	diff = sz;
-	sz = 1;
-	for(size_t ii = 0; ii < 2; ii++) 
-		sz *= test2.m_dim[ii];
-	diff -= sz;
-
-	if(check.size() != diff) {
-		cerr << "Should have erased all but " << sz << " but " << diff << "remain" << endl;
+	if(check.size() != 0) {
+		cerr << "Should have erased all but " << check.size() << "remain" << endl;
 		return -1;
 	}
-	check.clear();
 	
 	////////////////////////////////////////////////////////////////////////////////////
 	cerr << "3D Test" << endl;
 	size_t dim3[] = {23, 17, 23};
-	NDArrayNLStore<3, float> test3(dim3,19);
+	NDArrayStore<3, float> test3(dim3);
 
 	cerr << "Filling..." << endl;
-	for(size_t ii = 0; ii < test3.m_pdim[0]*test3.m_pdim[1]*test3.m_pdim[2]; ii++) {
+	for(size_t ii = 0; ii < test3.m_dim[0]*test3.m_dim[1]*test3.m_dim[2]; ii++) {
 		test3.m_data[ii] = ii;
 		check.insert(ii);
 	}
@@ -108,18 +91,10 @@ int main()
 		}
 	}
 
-	sz = 1;
-	for(size_t ii = 0; ii < 3; ii++) 
-		sz *= test3.m_pdim[ii];
-	diff = sz;
-	sz = 1;
-	for(size_t ii = 0; ii < 3; ii++) 
-		sz *= test3.m_dim[ii];
-	diff -= sz;
-
-	if(check.size() != diff) {
-		cerr << "Should have erased all but " << sz << " but " << diff << "remain" << endl;
+	if(check.size() != 0) {
+		cerr << "Should have erased all but " << check.size() << "remain" << endl;
 		return -1;
 	}
 	check.clear();
 }
+

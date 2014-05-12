@@ -20,12 +20,13 @@ int main(int argc, char** argv)
 	}
 
 	size_t csize = atoi(argv[1]);
+	// need to produce a cache based on this
 
 	////////////////////////////////////////////////////////////////////////////////////
 	cerr << "4D Test" << endl;
 	size_t dim4[] = {500, 500, 1, 1};
-	NDArrayNLStore<4, float> array1(dim4,csize);
-	NDArrayNLStore<4, float> array2(dim4,csize);
+	NDArrayStore<4, float> array1(dim4);
+	NDArrayStore<4, float> array2(dim4);
 
 	cerr << "Filling..." << endl;
 	auto t = clock();
@@ -72,5 +73,6 @@ int main(int argc, char** argv)
 	t = clock() - t;
 	printf("Radius %li Kernel: %li clicks (%f seconds)\n",radius, t,((float)t)/CLOCKS_PER_SEC);
 }
+
 
 

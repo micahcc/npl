@@ -44,8 +44,8 @@ int main()
 	////////////////////////////////////////////////////////////////////////////////////
 	cerr << "3D Test" << endl;
 	size_t dim3[] = {13, 17, 13};
-	NDArrayNLStore<3, float> array1(dim3,19);
-	NDArrayNLStore<3, float> array2(dim3,19);
+	NDArrayStore<3, float> array1(dim3);
+	NDArrayStore<3, float> array2(dim3);
 
 	cerr << "Filling..." << endl;
 	for(size_t ii = 0; ii < array1.m_dim[0]; ii++) {
@@ -146,4 +146,5 @@ int main()
 	}
 
 }
+
 
