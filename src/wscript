@@ -3,6 +3,10 @@ def build(bld):
     bld.shlib(target = 'ndarray', 
                 source = 'ndarray.cpp')
     
-    bld.shlib(target = 'ndarray_test', 
+    bld.program(target = 'ndarray_test', 
                 source = 'ndarray_test.cpp', 
+                use = 'tclap ndarray')
+    
+    bld.program(target = 'ndarraystore_test', 
+                source = 'ndarraystore_test.cpp', 
                 use = 'tclap ndarray')
