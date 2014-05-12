@@ -28,13 +28,9 @@ int main()
 		}
 	}
 	
-	sz = 1;
-	for(size_t ii = 0; ii < 3; ii++) 
-		sz *= test1.m_pdim[ii];
+	sz = test1.m_pdim[0];
 	size_t diff = sz;
-	sz = 1;
-	for(size_t ii = 0; ii < 2; ii++) 
-		sz *= test1.m_dim[ii];
+	sz = test1.m_dim[0];
 	diff -= sz;
 
 	if(check.size() != diff) {

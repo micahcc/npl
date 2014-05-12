@@ -21,7 +21,7 @@ int main()
 	for(size_t ii = 0; ii < dim2[0]*dim2[1]; ii++)
 		test2.m_data[ii] = ii;
 	
-	for(size_t ii = 0; ii < dim1[0]; ii++)
-		for(size_t jj = 0; jj < dim1[1]; jj++)
+	for(size_t ii = 0; ii < dim2[0]; ii++)
+		for(size_t jj = 0; jj < dim2[1]; jj++)
 			cerr << ii << "," << jj << ": " << test1.getDouble(ii,jj) << endl;
 }

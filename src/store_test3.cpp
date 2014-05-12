@@ -50,8 +50,8 @@ int main()
 	////////////////////////////////////////////////////////////////////////////////////
 	cerr << "4D Test" << endl;
 	size_t dim4[] = {13, 7, 13, 8};
-	NDArrayStore<4, float> array1(dim4,19);
-	NDArrayStore<4, float> array2(dim4,19);
+	NDArrayStore<4, float> array1(dim4,1024);
+	NDArrayStore<4, float> array2(dim4,1024);
 
 	cerr << "Filling..." << endl;
 	for(size_t ii = 0; ii < array1.m_dim[0]; ii++) {

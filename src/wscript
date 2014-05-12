@@ -5,16 +5,20 @@ def build(bld):
     
     bld.program(target = 'test1', 
                 source = 'test1.cpp', 
-                use = 'tclap ndarray')
+                use = 'ndarray')
     
     bld.program(target = 'store_test1', 
                 source = 'store_test1.cpp', 
-                use = 'tclap ndarray')
+                use = 'ndarray')
     
     bld.program(target = 'store_test2', 
                 source = 'store_test2.cpp', 
-                use = 'tclap ndarray')
+                use = 'ndarray')
     
     bld.program(target = 'store_test3', 
                 source = 'store_test3.cpp', 
-                use = 'tclap ndarray')
+                use = 'ndarray')
+    
+    bld.program(target = 'store_test4', 
+                source = 'store_test4.cpp', 
+                use = 'ndarray')
