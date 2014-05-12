@@ -35,25 +35,25 @@ public:
 	
 	~NDArrayStore() { delete[] m_data; };
 
-	virtual size_t getAddr(int x = 0, int y = 0, int z = 0, int t = 0, 
+	size_t getAddr(int x = 0, int y = 0, int z = 0, int t = 0, 
 			int u = 0, int v = 0, int w = 0);
-	virtual size_t getAddr(size_t index[D]);
+	size_t getAddr(size_t index[D]);
 
-	virtual double getDouble(int x = 0, int y = 0, int z = 0, int t = 0, 
+	double getDouble(int x = 0, int y = 0, int z = 0, int t = 0, 
 			int u = 0, int v = 0, int w = 0);
 
-	virtual int getInt(int x = 0, int y = 0, int z = 0, int t = 0, 
+	int getInt(int x = 0, int y = 0, int z = 0, int t = 0, 
 			int u = 0, int v = 0, int w = 0);
 	
-	virtual void setDouble(double newval, int x = 0, int y = 0, int z = 0, 
+	void setDouble(double newval, int x = 0, int y = 0, int z = 0, 
 			int t = 0, int u = 0, int v = 0, int w = 0);
 
-	virtual void setInt(int newval, int x = 0, int y = 0, int z = 0, int t = 0, 
+	void setInt(int newval, int x = 0, int y = 0, int z = 0, int t = 0, 
 			int u = 0, int v = 0, int w = 0);
 
-	virtual size_t getBytes();
-	virtual size_t getNDim();
-	virtual void getDim(int* x = NULL, int* y = NULL, int* z = NULL, 
+	size_t getBytes();
+	size_t getNDim();
+	void getDim(int* x = NULL, int* y = NULL, int* z = NULL, 
 			int* t = NULL, int* u = NULL, int* v = NULL, int* w = NULL);
 	
 	T* m_data;
@@ -167,7 +167,7 @@ size_t NDArrayStore<D,T>::getAddr(size_t index[D])
 		pixel += ijump*pixel_ii;
 
 		cjump *= m_cdim[ii];
-		ijump *= m_pdim[ii];
+		ijump *= m_csize[ii];
 	}
 	return m_cstride*cluster+pixel;
 }

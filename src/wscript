@@ -14,3 +14,7 @@ def build(bld):
     bld.program(target = 'store_test2', 
                 source = 'store_test2.cpp', 
                 use = 'tclap ndarray')
+    
+    bld.program(target = 'store_test3', 
+                source = 'store_test3.cpp', 
+                use = 'tclap ndarray')
