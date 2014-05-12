@@ -34,7 +34,7 @@ int main(int argc, char** argv)
 			for(size_t kk = 0; kk < array1.m_dim[2]; kk++) {
 				for(size_t tt = 0; tt < array1.m_dim[3]; tt++) {
 					double val = rand()/(double)RAND_MAX;
-					array1.setDouble(val, ii, jj, kk, tt);
+					array1.setD(val, ii, jj, kk, tt);
 				}
 			}
 		}
@@ -64,7 +64,7 @@ int main(int argc, char** argv)
 							}
 						}
 					}
-					array2.setDouble(sum/n, ii, jj, kk, tt);
+					array2.setD(sum/n, ii, jj, kk, tt);
 				}
 			}
 		}

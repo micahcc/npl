@@ -7,21 +7,21 @@ def build(bld):
                 source = 'test1.cpp', 
                 use = 'ndarray')
     
-    bld.program(target = 'nl_store_test1', 
-                source = 'nl_store_test1.cpp', 
-                use = 'ndarray')
-    
-    bld.program(target = 'nl_store_test2', 
-                source = 'nl_store_test2.cpp', 
-                use = 'ndarray')
-    
-    bld.program(target = 'nl_store_test3', 
-                source = 'nl_store_test3.cpp', 
-                use = 'ndarray')
-    
-    bld.program(target = 'nl_store_test4', 
-                source = 'nl_store_test4.cpp', 
-                use = 'ndarray')
+#    bld.program(target = 'nl_store_test1', 
+#                source = 'nl_store_test1.cpp', 
+#                use = 'ndarray')
+#    
+#    bld.program(target = 'nl_store_test2', 
+#                source = 'nl_store_test2.cpp', 
+#                use = 'ndarray')
+#    
+#    bld.program(target = 'nl_store_test3', 
+#                source = 'nl_store_test3.cpp', 
+#                use = 'ndarray')
+#    
+#    bld.program(target = 'nl_store_test4', 
+#                source = 'nl_store_test4.cpp', 
+#                use = 'ndarray')
     
     bld.program(target = 'store_test1', 
                 source = 'store_test1.cpp', 

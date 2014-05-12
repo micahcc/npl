@@ -1,24 +1,28 @@
 #include <cstddef>
 #include <cmath>
 
-class NDarray
+class NDArray
 {
-	virtual double getDouble(int x = 0, int y = 0, int z = 0, int t = 0, 
-			int u = 0, int v = 0, int w = 0) = 0;
-
-	virtual int getInt(int x = 0, int y = 0, int z = 0, int t = 0, 
+public:
+	virtual double getD(int x = 0, int y = 0, int z = 0, int t = 0, 
 			int u = 0, int v = 0, int w = 0) = 0;
 	
-	virtual void setDouble(double newval, int x = 0, int y = 0, int z = 0, 
+	double operator()(int x = 0, int y = 0, int z = 0, int t = 0, int u = 0,
+			int v = 0, int w = 0);
+
+	virtual int getI(int x = 0, int y = 0, int z = 0, int t = 0, 
+			int u = 0, int v = 0, int w = 0) = 0;
+	
+	virtual void setD(double newval, int x = 0, int y = 0, int z = 0, 
 			int t = 0, int u = 0, int v = 0, int w = 0) = 0;
 
-	virtual void setInt(int newval, int x = 0, int y = 0, int z = 0, int t = 0, 
+	virtual void setI(int newval, int x = 0, int y = 0, int z = 0, int t = 0, 
 			int u = 0, int v = 0, int w = 0) = 0;
 
 	virtual size_t getBytes() = 0;
 	virtual size_t getNDim() = 0;
-	virtual void getDim(int* x = NULL, int* y = NULL, int* z = NULL, 
-			int* t = NULL, int* u = NULL, int* v = NULL, int* w = NULL) = 0;
+	virtual size_t dim(size_t dir) = 0;
+	virtual size_t* dim() = 0;
 };
 
 
@@ -29,7 +33,7 @@ class NDarray
  * @tparam T type of sample
  */
 template <int D, typename T>
-class NDArrayStore : public NDarray
+class NDArrayStore : public NDArray
 {
 public:
 	NDArrayStore(size_t dim[D]);
@@ -40,25 +44,25 @@ public:
 			int u = 0, int v = 0, int w = 0);
 	size_t getAddr(size_t index[D]);
 
-	double getDouble(int x = 0, int y = 0, int z = 0, int t = 0, 
+	double getD(int x = 0, int y = 0, int z = 0, int t = 0, 
 			int u = 0, int v = 0, int w = 0);
 
-	int getInt(int x = 0, int y = 0, int z = 0, int t = 0, 
+	int getI(int x = 0, int y = 0, int z = 0, int t = 0, 
 			int u = 0, int v = 0, int w = 0);
 	
-	void setDouble(double newval, int x = 0, int y = 0, int z = 0, 
+	void setD(double newval, int x = 0, int y = 0, int z = 0, 
 			int t = 0, int u = 0, int v = 0, int w = 0);
 
-	void setInt(int newval, int x = 0, int y = 0, int z = 0, int t = 0, 
+	void setI(int newval, int x = 0, int y = 0, int z = 0, int t = 0, 
 			int u = 0, int v = 0, int w = 0);
 
-	T& operator()(int x = 0, int y = 0, int z = 0, int t = 0, int u = 0,
+	double operator()(int x = 0, int y = 0, int z = 0, int t = 0, int u = 0,
 			int v = 0, int w = 0);
 
 	size_t getBytes();
 	size_t getNDim();
-	void getDim(int* x = NULL, int* y = NULL, int* z = NULL, 
-			int* t = NULL, int* u = NULL, int* v = NULL, int* w = NULL);
+	size_t dim(size_t dir);
+	size_t* dim();
 	
 	T* m_data;
 	size_t m_dim[D];	// overall image dimension
@@ -124,7 +128,7 @@ size_t NDArrayStore<D,T>::getAddr(size_t index[D])
 }
 
 template <int D, typename T>
-double NDArrayStore<D,T>::getDouble(int x, int y, int z, int t, int u, int v, 
+double NDArrayStore<D,T>::getD(int x, int y, int z, int t, int u, int v, 
 		int w)
 {
 	size_t ii = getAddr(x,y,z,t,u,v,w);
@@ -132,30 +136,30 @@ double NDArrayStore<D,T>::getDouble(int x, int y, int z, int t, int u, int v,
 }
 
 template <int D, typename T>
-int NDArrayStore<D,T>::getInt(int x, int y, int z, int t, int u, int v, int w)
+int NDArrayStore<D,T>::getI(int x, int y, int z, int t, int u, int v, int w)
 {
 	return (int)m_data[getAddr(x,y,z,t,u,v,w)];
 }
 
 template <int D, typename T>
-void NDArrayStore<D,T>::setDouble(double newval, int x, int y, int z, int t, 
+void NDArrayStore<D,T>::setD(double newval, int x, int y, int z, int t, 
 		int u, int v, int w)
 {
 	m_data[getAddr(x,y,z,t,u,v,w)] = (T)newval;
 }
 
 template <int D, typename T>
-void NDArrayStore<D,T>::setInt(int newval, int x, int y, int z, int t, int u, 
+void NDArrayStore<D,T>::setI(int newval, int x, int y, int z, int t, int u, 
 		int v, int w)
 {
 	m_data[getAddr(x,y,z,t,u,v,w)] = (T)newval;
 }
 
 template <int D, typename T>
-T& NDArrayStore<D,T>::operator()(int x, int y, int z, int t, int u, int v, 
+double NDArrayStore<D,T>::operator()(int x, int y, int z, int t, int u, int v, 
 		int w)
 {
-	return m_data[getAddr(x,y,z,t,u,v,w)];
+	return (double)m_data[getAddr(x,y,z,t,u,v,w)];
 }
 
 template <int D, typename T>
@@ -174,25 +178,15 @@ size_t NDArrayStore<D,T>::getNDim()
 }
 
 template <int D, typename T>
-void NDArrayStore<D,T>::getDim(int* x, int* y, int* z, int* t, int* u, int* v,
-		int* w)
+size_t NDArrayStore<D,T>::dim(size_t dir)
 {
-	switch(D) {
-		case 7:
-			if(w) *w = m_dim[6];
-		case 6:
-			if(v) *w = m_dim[5];
-		case 5:
-			if(u) *u = m_dim[4];
-		case 4:
-			if(t) *t = m_dim[3];
-		case 3:
-			if(z) *z = m_dim[2];
-		case 2:
-			if(y) *y = m_dim[1];
-		case 1:
-			if(x) *x = m_dim[0];
-	}
+	return m_dim[dir];
+}
+
+template <int D, typename T>
+size_t* NDArrayStore<D,T>::dim()
+{
+	return m_dim;
 }
 
 
@@ -201,11 +195,13 @@ void NDArrayStore<D,T>::getDim(int* x, int* y, int* z, int* t, int* u, int* v,
  * use cases, but it seems like creating hyper-cubes of memory blocks doesn't 
  * make any difference
  *
+ * WARNING DEPRECATED
+ *
  * @tparam D
  * @tparam T
  */
 template <int D, typename T>
-class NDArrayNLStore : public NDarray
+class NDArrayNLStore : public NDArray
 {
 public:
 	// make hyper-cubes to match cache
@@ -222,16 +218,16 @@ public:
 			int u = 0, int v = 0, int w = 0);
 	size_t getAddr(size_t index[D]);
 
-	double getDouble(int x = 0, int y = 0, int z = 0, int t = 0, 
+	double getD(int x = 0, int y = 0, int z = 0, int t = 0, 
 			int u = 0, int v = 0, int w = 0);
 
-	int getInt(int x = 0, int y = 0, int z = 0, int t = 0, 
+	int getI(int x = 0, int y = 0, int z = 0, int t = 0, 
 			int u = 0, int v = 0, int w = 0);
 	
-	void setDouble(double newval, int x = 0, int y = 0, int z = 0, 
+	void setD(double newval, int x = 0, int y = 0, int z = 0, 
 			int t = 0, int u = 0, int v = 0, int w = 0);
 
-	void setInt(int newval, int x = 0, int y = 0, int z = 0, int t = 0, 
+	void setI(int newval, int x = 0, int y = 0, int z = 0, int t = 0, 
 			int u = 0, int v = 0, int w = 0);
 
 	size_t getBytes();
@@ -356,7 +352,7 @@ size_t NDArrayNLStore<D,T>::getAddr(size_t index[D])
 }
 
 template <int D, typename T>
-double NDArrayNLStore<D,T>::getDouble(int x, int y, int z, int t, int u, int v, 
+double NDArrayNLStore<D,T>::getD(int x, int y, int z, int t, int u, int v, 
 		int w)
 {
 	size_t ii = getAddr(x,y,z,t,u,v,w);
@@ -364,20 +360,20 @@ double NDArrayNLStore<D,T>::getDouble(int x, int y, int z, int t, int u, int v,
 }
 
 template <int D, typename T>
-int NDArrayNLStore<D,T>::getInt(int x, int y, int z, int t, int u, int v, int w)
+int NDArrayNLStore<D,T>::getI(int x, int y, int z, int t, int u, int v, int w)
 {
 	return (int)m_data[getAddr(x,y,z,t,u,v,w)];
 }
 
 template <int D, typename T>
-void NDArrayNLStore<D,T>::setDouble(double newval, int x, int y, int z, int t, 
+void NDArrayNLStore<D,T>::setD(double newval, int x, int y, int z, int t, 
 		int u, int v, int w)
 {
 	m_data[getAddr(x,y,z,t,u,v,w)] = (T)newval;
 }
 
 template <int D, typename T>
-void NDArrayNLStore<D,T>::setInt(int newval, int x, int y, int z, int t, int u, 
+void NDArrayNLStore<D,T>::setI(int newval, int x, int y, int z, int t, int u, 
 		int v, int w)
 {
 	m_data[getAddr(x,y,z,t,u,v,w)] = (T)newval;

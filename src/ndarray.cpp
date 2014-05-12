@@ -4,7 +4,7 @@ class NDArrayStore<1, float>;
 class NDArrayStore<1, double>;
 class NDArrayStore<1, int>;
 
-//class NDArrayStore<2, float>;
+class NDArrayStore<2, float>;
 class NDArrayStore<2, double>;
 class NDArrayStore<2, int>;
 

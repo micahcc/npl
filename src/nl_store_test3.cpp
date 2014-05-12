@@ -58,7 +58,7 @@ int main()
 			for(size_t kk = 0; kk < array1.m_dim[2]; kk++) {
 				for(size_t tt = 0; tt < array1.m_dim[3]; tt++) {
 					double val = rand()/(double)RAND_MAX;
-					array1.setDouble(val, ii, jj, kk, tt);
+					array1.setD(val, ii, jj, kk, tt);
 					img1[make_tuple<int,int,int,int>(ii,jj,kk,tt)] = val;
 
 					if(array1.getDouble(ii, jj, kk,tt) != 
@@ -141,7 +141,7 @@ int main()
 							}
 						}
 					}
-					array2.setDouble(sum/n, ii, jj, kk, tt);
+					array2.setD(sum/n, ii, jj, kk, tt);
 				}
 			}
 		}

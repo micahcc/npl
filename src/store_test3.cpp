@@ -58,14 +58,14 @@ int main()
 			for(size_t kk = 0; kk < array1.m_dim[2]; kk++) {
 				for(size_t tt = 0; tt < array1.m_dim[3]; tt++) {
 					double val = rand()/(double)RAND_MAX;
-					array1.setDouble(val, ii, jj, kk, tt);
+					array1.setD(val, ii, jj, kk, tt);
 					img1[make_tuple<int,int,int,int>(ii,jj,kk,tt)] = val;
 
-					if(array1.getDouble(ii, jj, kk,tt) != 
+					if(array1.getD(ii, jj, kk,tt) != 
 							img1[make_tuple<int,int,int>(ii,jj,kk,tt)]) {
 						cerr << "Error difference between map and array" << endl;
 						cerr << ii << "," << jj << "," << kk << "," << tt << endl;
-						cerr << array1.getDouble(ii, jj, kk,tt) << " vs. " << 
+						cerr << array1.getD(ii, jj, kk,tt) << " vs. " << 
 							img1[make_tuple<int,int,int,int>(ii,jj,kk,tt)]  << endl;
 						return -1;
 					}
@@ -79,11 +79,11 @@ int main()
 		for(size_t jj = 0; jj < array1.m_dim[1]; jj++) {
 			for(size_t kk = 0; kk < array1.m_dim[2]; kk++) {
 				for(size_t tt = 0; tt < array1.m_dim[3]; tt++) {
-					if(array1.getDouble(ii, jj, kk,tt) != 
+					if(array1.getD(ii, jj, kk,tt) != 
 							img1[make_tuple<int,int,int>(ii,jj,kk,tt)]) {
 						cerr << "Error difference between map and array" << endl;
 						cerr << ii << "," << jj << "," << kk << "," << tt << endl;
-						cerr << array1.getDouble(ii, jj, kk, tt) << " vs. " << 
+						cerr << array1.getD(ii, jj, kk, tt) << " vs. " << 
 							img1[make_tuple<int,int,int>(ii,jj,kk, tt)]  << endl;
 						return -1;
 					}
@@ -135,13 +135,13 @@ int main()
 									int64_t ju = clamp(jj+uu, 0, array1.m_dim[1]-1);
 									int64_t kv = clamp(kk+vv, 0, array1.m_dim[2]-1);
 									int64_t tw = clamp(tt+ww, 0, array1.m_dim[2]-1);
-									sum += array1.getDouble(it, ju, kv, tw);
+									sum += array1.getD(it, ju, kv, tw);
 									n++;
 								}
 							}
 						}
 					}
-					array2.setDouble(sum/n, ii, jj, kk, tt);
+					array2.setD(sum/n, ii, jj, kk, tt);
 				}
 			}
 		}
@@ -152,12 +152,12 @@ int main()
 		for(size_t jj = 0; jj < array1.m_dim[1]; jj++) {
 			for(size_t kk = 0; kk < array1.m_dim[2]; kk++) {
 				for(size_t tt = 0; tt < array1.m_dim[3]; tt++) {
-					if(array2.getDouble(ii, jj, kk,tt) != 
+					if(array2.getD(ii, jj, kk,tt) != 
 							img2[make_tuple<int,int,int>(ii,jj,kk,tt)]) {
 						cerr << "Error difference between map and array" << endl;
 						cerr << ii << "," << jj << "," << kk << "," << tt << endl;
 						cerr << ii << "," << jj << "," << kk << "," << tt << endl;
-						cerr << array2.getDouble(ii, jj, kk, tt) << " vs. " << 
+						cerr << array2.getD(ii, jj, kk, tt) << " vs. " << 
 							img2[make_tuple<int,int,int>(ii,jj,kk,tt)]  << endl;
 						return -1;
 					}
