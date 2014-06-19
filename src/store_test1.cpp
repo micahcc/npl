@@ -18,8 +18,8 @@ int main()
 	}
 	
 	for(size_t ii = 0; ii < test1._m_dim[0]; ii++) {
-		double val = test1.getD(ii);
-		cerr << ii << "(" << test1.getAddr(ii) << "): " << val << endl;
+		double val = test1.getD({ii});
+		cerr << ii << "(" << test1.getAddr({ii}) << "): " << val << endl;
 		size_t er = check.erase(val);
 		if(er != 1) {
 			cerr << "Should have erased 1 but erased " << er << endl;
@@ -46,8 +46,8 @@ int main()
 	cerr << "Checking..." << endl;
 	for(size_t ii = 0; ii < test2._m_dim[0]; ii++) {
 		for(size_t jj = 0; jj < test2._m_dim[1]; jj++) {
-			double val = test2.getD(ii, jj);
-			cerr << ii << "," << jj << " (" << test2.getAddr(ii, jj) << "): " 
+			double val = test2.getD({ii, jj});
+			cerr << ii << "," << jj << " (" << test2.getAddr({ii, jj}) << "): " 
 				<< val << endl;
 			
 			size_t er = check.erase(val);
@@ -78,8 +78,8 @@ int main()
 	for(size_t ii = 0; ii < test3._m_dim[0]; ii++) {
 		for(size_t jj = 0; jj < test3._m_dim[1]; jj++) {
 			for(size_t kk = 0; kk < test3._m_dim[2]; kk++) {
-				double val = test3.getD(ii, jj, kk);
-				cerr << ii << "," << jj << " (" << test3.getAddr(ii, jj, kk) << "): " 
+				double val = test3.getD({ii, jj, kk});
+				cerr << ii << "," << jj << " (" << test3.getAddr({ii, jj, kk}) << "): " 
 					<< val << endl;
 
 				size_t er = check.erase(val);

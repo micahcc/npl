@@ -12,12 +12,12 @@ int main()
 
 	NDImage* testbase = &testimage;
 
-	testimage.setD(0,0,0,0);
-	cerr << testimage.getD(0,0,0) << endl;
-	cerr << testbase->getD(0,0,0) << endl;
+	testimage.setD(0,{0,0,0});
+	cerr << testimage.getD({0,0,0}) << endl;
+	cerr << testbase->getD({0,0,0}) << endl;
 	
-	testimage.setD(10,0,0,0);
-	cerr << testimage.getD(0,0,0) << endl;
-	cerr << testbase->getD(0,0,0) << endl;
+	testimage.setD(10,{0,0,0});
+	cerr << testimage.getD({0,0,0}) << endl;
+	cerr << testbase->getD({0,0,0}) << endl;
 
 }

@@ -11,20 +11,15 @@
 class NDArray
 {
 public:
-	virtual double getD(int x = 0, int y = 0, int z = 0, int t = 0, 
-			int u = 0, int v = 0, int w = 0) = 0;
+	virtual double getD(std::initializer_list<size_t> index) = 0;
 	
-	double operator()(int x = 0, int y = 0, int z = 0, int t = 0, int u = 0,
-			int v = 0, int w = 0);
+	virtual double operator()(std::initializer_list<size_t> index) = 0;
 
-	virtual int getI(int x = 0, int y = 0, int z = 0, int t = 0, 
-			int u = 0, int v = 0, int w = 0) = 0;
+	virtual int getI(std::initializer_list<size_t> index) = 0;
 	
-	virtual void setD(double newval, int x = 0, int y = 0, int z = 0, 
-			int t = 0, int u = 0, int v = 0, int w = 0) = 0;
+	virtual void setD(double newval, std::initializer_list<size_t> index) = 0;
 
-	virtual void setI(int newval, int x = 0, int y = 0, int z = 0, int t = 0, 
-			int u = 0, int v = 0, int w = 0) = 0;
+	virtual void setI(int newval, std::initializer_list<size_t> index) = 0;
 
 	virtual size_t getBytes() = 0;
 	virtual size_t getNDim() = 0;
@@ -47,24 +42,18 @@ public:
 	
 	~NDArrayStore() { delete[] _m_data; };
 
-	virtual size_t getAddr(int x = 0, int y = 0, int z = 0, int t = 0, 
-			int u = 0, int v = 0, int w = 0);
+	virtual size_t getAddr(std::initializer_list<size_t> index);
 	virtual size_t getAddr(size_t index[D]);
 
-	virtual double getD(int x = 0, int y = 0, int z = 0, int t = 0, 
-			int u = 0, int v = 0, int w = 0);
+	virtual double getD(std::initializer_list<size_t> index);
 
-	virtual int getI(int x = 0, int y = 0, int z = 0, int t = 0, 
-			int u = 0, int v = 0, int w = 0);
+	virtual int getI(std::initializer_list<size_t> index);
 	
-	virtual void setD(double newval, int x = 0, int y = 0, int z = 0, 
-			int t = 0, int u = 0, int v = 0, int w = 0);
+	virtual void setD(double newval, std::initializer_list<size_t> index);
 
-	virtual void setI(int newval, int x = 0, int y = 0, int z = 0, int t = 0, 
-			int u = 0, int v = 0, int w = 0);
+	virtual void setI(int newval, std::initializer_list<size_t> index);
 
-	virtual double operator()(int x = 0, int y = 0, int z = 0, int t = 0, int u = 0,
-			int v = 0, int w = 0);
+	virtual double operator()(std::initializer_list<size_t> index);
 
 	virtual size_t getBytes();
 	virtual size_t getNDim();
@@ -139,25 +128,16 @@ void NDArrayStore<D,T>::resize(size_t dim[D])
 
 template <int D, typename T>
 inline
-size_t NDArrayStore<D,T>::getAddr(int x, int y, int z, int t, int u, int v, int w)
+size_t NDArrayStore<D,T>::getAddr(std::initializer_list<size_t> index)
 {
 	size_t tmp[D];
-	switch(D) {
-		case 7:
-			tmp[6] = w;
-		case 6:
-			tmp[5] = v;
-		case 5:
-			tmp[4] = u;
-		case 4:
-			tmp[3] = t;
-		case 3:
-			tmp[2] = z;
-		case 2:
-			tmp[1] = y;
-		case 1:
-			tmp[0] = x;
-	}
+	
+	size_t ii = 0;
+	for(auto it=index.begin(); ii<D && it != index.end(); ii++, ++it) 
+		tmp[ii] = *it;
+	for( ; ii<D ; ii++) 
+		tmp[ii] = 0;
+
 	return getAddr(tmp);
 }
 
@@ -175,38 +155,34 @@ size_t NDArrayStore<D,T>::getAddr(size_t index[D])
 }
 
 template <int D, typename T>
-double NDArrayStore<D,T>::getD(int x, int y, int z, int t, int u, int v, 
-		int w)
+double NDArrayStore<D,T>::getD(std::initializer_list<size_t> index)
 {
-	size_t ii = getAddr(x,y,z,t,u,v,w);
+	size_t ii = getAddr(index);
 	return (double)_m_data[ii];
 }
 
 template <int D, typename T>
-int NDArrayStore<D,T>::getI(int x, int y, int z, int t, int u, int v, int w)
+int NDArrayStore<D,T>::getI(std::initializer_list<size_t> index)
 {
-	return (int)_m_data[getAddr(x,y,z,t,u,v,w)];
+	return (int)_m_data[getAddr(index)];
 }
 
 template <int D, typename T>
-void NDArrayStore<D,T>::setD(double newval, int x, int y, int z, int t, 
-		int u, int v, int w)
+void NDArrayStore<D,T>::setD(double newval, std::initializer_list<size_t> index)
 {
-	_m_data[getAddr(x,y,z,t,u,v,w)] = (T)newval;
+	_m_data[getAddr(index)] = (T)newval;
 }
 
 template <int D, typename T>
-void NDArrayStore<D,T>::setI(int newval, int x, int y, int z, int t, int u, 
-		int v, int w)
+void NDArrayStore<D,T>::setI(int newval, std::initializer_list<size_t> index)
 {
-	_m_data[getAddr(x,y,z,t,u,v,w)] = (T)newval;
+	_m_data[getAddr(index)] = (T)newval;
 }
 
 template <int D, typename T>
-double NDArrayStore<D,T>::operator()(int x, int y, int z, int t, int u, int v, 
-		int w)
+double NDArrayStore<D,T>::operator()(std::initializer_list<size_t> index)
 {
-	return (double)_m_data[getAddr(x,y,z,t,u,v,w)];
+	return (double)_m_data[getAddr(index)];
 }
 
 template <int D, typename T>

@@ -19,7 +19,7 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	size_t csize = atoi(argv[1]);
+	//size_t csize = atoi(argv[1]);
 	// need to produce a cache based on this
 
 	////////////////////////////////////////////////////////////////////////////////////
@@ -35,7 +35,7 @@ int main(int argc, char** argv)
 			for(size_t kk = 0; kk < array1._m_dim[2]; kk++) {
 				for(size_t tt = 0; tt < array1._m_dim[3]; tt++) {
 					double val = rand()/(double)RAND_MAX;
-					array1.setD(val, ii, jj, kk, tt);
+					array1.setD(val, {ii, jj, kk, tt});
 				}
 			}
 		}
@@ -55,17 +55,17 @@ int main(int argc, char** argv)
 						for(int64_t yy=-radius; yy<=radius ; yy++) {
 							for(int64_t zz=-radius; zz<=radius ; zz++) {
 								for(int64_t rr=-radius; rr<=radius ; rr++) {
-									int64_t ix = clamp(ii+xx, 0, array1._m_dim[0]-1);
-									int64_t jy = clamp(jj+yy, 0, array1._m_dim[1]-1);
-									int64_t kz = clamp(kk+zz, 0, array1._m_dim[2]-1);
-									int64_t tr = clamp(tt+rr, 0, array1._m_dim[2]-1);
-									sum += array1.getD(ix, jy, kz, tr);
+									size_t ix = clamp(ii+xx, 0, array1._m_dim[0]-1);
+									size_t jy = clamp(jj+yy, 0, array1._m_dim[1]-1);
+									size_t kz = clamp(kk+zz, 0, array1._m_dim[2]-1);
+									size_t tr = clamp(tt+rr, 0, array1._m_dim[2]-1);
+									sum += array1.getD({ix, jy, kz, tr});
 									n++;
 								}
 							}
 						}
 					}
-					array2.setD(sum/n, ii, jj, kk, tt);
+					array2.setD(sum/n, {ii, jj, kk, tt});
 				}
 			}
 		}
