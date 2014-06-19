@@ -2,6 +2,9 @@
 #include <cmath>
 #include <initializer_list>
 
+/**
+ * @brief Pure virtual interface to interact with an ND array
+ */
 class NDArray
 {
 public:
@@ -40,7 +43,7 @@ public:
 	NDArrayStore(size_t dim[D]);
 	NDArrayStore();
 	
-	~NDArrayStore() { delete[] m_data; };
+	~NDArrayStore() { delete[] _m_data; };
 
 	virtual size_t getAddr(int x = 0, int y = 0, int z = 0, int t = 0, 
 			int u = 0, int v = 0, int w = 0);
@@ -67,9 +70,9 @@ public:
 	virtual size_t* dim();
 
 	virtual void resize(size_t dim[D]);
-	
-	T* m_data;
-	size_t m_dim[D];	// overall image dimension
+
+	T* _m_data;
+	size_t _m_dim[D];	// overall image dimension
 };
 
 typedef NDArrayStore<2, double> Matrix;
@@ -88,11 +91,11 @@ NDArrayStore<D,T>::NDArrayStore(size_t dim[D])
 {
 	size_t dsize = 1;
 	for(size_t ii=0; ii<D; ii++) {
-		m_dim[ii] = dim[ii];
-		dsize *= m_dim[ii];
+		_m_dim[ii] = dim[ii];
+		dsize *= _m_dim[ii];
 	}
 
-	m_data = new T[dsize];
+	_m_data = new T[dsize];
 }
 
 template <int D, typename T>
@@ -105,17 +108,17 @@ NDArrayStore<D,T>::NDArrayStore(std::initializer_list<size_t> a_args)
 	// any extra parts of a_args
 	auto it = a_args.begin();
 	for(ii=0; ii < D && it != a_args.end(); ii++, ++it) {
-		m_dim[ii] = *it;
-		dsize *= m_dim[ii];
+		_m_dim[ii] = *it;
+		dsize *= _m_dim[ii];
 	}
 
 	// make any remaining dimensions size 1
 	for(ii=0; ii < D; ii++) {
-		m_dim[ii] = 1;
-		dsize *= m_dim[ii];
+		_m_dim[ii] = 1;
+		dsize *= _m_dim[ii];
 	}
 
-	m_data = new T[dsize];
+	_m_data = new T[dsize];
 }
 
 template <int D, typename T>
@@ -123,25 +126,25 @@ NDArrayStore<D,T>::NDArrayStore()
 {
 	size_t dsize = 1;
 	for(size_t ii=0; ii<D; ii++) {
-		m_dim[ii] = 1;
-		dsize *= m_dim[ii];
+		_m_dim[ii] = 1;
+		dsize *= _m_dim[ii];
 	}
 
-	m_data = new T[dsize];
+	_m_data = new T[dsize];
 }
 
 template <int D, typename T>
 void NDArrayStore<D,T>::resize(size_t dim[D])
 {
-	delete[] m_data;
+	delete[] _m_data;
 
 	size_t dsize = 1;
 	for(size_t ii=0; ii<D; ii++) {
-		m_dim[ii] = dim[ii];
-		dsize *= m_dim[ii];
+		_m_dim[ii] = dim[ii];
+		dsize *= _m_dim[ii];
 	}
 
-	m_data = new T[dsize];
+	_m_data = new T[dsize];
 }
 
 template <int D, typename T>
@@ -173,10 +176,10 @@ inline
 size_t NDArrayStore<D,T>::getAddr(size_t index[D])
 {
 	size_t loc = index[0];
-	size_t jump = m_dim[0];           // jump to global position
+	size_t jump = _m_dim[0];           // jump to global position
 	for(size_t ii=1; ii<D; ii++) {
 		loc += index[ii]*jump;
-		jump *= m_dim[ii];
+		jump *= _m_dim[ii];
 	}
 	return loc;
 }
@@ -186,34 +189,34 @@ double NDArrayStore<D,T>::getD(int x, int y, int z, int t, int u, int v,
 		int w)
 {
 	size_t ii = getAddr(x,y,z,t,u,v,w);
-	return (double)m_data[ii];
+	return (double)_m_data[ii];
 }
 
 template <int D, typename T>
 int NDArrayStore<D,T>::getI(int x, int y, int z, int t, int u, int v, int w)
 {
-	return (int)m_data[getAddr(x,y,z,t,u,v,w)];
+	return (int)_m_data[getAddr(x,y,z,t,u,v,w)];
 }
 
 template <int D, typename T>
 void NDArrayStore<D,T>::setD(double newval, int x, int y, int z, int t, 
 		int u, int v, int w)
 {
-	m_data[getAddr(x,y,z,t,u,v,w)] = (T)newval;
+	_m_data[getAddr(x,y,z,t,u,v,w)] = (T)newval;
 }
 
 template <int D, typename T>
 void NDArrayStore<D,T>::setI(int newval, int x, int y, int z, int t, int u, 
 		int v, int w)
 {
-	m_data[getAddr(x,y,z,t,u,v,w)] = (T)newval;
+	_m_data[getAddr(x,y,z,t,u,v,w)] = (T)newval;
 }
 
 template <int D, typename T>
 double NDArrayStore<D,T>::operator()(int x, int y, int z, int t, int u, int v, 
 		int w)
 {
-	return (double)m_data[getAddr(x,y,z,t,u,v,w)];
+	return (double)_m_data[getAddr(x,y,z,t,u,v,w)];
 }
 
 template <int D, typename T>
@@ -221,7 +224,7 @@ size_t NDArrayStore<D,T>::getBytes()
 {
 	size_t out = 1;
 	for(size_t ii=0; ii<D; ii++)
-		out*= m_dim[ii];
+		out*= _m_dim[ii];
 	return out*sizeof(T);
 }
 
@@ -234,13 +237,13 @@ size_t NDArrayStore<D,T>::getNDim()
 template <int D, typename T>
 size_t NDArrayStore<D,T>::dim(size_t dir)
 {
-	return m_dim[dir];
+	return _m_dim[dir];
 }
 
 template <int D, typename T>
 size_t* NDArrayStore<D,T>::dim()
 {
-	return m_dim;
+	return _m_dim;
 }
 
 

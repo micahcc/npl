@@ -11,7 +11,7 @@ int main()
 	cerr << "Bytes: " << test1.getBytes() << endl;
 
 	for(size_t ii = 0; ii < test1.getBytes()/sizeof(float); ii++)
-		test1.m_data[ii] = ii;
+		test1._m_data[ii] = ii;
 	
 	NDArray* testp = &test1;
 	clock_t t;

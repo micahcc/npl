@@ -13,10 +13,22 @@ NDImage* readNDImage(std::string filename);
 
 NDImage* readNiftiImage(std::string filename);
 
+
+/**
+ * @brief NDImage can basically be used like an NDArray, with the addition
+ * of orientation related additions.
+ */
 class NDImage : public virtual NDArray
 {
 };
 
+
+/**
+ * @brief NDImageStore is a version of NDArray that has an orientation matrix
+ *
+ * @tparam D 	Number of dimensions
+ * @tparam T	Pixel type
+ */
 template <int D, typename T>
 class NDImageStore :  public NDArrayStore<D,T>, public NDImage
 {
@@ -29,7 +41,8 @@ public:
 	 * @param size	vector of size dim, with the image size
 	 * @param orient orientation
 	 */
-	NDImageStore(size_t size[D]) : NDArrayStore<D,T>(size), m_orient({D,D}) {} ;
+	NDImageStore(size_t size[D]) : NDArrayStore<D,T>(size), _m_orient({D,D}) {};
+
 //	NDImage(size_t dim, size_t* size);
 //
 //	/* Functions which operate pixelwise on the data */
@@ -37,9 +50,7 @@ public:
 //	void apply(void* data);
 //	void apply(void(*cb)(double), void* data);
 
-private:
-
-	Matrix m_orient;
+	Matrix _m_orient;
 
 };
 

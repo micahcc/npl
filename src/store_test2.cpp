@@ -48,9 +48,9 @@ int main()
 	NDArrayStore<3, float> array2(dim3);
 
 	cerr << "Filling..." << endl;
-	for(size_t ii = 0; ii < array1.m_dim[0]; ii++) {
-		for(size_t jj = 0; jj < array1.m_dim[1]; jj++) {
-			for(size_t kk = 0; kk < array1.m_dim[2]; kk++) {
+	for(size_t ii = 0; ii < array1._m_dim[0]; ii++) {
+		for(size_t jj = 0; jj < array1._m_dim[1]; jj++) {
+			for(size_t kk = 0; kk < array1._m_dim[2]; kk++) {
 				double val = rand()/(double)RAND_MAX;
 				array1.setD(val, ii, jj, kk);
 				img1[make_tuple<int,int,int>(ii,jj,kk)] = val;
@@ -68,9 +68,9 @@ int main()
 	}
 	
 	cerr << "Comparing Set Values..." << endl;
-	for(size_t ii = 0; ii < array1.m_dim[0]; ii++) {
-		for(size_t jj = 0; jj < array1.m_dim[1]; jj++) {
-			for(size_t kk = 0; kk < array1.m_dim[2]; kk++) {
+	for(size_t ii = 0; ii < array1._m_dim[0]; ii++) {
+		for(size_t jj = 0; jj < array1._m_dim[1]; jj++) {
+			for(size_t kk = 0; kk < array1._m_dim[2]; kk++) {
 				if(array1.getD(ii, jj, kk) != 
 						img1[make_tuple<int,int,int>(ii,jj,kk)]) {
 					cerr << "Error difference between map and array" << endl;
@@ -85,17 +85,17 @@ int main()
 	
 	int64_t radius = 2;
 	cerr << "Kernel..." << endl;
-	for(size_t ii = 0; ii < array1.m_dim[0]; ii++) {
-		for(size_t jj = 0; jj < array1.m_dim[1]; jj++) {
-			for(size_t kk = 0; kk < array1.m_dim[2]; kk++) {
+	for(size_t ii = 0; ii < array1._m_dim[0]; ii++) {
+		for(size_t jj = 0; jj < array1._m_dim[1]; jj++) {
+			for(size_t kk = 0; kk < array1._m_dim[2]; kk++) {
 				double sum = 0;
 				double n = 0;
 				for(int64_t tt=-radius; tt<=radius ; tt++) {
 					for(int64_t uu=-radius; uu<=radius ; uu++) {
 						for(int64_t vv=-radius; vv<=radius ; vv++) {
-							int64_t it = clamp(ii+tt, 0, array1.m_dim[0]-1);
-							int64_t ju = clamp(jj+uu, 0, array1.m_dim[1]-1);
-							int64_t kv = clamp(kk+vv, 0, array1.m_dim[2]-1);
+							int64_t it = clamp(ii+tt, 0, array1._m_dim[0]-1);
+							int64_t ju = clamp(jj+uu, 0, array1._m_dim[1]-1);
+							int64_t kv = clamp(kk+vv, 0, array1._m_dim[2]-1);
 							sum += img1[make_tuple<int,int,int>(it,ju,kv)];
 							n++;
 						}
@@ -107,17 +107,17 @@ int main()
 	}
 	
 	cerr << "Kernel..." << endl;
-	for(size_t ii = 0; ii < array1.m_dim[0]; ii++) {
-		for(size_t jj = 0; jj < array1.m_dim[1]; jj++) {
-			for(size_t kk = 0; kk < array1.m_dim[2]; kk++) {
+	for(size_t ii = 0; ii < array1._m_dim[0]; ii++) {
+		for(size_t jj = 0; jj < array1._m_dim[1]; jj++) {
+			for(size_t kk = 0; kk < array1._m_dim[2]; kk++) {
 				double sum = 0;
 				double n = 0;
 				for(int64_t tt=-radius; tt<=radius ; tt++) {
 					for(int64_t uu=-radius; uu<=radius ; uu++) {
 						for(int64_t vv=-radius; vv<=radius ; vv++) {
-							int it = clamp(ii+tt, 0, array1.m_dim[0]-1);
-							int ju = clamp(jj+uu, 0, array1.m_dim[1]-1);
-							int kv = clamp(kk+vv, 0, array1.m_dim[2]-1);
+							int it = clamp(ii+tt, 0, array1._m_dim[0]-1);
+							int ju = clamp(jj+uu, 0, array1._m_dim[1]-1);
+							int kv = clamp(kk+vv, 0, array1._m_dim[2]-1);
 							sum += array1.getD(it, ju, kv);
 							n++;
 						}
@@ -129,9 +129,9 @@ int main()
 	}
 
 	cerr << "Comparing..." << endl;
-	for(size_t ii = 0; ii < array1.m_dim[0]; ii++) {
-		for(size_t jj = 0; jj < array1.m_dim[1]; jj++) {
-			for(size_t kk = 0; kk < array1.m_dim[2]; kk++) {
+	for(size_t ii = 0; ii < array1._m_dim[0]; ii++) {
+		for(size_t jj = 0; jj < array1._m_dim[1]; jj++) {
+			for(size_t kk = 0; kk < array1._m_dim[2]; kk++) {
 				if(array2.getD(ii, jj, kk) != 
 						img2[make_tuple<int,int,int>(ii,jj,kk)]) {
 					cerr << "Error difference between map and array" << endl;
