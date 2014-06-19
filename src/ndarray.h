@@ -1,5 +1,6 @@
 #include <cstddef>
 #include <cmath>
+#include <initializer_list>
 
 class NDArray
 {
@@ -25,7 +26,6 @@ public:
 	virtual size_t* dim() = 0;
 };
 
-
 /**
  * @brief Basic storage unity for ND array. Creates a big chunk of memory.
  *
@@ -33,41 +33,46 @@ public:
  * @tparam T type of sample
  */
 template <int D, typename T>
-class NDArrayStore : public NDArray
+class NDArrayStore : public virtual NDArray
 {
 public:
+	NDArrayStore(std::initializer_list<size_t> a_args);
 	NDArrayStore(size_t dim[D]);
+	NDArrayStore();
 	
 	~NDArrayStore() { delete[] m_data; };
 
-	size_t getAddr(int x = 0, int y = 0, int z = 0, int t = 0, 
+	virtual size_t getAddr(int x = 0, int y = 0, int z = 0, int t = 0, 
 			int u = 0, int v = 0, int w = 0);
-	size_t getAddr(size_t index[D]);
+	virtual size_t getAddr(size_t index[D]);
 
-	double getD(int x = 0, int y = 0, int z = 0, int t = 0, 
+	virtual double getD(int x = 0, int y = 0, int z = 0, int t = 0, 
 			int u = 0, int v = 0, int w = 0);
 
-	int getI(int x = 0, int y = 0, int z = 0, int t = 0, 
+	virtual int getI(int x = 0, int y = 0, int z = 0, int t = 0, 
 			int u = 0, int v = 0, int w = 0);
 	
-	void setD(double newval, int x = 0, int y = 0, int z = 0, 
+	virtual void setD(double newval, int x = 0, int y = 0, int z = 0, 
 			int t = 0, int u = 0, int v = 0, int w = 0);
 
-	void setI(int newval, int x = 0, int y = 0, int z = 0, int t = 0, 
+	virtual void setI(int newval, int x = 0, int y = 0, int z = 0, int t = 0, 
 			int u = 0, int v = 0, int w = 0);
 
-	double operator()(int x = 0, int y = 0, int z = 0, int t = 0, int u = 0,
+	virtual double operator()(int x = 0, int y = 0, int z = 0, int t = 0, int u = 0,
 			int v = 0, int w = 0);
 
-	size_t getBytes();
-	size_t getNDim();
-	size_t dim(size_t dir);
-	size_t* dim();
+	virtual size_t getBytes();
+	virtual size_t getNDim();
+	virtual size_t dim(size_t dir);
+	virtual size_t* dim();
+
+	virtual void resize(size_t dim[D]);
 	
 	T* m_data;
 	size_t m_dim[D];	// overall image dimension
 };
 
+typedef NDArrayStore<2, double> Matrix;
 
 /**
  * @brief Initializes an array with a size and a chache size. The layout will
@@ -81,6 +86,55 @@ public:
 template <int D, typename T>
 NDArrayStore<D,T>::NDArrayStore(size_t dim[D])
 {
+	size_t dsize = 1;
+	for(size_t ii=0; ii<D; ii++) {
+		m_dim[ii] = dim[ii];
+		dsize *= m_dim[ii];
+	}
+
+	m_data = new T[dsize];
+}
+
+template <int D, typename T>
+NDArrayStore<D,T>::NDArrayStore(std::initializer_list<size_t> a_args)
+{
+	size_t dsize = 1;
+	size_t ii;
+	
+	// set dimensions with matching size to the minimum length, ignoring
+	// any extra parts of a_args
+	auto it = a_args.begin();
+	for(ii=0; ii < D && it != a_args.end(); ii++, ++it) {
+		m_dim[ii] = *it;
+		dsize *= m_dim[ii];
+	}
+
+	// make any remaining dimensions size 1
+	for(ii=0; ii < D; ii++) {
+		m_dim[ii] = 1;
+		dsize *= m_dim[ii];
+	}
+
+	m_data = new T[dsize];
+}
+
+template <int D, typename T>
+NDArrayStore<D,T>::NDArrayStore()
+{
+	size_t dsize = 1;
+	for(size_t ii=0; ii<D; ii++) {
+		m_dim[ii] = 1;
+		dsize *= m_dim[ii];
+	}
+
+	m_data = new T[dsize];
+}
+
+template <int D, typename T>
+void NDArrayStore<D,T>::resize(size_t dim[D])
+{
+	delete[] m_data;
+
 	size_t dsize = 1;
 	for(size_t ii=0; ii<D; ii++) {
 		m_dim[ii] = dim[ii];
@@ -188,5 +242,6 @@ size_t* NDArrayStore<D,T>::dim()
 {
 	return m_dim;
 }
+
 
 
