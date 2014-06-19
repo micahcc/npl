@@ -1,3 +1,6 @@
+#ifndef NDARRAY_H
+#define NDARRAY_H
+
 #include <cstddef>
 #include <cmath>
 #include <initializer_list>
@@ -41,7 +44,6 @@ class NDArrayStore : public virtual NDArray
 public:
 	NDArrayStore(std::initializer_list<size_t> a_args);
 	NDArrayStore(size_t dim[D]);
-	NDArrayStore();
 	
 	~NDArrayStore() { delete[] _m_data; };
 
@@ -114,18 +116,6 @@ NDArrayStore<D,T>::NDArrayStore(std::initializer_list<size_t> a_args)
 
 	// make any remaining dimensions size 1
 	for(ii=0; ii < D; ii++) {
-		_m_dim[ii] = 1;
-		dsize *= _m_dim[ii];
-	}
-
-	_m_data = new T[dsize];
-}
-
-template <int D, typename T>
-NDArrayStore<D,T>::NDArrayStore()
-{
-	size_t dsize = 1;
-	for(size_t ii=0; ii<D; ii++) {
 		_m_dim[ii] = 1;
 		dsize *= _m_dim[ii];
 	}
@@ -246,5 +236,4 @@ size_t* NDArrayStore<D,T>::dim()
 	return _m_dim;
 }
 
-
-
+#endif
