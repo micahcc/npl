@@ -10,12 +10,11 @@ class NDImage;
 
 // simply reads an image in its native type
 NDImage* readNDImage(std::string filename);
+void writeNDImage(NDImage* img, std::string filename);
 
 // enforces given pixel type
 template <typename T>
 NDImage* readNDImage(std::string filename);
-
-NDImage* readNiftiImage(std::string filename);
 
 
 /**

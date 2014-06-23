@@ -65,6 +65,9 @@ def configure(conf):
     ############################### 
     # Library Configuration
     ############################### 
+    conf.check_cfg(atleast_pkgconfig_version='0.0.0')
+    conf.check_cfg(package='zlib', uselib_store='ZLIB',
+                args=['--cflags', '--libs'])
 
 def options(ctx):
     ctx.load('compiler_cxx')

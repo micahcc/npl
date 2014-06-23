@@ -1,487 +1,110 @@
-#ifndef NIFTI1_H
-#define NIFTI1_H
+#ifndef NIFTI_H
+#define NIFTI_H
 
-struct NiftiV1
+typedef struct __attribute__((packed)) 
 {
-	int   sizeof_hdr;	 // always 348
-
-	// ignore
+	int32_t   sizeof_hdr;
 	char  data_type[10];
 	char  db_name[18];
-	int   extents;
-	short session_error;
+	int32_t   extents;
+	int16_t session_error;
 	char  regular;
 	char  dim_info;
-	
-	
-	short dim[8];
+	int16_t dim[8];
 	float intent_p1 ;
-	
 	float intent_p2 ;
-	
 	float intent_p3 ;
-	
-	short intent_code ;
-	short datatype;
-	short bitpix;
-	short slice_start;
+	int16_t intent_code ;
+	int16_t datatype;
+	int16_t bitpix;
+	int16_t slice_start;
 	float pixdim[8];
 	float vox_offset;
 	float scl_slope ;
 	float scl_inter ;
-	short slice_end;
+	int16_t slice_end;
 	char  slice_code ;
 	char  xyzt_units ;
 	float cal_max;
 	float cal_min;
 	float slice_duration;
 	float toffset;
-	int   glmax;
-	int   glmin;
-	
-	
+	int32_t   glmax;
+	int32_t   glmin;
 	char  descrip[80];
 	char  aux_file[24];
-	
-	short qform_code ;
-	short sform_code ;
-	
+	int16_t qform_code ;
+	int16_t sform_code ;
 	float quatern_b ;
 	float quatern_c ;
 	float quatern_d ;
 	float qoffset_x ;
 	float qoffset_y ;
 	float qoffset_z ;
-	
 	float srow_x[4] ;
 	float srow_y[4] ;
 	float srow_z[4] ;
-	
 	char intent_name[16];
-	
 	char magic[4];
+} nifti1_header;
 
-	unsigned char bytes[0];
-};
+typedef struct __attribute__((packed)) 
+{ 
+   int32_t   sizeof_hdr;     
+   char  magic[8] ;      
+   int16_t datatype;     
+   int16_t bitpix;       
+   int64_t dim[8];       
+   double intent_p1 ;    
+   double intent_p2 ;    
+   double intent_p3 ;    
+   double pixdim[8];     
+   int64_t vox_offset;   
+   double scl_slope ;    
+   double scl_inter ;    
+   double cal_max;       
+   double cal_min;       
+   double slice_duration;
+   double toffset;       
+   int64_t slice_start;  
+   int64_t slice_end;    
+   char  descrip[80];    
+   char  aux_file[24];   
+   int32_t qform_code ;      
+   int32_t sform_code ;      
+   double quatern_b ;    
+   double quatern_c ;    
+   double quatern_d ;    
+   double qoffset_x ;    
+   double qoffset_y ;    
+   double qoffset_z ;    
+   double srow_x[4] ;    
+   double srow_y[4] ;    
+   double srow_z[4] ;    
+   int32_t slice_code ;      
+   int32_t xyzt_units ;      
+   int32_t intent_code ;     
+   char intent_name[16]; 
+   char dim_info;        
+   char unused_str[15];  
+} nifti2_header;
 
-
-struct Nifti_v1 { /* NIFTI-1 usage
-                                           *--- was header_key substruct ---*/
- int   sizeof_hdr;    /*!< MUST be 348           */  /* int sizeof_hdr;      */
- char  data_type[10]; /*!< ++UNUSED++            */  /* char data_type[10];  */
- char  db_name[18];   /*!< ++UNUSED++            */  /* char db_name[18];    */
- int   extents;       /*!< ++UNUSED++            */  /* int extents;         */
- short session_error; /*!< ++UNUSED++            */  /* short session_error; */
- char  regular;       /*!< ++UNUSED++            */  /* char regular;        */
- char  dim_info;      /*!< MRI slice ordering.   */  /* char hkey_un0;       */
-
-                                      /*--- was image_dimension substruct ---*/
- short dim[8];        /*!< Data array dimensions.*/  /* short dim[8];        */
- float intent_p1 ;    /*!< 1st intent parameter. */  /* short unused8;       */
-                                                     /* short unused9;       */
- float intent_p2 ;    /*!< 2nd intent parameter. */  /* short unused10;      */
-                                                     /* short unused11;      */
- float intent_p3 ;    /*!< 3rd intent parameter. */  /* short unused12;      */
-                                                     /* short unused13;      */
- short intent_code ;  /*!< NIFTI_INTENT_* code.  */  /* short unused14;      */
- short datatype;      /*!< Defines data type!    */  /* short datatype;      */
- short bitpix;        /*!< Number bits/voxel.    */  /* short bitpix;        */
- short slice_start;   /*!< First slice index.    */  /* short dim_un0;       */
- float pixdim[8];     /*!< Grid spacings.        */  /* float pixdim[8];     */
- float vox_offset;    /*!< Offset into .nii file */  /* float vox_offset;    */
- float scl_slope ;    /*!< Data scaling: slope.  */  /* float funused1;      */
- float scl_inter ;    /*!< Data scaling: offset. */  /* float funused2;      */
- short slice_end;     /*!< Last slice index.     */  /* float funused3;      */
- char  slice_code ;   /*!< Slice timing order.   */
- char  xyzt_units ;   /*!< Units of pixdim[1..4] */
- float cal_max;       /*!< Max display intensity */  /* float cal_max;       */
- float cal_min;       /*!< Min display intensity */  /* float cal_min;       */
- float slice_duration;/*!< Time for 1 slice.     */  /* float compressed;    */
- float toffset;       /*!< Time axis shift.      */  /* float verified;      */
- int   glmax;         /*!< ++UNUSED++            */  /* int glmax;           */
- int   glmin;         /*!< ++UNUSED++            */  /* int glmin;           */
-
-                                         /*--- was data_history substruct ---*/
- char  descrip[80];   /*!< any text you like.    */  /* char descrip[80];    */
- char  aux_file[24];  /*!< auxiliary filename.   */  /* char aux_file[24];   */
-
- short qform_code ;   /*!< NIFTI_XFORM_* code.   */  /*-- all ANALYZE 7.5 ---*/
- short sform_code ;   /*!< NIFTI_XFORM_* code.   */  /*   fields below here  */
-                                                     /*   are replaced       */
- float quatern_b ;    /*!< Quaternion b param.   */
- float quatern_c ;    /*!< Quaternion c param.   */
- float quatern_d ;    /*!< Quaternion d param.   */
- float qoffset_x ;    /*!< Quaternion x shift.   */
- float qoffset_y ;    /*!< Quaternion y shift.   */
- float qoffset_z ;    /*!< Quaternion z shift.   */
-
- float srow_x[4] ;    /*!< 1st row affine transform.   */
- float srow_y[4] ;    /*!< 2nd row affine transform.   */
- float srow_z[4] ;    /*!< 3rd row affine transform.   */
-
- char intent_name[16];/*!< 'name' or meaning of data.  */
-
- char magic[4] ;      /*!< MUST be "ni1\0" or "n+1\0". */
-
-} ;                   /**** 348 bytes total ****/
-
-/*---------------------------------------------------------------------------*/
-/* HEADER EXTENSIONS:
-   -----------------
-   After the end of the 348 byte header (e.g., after the magic field),
-   the next 4 bytes are a char array field named "extension". By default,
-   all 4 bytes of this array should be set to zero. In a .nii file, these
-   4 bytes will always be present, since the earliest start point for
-   the image data is byte #352. In a separate .hdr file, these bytes may
-   or may not be present. If not present (i.e., if the length of the .hdr
-   file is 348 bytes), then a NIfTI-1 compliant program should use the
-   default value of extension={0,0,0,0}. The first byte (extension[0])
-   is the only value of this array that is specified at present. The other
-   3 bytes are reserved for future use.
-
-   If extension[0] is nonzero, it indicates that extended header information
-   is present in the bytes following the extension array. In a .nii file,
-   this extended header data is before the image data (and vox_offset
-   must be set correctly to allow for this). In a .hdr file, this extended
-   data follows extension and proceeds (potentially) to the end of the file.
-
-   The format of extended header data is weakly specified. Each extension
-   must be an integer multiple of 16 bytes long. The first 8 bytes of each
-   extension comprise 2 integers:
-      int esize , ecode ;
-   These values may need to be byte-swapped, as indicated by dim[0] for
-   the rest of the header.
-     * esize is the number of bytes that form the extended header data
-       + esize must be a positive integral multiple of 16
-       + this length includes the 8 bytes of esize and ecode themselves
-     * ecode is a non-negative integer that indicates the format of the
-       extended header data that follows
-       + different ecode values are assigned to different developer groups
-       + at present, the "registered" values for code are
-         = 0 = unknown private format (not recommended!)
-         = 2 = DICOM format (i.e., attribute tags and values)
-         = 4 = AFNI group (i.e., ASCII XML-ish elements)
-   In the interests of interoperability (a primary rationale for NIfTI),
-   groups developing software that uses this extension mechanism are
-   encouraged to document and publicize the format of their extensions.
-   To this end, the NIfTI DFWG will assign even numbered codes upon request
-   to groups submitting at least rudimentary documentation for the format
-   of their extension; at present, the contact is mailto:rwcox@nih.gov.
-   The assigned codes and documentation will be posted on the NIfTI
-   website. All odd values of ecode (and 0) will remain unassigned;
-   at least, until the even ones are used up, when we get to 2,147,483,646.
-
-   Note that the other contents of the extended header data section are
-   totally unspecified by the NIfTI-1 standard. In particular, if binary
-   data is stored in such a section, its byte order is not necessarily
-   the same as that given by examining dim[0]; it is incumbent on the
-   programs dealing with such data to determine the byte order of binary
-   extended header data.
-
-   Multiple extended header sections are allowed, each starting with an
-   esize,ecode value pair. The first esize value, as described above,
-   is at bytes #352-355 in the .hdr or .nii file (files start at byte #0).
-   If this value is positive, then the second (esize2) will be found
-   starting at byte #352+esize1 , the third (esize3) at byte #352+esize1+esize2,
-   et cetera.  Of course, in a .nii file, the value of vox_offset must
-   be compatible with these extensions. If a malformed file indicates
-   that an extended header data section would run past vox_offset, then
-   the entire extended header section should be ignored. In a .hdr file,
-   if an extended header data section would run past the end-of-file,
-   that extended header data should also be ignored.
-
-   With the above scheme, a program can successively examine the esize
-   and ecode values, and skip over each extended header section if the
-   program doesn't know how to interpret the data within. Of course, any
-   program can simply ignore all extended header sections simply by jumping
-   straight to the image data using vox_offset.
------------------------------------------------------------------------------*/
-
-/*! \struct nifti1_extender
-    \brief This structure represents a 4-byte string that should follow the
-           binary nifti_1_header data in a NIFTI-1 header file.  If the char
-           values are {1,0,0,0}, the file is expected to contain extensions,
-           values of {0,0,0,0} imply the file does not contain extensions.
-           Other sequences of values are not currently defined.
- */
-struct nifti1_extender { char extension[4] ; } ;
-typedef struct nifti1_extender nifti1_extender ;
-
-/*! \struct nifti1_extension
-    \brief Data structure defining the fields of a header extension.
- */
-struct nifti1_extension {
-   int    esize ; /*!< size of extension, in bytes (must be multiple of 16) */
-   int    ecode ; /*!< extension code, one of the NIFTI_ECODE_ values       */
-   char * edata ; /*!< raw data, with no byte swapping (length is esize-8)  */
-} ;
-typedef struct nifti1_extension nifti1_extension ;
-
-/*---------------------------------------------------------------------------*/
-/* DATA DIMENSIONALITY (as in ANALYZE 7.5):
-   ---------------------------------------
-     dim[0] = number of dimensions;
-              - if dim[0] is outside range 1..7, then the header information
-                needs to be byte swapped appropriately
-              - ANALYZE supports dim[0] up to 7, but NIFTI-1 reserves
-                dimensions 1,2,3 for space (x,y,z), 4 for time (t), and
-                5,6,7 for anything else needed.
-
-     dim[i] = length of dimension #i, for i=1..dim[0]  (must be positive)
-              - also see the discussion of intent_code, far below
-
-     pixdim[i] = voxel width along dimension #i, i=1..dim[0] (positive)
-                 - cf. ORIENTATION section below for use of pixdim[0]
-                 - the units of pixdim can be specified with the xyzt_units
-                   field (also described far below).
-
-   Number of bits per voxel value is in bitpix, which MUST correspond with
-   the datatype field.  The total number of bytes in the image data is
-     dim[1] * ... * dim[dim[0]] * bitpix / 8
-
-   In NIFTI-1 files, dimensions 1,2,3 are for space, dimension 4 is for time,
-   and dimension 5 is for storing multiple values at each spatiotemporal
-   voxel.  Some examples:
-     - A typical whole-brain FMRI experiment's time series:
-        - dim[0] = 4
-        - dim[1] = 64   pixdim[1] = 3.75 xyzt_units =  NIFTI_UNITS_MM
-        - dim[2] = 64   pixdim[2] = 3.75             | NIFTI_UNITS_SEC
-        - dim[3] = 20   pixdim[3] = 5.0
-        - dim[4] = 120  pixdim[4] = 2.0
-     - A typical T1-weighted anatomical volume:
-        - dim[0] = 3
-        - dim[1] = 256  pixdim[1] = 1.0  xyzt_units = NIFTI_UNITS_MM
-        - dim[2] = 256  pixdim[2] = 1.0
-        - dim[3] = 128  pixdim[3] = 1.1
-     - A single slice EPI time series:
-        - dim[0] = 4
-        - dim[1] = 64   pixdim[1] = 3.75 xyzt_units =  NIFTI_UNITS_MM
-        - dim[2] = 64   pixdim[2] = 3.75             | NIFTI_UNITS_SEC
-        - dim[3] = 1    pixdim[3] = 5.0
-        - dim[4] = 1200 pixdim[4] = 0.2
-     - A 3-vector stored at each point in a 3D volume:
-        - dim[0] = 5
-        - dim[1] = 256  pixdim[1] = 1.0  xyzt_units = NIFTI_UNITS_MM
-        - dim[2] = 256  pixdim[2] = 1.0
-        - dim[3] = 128  pixdim[3] = 1.1
-        - dim[4] = 1    pixdim[4] = 0.0
-        - dim[5] = 3                     intent_code = NIFTI_INTENT_VECTOR
-     - A single time series with a 3x3 matrix at each point:
-        - dim[0] = 5
-        - dim[1] = 1                     xyzt_units = NIFTI_UNITS_SEC
-        - dim[2] = 1
-        - dim[3] = 1
-        - dim[4] = 1200 pixdim[4] = 0.2
-        - dim[5] = 9                     intent_code = NIFTI_INTENT_GENMATRIX
-        - intent_p1 = intent_p2 = 3.0    (indicates matrix dimensions)
------------------------------------------------------------------------------*/
-
-/*---------------------------------------------------------------------------*/
-/* DATA STORAGE:
-   ------------
-   If the magic field is "n+1", then the voxel data is stored in the
-   same file as the header.  In this case, the voxel data starts at offset
-   (int)vox_offset into the header file.  Thus, vox_offset=352.0 means that
-   the data starts immediately after the NIFTI-1 header.  If vox_offset is
-   greater than 352, the NIFTI-1 format does not say much about the
-   contents of the dataset file between the end of the header and the
-   start of the data.
-
-   FILES:
-   -----
-   If the magic field is "ni1", then the voxel data is stored in the
-   associated ".img" file, starting at offset 0 (i.e., vox_offset is not
-   used in this case, and should be set to 0.0).
-
-   When storing NIFTI-1 datasets in pairs of files, it is customary to name
-   the files in the pattern "name.hdr" and "name.img", as in ANALYZE 7.5.
-   When storing in a single file ("n+1"), the file name should be in
-   the form "name.nii" (the ".nft" and ".nif" suffixes are already taken;
-   cf. http://www.icdatamaster.com/n.html ).
-
-   BYTE ORDERING:
-   -------------
-   The byte order of the data arrays is presumed to be the same as the byte
-   order of the header (which is determined by examining dim[0]).
-
-   Floating point types are presumed to be stored in IEEE-754 format.
------------------------------------------------------------------------------*/
-
-/*---------------------------------------------------------------------------*/
-/* DETAILS ABOUT vox_offset:
-   ------------------------
-   In a .nii file, the vox_offset field value is interpreted as the start
-   location of the image data bytes in that file. In a .hdr/.img file pair,
-   the vox_offset field value is the start location of the image data
-   bytes in the .img file.
-    * If vox_offset is less than 352 in a .nii file, it is equivalent
-      to 352 (i.e., image data never starts before byte #352 in a .nii file).
-    * The default value for vox_offset in a .nii file is 352.
-    * In a .hdr file, the default value for vox_offset is 0.
-    * vox_offset should be an integer multiple of 16; otherwise, some
-      programs may not work properly (e.g., SPM). This is to allow
-      memory-mapped input to be properly byte-aligned.
-   Note that since vox_offset is an IEEE-754 32 bit float (for compatibility
-   with the ANALYZE-7.5 format), it effectively has a 24 bit mantissa. All
-   integers from 0 to 2^24 can be represented exactly in this format, but not
-   all larger integers are exactly storable as IEEE-754 32 bit floats. However,
-   unless you plan to have vox_offset be potentially larger than 16 MB, this
-   should not be an issue. (Actually, any integral multiple of 16 up to 2^27
-   can be represented exactly in this format, which allows for up to 128 MB
-   of random information before the image data.  If that isn't enough, then
-   perhaps this format isn't right for you.)
-
-   In a .img file (i.e., image data stored separately from the NIfTI-1
-   header), data bytes between #0 and #vox_offset-1 (inclusive) are completely
-   undefined and unregulated by the NIfTI-1 standard. One potential use of
-   having vox_offset > 0 in the .hdr/.img file pair storage method is to make
-   the .img file be a copy of (or link to) a pre-existing image file in some
-   other format, such as DICOM; then vox_offset would be set to the offset of
-   the image data in this file. (It may not be possible to follow the
-   "multiple-of-16 rule" with an arbitrary external file; using the NIfTI-1
-   format in such a case may lead to a file that is incompatible with software
-   that relies on vox_offset being a multiple of 16.)
-
-   In a .nii file, data bytes between #348 and #vox_offset-1 (inclusive) may
-   be used to store user-defined extra information; similarly, in a .hdr file,
-   any data bytes after byte #347 are available for user-defined extra
-   information. The (very weak) regulation of this extra header data is
-   described elsewhere.
------------------------------------------------------------------------------*/
-
-/*---------------------------------------------------------------------------*/
-/* DATA SCALING:
-   ------------
-   If the scl_slope field is nonzero, then each voxel value in the dataset
-   should be scaled as
-      y = scl_slope * x + scl_inter
-   where x = voxel value stored
-         y = "true" voxel value
-   Normally, we would expect this scaling to be used to store "true" floating
-   values in a smaller integer datatype, but that is not required.  That is,
-   it is legal to use scaling even if the datatype is a float type (crazy,
-   perhaps, but legal).
-    - However, the scaling is to be ignored if datatype is DT_RGB24.
-    - If datatype is a complex type, then the scaling is to be
-      applied to both the real and imaginary parts.
-
-   The cal_min and cal_max fields (if nonzero) are used for mapping (possibly
-   scaled) dataset values to display colors:
-    - Minimum display intensity (black) corresponds to dataset value cal_min.
-    - Maximum display intensity (white) corresponds to dataset value cal_max.
-    - Dataset values below cal_min should display as black also, and values
-      above cal_max as white.
-    - Colors "black" and "white", of course, may refer to any scalar display
-      scheme (e.g., a color lookup table specified via aux_file).
-    - cal_min and cal_max only make sense when applied to scalar-valued
-      datasets (i.e., dim[0] < 5 or dim[5] = 1).
------------------------------------------------------------------------------*/
-
-/*---------------------------------------------------------------------------*/
-/* TYPE OF DATA (acceptable values for datatype field):
-   ---------------------------------------------------
-   Values of datatype smaller than 256 are ANALYZE 7.5 compatible.
-   Larger values are NIFTI-1 additions.  These are all multiples of 256, so
-   that no bits below position 8 are set in datatype.  But there is no need
-   to use only powers-of-2, as the original ANALYZE 7.5 datatype codes do.
-
-   The additional codes are intended to include a complete list of basic
-   scalar types, including signed and unsigned integers from 8 to 64 bits,
-   floats from 32 to 128 bits, and complex (float pairs) from 64 to 256 bits.
-
-   Note that most programs will support only a few of these datatypes!
-   A NIFTI-1 program should fail gracefully (e.g., print a warning message)
-   when it encounters a dataset with a type it doesn't like.
------------------------------------------------------------------------------*/
-
-#undef DT_UNKNOWN  /* defined in dirent.h on some Unix systems */
-
-/*! \defgroup NIFTI1_DATATYPES
-    \brief nifti1 datatype codes
-    @{
- */
-                            /*--- the original ANALYZE 7.5 type codes ---*/
-#define DT_NONE                    0
-#define DT_UNKNOWN                 0     /* what it says, dude           */
-#define DT_BINARY                  1     /* binary (1 bit/voxel)         */
-#define DT_UNSIGNED_CHAR           2     /* unsigned char (8 bits/voxel) */
-#define DT_SIGNED_SHORT            4     /* signed short (16 bits/voxel) */
-#define DT_SIGNED_INT              8     /* signed int (32 bits/voxel)   */
-#define DT_FLOAT                  16     /* float (32 bits/voxel)        */
-#define DT_COMPLEX                32     /* complex (64 bits/voxel)      */
-#define DT_DOUBLE                 64     /* double (64 bits/voxel)       */
-#define DT_RGB                   128     /* RGB triple (24 bits/voxel)   */
-#define DT_ALL                   255     /* not very useful (?)          */
-
-                            /*----- another set of names for the same ---*/
-#define DT_UINT8                   2
-#define DT_INT16                   4
-#define DT_INT32                   8
-#define DT_FLOAT32                16
-#define DT_COMPLEX64              32
-#define DT_FLOAT64                64
-#define DT_RGB24                 128
-
-                            /*------------------- new codes for NIFTI ---*/
-#define DT_INT8                  256     /* signed char (8 bits)         */
-#define DT_UINT16                512     /* unsigned short (16 bits)     */
-#define DT_UINT32                768     /* unsigned int (32 bits)       */
-#define DT_INT64                1024     /* long long (64 bits)          */
-#define DT_UINT64               1280     /* unsigned long long (64 bits) */
-#define DT_FLOAT128             1536     /* long double (128 bits)       */
-#define DT_COMPLEX128           1792     /* double pair (128 bits)       */
-#define DT_COMPLEX256           2048     /* long double pair (256 bits)  */
-#define DT_RGBA32               2304     /* 4 byte RGBA (32 bits/voxel)  */
-/* @} */
-
-
-                            /*------- aliases for all the above codes ---*/
-
-/*! \defgroup NIFTI1_DATATYPE_ALIASES
-    \brief aliases for the nifti1 datatype codes
-    @{
- */
-                                       /*! unsigned char. */
 #define NIFTI_TYPE_UINT8           2
-                                       /*! signed short. */
 #define NIFTI_TYPE_INT16           4
-                                       /*! signed int. */
 #define NIFTI_TYPE_INT32           8
-                                       /*! 32 bit float. */
 #define NIFTI_TYPE_FLOAT32        16
-                                       /*! 64 bit complex = 2 32 bit floats. */
 #define NIFTI_TYPE_COMPLEX64      32
-                                       /*! 64 bit float = double. */
 #define NIFTI_TYPE_FLOAT64        64
-                                       /*! 3 8 bit bytes. */
 #define NIFTI_TYPE_RGB24         128
-                                       /*! signed char. */
 #define NIFTI_TYPE_INT8          256
-                                       /*! unsigned short. */
 #define NIFTI_TYPE_UINT16        512
-                                       /*! unsigned int. */
 #define NIFTI_TYPE_UINT32        768
-                                       /*! signed long long. */
 #define NIFTI_TYPE_INT64        1024
-                                       /*! unsigned long long. */
 #define NIFTI_TYPE_UINT64       1280
-                                       /*! 128 bit float = long double. */
 #define NIFTI_TYPE_FLOAT128     1536
-                                       /*! 128 bit complex = 2 64 bit floats. */
 #define NIFTI_TYPE_COMPLEX128   1792
-                                       /*! 256 bit complex = 2 128 bit floats */
 #define NIFTI_TYPE_COMPLEX256   2048
-                                       /*! 4 8 bit bytes. */
 #define NIFTI_TYPE_RGBA32       2304
-/* @} */
-
-                     /*-------- sample typedefs for complicated types ---*/
-#if 0
-typedef struct { float       r,i;     } complex_float ;
-typedef struct { double      r,i;     } complex_double ;
-typedef struct { long double r,i;     } complex_longdouble ;
-typedef struct { unsigned char r,g,b; } rgb_byte ;
-#endif
 
 /*---------------------------------------------------------------------------*/
 /* INTERPRETATION OF VOXEL DATA:
@@ -1344,67 +967,5 @@ typedef struct { unsigned char r,g,b; } rgb_byte ;
 #define NIFTI_SLICE_ALT_INC2  5  /* 05 May 2005: RWCox */
 #define NIFTI_SLICE_ALT_DEC2  6  /* 05 May 2005: RWCox */
 /* @} */
-
-/*---------------------------------------------------------------------------*/
-/* UNUSED FIELDS:
-   -------------
-   Some of the ANALYZE 7.5 fields marked as ++UNUSED++ may need to be set
-   to particular values for compatibility with other programs.  The issue
-   of interoperability of ANALYZE 7.5 files is a murky one -- not all
-   programs require exactly the same set of fields.  (Unobscuring this
-   murkiness is a principal motivation behind NIFTI-1.)
-
-   Some of the fields that may need to be set for other (non-NIFTI aware)
-   software to be happy are:
-
-     extents    dbh.h says this should be 16384
-     regular    dbh.h says this should be the character 'r'
-     glmin,   } dbh.h says these values should be the min and max voxel
-      glmax   }  values for the entire dataset
-
-   It is best to initialize ALL fields in the NIFTI-1 header to 0
-   (e.g., with calloc()), then fill in what is needed.
------------------------------------------------------------------------------*/
-
-/*---------------------------------------------------------------------------*/
-/* MISCELLANEOUS C MACROS
------------------------------------------------------------------------------*/
-
-/*.................*/
-/*! Given a nifti_1_header struct, check if it has a good magic number.
-    Returns NIFTI version number (1..9) if magic is good, 0 if it is not. */
-
-#define NIFTI_VERSION(h)                               \
- ( ( (h).magic[0]=='n' && (h).magic[3]=='\0'    &&     \
-     ( (h).magic[1]=='i' || (h).magic[1]=='+' ) &&     \
-     ( (h).magic[2]>='1' && (h).magic[2]<='9' )   )    \
- ? (h).magic[2]-'0' : 0 )
-
-/*.................*/
-/*! Check if a nifti_1_header struct says if the data is stored in the
-    same file or in a separate file.  Returns 1 if the data is in the same
-    file as the header, 0 if it is not.                                   */
-
-#define NIFTI_ONEFILE(h) ( (h).magic[1] == '+' )
-
-/*.................*/
-/*! Check if a nifti_1_header struct needs to be byte swapped.
-    Returns 1 if it needs to be swapped, 0 if it does not.     */
-
-#define NIFTI_NEEDS_SWAP(h) ( (h).dim[0] < 0 || (h).dim[0] > 7 )
-
-/*.................*/
-/*! Check if a nifti_1_header struct contains a 5th (vector) dimension.
-    Returns size of 5th dimension if > 1, returns 0 otherwise.         */
-
-#define NIFTI_5TH_DIM(h) ( ((h).dim[0]>4 && (h).dim[5]>1) ? (h).dim[5] : 0 )
-
-/*****************************************************************************/
-
-/*=================*/
-#ifdef  __cplusplus
-}
-#endif
-/*=================*/
 
 #endif /* _NIFTI_HEADER_ */
