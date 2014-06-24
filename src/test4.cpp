@@ -15,16 +15,16 @@ int main()
 		for(size_t yy=0; yy < oimage->dim(1); yy++) {
 			for(size_t xx=0; xx < oimage->dim(0); xx++) {
 				double pix = xx+yy*100+zz*10000;
-				total += oimage->setD(pix, {xx,yy,zz});
+				oimage->setD(pix, {xx,yy,zz});
 			}
 		}
 	}
 
 	/* Write the Image */
-	writeImage(oimage, "test4.nii.gz");
+	writeNDImage(oimage, "test4.nii.gz");
 
 	/* Read the Image */
-	NDImage* iimage = readImage("test4.nii.gz");
+	NDImage* iimage = readNDImage("test4.nii.gz");
 	
 	/* Check the Image */
 	for(size_t zz=0; zz < oimage->dim(2); zz++) {

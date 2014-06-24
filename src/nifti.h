@@ -3,28 +3,47 @@
 
 typedef struct __attribute__((packed)) 
 {
-	int32_t   sizeof_hdr;
+	int32_t   sizeof_hdr; // = 348
+
+	// unused
 	char  data_type[10];
 	char  db_name[18];
 	int32_t   extents;
 	int16_t session_error;
 	char  regular;
-	char  dim_info;
-	int16_t dim[8];
-	float intent_p1 ;
-	float intent_p2 ;
-	float intent_p3 ;
-	int16_t intent_code ;
-	int16_t datatype;
+
+	union {
+		char byte;
+		struct {
+			unsigned int freqdim : 2;
+			unsigned int phasedim : 2;
+			unsigned int slicedim : 2;
+
+		} bits;
+	} dim_info;
+
+	int16_t ndim;	// number of dimensions
+	int16_t dim[7];	// size in each of ndim dimensions
+	
+	// currently ignored
+	float intent_p1;	
+	float intent_p2;
+	float intent_p3;
+	int16_t intent_code;
+
+	int16_t datatype; // pixel type
 	int16_t bitpix;
 	int16_t slice_start;
-	float pixdim[8];
-	float vox_offset;
-	float scl_slope ;
+	float qfac;			// used for quaternions
+	float pixdim[7];	// pixel spacing
+	float vox_offset;	// where to start reading pixel data
+
+	// currently ignored 
+	float scl_slope ;	
 	float scl_inter ;
 	int16_t slice_end;
-	char  slice_code ;
-	char  xyzt_units ;
+	char  slice_code;
+	char  xyzt_units;
 	float cal_max;
 	float cal_min;
 	float slice_duration;
@@ -33,6 +52,7 @@ typedef struct __attribute__((packed))
 	int32_t   glmin;
 	char  descrip[80];
 	char  aux_file[24];
+
 	int16_t qform_code ;
 	int16_t sform_code ;
 	float quatern_b ;

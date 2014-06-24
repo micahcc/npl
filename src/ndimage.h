@@ -23,6 +23,11 @@ NDImage* readNDImage(std::string filename);
  */
 class NDImage : public virtual NDArray
 {
+public:
+	int freqdir;
+	int phasedir;
+	int slicedir;
+private:
 };
 
 
@@ -64,13 +69,14 @@ public:
 	void updateAffine();
 	void printSelf();
 
+private:
 	// used to transform index to RAS (Right Handed Coordinate System)
-	double _m_dir[D*D];
-	double _m_space[D];
-	double _m_origin[D];
+	double m_dir[D*D];
+	double m_space[D];
+	double m_origin[D];
 
 	// chache of the affine index -> RAS (right handed coordiante system)
-	double _m_affine[(D+1)*(D+1)];
+	double m_affine[(D+1)*(D+1)];
 
 //	NDImage(size_t dim, size_t* size);
 //
