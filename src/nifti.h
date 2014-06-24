@@ -38,9 +38,10 @@ typedef struct __attribute__((packed))
 	float pixdim[7];	// pixel spacing
 	float vox_offset;	// where to start reading pixel data
 
+	float scl_slope;	// y = scl_slope*x + scl_inter
+	float scl_inter;
+	
 	// currently ignored 
-	float scl_slope ;	
-	float scl_inter ;
 	int16_t slice_end;
 	char  slice_code;
 	char  xyzt_units;

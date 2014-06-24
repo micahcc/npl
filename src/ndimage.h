@@ -32,7 +32,10 @@ private:
 
 
 /**
- * @brief NDImageStore is a version of NDArray that has an orientation matrix
+ * @brief NDImageStore is a version of NDArray that has an orientation matrix.
+ * Right now it also has additional data that is unique to nifti. Eventually
+ * this class will be forked into a subclass, and this will only have the 
+ * orientation.
  *
  * @tparam D 	Number of dimensions
  * @tparam T	Pixel type
@@ -74,16 +77,51 @@ private:
 	double m_dir[D*D];
 	double m_space[D];
 	double m_origin[D];
+	std::string m_units[D];
 
 	// chache of the affine index -> RAS (right handed coordiante system)
 	double m_affine[(D+1)*(D+1)];
+	
+	/*
+	 * medical image specific stuff, eventually these should be moved to a 
+	 * medical image subclass
+	 */
 
-//	NDImage(size_t dim, size_t* size);
-//
-//	/* Functions which operate pixelwise on the data */
-//	template <F>
-//	void apply(void* data);
-//	void apply(void(*cb)(double), void* data);
+	// each slice is given its relative time, with 0 as the first
+	vector<double> m_slice_timing;
+	
+	// < 0 indicate unset variables
+	int m_freqdim;
+	int m_phasedim;
+	int m_slicedim;
+
+	/*
+	 * nifti specific stuff, eventually these should be moved to a nifti 
+	 * image subclass
+	 */
+
+	// raw values for slice data, < 0 indicate unset
+	double m_slice_duration;
+	int m_slice_start;
+	int m_slice_end;
+
+	// SEQ, RSEQ, ALT, RALT, ALT_P1, RALT_P1
+	// SEQ (sequential): 	slice_start .. slice_end
+	// RSEQ (reverse seq): 	slice_end .. slice_start
+	// ALT (alternated): 	slice_start, slice_start+2, .. slice_end|slice_end-1,
+	// 						slice_start+1 .. slice_end|slice_end-1
+	// RALT (reverse alt): 	slice_end, slice_end-2, .. slice_start|slice_start+1,
+	// 						slice_end-1 .. slice_start|slice_start+1
+	// ALT_P1 (siemens alt):slice_start+1, slice_start+3, .. slice_end|slice_end-1,
+	// 						slice_start .. slice_end|slice_end-1
+	// RALT (reverse alt): 	slice_end-1, slice_end-3, .. slice_start|slice_start+1,
+	// 						slice_end-2 .. slice_start|slice_start+1
+	std::string m_slice_order;
+
+	// if quaternians are the original direction base, then this stores the 
+	// raw quaternian values, to prevent roundoff errors
+	bool use_quaterns;;
+	double quaterns[4];
 
 };
 
