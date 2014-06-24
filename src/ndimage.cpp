@@ -173,9 +173,11 @@ int writeNifti1Image(NDImage* out, gzFile file)
 
 	header.sizeof_hdr = HEADERSIZE;
 
-	if(out->freqdir >= 0) header.dim_info.bits.freqdim = out->freqdim+1;
-	if(out->phasedir >= 0) header.dim_info.bits.phasedim = out->phasedim+1;
-	if(out->slicedir >= 0) header.dim_info.bits.slicedim = out->slicedim+1;
+	if(out->encoding) {
+		header.dim_info.bits.freqdim = out->freqdim+1;
+		header.dim_info.bits.phasedim = out->phasedim+1;
+		header.dim_info.bits.slicedim = out->slicedim+1;
+	} 
 
 	header.ndim = out->getNDim();
 	for(size_t dd=0; dd<out->getNDim(); dd++) {
@@ -183,6 +185,9 @@ int writeNifti1Image(NDImage* out, gzFile file)
 		header.pixdim[dd] = out->m_space[dd];
 	}
 	
+	if(out->quatern) {
+		
+	}
 	double a = 0.5*sqrt(1+R11+R22+R33);
     header.quatern_b = 0.25*(R32-R23)/a;
 	header.quatern_c = 0.25*(R13-R31)/a;
