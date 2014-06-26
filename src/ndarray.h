@@ -11,15 +11,18 @@
 class NDArray
 {
 public:
-	virtual double getD(std::initializer_list<size_t> index) = 0;
 	
+	// get / set functions
+	virtual int get_int(std::initializer_list<size_t> index) = 0;
+	virtual void set_int(int val, std::initializer_list<size_t> index) = 0;
+	
+	virtual int64_t get_int64(std::initializer_list<size_t> index) = 0;
+	virtual void set_int64(int64_t val, std::initializer_list<size_t> index) = 0;
+	
+	virtual double get_dbl(std::initializer_list<size_t> index) = 0;
+	virtual void set_dbl(double val, std::initializer_list<size_t> index) = 0;
+
 	virtual double operator()(std::initializer_list<size_t> index) = 0;
-
-	virtual int getI(std::initializer_list<size_t> index) = 0;
-	
-	virtual void setD(double newval, std::initializer_list<size_t> index) = 0;
-
-	virtual void setI(int newval, std::initializer_list<size_t> index) = 0;
 
 	virtual size_t getBytes() = 0;
 	virtual size_t getNDim() = 0;
@@ -45,18 +48,34 @@ public:
 	virtual size_t getAddr(std::initializer_list<size_t> index);
 	virtual size_t getAddr(size_t index[D]);
 
-	virtual double getD(std::initializer_list<size_t> index);
-
-	virtual int getI(std::initializer_list<size_t> index);
+	// get / set functions
+	virtual int get_int(std::initializer_list<size_t> index);
+	virtual void set_int(int val, std::initializer_list<size_t> index);
 	
-	virtual void setD(double newval, std::initializer_list<size_t> index);
-
-	virtual void setI(int newval, std::initializer_list<size_t> index);
+	virtual int64_t get_int64(std::initializer_list<size_t> index);
+	virtual void set_int64(int64_t val, std::initializer_list<size_t> index);
+	
+	virtual double get_dbl(std::initializer_list<size_t> index);
+	virtual void set_dbl(double val, std::initializer_list<size_t> index);
 
 	virtual double operator()(std::initializer_list<size_t> index);
+	
+	// linear (flat) indexing
+	virtual int get_int(size_t pixel);
+	virtual void set_int(int val, size_t pixel);
+	
+	virtual int64_t get_int64(size_t pixel);
+	virtual void set_int64(int64_t val, size_t pixel);
+	
+	virtual double get_dbl(size_t pixel);
+	virtual void set_dbl(double val, size_t pixel);
+
+	virtual double operator()(size_t pixel);
 
 	virtual size_t getBytes();
+	virtual size_t getPixel();
 	virtual size_t getNDim();
+	virtual size_t ndim();
 	virtual size_t dim(size_t dir);
 	virtual size_t* dim();
 
@@ -196,6 +215,12 @@ size_t NDArrayStore<D,T>::getBytes()
 
 template <int D, typename T>
 size_t NDArrayStore<D,T>::getNDim() 
+{
+	return D;
+}
+
+template <int D, typename T>
+size_t NDArrayStore<D,T>::ndim() 
 {
 	return D;
 }

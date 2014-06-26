@@ -1,4 +1,4 @@
-#ifndef NIFTI_H
+ifndef NIFTI_H
 #define NIFTI_H
 
 typedef struct __attribute__((packed)) 
@@ -56,15 +56,9 @@ typedef struct __attribute__((packed))
 
 	int16_t qform_code ;
 	int16_t sform_code ;
-	float quatern_b ;
-	float quatern_c ;
-	float quatern_d ;
-	float qoffset_x ;
-	float qoffset_y ;
-	float qoffset_z ;
-	float srow_x[4] ;
-	float srow_y[4] ;
-	float srow_z[4] ;
+	float quatern[3]; //b,c,d
+	float qoffset[3]; //x,y,z
+	float srow[12]; //row0 = x, row1 = y, row2 = z
 	char intent_name[16];
 	char magic[4];
 } nifti1_header;
@@ -774,26 +768,11 @@ typedef struct __attribute__((packed))
     \brief nifti1 xform codes to describe the "standard" coordinate system
     @{
  */
-                                    /*! Arbitrary coordinates (Method 1). */
 
 #define NIFTI_XFORM_UNKNOWN      0
-
-                                    /*! Scanner-based anatomical coordinates */
-
 #define NIFTI_XFORM_SCANNER_ANAT 1
-
-                                    /*! Coordinates aligned to another file's,
-                                        or to anatomical "truth".            */
-
 #define NIFTI_XFORM_ALIGNED_ANAT 2
-
-                                    /*! Coordinates aligned to Talairach-
-                                        Tournoux Atlas; (0,0,0)=AC, etc. */
-
 #define NIFTI_XFORM_TALAIRACH    3
-
-                                    /*! MNI 152 normalized coordinates. */
-
 #define NIFTI_XFORM_MNI_152      4
 /* @} */
 
@@ -839,31 +818,15 @@ typedef struct __attribute__((packed))
            each dimension of the dataset
     @{
  */
-                               /*! NIFTI code for unspecified units. */
 #define NIFTI_UNITS_UNKNOWN 0
-
-                               /** Space codes are multiples of 1. **/
-                               /*! NIFTI code for meters. */
 #define NIFTI_UNITS_METER   1
-                               /*! NIFTI code for millimeters. */
 #define NIFTI_UNITS_MM      2
-                               /*! NIFTI code for micrometers. */
 #define NIFTI_UNITS_MICRON  3
-
-                               /** Time codes are multiples of 8. **/
-                               /*! NIFTI code for seconds. */
-#define NIFTI_UNITS_SEC     8
-                               /*! NIFTI code for milliseconds. */
+#define NIFTI_UNITS_SEC     8 
 #define NIFTI_UNITS_MSEC   16
-                               /*! NIFTI code for microseconds. */
 #define NIFTI_UNITS_USEC   24
-
-                               /*** These units are for spectral data: ***/
-                               /*! NIFTI code for Hertz. */
 #define NIFTI_UNITS_HZ     32
-                               /*! NIFTI code for ppm. */
 #define NIFTI_UNITS_PPM    40
-                               /*! NIFTI code for radians per second. */
 #define NIFTI_UNITS_RADS   48
 /* @} */
 
@@ -961,19 +924,6 @@ typedef struct __attribute__((packed))
   The macro FPS_INTO_DIM_INFO can be used to put these 3 values
   into the dim_info byte.
 -----------------------------------------------------------------------------*/
-
-#undef  DIM_INFO_TO_FREQ_DIM
-#undef  DIM_INFO_TO_PHASE_DIM
-#undef  DIM_INFO_TO_SLICE_DIM
-
-#define DIM_INFO_TO_FREQ_DIM(di)   ( ((di)     ) & 0x03 )
-#define DIM_INFO_TO_PHASE_DIM(di)  ( ((di) >> 2) & 0x03 )
-#define DIM_INFO_TO_SLICE_DIM(di)  ( ((di) >> 4) & 0x03 )
-
-#undef  FPS_INTO_DIM_INFO
-#define FPS_INTO_DIM_INFO(fd,pd,sd) ( ( ( ((char)(fd)) & 0x03)      ) |  \
-                                      ( ( ((char)(pd)) & 0x03) << 2 ) |  \
-                                      ( ( ((char)(sd)) & 0x03) << 4 )  )
 
 /*! \defgroup NIFTI1_SLICE_ORDER
     \brief nifti1 slice order codes, describing the acquisition order
