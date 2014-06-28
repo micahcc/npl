@@ -35,7 +35,7 @@ int main(int argc, char** argv)
 			for(size_t kk = 0; kk < array1._m_dim[2]; kk++) {
 				for(size_t tt = 0; tt < array1._m_dim[3]; tt++) {
 					double val = rand()/(double)RAND_MAX;
-					array1.setD(val, {ii, jj, kk, tt});
+					array1.setdbl(val, {ii, jj, kk, tt});
 				}
 			}
 		}
@@ -59,13 +59,13 @@ int main(int argc, char** argv)
 									size_t jy = clamp(jj+yy, 0, array1._m_dim[1]-1);
 									size_t kz = clamp(kk+zz, 0, array1._m_dim[2]-1);
 									size_t tr = clamp(tt+rr, 0, array1._m_dim[2]-1);
-									sum += array1.getD({ix, jy, kz, tr});
+									sum += array1.getdbl({ix, jy, kz, tr});
 									n++;
 								}
 							}
 						}
 					}
-					array2.setD(sum/n, {ii, jj, kk, tt});
+					array2.setdbl(sum/n, {ii, jj, kk, tt});
 				}
 			}
 		}

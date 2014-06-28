@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <list>
+#include <cstdint>
 
 using namespace std;
 
@@ -16,6 +17,12 @@ using namespace std;
 class Slicer 
 {
 public:
+	
+	/****************************************
+	 *
+	 * Constructors
+	 *
+	 ****************************************/
 
 	/**
 	 * @brief Default Constructor, max a length 1, dimension 1 slicer
@@ -68,7 +75,48 @@ public:
 	 * @return new linear index
 	 */
 	size_t step(size_t dim, int64_t dist = 1);
+	
+	/******************************************
+	 *
+	 * Offset, useful to kernel processing
+	 *
+	 ******************************************/
 
+	/**
+	 * @brief Get linear index at an offset location from the current, useful
+	 * for kernels.
+	 *
+	 * @param dindex	Vector (offset) from the current location 
+	 *
+	 * @return 		linear index
+	 */
+	size_t offset(int64_t* dindex) const;
+	
+	/**
+	 * @brief Get linear index at an offset location from the current, useful
+	 * for kernels.
+	 *
+	 * @param dindex	Vector (offset) from the current location 
+	 *
+	 * @return 		linear index
+	 */
+	size_t offset(const vector<int64_t>& dindex) const;
+	
+	/**
+	 * @brief Get linear index at an offset location from the current, useful
+	 * for kernels.
+	 *
+	 * @param dindex	Vector (offset) from the current location 
+	 *
+	 * @return 		linear index
+	 */
+	size_t offset(std::initializer_list<size_t> dindex) const;
+
+	/****************************************
+	 *
+	 * Query Location
+	 *
+	 ****************************************/
 
 	/**
 	 * @brief Are we at the end in a particular dimension
@@ -77,7 +125,7 @@ public:
 	 *
 	 * @return whether we are at the tail end of the particular dimension
 	 */
-	bool end(size_t dim);
+	bool isEnd(size_t dim) const { return m_pos[dim] == m_roi[dim].second; };
 	
 	/**
 	 * @brief Are we at the begin in a particular dimension
@@ -86,7 +134,27 @@ public:
 	 *
 	 * @return whether we are at the start of the particular dimension
 	 */
-	bool begin(size_t dim);
+	bool isBegin(size_t dim) const { return m_pos[dim] == m_roi[dim].first; };
+	
+	/**
+	 * @brief Are we at the begining of iteration?
+	 *
+	 * @return true if we are at the begining
+	 */
+	bool isBegin() const { return m_linpos==m_linfirst; };
+
+	/**
+	 * @brief Are we at the end of iteration? Note that this will be 1 past the
+	 * end, as typically is done in c++
+	 *
+	 * @return true if we are at the end
+	 */
+	bool isEnd() const { return m_end; };
+
+
+	/*************************************
+	 * Movement
+	 ***********************************/
 
 	/**
 	 * @brief Postfix iterator. Iterates in the order dictatored by the dimension
@@ -124,15 +192,52 @@ public:
 	size_t operator--();
 
 	/**
+	 * @brief Are we at the begining of iteration?
+	 *
+	 */
+	void gotoBegin();
+
+	/**
+	 * @brief Jump to the end of iteration.
+	 *
+	 */
+	void gotoEnd();
+
+	/**
+	 * @brief Jump to the given position
+	 *
+	 * @param newpos	location to move to
+	 */
+	void gotoIndex(const std::vector<size_t>& newpos);
+
+	/**
+	 * @brief Jump to the given position
+	 *
+	 * @param newpos	location to move to
+	 */
+	void gotoIndex(size_t* newpos);
+	
+	/**
+	 * @brief Jump to the given position
+	 *
+	 * @param newpos	location to move to
+	 */
+	void gotoIndex(std::initializer_list<size_t> newpos);
+
+	/****************************************
+	 *
+	 * Actually get the linear location
+	 *
+	 ***************************************/
+
+	/**
 	 * @brief dereference operator. Returns the linear position in the array 
 	 * given the n-dimensional position.
 	 *
 	 * @return 
 	 */
-	size_t operator*()
-	{
-		return m_linpos;
-	};
+	inline
+	size_t operator*() const { return m_linpos; };
 
 	/**
 	 * @brief Get both ND position and linear position
@@ -141,58 +246,17 @@ public:
 	 *
 	 * @return linear position
 	 */
-	size_t getPos(std::vector<size_t>& ndpos)
+	size_t get(std::vector<size_t>& ndpos) const
 	{
 		ndpos.assign(m_pos.begin(), m_pos.end());
 		return m_linpos;
 	};
 
-	/**
-	 * @brief Are we at the begining of iteration?
+	/***********************************************
 	 *
-	 * @return true if we are at the begining
-	 */
-	bool isBegin()
-	{
-		return m_linpos==m_linfirst;
-	}
-
-	/**
-	 * @brief Are we at the end of iteration? Note that this will be 1 past the
-	 * end, as typically is done in c++
+	 * Modification
 	 *
-	 * @return true if we are at the end
-	 */
-	bool isEnd()
-	{
-		return m_end;
-	}
-
-	/**
-	 * @brief Are we at the begining of iteration?
-	 *
-	 * @return true if we are at the begining
-	 */
-	void setBegin()
-	{
-		for(size_t ii=0; ii<m_sizes.size(); ii++)
-			m_pos[ii] = m_roi[ii].first;
-		m_linpos = m_linfirst;
-		m_end = false;
-	}
-
-	/**
-	 * @brief Jump to the end of iteration.
-	 *
-	 * @return 
-	 */
-	void setEnd()
-	{
-		for(size_t ii=0; ii<m_sizes.size(); ii++)
-			m_pos[ii] = m_roi[ii].second;
-		m_linpos = m_linlast;
-		m_end = true;
-	}
+	 **********************************************/
 
 	/**
 	 * @brief Updates dimensions of target nd array
@@ -218,13 +282,6 @@ public:
 	 */
 	void setOrder(std::list<size_t>& order);
 
-
-	/**
-	 * @brief Jump to the given position
-	 *
-	 * @param newpos	location to move to
-	 */
-	void setPos(std::vector<size_t>& newpos);
 
 
 private:

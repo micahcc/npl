@@ -85,31 +85,6 @@ size_t Slicer::step(size_t dim, int64_t dist)
 }
 
 /**
- * @brief Are we at the end in a particular dimension
- *
- * @param dim	dimension to check
- *
- * @return whether we are at the tail end of the particular dimension
- */
-bool Slicer::end(size_t dim)
-{
-	return m_pos[dim] == m_roi[dim].second;
-}
-
-/**
- * @brief Are we at the begin in a particular dimension
- *
- * @param dim	dimension to check
- *
- * @return whether we are at the start of the particular dimension
- */
-bool Slicer::begin(size_t dim)
-{
-	return m_pos[dim] == m_roi[dim].first;
-}
-
-
-/**
  * @brief Postfix iterator. Iterates in the order dictatored by the dimension
  * order passsed during construction or by setOrder
  *
@@ -314,7 +289,7 @@ void Slicer::setROI(std::vector<std::pair<size_t, size_t>>& roi)
 	}
 
 	updateLinRange();
-	setBegin();
+	gotoBegin();
 }
 
 /**
@@ -356,7 +331,7 @@ void Slicer::setOrder(std::list<size_t>& order)
 		m_order.push_back(*it);
 
 	updateLinRange();
-	setBegin();
+	gotoBegin();
 };
 
 /**
@@ -364,7 +339,7 @@ void Slicer::setOrder(std::list<size_t>& order)
  *
  * @param newpos	location to move to
  */
-void Slicer::setPos(std::vector<size_t>& newpos)
+void Slicer::gotoIndex(const std::vector<size_t>& newpos)
 {
 	m_linpos = 0;
 	size_t ii=0;
@@ -383,4 +358,70 @@ void Slicer::setPos(std::vector<size_t>& newpos)
 	}
 	m_end = false;
 };
+
+/**
+ * @brief Jump to the given position
+ *
+ * @param newpos	location to move to
+ */
+void Slicer::gotoIndex(std::initializer_list<size_t> newpos)
+{
+	m_linpos = 0;
+	size_t ii=0;
+
+	// copy the dimensions 
+	for(auto it=newpos.begin(); it != newpos.end() && ii<m_pos.size(); ii++) {
+		m_pos[ii] = std::max(std::min(*it, m_roi[ii].second), 
+				m_roi[ii].first);
+		m_linpos += m_strides[ii]*m_pos[ii];
+	}
+
+	// set the unreferenced dimensions to 0
+	for(;  ii<m_pos.size(); ii++) {
+		m_pos[ii] = 0;
+		m_linpos += m_strides[ii]*m_pos[ii];
+	}
+	m_end = false;
+};
+
+/**
+ * @brief Jump to the given position
+ *
+ * @param newpos	location to move to
+ */
+void Slicer::gotoIndex(size_t* newpos)
+{
+	m_linpos = 0;
+	size_t ii=0;
+
+	// copy the dimensions 
+	for(;  ii<m_pos.size(); ii++) {
+		m_pos[ii] = std::max(std::min(newpos[ii], m_roi[ii].second), 
+				m_roi[ii].first);
+		m_linpos += m_strides[ii]*m_pos[ii];
+	}
+	m_end = false;
+};
+	
+	
+/**
+ * @brief Are we at the begining of iteration?
+ *
+ * @return true if we are at the begining
+ */
+void Slicer::gotoBegin()
+{
+	for(size_t ii=0; ii<m_sizes.size(); ii++)
+		m_pos[ii] = m_roi[ii].first;
+	m_linpos = m_linfirst;
+	m_end = false;
+}
+	
+void Slicer::gotoEnd()
+{
+	for(size_t ii=0; ii<m_sizes.size(); ii++)
+		m_pos[ii] = m_roi[ii].second;
+	m_linpos = m_linlast;
+	m_end = true;
+}
 

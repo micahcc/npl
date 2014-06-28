@@ -2,6 +2,7 @@
 #include "ndimage.h"
 #include "nifti.h"
 #include "byteswap.h"
+#include "slicer.h"
 
 #include "zlib.h"
 
@@ -134,7 +135,7 @@ NDImage* readNifti1Image(gzFile file, bool verbose)
 
 	// byte swap
 	bool doswap = false;
-	size_t npixel = 1;
+	int64_t npixel = 1;
 	if(header.sizeof_hdr != 348) {
 		doswap = true;
 		header.sizeof_hdr = swap<int32_t>(header.sizeof_hdr);
@@ -148,7 +149,7 @@ NDImage* readNifti1Image(gzFile file, bool verbose)
 		header.datatype = swap<int16_t>(header.datatype);
 		header.bitpix = swap<int16_t>(header.bitpix);
 		header.slice_start = swap<int16_t>(header.slice_start);
-		header.qval = swap<float>(header.qval);
+		header.qfac = swap<float>(header.qfac);
 		for(size_t ii=0; ii<7; ii++)
 			header.pixdim[ii] = swap<int16_t>(header.pixdim[ii]);
 		header.vox_offset = swap<float>(header.vox_offset);
@@ -160,19 +161,19 @@ NDImage* readNifti1Image(gzFile file, bool verbose)
 		header.slice_duration = swap<float>(header.slice_duration);
 		header.toffset = swap<float>(header.toffset);
 				
-		for(size_t ii=0; ii<header.ndim; ii++)
+		for(int32_t ii=0; ii<header.ndim; ii++)
 			npixel *= header.dim[ii];
 	}
 	
 	// jump to voxel offset
-	gzseek(vox_offset);
+	gzseek(file, header.vox_offset, SEEK_SET);
 
 	// read the rest of the file
-	size_t bytepix = (header.bitpix>>3);
+	int64_t bytepix = (header.bitpix>>3);
 	unsigned char* tmp = new unsigned char[bytepix*npixel];
 
 	int64_t readresult = gzread(file, tmp, bytepix*npixel);
-	if(readresult != bytepix*npxiel) {
+	if(readresult != bytepix*npixel) {
 		std::cerr << "Error reading remaining pixels" << std::endl;
 		delete[] tmp;
 		return NULL;
@@ -193,7 +194,7 @@ NDImage* readNifti1Image(gzFile file, bool verbose)
 		std::cerr << "datatype:" << header.datatype << std::endl;
 		std::cerr << "bitpix:" << header.bitpix << std::endl;
 		std::cerr << "slice_start:" << header.slice_start << std::endl;
-		std::cerr << "qval:" << header.qval << std::endl;
+		std::cerr << "qfac:" << header.qfac << std::endl;
 		std::cerr << "vox_offset:" << header.vox_offset << std::endl;
 		std::cerr << "scl_slope:" << header.scl_slope << std::endl;
 		std::cerr << "scl_inter:" << header.scl_inter << std::endl;
@@ -205,7 +206,7 @@ NDImage* readNifti1Image(gzFile file, bool verbose)
 	}
 	
 	if(header.sizeof_hdr != 348) {
-		std::cerr << "Malformed nifti input" << std::endl
+		std::cerr << "Malformed nifti input" << std::endl;
 		return NULL;
 	}
 	
@@ -213,69 +214,35 @@ NDImage* readNifti1Image(gzFile file, bool verbose)
 	std::vector<size_t> strides(header.ndim);
 	size_t byte;
 	strides[0] = bytepix;
-	for(size_t ii=1; ii<ndim; ii++) 
+	for(int64_t ii=1; ii<header.ndim; ii++) 
 		strides[ii] = header.dim[ii-1]*strides[ii-1];
 
 	Slicer slicer;
-	std::vector<size_t> revorder(head.ndim, 0);
+	std::vector<size_t> revorder(header.ndim, 0);
 	for(int64_t ii=0; ii<(int64_t)header.ndim; ii++) 
 		revorder[ii] = header.ndim-1-ii;
+
+	NDImage* out = NULL;
 
 	// create image
 	switch(header.datatype) {
 		// 8 bit
 		case NIFTI_TYPE_INT8:
 			out = createNDImage<int8_t>(header.ndim, header.dim);
-			
-			{
-			int8_t* tmpa = tmp;
-			for(slicer.reset(out, revorder); !slicer.end(); ++slicer) {
-				out->set_i(*tmpa), *slicer);
-				tmpa++;
-			}
-			}
 		break;
 		case NIFTI_TYPE_UINT8:
 			out = createNDImage<uint8_t>(header.ndim, header.dim);
-			{
-			uint8_t* tmpa = tmp;
-			for(slicer.reset(out, revorder); !slicer.end(); ++slicer) {
-				out->set_i(*tmpa), *slicer);
-				tmpa++;
-			}
-			}
 		break;
 		// 16  bit
 		case NIFTI_TYPE_INT16:
 			out = createNDImage<int16_t>(header.ndim, header.dim);
-			for(auto it = out->begin(); it != out->end(); ++it) {
-				// compute byte offset in input
-				byte = 0;
-				for(size_t ii=0; ii<out->ndim(); ii++)
-					byte += it.getindex(ii)*stride[ii];
-				it->seti(*((int16_t*)(tmp+byte)));
-			}
 		break;
 		case NIFTI_TYPE_UINT16:
 			out = createNDImage<uint16_t>(header.ndim, header.dim);
-			for(auto it = out->begin(); it != out->end(); ++it) {
-				// compute byte offset in input
-				byte = 0;
-				for(size_t ii=0; ii<out->ndim(); ii++)
-					byte += it.getindex(ii)*stride[ii];
-				it->seti(*((uint16_t*)(tmp+byte)));
-			}
 		break;
 		// 32 bit
 		case NIFTI_TYPE_INT32:
 			out = createNDImage<int32_t>(header.ndim, header.dim);
-			for(auto it = out->begin(); it != out->end(); ++it) {
-				// compute byte offset in input
-				byte = 0;
-				for(size_t ii=0; ii<out->ndim(); ii++)
-					byte += it.getindex(ii)*stride[ii];
-				it->seti(*((uint16_t*)(tmp+byte)));
-			}
 		break;
 		case NIFTI_TYPE_UINT32:
 			out = createNDImage<uint32_t>(header.ndim, header.dim);
@@ -325,21 +292,21 @@ NDImage* readNifti1Image(gzFile file, bool verbose)
 		/*
 		 * set spacing 
 		 */
-		for(size_t ii=0; ii<header.ndim; ii++)
-			out->m_space[ii] = header.pixdim[ii];
+		for(size_t ii=0; ii<out->ndim(); ii++)
+			out->setSpace(ii, header.pixdim[ii]);
 		
 		/* 
 		 * set origin 
 		 */
 		// x,y,z
 		for(size_t ii=0;ii<3 && ii<out->ndim(); ii++)
-			out->m_origin[ii] = header.qoffset[ii];
+			out->setOrigin(ii, header.qoffset[ii]);
 		// set toffset
 		if(out->ndim() > 3)
-			out->m_origin[3] = header.toffset;
+			out->setOrigin(3, header.toffset);
 		// set remaining to 0
 		for(size_t ii=4;ii<out->ndim(); ii++)
-			out->m_origin[ii] = 0;
+			out->setOrigin(ii, 0);
 
 		/* Copy Quaternions, and Make Rotation Matrix */
 

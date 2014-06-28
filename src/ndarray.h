@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <cmath>
 #include <initializer_list>
+#include <vector>
+#include <cstdint>
 
 /**
  * @brief Pure virtual interface to interact with an ND array
@@ -12,22 +14,62 @@ class NDArray
 {
 public:
 	
-	// get / set functions
-	virtual int get_int(std::initializer_list<size_t> index) = 0;
-	virtual void set_int(int val, std::initializer_list<size_t> index) = 0;
-	
-	virtual int64_t get_int64(std::initializer_list<size_t> index) = 0;
-	virtual void set_int64(int64_t val, std::initializer_list<size_t> index) = 0;
-	
-	virtual double get_dbl(std::initializer_list<size_t> index) = 0;
-	virtual void set_dbl(double val, std::initializer_list<size_t> index) = 0;
+	/*
+	 * get / set functions
+	 */
+	// Get Address
+	virtual size_t getAddr(std::initializer_list<size_t> index) const = 0;
+	virtual size_t getAddr(const std::vector<size_t>& index) const = 0;
+	virtual size_t getAddr(const size_t* index) const = 0;
 
-	virtual double operator()(std::initializer_list<size_t> index) = 0;
+	// double
+	virtual double getdbl(std::initializer_list<size_t> index) const = 0;
+	virtual double getdbl(const std::vector<size_t>& index) const = 0;
+	virtual double getdbl(const size_t* index) const = 0;
+	virtual void setdbl(double val, std::initializer_list<size_t> index) = 0;
+	virtual void setdbl(double val, std::vector<size_t>& index) = 0;
+	virtual void setdbl(double val, size_t* index) = 0;
+	virtual double getdbl(size_t pixel) const = 0;
+	virtual void setdbl(double in, size_t pixel) = 0;
+	
+	// int
+	virtual int32_t getint(std::initializer_list<size_t> index) const = 0;
+	virtual int32_t getint(const std::vector<size_t>& index) const = 0;
+	virtual int32_t getint(const size_t* index) const = 0;
+	virtual void setint(int32_t val, std::initializer_list<size_t> index) = 0;
+	virtual void setint(int32_t val, std::vector<size_t>& index) = 0;
+	virtual void setint(int32_t val, size_t* index) = 0;
+	virtual int32_t getint(size_t pixel) const = 0;
+	virtual void setint(int32_t in, size_t pixel) = 0;
+	
+	// int64
+	virtual int64_t getint64(std::initializer_list<size_t> index) const = 0;
+	virtual int64_t getint64(const std::vector<size_t>& index) const = 0;
+	virtual int64_t getint64(const size_t* index) const = 0;
+	virtual void setint64(int64_t val, std::initializer_list<size_t> index) = 0;
+	virtual void setint64(int64_t val, std::vector<size_t>& index) = 0;
+	virtual void setint64(int64_t val, size_t* index) = 0;
+	virtual int64_t getint64(size_t pixel) const = 0;
+	virtual void setint64(int64_t in, size_t pixel) = 0;
 
-	virtual size_t getBytes() = 0;
-	virtual size_t getNDim() = 0;
-	virtual size_t dim(size_t dir) = 0;
-	virtual size_t* dim() = 0;
+	virtual double operator[](std::initializer_list<size_t> index) const = 0;
+	virtual double operator[](const size_t* index) const = 0;
+	virtual double operator[](const std::vector<size_t>& index) const = 0;
+	virtual double operator[](size_t pixel) const = 0;
+
+	virtual size_t ndim() const = 0;
+	virtual size_t bytes() const = 0;
+	virtual size_t dim(size_t dir) const = 0;
+	virtual const size_t* dim() const = 0;
+
+//	template <typename T = double>
+//	class iterator : public Slicer
+//	{
+//	public:
+//		iterator();
+//		iterator(iterator&& other);
+//		iterator(const iterator& other);
+//	};
 };
 
 /**
@@ -45,39 +87,58 @@ public:
 	
 	~NDArrayStore() { delete[] _m_data; };
 
-	virtual size_t getAddr(std::initializer_list<size_t> index);
-	virtual size_t getAddr(size_t index[D]);
+	/* 
+	 * get / set functions
+	 */
 
-	// get / set functions
-	virtual int get_int(std::initializer_list<size_t> index);
-	virtual void set_int(int val, std::initializer_list<size_t> index);
-	
-	virtual int64_t get_int64(std::initializer_list<size_t> index);
-	virtual void set_int64(int64_t val, std::initializer_list<size_t> index);
-	
-	virtual double get_dbl(std::initializer_list<size_t> index);
-	virtual void set_dbl(double val, std::initializer_list<size_t> index);
+	// Get Address
+	virtual size_t getAddr(std::initializer_list<size_t> index) const;
+	virtual size_t getAddr(const std::vector<size_t>& index) const;
+	virtual size_t getAddr(const size_t* index) const;
 
-	virtual double operator()(std::initializer_list<size_t> index);
+	// double
+	virtual double getdbl(std::initializer_list<size_t> index) const;
+	virtual double getdbl(const std::vector<size_t>& index) const;
+	virtual double getdbl(const size_t* index) const;
+	virtual void setdbl(double val, std::initializer_list<size_t> index);
+	virtual void setdbl(double val, std::vector<size_t>& index);
+	virtual void setdbl(double val, size_t* index);
+	virtual double getdbl(size_t pixel) const;
+	virtual void setdbl(double in, size_t pixel);
 	
-	// linear (flat) indexing
-	virtual int get_int(size_t pixel);
-	virtual void set_int(int val, size_t pixel);
+	// int
+	virtual int32_t getint(std::initializer_list<size_t> index) const;
+	virtual int32_t getint(const std::vector<size_t>& index) const;
+	virtual int32_t getint(const size_t* index) const;
+	virtual void setint(int32_t val, std::initializer_list<size_t> index);
+	virtual void setint(int32_t val, std::vector<size_t>& index);
+	virtual void setint(int32_t val, size_t* index);
+	virtual int32_t getint(size_t pixel) const;
+	virtual void setint(int32_t in, size_t pixel);
 	
-	virtual int64_t get_int64(size_t pixel);
-	virtual void set_int64(int64_t val, size_t pixel);
-	
-	virtual double get_dbl(size_t pixel);
-	virtual void set_dbl(double val, size_t pixel);
+	// int64
+	virtual int64_t getint64(std::initializer_list<size_t> index) const;
+	virtual int64_t getint64(const std::vector<size_t>& index) const;
+	virtual int64_t getint64(const size_t* index) const;
+	virtual void setint64(int64_t val, std::initializer_list<size_t> index);
+	virtual void setint64(int64_t val, std::vector<size_t>& index);
+	virtual void setint64(int64_t val, size_t* index);
+	virtual int64_t getint64(size_t pixel) const;
+	virtual void setint64(int64_t in, size_t pixel);
 
-	virtual double operator()(size_t pixel);
+	
+	virtual double operator[](std::initializer_list<size_t> index) const;
+	virtual double operator[](const std::vector<size_t>& index) const;
+	virtual double operator[](const size_t* index) const;
+	virtual double operator[](size_t pixel) const;
 
-	virtual size_t getBytes();
-	virtual size_t getPixel();
-	virtual size_t getNDim();
-	virtual size_t ndim();
-	virtual size_t dim(size_t dir);
-	virtual size_t* dim();
+	/* 
+	 * General Information 
+	 */
+	virtual size_t ndim() const;
+	virtual size_t bytes() const;
+	virtual size_t dim(size_t dir) const;
+	virtual const size_t* dim() const;
 
 	virtual void resize(size_t dim[D]);
 
@@ -146,8 +207,38 @@ void NDArrayStore<D,T>::resize(size_t dim[D])
 }
 
 template <int D, typename T>
+size_t NDArrayStore<D,T>::bytes() const
+{
+	size_t out = 1;
+	for(size_t ii=0; ii<D; ii++)
+		out*= _m_dim[ii];
+	return out*sizeof(T);
+}
+
+template <int D, typename T>
+size_t NDArrayStore<D,T>::ndim() const
+{
+	return D;
+}
+
+template <int D, typename T>
+size_t NDArrayStore<D,T>::dim(size_t dir) const
+{
+	return _m_dim[dir];
+}
+
+template <int D, typename T>
+const size_t* NDArrayStore<D,T>::dim() const
+{
+	return _m_dim;
+}
+	
+/* 
+ * Get Address of a Particular Index 
+ */
+template <int D, typename T>
 inline
-size_t NDArrayStore<D,T>::getAddr(std::initializer_list<size_t> index)
+size_t NDArrayStore<D,T>::getAddr(std::initializer_list<size_t> index) const
 {
 	size_t tmp[D];
 	
@@ -162,7 +253,7 @@ size_t NDArrayStore<D,T>::getAddr(std::initializer_list<size_t> index)
 
 template <int D, typename T>
 inline
-size_t NDArrayStore<D,T>::getAddr(size_t index[D])
+size_t NDArrayStore<D,T>::getAddr(const size_t* index) const
 {
 	size_t loc = index[0];
 	size_t jump = _m_dim[0];           // jump to global position
@@ -174,67 +265,193 @@ size_t NDArrayStore<D,T>::getAddr(size_t index[D])
 }
 
 template <int D, typename T>
-double NDArrayStore<D,T>::getD(std::initializer_list<size_t> index)
+inline
+size_t NDArrayStore<D,T>::getAddr(const std::vector<size_t>& index) const
 {
-	size_t ii = getAddr(index);
-	return (double)_m_data[ii];
+	size_t tmp[D];
+	
+	size_t ii = 0;
+	for(auto it=index.begin(); ii<D && it != index.end(); ii++, ++it) 
+		tmp[ii] = *it;
+	for( ; ii<D ; ii++) 
+		tmp[ii] = 0;
+
+	return getAddr(tmp);
+}
+
+/* 
+ * Get/Set Functions 
+ * These are all really boring
+ */
+	
+// double
+template <int D, typename T>
+double NDArrayStore<D,T>::getdbl(std::initializer_list<size_t> index) const
+{
+	return _m_data[getAddr(index)];
 }
 
 template <int D, typename T>
-int NDArrayStore<D,T>::getI(std::initializer_list<size_t> index)
+double NDArrayStore<D,T>::getdbl(const std::vector<size_t>& index) const
 {
-	return (int)_m_data[getAddr(index)];
+	return _m_data[getAddr(index)];
 }
 
 template <int D, typename T>
-void NDArrayStore<D,T>::setD(double newval, std::initializer_list<size_t> index)
+double NDArrayStore<D,T>::getdbl(const size_t* index) const
 {
-	_m_data[getAddr(index)] = (T)newval;
+	return _m_data[getAddr(index)];
 }
 
 template <int D, typename T>
-void NDArrayStore<D,T>::setI(int newval, std::initializer_list<size_t> index)
+void NDArrayStore<D,T>::setdbl(double val, std::initializer_list<size_t> index)
 {
-	_m_data[getAddr(index)] = (T)newval;
+	_m_data[getAddr(index)] = (T)val;
 }
 
 template <int D, typename T>
-double NDArrayStore<D,T>::operator()(std::initializer_list<size_t> index)
+void NDArrayStore<D,T>::setdbl(double val, std::vector<size_t>& index)
 {
-	return (double)_m_data[getAddr(index)];
+	_m_data[getAddr(index)] = (T)val;
 }
 
 template <int D, typename T>
-size_t NDArrayStore<D,T>::getBytes()
+void NDArrayStore<D,T>::setdbl(double val, size_t* index)
 {
-	size_t out = 1;
-	for(size_t ii=0; ii<D; ii++)
-		out*= _m_dim[ii];
-	return out*sizeof(T);
+	_m_data[getAddr(index)] = (T)val;
 }
 
 template <int D, typename T>
-size_t NDArrayStore<D,T>::getNDim() 
+double NDArrayStore<D,T>::getdbl(size_t pixel) const
 {
-	return D;
+	return _m_data[pixel];
 }
 
 template <int D, typename T>
-size_t NDArrayStore<D,T>::ndim() 
+void NDArrayStore<D,T>::setdbl(double val, size_t pixel)
 {
-	return D;
+	_m_data[pixel] = (T)val;
+}
+
+// int
+template <int D, typename T>
+int32_t NDArrayStore<D,T>::getint(std::initializer_list<size_t> index) const
+{
+	return _m_data[getAddr(index)];
 }
 
 template <int D, typename T>
-size_t NDArrayStore<D,T>::dim(size_t dir)
+int32_t NDArrayStore<D,T>::getint(const std::vector<size_t>& index) const
 {
-	return _m_dim[dir];
+	return _m_data[getAddr(index)];
 }
 
 template <int D, typename T>
-size_t* NDArrayStore<D,T>::dim()
+int32_t NDArrayStore<D,T>::getint(const size_t* index) const
 {
-	return _m_dim;
+	return _m_data[getAddr(index)];
 }
 
+template <int D, typename T>
+void NDArrayStore<D,T>::setint(int32_t val, std::initializer_list<size_t> index)
+{
+	_m_data[getAddr(index)] = (T)val;
+}
+
+template <int D, typename T>
+void NDArrayStore<D,T>::setint(int32_t val, std::vector<size_t>& index)
+{
+	_m_data[getAddr(index)] = (T)val;
+}
+
+template <int D, typename T>
+void NDArrayStore<D,T>::setint(int32_t val, size_t* index)
+{
+	_m_data[getAddr(index)] = (T)val;
+}
+
+template <int D, typename T>
+int32_t NDArrayStore<D,T>::getint(size_t pixel) const
+{
+	return _m_data[pixel];
+}
+
+template <int D, typename T>
+void NDArrayStore<D,T>::setint(int32_t val, size_t pixel)
+{
+	_m_data[pixel] = (T)val;
+}
+
+// int64
+template <int D, typename T>
+int64_t NDArrayStore<D,T>::getint64(std::initializer_list<size_t> index) const
+{
+	return _m_data[getAddr(index)];
+}
+
+template <int D, typename T>
+int64_t NDArrayStore<D,T>::getint64(const std::vector<size_t>& index) const
+{
+	return _m_data[getAddr(index)];
+}
+
+template <int D, typename T>
+int64_t NDArrayStore<D,T>::getint64(const size_t* index) const
+{
+	return _m_data[getAddr(index)];
+}
+
+template <int D, typename T>
+void NDArrayStore<D,T>::setint64(int64_t val, std::initializer_list<size_t> index)
+{
+	_m_data[getAddr(index)] = (T)val;
+}
+
+template <int D, typename T>
+void NDArrayStore<D,T>::setint64(int64_t val, std::vector<size_t>& index)
+{
+	_m_data[getAddr(index)] = (T)val;
+}
+
+template <int D, typename T>
+void NDArrayStore<D,T>::setint64(int64_t val, size_t* index)
+{
+	_m_data[getAddr(index)] = (T)val;
+}
+
+template <int D, typename T>
+int64_t NDArrayStore<D,T>::getint64(size_t pixel) const
+{
+	return _m_data[pixel];
+}
+
+template <int D, typename T>
+void NDArrayStore<D,T>::setint64(int64_t val, size_t pixel)
+{
+	_m_data[pixel] = (T)val;
+}
+	
+template <int D, typename T>
+double NDArrayStore<D,T>::operator[](std::initializer_list<size_t> index) const
+{
+	return _m_data[getAddr(index)];
+}
+
+template <int D, typename T>
+double NDArrayStore<D,T>::operator[](const std::vector<size_t>& index) const
+{
+	return _m_data[getAddr(index)];
+}
+
+template <int D, typename T>
+double NDArrayStore<D,T>::operator[](const size_t* index) const
+{
+	return _m_data[getAddr(index)];
+}
+
+template <int D, typename T>
+double NDArrayStore<D,T>::operator[](size_t pixel) const
+{
+	return _m_data[pixel];
+}
 #endif

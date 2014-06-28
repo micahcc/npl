@@ -12,7 +12,7 @@ class NDImage;
 NDImage* readNDImage(std::string filename);
 void writeNDImage(NDImage* img, std::string filename);
 
-NDImage* createNDImage(size_t dim
+//NDImage* createNDImage(size_t dim
 
 /**
  * @brief NDImage can basically be used like an NDArray, with the addition
@@ -80,7 +80,7 @@ private:
 	 */
 
 	// each slice is given its relative time, with 0 as the first
-	vector<double> m_slice_timing;
+	std::vector<double> m_slice_timing;
 	
 	// < 0 indicate unset variables
 	int m_freqdim;
@@ -227,7 +227,7 @@ template <typename T, typename DIMT>
 NDImage* createNDImage(size_t ndim, DIMT* dims)
 {
 	const size_t MAXDIM = 7;
-	size_t truedim[MAXDIM]
+	size_t truedim[MAXDIM];
 	switch(ndim) {
 		case 1:
 			for(size_t ii=0; ii<ndim; ii++)

@@ -1,4 +1,4 @@
-ifndef NIFTI_H
+#ifndef NIFTI_H
 #define NIFTI_H
 
 typedef struct __attribute__((packed)) 
@@ -12,13 +12,14 @@ typedef struct __attribute__((packed))
 	int16_t session_error;
 	char  regular;
 
+//	char dim_info;
 	union {
 		char byte;
-		struct {
+		struct __attribute__((packed)) {
 			unsigned int freqdim : 2;
 			unsigned int phasedim : 2;
 			unsigned int slicedim : 2;
-
+			unsigned int unused : 2;
 		} bits;
 	} dim_info;
 

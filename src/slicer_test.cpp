@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cassert>
 #include <iostream>
+#include <cstdint>
 
 using namespace std;
 
@@ -71,9 +72,9 @@ int main()
 
 	cerr << "Classic Ordering" << endl;
 	slicer.setOrder(order);
-	for(slicer.setBegin(); !slicer.isEnd(); slicer++, ii++) {
+	for(slicer.gotoBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
-		size_t sp = slicer.getPos(pos);
+		size_t sp = slicer.get(pos);
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 
 		indexToLin(p, xx,yy,zz,ww, X,Y,Z,W);
@@ -106,9 +107,9 @@ int main()
 	order.pop_front();
 
 	slicer.setOrder(order);
-	for(slicer.setBegin(); !slicer.isEnd(); slicer++, ii++) {
+	for(slicer.gotoBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
-		size_t sp = slicer.getPos(pos);
+		size_t sp = slicer.get(pos);
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 		cerr << xx << "," << yy << "," << zz << "," << ww << endl;
 
@@ -142,9 +143,9 @@ int main()
 	order.pop_front();
 
 	slicer.setOrder(order);
-	for(slicer.setBegin(); !slicer.isEnd(); slicer++, ii++) {
+	for(slicer.gotoBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
-		size_t sp = slicer.getPos(pos);
+		size_t sp = slicer.get(pos);
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 		cerr << xx << "," << yy << "," << zz << "," << ww << endl;
 
@@ -175,9 +176,9 @@ int main()
 	order.push_back(order.front());
 	order.pop_front();
 	slicer.setOrder(order);
-	for(slicer.setBegin(); !slicer.isEnd(); slicer++, ii++) {
+	for(slicer.gotoBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
-		size_t sp = slicer.getPos(pos);
+		size_t sp = slicer.get(pos);
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 		cerr << xx << "," << yy << "," << zz << "," << ww << endl;
 
@@ -209,9 +210,9 @@ int main()
 	// roi 
 	cerr << endl << "Previous, With ROI" << endl;
 	slicer.setROI(roi);
-	for(slicer.setBegin(); !slicer.isEnd(); slicer++, ii++) {
+	for(slicer.gotoBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
-		size_t sp = slicer.getPos(pos);
+		size_t sp = slicer.get(pos);
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 		cerr << xx << "," << yy << "," << zz << "," << ww << endl;
 
@@ -242,4 +243,6 @@ int main()
 		}
 	}
 	cerr << endl;
+	cerr << "PASS!" << endl;
 }
+
