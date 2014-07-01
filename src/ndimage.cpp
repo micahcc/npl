@@ -117,9 +117,192 @@ int writeNDImage(NDImage* img, std::string fn, bool nifti2 = true)
 	return 0;
 }
 
-void parseniftiheader()
+template <typename T>
+NDImage* readNifti1Pixels(gzFile file, nifti1_header* header, bool doswap)
 {
-//move stuff into here
+	// jump to voxel offset
+	gzseek(file, header->vox_offset, SEEK_SET);
+
+	/* 
+	 * Create Slicer Object to iterate through image slices
+	 */
+
+	// dim 0 is the fastest in nifti images, so go in that order
+	std::list<size_t> order(header->ndim, 0);
+	std::vector<size_t> dim(header->ndim, 0);
+	for(int64_t ii=0; ii<(int64_t)header->ndim; ii++) {
+		dim[ii] = header->dim[ii];
+		order.push_back(ii);
+	}
+	
+	Slicer slicer(dim, order);
+	for(slicer.gotoBegin(); slicer.isEnd(); ++slicer){
+		out->setdbl(*slicer, ;
+	}
+
+	std::vector<size_t> dim(header->ndim);
+	for(size_t ii=0; ii<header->ndim; ii++) 
+		dim[ii] = header->dim[ii];
+
+	T tmp;
+	NDImage* out;
+
+	switch(header->ndim) {
+		case 1: {
+			auto tmp = new NDImageStore<1, T>(dim);
+			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
+				gzread(file, &tmp, sizeof(T));
+				if(doswap) swap<T>(tmp);
+				m_data[*slicer] = tmp;
+			}
+			out = tmp;
+			} break;
+		case 2:{
+			auto tmp = NDImageStore<2, T>(dim);
+			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
+				gzread(file, &tmp, sizeof(T));
+				if(doswap) swap<T>(tmp);
+				m_data[*slicer] = tmp;
+			}
+			out = tmp;
+			} break;
+		case 3:{
+			auto tmp = NDImageStore<2, T>(dim);
+			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
+				gzread(file, &tmp, sizeof(T));
+				if(doswap) swap<T>(tmp);
+				m_data[*slicer] = tmp;
+			}
+			out = tmp;
+			} break;
+		case 4:{
+			auto tmp = NDImageStore<4, T>(dim);
+			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
+				gzread(file, &tmp, sizeof(T));
+				if(doswap) swap<T>(tmp);
+				m_data[*slicer] = tmp;
+			}
+			out = tmp;
+			} break;
+		case 5:{
+			auto tmp = NDImageStore<5, T>(dim);
+			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
+				gzread(file, &tmp, sizeof(T));
+				if(doswap) swap<T>(tmp);
+				m_data[*slicer] = tmp;
+			}
+			out = tmp;
+			} break;
+		case 6:{
+			auto tmp = NDImageStore<6, T>(dim);
+			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
+				gzread(file, &tmp, sizeof(T));
+				if(doswap) swap<T>(tmp);
+				m_data[*slicer] = tmp;
+			}
+			out = tmp;
+			} break;
+		case 7:{
+			auto tmp = NDImageStore<7, T>(dim);
+			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
+				gzread(file, &tmp, sizeof(T));
+				if(doswap) swap<T>(tmp);
+				m_data[*slicer] = tmp;
+			}
+			out = tmp;
+			} break;
+		case 8:{
+			auto tmp = NDImageStore<8, T>(dim);
+			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
+				gzread(file, &tmp, sizeof(T));
+				if(doswap) swap<T>(tmp);
+				m_data[*slicer] = tmp;
+			}
+			out = tmp;
+			} break;
+	};
+
+	return out;
+}
+
+int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap)
+{
+	// seek to 0
+	gzseek(file, 0, SEEK_SET);
+
+	static_assert(sizeof(nifti1_header) == 348, "Error, nifti header packing failed");
+
+	// read header
+	gzread(file, header, sizeof(nifti1_header));
+	std::cerr << header->magic << std::endl;
+	if(strncmp(header->magic, "n+1")) {
+		gzrewind(file);
+		return -1;
+	}
+
+	// byte swap
+	bool doswap = false;
+	int64_t npixel = 1;
+	if(header->sizeof_hdr != 348) {
+		doswap = true;
+		swap<int32_t>(&header->sizeof_hdr);
+		swap<int16_t>(&header->ndim);
+		for(size_t ii=0; ii<7; ii++)
+			swap<int16_t>(&header->dim[ii]);
+		swap<float>(&header->intent_p1);
+		swap<float>(&header->intent_p2);
+		swap<float>(&header->intent_p3);
+		swap<int16_t>(&header->intent_code);
+		swap<int16_t>(&header->datatype);
+		swap<int16_t>(&header->bitpix);
+		swap<int16_t>(&header->slice_start);
+		swap<float>(&header->qfac);
+		for(size_t ii=0; ii<7; ii++)
+			swap<int16_t>(&header->pixdim[ii]);
+		swap<float>(&header->vox_offset);
+		swap<float>(&header->scl_slope);
+		swap<float>(&header->scl_inter);
+		swap<int16_t>(&header->slice_end);
+		swap<float>(&header->cal_max);
+		swap<float>(&header->cal_min);
+		swap<float>(&header->slice_duration);
+		swap<float>(&header->toffset);
+
+		for(int32_t ii=0; ii<header->ndim; ii++)
+			npixel *= header->dim[ii];
+	}
+	
+	if(verbose) {
+		std::cerr << "sizeof_hdr:" << header->sizeof_hdr << std::endl;
+		std::cerr << "ndim:" << header->ndim << std::endl;
+		for(size_t ii=0; ii<7; ii++)
+			std::cerr << "dim[" << ii << "]:" << header->dim[ii] << std::endl;
+		for(size_t ii=0; ii<7; ii++)
+			std::cerr << "pixdim[" << ii << "]:" << header->pixdim[ii] << std::endl;
+
+		std::cerr << "intent_p1:" << header->intent_p1 << std::endl;
+		std::cerr << "intent_p2:" << header->intent_p2 << std::endl;
+		std::cerr << "intent_p3:" << header->intent_p3 << std::endl;
+		std::cerr << "intent_code:" << header->intent_code << std::endl;
+		std::cerr << "datatype:" << header->datatype << std::endl;
+		std::cerr << "bitpix:" << header->bitpix << std::endl;
+		std::cerr << "slice_start:" << header->slice_start << std::endl;
+		std::cerr << "qfac:" << header->qfac << std::endl;
+		std::cerr << "vox_offset:" << header->vox_offset << std::endl;
+		std::cerr << "scl_slope:" << header->scl_slope << std::endl;
+		std::cerr << "scl_inter:" << header->scl_inter << std::endl;
+		std::cerr << "slice_end:" << header->slice_end << std::endl;
+		std::cerr << "cal_max:" << header->cal_max << std::endl;
+		std::cerr << "cal_min:" << header->cal_min << std::endl;
+		std::cerr << "slice_duration:" << header->slice_duration << std::endl;
+		std::cerr << "toffset:" << header->toffset << std::endl;
+	}
+	
+	if(header->sizeof_hdr != 348) {
+		std::cerr << "Malformed nifti input" << std::endl;
+		return -1;
+	}
+	return 0;
 }
 
 /* 
@@ -127,141 +310,46 @@ void parseniftiheader()
  */
 NDImage* readNifti1Image(gzFile file, bool verbose)
 {
-	nifti1_header header;
-	static_assert(sizeof(header) == 348, "Error, nifti header packing failed");
-
-	gzread(file, &header, sizeof(header));
-	std::cerr << header.magic << std::endl;
-	if(strcmp(header.magic, "n+1")) {
-		gzrewind(file);
-		return NULL;
-	}
-
-	// byte swap
 	bool doswap = false;
-	int64_t npixel = 1;
-	if(header.sizeof_hdr != 348) {
-		doswap = true;
-		header.sizeof_hdr = swap<int32_t>(header.sizeof_hdr);
-		header.ndim = swap<int16_t>(header.ndim);
-		for(size_t ii=0; ii<7; ii++)
-			header.dim[ii] = swap<int16_t>(header.dim[ii]);
-		header.intent_p1 = swap<float>(header.intent_p1);
-		header.intent_p2 = swap<float>(header.intent_p2);
-		header.intent_p3 = swap<float>(header.intent_p3);
-		header.intent_code = swap<int16_t>(header.intent_code);
-		header.datatype = swap<int16_t>(header.datatype);
-		header.bitpix = swap<int16_t>(header.bitpix);
-		header.slice_start = swap<int16_t>(header.slice_start);
-		header.qfac = swap<float>(header.qfac);
-		for(size_t ii=0; ii<7; ii++)
-			header.pixdim[ii] = swap<int16_t>(header.pixdim[ii]);
-		header.vox_offset = swap<float>(header.vox_offset);
-		header.scl_slope = swap<float>(header.scl_slope);
-		header.scl_inter = swap<float>(header.scl_inter);
-		header.slice_end = swap<int16_t>(header.slice_end);
-		header.cal_max = swap<float>(header.cal_max);
-		header.cal_min = swap<float>(header.cal_min);
-		header.slice_duration = swap<float>(header.slice_duration);
-		header.toffset = swap<float>(header.toffset);
-				
-		for(int32_t ii=0; ii<header.ndim; ii++)
-			npixel *= header.dim[ii];
-	}
-	
-	// jump to voxel offset
-	gzseek(file, header.vox_offset, SEEK_SET);
-
-	// read the rest of the file
-	int64_t bytepix = (header.bitpix>>3);
-	unsigned char* tmp = new unsigned char[bytepix*npixel];
-
-	int64_t readresult = gzread(file, tmp, bytepix*npixel);
-	if(readresult != bytepix*npixel) {
-		std::cerr << "Error reading remaining pixels" << std::endl;
-		delete[] tmp;
-		return NULL;
-	}
-
-	if(verbose) {
-		std::cerr << "sizeof_hdr:" << header.sizeof_hdr << std::endl;
-		std::cerr << "ndim:" << header.ndim << std::endl;
-		for(size_t ii=0; ii<7; ii++)
-			std::cerr << "dim[" << ii << "]:" << header.dim[ii] << std::endl;
-		for(size_t ii=0; ii<7; ii++)
-			std::cerr << "pixdim[" << ii << "]:" << header.pixdim[ii] << std::endl;
-
-		std::cerr << "intent_p1:" << header.intent_p1 << std::endl;
-		std::cerr << "intent_p2:" << header.intent_p2 << std::endl;
-		std::cerr << "intent_p3:" << header.intent_p3 << std::endl;
-		std::cerr << "intent_code:" << header.intent_code << std::endl;
-		std::cerr << "datatype:" << header.datatype << std::endl;
-		std::cerr << "bitpix:" << header.bitpix << std::endl;
-		std::cerr << "slice_start:" << header.slice_start << std::endl;
-		std::cerr << "qfac:" << header.qfac << std::endl;
-		std::cerr << "vox_offset:" << header.vox_offset << std::endl;
-		std::cerr << "scl_slope:" << header.scl_slope << std::endl;
-		std::cerr << "scl_inter:" << header.scl_inter << std::endl;
-		std::cerr << "slice_end:" << header.slice_end << std::endl;
-		std::cerr << "cal_max:" << header.cal_max << std::endl;
-		std::cerr << "cal_min:" << header.cal_min << std::endl;
-		std::cerr << "slice_duration:" << header.slice_duration << std::endl;
-		std::cerr << "toffset:" << header.toffset << std::endl;
-	}
-	
-	if(header.sizeof_hdr != 348) {
-		std::cerr << "Malformed nifti input" << std::endl;
-		return NULL;
-	}
-	
-	// compute strides in input image
-	std::vector<size_t> strides(header.ndim);
-	strides[0] = bytepix;
-	for(int64_t ii=1; ii<header.ndim; ii++) 
-		strides[ii] = header.dim[ii-1]*strides[ii-1];
-
-	Slicer slicer;
-	std::vector<size_t> revorder(header.ndim, 0);
-	for(int64_t ii=0; ii<(int64_t)header.ndim; ii++) 
-		revorder[ii] = header.ndim-1-ii;
-
-	NDImage* out = NULL;
+	nifti1_header header;
+	if(readNifti1Header(file, &header, &doswap) < 0)
+		return -1;
 
 	// create image
 	switch(header.datatype) {
 		// 8 bit
 		case NIFTI_TYPE_INT8:
-			out = createNDImage<int8_t>(header.ndim, header.dim);
+			out = readNifti1Pixels<int8_t>(file, &header, doswap);
 		break;
 		case NIFTI_TYPE_UINT8:
-			out = createNDImage<uint8_t>(header.ndim, header.dim);
+			out = readNifti1Pixels<uint8_t>(file, &header, doswap);
 		break;
 		// 16  bit
 		case NIFTI_TYPE_INT16:
-			out = createNDImage<int16_t>(header.ndim, header.dim);
+			out = readNifti1Pixels<int16_t>(file, &header, doswap);
 		break;
 		case NIFTI_TYPE_UINT16:
-			out = createNDImage<uint16_t>(header.ndim, header.dim);
+			out = readNifti1Pixels<uint16_t>(file, &header, doswap);
 		break;
 		// 32 bit
 		case NIFTI_TYPE_INT32:
-			out = createNDImage<int32_t>(header.ndim, header.dim);
+			out = readNifti1Pixels<int32_t>(file, &header, doswap);
 		break;
 		case NIFTI_TYPE_UINT32:
-			out = createNDImage<uint32_t>(header.ndim, header.dim);
+			out = readNifti1Pixels<uint32_t>(file, &header, doswap);
 		break;
 		case NIFTI_TYPE_FLOAT32:
-			out = createNDImage<float>(header.ndim, header.dim);
+			out = readNifti1Pixels<float>(file, &header, doswap);
 		break;
 		// 64 bit
 		case NIFTI_TYPE_FLOAT64:
-			out = createNDImage<double>(header.ndim, header.dim);
+			out = readNifti1Pixels<double>(file, &header, doswap);
 		break;
 		case NIFTI_TYPE_INT64:
-			out = createNDImage<int64_t>(header.ndim, header.dim);
+			out = readNifti1Pixels<int64_t>(file, &header, doswap);
 		break;
 		case NIFTI_TYPE_UINT64:
-			out = createNDImage<uint64_t>(header.ndim, header.dim);
+			out = readNifti1Pixels<uint64_t>(file, &header, doswap);
 		break;
 		// 128 bit
 		case NIFTI_TYPE_COMPLEX64:
@@ -289,6 +377,14 @@ NDImage* readNifti1Image(gzFile file, bool verbose)
 			std::cerr << "RGBA not currently supported!" << std::endl;
 			return NULL;
 	}
+
+	if(!out)
+		return NULL;
+
+	/* 
+	 * Now that we have an Image*, wecan fill in the remaining values from 
+	 * the header
+	 */
 
 	// figure out orientation
 	if(header.qform_code > 0) {
@@ -446,36 +542,33 @@ NDImage* readNifti1Image(gzFile file, bool verbose)
 		break;
 	}
 
-	/************************************************************************** 
-	 * Read Pixel Data
-	 **************************************************************************/
 	return out;
 }
 
-NDImage* readNifti2Image(gzFile file)
-{
-	nifti2_header header;
-	static_assert(sizeof(header) == 540, "Error, nifti header packing failed");
-
-	gzread(file, &header, sizeof(header));
-	std::cerr << header.magic << std::endl;
-	if(strcmp(header.magic, "n+2")) {
-		gzclearerr(file);
-		gzrewind(file);
-		return NULL;
-	}
-
-	NDImage* out;
-	// valid, go ahead and parse
-	
-	return out;
-}
-
+//NDImage* readNifti2Image(gzFile file)
+//{
+//	nifti2_header header;
+//	static_assert(sizeof(header) == 540, "Error, nifti header packing failed");
+//
+//	gzread(file, &header, sizeof(header));
+//	std::cerr << header.magic << std::endl;
+//	if(strcmp(header.magic, "n+2")) {
+//		gzclearerr(file);
+//		gzrewind(file);
+//		return NULL;
+//	}
+//
+//	NDImage* out;
+//	// valid, go ahead and parse
+//	
+//	return out;
+//}
+//
 int writeNifti1Image(NDImage* out, gzFile file)
 {
 	const size_t HEADERSIZE = 348;
 	nifti1_header header;
-	static_assert(sizeof(header) == HEADERSIZE, "Error, nifti header packing failed");
+	static_assert(sizeof(nifti1_header) == HEADERSIZE, "Error, nifti header packing failed");
 
 	std::fill((char*)&header, ((char*)&header)+HEADERSIZE, 0);
 

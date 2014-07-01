@@ -102,6 +102,7 @@ public:
 	 */
 
 	NDImageStore(std::initializer_list<size_t> a_args);
+	NDImageStore(const std::vector<size_t>& a_args);
 	NDImageStore(size_t size[D]);
 	
 

@@ -2,21 +2,20 @@
 #define BYTESWAP_H
 
 template <typename T>
-union Bytes
+union Bytes 
 {
 	T iv;
 	unsigned char bytes[sizeof(T)];
-};
+} __attribute__((packed));
 
 template <typename T>
-T swap(T val)
+void swap(T* val)
 {
 	Bytes<T> tmp1;
-	Bytes<T> tmp2;
-	tmp1.iv = val;
-	for(size_t ii=0; ii<sizeof(T); ii++)
-		tmp2.bytes[ii] = tmp1.bytes[sizeof(T)-ii-1];
-	return tmp2.iv;
+	tmp1.iv = *val;
+	for(size_t ii=0; ii<sizeof(T)/2; ii++)
+		std::swap(tmp1.bytes[sizeof(T)-ii-1], tmp1.bytes[ii]);
+	*val = tmp.iv;
 }
 
 #endif //BYTESWAP_H
