@@ -117,10 +117,14 @@ int writeNDImage(NDImage* img, std::string fn, bool nifti2 = true)
 	return 0;
 }
 
+void parseniftiheader()
+{
+//move stuff into here
+}
+
 /* 
  * Nifti Readers 
  */
-
 NDImage* readNifti1Image(gzFile file, bool verbose)
 {
 	nifti1_header header;
@@ -212,7 +216,6 @@ NDImage* readNifti1Image(gzFile file, bool verbose)
 	
 	// compute strides in input image
 	std::vector<size_t> strides(header.ndim);
-	size_t byte;
 	strides[0] = bytepix;
 	for(int64_t ii=1; ii<header.ndim; ii++) 
 		strides[ii] = header.dim[ii-1]*strides[ii-1];
@@ -293,20 +296,20 @@ NDImage* readNifti1Image(gzFile file, bool verbose)
 		 * set spacing 
 		 */
 		for(size_t ii=0; ii<out->ndim(); ii++)
-			out->setSpace(ii, header.pixdim[ii]);
+			out->space(ii) = header.pixdim[ii];
 		
 		/* 
 		 * set origin 
 		 */
 		// x,y,z
 		for(size_t ii=0;ii<3 && ii<out->ndim(); ii++)
-			out->setOrigin(ii, header.qoffset[ii]);
+			out->origin(ii) = header.qoffset[ii];
 		// set toffset
 		if(out->ndim() > 3)
-			out->setOrigin(3, header.toffset);
+			out->origin(3) = header.toffset;
 		// set remaining to 0
 		for(size_t ii=4;ii<out->ndim(); ii++)
-			out->setOrigin(ii, 0);
+			out->origin(ii) = 0;
 
 		/* Copy Quaternions, and Make Rotation Matrix */
 
@@ -322,125 +325,130 @@ NDImage* readNifti1Image(gzFile file, bool verbose)
 		double a = sqrt(1.0-(a*b+c*c+d*d));
 
 		// calculate R, (was already identity)
-		out->m_dir[0*out->ndim()+0] = a*a+b*b-c*c-d*d;
+		out->direction(0, 0) = a*a+b*b-c*c-d*d;
 
 		if(out->ndim() > 1) {
-			out->m_dir[0*out->ndim()+1] = 2*b*c-2*a*d;
-			out->m_dir[1*out->ndim()+0] = out->m_dir[0*out->ndim()+1];
-			out->m_dir[1*out->ndim()+1] = a*a+c*c-b*b-d*d;
+			out->direction(0,1) = 2*b*c-2*a*d;
+			out->direction(1,0) = out->direction(0, 1);
+			out->direction(1,1) = a*a+c*c-b*b-d*d;
 		}
 		
 		if(out->ndim() > 2) {
-			out->m_dir[0*out->ndim()+2] = 2*b*d+2*a*c;
-			out->m_dir[1*out->ndim()+2] = 2*c*d-2*a*b;
-			out->m_dir[2*out->ndim()+2] = a*a+d*d-c*c-b*b;
+			out->direction(0,2) = 2*b*d+2*a*c;
+			out->direction(1,2) = 2*c*d-2*a*b;
+			out->direction(2,2) = a*a+d*d-c*c-b*b;
 			
-			out->m_dir[0*out->ndim()+2] = out->m_dir[2*out->ndim()+0];
-			out->m_dir[1*out->ndim()+2] = out->m_dir[2*out->ndim()+1];
+			out->direction(2,0) = out->direction(0,2);
+			out->direction(1,2) = out->direction(2,1);
 		}
 
 		// finally update affine, but scale pixdim[z] by qfac temporarily
 		if(header.qfac == -1 && out->ndim() > 2)
-			out->pixdim[2] = -out->pixdim[2];
-		updateAffine();
+			out->space(2) = -out->space(2);
+		out->updateAffine();
 		if(header.qfac == -1 && out->ndim() > 2)
-			out->pixdim[2] = -out->pixdim[2];
-	} else if(header.sform_code > 0) {
-		/* use the sform, since no qform exists */
-
-		// origin, last column
-		double di = 0, dj = 0, dk = 0;
-		for(size_t ii=0; ii<3 && ii<out->ndim(); ii++) {
-			di += pow(header.srow[4*ii+0],2); //column 0
-			dj += pow(header.srow[4*jj+1],2); //column 1
-			dk += pow(header.srow[4*kk+2],2); //column 2
-			out->m_origin[ii] = header.srow[4*ii+3]; //column 3
-		}
-		
-		// set direction and spacing
-		out->m_spacing[0] = sqrt(di);
-		out->m_dir[0*out->ndim()+0] = header.srow[4*0+0]/di;
-
-		if(out->ndim() > 1) {
-			out->m_spacing[1] = sqrt(dj);
-			out->m_dir[0*out->ndim()+1] = header.srow[4*0+1]/dj;
-			out->m_dir[1*out->ndim()+1] = header.srow[4*1+1]/dj;
-			out->m_dir[1*out->ndim()+0] = header.srow[4*1+0]/di;
-		}
-		if(out->ndim() > 2) {
-			out->m_spacing[2] = sqrt(dk);
-			out->m_dir[0*out->ndim()+2] = header.srow[4*0+2]/dk;
-			out->m_dir[1*out->ndim()+2] = header.srow[4*1+2]/dk;
-			out->m_dir[2*out->ndim()+2] = header.srow[4*2+2]/dk;
-			out->m_dir[2*out->ndim()+1] = header.srow[4*2+1]/dj;
-			out->m_dir[2*out->ndim()+0] = header.srow[4*2+0]/di;
-		}
-
-		// affine matrix
-		updateAffine();
+			out->space(2) = -out->space(2);
+//	} else if(header.sform_code > 0) {
+//		/* use the sform, since no qform exists */
+//
+//		// origin, last column
+//		double di = 0, dj = 0, dk = 0;
+//		for(size_t ii=0; ii<3 && ii<out->ndim(); ii++) {
+//			di += pow(header.srow[4*ii+0],2); //column 0
+//			dj += pow(header.srow[4*jj+1],2); //column 1
+//			dk += pow(header.srow[4*kk+2],2); //column 2
+//			out->origin(ii) = header.srow[4*ii+3]; //column 3
+//		}
+//		
+//		// set direction and spacing
+//		out->m_spacing[0] = sqrt(di);
+//		out->m_dir[0*out->ndim()+0] = header.srow[4*0+0]/di;
+//
+//		if(out->ndim() > 1) {
+//			out->m_spacing[1] = sqrt(dj);
+//			out->m_dir[0*out->ndim()+1] = header.srow[4*0+1]/dj;
+//			out->m_dir[1*out->ndim()+1] = header.srow[4*1+1]/dj;
+//			out->m_dir[1*out->ndim()+0] = header.srow[4*1+0]/di;
+//		}
+//		if(out->ndim() > 2) {
+//			out->m_spacing[2] = sqrt(dk);
+//			out->m_dir[0*out->ndim()+2] = header.srow[4*0+2]/dk;
+//			out->m_dir[1*out->ndim()+2] = header.srow[4*1+2]/dk;
+//			out->m_dir[2*out->ndim()+2] = header.srow[4*2+2]/dk;
+//			out->m_dir[2*out->ndim()+1] = header.srow[4*2+1]/dj;
+//			out->m_dir[2*out->ndim()+0] = header.srow[4*2+0]/di;
+//		}
+//
+//		// affine matrix
+//		updateAffine();
 	} else {
 		// only spacing changes
-		for(size_t ii=0; ii<header.ndim; ii++)
-			out->m_space[ii] = header.pixdim[ii];
-		updateAffine();
+		for(int64_t ii=0; ii<header.ndim; ii++)
+			out->space(ii) = header.pixdim[ii];
+		out->updateAffine();
 	}
 
-	/* Medical Imaging Varaibles Variables */
+	/************************************************************************** 
+	 * Medical Imaging Varaibles Variables 
+	 **************************************************************************/
 	
 	// direct copies
-	out->m_slice_duration = header->slice_duration;
-	out->m_slice_start = header->slice_start;
-	out->m_slice_end = header->slice_end;
+	out->m_slice_duration = header.slice_duration;
+	out->m_slice_start = header.slice_start;
+	out->m_slice_end = header.slice_end;
 	out->m_freqdim = (int)(header.dim_info.bits.freqdim)-1;
 	out->m_phasedim = (int)(header.dim_info.bits.phasedim)-1;
 	out->m_slicedim = (int)(header.dim_info.bits.slicedim)-1;
 
-	if(out->m_slicedim > 0) 
-		out->m_slice_timing.resize(out->dim[out->m_slicedim], NAN);
+	if(out->m_slicedim > 0) {
+		out->m_slice_timing.resize(out->dim(out->m_slicedim), NAN);
+	}
 
 	// slice timing
 	switch(header.slice_code) {
 		case NIFTI_SLICE_SEQ_INC:
 			out->m_slice_order = "SEQ";
-			for(int ii=out->slice_start; ii<=out->slice_end; ii++)
-				out->m_slice_timing[ii] = ii*m_slice_duration;
+			for(int ii=out->m_slice_start; ii<=out->m_slice_end; ii++)
+				out->m_slice_timing[ii] = ii*out->m_slice_duration;
 		break;
 		case NIFTI_SLICE_SEQ_DEC:
 			out->m_slice_order = "RSEQ";
-			for(int ii=out->slice_end; ii>=out->slice_start; ii--)
-				out->m_slice_timing[ii] = ii*m_slice_duration;
+			for(int ii=out->m_slice_end; ii>=out->m_slice_start; ii--)
+				out->m_slice_timing[ii] = ii*out->m_slice_duration;
 		break;
 		case NIFTI_SLICE_ALT_INC:
 			out->m_slice_order = "ALT";
-			for(int ii=out->slice_start; ii<=out->slice_end; ii+=2)
-				out->m_slice_timing[ii] = ii*m_slice_duration;
-			for(int ii=out->slice_start+1; ii<=out->slice_end; ii+=2)
-				out->m_slice_timing[ii] = ii*m_slice_duration;
+			for(int ii=out->m_slice_start; ii<=out->m_slice_end; ii+=2)
+				out->m_slice_timing[ii] = ii*out->m_slice_duration;
+			for(int ii=out->m_slice_start+1; ii<=out->m_slice_end; ii+=2)
+				out->m_slice_timing[ii] = ii*out->m_slice_duration;
 		break;
 		case NIFTI_SLICE_ALT_DEC:
 			out->m_slice_order = "RALT";
-			for(int ii=out->slice_end; ii>=out->slice_start; ii-=2)
-				out->m_slice_timing[ii] = ii*m_slice_duration;
-			for(int ii=out->slice_end-1; ii>=out->slice_start; ii-=2)
-				out->m_slice_timing[ii] = ii*m_slice_duration;
+			for(int ii=out->m_slice_end; ii>=out->m_slice_start; ii-=2)
+				out->m_slice_timing[ii] = ii*out->m_slice_duration;
+			for(int ii=out->m_slice_end-1; ii>=out->m_slice_start; ii-=2)
+				out->m_slice_timing[ii] = ii*out->m_slice_duration;
 		break;
 		case NIFTI_SLICE_ALT_INC2:
 			out->m_slice_order = "ALT_P1";
-			for(int ii=out->slice_start+1; ii<=out->slice_end; ii+=2)
-				out->m_slice_timing[ii] = ii*m_slice_duration;
-			for(int ii=out->slice_start; ii<=out->slice_end; ii+=2)
-				out->m_slice_timing[ii] = ii*m_slice_duration;
+			for(int ii=out->m_slice_start+1; ii<=out->m_slice_end; ii+=2)
+				out->m_slice_timing[ii] = ii*out->m_slice_duration;
+			for(int ii=out->m_slice_start; ii<=out->m_slice_end; ii+=2)
+				out->m_slice_timing[ii] = ii*out->m_slice_duration;
 		break;
 		case NIFTI_SLICE_ALT_DEC2:
 			out->m_slice_order = "RALT_P1";
-			for(int ii=out->slice_end-1; ii>=out->slice_start; ii-=2)
-				out->m_slice_timing[ii] = ii*m_slice_duration;
-			for(int ii=out->slice_end; ii>=out->slice_start; ii-=2)
-				out->m_slice_timing[ii] = ii*m_slice_duration;
+			for(int ii=out->m_slice_end-1; ii>=out->m_slice_start; ii-=2)
+				out->m_slice_timing[ii] = ii*out->m_slice_duration;
+			for(int ii=out->m_slice_end; ii>=out->m_slice_start; ii-=2)
+				out->m_slice_timing[ii] = ii*out->m_slice_duration;
 		break;
 	}
 
-	// valid, go ahead and parse
+	/************************************************************************** 
+	 * Read Pixel Data
+	 **************************************************************************/
 	return out;
 }
 
@@ -465,7 +473,7 @@ NDImage* readNifti2Image(gzFile file)
 
 int writeNifti1Image(NDImage* out, gzFile file)
 {
-	size_t HEADERSIZE = 348;
+	const size_t HEADERSIZE = 348;
 	nifti1_header header;
 	static_assert(sizeof(header) == HEADERSIZE, "Error, nifti header packing failed");
 
@@ -473,16 +481,14 @@ int writeNifti1Image(NDImage* out, gzFile file)
 
 	header.sizeof_hdr = HEADERSIZE;
 
-	if(out->encoding) {
-		header.dim_info.bits.freqdim = out->freqdim+1;
-		header.dim_info.bits.phasedim = out->phasedim+1;
-		header.dim_info.bits.slicedim = out->slicedim+1;
-	} 
+	if(out->m_freqdim > 0)  header.dim_info.bits.freqdim = out->m_freqdim+1;
+	if(out->m_phasedim > 0)  header.dim_info.bits.phasedim = out->m_phasedim+1;
+	if(out->m_slicedim > 0)  header.dim_info.bits.slicedim = out->m_slicedim+1;
 
-	header.ndim = out->getNDim();
-	for(size_t dd=0; dd<out->getNDim(); dd++) {
+	header.ndim = out->ndim();
+	for(size_t dd=0; dd<out->ndim(); dd++) {
 		header.dim[dd] = out->dim(dd);
-		header.pixdim[dd] = out->m_space[dd];
+		header.pixdim[dd] = out->space(dd);
 	}
 	
 	if(out->quatern) {

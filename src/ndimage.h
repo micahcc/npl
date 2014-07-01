@@ -5,6 +5,7 @@
 
 #include <string>
 #include <iostream>
+#include <cassert>
 
 class NDImage;
 
@@ -20,60 +21,21 @@ void writeNDImage(NDImage* img, std::string filename);
  */
 class NDImage : public virtual NDArray
 {
-};
-
-
-/**
- * @brief NDImageStore is a version of NDArray that has an orientation matrix.
- * Right now it also has additional data that is unique to nifti. Eventually
- * this class will be forked into a subclass, and this will only have the 
- * orientation.
- *
- * @tparam D 	Number of dimensions
- * @tparam T	Pixel type
- */
-template <int D, typename T>
-class NDImageStore :  public NDArrayStore<D,T>, public NDImage
-{
-
 public:
-	/**
-	 * @brief Create an image with default orientation, of the specified size
-	 *
-	 * @param dim	number of image dimensions
-	 * @param size	vector of size dim, with the image size
-	 * @param orient orientation
-	 */
-
-	NDImageStore(std::initializer_list<size_t> a_args);
-	NDImageStore(size_t size[D]);
+	virtual double& space(size_t d) = 0;
+	virtual double& origin(size_t d) = 0;
+	virtual double& direction(size_t d1, size_t d2) = 0;
+	virtual double& affine(size_t d1, size_t d2) = 0;
+	virtual void updateAffine() = 0;
 	
 
-	/*************************************************************************
-	 * Coordinate Transform Functions
-	 ************************************************************************/
-	int indToPt(double index[D], double ras[D]);
-	int ptToInd(double ras[D], double index[D]);
-	int indToPt(std::initializer_list<double> index[D], 
-			std::initializer_list<double> ras[D]);
-	int ptToInd(std::initializer_list<double> ras[D], 
-			std::initializer_list<double> index[D]);
-	
+	NDImage() : m_freqdim(-1), m_phasedim(-1), m_slicedim(-1), 
+				m_slice_duration(-1), m_slice_start(-1), m_slice_end(-1), 
+				use_quaterns(0) 
+	{
 
-	void orientDefault();
-	void updateAffine();
-	void printSelf();
+	};
 
-private:
-	// used to transform index to RAS (Right Handed Coordinate System)
-	double m_dir[D*D];
-	double m_space[D];
-	double m_origin[D];
-	std::string m_units[D];
-
-	// chache of the affine index -> RAS (right handed coordiante system)
-	double m_affine[(D+1)*(D+1)];
-	
 	/*
 	 * medical image specific stuff, eventually these should be moved to a 
 	 * medical image subclass
@@ -114,6 +76,70 @@ private:
 	// raw quaternian values, to prevent roundoff errors
 	bool use_quaterns;;
 	double quaterns[4];
+};
+
+
+/**
+ * @brief NDImageStore is a version of NDArray that has an orientation matrix.
+ * Right now it also has additional data that is unique to nifti. Eventually
+ * this class will be forked into a subclass, and this will only have the 
+ * orientation.
+ *
+ * @tparam D 	Number of dimensions
+ * @tparam T	Pixel type
+ */
+template <int D, typename T>
+class NDImageStore :  public NDArrayStore<D,T>, public virtual NDImage
+{
+
+public:
+	/**
+	 * @brief Create an image with default orientation, of the specified size
+	 *
+	 * @param dim	number of image dimensions
+	 * @param size	vector of size dim, with the image size
+	 * @param orient orientation
+	 */
+
+	NDImageStore(std::initializer_list<size_t> a_args);
+	NDImageStore(size_t size[D]);
+	
+
+	/*************************************************************************
+	 * Coordinate Transform Functions
+	 ************************************************************************/
+	int indToPt(double index[D], double ras[D]);
+	int ptToInd(double ras[D], double index[D]);
+	int indToPt(std::initializer_list<double> index[D], 
+			std::initializer_list<double> ras[D]);
+	int ptToInd(std::initializer_list<double> ras[D], 
+			std::initializer_list<double> index[D]);
+	
+
+	void orientDefault();
+	void updateAffine();
+	void printSelf();
+
+	double& space(size_t d);
+	double& origin(size_t d);
+	double& direction(size_t d1, size_t d2);
+	double& affine(size_t d1, size_t d2);
+	const double& space(size_t d) const;
+	const double& origin(size_t d) const;
+	const double& direction(size_t d1, size_t d2) const;
+	const double& affine(size_t d1, size_t d2) const;
+
+	std::string getUnits(size_t d1, double d2);
+
+private:
+	// used to transform index to RAS (Right Handed Coordinate System)
+	double m_dir[D*D];
+	double m_space[D];
+	double m_origin[D];
+	std::string m_units[D];
+
+	// chache of the affine index -> RAS (right handed coordiante system)
+	double m_affine[(D+1)*(D+1)];
 
 };
 
@@ -127,8 +153,7 @@ private:
  */
 template <int D,typename T>
 NDImageStore<D,T>::NDImageStore(std::initializer_list<size_t> a_args) :
-	NDArrayStore<D,T>(dim), m_freqdim(-1), m_phasedim(-1), m_slicedim(-1),
-	m_slice_duration(-1), m_slice_start(-1), m_slice_end(-1), use_quaterns(0)
+	NDArrayStore<D,T>(dim)
 {
 	orientDefault();
 }
@@ -140,8 +165,7 @@ NDImageStore<D,T>::NDImageStore(std::initializer_list<size_t> a_args) :
  */
 template <int D,typename T>
 NDImageStore<D,T>::NDImageStore(size_t dim[D]) : 
-	NDArrayStore<D,T>(dim), m_freqdim(-1), m_phasedim(-1), m_slicedim(-1),
-	m_slice_duration(-1), m_slice_start(-1), m_slice_end(-1), use_quaterns(0)
+	NDArrayStore<D,T>(dim)
 {
 	orientDefault();
 }
@@ -264,6 +288,62 @@ NDImage* createNDImage(size_t ndim, DIMT* dims)
 	}
 	return NULL;
 }
+
+template <int D, typename T>
+double& NDImageStore<D,T>::space(size_t d) 
+{ 
+	assert(d<D); 
+	return m_space[d]; 
+};
+
+template <int D, typename T>
+double& NDImageStore<D,T>::origin(size_t d) 
+{
+	assert(d<D); 
+	return m_origin[d]; 
+};
+
+template <int D, typename T>
+double& NDImageStore<D,T>::direction(size_t d1, size_t d2) 
+{
+	assert(d1 < D && d2 < D);
+	return m_dir[D*d1+d2]; 
+};
+
+template <int D, typename T>
+double& NDImageStore<D,T>::affine(size_t d1, size_t d2) 
+{ 
+	assert(d1 < D+1 && d2 < D+1);
+	return m_dir[(D+1)*d1+d2]; 
+};
+
+template <int D, typename T>
+const double& NDImageStore<D,T>::space(size_t d) const 
+{ 
+	assert(d < D);
+	return m_space[d]; 
+};
+
+template <int D, typename T>
+const double& NDImageStore<D,T>::origin(size_t d) const 
+{
+	assert(d < D);
+	return m_origin[d]; 
+};
+
+template <int D, typename T>
+const double& NDImageStore<D,T>::direction(size_t d1, size_t d2) const 
+{ 
+	assert(d1 < D && d2 < D);
+	return m_dir[D*d1+d2]; 
+};
+
+template <int D, typename T>
+const double& NDImageStore<D,T>::affine(size_t d1, size_t d2) const 
+{
+	assert(d1 < D+1 && d2 < D+1);
+	return m_dir[(D+1)*d1+d2]; 
+};
 
 
 #endif 
