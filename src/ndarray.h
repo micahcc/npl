@@ -6,6 +6,7 @@
 #include <initializer_list>
 #include <vector>
 #include <cstdint>
+#include <complex>
 
 // virtual get and set function macro, ie
 // VIRTGETSET(double, dbl); 
@@ -36,6 +37,82 @@
 	void FNAME(const size_t* index, TYPE); \
 	void FNAME(size_t index, TYPE); \
 
+
+double double(std::complex<double> v)
+{
+	return v.real;
+}
+
+float operator float(std::complex<double> v)
+{
+	return v.real;
+}
+
+explicit operator double(std::complex<float> v)
+{
+	return v.real;
+}
+
+explicit operator float(std::complex<float> v)
+{
+	return v.real;
+}
+
+struct cfloat : public std::complex<float>
+{
+	explicit operator float() {
+		return (0.2126*red + 0.7152*green + 0.0722*blue)/255.;
+	};
+
+	explicit operator double() {
+		return (0.2126*red + 0.7152*green + 0.0722*blue)/255.;
+	};
+	
+	explicit operator int64_t() {
+		return (0.2126*red + 0.7152*green + 0.0722*blue);
+	};
+	
+	explicit operator std::complex<double>() {
+		return std::complex<double>((0.2126*red + 0.7152*green + 
+					0.0722*blue)/255.);
+	};
+	
+	explicit operator std::complex<float>() {
+		return std::complex<float>((0.2126*red + 0.7152*green + 
+					0.0722*blue)/255.);
+	};
+};
+
+struct rgba_t
+{
+	char red;
+	char green;
+	char blue;
+	char alpha;
+
+	explicit operator float() {
+		return (0.2126*red + 0.7152*green + 0.0722*blue)/255.;
+	};
+
+	explicit operator double() {
+		return (0.2126*red + 0.7152*green + 0.0722*blue)/255.;
+	};
+	
+	explicit operator int64_t() {
+		return (0.2126*red + 0.7152*green + 0.0722*blue);
+	};
+	
+	explicit operator std::complex<double>() {
+		return std::complex<double>((0.2126*red + 0.7152*green + 
+					0.0722*blue)/255.);
+	};
+	
+	explicit operator std::complex<float>() {
+		return std::complex<float>((0.2126*red + 0.7152*green + 
+					0.0722*blue)/255.);
+	};
+};
+
 /**
  * @brief Pure virtual interface to interact with an ND array
  */
@@ -52,8 +129,10 @@ public:
 	virtual size_t getAddr(const size_t* index) const = 0;
 
 	VIRTGETSET(double, dbl);
-	VIRTGETSET(int32_t, int32);
 	VIRTGETSET(int64_t, int64);
+	VIRTGETSET(std::complex<double>, cdbl);
+	VIRTGETSET(std::complex<float>, csgl);
+	VIRTGETSET(rgba_t, rgba);
 
 	virtual size_t ndim() const = 0;
 	virtual size_t bytes() const = 0;
@@ -90,8 +169,10 @@ public:
 	 * get / set functions
 	 */
 	GETSET(double, dbl);
-	GETSET(int32_t, int32);
 	GETSET(int64_t, int64);
+	GETSET(std::complex<double>, cdbl);
+	GETSET(std::complex<float>, csgl);
+	GETSET(rgba_t, rgba);
 
 	// Get Address
 	virtual size_t getAddr(std::initializer_list<size_t> index) const;

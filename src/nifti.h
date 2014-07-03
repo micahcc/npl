@@ -106,21 +106,35 @@ typedef struct __attribute__((packed))
 } nifti2_header;
 
 enum NIFTI_TYPE {
+	// covered by get/set int64
 	NIFTI_TYPE_UINT8=2,
+	NIFTI_TYPE_INT8=256,
 	NIFTI_TYPE_INT16=4,
 	NIFTI_TYPE_INT32=8,
-	NIFTI_TYPE_FLOAT32=16,
-	NIFTI_TYPE_COMPLEX64=32,
-	NIFTI_TYPE_FLOAT64=64,
-	NIFTI_TYPE_RGB24=128,
-	NIFTI_TYPE_INT8=256,
 	NIFTI_TYPE_UINT16=512,
 	NIFTI_TYPE_UINT32=768,
-	NIFTI_TYPE_INT64=1024, NIFTI_TYPE_UINT64=1280,
-	NIFTI_TYPE_FLOAT128=1536,
+	NIFTI_TYPE_INT64=1024, 
+	NIFTI_TYPE_UINT64=1280, // overflowing an int64 is hard
+
+	// covered by get/set dbl
+	NIFTI_TYPE_FLOAT32=16,
+	NIFTI_TYPE_FLOAT64=64,
+	
+	// covered by get/set cdbl
+	NIFTI_TYPE_COMPLEX64=32,
 	NIFTI_TYPE_COMPLEX128=1792,
+	
+	// covered by get/set RGBA
+	NIFTI_TYPE_RGB24=128,
+	NIFTI_TYPE_RGBA32=2304,
+
+	// NOT SUPPORTED
+	// covered by get/set cquad
 	NIFTI_TYPE_COMPLEX256=2048,
-	NIFTI_TYPE_RGBA32=2304
+	
+	// covered by get/set quad
+	NIFTI_TYPE_FLOAT128=1536
+	
 };
 
 /*---------------------------------------------------------------------------*/

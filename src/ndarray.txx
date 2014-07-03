@@ -1,52 +1,54 @@
 
 // macros to actually create the get/set functions, note that get and set are 
 // the same name, just different arguments
-#define GETSET(TYPE, FNAME, TEMPLTYPE) \
-	template <int D, typename TEMPLTYPE>										\
+#define GETSET(TYPE, FNAME) \
+	template <int D, typename T>												\
 	TYPE NDArrayStore<D,T>::FNAME(std::initializer_list<size_t> index) const 	\
 	{																			\
 		return _m_data[getAddr(index)];											\
 	}																			\
-	template <int D, typename TEMPLTYPE>										\
+	template <int D, typename T>												\
 	TYPE NDArrayStore<D,T>::FNAME(const std::vector<size_t>& index) const 		\
 	{																			\
 		return _m_data[getAddr(index)];											\
 	}																			\
-	template <int D, typename TEMPLTYPE>										\
+	template <int D, typename T>												\
 	TYPE NDArrayStore<D,T>::FNAME(const size_t* index) const 					\
 	{																			\
 		return _m_data[getAddr(index)];											\
 	}																			\
-	template <int D, typename TEMPLTYPE>										\
+	template <int D, typename T>												\
 	TYPE NDArrayStore<D,T>::FNAME(size_t addr)	const							\
 	{																			\
 		return _m_data[addr];													\
 	}																			\
-	template <int D, typename TEMPLTYPE>										\
+	template <int D, typename T>												\
 	void NDArrayStore<D,T>::FNAME(std::initializer_list<size_t> index, TYPE newval)\
 	{																			\
-		_m_data[getAddr(index)] = (TEMPLTYPE)newval;							\
+		_m_data[getAddr(index)] = (T)newval;									\
 	}																			\
-	template <int D, typename TEMPLTYPE>										\
+	template <int D, typename T>												\
 	void NDArrayStore<D,T>::FNAME(const std::vector<size_t>& index, TYPE newval)\
 	{																			\
-		_m_data[getAddr(index)] = (TEMPLTYPE)newval;							\
+		_m_data[getAddr(index)] = (T)newval;									\
 	}																			\
-	template <int D, typename TEMPLTYPE>										\
+	template <int D, typename T>												\
 	void NDArrayStore<D,T>::FNAME(const size_t* index, TYPE newval)				\
 	{																			\
-		_m_data[getAddr(index)] = (TEMPLTYPE)newval;							\
+		_m_data[getAddr(index)] = (T)newval;									\
 	}																			\
-	template <int D, typename TEMPLTYPE>										\
+	template <int D, typename T>												\
 	void NDArrayStore<D,T>::FNAME(size_t addr, TYPE newval)						\
 	{																			\
-		_m_data[addr] = (TEMPLTYPE)newval;										\
+		_m_data[addr] = (T)newval;												\
 	}																			\
 
 
-GETSET(double, dbl, T);
-GETSET(int32_t, int32, T);
-GETSET(int64_t, int64, T);
+GETSET(double, dbl);
+GETSET(int64_t, int64);
+GETSET(std::complex<double>, cdbl);
+GETSET(std::complex<float>, csgl);
+GETSET(rgba_t, rgba);
 
 /**
  * @brief Initializes an array with a size and a chache size. The layout will
