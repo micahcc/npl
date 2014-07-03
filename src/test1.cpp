@@ -23,7 +23,7 @@ int main()
 	for(size_t zz=0; zz < testp->dim(2); zz++) {
 		for(size_t yy=0; yy < testp->dim(1); yy++) {
 			for(size_t xx=0; xx < testp->dim(0); xx++) {
-				total += testp->getdbl({xx,yy,zz});
+				total += testp->dbl({xx,yy,zz});
 //				cerr << testp->getD(xx,yy,zz) << endl;
 //				cerr << (*testp)(xx,yy,zz);
 			}
@@ -36,7 +36,7 @@ int main()
 	for(size_t xx=0; xx < testp->dim(0); xx++) {
 		for(size_t yy=0; yy < testp->dim(1); yy++) {
 			for(size_t zz=0; zz < testp->dim(2); zz++) {
-				total += testp->getdbl({xx,yy,zz});
+				total += testp->dbl({xx,yy,zz});
 //				cerr << testp->getD(xx,yy,zz) << endl;
 //				cerr << (*testp)(xx,yy,zz);
 			}

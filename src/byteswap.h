@@ -11,10 +11,10 @@ union Bytes
 template <typename T>
 void swap(T* val)
 {
-	Bytes<T> tmp1;
-	tmp1.iv = *val;
+	Bytes<T> tmp;
+	tmp.iv = *val;
 	for(size_t ii=0; ii<sizeof(T)/2; ii++)
-		std::swap(tmp1.bytes[sizeof(T)-ii-1], tmp1.bytes[ii]);
+		std::swap(tmp.bytes[sizeof(T)-ii-1], tmp.bytes[ii]);
 	*val = tmp.iv;
 }
 

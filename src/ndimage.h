@@ -89,7 +89,7 @@ public:
  * @tparam T	Pixel type
  */
 template <int D, typename T>
-class NDImageStore :  public NDArrayStore<D,T>, public virtual NDImage
+class NDImageStore :  public virtual NDArrayStore<D,T>, public virtual NDImage
 {
 
 public:
@@ -154,7 +154,7 @@ private:
  */
 template <int D,typename T>
 NDImageStore<D,T>::NDImageStore(std::initializer_list<size_t> a_args) :
-	NDArrayStore<D,T>(dim)
+	NDArrayStore<D,T>(a_args)
 {
 	orientDefault();
 }

@@ -1,5 +1,6 @@
 
 #include "ndimage.h"
+#include "ndarray.h"
 #include "nifti.h"
 #include "byteswap.h"
 #include "slicer.h"
@@ -16,40 +17,16 @@ NDImage* readNifti2Image(gzFile file);
 int writeNifti1Image(NDImage* out, gzFile file);
 int writeNifti2Image(NDImage* out, gzFile file);
 
+template class NDImageStore<1, int8_t>;
+template class NDImageStore<2, int8_t>;
+template class NDImageStore<3, int8_t>;
+template class NDImageStore<4, int8_t>;
+template class NDImageStore<5, int8_t>;
+template class NDImageStore<6, int8_t>;
+template class NDImageStore<7, int8_t>;
+template class NDImageStore<8, int8_t>;
+
 /* Pre-Compile Certain Image Types */
-class NDImageStore<1, float>;
-class NDImageStore<1, double>;
-class NDImageStore<1, int>;
-
-class NDImageStore<2, float>;
-class NDImageStore<2, double>;
-class NDImageStore<2, int>;
-
-class NDImageStore<3, float>;
-class NDImageStore<3, double>;
-class NDImageStore<3, int>;
-
-class NDImageStore<4, float>;
-class NDImageStore<4, double>;
-class NDImageStore<4, int>;
-
-class NDImageStore<5, float>;
-class NDImageStore<5, double>;
-class NDImageStore<5, int>;
-
-class NDImageStore<6, float>;
-class NDImageStore<6, double>;
-class NDImageStore<6, int>;
-
-class NDImageStore<7, float>;
-class NDImageStore<7, double>;
-class NDImageStore<7, int>;
-
-class NDImageStore<8, float>;
-class NDImageStore<8, double>;
-class NDImageStore<8, int>;
-
-
 NDImage* readNDImage(std::string filename)
 {
 	const size_t BSIZE = 1024*1024; //1M
@@ -135,97 +112,95 @@ NDImage* readNifti1Pixels(gzFile file, nifti1_header* header, bool doswap)
 		order.push_back(ii);
 	}
 	
+	// TODO HERE
 	Slicer slicer(dim, order);
-	for(slicer.gotoBegin(); slicer.isEnd(); ++slicer){
-		out->setdbl(*slicer, ;
-	}
-
-	std::vector<size_t> dim(header->ndim);
-	for(size_t ii=0; ii<header->ndim; ii++) 
-		dim[ii] = header->dim[ii];
 
 	T tmp;
 	NDImage* out;
 
+	// someday this all might be simplify by using NDImage* and the 
+	// dbl or int64 functions, as long as we trust that the type is
+	// going to be good enough to caputre the underlying pixle type
 	switch(header->ndim) {
 		case 1: {
-			auto tmp = new NDImageStore<1, T>(dim);
+			auto typed = new NDImageStore<1, T>(dim);
 			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, sizeof(T));
-				if(doswap) swap<T>(tmp);
-				m_data[*slicer] = tmp;
+				if(doswap) swap<T>(&tmp);
+				(*typed)[*slicer] = tmp;
 			}
-			out = tmp;
+			out = typed;
 			} break;
 		case 2:{
-			auto tmp = NDImageStore<2, T>(dim);
+			auto typed = new NDImageStore<2, T>(dim);
 			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, sizeof(T));
-				if(doswap) swap<T>(tmp);
-				m_data[*slicer] = tmp;
+				if(doswap) swap<T>(&tmp);
+				(*typed)[*slicer] = tmp;
 			}
-			out = tmp;
+			out = typed;
 			} break;
 		case 3:{
-			auto tmp = NDImageStore<2, T>(dim);
+			auto typed = new NDImageStore<2, T>(dim);
 			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, sizeof(T));
-				if(doswap) swap<T>(tmp);
-				m_data[*slicer] = tmp;
+				if(doswap) swap<T>(&tmp);
+				(*typed)[*slicer] = tmp;
 			}
-			out = tmp;
+			out = typed;
 			} break;
 		case 4:{
-			auto tmp = NDImageStore<4, T>(dim);
+			auto typed = new NDImageStore<4, T>(dim);
 			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, sizeof(T));
-				if(doswap) swap<T>(tmp);
-				m_data[*slicer] = tmp;
+				if(doswap) swap<T>(&tmp);
+				(*typed)[*slicer] = tmp;
 			}
-			out = tmp;
+			out = typed;
 			} break;
 		case 5:{
-			auto tmp = NDImageStore<5, T>(dim);
+			auto typed = new NDImageStore<5, T>(dim);
 			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, sizeof(T));
-				if(doswap) swap<T>(tmp);
-				m_data[*slicer] = tmp;
+				if(doswap) swap<T>(&tmp);
+				(*typed)[*slicer] = tmp;
 			}
-			out = tmp;
+			out = typed;
 			} break;
 		case 6:{
-			auto tmp = NDImageStore<6, T>(dim);
+			auto typed = new NDImageStore<6, T>(dim);
 			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, sizeof(T));
-				if(doswap) swap<T>(tmp);
-				m_data[*slicer] = tmp;
+				if(doswap) swap<T>(&tmp);
+				(*typed)[*slicer] = tmp;
 			}
-			out = tmp;
+			out = typed;
 			} break;
 		case 7:{
-			auto tmp = NDImageStore<7, T>(dim);
+			auto typed = new NDImageStore<7, T>(dim);
 			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, sizeof(T));
-				if(doswap) swap<T>(tmp);
-				m_data[*slicer] = tmp;
+				if(doswap) swap<T>(&tmp);
+				(*typed)[*slicer] = tmp;
 			}
-			out = tmp;
+			out = typed;
 			} break;
 		case 8:{
-			auto tmp = NDImageStore<8, T>(dim);
+			auto typed = new NDImageStore<8, T>(dim);
 			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, sizeof(T));
-				if(doswap) swap<T>(tmp);
-				m_data[*slicer] = tmp;
+				if(doswap) swap<T>(&tmp);
+				(*typed)[*slicer] = tmp;
 			}
-			out = tmp;
+			out = typed;
 			} break;
 	};
 
 	return out;
 }
 
-int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap)
+int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap, 
+		bool verbose)
 {
 	// seek to 0
 	gzseek(file, 0, SEEK_SET);
@@ -235,16 +210,15 @@ int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap)
 	// read header
 	gzread(file, header, sizeof(nifti1_header));
 	std::cerr << header->magic << std::endl;
-	if(strncmp(header->magic, "n+1")) {
+	if(strncmp(header->magic, "n+1", 3)) {
 		gzrewind(file);
 		return -1;
 	}
 
 	// byte swap
-	bool doswap = false;
 	int64_t npixel = 1;
 	if(header->sizeof_hdr != 348) {
-		doswap = true;
+		*doswap = true;
 		swap<int32_t>(&header->sizeof_hdr);
 		swap<int16_t>(&header->ndim);
 		for(size_t ii=0; ii<7; ii++)
@@ -258,7 +232,7 @@ int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap)
 		swap<int16_t>(&header->slice_start);
 		swap<float>(&header->qfac);
 		for(size_t ii=0; ii<7; ii++)
-			swap<int16_t>(&header->pixdim[ii]);
+			swap<float>(&header->pixdim[ii]);
 		swap<float>(&header->vox_offset);
 		swap<float>(&header->scl_slope);
 		swap<float>(&header->scl_inter);
@@ -312,8 +286,10 @@ NDImage* readNifti1Image(gzFile file, bool verbose)
 {
 	bool doswap = false;
 	nifti1_header header;
-	if(readNifti1Header(file, &header, &doswap) < 0)
-		return -1;
+	if(readNifti1Header(file, &header, &doswap, verbose) < 0)
+		return NULL;
+
+	NDImage* out;
 
 	// create image
 	switch(header.datatype) {
@@ -583,28 +559,33 @@ int writeNifti1Image(NDImage* out, gzFile file)
 		header.dim[dd] = out->dim(dd);
 		header.pixdim[dd] = out->space(dd);
 	}
-	
-	if(out->quatern) {
-		
-	}
-	double a = 0.5*sqrt(1+R11+R22+R33);
-    header.quatern_b = 0.25*(R32-R23)/a;
-	header.quatern_c = 0.25*(R13-R31)/a;
-	header.quatern_d = 0.25*(R21-R12)/a
 
-	// read the pixels
-	// note x is the fastest in nifti, for us it is the slowest
-	switch(header.datatype) {
-		case DT_INT32:
-			break;
-		case DT_FLOAT:
-			break;
-	}
+	std::cerr << "Error NiftiWriter not yet implemented" << std::endl;
+	throw (-1);
+	
+//	if(out->quatern) {
+//		
+//	}
+//	double a = 0.5*sqrt(1+R11+R22+R33);
+//    header.quatern_b = 0.25*(R32-R23)/a;
+//	header.quatern_c = 0.25*(R13-R31)/a;
+//	header.quatern_d = 0.25*(R21-R12)/a
+//
+//	// read the pixels
+//	// note x is the fastest in nifti, for us it is the slowest
+//	switch(header.datatype) {
+//		case DT_INT32:
+//			break;
+//		case DT_FLOAT:
+//			break;
+//	}
 	return 0;
 }
 
 int writeNifti2Image(NDImage* out, gzFile file)
 {
+	std::cerr << "Error NiftiWriter not yet implemented" << std::endl;
+	throw (-1);
 	nifti2_header header;
 	static_assert(sizeof(header) == 540, "Error, nifti header packing failed");
 
