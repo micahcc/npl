@@ -24,7 +24,7 @@ int main()
 	writeNDImage(oimage, "test4.nii.gz");
 
 	/* Read the Image */
-	NDImage* iimage = readNDImage("test4.nii.gz");
+	NDImage* iimage = readNDImage("test4.nii.gz", true);
 	
 	/* Check the Image */
 	for(size_t zz=0; zz < oimage->dim(2); zz++) {

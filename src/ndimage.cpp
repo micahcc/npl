@@ -1,5 +1,7 @@
 
 #include "ndimage.h"
+#include "ndimage.txx"
+
 #include "ndarray.h"
 #include "nifti.h"
 #include "byteswap.h"
@@ -10,24 +12,102 @@
 #include <cstring>
 
 /* Functions */
-NDImage* readNDImage(std::string filename);
-void writeNDImage(NDImage* img, std::string filename);
-NDImage* readNifti1Image(gzFile file);
-NDImage* readNifti2Image(gzFile file);
+NDImage* readNifti1Image(gzFile file, bool verbose);
+NDImage* readNifti2Image(gzFile file, bool verbose);
 int writeNifti1Image(NDImage* out, gzFile file);
 int writeNifti2Image(NDImage* out, gzFile file);
 
+template class NDImageStore<1, double>;
+template class NDImageStore<1, float>;
+template class NDImageStore<1, int64_t>;
+template class NDImageStore<1, uint64_t>;
+template class NDImageStore<1, int32_t>;
+template class NDImageStore<1, uint32_t>;
+template class NDImageStore<1, int16_t>;
+template class NDImageStore<1, uint16_t>;
 template class NDImageStore<1, int8_t>;
+template class NDImageStore<1, uint8_t>;
+
+template class NDImageStore<2, double>;
+template class NDImageStore<2, float>;
+template class NDImageStore<2, int64_t>;
+template class NDImageStore<2, uint64_t>;
+template class NDImageStore<2, int32_t>;
+template class NDImageStore<2, uint32_t>;
+template class NDImageStore<2, int16_t>;
+template class NDImageStore<2, uint16_t>;
 template class NDImageStore<2, int8_t>;
+template class NDImageStore<2, uint8_t>;
+
+template class NDImageStore<3, double>;
+template class NDImageStore<3, float>;
+template class NDImageStore<3, int64_t>;
+template class NDImageStore<3, uint64_t>;
+template class NDImageStore<3, int32_t>;
+template class NDImageStore<3, uint32_t>;
+template class NDImageStore<3, int16_t>;
+template class NDImageStore<3, uint16_t>;
 template class NDImageStore<3, int8_t>;
+template class NDImageStore<3, uint8_t>;
+
+template class NDImageStore<4, double>;
+template class NDImageStore<4, float>;
+template class NDImageStore<4, int64_t>;
+template class NDImageStore<4, uint64_t>;
+template class NDImageStore<4, int32_t>;
+template class NDImageStore<4, uint32_t>;
+template class NDImageStore<4, int16_t>;
+template class NDImageStore<4, uint16_t>;
 template class NDImageStore<4, int8_t>;
+template class NDImageStore<4, uint8_t>;
+
+template class NDImageStore<5, double>;
+template class NDImageStore<5, float>;
+template class NDImageStore<5, int64_t>;
+template class NDImageStore<5, uint64_t>;
+template class NDImageStore<5, int32_t>;
+template class NDImageStore<5, uint32_t>;
+template class NDImageStore<5, int16_t>;
+template class NDImageStore<5, uint16_t>;
 template class NDImageStore<5, int8_t>;
+template class NDImageStore<5, uint8_t>;
+
+template class NDImageStore<6, double>;
+template class NDImageStore<6, float>;
+template class NDImageStore<6, int64_t>;
+template class NDImageStore<6, uint64_t>;
+template class NDImageStore<6, int32_t>;
+template class NDImageStore<6, uint32_t>;
+template class NDImageStore<6, int16_t>;
+template class NDImageStore<6, uint16_t>;
 template class NDImageStore<6, int8_t>;
+template class NDImageStore<6, uint8_t>;
+
+template class NDImageStore<7, double>;
+template class NDImageStore<7, float>;
+template class NDImageStore<7, int64_t>;
+template class NDImageStore<7, uint64_t>;
+template class NDImageStore<7, int32_t>;
+template class NDImageStore<7, uint32_t>;
+template class NDImageStore<7, int16_t>;
+template class NDImageStore<7, uint16_t>;
 template class NDImageStore<7, int8_t>;
+template class NDImageStore<7, uint8_t>;
+
+template class NDImageStore<8, double>;
+template class NDImageStore<8, float>;
+template class NDImageStore<8, int64_t>;
+template class NDImageStore<8, uint64_t>;
+template class NDImageStore<8, int32_t>;
+template class NDImageStore<8, uint32_t>;
+template class NDImageStore<8, int16_t>;
+template class NDImageStore<8, uint16_t>;
 template class NDImageStore<8, int8_t>;
+template class NDImageStore<8, uint8_t>;
+
 
 /* Pre-Compile Certain Image Types */
-NDImage* readNDImage(std::string filename)
+NDImage* readNDImage(std::string filename, bool verbose)
 {
 	const size_t BSIZE = 1024*1024; //1M
 	auto gz = gzopen(filename.c_str(), "rb");
@@ -35,12 +115,12 @@ NDImage* readNDImage(std::string filename)
 	
 	NDImage* out = NULL;
 
-	if((out = readNifti1Image(gz))) {
+	if((out = readNifti1Image(gz, verbose))) {
 		gzclose(gz);
 		return out;
 	}
 
-	if((out = readNifti2Image(gz))) {
+	if((out = readNifti2Image(gz, verbose))) {
 		gzclose(gz);
 		return out;
 	}
@@ -49,7 +129,7 @@ NDImage* readNDImage(std::string filename)
 	return NULL;
 }
 
-int writeNDImage(NDImage* img, std::string fn, bool nifti2 = true)
+int writeNDImage(NDImage* img, std::string fn, bool nifti2)
 {
 	std::string mode = "wb";
 	const size_t BSIZE = 1024*1024; //1M
@@ -521,25 +601,25 @@ NDImage* readNifti1Image(gzFile file, bool verbose)
 	return out;
 }
 
-//NDImage* readNifti2Image(gzFile file)
-//{
-//	nifti2_header header;
-//	static_assert(sizeof(header) == 540, "Error, nifti header packing failed");
-//
-//	gzread(file, &header, sizeof(header));
-//	std::cerr << header.magic << std::endl;
-//	if(strcmp(header.magic, "n+2")) {
-//		gzclearerr(file);
-//		gzrewind(file);
-//		return NULL;
-//	}
-//
-//	NDImage* out;
-//	// valid, go ahead and parse
-//	
-//	return out;
-//}
-//
+NDImage* readNifti2Image(gzFile file, bool verbose)
+{
+	nifti2_header header;
+	static_assert(sizeof(header) == 540, "Error, nifti header packing failed");
+
+	gzread(file, &header, sizeof(header));
+	std::cerr << header.magic << std::endl;
+	if(strcmp(header.magic, "n+2")) {
+		gzclearerr(file);
+		gzrewind(file);
+		return NULL;
+	}
+
+	NDImage* out;
+	// valid, go ahead and parse
+	
+	return out;
+}
+
 int writeNifti1Image(NDImage* out, gzFile file)
 {
 	const size_t HEADERSIZE = 348;
