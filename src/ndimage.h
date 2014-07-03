@@ -22,6 +22,12 @@ int writeNDImage(NDImage* img, std::string fn, bool nifti2 = true);
 class NDImage : public virtual NDArray
 {
 public:
+
+	enum PixelT { UINT8=2, INT16=4, INT32=8, FLOAT32=16, COMPLEX64=32,
+		FLOAT64=64, RGB24=128, INT8=256, UINT16=512, UINT32=768, INT64=1024,
+		NIFTI_TYPE_UINT64=1280, FLOAT128=1536, COMPLEX128=1792,
+		COMPLEX256=2048, RGBA32=2304 };
+
 	virtual double& space(size_t d) = 0;
 	virtual double& origin(size_t d) = 0;
 	virtual double& direction(size_t d1, size_t d2) = 0;
@@ -93,6 +99,7 @@ class NDImageStore :  public virtual NDArrayStore<D,T>, public virtual NDImage
 {
 
 public:
+
 	/**
 	 * @brief Create an image with default orientation, of the specified size
 	 *
@@ -121,6 +128,7 @@ public:
 	void updateAffine();
 	void printSelf();
 
+	PixelT type() const;
 	double& space(size_t d);
 	double& origin(size_t d);
 	double& direction(size_t d1, size_t d2);
@@ -138,9 +146,12 @@ private:
 	double m_space[D];
 	double m_origin[D];
 	std::string m_units[D];
-
+	
 	// chache of the affine index -> RAS (right handed coordiante system)
 	double m_affine[(D+1)*(D+1)];
+
+	
+	PixelT pixeltype;
 
 };
 

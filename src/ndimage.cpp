@@ -192,7 +192,6 @@ NDImage* readNifti1Pixels(gzFile file, nifti1_header* header, bool doswap)
 		order.push_back(ii);
 	}
 	
-	// TODO HERE
 	Slicer slicer(dim, order);
 
 	T tmp;

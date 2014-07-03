@@ -37,7 +37,16 @@ NDImageStore<D,T>::NDImageStore(const std::vector<size_t>& dim) :
 	orientDefault();
 }
 
-
+/**
+ * @brief Returns the enumerated value for the image pixel type
+ *
+ * @return 
+ */
+template <int D,typename T>
+NDImage::PixelT NDImageStore<D,T>::type() const 
+{
+	return pixeltype;
+}
 
 /**
  * @brief Default orientation (dir=ident, space=1 and origin=0)
