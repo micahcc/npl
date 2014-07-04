@@ -110,6 +110,7 @@ struct rgba_t
 //	explicit operator c64_t();
 //	explicit operator c32_t();
 	
+	rgba_t() : red(0), green(0), blue(0), alpha(0) {} ;
 	rgba_t(char r, char g, char b, char a = 0) : 
 		red(r), green(g), blue(b), alpha(a) {} ;
 	explicit rgba_t(float);
