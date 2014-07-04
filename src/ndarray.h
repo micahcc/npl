@@ -37,50 +37,57 @@
 	void FNAME(const size_t* index, TYPE); \
 	void FNAME(size_t index, TYPE); \
 
+struct c32_t;
+struct rgba_t;
 
-double double(std::complex<double> v)
+struct c64_t: public std::complex<double>
 {
-	return v.real;
-}
-
-float operator float(std::complex<double> v)
-{
-	return v.real;
-}
-
-explicit operator double(std::complex<float> v)
-{
-	return v.real;
-}
-
-explicit operator float(std::complex<float> v)
-{
-	return v.real;
-}
-
-struct cfloat : public std::complex<float>
-{
-	explicit operator float() {
-		return (0.2126*red + 0.7152*green + 0.0722*blue)/255.;
-	};
-
-	explicit operator double() {
-		return (0.2126*red + 0.7152*green + 0.0722*blue)/255.;
-	};
+	explicit operator float();
+	explicit operator double();
+	explicit operator int64_t();
+	explicit operator uint64_t();
+	explicit operator int32_t();
+	explicit operator uint32_t();
+	explicit operator int16_t();
+	explicit operator uint16_t();
+	explicit operator int8_t();
+	explicit operator uint8_t();
+	explicit operator c32_t();
+	explicit operator std::complex<float>();
+//	explicit operator rgba_t();
 	
-	explicit operator int64_t() {
-		return (0.2126*red + 0.7152*green + 0.0722*blue);
-	};
+	c64_t(double re = 0, double im = 0) : std::complex<double>(re, im) {} ;
+//	explicit c64_t(float);
+//	explicit c64_t(double);
+//	explicit c64_t(int64_t);
+	explicit c64_t(c32_t);
+	explicit c64_t(std::complex<float>);
+	explicit c64_t(rgba_t);
+};
+
+struct c32_t : public std::complex<float>
+{
+	explicit operator float();
+	explicit operator double();
+	explicit operator int64_t();
+	explicit operator uint64_t();
+	explicit operator int32_t();
+	explicit operator uint32_t();
+	explicit operator int16_t();
+	explicit operator uint16_t();
+	explicit operator int8_t();
+	explicit operator uint8_t();
+	explicit operator c64_t();
+	explicit operator std::complex<double>();
+//	explicit operator rgba_t();
 	
-	explicit operator std::complex<double>() {
-		return std::complex<double>((0.2126*red + 0.7152*green + 
-					0.0722*blue)/255.);
-	};
-	
-	explicit operator std::complex<float>() {
-		return std::complex<float>((0.2126*red + 0.7152*green + 
-					0.0722*blue)/255.);
-	};
+	c32_t(double re = 0, double im = 0) : std::complex<float>(re, im) {} ;
+//	explicit c32_t(float);
+//	explicit c32_t(double);
+//	explicit c32_t(int64_t);
+	explicit c32_t(c64_t);
+	explicit c32_t(std::complex<double>);
+	explicit c32_t(rgba_t);
 };
 
 struct rgba_t
@@ -90,27 +97,33 @@ struct rgba_t
 	char blue;
 	char alpha;
 
-	explicit operator float() {
-		return (0.2126*red + 0.7152*green + 0.0722*blue)/255.;
-	};
-
-	explicit operator double() {
-		return (0.2126*red + 0.7152*green + 0.0722*blue)/255.;
-	};
+	explicit operator float();
+	explicit operator double();
+	explicit operator int64_t();
+	explicit operator uint64_t();
+	explicit operator int32_t();
+	explicit operator uint32_t();
+	explicit operator int16_t();
+	explicit operator uint16_t();
+	explicit operator int8_t();
+	explicit operator uint8_t();
+//	explicit operator c64_t();
+//	explicit operator c32_t();
 	
-	explicit operator int64_t() {
-		return (0.2126*red + 0.7152*green + 0.0722*blue);
-	};
-	
-	explicit operator std::complex<double>() {
-		return std::complex<double>((0.2126*red + 0.7152*green + 
-					0.0722*blue)/255.);
-	};
-	
-	explicit operator std::complex<float>() {
-		return std::complex<float>((0.2126*red + 0.7152*green + 
-					0.0722*blue)/255.);
-	};
+	rgba_t(char r, char g, char b, char a = 0) : 
+		red(r), green(g), blue(b), alpha(a) {} ;
+	explicit rgba_t(float);
+	explicit rgba_t(double);
+	explicit rgba_t(int64_t);
+	explicit rgba_t(uint64_t);
+	explicit rgba_t(int32_t);
+	explicit rgba_t(uint32_t);
+	explicit rgba_t(int16_t);
+	explicit rgba_t(uint16_t);
+	explicit rgba_t(int8_t);
+	explicit rgba_t(uint8_t);
+	explicit rgba_t(c64_t);
+	explicit rgba_t(c32_t);
 };
 
 /**
@@ -130,8 +143,8 @@ public:
 
 	VIRTGETSET(double, dbl);
 	VIRTGETSET(int64_t, int64);
-	VIRTGETSET(std::complex<double>, cdbl);
-	VIRTGETSET(std::complex<float>, csgl);
+	VIRTGETSET(c64_t, c64);
+	VIRTGETSET(c32_t, c32);
 	VIRTGETSET(rgba_t, rgba);
 
 	virtual size_t ndim() const = 0;
@@ -170,8 +183,8 @@ public:
 	 */
 	GETSET(double, dbl);
 	GETSET(int64_t, int64);
-	GETSET(std::complex<double>, cdbl);
-	GETSET(std::complex<float>, csgl);
+	GETSET(c64_t, c64);
+	GETSET(c32_t, c32);
 	GETSET(rgba_t, rgba);
 
 	// Get Address

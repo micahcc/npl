@@ -5,22 +5,22 @@
 	template <int D, typename T>												\
 	TYPE NDArrayStore<D,T>::FNAME(std::initializer_list<size_t> index) const 	\
 	{																			\
-		return _m_data[getAddr(index)];											\
+		return (TYPE)_m_data[getAddr(index)];									\
 	}																			\
 	template <int D, typename T>												\
 	TYPE NDArrayStore<D,T>::FNAME(const std::vector<size_t>& index) const 		\
 	{																			\
-		return _m_data[getAddr(index)];											\
+		return (TYPE)_m_data[getAddr(index)];									\
 	}																			\
 	template <int D, typename T>												\
 	TYPE NDArrayStore<D,T>::FNAME(const size_t* index) const 					\
 	{																			\
-		return _m_data[getAddr(index)];											\
+		return (TYPE)_m_data[getAddr(index)];									\
 	}																			\
 	template <int D, typename T>												\
 	TYPE NDArrayStore<D,T>::FNAME(size_t addr)	const							\
 	{																			\
-		return _m_data[addr];													\
+		return (TYPE)_m_data[addr];												\
 	}																			\
 	template <int D, typename T>												\
 	void NDArrayStore<D,T>::FNAME(std::initializer_list<size_t> index, TYPE newval)\
@@ -46,8 +46,8 @@
 
 GETSET(double, dbl);
 GETSET(int64_t, int64);
-GETSET(std::complex<double>, cdbl);
-GETSET(std::complex<float>, csgl);
+GETSET(c64_t, c64);
+GETSET(c32_t, c32);
 GETSET(rgba_t, rgba);
 
 /**
