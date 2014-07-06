@@ -1,8 +1,9 @@
 
 def build(bld):
-    bld.shlib(target = 'ndarray', source = 'ndarray.cpp')
+    bld.shlib(target = 'ndarray', source = 'ndarray.cpp', use='npltypes')
     bld.shlib(target = 'slicer', source = 'slicer.cpp' )
     bld.shlib(target = 'ndimage', source = 'ndimage.cpp', use='ZLIB ndarray slicer')
+    bld.shlib(target = 'npltypes', source = 'npltypes.cpp')
     
     bld.program(target = 'test1', source = 'test1.cpp', use = 'ndarray')
     bld.program(target = 'test3', source = 'test3.cpp', use = 'ndimage')

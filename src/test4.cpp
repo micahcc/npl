@@ -3,6 +3,7 @@
 #include "ndimage.h"
 
 using namespace std;
+using namespace npl;
 
 int main()
 {

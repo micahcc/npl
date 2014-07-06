@@ -3,6 +3,7 @@
 #include <ctime>
 
 using namespace std;
+using namespace npl;
 
 int main()
 {

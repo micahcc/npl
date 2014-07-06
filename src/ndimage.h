@@ -2,18 +2,15 @@
 #define NDIMAGE_H
 
 #include "ndarray.h"
+#include "npltypes.h"
 
 #include <string>
 #include <iostream>
 #include <cassert>
 
+namespace npl {
+
 class NDImage;
-
-// simply reads an image in its native type
-NDImage* readNDImage(std::string filename, bool verbose);
-int writeNDImage(NDImage* img, std::string fn, bool nifti2 = true);
-
-//NDImage* createNDImage(size_t dim
 
 /**
  * @brief NDImage can basically be used like an NDArray, with the addition
@@ -155,4 +152,11 @@ private:
 
 };
 
+// simply reads an image in its native type
+NDImage* readNDImage(std::string filename, bool verbose);
+NDImage* createNDImage(size_t ndim, size_t* dims, NDImage::PixelT);
+int writeNDImage(NDImage* img, std::string fn, bool nifti2 = true);
+
+
+} // npl
 #endif 

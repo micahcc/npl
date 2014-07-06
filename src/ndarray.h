@@ -1,6 +1,8 @@
 #ifndef NDARRAY_H
 #define NDARRAY_H
 
+#include "npltypes.h"
+
 #include <cstddef>
 #include <cmath>
 #include <initializer_list>
@@ -37,95 +39,7 @@
 	void FNAME(const size_t* index, TYPE); \
 	void FNAME(size_t index, TYPE); \
 
-struct c32_t;
-struct rgba_t;
-
-struct c64_t: public std::complex<double>
-{
-	explicit operator float();
-	explicit operator double();
-	explicit operator int64_t();
-	explicit operator uint64_t();
-	explicit operator int32_t();
-	explicit operator uint32_t();
-	explicit operator int16_t();
-	explicit operator uint16_t();
-	explicit operator int8_t();
-	explicit operator uint8_t();
-	explicit operator c32_t();
-	explicit operator std::complex<float>();
-//	explicit operator rgba_t();
-	
-	c64_t(double re = 0, double im = 0) : std::complex<double>(re, im) {} ;
-//	explicit c64_t(float);
-//	explicit c64_t(double);
-//	explicit c64_t(int64_t);
-	explicit c64_t(c32_t);
-	explicit c64_t(std::complex<float>);
-	explicit c64_t(rgba_t);
-};
-
-struct c32_t : public std::complex<float>
-{
-	explicit operator float();
-	explicit operator double();
-	explicit operator int64_t();
-	explicit operator uint64_t();
-	explicit operator int32_t();
-	explicit operator uint32_t();
-	explicit operator int16_t();
-	explicit operator uint16_t();
-	explicit operator int8_t();
-	explicit operator uint8_t();
-	explicit operator c64_t();
-	explicit operator std::complex<double>();
-//	explicit operator rgba_t();
-	
-	c32_t(double re = 0, double im = 0) : std::complex<float>(re, im) {} ;
-//	explicit c32_t(float);
-//	explicit c32_t(double);
-//	explicit c32_t(int64_t);
-	explicit c32_t(c64_t);
-	explicit c32_t(std::complex<double>);
-	explicit c32_t(rgba_t);
-};
-
-struct rgba_t
-{
-	char red;
-	char green;
-	char blue;
-	char alpha;
-
-	explicit operator float();
-	explicit operator double();
-	explicit operator int64_t();
-	explicit operator uint64_t();
-	explicit operator int32_t();
-	explicit operator uint32_t();
-	explicit operator int16_t();
-	explicit operator uint16_t();
-	explicit operator int8_t();
-	explicit operator uint8_t();
-//	explicit operator c64_t();
-//	explicit operator c32_t();
-	
-	rgba_t() : red(0), green(0), blue(0), alpha(0) {} ;
-	rgba_t(char r, char g, char b, char a = 0) : 
-		red(r), green(g), blue(b), alpha(a) {} ;
-	explicit rgba_t(float);
-	explicit rgba_t(double);
-	explicit rgba_t(int64_t);
-	explicit rgba_t(uint64_t);
-	explicit rgba_t(int32_t);
-	explicit rgba_t(uint32_t);
-	explicit rgba_t(int16_t);
-	explicit rgba_t(uint16_t);
-	explicit rgba_t(int8_t);
-	explicit rgba_t(uint8_t);
-	explicit rgba_t(c64_t);
-	explicit rgba_t(c32_t);
-};
+namespace npl {
 
 /**
  * @brief Pure virtual interface to interact with an ND array
@@ -221,5 +135,7 @@ typedef NDArrayStore<2, double> Matrix;
 
 #undef VIRTGETSET
 #undef GETSET
+
+} //npl
 
 #endif

@@ -1,4 +1,8 @@
 
+#include "npltypes.h"
+
+namespace npl {
+
 // macros to actually create the get/set functions, note that get and set are 
 // the same name, just different arguments
 #define GETSET(TYPE, FNAME) \
@@ -252,5 +256,5 @@ T& NDArrayStore<D,T>::operator[](size_t pixel)
 	return _m_data[pixel];
 }
 
-
+} //npl
 #undef GETSET

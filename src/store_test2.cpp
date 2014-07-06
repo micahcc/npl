@@ -4,6 +4,7 @@
 #include <map>
 
 using namespace std;
+using namespace npl;
 
 struct Less
 {

@@ -1,4 +1,6 @@
 
+namespace npl {
+
 /**
  * @brief Constructor with initializer list
  *
@@ -222,4 +224,103 @@ const double& NDImageStore<D,T>::affine(size_t d1, size_t d2) const
 	return m_dir[(D+1)*d1+d2]; 
 };
 
+template <int D, typename T>
+void NDImageStore<D,T>::write(std::string filename, double version) const
+{
+	std::string mode = "wb";
+	const size_t BSIZE = 1024*1024; //1M
+	gzFile gz;
 
+	// remove .gz to find the "real" format, 
+	std::string fn_nz;
+	if(fn.substr(fn.size()-3, 3) == ".gz") {
+		fn_nz = fn.substr(0, fn.size()-3);
+	} else {
+		// if no .gz, then make encoding "transparent" (plain)
+		fn_nz = fn;
+		mode += 'T';
+	}
+	
+	// go ahead and open
+	gz = gzopen(fn.c_str(), mode.c_str());
+	gzbuffer(gz, BSIZE);
+
+	if(fn_nz.substr(fn_nz.size()-4, 4) == ".nii") {
+		if(version >= 2) {
+			if(writeNifti2Image(gz) != 0) {
+				std::cerr << "Error writing" << std:: endl;
+				gzclose(gz);
+				return -1;
+			}
+		} else {
+			if(writeNifti1Image(gz) != 0) {
+				std::cerr << "Error writing" << std:: endl;
+				gzclose(gz);
+				return -1;
+			}
+		}
+	} else {
+		std::cerr << "Unknown filetype: " << fn_nz.substr(fn_nz.rfind('.')) 
+			<< std::endl;
+		gzclose(gz);
+		return -1;
+	}
+
+	gzclose(gz);
+	return 0;
+}
+
+template <int D, typename T>
+void NDImageStore<D,T>::writeNifti1Image(gzFile file) const
+{
+	int32_t headsize = 348;
+	char unused[10+18+4+2+1];
+	char dim_info = 0;
+	short numdims = (short)ndim();
+	short dimsize[7] = {0,0,0,0,0,0,0};
+
+	gzwrite(file, &headsize, sizeof(headsize));
+	gzwrite(file, unused, sizeof(unused));
+
+	if(m_freqdim >= 0) dim_info |= (char)(((m_freqdim+1)) & 0x03);
+	if(m_phasedim >= 0) dim_info |= (char)(((m_phasedim+1)) & 0x03);
+	if(m_slicedim >= 0) dim_info |= (char)(((m_slicedim+1)) & 0x03);
+	gzwrite(file, dim_info, sizeof(char));
+
+	// TODO HERE
+	for(size_t ii=0; ii<ndim(); ii++) {
+
+	}
+
+	gzwrite(file, numdims, sizeof(numdims));
+	gzwrite(file, dimsize, sizeof(numdims));
+
+	header.ndim = out->ndim();
+	for(size_t dd=0; dd<out->ndim(); dd++) {
+		header.dim[dd] = out->dim(dd);
+		header.pixdim[dd] = out->space(dd);
+	}
+
+	std::cerr << "Error NiftiWriter not yet implemented" << std::endl;
+	throw (-1);
+	
+	if(out->quatern) {
+		
+	}
+	double a = 0.5*sqrt(1+R11+R22+R33);
+    header.quatern_b = 0.25*(R32-R23)/a;
+	header.quatern_c = 0.25*(R13-R31)/a;
+	header.quatern_d = 0.25*(R21-R12)/a
+
+	// read the pixels
+	// note x is the fastest in nifti, for us it is the slowest
+	switch(header.datatype) {
+		case DT_INT32:
+			break;
+		case DT_FLOAT:
+			break;
+	}
+	return 0;
+}
+
+} //npl

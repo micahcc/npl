@@ -4,6 +4,7 @@
 #include <map>
 
 using namespace std;
+using namespace npl;
 
 inline
 int64_t clamp(int64_t ii, int64_t low, int64_t high)
