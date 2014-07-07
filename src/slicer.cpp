@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <cassert>
 
+namespace npl {
+
 /**
  * @brief Default Constructor, max a length 1, dimension 1 slicer
  */
@@ -82,6 +84,69 @@ size_t Slicer::step(size_t dim, int64_t dist)
 	m_pos[dim] = clamped;
 
 	return m_linpos;
+}
+
+/**
+ * @brief Get linear index at an offset location from the current, useful
+ * for kernels.
+ *
+ * @param dindex	offset from the current location 
+ *
+ * @return 		linear index
+ */
+size_t Slicer::offset(int64_t* off) const
+{
+	size_t ret = m_linpos;
+	int64_t clamped;
+	for(size_t ii=0; ii<m_pos.size(); ii++) {
+		clamped = std::max<int64_t>(m_roi[ii].first, 
+				std::min<int64_t>(m_roi[ii].second, m_pos[ii]+off[ii]));
+		ret += (clamped-m_pos[ii])*m_strides[ii];
+	}
+	return ret;
+}
+
+/**
+ * @brief Get linear index at an offset location from the current, useful
+ * for kernels.
+ *
+ * @param dindex	Vector (offset) from the current location 
+ *
+ * @return 		linear index
+ */
+size_t Slicer::offset(const std::vector<int64_t>& off) const
+{
+	assert(off.size() == m_pos.size());
+	size_t ret = m_linpos;
+	int64_t clamped;
+	for(size_t ii=0; ii<m_pos.size(); ii++) {
+		clamped = std::max<int64_t>(m_roi[ii].first, 
+				std::min<int64_t>(m_roi[ii].second, m_pos[ii]+off[ii]));
+		ret += (clamped-m_pos[ii])*m_strides[ii];
+	}
+	return ret;
+}
+
+/**
+ * @brief Get linear index at an offset location from the current, useful
+ * for kernels.
+ *
+ * @param dindex	Vector (offset) from the current location 
+ *
+ * @return 		linear index
+ */
+size_t Slicer::offset(std::initializer_list<int64_t> off) const
+{
+	assert(off.size() == m_pos.size());
+	size_t ret = m_linpos;
+	int64_t clamped;
+	size_t ii = 0;
+	for(auto it = off.begin() ; it != off.end() && ii<m_pos.size(); it++,ii++) {
+		clamped = std::max<int64_t>(m_roi[ii].first, 
+				std::min<int64_t>(m_roi[ii].second, m_pos[ii]+*it));
+		ret += (clamped-m_pos[ii])*m_strides[ii];
+	}
+	return ret;
 }
 
 /**
@@ -424,4 +489,6 @@ void Slicer::gotoEnd()
 	m_linpos = m_linlast;
 	m_end = true;
 }
+
+} //npl
 

@@ -106,6 +106,14 @@
 			assert(m_parent);													\
 			return m_parent->CALLFUNC(Slicer::get());							\
 		};																		\
+		TYPE offset(int64_t* dindex) {											\
+			assert(m_parent);													\
+			return m_parent->CALLFUNC(Slicer::offset(dindex));					\
+		};																		\
+		TYPE offset(std::initializer_list<int64_t> dindex) {					\
+			assert(m_parent);													\
+			return m_parent->CALLFUNC(Slicer::offset(dindex));					\
+		};																		\
 	private:																	\
 		const NDArray* m_parent;												\
 	};																			\

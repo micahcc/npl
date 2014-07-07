@@ -7,6 +7,10 @@
 
 using namespace std;
 
+namespace npl {
+
+enum BoundaryMethodT {OVER_ROI, WRAP, CLAMP};
+
 /**
  * @brief This class is used to slice an image in along a dimension, and to 
  * step an arbitrary direction in an image. Order may be any size from 0 to the
@@ -110,7 +114,7 @@ public:
 	 *
 	 * @return 		linear index
 	 */
-	size_t offset(std::initializer_list<size_t> dindex) const;
+	size_t offset(std::initializer_list<int64_t> dindex) const;
 
 	/****************************************
 	 *
@@ -310,6 +314,8 @@ private:
 
 	void updateLinRange();
 };
+
+} // npl
 
 #endif //SLICER_H
 

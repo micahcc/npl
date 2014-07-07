@@ -68,7 +68,7 @@ int main()
 	size_t p, xx, yy, zz, ww;
 
 	std::vector<size_t> tdim({X,Y,Z,W});
-	Slicer slicer(tdim);
+	npl::Slicer slicer(tdim);
 
 	cerr << "Classic Ordering" << endl;
 	slicer.setOrder(order);
