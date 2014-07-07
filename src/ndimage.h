@@ -3,12 +3,23 @@
 
 #include "ndarray.h"
 #include "npltypes.h"
+#include "matrix.h"
+
+#include "zlib.h"
 
 #include <string>
 #include <iostream>
 #include <cassert>
 
 namespace npl {
+	
+// Match Nifti Codes
+enum PixelT {UNKNOWN_TYPE=0, UINT8=2, INT16=4, INT32=8, FLOAT32=16, COMPLEX64=32,
+	FLOAT64=64, RGB24=128, INT8=256, UINT16=512, UINT32=768, INT64=1024,
+	UINT64=1280, FLOAT128=1536, COMPLEX128=1792,
+	COMPLEX256=2048, RGBA32=2304 };
+
+enum SliceOrderT {UNKNOWN_SLICE=0, SEQ=1, RSEQ=2, ALT=3, RALT=4, ALT_SHFT=5, RALT_SHFT=6};
 
 class NDImage;
 
@@ -20,17 +31,17 @@ class NDImage : public virtual NDArray
 {
 public:
 
-	enum PixelT { UINT8=2, INT16=4, INT32=8, FLOAT32=16, COMPLEX64=32,
-		FLOAT64=64, RGB24=128, INT8=256, UINT16=512, UINT32=768, INT64=1024,
-		NIFTI_TYPE_UINT64=1280, FLOAT128=1536, COMPLEX128=1792,
-		COMPLEX256=2048, RGBA32=2304 };
-
 	virtual double& space(size_t d) = 0;
 	virtual double& origin(size_t d) = 0;
 	virtual double& direction(size_t d1, size_t d2) = 0;
 	virtual double& affine(size_t d1, size_t d2) = 0;
 	virtual void updateAffine() = 0;
 	
+	virtual PixelT type() const = 0;
+	
+	virtual int write(std::string filename, double version) const = 0;
+	virtual int writeNifti1Image(gzFile file) const = 0;
+	virtual int writeNifti2Image(gzFile file) const = 0;
 
 //	NDImage() : m_freqdim(-1), m_phasedim(-1), m_slicedim(-1), 
 //				m_slice_duration(-1), m_slice_start(-1), m_slice_end(-1), 
@@ -62,23 +73,23 @@ public:
 	int m_slice_start;
 	int m_slice_end;
 
-	// SEQ, RSEQ, ALT, RALT, ALT_P1, RALT_P1
+	// SEQ, RSEQ, ALT, RALT, ALT_SHFT, RALT_SHFT
 	// SEQ (sequential): 	slice_start .. slice_end
 	// RSEQ (reverse seq): 	slice_end .. slice_start
 	// ALT (alternated): 	slice_start, slice_start+2, .. slice_end|slice_end-1,
 	// 						slice_start+1 .. slice_end|slice_end-1
 	// RALT (reverse alt): 	slice_end, slice_end-2, .. slice_start|slice_start+1,
 	// 						slice_end-1 .. slice_start|slice_start+1
-	// ALT_P1 (siemens alt):slice_start+1, slice_start+3, .. slice_end|slice_end-1,
+	// ALT_SHFT (siemens alt):slice_start+1, slice_start+3, .. slice_end|slice_end-1,
 	// 						slice_start .. slice_end|slice_end-1
 	// RALT (reverse alt): 	slice_end-1, slice_end-3, .. slice_start|slice_start+1,
 	// 						slice_end-2 .. slice_start|slice_start+1
-	std::string m_slice_order;
+	SliceOrderT m_slice_order;
 
 	// if quaternians are the original direction base, then this stores the 
 	// raw quaternian values, to prevent roundoff errors
-	bool use_quaterns;;
-	double quaterns[4];
+//	bool use_quaterns;;
+//	double quaterns[4];
 };
 
 
@@ -124,8 +135,8 @@ public:
 	void orientDefault();
 	void updateAffine();
 	void printSelf();
-
 	PixelT type() const;
+
 	double& space(size_t d);
 	double& origin(size_t d);
 	double& direction(size_t d1, size_t d2);
@@ -137,26 +148,29 @@ public:
 
 	std::string getUnits(size_t d1, double d2);
 
+	int write(std::string filename, double version) const;
+	int writeNifti1Image(gzFile file) const;
+	int writeNifti2Image(gzFile file) const;
+
 private:
 	// used to transform index to RAS (Right Handed Coordinate System)
-	double m_dir[D*D];
-	double m_space[D];
-	double m_origin[D];
+	Matrix<D,D> m_dir;
+	Matrix<D,1> m_space;
+	Matrix<D,1> m_origin;
 	std::string m_units[D];
 	
 	// chache of the affine index -> RAS (right handed coordiante system)
-	double m_affine[(D+1)*(D+1)];
-
+	Matrix<D+1,D+1> m_affine;
 	
-	PixelT pixeltype;
-
+	int writeNifti1Header(gzFile file) const;
+	int writeNifti2Header(gzFile file) const;
+	int writePixels(gzFile file) const;
 };
 
 // simply reads an image in its native type
 NDImage* readNDImage(std::string filename, bool verbose);
-NDImage* createNDImage(size_t ndim, size_t* dims, NDImage::PixelT);
+NDImage* createNDImage(size_t ndim, size_t* dims, PixelT);
 int writeNDImage(NDImage* img, std::string fn, bool nifti2 = true);
-
 
 } // npl
 #endif 

@@ -1,7 +1,7 @@
 #ifndef NIFTI_H
 #define NIFTI_H
 
-typedef struct __attribute__((packed)) 
+typedef struct __attribute__((packed))
 {
 	int32_t   sizeof_hdr; // = 348
 
@@ -12,7 +12,6 @@ typedef struct __attribute__((packed))
 	int16_t session_error;
 	char  regular;
 
-//	char dim_info;
 	union {
 		char byte;
 		struct __attribute__((packed)) {
@@ -42,7 +41,7 @@ typedef struct __attribute__((packed))
 	float scl_slope;	// y = scl_slope*x + scl_inter
 	float scl_inter;
 	
-	// currently ignored 
+	// currently ignored
 	int16_t slice_end;
 	char  slice_code;
 	char  xyzt_units;
@@ -64,45 +63,51 @@ typedef struct __attribute__((packed))
 	char magic[4];
 } nifti1_header;
 
-typedef struct __attribute__((packed)) 
-{ 
-   int32_t   sizeof_hdr;     
-   char  magic[8] ;      
-   int16_t datatype;     
-   int16_t bitpix;       
-   int64_t dim[8];       
-   double intent_p1 ;    
-   double intent_p2 ;    
-   double intent_p3 ;    
-   double pixdim[8];     
-   int64_t vox_offset;   
-   double scl_slope ;    
-   double scl_inter ;    
-   double cal_max;       
-   double cal_min;       
+typedef struct __attribute__((packed))
+{
+   int32_t   sizeof_hdr;
+   char  magic[8] ;
+   int16_t datatype;
+   int16_t bitpix;
+   int64_t ndim;
+   int64_t dim[7];
+   double intent_p1 ;
+   double intent_p2 ;
+   double intent_p3 ;
+   double qfac;
+   double pixdim[7];
+   int64_t vox_offset;
+   double scl_slope ;
+   double scl_inter ;
+   double cal_max;
+   double cal_min;
    double slice_duration;
-   double toffset;       
-   int64_t slice_start;  
-   int64_t slice_end;    
-   char  descrip[80];    
-   char  aux_file[24];   
-   int32_t qform_code ;      
-   int32_t sform_code ;      
-   double quatern_b ;    
-   double quatern_c ;    
-   double quatern_d ;    
-   double qoffset_x ;    
-   double qoffset_y ;    
-   double qoffset_z ;    
-   double srow_x[4] ;    
-   double srow_y[4] ;    
-   double srow_z[4] ;    
-   int32_t slice_code ;      
-   int32_t xyzt_units ;      
-   int32_t intent_code ;     
-   char intent_name[16]; 
-   char dim_info;        
-   char unused_str[15];  
+   double toffset;
+   int64_t slice_start;
+   int64_t slice_end;
+   char  descrip[80];
+   char  aux_file[24];
+   int32_t qform_code ;
+   int32_t sform_code ;
+   double quatern[3];
+   double qoffset[3];
+   double srow_x[4] ;
+   double srow_y[4] ;
+   double srow_z[4] ;
+   int32_t slice_code ;
+   int32_t xyzt_units ;
+   int32_t intent_code ;
+   char intent_name[16];
+   union {
+	   char byte;
+	   struct __attribute__((packed)) {
+		   unsigned int freqdim : 2;
+		   unsigned int phasedim : 2;
+		   unsigned int slicedim : 2;
+		   unsigned int unused : 2;
+	   } bits;
+   } dim_info;
+   char unused_str[15];
 } nifti2_header;
 
 enum NIFTI_TYPE {
@@ -113,7 +118,7 @@ enum NIFTI_TYPE {
 	NIFTI_TYPE_INT32=8,
 	NIFTI_TYPE_UINT16=512,
 	NIFTI_TYPE_UINT32=768,
-	NIFTI_TYPE_INT64=1024, 
+	NIFTI_TYPE_INT64=1024,
 	NIFTI_TYPE_UINT64=1280, // overflowing an int64 is hard
 
 	// covered by get/set dbl
@@ -838,7 +843,7 @@ enum NIFTI_TYPE {
 #define NIFTI_UNITS_METER   1
 #define NIFTI_UNITS_MM      2
 #define NIFTI_UNITS_MICRON  3
-#define NIFTI_UNITS_SEC     8 
+#define NIFTI_UNITS_SEC     8
 #define NIFTI_UNITS_MSEC   16
 #define NIFTI_UNITS_USEC   24
 #define NIFTI_UNITS_HZ     32

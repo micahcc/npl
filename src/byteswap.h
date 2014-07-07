@@ -24,7 +24,26 @@ void swap(T* val)
 
 // swap the real and imaginary parts individualy
 template <>
-void swap(c64_t* val)
+void swap(cquad_t* val)
+{
+	Bytes<long double> real;
+	Bytes<long double> imag;
+
+	real.iv = val->real();
+	imag.iv = val->imag();
+	
+	for(size_t ii=0; ii<sizeof(long double)/2; ii++) {
+		std::swap(real.bytes[sizeof(long double)-ii-1], real.bytes[ii]);
+		std::swap(imag.bytes[sizeof(long double)-ii-1], imag.bytes[ii]);
+	}
+
+	val->real(real.iv);
+	val->imag(imag.iv);
+}
+
+// swap the real and imaginary parts individualy
+template <>
+void swap(cdouble_t* val)
 {
 	Bytes<double> real;
 	Bytes<double> imag;
@@ -43,7 +62,7 @@ void swap(c64_t* val)
 
 // swap the real and imaginary parts individualy
 template <>
-void swap(c32_t* val)
+void swap(cfloat_t* val)
 {
 	Bytes<float> real;
 	Bytes<float> imag;
@@ -63,6 +82,11 @@ void swap(c32_t* val)
 // do no byte swapping
 template <>
 void swap(rgba_t* val)
+{
+}
+
+template <>
+void swap(rgb_t* val)
 {
 }
 

@@ -42,5 +42,11 @@ def build(bld):
                 source = 'store_test4.cpp', 
                 use = 'ndarray')
     
+    bld.program(target = 'matrix_test1', 
+                source = 'matrix_test1.cpp')
+    
+    bld.program(target = 'matrix_test2', 
+                source = 'matrix_test2.cpp')
+    
     bld(cmd = '${SRC[0]}', features = 'etest', 
             source = ['slicer_test'], regex = 'PASS!')

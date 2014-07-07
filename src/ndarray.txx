@@ -5,7 +5,7 @@ namespace npl {
 
 // macros to actually create the get/set functions, note that get and set are 
 // the same name, just different arguments
-#define GETSET(TYPE, FNAME) \
+#define GETSETIMP(TYPE, FNAME) \
 	template <int D, typename T>												\
 	TYPE NDArrayStore<D,T>::FNAME(std::initializer_list<size_t> index) const 	\
 	{																			\
@@ -48,11 +48,13 @@ namespace npl {
 	}																			\
 
 
-GETSET(double, dbl);
-GETSET(int64_t, int64);
-GETSET(c64_t, c64);
-GETSET(c32_t, c32);
-GETSET(rgba_t, rgba);
+GETSETIMP(double, dbl);
+GETSETIMP(int64_t, int64);
+GETSETIMP(cdouble_t, cdbl);
+GETSETIMP(cfloat_t, cfloat);
+GETSETIMP(rgba_t, rgba);
+GETSETIMP(long double, quad);
+GETSETIMP(cquad_t, cquad);
 
 /**
  * @brief Initializes an array with a size and a chache size. The layout will
@@ -257,4 +259,4 @@ T& NDArrayStore<D,T>::operator[](size_t pixel)
 }
 
 } //npl
-#undef GETSET
+#undef GETSETIMPL

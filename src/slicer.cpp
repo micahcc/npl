@@ -21,8 +21,8 @@ Slicer::Slicer()
  * @param order	order of iteration during ++, this doesn't affect step()
  * @param roi	min/max, roi is pair<size_t,size_t> = [min,max] 
  */
-Slicer::Slicer(std::vector<size_t>& dim, std::list<size_t>& order,
-		std::vector<std::pair<size_t,size_t>>& roi)
+Slicer::Slicer(const std::vector<size_t>& dim, const std::list<size_t>& order,
+		const std::vector<std::pair<size_t,size_t>>& roi)
 {
 	updateDim(dim);
 	setOrder(order);
@@ -34,7 +34,7 @@ Slicer::Slicer(std::vector<size_t>& dim, std::list<size_t>& order,
  *
  * @param dim	size of ND array
  */
-Slicer::Slicer(std::vector<size_t>& dim) 
+Slicer::Slicer(const std::vector<size_t>& dim) 
 {
 	updateDim(dim);
 };
@@ -46,7 +46,7 @@ Slicer::Slicer(std::vector<size_t>& dim)
  * @param order	iteration direction, steps will be fastest in the direction
  * 				of order[0] and slowest in order.back()
  */
-Slicer::Slicer(std::vector<size_t>& dim, std::list<size_t>& order)
+Slicer::Slicer(const std::vector<size_t>& dim, const std::list<size_t>& order)
 {
 	updateDim(dim);
 	setOrder(order);
@@ -59,7 +59,7 @@ Slicer::Slicer(std::vector<size_t>& dim, std::list<size_t>& order)
  * @param dim	size of ND array
  * @param roi	min/max, roi is pair<size_t,size_t> = [min,max] 
  */
-Slicer::Slicer(std::vector<size_t>& dim, std::vector<std::pair<size_t,size_t>>& roi)
+Slicer::Slicer(const std::vector<size_t>& dim, const std::vector<std::pair<size_t,size_t>>& roi)
 {
 	updateDim(dim);
 	setROI(roi);
@@ -234,7 +234,7 @@ void Slicer::updateLinRange()
  *
  * @param dim	size of nd array, number of dimesions given by dim.size()
  */
-void Slicer::updateDim(std::vector<size_t>& dim)
+void Slicer::updateDim(const std::vector<size_t>& dim)
 {
 	size_t ndim = dim.size();
 	assert(ndim > 0);
@@ -274,7 +274,7 @@ void Slicer::updateDim(std::vector<size_t>& dim)
  *
  * @param roi	pair of [min,max] values in the desired hypercube
  */
-void Slicer::setROI(std::vector<std::pair<size_t, size_t>>& roi)
+void Slicer::setROI(const std::vector<std::pair<size_t, size_t>>& roi)
 {
 	for(size_t ii=0; ii<m_sizes.size(); ii++) {
 		if(ii < roi.size()) {
@@ -300,7 +300,7 @@ void Slicer::setROI(std::vector<std::pair<size_t, size_t>>& roi)
  * iteration and last the slowest. All other dimensions not used will be 
  * slower than the last
  */
-void Slicer::setOrder(std::list<size_t>& order)
+void Slicer::setOrder(const std::list<size_t>& order)
 {
 	size_t ndim = m_sizes.size();
 	m_order.clear();

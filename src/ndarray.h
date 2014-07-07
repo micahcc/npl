@@ -2,6 +2,7 @@
 #define NDARRAY_H
 
 #include "npltypes.h"
+#include "slicer.h"
 
 #include <cstddef>
 #include <cmath>
@@ -9,6 +10,7 @@
 #include <vector>
 #include <cstdint>
 #include <complex>
+#include <cassert>
 
 // virtual get and set function macro, ie
 // VIRTGETSET(double, dbl); 
@@ -39,6 +41,78 @@
 	void FNAME(const size_t* index, TYPE); \
 	void FNAME(size_t index, TYPE); \
 
+#define ITER(TYPE, CALLFUNC, CNAME, FNAME)										\
+	class CNAME : public Slicer													\
+	{																			\
+	public:																		\
+		CNAME() : Slicer(), m_parent(NULL) {} ;									\
+		CNAME(NDArray* parent, const std::list<size_t>& order) {				\
+			m_parent = parent;													\
+			std::vector<size_t> dim(m_parent->ndim());							\
+			for(size_t ii=0; ii<m_parent->ndim(); ii++)							\
+				dim[ii] = m_parent->dim(ii);									\
+			updateDim(dim);														\
+			setOrder(order);													\
+		}																		\
+		CNAME(NDArray* parent) {												\
+			m_parent = parent;													\
+			std::vector<size_t> dim(m_parent->ndim());							\
+			for(size_t ii=0; ii<m_parent->ndim(); ii++)							\
+				dim[ii] = m_parent->dim(ii);									\
+			updateDim(dim);														\
+		}																		\
+		TYPE operator*() {														\
+			assert(m_parent);													\
+			return m_parent->CALLFUNC(Slicer::get());							\
+		};																		\
+		TYPE get() {															\
+			assert(m_parent);													\
+			return m_parent->CALLFUNC(Slicer::get());							\
+		};																		\
+		void set(TYPE v) {														\
+			assert(m_parent);													\
+			m_parent->CALLFUNC(Slicer::get(), v);								\
+		};																		\
+	private:																	\
+		NDArray* m_parent;														\
+	};																			\
+	CNAME FNAME(const std::list<size_t>& order) { return CNAME(this, order); };
+
+#define CONSTITER(TYPE, CALLFUNC, CNAME, FNAME)										\
+	class CNAME : public Slicer													\
+	{																			\
+	public:																		\
+		CNAME() : Slicer(), m_parent(NULL) {} ;									\
+		CNAME(const NDArray* parent, const std::list<size_t>& order) : m_parent(parent) { \
+			m_parent = parent;													\
+			std::vector<size_t> dim(m_parent->ndim());							\
+			for(size_t ii=0; ii<m_parent->ndim(); ii++)							\
+				dim[ii] = m_parent->dim(ii);									\
+			updateDim(dim);														\
+			setOrder(order);													\
+		}																		\
+		CNAME(NDArray* parent) {												\
+			m_parent = parent;													\
+			std::vector<size_t> dim(m_parent->ndim());							\
+			for(size_t ii=0; ii<m_parent->ndim(); ii++)							\
+				dim[ii] = m_parent->dim(ii);									\
+			updateDim(dim);														\
+		}																		\
+		TYPE operator*() {														\
+			assert(m_parent);													\
+			return m_parent->CALLFUNC(Slicer::get());							\
+		};																		\
+		TYPE get() {															\
+			assert(m_parent);													\
+			return m_parent->CALLFUNC(Slicer::get());							\
+		};																		\
+	private:																	\
+		const NDArray* m_parent;												\
+	};																			\
+	CNAME FNAME(const std::list<size_t>& order) const { return CNAME(this, order); };
+
+
+
 namespace npl {
 
 /**
@@ -58,23 +132,33 @@ public:
 
 	VIRTGETSET(double, dbl);
 	VIRTGETSET(int64_t, int64);
-	VIRTGETSET(c64_t, c64);
-	VIRTGETSET(c32_t, c32);
+	VIRTGETSET(cdouble_t, cdbl);
+	VIRTGETSET(cfloat_t, cfloat);
 	VIRTGETSET(rgba_t, rgba);
+	VIRTGETSET(long double, quad);
+	VIRTGETSET(cquad_t, cquad);
+
+	ITER(double, dbl, dbl_iter, begin_dbl);
+	ITER(int64_t, int64, int64_iter, begin_int64);
+	ITER(cdouble_t, cdbl, cdbl_iter, begin_cdbl);
+	ITER(cfloat_t, cfloat, cfloat_iter, begin_cfloat);
+	ITER(rgba_t, rgba, rgba_iter, begin_rgba);
+	ITER(long double, quad, quad_iter, begin_quad);
+	ITER(cquad_t, cquad, cquad_iter, begin_cquad);
+	
+	CONSTITER(double, dbl, dbl_citer, cbegin_dbl);
+	CONSTITER(int64_t, int64, int64_citer, cbegin_int64);
+	CONSTITER(cdouble_t, cdbl, cdbl_citer, cbegin_cdbl);
+	CONSTITER(cfloat_t, cfloat, cfloat_citer, cbegin_cfloat);
+	CONSTITER(rgba_t, rgba, rgba_citer, cbegin_rgba);
+	CONSTITER(long double, quad, quad_citer, cbegin_quad);
+	CONSTITER(cquad_t, cquad, cquad_citer, cbegin_cquad);
 
 	virtual size_t ndim() const = 0;
 	virtual size_t bytes() const = 0;
 	virtual size_t dim(size_t dir) const = 0;
 	virtual const size_t* dim() const = 0;
 
-//	template <typename T = double>
-//	class iterator : public Slicer
-//	{
-//	public:
-//		iterator();
-//		iterator(iterator&& other);
-//		iterator(const iterator& other);
-//	};
 };
 
 /**
@@ -98,9 +182,11 @@ public:
 	 */
 	GETSET(double, dbl);
 	GETSET(int64_t, int64);
-	GETSET(c64_t, c64);
-	GETSET(c32_t, c32);
+	GETSET(cdouble_t, cdbl);
+	GETSET(cfloat_t, cfloat);
 	GETSET(rgba_t, rgba);
+	GETSET(long double, quad);
+	GETSET(cquad_t, cquad);
 
 	// Get Address
 	virtual size_t getAddr(std::initializer_list<size_t> index) const;
@@ -130,8 +216,6 @@ public:
 	T* _m_data;
 	size_t _m_dim[D];	// overall image dimension
 };
-
-typedef NDArrayStore<2, double> Matrix;
 
 #undef VIRTGETSET
 #undef GETSET

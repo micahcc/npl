@@ -37,15 +37,15 @@ public:
 	 * @param order	order of iteration during ++, this doesn't affect step()
 	 * @param roi	min/max, roi is pair<size_t,size_t> = [min,max] 
 	 */
-	Slicer(std::vector<size_t>& dim, std::list<size_t>& order,
-			std::vector<std::pair<size_t,size_t>>& roi);
+	Slicer(const std::vector<size_t>& dim, const std::list<size_t>& order,
+			const std::vector<std::pair<size_t,size_t>>& roi);
 
 	/**
 	 * @brief Simple (no ROI, no order) Constructor
 	 *
 	 * @param dim	size of ND array
 	 */
-	Slicer(std::vector<size_t>& dim);
+	Slicer(const std::vector<size_t>& dim);
 	
 	/**
 	 * @brief Constructor that takes a dimension and order of ++/-- iteration
@@ -54,7 +54,7 @@ public:
 	 * @param order	iteration direction, steps will be fastest in the direction
 	 * 				of order[0] and slowest in order.back()
 	 */
-	Slicer(std::vector<size_t>& dim, std::list<size_t>& order);
+	Slicer(const std::vector<size_t>& dim, const std::list<size_t>& order);
 
 	/**
 	 * @brief Constructor that takes a dimension and region of interest, which
@@ -63,7 +63,7 @@ public:
 	 * @param dim	size of ND array
 	 * @param roi	min/max, roi is pair<size_t,size_t> = [min,max] 
 	 */
-	Slicer(std::vector<size_t>& dim, std::vector<std::pair<size_t,size_t>>& roi);
+	Slicer(const std::vector<size_t>& dim, const std::vector<std::pair<size_t,size_t>>& roi);
 
 	/**
 	 * @brief Directional step, this will not step outside the region of 
@@ -238,6 +238,15 @@ public:
 	 */
 	inline
 	size_t operator*() const { return m_linpos; };
+	
+	/**
+	 * @brief Same as dereference operator. Returns the linear position in the 
+	 * array given the n-dimensional position.
+	 *
+	 * @return 
+	 */
+	inline
+	size_t get() const { return m_linpos; };
 
 	/**
 	 * @brief Get both ND position and linear position
@@ -263,7 +272,7 @@ public:
 	 *
 	 * @param dim	size of nd array, number of dimesions given by dim.size()
 	 */
-	void updateDim(std::vector<size_t>& dim);
+	void updateDim(const std::vector<size_t>& dim);
 
 	/**
 	 * @brief Sets the region of interest. During iteration or any motion the
@@ -271,7 +280,7 @@ public:
 	 *
 	 * @param roi	pair of [min,max] values in the desired hypercube
 	 */
-	void setROI(std::vector<std::pair<size_t, size_t>>& roi);
+	void setROI(const std::vector<std::pair<size_t, size_t>>& roi);
 
 	/**
 	 * @brief Sets the order of iteration from ++/-- operators
@@ -280,7 +289,7 @@ public:
 	 * iteration and last the slowest. All other dimensions not used will be 
 	 * slower than the last
 	 */
-	void setOrder(std::list<size_t>& order);
+	void setOrder(const std::list<size_t>& order);
 
 
 
