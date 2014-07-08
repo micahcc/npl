@@ -82,10 +82,10 @@ void Matrix<D1,D2,T>::mvproduct(MatrixP* rhs)
 				v[ii] += m(ii,jj)*tmp[jj];
 			}
 		}
-	} catch(...) {
-		std::cerr << "Error, failed dynamic_cast, check the input to "
-			"mvproduct matrix.h:" << __LINE__ << std::endl;
-		throw(-1);
+	} catch(...){
+		std::cerr << "Error, failed dynamic_cast for matrix-vector product"
+			" check the input to mvproduct matrix.h:" << __LINE__ << std::endl;
+		throw;
 	}
 }
 
