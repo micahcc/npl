@@ -2,14 +2,14 @@
 def build(bld):
     bld.shlib(target = 'ndarray', source = 'ndarray.cpp', use='npltypes')
     bld.shlib(target = 'slicer', source = 'slicer.cpp' )
-    bld.shlib(target = 'ndimage', source = 'ndimage.cpp', use='ZLIB ndarray slicer')
+    bld.shlib(target = 'mrimage', source = 'mrimage.cpp', use='ZLIB ndarray slicer')
     bld.shlib(target = 'npltypes', source = 'npltypes.cpp')
     
     bld.program(target = 'test1', source = 'test1.cpp', use = 'ndarray')
-    bld.program(target = 'test3', source = 'test3.cpp', use = 'ndimage')
-#    bld.program(target = 'test4', source = 'test4.cpp', use = 'ndimage')
-    bld.program(target = 'nifti_test1', source = 'nifti_test1.cpp', use = 'ndimage')
-    bld.program(target = 'nifti_test2', source = 'nifti_test2.cpp', use = 'ndimage')
+    bld.program(target = 'test3', source = 'test3.cpp', use = 'mrimage')
+#    bld.program(target = 'test4', source = 'test4.cpp', use = 'mrimage')
+    bld.program(target = 'nifti_test1', source = 'nifti_test1.cpp', use = 'mrimage')
+    bld.program(target = 'nifti_test2', source = 'nifti_test2.cpp', use = 'mrimage')
     bld.program(target = 'slicer_test', source = 'slicer_test.cpp', use = 'slicer')
     
 #    bld.program(target = 'nl_store_test1', 
@@ -34,7 +34,7 @@ def build(bld):
     bld.program(target = 'store_test4', source = 'store_test4.cpp', use = 'ndarray') 
     bld.program(target = 'matrix_test1', source = 'matrix_test1.cpp') 
     bld.program(target = 'matrix_test2', source = 'matrix_test2.cpp') 
-    bld.program(target = 'imgiter_test1', source = 'imgiter_test1.cpp', use='ndimage') 
+    bld.program(target = 'imgiter_test1', source = 'imgiter_test1.cpp', use='mrimage') 
 
     bld(cmd = '${SRC[0]}', features = 'etest', 
             source = ['slicer_test'], regex = 'PASS!')

@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "ndimage.h"
+#include "mrimage.h"
 
 using namespace std;
 using namespace npl;
@@ -9,8 +9,8 @@ int main()
 {
 	/* Create an image with: x+y*100+z*10000*/
 	size_t sz[3] = {10, 23, 39};
-	NDImageStore<3, double> testimage(sz);
-	NDImage* oimage = &testimage;
+	MRImageStore<3, double> testimage(sz);
+	MRImage* oimage = &testimage;
 
 	for(size_t zz=0; zz < oimage->dim(2); zz++) {
 		for(size_t yy=0; yy < oimage->dim(1); yy++) {
@@ -22,10 +22,10 @@ int main()
 	}
 
 	/* Write the Image */
-	writeNDImage(oimage, "test4.nii", false);
+	writeMRImage(oimage, "test4.nii", false);
 
 	/* Read the Image */
-	NDImage* iimage = readNDImage("test4.nii.gz", true);
+	MRImage* iimage = readMRImage("test4.nii.gz", true);
 	
 	/* Check the Image */
 	for(size_t zz=0; zz < oimage->dim(2); zz++) {
