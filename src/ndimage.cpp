@@ -150,7 +150,7 @@ NDImage* readPixels(gzFile file, size_t vox_offset,
 
 	// dim 0 is the fastest in nifti images, so go in that order
 	std::list<size_t> order(dim.size(), 0);
-	for(int64_t ii=0; ii<dim.size(); ii++) 
+	for(size_t ii=0; ii<dim.size(); ii++) 
 		order.push_back(ii);
 	
 	Slicer slicer(dim, order);
@@ -350,7 +350,7 @@ NDImage* readNiftiImage(gzFile file, bool verbose, double version)
 
 		start = header.vox_offset;
 		dim.resize(header.ndim, 0);
-		for(size_t ii=0; ii<header.ndim && ii < 7; ii++)
+		for(int64_t ii=0; ii<header.ndim && ii < 7; ii++)
 			dim[ii] = header.dim[ii];
 		psize = (header.bitpix >> 3);
 		qform_code = header.qform_code;
@@ -365,18 +365,18 @@ NDImage* readNiftiImage(gzFile file, bool verbose, double version)
 
 		// pixdim
 		pixdim.resize(header.ndim, 0);
-		for(size_t ii=0; ii<header.ndim && ii < 7; ii++)
+		for(int64_t ii=0; ii<header.ndim && ii < 7; ii++)
 			pixdim[ii] = header.pixdim[ii];
 
 		// offset
 		offset.resize(header.ndim, 0);
-		for(size_t ii=0; ii<header.ndim && ii < 3; ii++)
+		for(int64_t ii=0; ii<header.ndim && ii < 3; ii++)
 			offset[ii] = header.qoffset[ii];
 		if(header.ndim > 3)
 			offset[3] = header.toffset;
 
 		// quaternion
-		for(size_t ii=0; ii<3 && ii<header.ndim; ii++)
+		for(int64_t ii=0; ii<3 && ii<header.ndim; ii++)
 			quatern[ii] = header.quatern[ii];
 		qfac = header.qfac;
 
@@ -387,7 +387,7 @@ NDImage* readNiftiImage(gzFile file, bool verbose, double version)
 		
 		start = header.vox_offset;
 		dim.resize(header.ndim, 0);
-		for(size_t ii=0; ii<header.ndim && ii < 7; ii++)
+		for(int64_t ii=0; ii<header.ndim && ii < 7; ii++)
 			dim[ii] = header.dim[ii];
 		psize = (header.bitpix >> 3);
 		qform_code = header.qform_code;
@@ -402,18 +402,18 @@ NDImage* readNiftiImage(gzFile file, bool verbose, double version)
 
 		// pixdim
 		pixdim.resize(header.ndim, 0);
-		for(size_t ii=0; ii<header.ndim && ii < 7; ii++)
+		for(int64_t ii=0; ii<header.ndim && ii < 7; ii++)
 			pixdim[ii] = header.pixdim[ii];
 		
 		// offset
 		offset.resize(header.ndim, 0);
-		for(size_t ii=0; ii<header.ndim && ii < 3; ii++)
+		for(int64_t ii=0; ii<header.ndim && ii < 3; ii++)
 			offset[ii] = header.qoffset[ii];
 		if(header.ndim > 3)
 			offset[3] = header.toffset;
 		
 		// quaternion
-		for(size_t ii=0; ii<3 && ii<header.ndim; ii++)
+		for(int64_t ii=0; ii<3 && ii<header.ndim; ii++)
 			quatern[ii] = header.quatern[ii];
 		qfac = header.qfac;
 	}
@@ -573,7 +573,7 @@ NDImage* readNiftiImage(gzFile file, bool verbose, double version)
 //		updateAffine();
 	} else {
 		// only spacing changes
-		for(int64_t ii=0; ii<dim.size(); ii++)
+		for(size_t ii=0; ii<dim.size(); ii++)
 			out->space(ii) = pixdim[ii];
 		out->updateAffine();
 	}

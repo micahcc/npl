@@ -15,7 +15,7 @@ namespace npl {
  */
 template <int D,typename T>
 NDImageStore<D,T>::NDImageStore(std::initializer_list<size_t> a_args) :
-	NDArrayStore<D,T>(a_args)
+	NDArrayStore<D,T>(a_args), NDImage()
 {
 	orientDefault();
 }
@@ -27,7 +27,7 @@ NDImageStore<D,T>::NDImageStore(std::initializer_list<size_t> a_args) :
  */
 template <int D,typename T>
 NDImageStore<D,T>::NDImageStore(size_t dim[D]) : 
-	NDArrayStore<D,T>(dim)
+	NDArrayStore<D,T>(dim), NDImage()
 {
 	orientDefault();
 }
@@ -39,7 +39,7 @@ NDImageStore<D,T>::NDImageStore(size_t dim[D]) :
  */
 template <int D,typename T>
 NDImageStore<D,T>::NDImageStore(const std::vector<size_t>& dim) : 
-	NDArrayStore<D,T>(dim)
+	NDArrayStore<D,T>(dim), NDImage()
 {
 	orientDefault();
 }
@@ -55,7 +55,7 @@ void NDImageStore<D,T>::orientDefault()
 		m_space[ii] = 1;
 		m_origin[ii] = 0;
 		for(size_t jj=0; jj<D; jj++) {
-			m_dir[ii*D+jj] = (ii==jj);
+			m_dir(ii,jj) = (ii==jj);
 		}
 	}
 
@@ -71,20 +71,20 @@ void NDImageStore<D,T>::updateAffine()
 	// first DxD section
 	for(size_t ii=0; ii<D; ii++) {
 		for(size_t jj=0; jj<D; jj++) {
-			m_affine[ii*(D+1)+jj] = m_dir[ii*D+jj]*m_space[jj];
+			m_affine(ii,jj) = m_dir(ii, jj)*m_space[jj];
 		}
 	}
 		
 	// bottom row
 	for(size_t jj=0; jj<D; jj++) 
-		m_affine[D*(D+1)+jj] = 0;
+		m_affine(D,jj) = 0;
 	
 	// last column
 	for(size_t ii=0; ii<D; ii++) 
-		m_affine[ii*(D+1)+D] = 0;
+		m_affine(ii,D) = 0;
 
 	// bottom right
-	m_affine[D*(D+1)+D] = 1;
+	m_affine(D,D) = 1;
 }
 
 /**
@@ -108,14 +108,14 @@ void NDImageStore<D,T>::printSelf()
 	for(size_t ii=0; ii<D; ii++) {
 		std::cerr << "[";
 		for(size_t jj=0; jj<D; jj++) 
-			std::cerr << m_dir[ii*D+jj] << ", ";
+			std::cerr << m_dir(ii,jj) << ", ";
 		std::cerr << "]\n";
 	}
 	std::cerr << "\nAffine:\n";
 	for(size_t ii=0; ii<D+1; ii++) {
 		std::cerr << "[";
 		for(size_t jj=0; jj<D+1; jj++) 
-			std::cerr << m_affine[ii*(D+1)+jj] << ", ";
+			std::cerr << m_affine(ii,jj) << ", ";
 		std::cerr << "]\n";
 	}
 }
@@ -180,14 +180,14 @@ template <int D, typename T>
 double& NDImageStore<D,T>::direction(size_t d1, size_t d2) 
 {
 	assert(d1 < D && d2 < D);
-	return m_dir[D*d1+d2]; 
+	return m_dir(d1,d2); 
 };
 
 template <int D, typename T>
 double& NDImageStore<D,T>::affine(size_t d1, size_t d2) 
 { 
 	assert(d1 < D+1 && d2 < D+1);
-	return m_dir[(D+1)*d1+d2]; 
+	return m_affine(d1,d2);
 };
 
 template <int D, typename T>
@@ -208,14 +208,14 @@ template <int D, typename T>
 const double& NDImageStore<D,T>::direction(size_t d1, size_t d2) const 
 { 
 	assert(d1 < D && d2 < D);
-	return m_dir[D*d1+d2]; 
+	return m_dir(d1,d2); 
 };
 
 template <int D, typename T>
 const double& NDImageStore<D,T>::affine(size_t d1, size_t d2) const 
 {
 	assert(d1 < D+1 && d2 < D+1);
-	return m_dir[(D+1)*d1+d2]; 
+	return m_affine(d1, d2); 
 };
 
 /* 
@@ -358,18 +358,20 @@ int NDImageStore<D,T>::writeNifti1Header(gzFile file) const
 	header.datatype = type();
 	header.bitpix = sizeof(T)*8;
 
-	assert(m_slice_start < SHRT_MAX);
-	assert(m_slice_end < SHRT_MAX);
+	if(m_slice_order != 0) {
+		assert(m_slice_start < SHRT_MAX);
+		assert(m_slice_end < SHRT_MAX);
 
-	header.slice_start = m_slice_start;
-	header.slice_end = m_slice_end;
-	header.slice_duration = m_slice_duration;
-	header.slice_code = m_slice_order;
+		header.slice_start = m_slice_start;
+		header.slice_end = m_slice_end;
+		header.slice_duration = m_slice_duration;
+		header.slice_code = m_slice_order;
+	}
 
 	header.qform_code = 1;
 
 	// orientation
-	if(D > 2)
+	if(D > 3)
 		header.toffset = m_origin[3];
 	for(size_t ii=0; ii<3 && ii<D; ii++) 
 		header.qoffset[ii] = m_origin[ii];
@@ -468,15 +470,20 @@ int NDImageStore<D,T>::writeNifti2Header(gzFile file) const
 	header.datatype = type();
 	header.bitpix = sizeof(T)*8;
 
-	header.slice_start = m_slice_start;
-	header.slice_end = m_slice_end;
-	header.slice_duration = m_slice_duration;
-	header.slice_code = m_slice_order;
+	if(m_slice_order != 0) {
+		assert(m_slice_start < SHRT_MAX);
+		assert(m_slice_end < SHRT_MAX);
+
+		header.slice_start = m_slice_start;
+		header.slice_end = m_slice_end;
+		header.slice_duration = m_slice_duration;
+		header.slice_code = m_slice_order;
+	}
 
 	header.qform_code = 1;
 
 	// orientation
-	if(D > 2)
+	if(D > 3)
 		header.toffset = m_origin[3];
 	for(size_t ii=0; ii<3 && ii<D; ii++) 
 		header.qoffset[ii] = m_origin[ii];
@@ -537,7 +544,7 @@ int NDImageStore<D,T>::writeNifti2Header(gzFile file) const
 	header.quatern[2] = d;
 	
 	//magic
-	strncpy(header.magic,"n+1\0", 4);
+	strncpy(header.magic,"n+2\0", 4);
 	header.vox_offset = 352;
 
 

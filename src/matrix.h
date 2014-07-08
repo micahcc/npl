@@ -240,7 +240,7 @@ template <int DIM, typename T = double>
 double determinant(const Matrix<DIM, DIM>& trg)
 {
 #ifdef DEBUG
-	cerr << "Blockwise Determinant " << trg << endl;
+	std::cerr << "Blockwise Determinant " << trg << std::endl;
 #endif //DEBUG
 
 	// break up into smaller matrices
@@ -251,10 +251,10 @@ double determinant(const Matrix<DIM, DIM>& trg)
 	split(trg, A, B, C, D);
 	
 #ifdef DEBUG
-	cerr << "A=" << A << endl;
-	cerr << "B=" << B << endl;
-	cerr << "C=" << C << endl;
-	cerr << "D=" << D << endl;
+	std::cerr << "A=" << A << std::endl;
+	std::cerr << "B=" << B << std::endl;
+	std::cerr << "C=" << C << std::endl;
+	std::cerr << "D=" << D << std::endl;
 #endif //DEBUG
 
 	auto AI = inverse(A);
@@ -299,7 +299,7 @@ template <int DIM, typename T = double>
 Matrix<DIM, DIM> inverse(const Matrix<DIM, DIM>& trg)
 {
 #ifdef DEBUG
-	cerr << "Blockwise Invert " << trg << endl;
+	std::cerr << "Blockwise Invert " << trg << std::endl;
 #endif //DEBUG
 
 	// break up into smaller matrices
@@ -310,18 +310,18 @@ Matrix<DIM, DIM> inverse(const Matrix<DIM, DIM>& trg)
 	split(trg, A, B, C, D);
 	
 #ifdef DEBUG
-	cerr << "A=" << A << endl;
-	cerr << "B=" << B << endl;
-	cerr << "C=" << C << endl;
-	cerr << "D=" << D << endl;
+	std::cerr << "A=" << A << std::endl;
+	std::cerr << "B=" << B << std::endl;
+	std::cerr << "C=" << C << std::endl;
+	std::cerr << "D=" << D << std::endl;
 #endif //DEBUG
 
 	auto AI = inverse(A);
 	auto betaI = inverse(D-C*AI*B);
 
 #ifdef DEBUG
-	cerr << "AI=" << AI << endl;
-	cerr << "betaI=" << betaI << endl;
+	std::cerr << "AI=" << AI << std::endl;
+	std::cerr << "betaI=" << betaI << std::endl;
 #endif //DEBUG
 
 	auto tl = AI + AI*B*betaI*C*AI;
@@ -330,15 +330,15 @@ Matrix<DIM, DIM> inverse(const Matrix<DIM, DIM>& trg)
 	auto br = betaI;
 	
 #ifdef DEBUG
-	cerr << "A=" << tl << endl;
-	cerr << "B=" << tr << endl;
-	cerr << "C=" << bl << endl;
-	cerr << "D=" << br << endl;
+	std::cerr << "A=" << tl << std::endl;
+	std::cerr << "B=" << tr << std::endl;
+	std::cerr << "C=" << bl << std::endl;
+	std::cerr << "D=" << br << std::endl;
 #endif //DEBUG
 
 	auto ret = join(tl, tr, bl, br);
 #ifdef DEBUG
-	cerr << "Returning " << endl;
+	std::cerr << "Returning " << std::endl;
 #endif //DEBUG
 
 	return ret;

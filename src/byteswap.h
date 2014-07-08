@@ -83,11 +83,13 @@ void swap(cfloat_t* val)
 template <>
 void swap(rgba_t* val)
 {
+	(void)(val);
 }
 
 template <>
 void swap(rgb_t* val)
 {
+	(void)(val);
 }
 
 } // npl

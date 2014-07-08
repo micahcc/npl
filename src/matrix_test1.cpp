@@ -8,7 +8,7 @@
 using namespace npl;
 using namespace std;
 
-int main(int argc, char** argv)
+int main()
 {
 	Matrix<3,3> mat1;
 	Matrix<3,3> mat2;

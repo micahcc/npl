@@ -30,6 +30,9 @@ class NDImage;
 class NDImage : public virtual NDArray
 {
 public:
+	NDImage() : m_freqdim(-1), m_phasedim(-1), m_slicedim(-1), 
+				m_slice_duration(0), m_slice_start(-1), 
+				m_slice_end(-1), m_slice_order(UNKNOWN_SLICE) {} ;
 
 	virtual double& space(size_t d) = 0;
 	virtual double& origin(size_t d) = 0;

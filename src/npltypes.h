@@ -107,7 +107,7 @@ struct rgb_t
 	explicit operator uint8_t();
 	
 	rgb_t() : red(0), green(0), blue(0) {} ;
-	rgb_t(char r, char g, char b, char a = 0) : 
+	rgb_t(char r, char g, char b) : 
 		red(r), green(g), blue(b) {} ;
 	explicit rgb_t(float);
 	explicit rgb_t(double);
