@@ -4,6 +4,7 @@
 #include <vector>
 #include <list>
 #include <cstdint>
+#include <cstddef>
 
 using namespace std;
 
@@ -93,7 +94,7 @@ public:
 	 *
 	 * @return 		linear index
 	 */
-	size_t offset(int64_t* dindex) const;
+	size_t offset(int64_t* dindex, bool* outside = NULL) const;
 	
 	/**
 	 * @brief Get linear index at an offset location from the current, useful
@@ -103,7 +104,7 @@ public:
 	 *
 	 * @return 		linear index
 	 */
-	size_t offset(const vector<int64_t>& dindex) const;
+	size_t offset(const vector<int64_t>& dindex, bool* outside = NULL) const;
 	
 	/**
 	 * @brief Get linear index at an offset location from the current, useful
@@ -113,7 +114,7 @@ public:
 	 *
 	 * @return 		linear index
 	 */
-	size_t offset(std::initializer_list<int64_t> dindex) const;
+	size_t offset(std::initializer_list<int64_t> dindex, bool* outside = NULL) const;
 
 	/****************************************
 	 *

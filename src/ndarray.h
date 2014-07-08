@@ -42,31 +42,14 @@
 	void FNAME(size_t index, TYPE); \
 
 #define ITER(TYPE, CALLFUNC, CNAME, FNAME)										\
-	class CNAME : public Slicer													\
+	class CNAME : public virtual iter_base										\
 	{																			\
 	public:																		\
-		CNAME() : Slicer(), m_parent(NULL) {} ;									\
-		CNAME(NDArray* parent, const std::list<size_t>& order) {				\
-			m_parent = parent;													\
-			std::vector<size_t> dim(m_parent->ndim());							\
-			for(size_t ii=0; ii<m_parent->ndim(); ii++)							\
-				dim[ii] = m_parent->dim(ii);									\
-			updateDim(dim);														\
-			setOrder(order);													\
-		}																		\
-		CNAME(NDArray* parent) {												\
-			m_parent = parent;													\
-			std::vector<size_t> dim(m_parent->ndim());							\
-			std::list<size_t> order;											\
-			for(size_t ii=0; ii<m_parent->ndim(); ii++)							\
-				dim[ii] = m_parent->dim(ii);									\
-			updateDim(dim);														\
-			setOrder(order);													\
-		}																		\
-		TYPE operator*() {														\
-			assert(m_parent);													\
-			return m_parent->CALLFUNC(Slicer::get());							\
-		};																		\
+		CNAME() : iter_base() {}; 												\
+		CNAME(NDArray* parent, const std::list<size_t>& order) 					\
+			: iter_base(parent, order) {}; 										\
+		CNAME(NDArray* parent) 													\
+			: iter_base(parent) {}; 											\
 		TYPE get() {															\
 			assert(m_parent);													\
 			return m_parent->CALLFUNC(Slicer::get());							\
@@ -75,52 +58,48 @@
 			assert(m_parent);													\
 			m_parent->CALLFUNC(Slicer::get(), v);								\
 		};																		\
-	private:																	\
-		NDArray* m_parent;														\
+		TYPE offset(int64_t* dindex, bool* outside) {							\
+			assert(m_parent);													\
+			return m_parent->CALLFUNC(Slicer::offset(dindex, outside));			\
+		};																		\
+		TYPE offset(std::initializer_list<int64_t> dindex, bool* outside) {		\
+			assert(m_parent);													\
+			return m_parent->CALLFUNC(Slicer::offset(dindex, outside));			\
+		};																		\
+		void offset(int64_t* dindex, TYPE v, bool* outside) {					\
+			assert(m_parent);													\
+			m_parent->CALLFUNC(Slicer::offset(dindex, outside), v);		\
+		};																		\
+		void offset(std::initializer_list<int64_t> dindex, TYPE v, bool* outside ) {\
+			assert(m_parent);													\
+			m_parent->CALLFUNC(Slicer::offset(dindex, outside), v);				\
+		};																		\
 	};																			\
 	CNAME FNAME(const std::list<size_t>& order) { return CNAME(this, order); };	\
 	CNAME FNAME() { return CNAME(this); };
 
-#define CONSTITER(TYPE, CALLFUNC, CNAME, FNAME)										\
-	class CNAME : public Slicer													\
+
+#define CONSTITER(TYPE, CALLFUNC, CNAME, FNAME)									\
+	class CNAME : public virtual citer_base										\
 	{																			\
 	public:																		\
-		CNAME() : Slicer(), m_parent(NULL) {} ;									\
-		CNAME(const NDArray* parent, const std::list<size_t>& order) : m_parent(parent) { \
-			m_parent = parent;													\
-			std::vector<size_t> dim(m_parent->ndim());							\
-			for(size_t ii=0; ii<m_parent->ndim(); ii++)							\
-				dim[ii] = m_parent->dim(ii);									\
-			updateDim(dim);														\
-			setOrder(order);													\
-		}																		\
-		CNAME(const NDArray* parent) {											\
-			m_parent = parent;													\
-			std::vector<size_t> dim(m_parent->ndim());							\
-			std::list<size_t> order;											\
-			for(size_t ii=0; ii<m_parent->ndim(); ii++)							\
-				dim[ii] = m_parent->dim(ii);									\
-			updateDim(dim);														\
-			setOrder(order);													\
-		}																		\
-		TYPE operator*() {														\
-			assert(m_parent);													\
-			return m_parent->CALLFUNC(Slicer::get());							\
-		};																		\
+		CNAME() : citer_base() {}; 												\
+		CNAME(const NDArray* parent, const std::list<size_t>& order) 			\
+			: citer_base(parent, order) {}; 									\
+		CNAME(const NDArray* parent) 											\
+			: citer_base(parent) {}; 											\
 		TYPE get() {															\
 			assert(m_parent);													\
 			return m_parent->CALLFUNC(Slicer::get());							\
 		};																		\
-		TYPE offset(int64_t* dindex) {											\
+		TYPE offset(int64_t* dindex, bool* outside) {							\
 			assert(m_parent);													\
-			return m_parent->CALLFUNC(Slicer::offset(dindex));					\
+			return m_parent->CALLFUNC(Slicer::offset(dindex, outside));			\
 		};																		\
-		TYPE offset(std::initializer_list<int64_t> dindex) {					\
+		TYPE offset(std::initializer_list<int64_t> dindex, bool* outside) {		\
 			assert(m_parent);													\
-			return m_parent->CALLFUNC(Slicer::offset(dindex));					\
+			return m_parent->CALLFUNC(Slicer::offset(dindex, outside));			\
 		};																		\
-	private:																	\
-		const NDArray* m_parent;												\
 	};																			\
 	CNAME FNAME(const std::list<size_t>& order) const { return CNAME(this, order); };\
 	CNAME FNAME() const { return CNAME(this); };
@@ -135,7 +114,119 @@ namespace npl {
 class NDArray
 {
 public:
+	class iter_base : public virtual Slicer {
+	public:
+		iter_base() : Slicer(), m_parent(NULL) {} ;
+		iter_base(NDArray* parent, const std::list<size_t>& order) 
+		{
+			m_parent = parent;
+			std::vector<size_t> dim(m_parent->ndim());
+			for(size_t ii=0; ii<m_parent->ndim(); ii++)
+				dim[ii] = m_parent->dim(ii);
+			updateDim(dim);
+			setOrder(order);
+		};
+		iter_base(NDArray* parent) 
+		{
+			m_parent = parent;
+			std::vector<size_t> dim(m_parent->ndim());
+			std::list<size_t> order;
+			for(size_t ii=0; ii<m_parent->ndim(); ii++)
+				dim[ii] = m_parent->dim(ii);
+			updateDim(dim);
+			setOrder(order);
+		};
+		double operator*() const 
+		{
+			assert(m_parent);
+			return m_parent->dbl(Slicer::get());
+		};
+		virtual double get(bool* outside) const 
+		{
+			assert(m_parent);
+			return m_parent->dbl(Slicer::get(outside));
+		};
+		virtual void set(double v, bool* outside) const 
+		{
+			assert(m_parent);
+			m_parent->dbl(Slicer::get(outside), v);
+		};
+		virtual double offset(int64_t* dindex, bool* outside) 
+		{
+			assert(m_parent);
+			return m_parent->dbl(Slicer::offset(dindex, outside));
+		};
+		virtual double offset(std::initializer_list<int64_t> dindex, bool* outside) 
+		{
+			assert(m_parent);
+			return m_parent->dbl(Slicer::offset(dindex, outside));
+		};
+		virtual void offset(int64_t* dindex, double v, bool* outside) 
+		{
+			assert(m_parent);
+			m_parent->dbl(Slicer::offset(dindex, outside), v);
+		};
+		virtual void offset(std::initializer_list<int64_t> dindex, double v, 
+				bool* outside) 
+		{
+			assert(m_parent);
+			m_parent->dbl(Slicer::offset(dindex, outside), v);
+		};
+	protected:
+		NDArray* m_parent;
+	};
 	
+	class citer_base : public virtual Slicer {
+	public:
+		citer_base() : Slicer(), m_parent(NULL) {} ;
+		citer_base(const NDArray* parent, const std::list<size_t>& order) 
+		{
+			m_parent = parent;
+			std::vector<size_t> dim(m_parent->ndim());
+			for(size_t ii=0; ii<m_parent->ndim(); ii++)
+				dim[ii] = m_parent->dim(ii);
+			updateDim(dim);
+			setOrder(order);
+		};
+		citer_base(const NDArray* parent) 
+		{
+			m_parent = parent;
+			std::vector<size_t> dim(m_parent->ndim());
+			std::list<size_t> order;
+			for(size_t ii=0; ii<m_parent->ndim(); ii++)
+				dim[ii] = m_parent->dim(ii);
+			updateDim(dim);
+			setOrder(order);
+		};
+		double operator*() const 
+		{
+			assert(m_parent);
+			return m_parent->dbl(Slicer::get());
+		};
+		virtual double get(bool* outside) const 
+		{
+			assert(m_parent);
+			return m_parent->dbl(Slicer::get(outside));
+		};
+		virtual void set(double v, bool* outside) const 
+		{
+			assert(m_parent);
+			m_parent->dbl(Slicer::get(outside), v);
+		};
+		double offset(int64_t* dindex, bool* outside) 
+		{
+			assert(m_parent);
+			return m_parent->dbl(Slicer::offset(dindex, outside));
+		};
+		double offset(std::initializer_list<int64_t> dindex, bool* outside) 
+		{
+			assert(m_parent);
+			return m_parent->dbl(Slicer::offset(dindex, outside));
+		};
+	protected:
+		const NDArray* m_parent;
+	};
+
 	/*
 	 * get / set functions
 	 */

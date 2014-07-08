@@ -94,7 +94,7 @@ size_t Slicer::step(size_t dim, int64_t dist)
  *
  * @return 		linear index
  */
-size_t Slicer::offset(int64_t* off) const
+size_t Slicer::offset(int64_t* off, bool* outside) const
 {
 	size_t ret = m_linpos;
 	int64_t clamped;
@@ -102,6 +102,12 @@ size_t Slicer::offset(int64_t* off) const
 		clamped = std::max<int64_t>(m_roi[ii].first, 
 				std::min<int64_t>(m_roi[ii].second, m_pos[ii]+off[ii]));
 		ret += (clamped-m_pos[ii])*m_strides[ii];
+
+		// indicate that the value was outside the roi
+		if(outside && clamped != off[ii]) 
+			*outside = true;
+		else if(outside)
+			*outside = true;
 	}
 	return ret;
 }
@@ -114,7 +120,7 @@ size_t Slicer::offset(int64_t* off) const
  *
  * @return 		linear index
  */
-size_t Slicer::offset(const std::vector<int64_t>& off) const
+size_t Slicer::offset(const std::vector<int64_t>& off, bool* outside) const
 {
 	assert(off.size() == m_pos.size());
 	size_t ret = m_linpos;
@@ -123,6 +129,12 @@ size_t Slicer::offset(const std::vector<int64_t>& off) const
 		clamped = std::max<int64_t>(m_roi[ii].first, 
 				std::min<int64_t>(m_roi[ii].second, m_pos[ii]+off[ii]));
 		ret += (clamped-m_pos[ii])*m_strides[ii];
+		
+		// indicate that the value was outside the roi
+		if(outside && clamped != off[ii]) 
+			*outside = true;
+		else if(outside)
+			*outside = true;
 	}
 	return ret;
 }
@@ -135,7 +147,7 @@ size_t Slicer::offset(const std::vector<int64_t>& off) const
  *
  * @return 		linear index
  */
-size_t Slicer::offset(std::initializer_list<int64_t> off) const
+size_t Slicer::offset(std::initializer_list<int64_t> off, bool* outside) const
 {
 	assert(off.size() == m_pos.size());
 	size_t ret = m_linpos;
@@ -145,6 +157,12 @@ size_t Slicer::offset(std::initializer_list<int64_t> off) const
 		clamped = std::max<int64_t>(m_roi[ii].first, 
 				std::min<int64_t>(m_roi[ii].second, m_pos[ii]+*it));
 		ret += (clamped-m_pos[ii])*m_strides[ii];
+		
+		// indicate that the value was outside the roi
+		if(outside && clamped != *it) 
+			*outside = true;
+		else if(outside)
+			*outside = true;
 	}
 	return ret;
 }
