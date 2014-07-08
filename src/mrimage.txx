@@ -120,44 +120,85 @@ void MRImageStore<D,T>::printSelf()
 	}
 }
 
-template <typename T, typename DIMT>
-MRImage* createMRImage(size_t ndim, DIMT* dims)
+template <typename T>
+MRImage* createMRImageHelp(size_t ndim, size_t* dim)
 {
-	const size_t MAXDIM = 7;
-	size_t truedim[MAXDIM];
 	switch(ndim) {
 		case 1:
-			for(size_t ii=0; ii<ndim; ii++)
-				truedim[ii] = (size_t)dims[ii];
-			return MRImageStore<1, T>(truedim);
+			return new MRImageStore<1, T>(dim);
 		case 2:
-			for(size_t ii=0; ii<ndim; ii++)
-				truedim[ii] = (size_t)dims[ii];
-			return MRImageStore<2, T>(truedim);
+			return new MRImageStore<2, T>(dim);
 		case 3:
-			for(size_t ii=0; ii<ndim; ii++)
-				truedim[ii] = (size_t)dims[ii];
-			return MRImageStore<3, T>(truedim);
+			return new MRImageStore<3, T>(dim);
 		case 4:
-			for(size_t ii=0; ii<ndim; ii++)
-				truedim[ii] = (size_t)dims[ii];
-			return MRImageStore<4, T>(truedim);
+			return new MRImageStore<4, T>(dim);
 		case 5:
-			for(size_t ii=0; ii<ndim; ii++)
-				truedim[ii] = (size_t)dims[ii];
-			return MRImageStore<5, T>(truedim);
+			return new MRImageStore<5, T>(dim);
 		case 6:
-			for(size_t ii=0; ii<ndim; ii++)
-				truedim[ii] = (size_t)dims[ii];
-			return MRImageStore<6, T>(truedim);
+			return new MRImageStore<6, T>(dim);
 		case 7:
-			for(size_t ii=0; ii<ndim; ii++)
-				truedim[ii] = (size_t)dims[ii];
-			return MRImageStore<7, T>(truedim);
+			return new MRImageStore<7, T>(dim);
 		default:
 			std::cerr << "Unsupported dimension: " << ndim << std::endl;
 			return NULL;
+	}
 
+	return NULL;
+}
+
+MRImage* createMRImage(size_t ndim, size_t* dim, PixelT ptype)
+{
+	switch(ptype) {
+         case UINT8:
+			return (MRImage*)createMRImageHelp<uint8_t>(ndim, dim);
+        break;
+         case INT16:
+			return (MRImage*)createMRImageHelp<int16_t>(ndim, dim);
+        break;
+         case INT32:
+			return (MRImage*)createMRImageHelp<int32_t>(ndim, dim);
+        break;
+         case FLOAT32:
+			return (MRImage*)createMRImageHelp<float>(ndim, dim);
+        break;
+         case COMPLEX64:
+			return (MRImage*)createMRImageHelp<cfloat_t>(ndim, dim);
+        break;
+         case FLOAT64:
+			return (MRImage*)createMRImageHelp<double>(ndim, dim);
+        break;
+         case RGB24:
+			return (MRImage*)createMRImageHelp<rgb_t>(ndim, dim);
+        break;
+         case INT8:
+			return (MRImage*)createMRImageHelp<int8_t>(ndim, dim);
+        break;
+         case UINT16:
+			return (MRImage*)createMRImageHelp<uint16_t>(ndim, dim);
+        break;
+         case UINT32:
+			return (MRImage*)createMRImageHelp<uint32_t>(ndim, dim);
+        break;
+         case INT64:
+			return (MRImage*)createMRImageHelp<int64_t>(ndim, dim);
+        break;
+         case UINT64:
+			return (MRImage*)createMRImageHelp<uint64_t>(ndim, dim);
+        break;
+         case FLOAT128:
+			return (MRImage*)createMRImageHelp<long double>(ndim, dim);
+        break;
+         case COMPLEX128:
+			return (MRImage*)createMRImageHelp<cdouble_t>(ndim, dim);
+        break;
+         case COMPLEX256:
+			return (MRImage*)createMRImageHelp<cquad_t>(ndim, dim);
+        break;
+         case RGBA32:
+			return (MRImage*)createMRImageHelp<rgba_t>(ndim, dim);
+        break;
+		 default:
+		return NULL;
 	}
 	return NULL;
 }
@@ -620,7 +661,7 @@ int MRImageStore<D,T>::writePixels(gzFile file) const
 {
 	// x is the fastest in nifti, for us it is the slowest
 	list<size_t> order;
-	for(size_t ii=0 ; ii<order.size(); ii++)
+	for(size_t ii=0 ; ii<ndim(); ii++)
 		order.push_back(ii);
 
 	T tmp;

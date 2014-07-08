@@ -76,7 +76,8 @@
 	private:																	\
 		NDArray* m_parent;														\
 	};																			\
-	CNAME FNAME(const std::list<size_t>& order) { return CNAME(this, order); };
+	CNAME FNAME(const std::list<size_t>& order) { return CNAME(this, order); };	\
+	CNAME FNAME() { return CNAME(this); };
 
 #define CONSTITER(TYPE, CALLFUNC, CNAME, FNAME)										\
 	class CNAME : public Slicer													\
@@ -91,12 +92,14 @@
 			updateDim(dim);														\
 			setOrder(order);													\
 		}																		\
-		CNAME(NDArray* parent) {												\
+		CNAME(const NDArray* parent) {											\
 			m_parent = parent;													\
 			std::vector<size_t> dim(m_parent->ndim());							\
+			std::list<size_t> order;											\
 			for(size_t ii=0; ii<m_parent->ndim(); ii++)							\
 				dim[ii] = m_parent->dim(ii);									\
 			updateDim(dim);														\
+			setOrder(order);													\
 		}																		\
 		TYPE operator*() {														\
 			assert(m_parent);													\
@@ -117,7 +120,8 @@
 	private:																	\
 		const NDArray* m_parent;												\
 	};																			\
-	CNAME FNAME(const std::list<size_t>& order) const { return CNAME(this, order); };
+	CNAME FNAME(const std::list<size_t>& order) const { return CNAME(this, order); };\
+	CNAME FNAME() const { return CNAME(this); };
 
 
 

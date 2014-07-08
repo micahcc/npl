@@ -149,7 +149,7 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 	 */
 
 	// dim 0 is the fastest in nifti images, so go in that order
-	std::list<size_t> order(dim.size(), 0);
+	std::list<size_t> order;
 	for(size_t ii=0; ii<dim.size(); ii++) 
 		order.push_back(ii);
 	
@@ -354,6 +354,7 @@ MRImage* readNiftiImage(gzFile file, bool verbose, double version)
 			dim[ii] = header.dim[ii];
 		psize = (header.bitpix >> 3);
 		qform_code = header.qform_code;
+		datatype = header.datatype;
 		
 		slice_code = header.slice_code;
 		slice_duration = header.slice_duration;
@@ -391,6 +392,7 @@ MRImage* readNiftiImage(gzFile file, bool verbose, double version)
 			dim[ii] = header.dim[ii];
 		psize = (header.bitpix >> 3);
 		qform_code = header.qform_code;
+		datatype = header.datatype;
 		
 		slice_code = header.slice_code;
 		slice_duration = header.slice_duration;

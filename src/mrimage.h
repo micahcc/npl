@@ -23,6 +23,11 @@ enum SliceOrderT {UNKNOWN_SLICE=0, SEQ=1, RSEQ=2, ALT=3, RALT=4, ALT_SHFT=5, RAL
 
 class MRImage;
 
+// simply reads an image in its native type
+MRImage* readMRImage(std::string filename, bool verbose);
+MRImage* createMRImage(size_t ndim, size_t* dims, PixelT);
+int writeMRImage(MRImage* img, std::string fn, bool nifti2 = false);
+
 /**
  * @brief MRImage can basically be used like an NDArray, with the addition
  * of orientation related additions.
@@ -169,11 +174,6 @@ private:
 	int writeNifti2Header(gzFile file) const;
 	int writePixels(gzFile file) const;
 };
-
-// simply reads an image in its native type
-MRImage* readMRImage(std::string filename, bool verbose);
-MRImage* createMRImage(size_t ndim, size_t* dims, PixelT);
-int writeMRImage(MRImage* img, std::string fn, bool nifti2 = true);
 
 } // npl
 #endif 
