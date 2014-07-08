@@ -5,7 +5,6 @@ N-Dimensional Array Class, with arbitrary type, using inheritance. Used as the b
 
 
 Next Features:
-Throw error if non-orthogonal direction set
 Test metadata reading
 -Verbose ostream(, Image) function
 Resample Function

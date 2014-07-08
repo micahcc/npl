@@ -92,7 +92,7 @@ NDArrayStore<D,T>::NDArrayStore(std::initializer_list<size_t> a_args)
 	}
 
 	// make any remaining dimensions size 1
-	for(ii=0; ii < D; ii++) {
+	for(; ii < D; ii++) {
 		_m_dim[ii] = 1;
 		dsize *= _m_dim[ii];
 	}
@@ -115,7 +115,7 @@ NDArrayStore<D,T>::NDArrayStore(const std::vector<size_t>& a_args)
 	}
 
 	// make any remaining dimensions size 1
-	for(ii=0; ii < D; ii++) {
+	for(; ii < D; ii++) {
 		_m_dim[ii] = 1;
 		dsize *= _m_dim[ii];
 	}

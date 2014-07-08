@@ -266,9 +266,6 @@ double determinant(const Matrix<2, 2>& trg)
 template <int DIM, typename T = double>
 double determinant(const Matrix<DIM, DIM>& trg)
 {
-#ifdef DEBUG
-	std::cerr << "Blockwise Determinant " << trg << std::endl;
-#endif //DEBUG
 
 	// break up into smaller matrices
 	Matrix<DIM/2,DIM/2> A;
@@ -277,13 +274,6 @@ double determinant(const Matrix<DIM, DIM>& trg)
 	Matrix<(DIM+1)/2,(DIM+1)/2> D;
 	split(trg, A, B, C, D);
 	
-#ifdef DEBUG
-	std::cerr << "A=" << A << std::endl;
-	std::cerr << "B=" << B << std::endl;
-	std::cerr << "C=" << C << std::endl;
-	std::cerr << "D=" << D << std::endl;
-#endif //DEBUG
-
 	auto AI = inverse(A);
 	double a = determinant(A)*determinant(D-C*AI*B);
 
@@ -325,9 +315,6 @@ Matrix<2, 2> inverse(const Matrix<2, 2>& trg)
 template <int DIM, typename T = double>
 Matrix<DIM, DIM> inverse(const Matrix<DIM, DIM>& trg)
 {
-#ifdef DEBUG
-	std::cerr << "Blockwise Invert " << trg << std::endl;
-#endif //DEBUG
 
 	// break up into smaller matrices
 	Matrix<DIM/2,DIM/2> A;
@@ -336,37 +323,15 @@ Matrix<DIM, DIM> inverse(const Matrix<DIM, DIM>& trg)
 	Matrix<(DIM+1)/2,(DIM+1)/2> D;
 	split(trg, A, B, C, D);
 	
-#ifdef DEBUG
-	std::cerr << "A=" << A << std::endl;
-	std::cerr << "B=" << B << std::endl;
-	std::cerr << "C=" << C << std::endl;
-	std::cerr << "D=" << D << std::endl;
-#endif //DEBUG
-
 	auto AI = inverse(A);
 	auto betaI = inverse(D-C*AI*B);
-
-#ifdef DEBUG
-	std::cerr << "AI=" << AI << std::endl;
-	std::cerr << "betaI=" << betaI << std::endl;
-#endif //DEBUG
 
 	auto tl = AI + AI*B*betaI*C*AI;
 	auto tr = -AI*B*betaI;
 	auto bl = -betaI*C*AI;
 	auto br = betaI;
 	
-#ifdef DEBUG
-	std::cerr << "A=" << tl << std::endl;
-	std::cerr << "B=" << tr << std::endl;
-	std::cerr << "C=" << bl << std::endl;
-	std::cerr << "D=" << br << std::endl;
-#endif //DEBUG
-
 	auto ret = join(tl, tr, bl, br);
-#ifdef DEBUG
-	std::cerr << "Returning " << std::endl;
-#endif //DEBUG
 
 	return ret;
 }

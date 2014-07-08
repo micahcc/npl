@@ -41,6 +41,9 @@ template <int D,typename T>
 MRImageStore<D,T>::MRImageStore(const std::vector<size_t>& dim) : 
 	NDArrayStore<D,T>(dim), MRImage()
 {
+	std::cerr << "ndims: " << dim.size(); 
+	for(size_t ii=0; ii<dim.size(); ii++)
+		std::cerr << "dim[" << ii << "]=" << dim[ii] << endl;
 	orientDefault();
 }
 
@@ -330,12 +333,14 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 
 	if(nogz.substr(nogz.size()-4, 4) == ".nii") {
 		if(version >= 2) {
+			std::cerr << "version >= 2" << endl;
 			if(writeNifti2Image(gz) != 0) {
 				std::cerr << "Error writing" << std:: endl;
 				gzclose(gz);
 				return -1;
 			}
 		} else {
+			std::cerr << "version < 2" << endl;
 			if(writeNifti1Image(gz) != 0) {
 				std::cerr << "Error writing" << std:: endl;
 				gzclose(gz);
@@ -356,6 +361,7 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 template <int D, typename T>
 int MRImageStore<D,T>::writeNifti1Image(gzFile file) const
 {
+	cerr << "writeNifti1Image" << endl;
 	int ret = writeNifti1Header(file);
 	if(ret != 0) 
 		return ret;
@@ -366,6 +372,7 @@ int MRImageStore<D,T>::writeNifti1Image(gzFile file) const
 template <int D, typename T>
 int MRImageStore<D,T>::writeNifti2Image(gzFile file) const
 {
+	cerr << "writeNifti2Image" << endl;
 	int ret = writeNifti2Header(file);
 	if(ret != 0) 
 		return ret;
@@ -376,6 +383,7 @@ int MRImageStore<D,T>::writeNifti2Image(gzFile file) const
 template <int D, typename T>
 int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 {
+	cerr << "writeNifti1Header" << endl;
 	static_assert(sizeof(nifti1_header) == 348, "Error, nifti header packing failed");
 	nifti1_header header;
 	std::fill((char*)&header, ((char*)&header)+sizeof(nifti1_header), 0);
@@ -428,6 +436,10 @@ int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 	}
 
 	double det = determinant(rotate);
+	if(fabs(det)-1 > 0.0001) {
+		cerr << "Non-orthogonal direction set! This may not end well" << endl;
+	}
+
 	if(det > 0) 
 		header.qfac = 1;
 	 else {
@@ -489,11 +501,14 @@ int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 template <int D, typename T>
 int MRImageStore<D,T>::writeNifti2Header(gzFile file) const
 {
+	cerr << "writeNifti2Header" << endl;
 	static_assert(sizeof(nifti2_header) == 540, "Error, nifti header packing failed");
 	nifti2_header header;
 	std::fill((char*)&header, ((char*)&header)+sizeof(nifti2_header), 0);
 
-	header.sizeof_hdr = 348;
+	std::cerr << header.sizeof_hdr << endl;
+	header.sizeof_hdr = 540;
+	std::cerr << header.sizeof_hdr << endl;
 
 	if(m_freqdim >= 0 && m_freqdim <= 2) 
 		header.dim_info.bits.freqdim = m_freqdim; 
@@ -540,6 +555,9 @@ int MRImageStore<D,T>::writeNifti2Header(gzFile file) const
 	}
 
 	double det = determinant(rotate);
+	if(fabs(det)-1 > 0.0001) {
+		cerr << "Non-orthogonal direction set! This may not end well" << endl;
+	}
 	if(det > 0) 
 		header.qfac = 1;
 	 else {
@@ -586,12 +604,12 @@ int MRImageStore<D,T>::writeNifti2Header(gzFile file) const
 	
 	//magic
 	strncpy(header.magic,"n+2\0", 4);
-	header.vox_offset = 352;
-
+	header.vox_offset = 544;
 
 	// write over extension
 	char ext[4] = {0,0,0,0};
 	
+	std::cerr << header.sizeof_hdr << endl;
 	gzwrite(file, &header, sizeof(header));
 	gzwrite(file, ext, sizeof(ext));
 	

@@ -10,6 +10,7 @@ def build(bld):
 #    bld.program(target = 'test4', source = 'test4.cpp', use = 'mrimage')
     bld.program(target = 'nifti_test1', source = 'nifti_test1.cpp', use = 'mrimage')
     bld.program(target = 'nifti_test2', source = 'nifti_test2.cpp', use = 'mrimage')
+    bld.program(target = 'nifti_test3', source = 'nifti_test3.cpp', use = 'mrimage')
     bld.program(target = 'slicer_test', source = 'slicer_test.cpp', use = 'slicer')
     
 #    bld.program(target = 'nl_store_test1', 

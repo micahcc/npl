@@ -14,7 +14,7 @@
 namespace npl {
 
 /* Functions */
-MRImage* readNiftiImage(gzFile file, bool verbose, double version);
+MRImage* readNiftiImage(gzFile file, bool verbose);
 int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap, bool verbose);
 int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap, bool verbose);
 int writeNifti1Image(MRImage* out, gzFile file);
@@ -118,28 +118,27 @@ MRImage* readMRImage(std::string filename, bool verbose)
 	
 	MRImage* out = NULL;
 
-	if((out = readNiftiImage(gz, verbose, 1))) {
+	if((out = readNiftiImage(gz, verbose))) {
 		gzclose(gz);
 		return out;
 	}
 
-	if((out = readNiftiImage(gz, verbose, 2))) {
-		gzclose(gz);
-		return out;
-	}
-
-	
 	return NULL;
 }
 
 int writeMRImage(MRImage* img, std::string fn, bool nifti2)
 {
-	return img->write(fn, nifti2 ? 2 : 1);
+	if(!img)
+		return -1;
+	double version = 1;
+	if(nifti2)
+		version = 2;
+	return img->write(fn, version);
 }
 
 template <typename T>
 MRImage* readPixels(gzFile file, size_t vox_offset, 
-		std::vector<size_t> dim, size_t pixsize, bool doswap)
+		const std::vector<size_t>& dim, size_t pixsize, bool doswap)
 {
 	// jump to voxel offset
 	gzseek(file, vox_offset, SEEK_SET);
@@ -253,14 +252,23 @@ int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap,
 	if(strncmp(header->magic, "n+1", 3)) {
 		gzclearerr(file);
 		gzrewind(file);
-		return -1;
+		return 1;
 	}
 
 	// byte swap
 	int64_t npixel = 1;
+	std::cerr << header->sizeof_hdr << endl;
 	if(header->sizeof_hdr != 348) {
 		*doswap = true;
-		swap<int32_t>(&header->sizeof_hdr);
+		swap(&header->sizeof_hdr);
+		if(header->sizeof_hdr != 348) {
+			std::cerr << "Swapped Header Size: " << header->sizeof_hdr << std::endl;
+			swap(&header->sizeof_hdr);
+			std::cerr << "UnSwapped Header Size: " << header->sizeof_hdr << std::endl;
+			std::cerr << "Malformed nifti input" << std::endl;
+			return -1;
+		}
+
 		swap<int16_t>(&header->ndim);
 		for(size_t ii=0; ii<7; ii++)
 			swap<int16_t>(&header->dim[ii]);
@@ -313,17 +321,13 @@ int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap,
 		std::cerr << "toffset:" << header->toffset << std::endl;
 	}
 	
-	if(header->sizeof_hdr != 348) {
-		std::cerr << "Malformed nifti input" << std::endl;
-		return -1;
-	}
 	return 0;
 }
 
 /* 
  * Nifti Readers 
  */
-MRImage* readNiftiImage(gzFile file, bool verbose, double version)
+MRImage* readNiftiImage(gzFile file, bool verbose)
 {
 	bool doswap = false;
 	int16_t datatype = 0;
@@ -343,81 +347,81 @@ MRImage* readNiftiImage(gzFile file, bool verbose, double version)
 	size_t phasedim;
 	size_t slicedim;
 
-	if(version <= 1) {
-		nifti1_header header;
-		if(readNifti1Header(file, &header, &doswap, verbose) < 0)
-			return NULL;
+	int ret = 0;
+	nifti1_header header1;
+	nifti2_header header2;
+	if((ret = readNifti1Header(file, &header1, &doswap, verbose)) == 0) {
+		start = header1.vox_offset;
+		dim.resize(header1.ndim, 0);
+		for(int64_t ii=0; ii<header1.ndim && ii < 7; ii++) {
+			dim[ii] = header1.dim[ii];
+			cerr << dim[ii] << endl;
+		}
+		psize = (header1.bitpix >> 3);
+		qform_code = header1.qform_code;
+		datatype = header1.datatype;
 
-		start = header.vox_offset;
-		dim.resize(header.ndim, 0);
-		for(int64_t ii=0; ii<header.ndim && ii < 7; ii++)
-			dim[ii] = header.dim[ii];
-		psize = (header.bitpix >> 3);
-		qform_code = header.qform_code;
-		datatype = header.datatype;
-		
-		slice_code = header.slice_code;
-		slice_duration = header.slice_duration;
-		slice_start = header.slice_start;
-		slice_end = header.slice_end;
-		freqdim = (int)(header.dim_info.bits.freqdim)-1;
-		phasedim = (int)(header.dim_info.bits.phasedim)-1;
-		slicedim = (int)(header.dim_info.bits.slicedim)-1;
-
-		// pixdim
-		pixdim.resize(header.ndim, 0);
-		for(int64_t ii=0; ii<header.ndim && ii < 7; ii++)
-			pixdim[ii] = header.pixdim[ii];
-
-		// offset
-		offset.resize(header.ndim, 0);
-		for(int64_t ii=0; ii<header.ndim && ii < 3; ii++)
-			offset[ii] = header.qoffset[ii];
-		if(header.ndim > 3)
-			offset[3] = header.toffset;
-
-		// quaternion
-		for(int64_t ii=0; ii<3 && ii<header.ndim; ii++)
-			quatern[ii] = header.quatern[ii];
-		qfac = header.qfac;
-
-	} else {
-		nifti2_header header;
-		if(readNifti2Header(file, &header, &doswap, verbose) < 0)
-			return NULL;
-		
-		start = header.vox_offset;
-		dim.resize(header.ndim, 0);
-		for(int64_t ii=0; ii<header.ndim && ii < 7; ii++)
-			dim[ii] = header.dim[ii];
-		psize = (header.bitpix >> 3);
-		qform_code = header.qform_code;
-		datatype = header.datatype;
-		
-		slice_code = header.slice_code;
-		slice_duration = header.slice_duration;
-		slice_start = header.slice_start;
-		slice_end = header.slice_end;
-		freqdim = (int)(header.dim_info.bits.freqdim)-1;
-		phasedim = (int)(header.dim_info.bits.phasedim)-1;
-		slicedim = (int)(header.dim_info.bits.slicedim)-1;
+		slice_code = header1.slice_code;
+		slice_duration = header1.slice_duration;
+		slice_start = header1.slice_start;
+		slice_end = header1.slice_end;
+		freqdim = (int)(header1.dim_info.bits.freqdim)-1;
+		phasedim = (int)(header1.dim_info.bits.phasedim)-1;
+		slicedim = (int)(header1.dim_info.bits.slicedim)-1;
 
 		// pixdim
-		pixdim.resize(header.ndim, 0);
-		for(int64_t ii=0; ii<header.ndim && ii < 7; ii++)
-			pixdim[ii] = header.pixdim[ii];
+		pixdim.resize(header1.ndim, 0);
+		for(int64_t ii=0; ii<header1.ndim && ii < 7; ii++)
+			pixdim[ii] = header1.pixdim[ii];
+
+		// offset
+		offset.resize(header1.ndim, 0);
+		for(int64_t ii=0; ii<header1.ndim && ii < 3; ii++)
+			offset[ii] = header1.qoffset[ii];
+		if(header1.ndim > 3)
+			offset[3] = header1.toffset;
+
+		// quaternion
+		for(int64_t ii=0; ii<3 && ii<header1.ndim; ii++)
+			quatern[ii] = header1.quatern[ii];
+		qfac = header1.qfac;
+	}
+
+	if(ret!=0 && (ret = readNifti2Header(file, &header2, &doswap, verbose)) == 0) {
+		start = header2.vox_offset;
+		dim.resize(header2.ndim, 0);
+		for(int64_t ii=0; ii<header2.ndim && ii < 7; ii++) {
+			dim[ii] = header2.dim[ii];
+			cerr << dim[ii] << endl;
+		}
+		psize = (header2.bitpix >> 3);
+		qform_code = header2.qform_code;
+		datatype = header2.datatype;
+		
+		slice_code = header2.slice_code;
+		slice_duration = header2.slice_duration;
+		slice_start = header2.slice_start;
+		slice_end = header2.slice_end;
+		freqdim = (int)(header2.dim_info.bits.freqdim)-1;
+		phasedim = (int)(header2.dim_info.bits.phasedim)-1;
+		slicedim = (int)(header2.dim_info.bits.slicedim)-1;
+
+		// pixdim
+		pixdim.resize(header2.ndim, 0);
+		for(int64_t ii=0; ii<header2.ndim && ii < 7; ii++)
+			pixdim[ii] = header2.pixdim[ii];
 		
 		// offset
-		offset.resize(header.ndim, 0);
-		for(int64_t ii=0; ii<header.ndim && ii < 3; ii++)
-			offset[ii] = header.qoffset[ii];
-		if(header.ndim > 3)
-			offset[3] = header.toffset;
+		offset.resize(header2.ndim, 0);
+		for(int64_t ii=0; ii<header2.ndim && ii < 3; ii++)
+			offset[ii] = header2.qoffset[ii];
+		if(header2.ndim > 3)
+			offset[3] = header2.toffset;
 		
 		// quaternion
-		for(int64_t ii=0; ii<3 && ii<header.ndim; ii++)
-			quatern[ii] = header.quatern[ii];
-		qfac = header.qfac;
+		for(int64_t ii=0; ii<3 && ii<header2.ndim; ii++)
+			quatern[ii] = header2.quatern[ii];
+		qfac = header2.qfac;
 	}
 
 	MRImage* out;
@@ -662,9 +666,17 @@ int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap,
 
 	// byte swap
 	int64_t npixel = 1;
+	std::cerr << header->sizeof_hdr << endl;
 	if(header->sizeof_hdr != 540) {
 		*doswap = true;
 		swap(&header->sizeof_hdr);
+		if(header->sizeof_hdr != 540) {
+			std::cerr << "Swapped Header Size: " << header->sizeof_hdr << std::endl;
+			swap(&header->sizeof_hdr);
+			std::cerr << "UnSwapped Header Size: " << header->sizeof_hdr << std::endl;
+			std::cerr << "Malformed nifti input" << std::endl;
+			return -1;
+		}
 		swap(&header->ndim);
 		for(size_t ii=0; ii<7; ii++)
 			swap(&header->dim[ii]);
@@ -717,11 +729,150 @@ int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap,
 		std::cerr << "toffset:" << header->toffset << std::endl;
 	}
 	
-	if(header->sizeof_hdr != 540) {
-		std::cerr << "Malformed nifti input" << std::endl;
-		return -1;
-	}
 	return 0;
 }
+
+ostream& operator<<(ostream &out, const MRImage& img)
+{
+	out << "---------------------------" << endl;
+	out << img.ndim() << "D Image" << endl;
+	for(size_t ii=0; ii<img.ndim(); ii++) {
+		out << "dim[" << ii << "]=" << img.dim(ii);
+		if(img.m_freqdim == ii) 
+			out << " (frequency-encode)";
+		if(img.m_phasedim == ii) 
+			out << " (phase-encode)";
+		if(img.m_slicedim == ii) 
+			out << " (slice-encode)";
+		out << endl;
+	}
+
+	out << "Direction: " << endl;
+	for(size_t ii=0; ii<img.ndim(); ii++) {
+		cerr << "[ ";
+		for(size_t jj=0; jj<img.ndim(); jj++) {
+			cerr << std::setw(10) << std::setprecision(3) << img.direction(ii,jj);
+		}
+		cerr << "] " << endl;
+	}
+	
+	out << "Spacing: " << endl;
+	for(size_t ii=0; ii<img.ndim(); ii++) {
+		out << "[ " << std::setw(10) << std::setprecision(3) 
+			<< img.space(ii,jj) << "] ";
+	}
+	out << endl;
+
+	out << "Origin: " << endl;
+	for(size_t ii=0; ii<img.ndim(); ii++) {
+		out << "[ " << std::setw(10) << std::setprecision(3) 
+			<< img.origin(ii,jj) << "] ";
+	}
+	out << endl;
+	
+	out << "Affine: " << endl;
+	for(size_t ii=0; ii<img.ndim()+1; ii++) {
+		cerr << "[ ";
+		for(size_t jj=0; jj<img.ndim()+1; jj++) {
+			cerr << std::setw(10) << std::setprecision(3) << img.affine(ii,jj);
+		}
+		cerr << "] " << endl;
+	}
+
+	switch(img.type()) {
+		case UNKNOWN_TYPE:
+		case UINT8:
+			out << "UINT8" << endl;
+			break;
+		case INT16:
+			out << "INT16" << endl;
+			break;
+		case INT32:
+			out << "INT32" << endl;
+			break;
+		case FLOAT32:
+			out << "FLOAT32" << endl;
+			break;
+		case COMPLEX64:
+			out << "COMPLEX64" << endl;
+			break;
+		case FLOAT64:
+			out << "FLOAT64" << endl;
+			break;
+		case RGB24:
+			out << "RGB24" << endl;
+			break;
+		case INT8:
+			out << "INT8" << endl;
+			break;
+		case UINT16:
+			out << "UINT16" << endl;
+			break;
+		case UINT32:
+			out << "UINT32" << endl;
+			break;
+		case INT64:
+			out << "INT64" << endl;
+			break;
+		case UINT64:
+			out << "UINT64" << endl;
+			break;
+		case FLOAT128:
+			out << "FLOAT128" << endl;
+			break;
+		case COMPLEX128:
+			out << "COMPLEX128" << endl;
+			break;
+		case COMPLEX256:
+			out << "COMPLEX256" << endl;
+			break;
+		case RGBA32:
+			out << "RGBA32" << endl;
+			break;
+		default:
+			out << "UNKNOWN" << endl;
+			break;
+	}
+
+	out << "Slice Duration: " << img.m_slice_duration << endl;
+	out << "Slice Start: " << img.m_slice_start << endl;
+	out << "Slice End: " << img.m_slice_end << endl;
+	switch(img.m_slice_order) {
+		case SEQ:
+			out << "Slice Order: Increasing Sequential" << endl;
+			break;
+		case RSEQ:
+			out << "Slice Order: Decreasing Sequential" << endl;
+			break;
+		case ALT: 
+			out << "Slice Order: Increasing Alternating" << endl;
+			break;
+		case RALT:
+			out << "Slice Order: Decreasing Alternating" << endl;
+			break;
+		case ALT_SHFT: 
+			out << "Slice Order: Alternating Starting at " 
+				<< img.m_slice_start+1 << " (not " 
+				<< img.m_slice_start << ")" << endl;
+			break;
+		case RALT_SHFT:
+			out << "Slice Order: Decreasing Alternating Starting at " 
+				<< img.m_slice_end-1 << " not ( " << img.m_slice_end << endl;
+			break;
+		case UNKNOWN_SLICE:
+		default:
+			out << "Slice Order: Not Set" << endl;
+			break;
+	}
+	out << "Slice Timing: " << endl;
+	for(size_t ii=0; ii<img.m_slice_timing.size(); ii++) {
+		out << std::setw(10) << std::setprecision(3) 
+			<< img.m_slice_timing[ii] << ",";
+	}
+	out << endl;
+	out << "---------------------------" << endl;
+	return out;
+}
+
 
 } // npl

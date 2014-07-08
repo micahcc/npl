@@ -9,6 +9,7 @@
 
 #include <string>
 #include <iostream>
+#include <iomanip>
 #include <cassert>
 
 namespace npl {
@@ -27,6 +28,8 @@ class MRImage;
 MRImage* readMRImage(std::string filename, bool verbose);
 MRImage* createMRImage(size_t ndim, size_t* dims, PixelT);
 int writeMRImage(MRImage* img, std::string fn, bool nifti2 = false);
+
+ostream& operator<<(ostream &out, const MRImage& img);
 
 /**
  * @brief MRImage can basically be used like an NDArray, with the addition
@@ -48,8 +51,6 @@ public:
 	virtual PixelT type() const = 0;
 	
 	virtual int write(std::string filename, double version) const = 0;
-	virtual int writeNifti1Image(gzFile file) const = 0;
-	virtual int writeNifti2Image(gzFile file) const = 0;
 
 //	MRImage() : m_freqdim(-1), m_phasedim(-1), m_slicedim(-1), 
 //				m_slice_duration(-1), m_slice_start(-1), m_slice_end(-1), 
@@ -94,12 +95,17 @@ public:
 	// 						slice_end-2 .. slice_start|slice_start+1
 	SliceOrderT m_slice_order;
 
+	friend ostream& operator<<(ostream &out, const MRImage& img);
+
+protected:
+	virtual int writeNifti1Image(gzFile file) const = 0;
+	virtual int writeNifti2Image(gzFile file) const = 0;
+	
 	// if quaternians are the original direction base, then this stores the 
 	// raw quaternian values, to prevent roundoff errors
 //	bool use_quaterns;;
 //	double quaterns[4];
 };
-
 
 /**
  * @brief MRImageStore is a version of NDArray that has an orientation matrix.
@@ -157,8 +163,6 @@ public:
 	std::string getUnits(size_t d1, double d2);
 
 	int write(std::string filename, double version) const;
-	int writeNifti1Image(gzFile file) const;
-	int writeNifti2Image(gzFile file) const;
 
 private:
 	// used to transform index to RAS (Right Handed Coordinate System)
@@ -170,6 +174,8 @@ private:
 	// chache of the affine index -> RAS (right handed coordiante system)
 	Matrix<D+1,D+1> m_affine;
 	
+	int writeNifti1Image(gzFile file) const;
+	int writeNifti2Image(gzFile file) const;
 	int writeNifti1Header(gzFile file) const;
 	int writeNifti2Header(gzFile file) const;
 	int writePixels(gzFile file) const;
