@@ -33,7 +33,6 @@ public:
 	 */
 	Slicer();
 	
-
 	/**
 	 * @brief Full Featured Constructor
 	 *
@@ -294,8 +293,6 @@ public:
 	 * slower than the last
 	 */
 	void setOrder(const std::list<size_t>& order);
-
-
 
 private:
 

@@ -57,9 +57,11 @@
 		CNAME(NDArray* parent) {												\
 			m_parent = parent;													\
 			std::vector<size_t> dim(m_parent->ndim());							\
+			std::list<size_t> order;											\
 			for(size_t ii=0; ii<m_parent->ndim(); ii++)							\
 				dim[ii] = m_parent->dim(ii);									\
 			updateDim(dim);														\
+			setOrder(order);													\
 		}																		\
 		TYPE operator*() {														\
 			assert(m_parent);													\

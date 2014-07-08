@@ -366,28 +366,18 @@ void Slicer::setROI(const std::vector<std::pair<size_t, size_t>>& roi)
  */
 void Slicer::setOrder(const std::list<size_t>& order)
 {
-#ifdef DEBUG
-	std::cerr << "Slicer with order " << order << std::endl;
-#endif
 	size_t ndim = m_sizes.size();
 	m_order.clear();
 
 	// need to ensure that all dimensions get covered
-	std::list<size_t> avail; 
-	for(size_t ii=0 ; ii<ndim ; ii++)
+	std::list<size_t> avail;
+	for(size_t ii=0 ; ii<ndim ; ii++) {
 		avail.push_front(ii);
+	}
 
-#ifdef DEBUG
-	std::cerr << "Partial order " << m_order << std::endl;
-#endif
 	// add dimensions to internal order, but make sure there are 
 	// no repeats
 	for(auto ito=order.begin(); ito != order.end(); ito++) {
-#ifdef DEBUG
-	std::cerr << "Before Avail" << avail << std::endl;
-	std::cerr << "Before Partial order " << m_order << std::endl;
-	std::cerr << "Dim: " << *ito << std::endl;
-#endif
 
 		// determine whether the given is available still
 		auto it = std::find(avail.begin(), avail.end(), *ito);
@@ -399,23 +389,13 @@ void Slicer::setOrder(const std::list<size_t>& order)
 			m_order.push_back(*it);
 			avail.erase(it);
 		}
-#ifdef DEBUG
-	std::cerr << "Avail" << avail << std::endl;
-	std::cerr << "Partial order " << m_order << std::endl;
-#endif
 	}
 
-#ifdef DEBUG
-	std::cerr << "Remaining " << avail << std::endl;
-#endif
 
 	// add any remaining dimensions to the order
 	for(auto it=avail.begin(); it != avail.end(); ++it) 
 		m_order.push_back(*it);
 
-#ifdef DEBUG
-	std::cerr << "Final Order " << m_order << std::endl;
-#endif
 	updateLinRange();
 	gotoBegin();
 };
