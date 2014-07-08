@@ -9,8 +9,14 @@
 
 namespace npl { 
 
+class MatrixP
+{
+public:
+	virtual void mvproduct(MatrixP* rhs) = 0;
+};
+
 template <int D1, int D2, typename T = double>
-class Matrix
+class Matrix : public virtual MatrixP
 {
 public:
 
@@ -57,10 +63,31 @@ public:
 	};
 
 	
+	void mvproduct(MatrixP* rhs);
 
 private:
 	T data[D1][D2];
 };
+
+template <int D1, int D2, typename T>
+void Matrix<D1,D2,T>::mvproduct(MatrixP* rhs)
+{
+	try{
+		Matrix<D2,1>& v = dynamic_cast<Matrix<D2, 1>&>(*rhs);
+		Matrix<D1,D2>& m = *this;
+		Matrix<D2,1> tmp(v);
+		for(size_t ii=0; ii<D1; ii++) {
+			v[ii] = 0;
+			for(size_t jj=0; jj<D2; jj++) {
+				v[ii] += m(ii,jj)*tmp[jj];
+			}
+		}
+	} catch(...) {
+		std::cerr << "Error, failed dynamic_cast, check the input to "
+			"mvproduct matrix.h:" << __LINE__ << std::endl;
+		throw(-1);
+	}
+}
 
 template <int D1, int D2, typename T = double>
 std::ostream& operator<<(std::ostream& os, const Matrix<D1, D2, T>& dt)

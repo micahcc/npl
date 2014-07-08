@@ -8,7 +8,7 @@
 using namespace npl;
 using namespace std;
 
-// speed test
+// determinant test
 int main()
 {
 	Matrix<3,3> mat1;

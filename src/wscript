@@ -34,6 +34,7 @@ def build(bld):
     bld.program(target = 'store_test4', source = 'store_test4.cpp', use = 'ndarray') 
     bld.program(target = 'matrix_test1', source = 'matrix_test1.cpp') 
     bld.program(target = 'matrix_test2', source = 'matrix_test2.cpp') 
+    bld.program(target = 'matrix_test4', source = 'matrix_test4.cpp') 
     bld.program(target = 'imgiter_test1', source = 'imgiter_test1.cpp', use='mrimage') 
 
     bld(cmd = '${SRC[0]}', features = 'etest', 
