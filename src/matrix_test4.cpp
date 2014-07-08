@@ -48,7 +48,8 @@ int main()
 	try {
 	mat2p->mvproduct(vecp);
 	} catch(...) {
-		cerr << "PASS!" << endl;
+		cerr << "Should have received a dynamic_cast error, you did, so" 
+			<< endl << "PASS!" << endl;
 	}
 	
 }

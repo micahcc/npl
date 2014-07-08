@@ -17,8 +17,8 @@ int main(int argc, char** argv)
 	MRImage* testimg = createMRImage(4, sz, FLOAT64);
 
 	size_t ii = 0;
-	for(auto iter = testimg->begin_dbl(); !iter.isEnd(); ++iter) {
-		iter.set(ii++);
+	for(auto iter = testimg->begin(); !iter.isEnd(); ++iter) {
+		iter.int64(ii++);
 	}
 
 	/* Write the Image */
@@ -29,8 +29,8 @@ int main(int argc, char** argv)
 	
 	/* Check the Image */
 	ii = 0;
-	for(auto iter = iimage->begin_dbl(); !iter.isEnd(); ++iter) {
-		if(iter.get() != ii++) {
+	for(auto iter = iimage->begin(); !iter.isEnd(); ++iter) {
+		if(iter.int64() != ii++) {
 			cerr << "Error, mismatch in read image" << endl;
 			return -1;
 		}

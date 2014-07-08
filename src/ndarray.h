@@ -41,69 +41,55 @@
 	void FNAME(const size_t* index, TYPE); \
 	void FNAME(size_t index, TYPE); \
 
-#define ITER(TYPE, CALLFUNC, CNAME, FNAME)										\
-	class CNAME : public virtual iter_base										\
-	{																			\
-	public:																		\
-		CNAME() : iter_base() {}; 												\
-		CNAME(NDArray* parent, const std::list<size_t>& order) 					\
-			: iter_base(parent, order) {}; 										\
-		CNAME(NDArray* parent) 													\
-			: iter_base(parent) {}; 											\
-		TYPE get() {															\
-			assert(m_parent);													\
-			return m_parent->CALLFUNC(Slicer::get());							\
-		};																		\
-		void set(TYPE v) {														\
-			assert(m_parent);													\
-			m_parent->CALLFUNC(Slicer::get(), v);								\
-		};																		\
-		TYPE offset(int64_t* dindex, bool* outside) {							\
-			assert(m_parent);													\
-			return m_parent->CALLFUNC(Slicer::offset(dindex, outside));			\
-		};																		\
-		TYPE offset(std::initializer_list<int64_t> dindex, bool* outside) {		\
-			assert(m_parent);													\
-			return m_parent->CALLFUNC(Slicer::offset(dindex, outside));			\
-		};																		\
-		void offset(int64_t* dindex, TYPE v, bool* outside) {					\
-			assert(m_parent);													\
-			m_parent->CALLFUNC(Slicer::offset(dindex, outside), v);		\
-		};																		\
-		void offset(std::initializer_list<int64_t> dindex, TYPE v, bool* outside ) {\
-			assert(m_parent);													\
-			m_parent->CALLFUNC(Slicer::offset(dindex, outside), v);				\
-		};																		\
-	};																			\
-	CNAME FNAME(const std::list<size_t>& order) { return CNAME(this, order); };	\
-	CNAME FNAME() { return CNAME(this); };
+#define CITERFUNCS(TYPE, FUNCNAME)\
+	TYPE FUNCNAME() const \
+	{\
+		assert(m_parent);\
+		return m_parent->FUNCNAME(Slicer::get());\
+	};\
+	TYPE FUNCNAME(int64_t* dindex, bool* outside) \
+	{\
+		assert(m_parent);\
+		return m_parent->FUNCNAME(Slicer::offset(dindex, outside));\
+	};\
+	TYPE FUNCNAME(std::initializer_list<int64_t> dindex, bool* outside) \
+	{\
+		assert(m_parent);\
+		return m_parent->FUNCNAME(Slicer::offset(dindex, outside));\
+	};\
 
-
-#define CONSTITER(TYPE, CALLFUNC, CNAME, FNAME)									\
-	class CNAME : public virtual citer_base										\
-	{																			\
-	public:																		\
-		CNAME() : citer_base() {}; 												\
-		CNAME(const NDArray* parent, const std::list<size_t>& order) 			\
-			: citer_base(parent, order) {}; 									\
-		CNAME(const NDArray* parent) 											\
-			: citer_base(parent) {}; 											\
-		TYPE get() {															\
-			assert(m_parent);													\
-			return m_parent->CALLFUNC(Slicer::get());							\
-		};																		\
-		TYPE offset(int64_t* dindex, bool* outside) {							\
-			assert(m_parent);													\
-			return m_parent->CALLFUNC(Slicer::offset(dindex, outside));			\
-		};																		\
-		TYPE offset(std::initializer_list<int64_t> dindex, bool* outside) {		\
-			assert(m_parent);													\
-			return m_parent->CALLFUNC(Slicer::offset(dindex, outside));			\
-		};																		\
-	};																			\
-	CNAME FNAME(const std::list<size_t>& order) const { return CNAME(this, order); };\
-	CNAME FNAME() const { return CNAME(this); };
-
+#define ITERFUNCS(TYPE, FUNCNAME)\
+	TYPE FUNCNAME() const \
+	{\
+		assert(m_parent);\
+		return m_parent->FUNCNAME(Slicer::get());\
+	};\
+	void FUNCNAME(TYPE v) const \
+	{\
+		assert(m_parent);\
+		m_parent->FUNCNAME(Slicer::get(), v);\
+	};\
+	TYPE FUNCNAME(int64_t* dindex, bool* outside) \
+	{\
+		assert(m_parent);\
+		return m_parent->FUNCNAME(Slicer::offset(dindex, outside));\
+	};\
+	TYPE FUNCNAME(std::initializer_list<int64_t> dindex, bool* outside) \
+	{\
+		assert(m_parent);\
+		return m_parent->FUNCNAME(Slicer::offset(dindex, outside));\
+	};\
+	void FUNCNAME(int64_t* dindex, TYPE v, bool* outside) \
+	{\
+		assert(m_parent);\
+		m_parent->FUNCNAME(Slicer::offset(dindex, outside), v);\
+	};\
+	void FUNCNAME(std::initializer_list<int64_t> dindex, TYPE v, \
+			bool* outside) \
+	{\
+		assert(m_parent);\
+		m_parent->FUNCNAME(Slicer::offset(dindex, outside), v);\
+	};
 
 
 namespace npl {
@@ -114,117 +100,23 @@ namespace npl {
 class NDArray
 {
 public:
-	class iter_base : public virtual Slicer {
-	public:
-		iter_base() : Slicer(), m_parent(NULL) {} ;
-		iter_base(NDArray* parent, const std::list<size_t>& order) 
-		{
-			m_parent = parent;
-			std::vector<size_t> dim(m_parent->ndim());
-			for(size_t ii=0; ii<m_parent->ndim(); ii++)
-				dim[ii] = m_parent->dim(ii);
-			updateDim(dim);
-			setOrder(order);
-		};
-		iter_base(NDArray* parent) 
-		{
-			m_parent = parent;
-			std::vector<size_t> dim(m_parent->ndim());
-			std::list<size_t> order;
-			for(size_t ii=0; ii<m_parent->ndim(); ii++)
-				dim[ii] = m_parent->dim(ii);
-			updateDim(dim);
-			setOrder(order);
-		};
-		double operator*() const 
-		{
-			assert(m_parent);
-			return m_parent->dbl(Slicer::get());
-		};
-		virtual double get(bool* outside) const 
-		{
-			assert(m_parent);
-			return m_parent->dbl(Slicer::get(outside));
-		};
-		virtual void set(double v, bool* outside) const 
-		{
-			assert(m_parent);
-			m_parent->dbl(Slicer::get(outside), v);
-		};
-		virtual double offset(int64_t* dindex, bool* outside) 
-		{
-			assert(m_parent);
-			return m_parent->dbl(Slicer::offset(dindex, outside));
-		};
-		virtual double offset(std::initializer_list<int64_t> dindex, bool* outside) 
-		{
-			assert(m_parent);
-			return m_parent->dbl(Slicer::offset(dindex, outside));
-		};
-		virtual void offset(int64_t* dindex, double v, bool* outside) 
-		{
-			assert(m_parent);
-			m_parent->dbl(Slicer::offset(dindex, outside), v);
-		};
-		virtual void offset(std::initializer_list<int64_t> dindex, double v, 
-				bool* outside) 
-		{
-			assert(m_parent);
-			m_parent->dbl(Slicer::offset(dindex, outside), v);
-		};
-	protected:
-		NDArray* m_parent;
+	class iterator;
+	class const_iterator;
+
+	iterator begin() {
+		return iterator(this);
+	};
+
+	iterator begin(const std::list<size_t>& order) {
+		return iterator(this, order);
 	};
 	
-	class citer_base : public virtual Slicer {
-	public:
-		citer_base() : Slicer(), m_parent(NULL) {} ;
-		citer_base(const NDArray* parent, const std::list<size_t>& order) 
-		{
-			m_parent = parent;
-			std::vector<size_t> dim(m_parent->ndim());
-			for(size_t ii=0; ii<m_parent->ndim(); ii++)
-				dim[ii] = m_parent->dim(ii);
-			updateDim(dim);
-			setOrder(order);
-		};
-		citer_base(const NDArray* parent) 
-		{
-			m_parent = parent;
-			std::vector<size_t> dim(m_parent->ndim());
-			std::list<size_t> order;
-			for(size_t ii=0; ii<m_parent->ndim(); ii++)
-				dim[ii] = m_parent->dim(ii);
-			updateDim(dim);
-			setOrder(order);
-		};
-		double operator*() const 
-		{
-			assert(m_parent);
-			return m_parent->dbl(Slicer::get());
-		};
-		virtual double get(bool* outside) const 
-		{
-			assert(m_parent);
-			return m_parent->dbl(Slicer::get(outside));
-		};
-		virtual void set(double v, bool* outside) const 
-		{
-			assert(m_parent);
-			m_parent->dbl(Slicer::get(outside), v);
-		};
-		double offset(int64_t* dindex, bool* outside) 
-		{
-			assert(m_parent);
-			return m_parent->dbl(Slicer::offset(dindex, outside));
-		};
-		double offset(std::initializer_list<int64_t> dindex, bool* outside) 
-		{
-			assert(m_parent);
-			return m_parent->dbl(Slicer::offset(dindex, outside));
-		};
-	protected:
-		const NDArray* m_parent;
+	const_iterator cbegin() const {
+		return const_iterator(this);
+	};
+
+	const_iterator cbegin(const std::list<size_t>& order) const {
+		return const_iterator(this, order);
 	};
 
 	/*
@@ -243,28 +135,90 @@ public:
 	VIRTGETSET(long double, quad);
 	VIRTGETSET(cquad_t, cquad);
 
-	ITER(double, dbl, dbl_iter, begin_dbl);
-	ITER(int64_t, int64, int64_iter, begin_int64);
-	ITER(cdouble_t, cdbl, cdbl_iter, begin_cdbl);
-	ITER(cfloat_t, cfloat, cfloat_iter, begin_cfloat);
-	ITER(rgba_t, rgba, rgba_iter, begin_rgba);
-	ITER(long double, quad, quad_iter, begin_quad);
-	ITER(cquad_t, cquad, cquad_iter, begin_cquad);
-	
-	CONSTITER(double, dbl, dbl_citer, cbegin_dbl);
-	CONSTITER(int64_t, int64, int64_citer, cbegin_int64);
-	CONSTITER(cdouble_t, cdbl, cdbl_citer, cbegin_cdbl);
-	CONSTITER(cfloat_t, cfloat, cfloat_citer, cbegin_cfloat);
-	CONSTITER(rgba_t, rgba, rgba_citer, cbegin_rgba);
-	CONSTITER(long double, quad, quad_citer, cbegin_quad);
-	CONSTITER(cquad_t, cquad, cquad_citer, cbegin_cquad);
-
 	virtual size_t ndim() const = 0;
 	virtual size_t bytes() const = 0;
 	virtual size_t dim(size_t dir) const = 0;
 	virtual const size_t* dim() const = 0;
 
+	/* 
+	 * Iterator Declaration
+	 */
+	class iterator : public virtual Slicer {
+	public:
+		iterator(iterator&& other) : m_parent(other.m_parent) {} ;
+		iterator(NDArray* parent, const std::list<size_t>& order) 
+		{
+			m_parent = parent;
+			std::vector<size_t> dim(m_parent->ndim());
+			for(size_t ii=0; ii<m_parent->ndim(); ii++)
+				dim[ii] = m_parent->dim(ii);
+			updateDim(dim);
+			setOrder(order);
+		};
+		iterator(NDArray* parent) 
+		{
+			m_parent = parent;
+			std::vector<size_t> dim(m_parent->ndim());
+			std::list<size_t> order;
+			for(size_t ii=0; ii<m_parent->ndim(); ii++)
+				dim[ii] = m_parent->dim(ii);
+			updateDim(dim);
+			setOrder(order);
+		};
+
+		ITERFUNCS(double, dbl);
+		ITERFUNCS(int64_t, int64);
+		ITERFUNCS(cdouble_t, cdbl);
+		ITERFUNCS(cfloat_t, cfloat);
+		ITERFUNCS(rgba_t, rgba);
+		ITERFUNCS(long double, quad);
+		ITERFUNCS(cquad_t, cquad);
+
+	protected:
+		iterator() {} ;
+		NDArray* m_parent;
+	};
+
+	class const_iterator : public virtual Slicer {
+	public:
+		const_iterator(const_iterator&& other) : m_parent(other.m_parent) {} ;
+		const_iterator(const NDArray* parent, const std::list<size_t>& order) 
+		{
+			m_parent = parent;
+			std::vector<size_t> dim(m_parent->ndim());
+			for(size_t ii=0; ii<m_parent->ndim(); ii++)
+				dim[ii] = m_parent->dim(ii);
+			updateDim(dim);
+			setOrder(order);
+		};
+		const_iterator(const NDArray* parent) 
+		{
+			m_parent = parent;
+			std::vector<size_t> dim(m_parent->ndim());
+			std::list<size_t> order;
+			for(size_t ii=0; ii<m_parent->ndim(); ii++)
+				dim[ii] = m_parent->dim(ii);
+			updateDim(dim);
+			setOrder(order);
+		};
+		
+		CITERFUNCS(double, dbl);
+		CITERFUNCS(int64_t, int64);
+		CITERFUNCS(cdouble_t, cdbl);
+		CITERFUNCS(cfloat_t, cfloat);
+		CITERFUNCS(rgba_t, rgba);
+		CITERFUNCS(long double, quad);
+		CITERFUNCS(cquad_t, cquad);
+	
+	protected:
+		const_iterator() {} ;
+		const NDArray* m_parent;
+	};
+
 };
+
+#undef ITERFUNCS
+#undef CITERFUNCS
 
 /**
  * @brief Basic storage unity for ND array. Creates a big chunk of memory.

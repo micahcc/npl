@@ -674,69 +674,67 @@ int MRImageStore<D,T>::writePixels(gzFile file) const
 		case UINT32:
 		case INT64:
 		case UINT64:
-			for(auto it = cbegin_int64(order); !it.isEnd(); ++it) {
-				tmp = (T)*it;
+			for(auto it = cbegin(order); !it.isEnd(); ++it) {
+				tmp = (T)it.int64();
 				gzwrite(file, &tmp, sizeof(T));
 			}
 			break;
 		case FLOAT32:
 		case FLOAT64:
-			for(auto it = cbegin_dbl(order); !it.isEnd(); ++it) {
-				tmp = (T)*it;
+			for(auto it = cbegin(order); !it.isEnd(); ++it) {
+				tmp = (T)it.dbl();
 				gzwrite(file, &tmp, sizeof(T));
 			}
 			break;
 		case FLOAT128:
-			for(auto it = cbegin_quad(order); !it.isEnd(); ++it) {
-				tmp = (T)*it;
+			for(auto it = cbegin(order); !it.isEnd(); ++it) {
+				tmp = (T)it.quad();
 				gzwrite(file, &tmp, sizeof(T));
 			}
 			break;
 		case COMPLEX64:
-			for(auto it = cbegin_cfloat(order); !it.isEnd(); ++it) {
-				tmp = (T)*it;
-				float re = it.get().real();
-				float im = it.get().imag();
+			for(auto it = cbegin(order); !it.isEnd(); ++it) {
+				float re = it.cfloat().real();
+				float im = it.cfloat().imag();
 				gzwrite(file, &re, sizeof(float));
 				gzwrite(file, &im, sizeof(float));
 			}
 		case COMPLEX128:
-			for(auto it = cbegin_cdbl(order); !it.isEnd(); ++it) {
-				tmp = (T)*it;
-				double re = it.get().real();
-				double im = it.get().imag();
+			for(auto it = cbegin(order); !it.isEnd(); ++it) {
+				double re = it.cdbl().real();
+				double im = it.cdbl().imag();
 				gzwrite(file, &re, sizeof(double));
 				gzwrite(file, &im, sizeof(double));
 			}
 			break;
 		case COMPLEX256:
-			for(auto it = cbegin_cquad(order); !it.isEnd(); ++it) {
-				long double re = it.get().real();
-				long double im = it.get().imag();
+			for(auto it = cbegin(order); !it.isEnd(); ++it) {
+				long double re = it.cquad().real();
+				long double im = it.cquad().imag();
 				gzwrite(file, &re, sizeof(long double));
 				gzwrite(file, &im, sizeof(long double));
 			}
 			break;
 		case RGB24:
-			for(auto it = cbegin_rgba(order); !it.isEnd(); ++it) {
-				char red = it.get().red;
-				char green = it.get().green;
-				char blue = it.get().blue;
-				gzwrite(file, &red, sizeof(char));
-				gzwrite(file, &green, sizeof(char));
-				gzwrite(file, &blue, sizeof(char));
+			for(auto it = cbegin(order); !it.isEnd(); ++it) {
+				char r = it.rgba().red;
+				char g = it.rgba().green;
+				char b = it.rgba().blue;
+				gzwrite(file, &r, sizeof(char));
+				gzwrite(file, &g, sizeof(char));
+				gzwrite(file, &b, sizeof(char));
 			}
 			break;
 		case RGBA32:
-			for(auto it = cbegin_rgba(order); !it.isEnd(); ++it) {
-				char red = it.get().red;
-				char green = it.get().green;
-				char blue = it.get().blue;
-				char alpha = it.get().alpha;
-				gzwrite(file, &red, sizeof(char));
-				gzwrite(file, &green, sizeof(char));
-				gzwrite(file, &blue, sizeof(char));
-				gzwrite(file, &alpha, sizeof(char));
+			for(auto it = cbegin(order); !it.isEnd(); ++it) {
+				char r = it.rgba().red;
+				char g = it.rgba().green;
+				char b = it.rgba().blue;
+				char a = it.rgba().alpha;
+				gzwrite(file, &r, sizeof(char));
+				gzwrite(file, &g, sizeof(char));
+				gzwrite(file, &b, sizeof(char));
+				gzwrite(file, &a, sizeof(char));
 			}
 			break;
 		default:
