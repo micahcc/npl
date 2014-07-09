@@ -8,8 +8,6 @@ Next Features:
 Test metadata reading
 -Verbose ostream(, Image) function
 Resample Function
-- getIndex() function for iterator
-- getPoint() function for iterator
 - IndexToPoint() function for image
 Array Operations binaryop(Array*, Image*, func), unaryop(Array*, Image*, func)
 Kernel Operations?
