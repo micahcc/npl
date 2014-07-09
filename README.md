@@ -5,7 +5,7 @@ N-Dimensional Array Class, with arbitrary type, using inheritance. Used as the b
 
 
 Next Features:
-Test metadata reading
+Test metadata reading, fix direction/orienation
 -Verbose ostream(, Image) function
 Resample Function
 - IndexToPoint() function for image
