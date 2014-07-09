@@ -295,7 +295,7 @@ public:
 	 */
 	void setOrder(const std::list<size_t>& order);
 
-private:
+protected:
 
 	size_t m_linpos;
 	size_t m_linfirst;

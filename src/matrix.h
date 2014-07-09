@@ -2,6 +2,7 @@
 #define MATRIX_H
 
 #include <iostream>
+#include <vector>
 #include <iomanip>
 #include <cassert>
 #include <cstddef>
@@ -12,10 +13,19 @@ namespace npl {
 class MatrixP
 {
 public:
-	virtual void mvproduct(MatrixP* rhs) = 0;
+	virtual double& operator[](size_t row) = 0;
+	virtual double& operator()(size_t row, size_t col = 0) = 0;
+	virtual const double& operator[](size_t row) const = 0;
+	virtual const double& operator()(size_t row, size_t col = 0) const = 0;
+
+	virtual void mvproduct(const MatrixP* rhs, MatrixP* out) const = 0;
+	virtual void mvproduct(const std::vector<double>& rhs, 
+			std::vector<double>& out) const = 0;
+	virtual void mvproduct(const std::vector<size_t>& rhs, 
+			std::vector<double>& out) const = 0;
 };
 
-template <int D1, int D2, typename T = double>
+template <int D1, int D2>
 class Matrix : public virtual MatrixP
 {
 public:
@@ -37,49 +47,75 @@ public:
 			}
 		}
 	};
+	
+	// data 
+	Matrix(double* v) {
+		for(size_t ii=0; ii<D1; ii++) {
+			for(size_t jj=0; jj<D2; jj++) {
+				data[ii][jj] = *v++;
+			}
+		}
+	};
+	
+	Matrix(const std::vector<size_t>& v) {
+		size_t kk=0;
+		assert(v.size() == D1*D2);
+		for(size_t ii=0; ii<D1; ii++) {
+			for(size_t jj=0; jj<D2; jj++) {
+				data[ii][jj] = v[kk++];
+			}
+		}
+	};
 
-	T& operator[](size_t row) 
+	double& operator[](size_t row) 
 	{ 
 		assert(row < D1);
 		return data[row][0]; 
 	};
 
-	T& operator()(size_t row, size_t col = 0) 
+	double& operator()(size_t row, size_t col = 0) 
 	{
 		assert(row < D1 && col < D2);
 		return data[row][col]; 
 	};
 
-	const T& operator[](size_t row) const
+	const double& operator[](size_t row) const
 	{ 
 		assert(row < D1);
 		return data[row][0]; 
 	};
 
-	const T& operator()(size_t row, size_t col = 0) const
+	const double& operator()(size_t row, size_t col = 0) const
 	{
 		assert(row < D1 && col < D2);
 		return data[row][col]; 
 	};
 
 	
-	void mvproduct(MatrixP* rhs);
+	void mvproduct(const MatrixP* rhs, MatrixP* out) const;
+	void mvproduct(const std::vector<double>& rhs, 
+			std::vector<double>& out) const;
+	void mvproduct(const std::vector<size_t>& rhs, 
+			std::vector<double>& out) const;
 
+	static const int rows = D1;
+	static const int cols = D2;
 private:
-	T data[D1][D2];
+	double data[D1][D2];
 };
 
-template <int D1, int D2, typename T>
-void Matrix<D1,D2,T>::mvproduct(MatrixP* rhs)
+template <int D1, int D2>
+void Matrix<D1,D2>::mvproduct(const MatrixP* rhs, MatrixP* out) const
 {
+	assert(rhs != out);
 	try{
-		Matrix<D2,1>& v = dynamic_cast<Matrix<D2, 1>&>(*rhs);
-		Matrix<D1,D2>& m = *this;
-		Matrix<D2,1> tmp(v);
+		const Matrix<D2,1>& iv = dynamic_cast<const Matrix<D2, 1>&>(*rhs);
+		Matrix<D1,1>& ov = dynamic_cast<Matrix<D1, 1>&>(*out);
+		const Matrix<D1,D2>& m = *this;
 		for(size_t ii=0; ii<D1; ii++) {
-			v[ii] = 0;
+			ov[ii] = 0;
 			for(size_t jj=0; jj<D2; jj++) {
-				v[ii] += m(ii,jj)*tmp[jj];
+				ov[ii] += m(ii,jj)*iv[jj];
 			}
 		}
 	} catch(...){
@@ -89,8 +125,41 @@ void Matrix<D1,D2,T>::mvproduct(MatrixP* rhs)
 	}
 }
 
-template <int D1, int D2, typename T = double>
-std::ostream& operator<<(std::ostream& os, const Matrix<D1, D2, T>& dt)
+template <int D1, int D2>
+void Matrix<D1,D2>::mvproduct(const std::vector<double>& iv, 
+		std::vector<double>& ov) const
+{
+	assert(&iv != &ov);
+	assert(iv.size() == D2);
+	ov.resize(D1);
+	const Matrix<D1,D2>& m = *this;
+
+	for(size_t ii=0; ii<D1; ii++) {
+		ov[ii] = 0;
+		for(size_t jj=0; jj<D2; jj++) {
+			ov[ii] += m(ii,jj)*iv[jj];
+		}
+	}
+}
+
+template <int D1, int D2>
+void Matrix<D1,D2>::mvproduct(const std::vector<size_t>& iv, 
+		std::vector<double>& ov) const
+{
+	assert(iv.size() == D2);
+	ov.resize(D1);
+	const Matrix<D1,D2>& m = *this;
+
+	for(size_t ii=0; ii<D1; ii++) {
+		ov[ii] = 0;
+		for(size_t jj=0; jj<D2; jj++) {
+			ov[ii] += m(ii,jj)*iv[jj];
+		}
+	}
+}
+
+template <int D1, int D2>
+std::ostream& operator<<(std::ostream& os, const Matrix<D1, D2>& dt)
 {
 	for(size_t rr=0; rr<D1; rr++) {
 		os << "[ ";
@@ -103,7 +172,7 @@ std::ostream& operator<<(std::ostream& os, const Matrix<D1, D2, T>& dt)
 	return os;
 }
 
-template <int D1, int D2, typename T = double>
+template <int D1, int D2>
 Matrix<D1, D2> operator+=(Matrix<D1, D2>& lhs, const Matrix<D1, D2>& rhs)
 {
 	for(size_t ii=0; ii<D1; ii++) {
@@ -114,10 +183,10 @@ Matrix<D1, D2> operator+=(Matrix<D1, D2>& lhs, const Matrix<D1, D2>& rhs)
 	return lhs;
 }
 
-template <int D1, int D2, typename T = double>
+template <int D1, int D2>
 Matrix<D1, D2> operator+(const Matrix<D1, D2>& lhs, const Matrix<D1, D2>& rhs)
 {
-	Matrix<D1, D2> out(0);
+	Matrix<D1, D2> out(0.0);
 	for(size_t ii=0; ii<D1; ii++) {
 		for(size_t jj=0; jj<D2; jj++) {
 			out(ii,jj) = lhs(ii,jj)+rhs(ii,jj);
@@ -126,10 +195,10 @@ Matrix<D1, D2> operator+(const Matrix<D1, D2>& lhs, const Matrix<D1, D2>& rhs)
 	return out;
 }
 
-template <int D1, int D2, typename T = double>
+template <int D1, int D2>
 Matrix<D1, D2> operator-(const Matrix<D1, D2>& lhs, const Matrix<D1, D2>& rhs)
 {
-	Matrix<D1, D2> out(0);
+	Matrix<D1, D2> out(0.0);
 	for(size_t ii=0; ii<D1; ii++) {
 		for(size_t jj=0; jj<D2; jj++) {
 			out(ii,jj) = lhs(ii,jj)-rhs(ii,jj);
@@ -138,10 +207,10 @@ Matrix<D1, D2> operator-(const Matrix<D1, D2>& lhs, const Matrix<D1, D2>& rhs)
 	return out;
 }
 
-template <int D1, int D2, typename T = double>
+template <int D1, int D2>
 Matrix<D1, D2> operator-(const Matrix<D1, D2>& rhs)
 {
-	Matrix<D1, D2> out(0);
+	Matrix<D1, D2> out(0.0);
 	for(size_t ii=0; ii<D1; ii++) {
 		for(size_t jj=0; jj<D2; jj++) {
 			out(ii,jj) = -rhs(ii,jj);
@@ -150,10 +219,10 @@ Matrix<D1, D2> operator-(const Matrix<D1, D2>& rhs)
 	return out;
 }
 
-template <int D1, int D2, int D3, typename T = double>
+template <int D1, int D2, int D3>
 Matrix<D1, D3> operator*(const Matrix<D1, D2>& lhs, const Matrix<D2, D3>& rhs)
 {
-	Matrix<D1, D3> out(0);
+	Matrix<D1, D3> out(0.0);
 	for(size_t ii=0; ii<D1; ii++) {
 		for(size_t jj=0; jj<D3; jj++) {
 			out(ii,jj) = 0;
@@ -170,7 +239,6 @@ Matrix<D1, D3> operator*(const Matrix<D1, D2>& lhs, const Matrix<D2, D3>& rhs)
  *
  * @tparam D1
  * @tparam D2
- * @tparam T
  * @param tl
  * @param tr
  * @param bl
@@ -178,7 +246,7 @@ Matrix<D1, D3> operator*(const Matrix<D1, D2>& lhs, const Matrix<D2, D3>& rhs)
  *
  * @return 
  */
-template <int D1, int D2, typename T = double>
+template <int D1, int D2>
 Matrix<D1+D2,D1+D2> join(const Matrix<D1,D1>& tl, const Matrix<D1, D2>& tr, 
 		const Matrix<D2, D1>& bl, const Matrix<D2,D2>& br)
 {
@@ -215,7 +283,7 @@ Matrix<D1+D2,D1+D2> join(const Matrix<D1,D1>& tl, const Matrix<D1, D2>& tr,
 	return out;
 }
 
-template <int D1, int D2, typename T = double>
+template <int D1, int D2>
 void split(const Matrix<D1+D2, D1+D2>& input,
 		Matrix<D1,D1>& tl, Matrix<D1, D2>& tr, 
 		Matrix<D2, D1>& bl, Matrix<D2,D2>& br)
@@ -251,19 +319,17 @@ void split(const Matrix<D1+D2, D1+D2>& input,
 
 // Determinant //
 
-template <typename T = double>
 double determinant(const Matrix<1, 1>& trg)
 {
 	return trg(0,0);
 }
 
-template <typename T = double>
 double determinant(const Matrix<2, 2>& trg)
 {
 	return trg(0,0)*trg(1,1) - trg(1,0)*trg(0,1);
 }
 
-template <int DIM, typename T = double>
+template <int DIM>
 double determinant(const Matrix<DIM, DIM>& trg)
 {
 
@@ -289,13 +355,11 @@ double determinant(const Matrix<DIM, DIM>& trg)
 		return a;
 }
 
-template <typename T = double>
 Matrix<1, 1> inverse(const Matrix<1, 1>& trg)
 {
 	return Matrix<1,1>(1./trg(0,0));
 }
 
-template <typename T = double>
 Matrix<2, 2> inverse(const Matrix<2, 2>& trg)
 {
 	Matrix<2,2> tmp;
@@ -312,7 +376,7 @@ Matrix<2, 2> inverse(const Matrix<2, 2>& trg)
 	return tmp;
 }
 
-template <int DIM, typename T = double>
+template <int DIM>
 Matrix<DIM, DIM> inverse(const Matrix<DIM, DIM>& trg)
 {
 

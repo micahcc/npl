@@ -103,19 +103,19 @@ public:
 	class iterator;
 	class const_iterator;
 
-	iterator begin() {
+	virtual iterator begin() {
 		return iterator(this);
 	};
 
-	iterator begin(const std::list<size_t>& order) {
+	virtual iterator begin(const std::list<size_t>& order) {
 		return iterator(this, order);
 	};
 	
-	const_iterator cbegin() const {
+	virtual const_iterator cbegin() const {
 		return const_iterator(this);
 	};
 
-	const_iterator cbegin(const std::list<size_t>& order) const {
+	virtual const_iterator cbegin(const std::list<size_t>& order) const {
 		return const_iterator(this, order);
 	};
 

@@ -13,7 +13,7 @@ int main()
 	const int iters = 100000000;
 	Matrix<3,3> mat1;
 	Matrix<3,1> vec;
-	Matrix<3,1> acc(0);
+	Matrix<3,1> acc(0.0);
 	
 	auto t = clock();
 	for(size_t rr=0; rr<3; rr++) {

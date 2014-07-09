@@ -206,61 +206,61 @@ MRImage* createMRImage(size_t ndim, size_t* dim, PixelT ptype)
 	return NULL;
 }
 
-template <int D, typename T>
-double& MRImageStore<D,T>::space(size_t d) 
-{ 
-	assert(d<D); 
-	return m_space[d]; 
-};
-
-template <int D, typename T>
-double& MRImageStore<D,T>::origin(size_t d) 
-{
-	assert(d<D); 
-	return m_origin[d]; 
-};
-
-template <int D, typename T>
-double& MRImageStore<D,T>::direction(size_t d1, size_t d2) 
-{
-	assert(d1 < D && d2 < D);
-	return m_dir(d1,d2); 
-};
-
-template <int D, typename T>
-double& MRImageStore<D,T>::affine(size_t d1, size_t d2) 
-{ 
-	assert(d1 < D+1 && d2 < D+1);
-	return m_affine(d1,d2);
-};
-
-template <int D, typename T>
-const double& MRImageStore<D,T>::space(size_t d) const 
-{ 
-	assert(d < D);
-	return m_space[d]; 
-};
-
-template <int D, typename T>
-const double& MRImageStore<D,T>::origin(size_t d) const 
-{
-	assert(d < D);
-	return m_origin[d]; 
-};
-
-template <int D, typename T>
-const double& MRImageStore<D,T>::direction(size_t d1, size_t d2) const 
-{ 
-	assert(d1 < D && d2 < D);
-	return m_dir(d1,d2); 
-};
-
-template <int D, typename T>
-const double& MRImageStore<D,T>::affine(size_t d1, size_t d2) const 
-{
-	assert(d1 < D+1 && d2 < D+1);
-	return m_affine(d1, d2); 
-};
+//template <int D, typename T>
+//double& MRImageStore<D,T>::space(size_t d) 
+//{ 
+//	assert(d<D); 
+//	return m_space[d]; 
+//};
+//
+//template <int D, typename T>
+//double& MRImageStore<D,T>::origin(size_t d) 
+//{
+//	assert(d<D); 
+//	return m_origin[d]; 
+//};
+//
+//template <int D, typename T>
+//double& MRImageStore<D,T>::direction(size_t d1, size_t d2) 
+//{
+//	assert(d1 < D && d2 < D);
+//	return m_dir(d1,d2); 
+//};
+//
+//template <int D, typename T>
+//double& MRImageStore<D,T>::affine(size_t d1, size_t d2) 
+//{ 
+//	assert(d1 < D+1 && d2 < D+1);
+//	return m_affine(d1,d2);
+//};
+//
+//template <int D, typename T>
+//const double& MRImageStore<D,T>::space(size_t d) const 
+//{ 
+//	assert(d < D);
+//	return m_space[d]; 
+//};
+//
+//template <int D, typename T>
+//const double& MRImageStore<D,T>::origin(size_t d) const 
+//{
+//	assert(d < D);
+//	return m_origin[d]; 
+//};
+//
+//template <int D, typename T>
+//const double& MRImageStore<D,T>::direction(size_t d1, size_t d2) const 
+//{ 
+//	assert(d1 < D && d2 < D);
+//	return m_dir(d1,d2); 
+//};
+//
+//template <int D, typename T>
+//const double& MRImageStore<D,T>::affine(size_t d1, size_t d2) const 
+//{
+//	assert(d1 < D+1 && d2 < D+1);
+//	return m_affine(d1, d2); 
+//};
 
 /* 
  * type() Function specialized for all available types

@@ -11,6 +11,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cassert>
+#include <memory>
 
 namespace npl {
 	
@@ -25,6 +26,7 @@ enum SliceOrderT {UNKNOWN_SLICE=0, SEQ=1, RSEQ=2, ALT=3, RALT=4, ALT_SHFT=5, RAL
 class MRImage;
 
 // simply reads an image in its native type
+MRImage* readNiftiImage(gzFile file, bool verbose);
 MRImage* readMRImage(std::string filename, bool verbose);
 MRImage* createMRImage(size_t ndim, size_t* dims, PixelT);
 int writeMRImage(MRImage* img, std::string fn, bool nifti2 = false);
@@ -42,15 +44,50 @@ public:
 				m_slice_duration(0), m_slice_start(-1), 
 				m_slice_end(-1), m_slice_order(UNKNOWN_SLICE) {} ;
 
-	virtual double& space(size_t d) = 0;
-	virtual double& origin(size_t d) = 0;
-	virtual double& direction(size_t d1, size_t d2) = 0;
-	virtual double& affine(size_t d1, size_t d2) = 0;
-	virtual void updateAffine() = 0;
+	virtual MatrixP& space() = 0;
+	virtual MatrixP& origin() = 0;
+	virtual MatrixP& direction() = 0;
+	virtual MatrixP& affine() = 0;
+	virtual const MatrixP& space() const = 0;
+	virtual const MatrixP& origin() const  = 0;
+	virtual const MatrixP& direction() const = 0;
+	virtual const MatrixP& affine() const = 0;
 	
 	virtual PixelT type() const = 0;
 	
 	virtual int write(std::string filename, double version) const = 0;
+	
+	// iterators
+	class iterator;
+	class const_iterator;
+
+	class iterator : public virtual NDArray::iterator {
+		void index(std::vector<size_t>& ind) { 
+			ind.assign(m_pos.begin(), m_pos.end());
+		}
+		void dblindex(std::vector<double>& ind) { 
+			ind.resize(m_pos.size());
+			for(size_t ii=0; ii<m_pos.size(); ii++)
+				ind[ii] = m_pos[ii];
+		}
+		void point(std::vector<double>& ras) {
+			dynamic_cast<MRImage*>(m_parent)->affine().mvproduct(m_pos, ras);
+		}
+	};
+	
+	class const_iterator : public virtual NDArray::const_iterator {
+		void index(std::vector<size_t>& ind) { 
+			ind.assign(m_pos.begin(), m_pos.end());
+		}
+		void dblindex(std::vector<double>& ind) { 
+			ind.resize(m_pos.size());
+			for(size_t ii=0; ii<m_pos.size(); ii++)
+				ind[ii] = m_pos[ii];
+		}
+		void point(std::vector<double>& ras) {
+			dynamic_cast<const MRImage*>(m_parent)->affine().mvproduct(m_pos, ras);
+		}
+	};
 
 //	MRImage() : m_freqdim(-1), m_phasedim(-1), m_slicedim(-1), 
 //				m_slice_duration(-1), m_slice_start(-1), m_slice_end(-1), 
@@ -101,10 +138,12 @@ protected:
 	virtual int writeNifti1Image(gzFile file) const = 0;
 	virtual int writeNifti2Image(gzFile file) const = 0;
 	
+	virtual void updateAffine() = 0;
 	// if quaternians are the original direction base, then this stores the 
 	// raw quaternian values, to prevent roundoff errors
 //	bool use_quaterns;;
 //	double quaterns[4];
+	friend MRImage* readNiftiImage(gzFile file, bool verbose);
 };
 
 /**
@@ -151,14 +190,23 @@ public:
 	void printSelf();
 	PixelT type() const;
 
-	double& space(size_t d);
-	double& origin(size_t d);
-	double& direction(size_t d1, size_t d2);
-	double& affine(size_t d1, size_t d2);
-	const double& space(size_t d) const;
-	const double& origin(size_t d) const;
-	const double& direction(size_t d1, size_t d2) const;
-	const double& affine(size_t d1, size_t d2) const;
+	//double& space(size_t d);
+	//double& origin(size_t d);
+	//double& direction(size_t d1, size_t d2);
+	//double& affine(size_t d1, size_t d2);
+	//const double& space(size_t d) const;
+	//const double& origin(size_t d) const;
+	//const double& direction(size_t d1, size_t d2) const;
+	//const double& affine(size_t d1, size_t d2) const;
+	
+	MatrixP& space() {return *((MatrixP*)&m_space); };
+	MatrixP& origin() {return *((MatrixP*)&m_origin); };
+	MatrixP& direction() {return *((MatrixP*)&m_dir); };
+	MatrixP& affine() {return *((MatrixP*)&m_affine); };
+	const MatrixP& space() const {return *((MatrixP*)&m_space); };
+	const MatrixP& origin() const {return *((MatrixP*)&m_origin); };
+	const MatrixP& direction() const {return *((MatrixP*)&m_dir); };
+	const MatrixP& affine() const {return *((MatrixP*)&m_affine); };
 
 	std::string getUnits(size_t d1, double d2);
 

@@ -14,7 +14,6 @@
 namespace npl {
 
 /* Functions */
-MRImage* readNiftiImage(gzFile file, bool verbose);
 int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap, bool verbose);
 int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap, bool verbose);
 int writeNifti1Image(MRImage* out, gzFile file);
@@ -498,14 +497,14 @@ MRImage* readNiftiImage(gzFile file, bool verbose)
 		 * set spacing 
 		 */
 		for(size_t ii=0; ii<out->ndim(); ii++)
-			out->space(ii) = pixdim[ii];
+			out->space()[ii] = pixdim[ii];
 		
 		/* 
 		 * set origin 
 		 */
 		// x,y,z
 		for(size_t ii=0; ii<out->ndim(); ii++)
-			out->origin(ii) = offset[ii];
+			out->origin()[ii] = offset[ii];
 		
 		/* Copy Quaternions, and Make Rotation Matrix */
 
@@ -521,29 +520,29 @@ MRImage* readNiftiImage(gzFile file, bool verbose)
 		double a = sqrt(1.0-(b*b+c*c+d*d));
 
 		// calculate R, (was already identity)
-		out->direction(0, 0) = a*a+b*b-c*c-d*d;
+		out->direction()(0, 0) = a*a+b*b-c*c-d*d;
 
 		if(out->ndim() > 1) {
-			out->direction(0,1) = 2*b*c-2*a*d;
-			out->direction(1,0) = out->direction(0, 1);
-			out->direction(1,1) = a*a+c*c-b*b-d*d;
+			out->direction()(0,1) = 2*b*c-2*a*d;
+			out->direction()(1,0) = out->direction()(0, 1);
+			out->direction()(1,1) = a*a+c*c-b*b-d*d;
 		}
 		
 		if(out->ndim() > 2) {
-			out->direction(0,2) = 2*b*d+2*a*c;
-			out->direction(1,2) = 2*c*d-2*a*b;
-			out->direction(2,2) = a*a+d*d-c*c-b*b;
+			out->direction()(0,2) = 2*b*d+2*a*c;
+			out->direction()(1,2) = 2*c*d-2*a*b;
+			out->direction()(2,2) = a*a+d*d-c*c-b*b;
 			
-			out->direction(2,0) = out->direction(0,2);
-			out->direction(1,2) = out->direction(2,1);
+			out->direction()(2,0) = out->direction()(0,2);
+			out->direction()(1,2) = out->direction()(2,1);
 		}
 
 		// finally update affine, but scale pixdim[z] by qfac temporarily
 		if(qfac == -1 && out->ndim() > 2)
-			out->space(2) = -out->space(2);
+			out->space()[2] = -out->space()[2];
 		out->updateAffine();
 		if(qfac == -1 && out->ndim() > 2)
-			out->space(2) = -out->space(2);
+			out->space()[2] = -out->space()[2];
 //	} else if(header.sform_code > 0) {
 //		/* use the sform, since no qform exists */
 //
@@ -553,7 +552,7 @@ MRImage* readNiftiImage(gzFile file, bool verbose)
 //			di += pow(header.srow[4*ii+0],2); //column 0
 //			dj += pow(header.srow[4*jj+1],2); //column 1
 //			dk += pow(header.srow[4*kk+2],2); //column 2
-//			out->origin(ii) = header.srow[4*ii+3]; //column 3
+//			out->origin()[ii] = header.srow[4*ii+3]; //column 3
 //		}
 //		
 //		// set direction and spacing
@@ -580,7 +579,7 @@ MRImage* readNiftiImage(gzFile file, bool verbose)
 	} else {
 		// only spacing changes
 		for(size_t ii=0; ii<dim.size(); ii++)
-			out->space(ii) = pixdim[ii];
+			out->space()[ii] = pixdim[ii];
 		out->updateAffine();
 	}
 
@@ -736,7 +735,7 @@ ostream& operator<<(ostream &out, const MRImage& img)
 {
 	out << "---------------------------" << endl;
 	out << img.ndim() << "D Image" << endl;
-	for(size_t ii=0; ii<img.ndim(); ii++) {
+	for(int64_t ii=0; ii<(int64_t)img.ndim(); ii++) {
 		out << "dim[" << ii << "]=" << img.dim(ii);
 		if(img.m_freqdim == ii) 
 			out << " (frequency-encode)";
@@ -751,7 +750,7 @@ ostream& operator<<(ostream &out, const MRImage& img)
 	for(size_t ii=0; ii<img.ndim(); ii++) {
 		cerr << "[ ";
 		for(size_t jj=0; jj<img.ndim(); jj++) {
-			cerr << std::setw(10) << std::setprecision(3) << img.direction(ii,jj);
+			cerr << std::setw(10) << std::setprecision(3) << img.direction()(ii,jj);
 		}
 		cerr << "] " << endl;
 	}
@@ -759,14 +758,14 @@ ostream& operator<<(ostream &out, const MRImage& img)
 	out << "Spacing: " << endl;
 	for(size_t ii=0; ii<img.ndim(); ii++) {
 		out << "[ " << std::setw(10) << std::setprecision(3) 
-			<< img.space(ii,jj) << "] ";
+			<< img.space()[ii] << "] ";
 	}
 	out << endl;
 
 	out << "Origin: " << endl;
 	for(size_t ii=0; ii<img.ndim(); ii++) {
 		out << "[ " << std::setw(10) << std::setprecision(3) 
-			<< img.origin(ii,jj) << "] ";
+			<< img.origin()[ii] << "] ";
 	}
 	out << endl;
 	
@@ -774,7 +773,7 @@ ostream& operator<<(ostream &out, const MRImage& img)
 	for(size_t ii=0; ii<img.ndim()+1; ii++) {
 		cerr << "[ ";
 		for(size_t jj=0; jj<img.ndim()+1; jj++) {
-			cerr << std::setw(10) << std::setprecision(3) << img.affine(ii,jj);
+			cerr << std::setw(10) << std::setprecision(3) << img.affine()(ii,jj);
 		}
 		cerr << "] " << endl;
 	}
