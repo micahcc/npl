@@ -58,7 +58,7 @@ typedef struct __attribute__((packed))
 	int16_t sform_code ;
 	float quatern[3]; //b,c,d
 	float qoffset[3]; //x,y,z
-	float srow[12]; //row0 = x, row1 = y, row2 = z
+	float saffine[12]; //row0 = x, row1 = y, row2 = z
 	char intent_name[16];
 	char magic[4];
 } nifti1_header;
@@ -91,9 +91,7 @@ typedef struct __attribute__((packed))
    int32_t sform_code ;
    double quatern[3];
    double qoffset[3];
-   double srow_x[4] ;
-   double srow_y[4] ;
-   double srow_z[4] ;
+   double saffine[12] ; // row-major order
    int32_t slice_code ;
    int32_t xyzt_units ;
    int32_t intent_code ;

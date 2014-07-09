@@ -179,7 +179,7 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 			out = typed;
 			} break;
 		case 3:{
-			auto typed = new MRImageStore<2, T>(dim);
+			auto typed = new MRImageStore<3, T>(dim);
 			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, pixsize);
 				if(doswap) swap<T>(&tmp);
@@ -267,57 +267,99 @@ int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap,
 			std::cerr << "Malformed nifti input" << std::endl;
 			return -1;
 		}
-
-		swap<int16_t>(&header->ndim);
+		swap(&header->ndim);
 		for(size_t ii=0; ii<7; ii++)
-			swap<int16_t>(&header->dim[ii]);
-		swap<float>(&header->intent_p1);
-		swap<float>(&header->intent_p2);
-		swap<float>(&header->intent_p3);
-		swap<int16_t>(&header->intent_code);
-		swap<int16_t>(&header->datatype);
-		swap<int16_t>(&header->bitpix);
-		swap<int16_t>(&header->slice_start);
-		swap<float>(&header->qfac);
+			swap(&header->dim[ii]);
+		swap(&header->intent_p1);
+		swap(&header->intent_p2);
+		swap(&header->intent_p3);
+		swap(&header->intent_code);
+		swap(&header->datatype);
+		swap(&header->bitpix);
+		swap(&header->slice_start);
+		swap(&header->qfac);
 		for(size_t ii=0; ii<7; ii++)
-			swap<float>(&header->pixdim[ii]);
-		swap<float>(&header->vox_offset);
-		swap<float>(&header->scl_slope);
-		swap<float>(&header->scl_inter);
-		swap<int16_t>(&header->slice_end);
-		swap<float>(&header->cal_max);
-		swap<float>(&header->cal_min);
-		swap<float>(&header->slice_duration);
-		swap<float>(&header->toffset);
+			swap(&header->pixdim[ii]);
+		swap(&header->vox_offset);
+		swap(&header->scl_slope);
+		swap(&header->scl_inter);
+		swap(&header->slice_end);
+		swap(&header->cal_max);
+		swap(&header->cal_min);
+		swap(&header->slice_duration);
+		swap(&header->toffset);
+		swap(&header->glmax);
+		swap(&header->glmin);
+		swap(&header->qform_code);
+		swap(&header->sform_code);
+		
+		for(size_t ii=0; ii<3; ii++)
+			swap(&header->quatern[ii]);
+		for(size_t ii=0; ii<3; ii++)
+			swap(&header->qoffset[ii]);
+		for(size_t ii=0; ii<12; ii++)
+			swap(&header->saffine[ii]);
 
 		for(int32_t ii=0; ii<header->ndim; ii++)
 			npixel *= header->dim[ii];
 	}
 	
 	if(verbose) {
-		std::cerr << "sizeof_hdr:" << header->sizeof_hdr << std::endl;
-		std::cerr << "ndim:" << header->ndim << std::endl;
-		for(size_t ii=0; ii<7; ii++)
-			std::cerr << "dim[" << ii << "]:" << header->dim[ii] << std::endl;
-		for(size_t ii=0; ii<7; ii++)
-			std::cerr << "pixdim[" << ii << "]:" << header->pixdim[ii] << std::endl;
+		std::cerr << "sizeof_hdr=" << header->sizeof_hdr << std::endl;
+		std::cerr << "data_type=" << header->data_type << std::endl;
+		std::cerr << "db_name=" << header->db_name << std::endl;
+		std::cerr << "extents=" << header->extents  << std::endl;
+		std::cerr << "session_error=" << header->session_error << std::endl;
+		std::cerr << "regular=" << header->regular << std::endl;
 
-		std::cerr << "intent_p1:" << header->intent_p1 << std::endl;
-		std::cerr << "intent_p2:" << header->intent_p2 << std::endl;
-		std::cerr << "intent_p3:" << header->intent_p3 << std::endl;
-		std::cerr << "intent_code:" << header->intent_code << std::endl;
-		std::cerr << "datatype:" << header->datatype << std::endl;
-		std::cerr << "bitpix:" << header->bitpix << std::endl;
-		std::cerr << "slice_start:" << header->slice_start << std::endl;
-		std::cerr << "qfac:" << header->qfac << std::endl;
-		std::cerr << "vox_offset:" << header->vox_offset << std::endl;
-		std::cerr << "scl_slope:" << header->scl_slope << std::endl;
-		std::cerr << "scl_inter:" << header->scl_inter << std::endl;
-		std::cerr << "slice_end:" << header->slice_end << std::endl;
-		std::cerr << "cal_max:" << header->cal_max << std::endl;
-		std::cerr << "cal_min:" << header->cal_min << std::endl;
-		std::cerr << "slice_duration:" << header->slice_duration << std::endl;
-		std::cerr << "toffset:" << header->toffset << std::endl;
+		std::cerr << "magic =" << header->magic  << std::endl;
+		std::cerr << "datatype=" << header->datatype << std::endl;
+		std::cerr << "bitpix=" << header->bitpix << std::endl;
+		std::cerr << "ndim=" << header->ndim << std::endl;
+		for(size_t ii=0; ii < 7; ii++)
+			std::cerr << "dim["<<ii<<"]=" << header->dim[ii] << std::endl;
+		std::cerr << "intent_p1 =" << header->intent_p1  << std::endl;
+		std::cerr << "intent_p2 =" << header->intent_p2  << std::endl;
+		std::cerr << "intent_p3 =" << header->intent_p3  << std::endl;
+		std::cerr << "qfac=" << header->qfac << std::endl;
+		for(size_t ii=0; ii < 7; ii++)
+			std::cerr << "pixdim["<<ii<<"]=" << header->pixdim[ii] << std::endl;
+		std::cerr << "vox_offset=" << header->vox_offset << std::endl;
+		std::cerr << "scl_slope =" << header->scl_slope  << std::endl;
+		std::cerr << "scl_inter =" << header->scl_inter  << std::endl;
+		std::cerr << "cal_max=" << header->cal_max << std::endl;
+		std::cerr << "cal_min=" << header->cal_min << std::endl;
+		std::cerr << "slice_duration=" << header->slice_duration << std::endl;
+		std::cerr << "toffset=" << header->toffset << std::endl;
+		std::cerr << "glmax=" << header->glmax  << std::endl;
+		std::cerr << "glmin=" << header->glmin  << std::endl;
+		std::cerr << "slice_start=" << header->slice_start << std::endl;
+		std::cerr << "slice_end=" << header->slice_end << std::endl;
+		std::cerr << "descrip=" << header->descrip << std::endl;
+		std::cerr << "aux_file=" << header->aux_file << std::endl;
+		std::cerr << "qform_code =" << header->qform_code  << std::endl;
+		std::cerr << "sform_code =" << header->sform_code  << std::endl;
+		for(size_t ii=0; ii < 3; ii++){
+			std::cerr << "quatern["<<ii<<"]=" 
+				<< header->quatern[ii] << std::endl;
+		}
+		for(size_t ii=0; ii < 3; ii++){
+			std::cerr << "qoffset["<<ii<<"]=" 
+				<< header->qoffset[ii] << std::endl;
+		}
+		for(size_t ii=0; ii < 3; ii++) {
+			for(size_t jj=0; jj < 4; jj++) {
+				std::cerr << "saffine["<<ii<<"*4+"<<jj<<"]=" 
+					<< header->saffine[ii*4+jj] << std::endl;
+			}
+		}
+		std::cerr << "slice_code=" << header->slice_code << std::endl;
+		std::cerr << "xyzt_units=" << header->xyzt_units << std::endl;
+		std::cerr << "intent_code =" << header->intent_code  << std::endl;
+		std::cerr << "intent_name=" << header->intent_name << std::endl;
+		std::cerr << "dim_info.bits.freqdim=" << header->dim_info.bits.freqdim << std::endl;
+		std::cerr << "dim_info.bits.phasedim=" << header->dim_info.bits.phasedim << std::endl;
+		std::cerr << "dim_info.bits.slicedim=" << header->dim_info.bits.slicedim << std::endl;
 	}
 	
 	return 0;
@@ -518,60 +560,63 @@ MRImage* readNiftiImage(gzFile file, bool verbose)
 		double c = quatern[1];
 		double d = quatern[2];
 		double a = sqrt(1.0-(b*b+c*c+d*d));
+		std::cerr << "Qa=" << a << std::endl;
+		std::cerr << "Qb=" << b << std::endl;
+		std::cerr << "Qc=" << c << std::endl;
+		std::cerr << "Qd=" << d << std::endl;
 
 		// calculate R, (was already identity)
 		out->direction()(0, 0) = a*a+b*b-c*c-d*d;
+		cerr << "R[0,0]=" << out->direction()(0, 0) << std::endl;
 
 		if(out->ndim() > 1) {
 			out->direction()(0,1) = 2*b*c-2*a*d;
-			out->direction()(1,0) = out->direction()(0, 1);
+			out->direction()(1,0) = 2*b*c+2*a*d;
 			out->direction()(1,1) = a*a+c*c-b*b-d*d;
 		}
+
+		if(qfac != -1)
+			qfac = 1;
 		
 		if(out->ndim() > 2) {
-			out->direction()(0,2) = 2*b*d+2*a*c;
-			out->direction()(1,2) = 2*c*d-2*a*b;
-			out->direction()(2,2) = a*a+d*d-c*c-b*b;
-			
-			out->direction()(2,0) = out->direction()(0,2);
-			out->direction()(1,2) = out->direction()(2,1);
+			out->direction()(0,2) = qfac*(2*b*d+2*a*c);
+			out->direction()(1,2) = qfac*(2*c*d-2*a*b);
+			out->direction()(2,2) = qfac*(a*a+d*d-c*c-b*b);
+			out->direction()(2,1) = 2*c*d+2*a*b;
+			out->direction()(2,0) = 2*b*d-2*a*c;
 		}
 
 		// finally update affine, but scale pixdim[z] by qfac temporarily
-		if(qfac == -1 && out->ndim() > 2)
-			out->space()[2] = -out->space()[2];
 		out->updateAffine();
-		if(qfac == -1 && out->ndim() > 2)
-			out->space()[2] = -out->space()[2];
 //	} else if(header.sform_code > 0) {
 //		/* use the sform, since no qform exists */
 //
 //		// origin, last column
 //		double di = 0, dj = 0, dk = 0;
 //		for(size_t ii=0; ii<3 && ii<out->ndim(); ii++) {
-//			di += pow(header.srow[4*ii+0],2); //column 0
-//			dj += pow(header.srow[4*jj+1],2); //column 1
-//			dk += pow(header.srow[4*kk+2],2); //column 2
-//			out->origin()[ii] = header.srow[4*ii+3]; //column 3
+//			di += pow(header.saffine[4*ii+0],2); //column 0
+//			dj += pow(header.saffine[4*jj+1],2); //column 1
+//			dk += pow(header.saffine[4*kk+2],2); //column 2
+//			out->origin()[ii] = header.saffine[4*ii+3]; //column 3
 //		}
 //		
 //		// set direction and spacing
 //		out->m_spacing[0] = sqrt(di);
-//		out->m_dir[0*out->ndim()+0] = header.srow[4*0+0]/di;
+//		out->m_dir[0*out->ndim()+0] = header.saffine[4*0+0]/di;
 //
 //		if(out->ndim() > 1) {
 //			out->m_spacing[1] = sqrt(dj);
-//			out->m_dir[0*out->ndim()+1] = header.srow[4*0+1]/dj;
-//			out->m_dir[1*out->ndim()+1] = header.srow[4*1+1]/dj;
-//			out->m_dir[1*out->ndim()+0] = header.srow[4*1+0]/di;
+//			out->m_dir[0*out->ndim()+1] = header.saffine[4*0+1]/dj;
+//			out->m_dir[1*out->ndim()+1] = header.saffine[4*1+1]/dj;
+//			out->m_dir[1*out->ndim()+0] = header.saffine[4*1+0]/di;
 //		}
 //		if(out->ndim() > 2) {
 //			out->m_spacing[2] = sqrt(dk);
-//			out->m_dir[0*out->ndim()+2] = header.srow[4*0+2]/dk;
-//			out->m_dir[1*out->ndim()+2] = header.srow[4*1+2]/dk;
-//			out->m_dir[2*out->ndim()+2] = header.srow[4*2+2]/dk;
-//			out->m_dir[2*out->ndim()+1] = header.srow[4*2+1]/dj;
-//			out->m_dir[2*out->ndim()+0] = header.srow[4*2+0]/di;
+//			out->m_dir[0*out->ndim()+2] = header.saffine[4*0+2]/dk;
+//			out->m_dir[1*out->ndim()+2] = header.saffine[4*1+2]/dk;
+//			out->m_dir[2*out->ndim()+2] = header.saffine[4*2+2]/dk;
+//			out->m_dir[2*out->ndim()+1] = header.saffine[4*2+1]/dj;
+//			out->m_dir[2*out->ndim()+0] = header.saffine[4*2+0]/di;
 //		}
 //
 //		// affine matrix
@@ -676,56 +721,95 @@ int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap,
 			std::cerr << "Malformed nifti input" << std::endl;
 			return -1;
 		}
+		swap(&header->datatype);
+		swap(&header->bitpix);
 		swap(&header->ndim);
 		for(size_t ii=0; ii<7; ii++)
 			swap(&header->dim[ii]);
 		swap(&header->intent_p1);
 		swap(&header->intent_p2);
 		swap(&header->intent_p3);
-		swap(&header->intent_code);
-		swap(&header->datatype);
-		swap(&header->bitpix);
-		swap(&header->slice_start);
 		swap(&header->qfac);
 		for(size_t ii=0; ii<7; ii++)
 			swap(&header->pixdim[ii]);
 		swap(&header->vox_offset);
 		swap(&header->scl_slope);
 		swap(&header->scl_inter);
-		swap(&header->slice_end);
 		swap(&header->cal_max);
 		swap(&header->cal_min);
 		swap(&header->slice_duration);
 		swap(&header->toffset);
+		swap(&header->slice_start);
+		swap(&header->slice_end);
+//		swap(&header->glmax);
+//		swap(&header->glmin);
+		swap(&header->qform_code);
+		swap(&header->sform_code);
+		
+		for(size_t ii=0; ii<3; ii++)
+			swap(&header->quatern[ii]);
+		for(size_t ii=0; ii<3; ii++)
+			swap(&header->qoffset[ii]);
+		for(size_t ii=0; ii<12; ii++)
+			swap(&header->saffine[ii]);
+		
+		swap(&header->slice_code);
+		swap(&header->xyzt_units);
+		swap(&header->intent_code);
 
 		for(int32_t ii=0; ii<header->ndim; ii++)
 			npixel *= header->dim[ii];
 	}
 	
 	if(verbose) {
-		std::cerr << "sizeof_hdr:" << header->sizeof_hdr << std::endl;
-		std::cerr << "ndim:" << header->ndim << std::endl;
-		for(size_t ii=0; ii<7; ii++)
-			std::cerr << "dim[" << ii << "]:" << header->dim[ii] << std::endl;
-		for(size_t ii=0; ii<7; ii++)
-			std::cerr << "pixdim[" << ii << "]:" << header->pixdim[ii] << std::endl;
-
-		std::cerr << "intent_p1:" << header->intent_p1 << std::endl;
-		std::cerr << "intent_p2:" << header->intent_p2 << std::endl;
-		std::cerr << "intent_p3:" << header->intent_p3 << std::endl;
-		std::cerr << "intent_code:" << header->intent_code << std::endl;
-		std::cerr << "datatype:" << header->datatype << std::endl;
-		std::cerr << "bitpix:" << header->bitpix << std::endl;
-		std::cerr << "slice_start:" << header->slice_start << std::endl;
-		std::cerr << "qfac:" << header->qfac << std::endl;
-		std::cerr << "vox_offset:" << header->vox_offset << std::endl;
-		std::cerr << "scl_slope:" << header->scl_slope << std::endl;
-		std::cerr << "scl_inter:" << header->scl_inter << std::endl;
-		std::cerr << "slice_end:" << header->slice_end << std::endl;
-		std::cerr << "cal_max:" << header->cal_max << std::endl;
-		std::cerr << "cal_min:" << header->cal_min << std::endl;
-		std::cerr << "slice_duration:" << header->slice_duration << std::endl;
-		std::cerr << "toffset:" << header->toffset << std::endl;
+		std::cerr << "sizeof_hdr=" << header->sizeof_hdr << std::endl;
+		std::cerr << "magic =" << header->magic  << std::endl;
+		std::cerr << "datatype=" << header->datatype << std::endl;
+		std::cerr << "bitpix=" << header->bitpix << std::endl;
+		std::cerr << "ndim=" << header->ndim << std::endl;
+		for(size_t ii=0; ii < 7; ii++)
+			std::cerr << "dim["<<ii<<"]=" << header->dim[ii] << std::endl;
+		std::cerr << "intent_p1 =" << header->intent_p1  << std::endl;
+		std::cerr << "intent_p2 =" << header->intent_p2  << std::endl;
+		std::cerr << "intent_p3 =" << header->intent_p3  << std::endl;
+		std::cerr << "qfac=" << header->qfac << std::endl;
+		for(size_t ii=0; ii < 7; ii++)
+			std::cerr << "pixdim["<<ii<<"]=" << header->pixdim[ii] << std::endl;
+		std::cerr << "vox_offset=" << header->vox_offset << std::endl;
+		std::cerr << "scl_slope =" << header->scl_slope  << std::endl;
+		std::cerr << "scl_inter =" << header->scl_inter  << std::endl;
+		std::cerr << "cal_max=" << header->cal_max << std::endl;
+		std::cerr << "cal_min=" << header->cal_min << std::endl;
+		std::cerr << "slice_duration=" << header->slice_duration << std::endl;
+		std::cerr << "toffset=" << header->toffset << std::endl;
+		std::cerr << "slice_start=" << header->slice_start << std::endl;
+		std::cerr << "slice_end=" << header->slice_end << std::endl;
+		std::cerr << "descrip=" << header->descrip << std::endl;
+		std::cerr << "aux_file=" << header->aux_file << std::endl;
+		std::cerr << "qform_code =" << header->qform_code  << std::endl;
+		std::cerr << "sform_code =" << header->sform_code  << std::endl;
+		for(size_t ii=0; ii < 3; ii++){
+			std::cerr << "quatern["<<ii<<"]=" 
+				<< header->quatern[ii] << std::endl;
+		}
+		for(size_t ii=0; ii < 3; ii++){
+			std::cerr << "qoffset["<<ii<<"]=" 
+				<< header->qoffset[ii] << std::endl;
+		}
+		for(size_t ii=0; ii < 3; ii++) {
+			for(size_t jj=0; jj < 4; jj++) {
+				std::cerr << "saffine["<<ii<<"*4+"<<jj<<"]=" 
+					<< header->saffine[ii*4+jj] << std::endl;
+			}
+		}
+		std::cerr << "slice_code=" << header->slice_code << std::endl;
+		std::cerr << "xyzt_units=" << header->xyzt_units << std::endl;
+		std::cerr << "intent_code =" << header->intent_code  << std::endl;
+		std::cerr << "intent_name=" << header->intent_name << std::endl;
+		std::cerr << "dim_info.bits.freqdim=" << header->dim_info.bits.freqdim << std::endl;
+		std::cerr << "dim_info.bits.phasedim=" << header->dim_info.bits.phasedim << std::endl;
+		std::cerr << "dim_info.bits.slicedim=" << header->dim_info.bits.slicedim << std::endl;
+		std::cerr << "unused_str=" << header->unused_str << std::endl;
 	}
 	
 	return 0;
