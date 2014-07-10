@@ -19,12 +19,14 @@ public:
 	virtual const double& operator()(size_t row, size_t col = 0) const = 0;
 
 	virtual void mvproduct(const MatrixP* rhs, MatrixP* out) const = 0;
+	virtual void mvproduct(const MatrixP& rhs, MatrixP& out) const = 0;
 	virtual void mvproduct(const std::vector<double>& rhs, 
 			std::vector<double>& out) const = 0;
 	virtual void mvproduct(const std::vector<size_t>& rhs, 
 			std::vector<double>& out) const = 0;
 
-	virtual std::ostream& stream(std::ostream& os) const = 0;
+	virtual size_t rows() const = 0;
+	virtual size_t cols() const = 0;
 };
 
 template <int D1, int D2>
@@ -61,10 +63,24 @@ public:
 	
 	Matrix(const std::vector<double>& v) {
 		size_t kk=0;
-		assert(v.size() == D1*D2);
 		for(size_t ii=0; ii<D1; ii++) {
 			for(size_t jj=0; jj<D2; jj++) {
-				data[ii][jj] = v[kk++];
+				if(kk < v.size())
+					data[ii][jj] = v[kk++];
+				else
+					data[ii][jj] = 0;
+			}
+		}
+	};
+	
+	Matrix(const std::vector<size_t>& v) {
+		size_t kk=0;
+		for(size_t ii=0; ii<D1; ii++) {
+			for(size_t jj=0; jj<D2; jj++) {
+				if(kk < v.size())
+					data[ii][jj] = v[kk++];
+				else
+					data[ii][jj] = 0;
 			}
 		}
 	};
@@ -95,14 +111,14 @@ public:
 
 	
 	void mvproduct(const MatrixP* rhs, MatrixP* out) const;
+	void mvproduct(const MatrixP& rhs, MatrixP& out) const;
 	void mvproduct(const std::vector<double>& rhs, 
 			std::vector<double>& out) const;
 	void mvproduct(const std::vector<size_t>& rhs, 
 			std::vector<double>& out) const;
-	std::ostream& stream(std::ostream& os) const;
 
-	static const int rows = D1;
-	static const int cols = D2;
+	size_t rows() const {return D1;};
+	size_t cols() const {return D2;};
 private:
 	double data[D1][D2];
 };
@@ -114,6 +130,27 @@ void Matrix<D1,D2>::mvproduct(const MatrixP* rhs, MatrixP* out) const
 	try{
 		const Matrix<D2,1>& iv = dynamic_cast<const Matrix<D2, 1>&>(*rhs);
 		Matrix<D1,1>& ov = dynamic_cast<Matrix<D1, 1>&>(*out);
+		const Matrix<D1,D2>& m = *this;
+		for(size_t ii=0; ii<D1; ii++) {
+			ov[ii] = 0;
+			for(size_t jj=0; jj<D2; jj++) {
+				ov[ii] += m(ii,jj)*iv[jj];
+			}
+		}
+	} catch(...){
+		std::cerr << "Error, failed dynamic_cast for matrix-vector product"
+			" check the input to mvproduct matrix.h:" << __LINE__ << std::endl;
+		throw;
+	}
+}
+
+template <int D1, int D2>
+void Matrix<D1,D2>::mvproduct(const MatrixP& rhs, MatrixP& out) const
+{
+	assert(&rhs != &out);
+	try{
+		const Matrix<D2,1>& iv = dynamic_cast<const Matrix<D2, 1>&>(rhs);
+		Matrix<D1,1>& ov = dynamic_cast<Matrix<D1, 1>&>(out);
 		const Matrix<D1,D2>& m = *this;
 		for(size_t ii=0; ii<D1; ii++) {
 			ov[ii] = 0;
@@ -162,24 +199,32 @@ void Matrix<D1,D2>::mvproduct(const std::vector<size_t>& iv,
 }
 
 template <int D1, int D2>
-std::ostream& Matrix<D1,D2>::stream(std::ostream& os) const
+std::ostream& operator<<(std::ostream& os, const Matrix<D1,D2>& b)
 {
-	for(size_t rr=0; rr<D1; rr++) {
+	for(size_t rr=0; rr<b.rows(); rr++) {
 		os << "[ ";
-		for(size_t cc=0; cc<D2; cc++) {
-			os << std::setw(9) << std::setprecision(5) << (*this)(rr, cc);
+		for(size_t cc=0; cc<b.cols(); cc++) {
+			os << std::setw(11) << std::setprecision(5) << b(rr,cc);
 		}
-		os << " ]" << std::endl;
+		os << " ];" << std::endl;
 	}
 	os << std::endl;
 	return os;
 }
 
-template <int D1, int D2>
-std::ostream& operator<<(std::ostream& os, const Matrix<D1, D2>& dt)
+std::ostream& operator<<(std::ostream& os, const MatrixP& b)
 {
-	return dt.stream(os);
+	for(size_t rr=0; rr<b.rows(); rr++) {
+		os << "[ ";
+		for(size_t cc=0; cc<b.cols(); cc++) {
+			os << std::setw(11) << std::setprecision(5) << b(rr,cc);
+		}
+		os << " ];" << std::endl;
+	}
+	os << std::endl;
+	return os;
 }
+
 
 template <int D1, int D2>
 Matrix<D1, D2> operator+=(Matrix<D1, D2>& lhs, const Matrix<D1, D2>& rhs)

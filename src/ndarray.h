@@ -96,8 +96,6 @@
 
 namespace npl {
 
-
-
 /**
  * @brief Pure virtual interface to interact with an ND array
  */

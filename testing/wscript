@@ -6,6 +6,8 @@ def build(bld):
             source = 'nifti_orient_test2.cpp', use = 'mrimage')
     bld.program(features='test', target = 'ndarray_accessor_test1', 
             source = 'ndarray_accessor_test1.cpp', use = 'ndarray')
+    bld.program(features='test', target = 'coordinate_test', 
+            source = 'coordinate_test.cpp', use = 'mrimage')
 
     from waflib.Tools import waf_unit_test
     bld.add_post_fun(waf_unit_test.summary)

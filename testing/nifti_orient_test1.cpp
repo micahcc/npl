@@ -23,8 +23,7 @@ int main()
 	Matrix<5,5> corraff(aff);
 
 	cerr << "Correct Affine: " << endl << corraff << endl;
-	cerr << "Image Affine: " << endl;
-	img->affine().stream(cerr);
+	cerr << "Image Affine: " << img->affine() << endl;
 
 	for(size_t ii=0; ii < img->ndim()+1; ii++) {
 		for(size_t jj=0; jj < img->ndim()+1; jj++) {

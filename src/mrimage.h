@@ -48,10 +48,12 @@ public:
 	virtual MatrixP& origin() = 0;
 	virtual MatrixP& direction() = 0;
 	virtual MatrixP& affine() = 0;
+	virtual MatrixP& iaffine() = 0;
 	virtual const MatrixP& space() const = 0;
 	virtual const MatrixP& origin() const  = 0;
 	virtual const MatrixP& direction() const = 0;
 	virtual const MatrixP& affine() const = 0;
+	virtual const MatrixP& iaffine() const = 0;
 	
 	virtual PixelT type() const = 0;
 	
@@ -88,6 +90,14 @@ public:
 			dynamic_cast<const MRImage*>(m_parent)->affine().mvproduct(m_pos, ras);
 		}
 	};
+	
+	virtual int indexToPoint(const std::vector<size_t>& xyz, std::vector<double>& ras) const = 0;
+	virtual int indexToPoint(const std::vector<double>& xyz, std::vector<double>& ras) const = 0;
+	virtual int pointToIndex(const std::vector<double>& ras, std::vector<double>& xyz) const = 0;
+
+//	virtual std::shared_ptr<MRImage> cloneImage() const = 0;
+//	virtual int unary(double(*func)(double,double)) const = 0;
+//	virtual int binOp(const MRImage* right, double(*func)(double,double), bool elevR) const = 0;
 
 	/*
 	 * medical image specific stuff, eventually these should be moved to a 
@@ -162,22 +172,19 @@ public:
 	MRImageStore(std::initializer_list<size_t> a_args);
 	MRImageStore(const std::vector<size_t>& a_args);
 	
+	std::shared_ptr<NDArray> clone() const;
 
 	/*************************************************************************
 	 * Coordinate Transform Functions
 	 ************************************************************************/
-	int indToPt(double index[D], double ras[D]);
-	int ptToInd(double ras[D], double index[D]);
-	int indToPt(std::initializer_list<double> index[D], 
-			std::initializer_list<double> ras[D]);
-	int ptToInd(std::initializer_list<double> ras[D], 
-			std::initializer_list<double> index[D]);
-	
-
 	void orientDefault();
 	void updateAffine();
 	void printSelf();
 	PixelT type() const;
+	
+	int indexToPoint(const std::vector<size_t>& index, std::vector<double>& rast) const;
+	int indexToPoint(const std::vector<double>& index, std::vector<double>& rast) const;
+	int pointToIndex(const std::vector<double>& rast, std::vector<double>& index) const;
 
 	//double& space(size_t d);
 	//double& origin(size_t d);
@@ -192,19 +199,16 @@ public:
 	MatrixP& origin() {return *((MatrixP*)&m_origin); };
 	MatrixP& direction() {return *((MatrixP*)&m_dir); };
 	MatrixP& affine() {return *((MatrixP*)&m_affine); };
+	MatrixP& iaffine() {return *((MatrixP*)&m_inv_affine); };
 	const MatrixP& space() const {return *((MatrixP*)&m_space); };
 	const MatrixP& origin() const {return *((MatrixP*)&m_origin); };
 	const MatrixP& direction() const {return *((MatrixP*)&m_dir); };
 	const MatrixP& affine() const {return *((MatrixP*)&m_affine); };
+	const MatrixP& iaffine() const {return *((MatrixP*)&m_inv_affine); };
 
 	std::string getUnits(size_t d1, double d2);
 
 	int write(std::string filename, double version) const;
-	
-	virtual std::shared_ptr<NDArray> clone() const;
-	virtual std::shared_ptr<NDArray> opnew(const MRImage* right, 
-			double(*func)(double,double), bool elevR) const ;
-
 protected:
 	// used to transform index to RAS (Right Handed Coordinate System)
 	Matrix<D,D> m_dir;
@@ -214,6 +218,7 @@ protected:
 	
 	// chache of the affine index -> RAS (right handed coordiante system)
 	Matrix<D+1,D+1> m_affine;
+	Matrix<D+1,D+1> m_inv_affine;
 	
 	int writeNifti1Image(gzFile file) const;
 	int writeNifti2Image(gzFile file) const;

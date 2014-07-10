@@ -76,6 +76,8 @@ void MRImageStore<D,T>::updateAffine()
 
 	// bottom right
 	m_affine(D,D) = 1;
+
+	m_inv_affine = inverse(m_affine);
 }
 
 /**
@@ -726,13 +728,45 @@ std::shared_ptr<NDArray> MRImageStore<D,T>::clone() const
 }
 
 template <int D, typename T>
-std::shared_ptr<NDArray> MRImageStore<D,T>::opnew(const MRImage* right, 
-			double(*func)(double,double), bool elevR) const
+int MRImageStore<D,T>::indexToPoint(const std::vector<size_t>& index,
+		std::vector<double>& rast) const
 {
-	auto out = clone();
-	if(out->opself(right, func, elevR) != 0)
-		return NULL;
-	return out;
+	Matrix<D+1,1> in(index);
+	in[D] = 1;
+	Matrix<D+1,1> out;
+	affine().mvproduct(in, out);
+	rast.resize(D);
+	for(size_t ii=0; ii<D; ii++)
+		rast[ii] = out[ii];
+	return 0;
+}
+
+template <int D, typename T>
+int MRImageStore<D,T>::indexToPoint(const std::vector<double>& index,
+		std::vector<double>& rast) const
+{
+	Matrix<D+1,1> in(index);
+	in[D] = 1;
+	Matrix<D+1,1> out;
+	affine().mvproduct(in, out);
+	rast.resize(D);
+	for(size_t ii=0; ii<D; ii++)
+		rast[ii] = out[ii];
+	return 0;
+}
+
+template <int D, typename T>
+int MRImageStore<D,T>::pointToIndex(const std::vector<double>& rast,
+		std::vector<double>& index) const
+{
+	Matrix<D+1,1> in(rast);
+	in[D] = 1;
+	Matrix<D+1,1> out;
+	iaffine().mvproduct(in, out);
+	index.resize(D);
+	for(size_t ii=0; ii<D; ii++)
+		index[ii] = out[ii];
+	return 0;
 }
 
 } //npl
