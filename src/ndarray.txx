@@ -127,6 +127,15 @@ size_t NDArrayStore<D,T>::bytes() const
 }
 
 template <int D, typename T>
+size_t NDArrayStore<D,T>::elements() const
+{
+	size_t out = 1;
+	for(size_t ii=0; ii<D; ii++)
+		out*= _m_dim[ii];
+	return out;
+}
+
+template <int D, typename T>
 size_t NDArrayStore<D,T>::ndim() const
 {
 	return D;

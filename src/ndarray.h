@@ -140,6 +140,7 @@ public:
 
 	virtual size_t ndim() const = 0;
 	virtual size_t bytes() const = 0;
+	virtual size_t elements() const = 0;
 	virtual size_t dim(size_t dir) const = 0;
 	virtual const size_t* dim() const = 0;
 
@@ -276,6 +277,7 @@ public:
 	 */
 	virtual size_t ndim() const;
 	virtual size_t bytes() const;
+	virtual size_t elements() const;
 	virtual size_t dim(size_t dir) const;
 	virtual const size_t* dim() const;
 

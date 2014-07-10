@@ -21,14 +21,13 @@ def configure(conf):
     abspath = os.path.abspath
     
     opts = vars(conf.options)
-    conf.load('compiler_cxx python')
-    conf.load('etest', tooldir='wafext')
+    conf.load('compiler_cxx python waf_unit_test')
 
     env = conf.env
 
     conf.env.RPATH = []
     if opts['enable_rpath'] or opts['enable_build_rpath']:
-        conf.env.RPATH.append('$ORIGIN')
+        conf.env.RPATH.append('$ORIGIN/../src')
     
     if opts['enable_rpath'] or opts['enable_install_rpath']:
         conf.env.RPATH.append('$ORIGIN/../lib')
@@ -71,7 +70,6 @@ def configure(conf):
 
 def options(ctx):
     ctx.load('compiler_cxx')
-    ctx.load('etest', tooldir='wafext')
 
     gr = ctx.get_option_group('configure options')
     
@@ -114,4 +112,3 @@ def build(bld):
         f.close()
 
     bld.recurse('deps src testing')
-    bld.load('etest', tooldir='wafext')

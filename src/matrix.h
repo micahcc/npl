@@ -57,7 +57,7 @@ public:
 		}
 	};
 	
-	Matrix(const std::vector<size_t>& v) {
+	Matrix(const std::vector<double>& v) {
 		size_t kk=0;
 		assert(v.size() == D1*D2);
 		for(size_t ii=0; ii<D1; ii++) {
