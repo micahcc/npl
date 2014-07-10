@@ -7,8 +7,11 @@ Recent:
 -Orientation Reading Tests added and passed
 
 Next Features:
+Rewrite iterator to 
+-cache offset
+-to get ras/index of offset 
+-to use an underlying template 
 Resample Function
 - IndexToPoint() function for image
-Further Test metadata reading
 Kernel Operations?
 Fourier Transform? 
