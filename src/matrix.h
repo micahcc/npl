@@ -26,6 +26,7 @@ public:
 	virtual void mvproduct(const std::vector<size_t>& rhs, 
 			std::vector<double>& out) const = 0;
 
+	virtual double det() const = 0;
 	virtual size_t rows() const = 0;
 	virtual size_t cols() const = 0;
 };
@@ -127,11 +128,23 @@ public:
 	void mvproduct(const std::vector<size_t>& rhs, 
 			std::vector<double>& out) const;
 
+	virtual double det() const;
+
 	size_t rows() const {return D1;};
 	size_t cols() const {return D2;};
 private:
 	double data[D1][D2];
 };
+
+//double determinant(const Matrix<1, 1>& trg);
+//double determinant(const Matrix<2, 2>& trg);
+//template <int D1, int D2>
+//double determinant(const Matrix<D1, D2>& trg);
+//Matrix<1, 1> inverse(const Matrix<1, 1>& trg);
+//Matrix<2, 2> inverse(const Matrix<2, 2>& trg);
+//template <int DIM>
+//Matrix<DIM, DIM> inverse(const Matrix<DIM, DIM>& trg);
+//
 
 template <int D1, int D2>
 void Matrix<D1,D2>::mvproduct(const MatrixP* rhs, MatrixP* out) const
@@ -382,7 +395,6 @@ void split(const Matrix<D1+D2, D1+D2>& input,
 }
 
 // Determinant //
-
 double determinant(const Matrix<1, 1>& trg)
 {
 	return trg(0,0);
@@ -418,6 +430,21 @@ double determinant(const Matrix<DIM, DIM>& trg)
 	} else 
 		return a;
 }
+
+template <int D1, int D2>
+double Matrix<D1,D2>::det() const
+{
+	const size_t DIM = D1 < D2 ? D1 : D2;
+	Matrix<DIM,DIM> tmp;
+	for(size_t ii=0;ii<DIM; ii++){
+		for(size_t jj=0;jj<DIM; jj++){
+			tmp(ii,jj) = data[ii][jj];
+		}
+	}
+
+	return determinant<DIM>(tmp);
+}
+
 
 Matrix<1, 1> inverse(const Matrix<1, 1>& trg)
 {

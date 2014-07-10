@@ -330,11 +330,11 @@ int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 	header.sizeof_hdr = 348;
 
 	if(m_freqdim >= 0 && m_freqdim <= 2) 
-		header.dim_info.bits.freqdim = m_freqdim; 
+		header.dim_info.bits.freqdim = m_freqdim+1; 
 	if(m_phasedim>= 0 && m_phasedim<= 2) 
-		header.dim_info.bits.phasedim = m_phasedim; 
+		header.dim_info.bits.phasedim = m_phasedim+1; 
 	if(m_slicedim >= 0 && m_slicedim <= 2) 
-		header.dim_info.bits.slicedim = m_slicedim; 
+		header.dim_info.bits.slicedim = m_slicedim+1; 
 
 	// dimensions
 	header.ndim = (short)ndim();
@@ -450,11 +450,11 @@ int MRImageStore<D,T>::writeNifti2Header(gzFile file) const
 	std::cerr << header.sizeof_hdr << endl;
 
 	if(m_freqdim >= 0 && m_freqdim <= 2) 
-		header.dim_info.bits.freqdim = m_freqdim; 
+		header.dim_info.bits.freqdim = m_freqdim+1; 
 	if(m_phasedim>= 0 && m_phasedim<= 2) 
-		header.dim_info.bits.phasedim = m_phasedim; 
+		header.dim_info.bits.phasedim = m_phasedim+1; 
 	if(m_slicedim >= 0 && m_slicedim <= 2) 
-		header.dim_info.bits.slicedim = m_slicedim; 
+		header.dim_info.bits.slicedim = m_slicedim+1;
 
 	// dimensions
 	header.ndim = ndim();
