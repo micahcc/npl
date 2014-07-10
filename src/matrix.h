@@ -7,6 +7,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cmath>
+#include <memory>
 
 namespace npl { 
 
@@ -85,6 +86,15 @@ public:
 		}
 	};
 
+	Matrix(const Matrix& m)
+	{
+		for(size_t ii=0; ii<D1; ii++) {
+			for(size_t jj=0; jj<D2; jj++) {
+				data[ii][jj] = m.data[ii][jj];
+			}
+		}
+	}
+
 	double& operator[](size_t row) 
 	{ 
 		assert(row < D1);
@@ -109,7 +119,7 @@ public:
 		return data[row][col]; 
 	};
 
-	
+	// 
 	void mvproduct(const MatrixP* rhs, MatrixP* out) const;
 	void mvproduct(const MatrixP& rhs, MatrixP& out) const;
 	void mvproduct(const std::vector<double>& rhs, 

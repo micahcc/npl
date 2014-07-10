@@ -28,24 +28,24 @@ namespace npl {
 		return (TYPE)_m_data[addr];												\
 	}																			\
 	template <int D, typename T>												\
-	void NDArrayStore<D,T>::FNAME(std::initializer_list<size_t> index, TYPE newval)\
+	void NDArrayStore<D,T>::FNAME(std::initializer_list<size_t> index, TYPE val)\
 	{																			\
-		_m_data[getAddr(index)] = (T)newval;									\
+		_m_data[getAddr(index)] = (T)val;										\
 	}																			\
 	template <int D, typename T>												\
-	void NDArrayStore<D,T>::FNAME(const std::vector<size_t>& index, TYPE newval)\
+	void NDArrayStore<D,T>::FNAME(const std::vector<size_t>& index, TYPE val)	\
 	{																			\
-		_m_data[getAddr(index)] = (T)newval;									\
+		_m_data[getAddr(index)] = (T)val;										\
 	}																			\
 	template <int D, typename T>												\
-	void NDArrayStore<D,T>::FNAME(const size_t* index, TYPE newval)				\
+	void NDArrayStore<D,T>::FNAME(const size_t* index, TYPE val)				\
 	{																			\
-		_m_data[getAddr(index)] = (T)newval;									\
+		_m_data[getAddr(index)] = (T)val;										\
 	}																			\
 	template <int D, typename T>												\
-	void NDArrayStore<D,T>::FNAME(size_t addr, TYPE newval)						\
+	void NDArrayStore<D,T>::FNAME(size_t addr, TYPE val)						\
 	{																			\
-		_m_data[addr] = (T)newval;												\
+		_m_data[addr] = (T)val;													\
 	}																			\
 
 

@@ -1,30 +1,11 @@
-
 #include <iostream>
-
 #include "mrimage.h"
 
 using namespace std;
 using namespace npl;
 
-ostream& operator<<(ostream& os, const std::vector<size_t>& vec)
-{
-	os << "[ ";
-	for(auto v : vec) {
-		os << std::setw(4) << v << ",";
-	}
-	os << " ]";
-	return os;
-}
-
-ostream& operator<<(ostream& os, const std::vector<double>& vec)
-{
-	os << "[";
-	for(auto v : vec) {
-		os << std::setw(7) << std::setprecision(2) << std::fixed << v << ",";
-	}
-	os << "] ";
-	return os;
-}
+ostream& operator<<(ostream& os, const std::vector<size_t>& vec);
+ostream& operator<<(ostream& os, const std::vector<double>& vec);
 
 int main()
 {
@@ -94,5 +75,24 @@ int main()
 	return 0;
 }
 
+ostream& operator<<(ostream& os, const std::vector<size_t>& vec)
+{
+	os << "[ ";
+	for(auto v : vec) {
+		os << std::setw(4) << v << ",";
+	}
+	os << " ]";
+	return os;
+}
+
+ostream& operator<<(ostream& os, const std::vector<double>& vec)
+{
+	os << "[";
+	for(auto v : vec) {
+		os << std::setw(7) << std::setprecision(2) << std::fixed << v << ",";
+	}
+	os << "] ";
+	return os;
+}
 
 

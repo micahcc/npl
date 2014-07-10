@@ -27,7 +27,7 @@ class MRImage;
 
 // simply reads an image in its native type
 MRImage* readNiftiImage(gzFile file, bool verbose);
-MRImage* readMRImage(std::string filename, bool verbose);
+MRImage* readMRImage(std::string filename, bool verbose = false);
 MRImage* createMRImage(const std::vector<size_t>& dims, PixelT);
 int writeMRImage(MRImage* img, std::string fn, bool nifti2 = false);
 
