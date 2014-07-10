@@ -55,10 +55,6 @@ public:
 	
 	virtual PixelT type() const = 0;
 	
-	virtual std::shared_ptr<NDArray> clone() const = 0;
-	virtual std::shared_ptr<NDArray> opnew(const MRImage* right, 
-			double(*func)(double,double), bool elevR) const = 0;
-
 	virtual int write(std::string filename, double version) const = 0;
 	
 	// iterators

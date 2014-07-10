@@ -113,6 +113,11 @@ MRImage* readMRImage(std::string filename, bool verbose)
 {
 	const size_t BSIZE = 1024*1024; //1M
 	auto gz = gzopen(filename.c_str(), "rb");
+
+	if(!gz) {
+		cerr << "Error, could not open MRI Image " << filename << endl;
+		return NULL;
+	}
 	gzbuffer(gz, BSIZE);
 	
 	MRImage* out = NULL;
@@ -416,7 +421,7 @@ MRImage* readNiftiImage(gzFile file, bool verbose)
 			pixdim[ii] = header1.pixdim[ii];
 
 		// offset
-		offset.resize(header1.ndim, 0);
+		offset.resize(4, 0);
 		for(int64_t ii=0; ii<header1.ndim && ii < 3; ii++)
 			offset[ii] = header1.qoffset[ii];
 		if(header1.ndim > 3)
@@ -453,7 +458,7 @@ MRImage* readNiftiImage(gzFile file, bool verbose)
 			pixdim[ii] = header2.pixdim[ii];
 		
 		// offset
-		offset.resize(header2.ndim, 0);
+		offset.resize(4, 0);
 		for(int64_t ii=0; ii<header2.ndim && ii < 3; ii++)
 			offset[ii] = header2.qoffset[ii];
 		if(header2.ndim > 3)
@@ -545,8 +550,12 @@ MRImage* readNiftiImage(gzFile file, bool verbose)
 		 * set origin 
 		 */
 		// x,y,z
-		for(size_t ii=0; ii<out->ndim(); ii++)
+		for(size_t ii=0; ii<out->ndim(); ii++) {
 			out->origin()[ii] = offset[ii];
+		}
+		cerr << "Origin: " << endl;
+		for(size_t ii=0; ii<out->ndim(); ii++)
+			cerr << out->origin()[ii] << endl;
 		
 		/* Copy Quaternions, and Make Rotation Matrix */
 
@@ -567,12 +576,15 @@ MRImage* readNiftiImage(gzFile file, bool verbose)
 
 		// calculate R, (was already identity)
 		out->direction()(0, 0) = a*a+b*b-c*c-d*d;
-		cerr << "R[0,0]=" << out->direction()(0, 0) << std::endl;
+		std::cerr << "00" << out->direction()(0,0) << std::endl;
 
 		if(out->ndim() > 1) {
 			out->direction()(0,1) = 2*b*c-2*a*d;
+		std::cerr << "01" << out->direction()(0,1) << std::endl;
 			out->direction()(1,0) = 2*b*c+2*a*d;
+		std::cerr << "10" << out->direction()(1,0) << std::endl;
 			out->direction()(1,1) = a*a+c*c-b*b-d*d;
+		std::cerr << "11" << out->direction()(1,1) << std::endl;
 		}
 
 		if(qfac != -1)
@@ -580,10 +592,15 @@ MRImage* readNiftiImage(gzFile file, bool verbose)
 		
 		if(out->ndim() > 2) {
 			out->direction()(0,2) = qfac*(2*b*d+2*a*c);
+		std::cerr << "02" << out->direction()(0,2) << std::endl;
 			out->direction()(1,2) = qfac*(2*c*d-2*a*b);
+		std::cerr << "12" << out->direction()(1,2) << std::endl;
 			out->direction()(2,2) = qfac*(a*a+d*d-c*c-b*b);
+		std::cerr << "22" << out->direction()(2,2) << std::endl;
 			out->direction()(2,1) = 2*c*d+2*a*b;
+		std::cerr << "21" << out->direction()(2,1) << std::endl;
 			out->direction()(2,0) = 2*b*d-2*a*c;
+		std::cerr << "20" << out->direction()(2,0) << std::endl;
 		}
 
 		// finally update affine, but scale pixdim[z] by qfac temporarily

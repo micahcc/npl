@@ -72,7 +72,7 @@ void MRImageStore<D,T>::updateAffine()
 	
 	// last column
 	for(size_t ii=0; ii<D; ii++) 
-		m_affine(ii,D) = 0;
+		m_affine(ii,D) = m_origin[ii];
 
 	// bottom right
 	m_affine(D,D) = 1;
@@ -261,6 +261,11 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 	
 	// go ahead and open
 	gz = gzopen(filename.c_str(), mode.c_str());
+	if(!gz) {
+		std::cerr << "Could not open " << filename << " for writing!" << std::endl;
+		return -1;
+	}
+
 	gzbuffer(gz, BSIZE);
 
 	if(nogz.substr(nogz.size()-4, 4) == ".nii") {

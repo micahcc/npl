@@ -23,6 +23,8 @@ public:
 			std::vector<double>& out) const = 0;
 	virtual void mvproduct(const std::vector<size_t>& rhs, 
 			std::vector<double>& out) const = 0;
+
+	virtual std::ostream& stream(std::ostream& os) const = 0;
 };
 
 template <int D1, int D2>
@@ -97,6 +99,7 @@ public:
 			std::vector<double>& out) const;
 	void mvproduct(const std::vector<size_t>& rhs, 
 			std::vector<double>& out) const;
+	std::ostream& stream(std::ostream& os) const;
 
 	static const int rows = D1;
 	static const int cols = D2;
@@ -159,17 +162,23 @@ void Matrix<D1,D2>::mvproduct(const std::vector<size_t>& iv,
 }
 
 template <int D1, int D2>
-std::ostream& operator<<(std::ostream& os, const Matrix<D1, D2>& dt)
+std::ostream& Matrix<D1,D2>::stream(std::ostream& os) const
 {
 	for(size_t rr=0; rr<D1; rr++) {
 		os << "[ ";
 		for(size_t cc=0; cc<D2; cc++) {
-			os << std::setw(9) << std::setprecision(5) << dt(rr, cc);
+			os << std::setw(9) << std::setprecision(5) << (*this)(rr, cc);
 		}
 		os << " ]" << std::endl;
 	}
 	os << std::endl;
 	return os;
+}
+
+template <int D1, int D2>
+std::ostream& operator<<(std::ostream& os, const Matrix<D1, D2>& dt)
+{
+	return dt.stream(os);
 }
 
 template <int D1, int D2>
