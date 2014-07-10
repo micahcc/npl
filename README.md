@@ -5,10 +5,8 @@ N-Dimensional Array Class, with arbitrary type, using inheritance. Used as the b
 
 
 Next Features:
-Test metadata reading, fix direction/orienation
--Verbose ostream(, Image) function
 Resample Function
 - IndexToPoint() function for image
-Array Operations binaryop(Array*, Image*, func), unaryop(Array*, Image*, func)
+Further Test metadata reading
 Kernel Operations?
 Fourier Transform? 
