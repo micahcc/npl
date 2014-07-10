@@ -22,7 +22,7 @@ def configure(conf):
     
     opts = vars(conf.options)
     conf.load('compiler_cxx python')
-    conf.load('etest', tooldir='test')
+    conf.load('etest', tooldir='wafext')
 
     env = conf.env
 
@@ -71,7 +71,7 @@ def configure(conf):
 
 def options(ctx):
     ctx.load('compiler_cxx')
-    ctx.load('etest', tooldir='test')
+    ctx.load('etest', tooldir='wafext')
 
     gr = ctx.get_option_group('configure options')
     
@@ -113,5 +113,5 @@ def build(bld):
         f.write('#define __version__ "%s"\n\n' % gitversion())
         f.close()
 
-    bld.recurse('deps src')
-    bld.load('etest', tooldir='test')
+    bld.recurse('deps src testing')
+    bld.load('etest', tooldir='wafext')
