@@ -284,9 +284,10 @@ public:
 	/* 
 	 * Higher Level Operations
 	 */
-	std::shared_ptr<NDArray> clone() const;
-	int opself(const NDArray* right, double(*func)(double,double), bool elevR);
-	std::shared_ptr<NDArray> opnew(const NDArray* right, 
+	virtual std::shared_ptr<NDArray> clone() const;
+	virtual int opself(const NDArray* right, double(*func)(double,double), 
+			bool elevR);
+	virtual std::shared_ptr<NDArray> opnew(const NDArray* right, 
 			double(*func)(double,double), bool elevR);
 
 	T* _m_data;

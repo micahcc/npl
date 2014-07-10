@@ -695,4 +695,39 @@ int MRImageStore<D,T>::writePixels(gzFile file) const
 
 }
 
+template <int D, typename T>
+std::shared_ptr<NDArray> MRImageStore<D,T>::clone() const
+{
+	std::vector<size_t> newdims(this->_m_dim, this->_m_dim+D);
+	auto out = std::make_shared<MRImageStore<D,T>>(newdims);
+
+	out->m_slice_timing   = m_slice_timing;
+	out->m_freqdim        = m_freqdim;
+	out->m_phasedim       = m_phasedim;
+	out->m_slicedim       = m_slicedim;
+	out->m_slice_duration = m_slice_duration;
+	out->m_slice_start    = m_slice_start;
+	out->m_slice_end      = m_slice_end;
+	out->m_slice_order    = m_slice_order;
+	
+	size_t total = 1;
+	for(size_t ii=0; ii<D; ii++)
+		total *= this->_m_dim[ii];
+
+	std::copy(this->_m_data, this->_m_data+total, out->_m_data);
+	std::copy(this->_m_dim, this->_m_dim+D, out->_m_dim);
+
+	return out;
+}
+
+template <int D, typename T>
+std::shared_ptr<NDArray> MRImageStore<D,T>::opnew(const MRImage* right, 
+			double(*func)(double,double), bool elevR) const
+{
+	auto out = clone();
+	if(out->opself(right, func, elevR) != 0)
+		return NULL;
+	return out;
+}
+
 } //npl

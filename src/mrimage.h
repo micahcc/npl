@@ -55,6 +55,10 @@ public:
 	
 	virtual PixelT type() const = 0;
 	
+	virtual std::shared_ptr<NDArray> clone() const = 0;
+	virtual std::shared_ptr<NDArray> opnew(const MRImage* right, 
+			double(*func)(double,double), bool elevR) const = 0;
+
 	virtual int write(std::string filename, double version) const = 0;
 	
 	// iterators
@@ -88,13 +92,6 @@ public:
 			dynamic_cast<const MRImage*>(m_parent)->affine().mvproduct(m_pos, ras);
 		}
 	};
-
-//	MRImage() : m_freqdim(-1), m_phasedim(-1), m_slicedim(-1), 
-//				m_slice_duration(-1), m_slice_start(-1), m_slice_end(-1), 
-//				use_quaterns(0) 
-//	{
-//
-//	};
 
 	/*
 	 * medical image specific stuff, eventually these should be moved to a 
@@ -139,10 +136,7 @@ protected:
 	virtual int writeNifti2Image(gzFile file) const = 0;
 	
 	virtual void updateAffine() = 0;
-	// if quaternians are the original direction base, then this stores the 
-	// raw quaternian values, to prevent roundoff errors
-//	bool use_quaterns;;
-//	double quaterns[4];
+	
 	friend MRImage* readNiftiImage(gzFile file, bool verbose);
 };
 
@@ -210,8 +204,12 @@ public:
 	std::string getUnits(size_t d1, double d2);
 
 	int write(std::string filename, double version) const;
+	
+	virtual std::shared_ptr<NDArray> clone() const;
+	virtual std::shared_ptr<NDArray> opnew(const MRImage* right, 
+			double(*func)(double,double), bool elevR) const ;
 
-private:
+protected:
 	// used to transform index to RAS (Right Handed Coordinate System)
 	Matrix<D,D> m_dir;
 	Matrix<D,1> m_space;
