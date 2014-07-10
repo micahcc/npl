@@ -26,18 +26,6 @@ MRImageStore<D,T>::MRImageStore(std::initializer_list<size_t> a_args) :
  * @param dim dimensions of input 
  */
 template <int D,typename T>
-MRImageStore<D,T>::MRImageStore(size_t dim[D]) : 
-	NDArrayStore<D,T>(dim), MRImage()
-{
-	orientDefault();
-}
-
-/**
- * @brief Constructor with array to set size
- *
- * @param dim dimensions of input 
- */
-template <int D,typename T>
 MRImageStore<D,T>::MRImageStore(const std::vector<size_t>& dim) : 
 	NDArrayStore<D,T>(dim), MRImage()
 {
@@ -124,9 +112,9 @@ void MRImageStore<D,T>::printSelf()
 }
 
 template <typename T>
-MRImage* createMRImageHelp(size_t ndim, size_t* dim)
+MRImage* createMRImageHelp(const std::vector<size_t>& dim)
 {
-	switch(ndim) {
+	switch(dim.size()) {
 		case 1:
 			return new MRImageStore<1, T>(dim);
 		case 2:
@@ -142,125 +130,69 @@ MRImage* createMRImageHelp(size_t ndim, size_t* dim)
 		case 7:
 			return new MRImageStore<7, T>(dim);
 		default:
-			std::cerr << "Unsupported dimension: " << ndim << std::endl;
+			std::cerr << "Unsupported dimension: " << dim.size() << std::endl;
 			return NULL;
 	}
 
 	return NULL;
 }
 
-MRImage* createMRImage(size_t ndim, size_t* dim, PixelT ptype)
+MRImage* createMRImage(const std::vector<size_t>& dim, PixelT ptype)
 {
 	switch(ptype) {
          case UINT8:
-			return (MRImage*)createMRImageHelp<uint8_t>(ndim, dim);
+			return (MRImage*)createMRImageHelp<uint8_t>(dim);
         break;
          case INT16:
-			return (MRImage*)createMRImageHelp<int16_t>(ndim, dim);
+			return (MRImage*)createMRImageHelp<int16_t>(dim);
         break;
          case INT32:
-			return (MRImage*)createMRImageHelp<int32_t>(ndim, dim);
+			return (MRImage*)createMRImageHelp<int32_t>(dim);
         break;
          case FLOAT32:
-			return (MRImage*)createMRImageHelp<float>(ndim, dim);
+			return (MRImage*)createMRImageHelp<float>(dim);
         break;
          case COMPLEX64:
-			return (MRImage*)createMRImageHelp<cfloat_t>(ndim, dim);
+			return (MRImage*)createMRImageHelp<cfloat_t>(dim);
         break;
          case FLOAT64:
-			return (MRImage*)createMRImageHelp<double>(ndim, dim);
+			return (MRImage*)createMRImageHelp<double>(dim);
         break;
          case RGB24:
-			return (MRImage*)createMRImageHelp<rgb_t>(ndim, dim);
+			return (MRImage*)createMRImageHelp<rgb_t>(dim);
         break;
          case INT8:
-			return (MRImage*)createMRImageHelp<int8_t>(ndim, dim);
+			return (MRImage*)createMRImageHelp<int8_t>(dim);
         break;
          case UINT16:
-			return (MRImage*)createMRImageHelp<uint16_t>(ndim, dim);
+			return (MRImage*)createMRImageHelp<uint16_t>(dim);
         break;
          case UINT32:
-			return (MRImage*)createMRImageHelp<uint32_t>(ndim, dim);
+			return (MRImage*)createMRImageHelp<uint32_t>(dim);
         break;
          case INT64:
-			return (MRImage*)createMRImageHelp<int64_t>(ndim, dim);
+			return (MRImage*)createMRImageHelp<int64_t>(dim);
         break;
          case UINT64:
-			return (MRImage*)createMRImageHelp<uint64_t>(ndim, dim);
+			return (MRImage*)createMRImageHelp<uint64_t>(dim);
         break;
          case FLOAT128:
-			return (MRImage*)createMRImageHelp<long double>(ndim, dim);
+			return (MRImage*)createMRImageHelp<long double>(dim);
         break;
          case COMPLEX128:
-			return (MRImage*)createMRImageHelp<cdouble_t>(ndim, dim);
+			return (MRImage*)createMRImageHelp<cdouble_t>(dim);
         break;
          case COMPLEX256:
-			return (MRImage*)createMRImageHelp<cquad_t>(ndim, dim);
+			return (MRImage*)createMRImageHelp<cquad_t>(dim);
         break;
          case RGBA32:
-			return (MRImage*)createMRImageHelp<rgba_t>(ndim, dim);
+			return (MRImage*)createMRImageHelp<rgba_t>(dim);
         break;
 		 default:
 		return NULL;
 	}
 	return NULL;
 }
-
-//template <int D, typename T>
-//double& MRImageStore<D,T>::space(size_t d) 
-//{ 
-//	assert(d<D); 
-//	return m_space[d]; 
-//};
-//
-//template <int D, typename T>
-//double& MRImageStore<D,T>::origin(size_t d) 
-//{
-//	assert(d<D); 
-//	return m_origin[d]; 
-//};
-//
-//template <int D, typename T>
-//double& MRImageStore<D,T>::direction(size_t d1, size_t d2) 
-//{
-//	assert(d1 < D && d2 < D);
-//	return m_dir(d1,d2); 
-//};
-//
-//template <int D, typename T>
-//double& MRImageStore<D,T>::affine(size_t d1, size_t d2) 
-//{ 
-//	assert(d1 < D+1 && d2 < D+1);
-//	return m_affine(d1,d2);
-//};
-//
-//template <int D, typename T>
-//const double& MRImageStore<D,T>::space(size_t d) const 
-//{ 
-//	assert(d < D);
-//	return m_space[d]; 
-//};
-//
-//template <int D, typename T>
-//const double& MRImageStore<D,T>::origin(size_t d) const 
-//{
-//	assert(d < D);
-//	return m_origin[d]; 
-//};
-//
-//template <int D, typename T>
-//const double& MRImageStore<D,T>::direction(size_t d1, size_t d2) const 
-//{ 
-//	assert(d1 < D && d2 < D);
-//	return m_dir(d1,d2); 
-//};
-//
-//template <int D, typename T>
-//const double& MRImageStore<D,T>::affine(size_t d1, size_t d2) const 
-//{
-//	assert(d1 < D+1 && d2 < D+1);
-//	return m_affine(d1, d2); 
-//};
 
 /* 
  * type() Function specialized for all available types

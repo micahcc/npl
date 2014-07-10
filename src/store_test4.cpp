@@ -25,9 +25,8 @@ int main(int argc, char** argv)
 
 	////////////////////////////////////////////////////////////////////////////////////
 	cerr << "4D Test" << endl;
-	size_t dim4[] = {500, 500, 1, 1};
-	NDArrayStore<4, float> array1(dim4);
-	NDArrayStore<4, float> array2(dim4);
+	NDArrayStore<4, float> array1({500, 500, 1, 1});
+	NDArrayStore<4, float> array2({500, 500, 1, 1});
 
 	cerr << "Filling..." << endl;
 	auto t = clock();

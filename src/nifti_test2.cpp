@@ -8,8 +8,7 @@ using namespace npl;
 int main()
 {
 	/* Create an image with: x+y*100+z*10000*/
-	size_t sz[3] = {10, 23, 39};
-	MRImageStore<3, double> testimage(sz);
+	MRImageStore<3, double> testimage({10, 23, 39});
 	MRImage* oimage = &testimage;
 
 	for(size_t zz=0; zz < oimage->dim(2); zz++) {

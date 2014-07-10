@@ -9,8 +9,7 @@ int main()
 {
 	set<size_t> check;
 
-	size_t dim1[] = {1024};
-	NDArrayStore<1, float> test1(dim1);
+	NDArrayStore<1, float> test1({1024});
 	cerr << "Bytes: " << test1.bytes() << endl;
 
 	for(size_t ii = 0; ii < test1._m_dim[0]; ii++) {
@@ -35,8 +34,7 @@ int main()
 	
 	////////////////////////////////////////////////////////////////////////////////////
 	cerr << "2D Test" << endl;
-	size_t dim2[] = {23, 117};
-	NDArrayStore<2, float> test2(dim2);
+	NDArrayStore<2, float> test2({23, 117});
 
 	cerr << "Filling..." << endl;
 	for(size_t ii = 0; ii < test2._m_dim[0]*test2._m_dim[1]; ii++) {
@@ -66,8 +64,7 @@ int main()
 	
 	////////////////////////////////////////////////////////////////////////////////////
 	cerr << "3D Test" << endl;
-	size_t dim3[] = {23, 17, 23};
-	NDArrayStore<3, float> test3(dim3);
+	NDArrayStore<3, float> test3({23, 17, 23});
 
 	cerr << "Filling..." << endl;
 	for(size_t ii = 0; ii < test3._m_dim[0]*test3._m_dim[1]*test3._m_dim[2]; ii++) {

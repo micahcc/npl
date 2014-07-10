@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <complex>
 #include <cassert>
+#include <memory>
 
 // virtual get and set function macro, ie
 // VIRTGETSET(double, dbl); 
@@ -41,6 +42,7 @@
 	void FNAME(const size_t* index, TYPE); \
 	void FNAME(size_t index, TYPE); \
 
+// Iterator Functions
 #define CITERFUNCS(TYPE, FUNCNAME)\
 	TYPE FUNCNAME() const \
 	{\
@@ -94,6 +96,8 @@
 
 namespace npl {
 
+
+
 /**
  * @brief Pure virtual interface to interact with an ND array
  */
@@ -125,7 +129,6 @@ public:
 	// Get Address
 	virtual size_t getAddr(std::initializer_list<size_t> index) const = 0;
 	virtual size_t getAddr(const std::vector<size_t>& index) const = 0;
-	virtual size_t getAddr(const size_t* index) const = 0;
 
 	VIRTGETSET(double, dbl);
 	VIRTGETSET(int64_t, int64);
@@ -139,6 +142,13 @@ public:
 	virtual size_t bytes() const = 0;
 	virtual size_t dim(size_t dir) const = 0;
 	virtual const size_t* dim() const = 0;
+
+
+	virtual std::shared_ptr<NDArray> clone() const = 0;
+	virtual int opself(const NDArray* right, double(*func)(double,double), 
+			bool elevR) = 0;
+	virtual std::shared_ptr<NDArray> opnew(const NDArray* right, 
+			double(*func)(double,double), bool elevR) = 0;
 
 	/* 
 	 * Iterator Declaration
@@ -231,7 +241,6 @@ class NDArrayStore : public virtual NDArray
 {
 public:
 	NDArrayStore(std::initializer_list<size_t> a_args);
-	NDArrayStore(size_t dim[D]);
 	NDArrayStore(const std::vector<size_t>& dim);
 	
 	~NDArrayStore() { delete[] _m_data; };
@@ -272,9 +281,96 @@ public:
 
 	virtual void resize(size_t dim[D]);
 
+	/* 
+	 * Higher Level Operations
+	 */
+	std::shared_ptr<NDArray> clone() const;
+	int opself(const NDArray* right, double(*func)(double,double), bool elevR);
+	std::shared_ptr<NDArray> opnew(const NDArray* right, 
+			double(*func)(double,double), bool elevR);
+
 	T* _m_data;
 	size_t _m_dim[D];	// overall image dimension
 };
+
+/**
+ * @brief Returns whether two NDArrays have the same dimensions, and therefore
+ * can be element-by-element compared/operated on. elL is set to true if left
+ * is elevatable to right (ie all dimensions match or are missing or are unary).
+ * elR is the same but for the right. 
+ *
+ * Strictly R is elevatable if all dimensions that don't match are missing or 1
+ * Strictly L is elevatable if all dimensions that don't match are missing or 1
+ *
+ * Examples of *elR = true (return false):
+ *
+ * left = [10, 20, 1]
+ * right = [10, 20, 39]
+ *
+ * left = [10]
+ * right = [10, 20, 39]
+ *
+ * Examples where neither elR or elL (returns true):
+ *
+ * left = [10, 20, 39]
+ * right = [10, 20, 39]
+ *
+ * Examples where neither elR or elL (returns false):
+ *
+ * left = [10, 20, 9]
+ * right = [10, 20, 39]
+ *
+ * left = [10, 1, 9]
+ * right = [10, 20, 1]
+ *
+ * @param left	NDArray input
+ * @param right NDArray input
+ * @param elL Whether left is elevatable to right (see description of function)
+ * @param elR Whether right is elevatable to left (see description of function)
+ *
+ * @return 
+ */
+bool comparable(const NDArray* left, const NDArray* right, 
+		bool* elL = NULL, bool* elR = NULL)
+{
+	bool ret = true;
+
+	bool rightEL = true;
+	bool leftEL = true;
+
+	for(size_t ii = 0; ii < left->ndim(); ii++) {
+		if(ii < right->ndim()) {
+			if(right->dim(ii) != left->dim(ii)) {
+				ret = false;
+				// if not 1, then R is not elevateable
+				if(right->dim(ii) != 1)
+					rightEL = false;
+			}
+		}
+	}
+	
+	for(size_t ii = 0; ii < right->ndim(); ii++) {
+		if(ii < left->ndim()) {
+			if(right->dim(ii) != left->dim(ii)) {
+				ret = false;
+				// if not 1, then R is not elevateable
+				if(left->dim(ii) != 1)
+					leftEL = false;
+			}
+		}
+	}
+	
+	if(ret) {
+		leftEL = false;
+		rightEL = false;
+	}
+
+	if(elL) *elL = leftEL;
+	if(elR) *elR = rightEL;
+
+	return ret;
+}
+
 
 #undef VIRTGETSET
 #undef GETSET

@@ -1,9 +1,10 @@
 
 #include "npltypes.h"
+#include <iostream>
 
 namespace npl {
 
-// macros to actually create the get/set functions, note that get and set are 
+//rmacros to actually create the get/set functions, note that get and set are 
 // the same name, just different arguments
 #define GETSETIMP(TYPE, FNAME) \
 	template <int D, typename T>												\
@@ -55,27 +56,6 @@ GETSETIMP(cfloat_t, cfloat);
 GETSETIMP(rgba_t, rgba);
 GETSETIMP(long double, quad);
 GETSETIMP(cquad_t, cquad);
-
-/**
- * @brief Initializes an array with a size and a chache size. The layout will
- * be cubes in each dimension to make the clusters.
- *
- * @tparam D
- * @tparam T
- * @param dim[D]
- * @param csize
- */
-template <int D, typename T>
-NDArrayStore<D,T>::NDArrayStore(size_t dim[D])
-{
-	size_t dsize = 1;
-	for(size_t ii=0; ii<D; ii++) {
-		_m_dim[ii] = dim[ii];
-		dsize *= _m_dim[ii];
-	}
-
-	_m_data = new T[dsize];
-}
 
 template <int D, typename T>
 NDArrayStore<D,T>::NDArrayStore(std::initializer_list<size_t> a_args)
@@ -256,6 +236,71 @@ template <int D, typename T>
 T& NDArrayStore<D,T>::operator[](size_t pixel) 
 {
 	return _m_data[pixel];
+}
+
+template <int D, typename T>
+int NDArrayStore<D,T>::opself(const NDArray* right, 
+		double(*func)(double,double), bool elevR)
+{
+	bool canElev = false;
+	bool comp = comparable(this, right, NULL, &canElev);
+	if(comp) {
+		auto lit = begin();
+		auto rit = right->cbegin();
+		for(; !lit.isEnd() && !rit.isEnd(); ++lit, ++rit) {
+			double result = func(lit.dbl(), rit.dbl());
+			lit.dbl(result);
+		}
+	} else if(canElev && elevR) {
+		// match dimensions, to make this work, we need to iterate through the 
+		// common dimensions fastest, the unique dimensions slowest, the way
+		// iterators work, if you specify an order, you specify the fastest
+		std::list<size_t> commondim;
+		for(size_t ii=0; ii < ndim() && ii < right->ndim(); ii++) {
+			if(right->dim(ii) != 1)
+				commondim.push_front(ii);
+		}
+
+		for(auto lit = begin(commondim); !lit.isEnd() ; ) {
+			// iterate together until right hits the end, then restart
+			auto rit = right->cbegin(commondim);
+			for( ; !lit.isEnd() && !rit.isEnd(); ++lit, ++rit) {
+				double result = func(lit.dbl(), rit.dbl());
+				lit.dbl(result);
+			}
+		}
+	} else {
+		std::cerr << "Input Images are not conformable, failing" << endl;
+		return -1;
+	}
+
+	return 0;
+}
+
+template <int D, typename T>
+std::shared_ptr<NDArray> NDArrayStore<D,T>::opnew(const NDArray* right, 
+		double(*func)(double,double), bool elevR)
+{
+	auto out = clone();
+	if(out->opself(right, func, elevR) != 0)
+		return NULL;
+	return out;
+}
+
+template <int D, typename T>
+std::shared_ptr<NDArray> NDArrayStore<D,T>::clone() const
+{
+	std::vector<size_t> newdims(_m_dim, _m_dim+D);
+	auto out = std::make_shared<NDArrayStore<D,T>>(newdims);
+
+	size_t total = 1;
+	for(size_t ii=0; ii<D; ii++)
+		total *= _m_dim[ii];
+
+	std::copy(_m_data, _m_data+total, out->_m_data);
+	std::copy(_m_dim, _m_dim+D, out->_m_dim);
+
+	return out;
 }
 
 } //npl

@@ -13,10 +13,10 @@ int main(int argc, char** argv)
 	}
 
 	/* Create an image with: x+y*100+z*10000*/
-	size_t sz[4] = {10, 23, 39, 8};
-	MRImage* testimg = createMRImage(4, sz, FLOAT64);
+	std::vector<size_t> sz({10, 23, 39, 8});
+	MRImage* testimg = createMRImage(sz, FLOAT64);
 
-	size_t ii = 0;
+	int64_t ii = 0;
 	for(auto iter = testimg->begin(); !iter.isEnd(); ++iter) {
 		iter.int64(ii++);
 	}

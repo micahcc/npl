@@ -7,8 +7,7 @@ using namespace npl;
 
 int main()
 {
-	size_t dim1[] = {100,1000,1000};
-	NDArrayStore<3, float> test1(dim1);
+	NDArrayStore<3, float> test1({100,1000,1000});
 	cerr << "Bytes: " << test1.bytes() << endl;
 
 	for(size_t ii = 0; ii < test1.bytes()/sizeof(float); ii++)
