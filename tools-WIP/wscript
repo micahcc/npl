@@ -1,0 +1,6 @@
+
+def build(bld):
+    bld.program(target = 'indexMapToOffsetMap', 
+            source = 'indexMapToOffsetMap.cpp', use = 'mrimage')
+
+

@@ -27,7 +27,7 @@ def configure(conf):
 
     conf.env.RPATH = []
     if opts['enable_rpath'] or opts['enable_build_rpath']:
-        conf.env.RPATH.append('$ORIGIN/../src')
+        conf.env.RPATH.append('$ORIGIN/../lib')
     
     if opts['enable_rpath'] or opts['enable_install_rpath']:
         conf.env.RPATH.append('$ORIGIN/../lib')
@@ -107,8 +107,8 @@ def gitversion():
     return mastertxt
 
 def build(bld):
-    with open("src/version.h", "w") as f:
+    with open("lib/version.h", "w") as f:
         f.write('#define __version__ "%s"\n\n' % gitversion())
         f.close()
 
-    bld.recurse('deps src testing')
+    bld.recurse('deps lib testing tools-WIP deps')

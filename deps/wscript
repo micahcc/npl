@@ -2,11 +2,11 @@
 def build(bld):
     bld(name = 'tclap', export_includes = ['tclap/include'])
     
-    if bld.env.STATIC_LINK:
-        bld.stlib(target='alglib', features='cxx', 
-                source = bld.path.ant_glob('alglib/src/*.cpp'),
-                export_includes = 'alglib/src')
-    else:
-        bld.shlib(target='alglib', features='cxx', 
-                source = bld.path.ant_glob('alglib/src/*.cpp'),
-                export_includes = 'alglib/src')
+#    if bld.env.STATIC_LINK:
+#        bld.stlib(target='alglib', features='cxx', 
+#                source = bld.path.ant_glob('alglib/src/*.cpp'),
+#                export_includes = 'alglib/src')
+#    else:
+#        bld.shlib(target='alglib', features='cxx', 
+#                source = bld.path.ant_glob('alglib/src/*.cpp'),
+#                export_includes = 'alglib/src')
