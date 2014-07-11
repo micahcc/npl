@@ -632,51 +632,51 @@ int MRImageStore<D,T>::writePixels(gzFile file) const
 		case INT64:
 		case UINT64:
 			for(auto it = cbegin(order); !it.isEnd(); ++it) {
-				tmp = (T)it.int64();
+				tmp = (T)it.get_int();
 				gzwrite(file, &tmp, sizeof(T));
 			}
 			break;
 		case FLOAT32:
 		case FLOAT64:
 			for(auto it = cbegin(order); !it.isEnd(); ++it) {
-				tmp = (T)it.dbl();
+				tmp = (T)it.get_dbl();
 				gzwrite(file, &tmp, sizeof(T));
 			}
 			break;
 		case FLOAT128:
 			for(auto it = cbegin(order); !it.isEnd(); ++it) {
-				tmp = (T)it.quad();
+				tmp = (T)it.get_quad();
 				gzwrite(file, &tmp, sizeof(T));
 			}
 			break;
 		case COMPLEX64:
 			for(auto it = cbegin(order); !it.isEnd(); ++it) {
-				float re = it.cfloat().real();
-				float im = it.cfloat().imag();
+				float re = it.get_cfloat().real();
+				float im = it.get_cfloat().imag();
 				gzwrite(file, &re, sizeof(float));
 				gzwrite(file, &im, sizeof(float));
 			}
 		case COMPLEX128:
 			for(auto it = cbegin(order); !it.isEnd(); ++it) {
-				double re = it.cdbl().real();
-				double im = it.cdbl().imag();
+				double re = it.get_cdbl().real();
+				double im = it.get_cdbl().imag();
 				gzwrite(file, &re, sizeof(double));
 				gzwrite(file, &im, sizeof(double));
 			}
 			break;
 		case COMPLEX256:
 			for(auto it = cbegin(order); !it.isEnd(); ++it) {
-				long double re = it.cquad().real();
-				long double im = it.cquad().imag();
+				long double re = it.get_cquad().real();
+				long double im = it.get_cquad().imag();
 				gzwrite(file, &re, sizeof(long double));
 				gzwrite(file, &im, sizeof(long double));
 			}
 			break;
 		case RGB24:
 			for(auto it = cbegin(order); !it.isEnd(); ++it) {
-				char r = it.rgba().red;
-				char g = it.rgba().green;
-				char b = it.rgba().blue;
+				char r = it.get_rgba().red;
+				char g = it.get_rgba().green;
+				char b = it.get_rgba().blue;
 				gzwrite(file, &r, sizeof(char));
 				gzwrite(file, &g, sizeof(char));
 				gzwrite(file, &b, sizeof(char));
@@ -684,10 +684,10 @@ int MRImageStore<D,T>::writePixels(gzFile file) const
 			break;
 		case RGBA32:
 			for(auto it = cbegin(order); !it.isEnd(); ++it) {
-				char r = it.rgba().red;
-				char g = it.rgba().green;
-				char b = it.rgba().blue;
-				char a = it.rgba().alpha;
+				char r = it.get_rgba().red;
+				char g = it.get_rgba().green;
+				char b = it.get_rgba().blue;
+				char a = it.get_rgba().alpha;
 				gzwrite(file, &r, sizeof(char));
 				gzwrite(file, &g, sizeof(char));
 				gzwrite(file, &b, sizeof(char));

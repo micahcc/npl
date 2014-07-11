@@ -159,7 +159,7 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 	Slicer slicer(dim, order);
 
 	T tmp(0);
-	MRImage* out;
+	MRImage* out = NULL;
 
 	// someday this all might be simplify by using MRImage* and the 
 	// dbl or int64 functions, as long as we trust that the type is
@@ -385,13 +385,13 @@ MRImage* readNiftiImage(gzFile file, bool verbose)
 	std::vector<double> offset;
 	std::vector<double> quatern(3,0);
 	double qfac;
-	double slice_duration;
-	size_t slice_code;
-	size_t slice_start;
-	size_t slice_end;
-	size_t freqdim;
-	size_t phasedim;
-	size_t slicedim;
+	double slice_duration = 0;
+	int slice_code = 0;
+	int slice_start = 0;
+	int slice_end = 0;
+	int freqdim = 0;
+	int phasedim = 0;
+	int slicedim = 0;
 
 	int ret = 0;
 	nifti1_header header1;

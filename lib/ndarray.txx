@@ -4,58 +4,47 @@
 
 namespace npl {
 
-//rmacros to actually create the get/set functions, note that get and set are 
-// the same name, just different arguments
-#define GETSETIMP(TYPE, FNAME) \
+//macros to actually create the get/set functions
+#define GETSETIMP(TYPE, GETFUNC, SETFUNC) \
 	template <int D, typename T>												\
-	TYPE NDArrayStore<D,T>::FNAME(std::initializer_list<size_t> index) const 	\
+	TYPE NDArrayStore<D,T>::GETFUNC(std::initializer_list<size_t> index) const 	\
 	{																			\
 		return (TYPE)_m_data[getAddr(index)];									\
 	}																			\
 	template <int D, typename T>												\
-	TYPE NDArrayStore<D,T>::FNAME(const std::vector<size_t>& index) const 		\
+	TYPE NDArrayStore<D,T>::GETFUNC(size_t len, const size_t* index) const 	\
 	{																			\
 		return (TYPE)_m_data[getAddr(index)];									\
 	}																			\
 	template <int D, typename T>												\
-	TYPE NDArrayStore<D,T>::FNAME(const size_t* index) const 					\
-	{																			\
-		return (TYPE)_m_data[getAddr(index)];									\
-	}																			\
-	template <int D, typename T>												\
-	TYPE NDArrayStore<D,T>::FNAME(size_t addr)	const							\
+	TYPE NDArrayStore<D,T>::GETFUNC(size_t addr)	const						\
 	{																			\
 		return (TYPE)_m_data[addr];												\
 	}																			\
 	template <int D, typename T>												\
-	void NDArrayStore<D,T>::FNAME(std::initializer_list<size_t> index, TYPE val)\
+	void NDArrayStore<D,T>::SETFUNC(std::initializer_list<size_t> index, TYPE val)\
 	{																			\
 		_m_data[getAddr(index)] = (T)val;										\
 	}																			\
 	template <int D, typename T>												\
-	void NDArrayStore<D,T>::FNAME(const std::vector<size_t>& index, TYPE val)	\
+	void NDArrayStore<D,T>::SETFUNC(size_t len, const size_t* index, TYPE val)	\
 	{																			\
 		_m_data[getAddr(index)] = (T)val;										\
 	}																			\
 	template <int D, typename T>												\
-	void NDArrayStore<D,T>::FNAME(const size_t* index, TYPE val)				\
-	{																			\
-		_m_data[getAddr(index)] = (T)val;										\
-	}																			\
-	template <int D, typename T>												\
-	void NDArrayStore<D,T>::FNAME(size_t addr, TYPE val)						\
+	void NDArrayStore<D,T>::SETFUNC(size_t addr, TYPE val)						\
 	{																			\
 		_m_data[addr] = (T)val;													\
 	}																			\
 
 
-GETSETIMP(double, dbl);
-GETSETIMP(int64_t, int64);
-GETSETIMP(cdouble_t, cdbl);
-GETSETIMP(cfloat_t, cfloat);
-GETSETIMP(rgba_t, rgba);
-GETSETIMP(long double, quad);
-GETSETIMP(cquad_t, cquad);
+GETSETIMP(double, get_dbl, set_dbl);
+GETSETIMP(int64_t, get_int, set_int);
+GETSETIMP(cdouble_t, get_cdbl, set_cdbl);
+GETSETIMP(cfloat_t, get_cfloat, set_cfloat);
+GETSETIMP(rgba_t, get_rgba, set_rgba);
+GETSETIMP(long double, get_quad, set_quad);
+GETSETIMP(cquad_t, get_cquad, set_cquad);
 
 template <int D, typename T>
 NDArrayStore<D,T>::NDArrayStore(std::initializer_list<size_t> a_args)
@@ -257,8 +246,8 @@ int NDArrayStore<D,T>::opself(const NDArray* right,
 		auto lit = begin();
 		auto rit = right->cbegin();
 		for(; !lit.isEnd() && !rit.isEnd(); ++lit, ++rit) {
-			double result = func(lit.dbl(), rit.dbl());
-			lit.dbl(result);
+			double result = func(lit.get_dbl(), rit.get_dbl());
+			lit.set_dbl(result);
 		}
 	} else if(canElev && elevR) {
 		// match dimensions, to make this work, we need to iterate through the 
@@ -274,8 +263,8 @@ int NDArrayStore<D,T>::opself(const NDArray* right,
 			// iterate together until right hits the end, then restart
 			auto rit = right->cbegin(commondim);
 			for( ; !lit.isEnd() && !rit.isEnd(); ++lit, ++rit) {
-				double result = func(lit.dbl(), rit.dbl());
-				lit.dbl(result);
+				double result = func(lit.get_dbl(), rit.get_dbl());
+				lit.set_dbl(result);
 			}
 		}
 	} else {

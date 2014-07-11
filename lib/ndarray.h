@@ -16,81 +16,75 @@
 // virtual get and set function macro, ie
 // VIRTGETSET(double, dbl); 
 // generates:
-// double dbl(std::initializer_list<size_t> index) const;
-// void dbl(std::initializer_list<size_t> index, double newval) const;
-// double dbl(const std::vector<size_t>& index) const;
-// void dbl(const std::vector<size_t>& index, double newval) const;
-// double dbl(const size_t* index) const;
-// void dbl(const size_t* index, double newval) const;
-#define VIRTGETSET(TYPE, FNAME) \
-	virtual TYPE FNAME(std::initializer_list<size_t> index) const = 0; \
-	virtual TYPE FNAME(const std::vector<size_t>& index) const = 0; \
-	virtual TYPE FNAME(const size_t* index) const = 0; \
-	virtual TYPE FNAME(size_t index) const = 0; \
-	virtual void FNAME(std::initializer_list<size_t> index, TYPE) = 0; \
-	virtual void FNAME(const std::vector<size_t>& index, TYPE) = 0; \
-	virtual void FNAME(const size_t* index, TYPE) = 0; \
-	virtual void FNAME(size_t index, TYPE) = 0; \
+// double getdbl(std::initializer_list<size_t> index) const;
+// void setdbl(std::initializer_list<size_t> index, double newval) const;
+// double getdbl(const std::vector<size_t>& index) const;
+// void setdbl(const std::vector<size_t>& index, double newval) const;
+#define VIRTGETSET(TYPE, GETFUNC, SETFUNC) \
+	virtual TYPE GETFUNC(std::initializer_list<size_t> index) const = 0; \
+	virtual TYPE GETFUNC(size_t d, const size_t* index) const = 0; \
+	virtual TYPE GETFUNC(size_t index) const = 0; \
+	virtual void SETFUNC(std::initializer_list<size_t> index, TYPE) = 0; \
+	virtual void SETFUNC(size_t d, const size_t* index, TYPE) = 0; \
+	virtual void SETFUNC(size_t index, TYPE) = 0; \
 
-#define GETSET(TYPE, FNAME) \
-	TYPE FNAME(std::initializer_list<size_t> index) const; \
-	TYPE FNAME(const std::vector<size_t>& index) const; \
-	TYPE FNAME(const size_t* index) const; \
-	TYPE FNAME(size_t index) const; \
-	void FNAME(std::initializer_list<size_t> index, TYPE); \
-	void FNAME(const std::vector<size_t>& index, TYPE); \
-	void FNAME(const size_t* index, TYPE); \
-	void FNAME(size_t index, TYPE); \
+#define GETSET(TYPE, GETFUNC, SETFUNC) \
+	TYPE GETFUNC(std::initializer_list<size_t> index) const; \
+	TYPE GETFUNC(size_t d, const size_t* index) const; \
+	TYPE GETFUNC(size_t index) const; \
+	void SETFUNC(std::initializer_list<size_t> index, TYPE); \
+	void SETFUNC(size_t d, const size_t* index, TYPE); \
+	void SETFUNC(size_t index, TYPE); \
 
 // Iterator Functions
-#define CITERFUNCS(TYPE, FUNCNAME)\
-	TYPE FUNCNAME() const \
+#define CITERFUNCS(TYPE, GETFUNC)\
+	TYPE GETFUNC() const \
 	{\
 		assert(m_parent);\
-		return m_parent->FUNCNAME(Slicer::get());\
+		return m_parent->GETFUNC(Slicer::get());\
 	};\
-	TYPE FUNCNAME(int64_t* dindex, bool* outside) \
+	TYPE GETFUNC(size_t d, int64_t* dindex, bool* outside) \
 	{\
 		assert(m_parent);\
-		return m_parent->FUNCNAME(Slicer::offset(dindex, outside));\
+		return m_parent->GETFUNC(Slicer::offset(d, dindex, outside));\
 	};\
-	TYPE FUNCNAME(std::initializer_list<int64_t> dindex, bool* outside) \
+	TYPE GETFUNC(std::initializer_list<int64_t> dindex, bool* outside) \
 	{\
 		assert(m_parent);\
-		return m_parent->FUNCNAME(Slicer::offset(dindex, outside));\
+		return m_parent->GETFUNC(Slicer::offset(dindex, outside));\
 	};\
 
-#define ITERFUNCS(TYPE, FUNCNAME)\
-	TYPE FUNCNAME() const \
+#define ITERFUNCS(TYPE, GETFUNC, SETFUNC)\
+	TYPE GETFUNC() const \
 	{\
 		assert(m_parent);\
-		return m_parent->FUNCNAME(Slicer::get());\
+		return m_parent->GETFUNC(Slicer::get());\
 	};\
-	void FUNCNAME(TYPE v) const \
+	void SETFUNC(TYPE v) const \
 	{\
 		assert(m_parent);\
-		m_parent->FUNCNAME(Slicer::get(), v);\
+		m_parent->SETFUNC(Slicer::get(), v);\
 	};\
-	TYPE FUNCNAME(int64_t* dindex, bool* outside) \
+	TYPE GETFUNC(size_t d, int64_t* dindex, bool* outside) \
 	{\
 		assert(m_parent);\
-		return m_parent->FUNCNAME(Slicer::offset(dindex, outside));\
+		return m_parent->GETFUNC(Slicer::offset(d, dindex, outside));\
 	};\
-	TYPE FUNCNAME(std::initializer_list<int64_t> dindex, bool* outside) \
+	TYPE GETFUNC(std::initializer_list<int64_t> dindex, bool* outside) \
 	{\
 		assert(m_parent);\
-		return m_parent->FUNCNAME(Slicer::offset(dindex, outside));\
+		return m_parent->GETFUNC(Slicer::offset(dindex, outside));\
 	};\
-	void FUNCNAME(int64_t* dindex, TYPE v, bool* outside) \
+	void SETFUNC(size_t d, int64_t* dindex, TYPE v, bool* outside) \
 	{\
 		assert(m_parent);\
-		m_parent->FUNCNAME(Slicer::offset(dindex, outside), v);\
+		m_parent->SETFUNC(Slicer::offset(d, dindex, outside), v);\
 	};\
-	void FUNCNAME(std::initializer_list<int64_t> dindex, TYPE v, \
+	void SETFUNC(std::initializer_list<int64_t> dindex, TYPE v, \
 			bool* outside) \
 	{\
 		assert(m_parent);\
-		m_parent->FUNCNAME(Slicer::offset(dindex, outside), v);\
+		m_parent->SETFUNC(Slicer::offset(dindex, outside), v);\
 	};
 
 
@@ -128,20 +122,19 @@ public:
 	virtual size_t getAddr(std::initializer_list<size_t> index) const = 0;
 	virtual size_t getAddr(const std::vector<size_t>& index) const = 0;
 
-	VIRTGETSET(double, dbl);
-	VIRTGETSET(int64_t, int64);
-	VIRTGETSET(cdouble_t, cdbl);
-	VIRTGETSET(cfloat_t, cfloat);
-	VIRTGETSET(rgba_t, rgba);
-	VIRTGETSET(long double, quad);
-	VIRTGETSET(cquad_t, cquad);
+	VIRTGETSET(double, get_dbl, set_dbl);
+	VIRTGETSET(int64_t, get_int, set_int);
+	VIRTGETSET(cdouble_t, get_cdbl, set_cdbl);
+	VIRTGETSET(cfloat_t, get_cfloat, set_cfloat);
+	VIRTGETSET(rgba_t, get_rgba, set_rgba);
+	VIRTGETSET(long double, get_quad, set_quad);
+	VIRTGETSET(cquad_t, get_cquad, set_cquad);
 
 	virtual size_t ndim() const = 0;
 	virtual size_t bytes() const = 0;
 	virtual size_t elements() const = 0;
 	virtual size_t dim(size_t dir) const = 0;
 	virtual const size_t* dim() const = 0;
-
 
 	virtual std::shared_ptr<NDArray> clone() const = 0;
 	virtual int opself(const NDArray* right, double(*func)(double,double), 
@@ -175,13 +168,13 @@ public:
 			setOrder(order);
 		};
 
-		ITERFUNCS(double, dbl);
-		ITERFUNCS(int64_t, int64);
-		ITERFUNCS(cdouble_t, cdbl);
-		ITERFUNCS(cfloat_t, cfloat);
-		ITERFUNCS(rgba_t, rgba);
-		ITERFUNCS(long double, quad);
-		ITERFUNCS(cquad_t, cquad);
+		ITERFUNCS(double, get_dbl, set_dbl);
+		ITERFUNCS(int64_t, get_int, set_int);
+		ITERFUNCS(cdouble_t, get_cdbl, set_cdbl);
+		ITERFUNCS(cfloat_t, get_cfloat, set_cfloat);
+		ITERFUNCS(rgba_t, get_rgba, set_rgba);
+		ITERFUNCS(long double, get_quad, set_quad);
+		ITERFUNCS(cquad_t, get_cquad, set_cquad);
 
 	protected:
 		iterator() {} ;
@@ -211,13 +204,13 @@ public:
 			setOrder(order);
 		};
 		
-		CITERFUNCS(double, dbl);
-		CITERFUNCS(int64_t, int64);
-		CITERFUNCS(cdouble_t, cdbl);
-		CITERFUNCS(cfloat_t, cfloat);
-		CITERFUNCS(rgba_t, rgba);
-		CITERFUNCS(long double, quad);
-		CITERFUNCS(cquad_t, cquad);
+		CITERFUNCS(double, get_dbl);
+		CITERFUNCS(int64_t, get_int);
+		CITERFUNCS(cdouble_t, get_cdbl);
+		CITERFUNCS(cfloat_t, get_cfloat);
+		CITERFUNCS(rgba_t, get_rgba);
+		CITERFUNCS(long double, get_quad);
+		CITERFUNCS(cquad_t, get_cquad);
 	
 	protected:
 		const_iterator() {} ;
@@ -226,8 +219,6 @@ public:
 
 };
 
-#undef ITERFUNCS
-#undef CITERFUNCS
 
 /**
  * @brief Basic storage unity for ND array. Creates a big chunk of memory.
@@ -247,13 +238,13 @@ public:
 	/* 
 	 * get / set functions
 	 */
-	GETSET(double, dbl);
-	GETSET(int64_t, int64);
-	GETSET(cdouble_t, cdbl);
-	GETSET(cfloat_t, cfloat);
-	GETSET(rgba_t, rgba);
-	GETSET(long double, quad);
-	GETSET(cquad_t, cquad);
+	GETSET(double, get_dbl, set_dbl);
+	GETSET(int64_t, get_int, set_int);
+	GETSET(cdouble_t, get_cdbl, set_cdbl);
+	GETSET(cfloat_t, get_cfloat, set_cfloat);
+	GETSET(rgba_t, get_rgba, set_rgba);
+	GETSET(long double, get_quad, set_quad);
+	GETSET(cquad_t, get_cquad, set_cquad);
 
 	// Get Address
 	virtual size_t getAddr(std::initializer_list<size_t> index) const;
@@ -375,6 +366,8 @@ bool comparable(const NDArray* left, const NDArray* right,
 
 #undef VIRTGETSET
 #undef GETSET
+#undef CITERFUNCS
+#undef ITERFUNCS
 
 } //npl
 

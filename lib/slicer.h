@@ -78,23 +78,13 @@ public:
 	 *
 	 * @return new linear index
 	 */
-	size_t step(size_t dim, int64_t dist = 1);
+	size_t step(size_t dim, int64_t dist = 1, bool* outside = NULL);
 	
 	/******************************************
 	 *
 	 * Offset, useful to kernel processing
 	 *
 	 ******************************************/
-
-	/**
-	 * @brief Get linear index at an offset location from the current, useful
-	 * for kernels.
-	 *
-	 * @param dindex	Vector (offset) from the current location 
-	 *
-	 * @return 		linear index
-	 */
-	size_t offset(int64_t* dindex, bool* outside = NULL) const;
 	
 	/**
 	 * @brief Get linear index at an offset location from the current, useful
@@ -104,7 +94,7 @@ public:
 	 *
 	 * @return 		linear index
 	 */
-	size_t offset(const vector<int64_t>& dindex, bool* outside = NULL) const;
+	size_t offset(size_t len, const int64_t* dindex, bool* outside = NULL) const;
 	
 	/**
 	 * @brief Get linear index at an offset location from the current, useful
@@ -212,21 +202,14 @@ public:
 	 *
 	 * @param newpos	location to move to
 	 */
-	void gotoIndex(const std::vector<size_t>& newpos);
-
-	/**
-	 * @brief Jump to the given position
-	 *
-	 * @param newpos	location to move to
-	 */
-	void gotoIndex(size_t* newpos);
+	void gotoIndex(size_t len, size_t* newpos, bool* outside = NULL);
 	
 	/**
 	 * @brief Jump to the given position
 	 *
 	 * @param newpos	location to move to
 	 */
-	void gotoIndex(std::initializer_list<size_t> newpos);
+	void gotoIndex(std::initializer_list<size_t> newpos, bool* outside = NULL);
 
 	/****************************************
 	 *

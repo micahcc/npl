@@ -76,10 +76,18 @@ Slicer::Slicer(const std::vector<size_t>& dim, const std::vector<std::pair<size_
  *
  * @return new linear index
  */
-size_t Slicer::step(size_t dim, int64_t dist)
+size_t Slicer::step(size_t dim, int64_t dist, bool* outside)
 {
 	int64_t clamped = std::max<int64_t>(m_roi[dim].first, 
 			std::min<int64_t>(m_roi[dim].second, (int64_t)m_pos[dim]+dist));
+	
+	if(outside) {
+		if(clamped != (int64_t)m_pos[dim]+dist)
+			*outside = true;
+		else
+			*outside = false;
+	}
+
 	m_linpos += (clamped-m_pos[dim])*m_strides[dim];
 	m_pos[dim] = clamped;
 
@@ -90,52 +98,31 @@ size_t Slicer::step(size_t dim, int64_t dist)
  * @brief Get linear index at an offset location from the current, useful
  * for kernels.
  *
- * @param dindex	offset from the current location 
+ * @param len 		Length of input array
+ * @param dindex	Array offset from the current location 
+ * @param outside 	Set to true if the point is outside the region of interest
  *
  * @return 		linear index
  */
-size_t Slicer::offset(int64_t* off, bool* outside) const
+size_t Slicer::offset(size_t len, const int64_t* off, bool* outside) const
 {
 	size_t ret = m_linpos;
 	int64_t clamped;
-	for(size_t ii=0; ii<m_pos.size(); ii++) {
-		clamped = std::max<int64_t>(m_roi[ii].first, 
-				std::min<int64_t>(m_roi[ii].second, m_pos[ii]+off[ii]));
-		ret += (clamped-m_pos[ii])*m_strides[ii];
+	size_t ii = 0;
+	
+	if(outside)
+		*outside = false;
 
-		// indicate that the value was outside the roi
-		if(outside && clamped != off[ii]) 
-			*outside = true;
-		else if(outside)
-			*outside = true;
-	}
-	return ret;
-}
-
-/**
- * @brief Get linear index at an offset location from the current, useful
- * for kernels.
- *
- * @param dindex	Vector (offset) from the current location 
- *
- * @return 		linear index
- */
-size_t Slicer::offset(const std::vector<int64_t>& off, bool* outside) const
-{
-	assert(off.size() == m_pos.size());
-	size_t ret = m_linpos;
-	int64_t clamped;
-	for(size_t ii=0; ii<m_pos.size(); ii++) {
+	for(ii=0; ii<m_pos.size() && ii<len; ii++) {
 		clamped = std::max<int64_t>(m_roi[ii].first, 
 				std::min<int64_t>(m_roi[ii].second, m_pos[ii]+off[ii]));
 		ret += (clamped-m_pos[ii])*m_strides[ii];
 		
 		// indicate that the value was outside the roi
-		if(outside && clamped != off[ii]) 
-			*outside = true;
-		else if(outside)
+		if(outside && clamped != (int64_t)m_pos[ii] + off[ii])
 			*outside = true;
 	}
+
 	return ret;
 }
 
@@ -149,19 +136,20 @@ size_t Slicer::offset(const std::vector<int64_t>& off, bool* outside) const
  */
 size_t Slicer::offset(std::initializer_list<int64_t> off, bool* outside) const
 {
-	assert(off.size() == m_pos.size());
 	size_t ret = m_linpos;
 	int64_t clamped;
 	size_t ii = 0;
+			
+	if(outside)
+		*outside = false;
+
 	for(auto it = off.begin() ; it != off.end() && ii<m_pos.size(); it++,ii++) {
 		clamped = std::max<int64_t>(m_roi[ii].first, 
 				std::min<int64_t>(m_roi[ii].second, m_pos[ii]+*it));
 		ret += (clamped-m_pos[ii])*m_strides[ii];
 		
 		// indicate that the value was outside the roi
-		if(outside && clamped != *it) 
-			*outside = true;
-		else if(outside)
+		if(outside && clamped != (int64_t)m_pos[ii] + *it)
 			*outside = true;
 	}
 	return ret;
@@ -423,23 +411,33 @@ void Slicer::setOrder(const std::list<size_t>& order)
  *
  * @param newpos	location to move to
  */
-void Slicer::gotoIndex(const std::vector<size_t>& newpos)
+void Slicer::gotoIndex(size_t len, size_t* newpos, bool* outside)
 {
 	m_linpos = 0;
 	size_t ii=0;
+	size_t clamped = 0;
+
+	if(outside)
+		*outside = false;
 
 	// copy the dimensions 
-	for(;  ii<newpos.size() && ii<m_pos.size(); ii++) {
-		m_pos[ii] = std::max(std::min(newpos[ii], m_roi[ii].second), 
+	for(ii = 0;  ii<len && ii<m_pos.size(); ii++) {
+		// clamp to roi
+		clamped = std::max(std::min(newpos[ii], m_roi[ii].second), 
 				m_roi[ii].first);
+		// if clamping had an effect, then set outside
+		if(outside && clamped != newpos[ii])
+			*outside = true;
+
+		// set position
+		m_pos[ii] = clamped;
 		m_linpos += m_strides[ii]*m_pos[ii];
 	}
 
 	// set the unreferenced dimensions to 0
-	for(;  ii<m_pos.size(); ii++) {
+	for(;  ii<m_pos.size(); ii++) 
 		m_pos[ii] = 0;
-		m_linpos += m_strides[ii]*m_pos[ii];
-	}
+
 	m_end = false;
 };
 
@@ -448,42 +446,34 @@ void Slicer::gotoIndex(const std::vector<size_t>& newpos)
  *
  * @param newpos	location to move to
  */
-void Slicer::gotoIndex(std::initializer_list<size_t> newpos)
+void Slicer::gotoIndex(std::initializer_list<size_t> newpos, bool* outside)
 {
 	m_linpos = 0;
-	size_t ii=0;
+	size_t clamped;
+
+	if(outside)
+		*outside = false;
 
 	// copy the dimensions 
+	size_t ii=0;
 	for(auto it=newpos.begin(); it != newpos.end() && ii<m_pos.size(); ii++) {
-		m_pos[ii] = std::max(std::min(*it, m_roi[ii].second), 
+		// clamp value
+		clamped = std::max(std::min(*it, m_roi[ii].second), 
 				m_roi[ii].first);
+
+		// if clamping had an effect, set outside
+		if(outside && clamped != *it)
+			*outside = true;
+
+		// set position
+		m_pos[ii] = clamped;
 		m_linpos += m_strides[ii]*m_pos[ii];
 	}
 
 	// set the unreferenced dimensions to 0
-	for(;  ii<m_pos.size(); ii++) {
+	for(;  ii<m_pos.size(); ii++) 
 		m_pos[ii] = 0;
-		m_linpos += m_strides[ii]*m_pos[ii];
-	}
-	m_end = false;
-};
 
-/**
- * @brief Jump to the given position
- *
- * @param newpos	location to move to
- */
-void Slicer::gotoIndex(size_t* newpos)
-{
-	m_linpos = 0;
-	size_t ii=0;
-
-	// copy the dimensions 
-	for(;  ii<m_pos.size(); ii++) {
-		m_pos[ii] = std::max(std::min(newpos[ii], m_roi[ii].second), 
-				m_roi[ii].first);
-		m_linpos += m_strides[ii]*m_pos[ii];
-	}
 	m_end = false;
 };
 	
