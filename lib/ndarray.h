@@ -1,9 +1,9 @@
 /*******************************************************************************
-This file is part of Neural Program Library (NPL), 
+This file is part of Neuro Programs and Libraries (NPL), 
 
 Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
 
-The Neural Program Library is free software: you can redistribute it and/or
+The Neuro Programs and Libraries is free software: you can redistribute it and/or
 modify it under the terms of the GNU General Public License as published by the
 Free Software Foundation, either version 3 of the License, or (at your option)
 any later version.
