@@ -15,9 +15,10 @@ def build(bld):
     bld.program(features='test', target = 'coordinate_test2', 
             source = 'coordinate_test2.cpp', use = 'mrimage')
 
-    bld.program(target = 'nifti_rwrw_test', source = 'nifti_rwrw_test.cpp', use = 'mrimage')
+    bld.program(features='test', target = 'nifti_rwrw_test', source = 'nifti_rwrw_test.cpp', use = 'mrimage')
 
-    bld.program(target = 'kdtree_test', source = 'kdtree_test.cpp', use = 'kdtree')
+    bld.program(features='test', target = 'kdtree_test', source = 'kdtree_test.cpp', use = 'kdtree')
+    bld.program(features='test', target = 'kdtree_test_multi', source = 'kdtree_test_multi.cpp', use = 'kdtree')
     
     from waflib.Tools import waf_unit_test
     bld.add_post_fun(waf_unit_test.summary)

@@ -74,7 +74,7 @@ public:
 	void clear();
 
 	KDTreeNode<K,E,T,D>* nearest(const std::vector<T>& pt, double& dist);
-	std::list<KDTreeNode<K,E,T,D>*> withindist(const std::vector<T>& pt, double dist);
+	std::list<const KDTreeNode<K,E,T,D>*> withindist(const std::vector<T>& pt, double dist);
 	
 private:
 	
@@ -88,7 +88,7 @@ private:
 	KDTreeNode<K,E,T,D>* nearest_help(size_t depth, KDTreeNode<K,E,T,D>* pos,
 		const std::vector<T>& pt, double& distsq);
 
-	std::list<KDTreeNode<K,E,T,D>*> withindist_help(size_t depth, 
+	std::list<const KDTreeNode<K,E,T,D>*> withindist_help(size_t depth, 
 		KDTreeNode<K,E,T,D>* pos, const std::vector<T>& pt, double distsq);
 
 	KDTreeNode<K,E,T,D>* build_helper(

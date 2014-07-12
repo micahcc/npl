@@ -47,18 +47,6 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::build_helper(
 			return left.m_point[axis] < right.m_point[axis];
 		});
 
-#ifdef DEBUG
-	std::cerr << "-----------------\nPoints Ordered by dimension " 
-			<< axis << std::endl;
-	for(auto it = begin; it != end; it++) {
-		for(size_t ii=0; ii<K; ii++) {
-			std::cerr << it->m_point[ii] << ",";
-		}
-		std::cerr << std::endl;
-
-	}
-#endif //DEBUG
-
 	////////////////////////////////////////////////
 	// recurse on the left and right sides
 	////////////////////////////////////////////////
@@ -68,78 +56,20 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::build_helper(
 
 	if(length == 1) {
 		// no children to be had
-#ifdef DEBUG
-		std::cerr << "NC Leaf: " << std::endl;
-		for(size_t ii=0; ii<K; ii++) {
-			std::cerr << median_it->m_point[ii] << ",";
-		}
-		std::cerr << std::endl;
-#endif //DEBUG
 		median_it->left = NULL;
 		median_it->right = NULL;
 	} else if(length == 2) {
 		// the median is the lower of the 2
-#ifdef DEBUG
-		std::cerr << "1C Leaf: " << std::endl;
-		for(size_t ii=0; ii<K; ii++) {
-			std::cerr << median_it->m_point[ii] << ",";
-		}
-		std::cerr << std::endl;
-#endif //DEBUG
 		median_it->left = &(*(median_it-1));
 		median_it->right = NULL;
-#ifdef DEBUG
-		std::cerr << "\tLChild: " << std::endl << "\t";
-		for(size_t ii=0; ii<K; ii++) {
-			std::cerr << median_it->left->m_point[ii] << ",";
-		}
-		std::cerr << std::endl;
-#endif //DEBUG
 	} else if(length == 3) {
 		// the median is the middle of the 2
-#ifdef DEBUG
-		std::cerr << "2C Leaf: " << std::endl;
-		for(size_t ii=0; ii<K; ii++) {
-			std::cerr << median_it->m_point[ii] << ",";
-		}
-		std::cerr << std::endl;
-#endif //DEBUG
 		median_it->left = &(*(median_it-1));;
 		median_it->right = &(*(median_it+1));
-#ifdef DEBUG
-		std::cerr << "\tLChild: " << std::endl << "\t";
-		for(size_t ii=0; ii<K; ii++) {
-			std::cerr << median_it->left->m_point[ii] << ",";
-		}
-		std::cerr << std::endl;
-		std::cerr << "\tRChild: " << std::endl << "\t";
-		for(size_t ii=0; ii<K; ii++) {
-			std::cerr << median_it->right->m_point[ii] << ",";
-		}
-		std::cerr << std::endl;
-#endif //DEBUG
 	} else {
 		// too big, need to recurse
 		median_it->left = build_helper(begin, median_it, depth+1);
 		median_it->right = build_helper(median_it+1, end, depth+1);
-		
-#ifdef DEBUG
-		std::cerr << "2C Intr: " << std::endl;
-		for(size_t ii=0; ii<K; ii++) {
-			std::cerr << median_it->m_point[ii] << ",";
-		}
-		std::cerr << std::endl;
-		std::cerr << "\tLChild: " << std::endl << "\t";
-		for(size_t ii=0; ii<K; ii++) {
-			std::cerr << median_it->left->m_point[ii] << ",";
-		}
-		std::cerr << std::endl;
-		std::cerr << "\tRChild: " << std::endl << "\t";
-		for(size_t ii=0; ii<K; ii++) {
-			std::cerr << median_it->right->m_point[ii] << ",";
-		}
-		std::cerr << std::endl;
-#endif //DEBUG
 	}
 
 	return &(*median_it);
@@ -194,18 +124,8 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 		curdist += (pos->m_point[ii]-pt[ii])*(pos->m_point[ii]-pt[ii]);
 	}
 		
-#ifdef DEBUG
-	std::cerr << "[" << pos << "] " << curdist << ", (";
-	for(size_t ii=0; ii<K; ii++)
-		std::cerr << pos->m_point[ii] << ",";
-	std::cerr << ")" << std::endl;
-#endif //DEBUG
-
 	// update current best
 	if(curdist < distsq) {
-#ifdef DEBUG
-		std::cerr << "New Best!" << std::endl;
-#endif //DEBUG
 		distsq = curdist;
 		out = pos;
 	}
@@ -213,11 +133,6 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 	if(pos->left && pt[axis] < pos->m_point[axis]) {
 		// if it falls below the current coordinate, and there are nodes to 
 		// be inspected, recurse
-#ifdef DEBUG
-		std::cerr << "[" << pos << "] pt[" << axis << "]=" << pt[axis] << " < " 
-			<< "cur[" << axis << "]=" << pos->m_point[axis] 
-			<< "\nGoing Left\n";
-#endif //DEBUG
 		auto tmp = nearest_help(depth+1, pos->left, pt, distsq);
 
 		// if the search found something, then update the output
@@ -227,10 +142,6 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 	} else if(pos->right && pt[axis] > pos->m_point[axis]) {
 		// if it falls above the current coordinate, and there are nodes to 
 		// be inspected, recurse
-#ifdef DEBUG
-		std::cerr << "[" << pos << "] pt[" << axis << "]=" << pt[axis] << " > " 
-			<< "cur[" << axis << "]=" << pos->m_point[axis] << "\nGoing Right\n";
-#endif //DEBUG
 		auto tmp = nearest_help(depth+1, pos->right, pt, distsq);
 		
 		// if the search found something, then update the output
@@ -248,11 +159,6 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 	double hypdistsq = pow(pt[axis]-pos->m_point[axis],2);
 	
 	if(distsq > hypdistsq) {
-#ifdef DEBUG
-		std::cerr << "[" << pos << "] " << "dsqr (" << distsq << ")" 
-			<< " > hyperplane dist (" << pow(pt[axis] - pos->m_point[axis], 2)
-			<< ")" << std::endl;
-#endif //DEBUG
 
 		/////////////////////////////////////
 		// go to the opposite side as before
@@ -260,9 +166,6 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 		if(pos->right && pt[axis] < pos->m_point[axis]) {
 			// if it falls below the current coordinate, and there are nodes to 
 			// be inspected, recurse
-#ifdef DEBUG
-			std::cerr << "[" << pos << "] Previous left, now right" << std::endl;
-#endif //DEBUG
 			
 			auto tmp = nearest_help(depth+1, pos->right, pt, distsq);
 			if(tmp)
@@ -271,9 +174,6 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 		} else if(pos->left && pt[axis] > pos->m_point[axis]) {
 			// if it falls above the current coordinate, and there are nodes to 
 			// be inspected, recurse
-#ifdef DEBUG
-			std::cerr << "[" << pos << "] Previous right, now left" << std::endl;
-#endif //DEBUG
 			auto tmp = nearest_help(depth+1, pos->left, pt, distsq);
 			
 			if(tmp)
@@ -323,11 +223,11 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest(const std::vector<T>& pt, double& 
 
 
 template <size_t K, size_t E, typename T, typename D>
-std::list<KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist_help(size_t depth, 
+std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist_help(size_t depth, 
 		KDTreeNode<K,E,T,D>* pos, const std::vector<T>& pt, double distsq)
 {
 	size_t axis = depth%K;
-	std::list<KDTreeNode<K,E,T,D>*> out;
+	std::list<const KDTreeNode<K,E,T,D>*> out;
 	
 	// compute our distance to the point
 	double curdist = 0;
@@ -344,26 +244,12 @@ std::list<KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist_help(size_t depth,
 	// a point could be on the other side and still be under sqrt(distsq)
 	// away 
 	if(pos->left && (pt[axis] < pos->m_point[axis] || hypdistsq < distsq)) {
-#ifdef DEBUG
-		std::cerr << "[" << pos << "] " << "pt[" << axis << "]=" << pt[axis] << " > " 
-			<< "cur[" << axis << "]" << pos->m_point[axis] << "(";
-		for(size_t ii=0; ii<K; ii++)
-			std::cerr << pos->m_point[ii] << ",";
-		std::cerr << ") Going Left" << std::endl;
-#endif //DEBUG
-		auto tmplist = withindist_help(depth+1, pos->left, pt, distsq, out);
+		auto tmplist = withindist_help(depth+1, pos->left, pt, distsq);
 		out.insert(out.begin(), tmplist.begin(), tmplist.end());
 	}
 
 	if(pos->right && (pt[axis] > pos->m_point[axis] || hypdistsq < distsq)) {
-#ifdef DEBUG
-		std::cerr << "[" << pos << "] " << "pt[" << axis << "]=" << pt[axis] << " < " 
-			<< "cur[" << axis << "]" << pos->m_point[axis] << "(";
-		for(size_t ii=0; ii<K; ii++)
-			std::cerr << pos->m_point[ii] << ",";
-		std::cerr << ") Going Left" << std::endl;
-#endif //DEBUG
-		auto tmplist = withindist_help(depth+1, pos->right, pt, distsq, out);
+		auto tmplist = withindist_help(depth+1, pos->right, pt, distsq);
 		out.insert(out.begin(), tmplist.begin(), tmplist.end());
 	}
 
@@ -383,7 +269,7 @@ std::list<KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist_help(size_t depth,
  * @return 		List of KDTreeNodes which match the criterea
  */
 template <size_t K, size_t E, typename T, typename D>
-std::list<KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist(const std::vector<T>& pt, double dist)
+std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist(const std::vector<T>& pt, double dist)
 {
 	return withindist_help(0, m_treehead, pt, dist*dist);
 }
