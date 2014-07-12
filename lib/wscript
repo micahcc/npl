@@ -1,7 +1,12 @@
 
 def build(bld):
-    bld(name = 'libincs', export_includes = ['.'])
-    bld.shlib(target = 'ndarray', source = 'ndarray.cpp', use='npltypes slicer libincs')
-    bld.shlib(target = 'slicer', source = 'slicer.cpp', use='libincs')
-    bld.shlib(target = 'mrimage', source = 'mrimage.cpp', use='ZLIB ndarray libincs' )
-    bld.shlib(target = 'npltypes', source = 'npltypes.cpp', use='libincs')
+    bld(name = 'kdtree', export_includes = ['.'])
+    
+    bld.shlib(target = 'ndarray', source = 'ndarray.cpp', 
+            use='npltypes slicer', export_includes = ['.'])
+    bld.shlib(target = 'slicer', source = 'slicer.cpp', 
+            export_includes = ['.'])
+    bld.shlib(target = 'mrimage', source = 'mrimage.cpp', 
+            use='ZLIB ndarray', export_includes = ['.'])
+    bld.shlib(target = 'npltypes', source = 'npltypes.cpp', 
+            export_includes = ['.'])

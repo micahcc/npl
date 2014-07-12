@@ -44,7 +44,7 @@ int main()
 	size_t DIM = img->ndim();
 
 	std::cerr << "Corners: " << endl;
-    for(uint32_t i = 0 ; i < (1<<DIM) ; i++) {
+    for(int32_t i = 0 ; i < (1<<DIM) ; i++) {
         for(uint32_t j = 0 ; j < DIM ; j++) {
             index[j] = ((bool)(i&(1<<j)))*(img->dim(j)-1);
         }

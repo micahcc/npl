@@ -17,6 +17,8 @@ def build(bld):
 
     bld.program(target = 'nifti_rwrw_test', source = 'nifti_rwrw_test.cpp', use = 'mrimage')
 
+    bld.program(target = 'kdtree_test', source = 'kdtree_test.cpp', use = 'kdtree')
+    
     from waflib.Tools import waf_unit_test
     bld.add_post_fun(waf_unit_test.summary)
 #    bld.program(target = 'test3', source = 'test3.cpp', use = 'mrimage')
