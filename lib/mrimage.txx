@@ -650,33 +650,33 @@ int MRImageStore<D,T>::writePixels(gzFile file) const
 		case UINT32:
 		case INT64:
 		case UINT64:
-			for(auto it = cbegin(order); !it.isEnd(); ++it) {
+			for(const_iterator it(this, order); !it.isEnd(); ++it) {
 				tmp = (T)it.get_int();
 				gzwrite(file, &tmp, sizeof(T));
 			}
 			break;
 		case FLOAT32:
 		case FLOAT64:
-			for(auto it = cbegin(order); !it.isEnd(); ++it) {
+			for(const_iterator it(this, order); !it.isEnd(); ++it) {
 				tmp = (T)it.get_dbl();
 				gzwrite(file, &tmp, sizeof(T));
 			}
 			break;
 		case FLOAT128:
-			for(auto it = cbegin(order); !it.isEnd(); ++it) {
+			for(const_iterator it(this, order); !it.isEnd(); ++it) {
 				tmp = (T)it.get_quad();
 				gzwrite(file, &tmp, sizeof(T));
 			}
 			break;
 		case COMPLEX64:
-			for(auto it = cbegin(order); !it.isEnd(); ++it) {
+			for(const_iterator it(this, order); !it.isEnd(); ++it) {
 				float re = it.get_cfloat().real();
 				float im = it.get_cfloat().imag();
 				gzwrite(file, &re, sizeof(float));
 				gzwrite(file, &im, sizeof(float));
 			}
 		case COMPLEX128:
-			for(auto it = cbegin(order); !it.isEnd(); ++it) {
+			for(const_iterator it(this, order); !it.isEnd(); ++it) {
 				double re = it.get_cdbl().real();
 				double im = it.get_cdbl().imag();
 				gzwrite(file, &re, sizeof(double));
@@ -684,7 +684,7 @@ int MRImageStore<D,T>::writePixels(gzFile file) const
 			}
 			break;
 		case COMPLEX256:
-			for(auto it = cbegin(order); !it.isEnd(); ++it) {
+			for(const_iterator it(this, order); !it.isEnd(); ++it) {
 				long double re = it.get_cquad().real();
 				long double im = it.get_cquad().imag();
 				gzwrite(file, &re, sizeof(long double));
@@ -692,7 +692,7 @@ int MRImageStore<D,T>::writePixels(gzFile file) const
 			}
 			break;
 		case RGB24:
-			for(auto it = cbegin(order); !it.isEnd(); ++it) {
+			for(const_iterator it(this, order); !it.isEnd(); ++it) {
 				char r = it.get_rgba().red;
 				char g = it.get_rgba().green;
 				char b = it.get_rgba().blue;
@@ -702,7 +702,7 @@ int MRImageStore<D,T>::writePixels(gzFile file) const
 			}
 			break;
 		case RGBA32:
-			for(auto it = cbegin(order); !it.isEnd(); ++it) {
+			for(const_iterator it(this, order); !it.isEnd(); ++it) {
 				char r = it.get_rgba().red;
 				char g = it.get_rgba().green;
 				char b = it.get_rgba().blue;

@@ -347,7 +347,7 @@ void Slicer::updateDim(const std::vector<size_t>& dim)
 
 	// reset default order
 	for(size_t ii=0 ; ii<ndim ; ii++)
-		m_order[ii] = m_order[ndim-1-ii];
+		m_order[ii] = ndim-1-ii;
 
 	// set up strides
 	m_strides[ndim-1] = 1;
@@ -355,6 +355,7 @@ void Slicer::updateDim(const std::vector<size_t>& dim)
 		m_strides[ii] = m_strides[ii+1]*dim[ii+1];
 	}
 
+	updateLinRange();
 };
 
 /**

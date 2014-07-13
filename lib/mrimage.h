@@ -33,7 +33,10 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <memory>
 
 namespace npl {
-	
+
+using std::list;
+using std::vector;
+
 // Match Nifti Codes
 enum PixelT {UNKNOWN_TYPE=0, UINT8=2, INT16=4, INT32=8, FLOAT32=16, COMPLEX64=32,
 	FLOAT64=64, RGB24=128, INT8=256, UINT16=512, UINT32=768, INT64=1024,
@@ -83,29 +86,36 @@ public:
 	class const_iterator;
 
 	class iterator : public virtual NDArray::iterator {
-		void index(std::vector<size_t>& ind) { 
-			ind.assign(m_pos.begin(), m_pos.end());
+		// constructor, just casts the parent to NDArray*, then passes on
+		iterator(MRImage* parent, const list<size_t>& order, 
+				bool revorder=false) : 
+				NDArray::iterator((NDArray*)parent, order, revorder) 
+		{
 		}
-		void dblindex(std::vector<double>& ind) { 
-			ind.resize(m_pos.size());
-			for(size_t ii=0; ii<m_pos.size(); ii++)
-				ind[ii] = m_pos[ii];
-		}
-		void point(std::vector<double>& ras) {
+		
+		// pass parent as NDArray to base constructor
+		iterator(MRImage* parent) : 
+			NDArray::iterator((NDArray*)parent) { }
+	
+		void get_point(std::vector<double>& ras) {
 			dynamic_cast<MRImage*>(m_parent)->affine().mvproduct(m_pos, ras);
 		}
 	};
 	
 	class const_iterator : public virtual NDArray::const_iterator {
-		void index(std::vector<size_t>& ind) { 
-			ind.assign(m_pos.begin(), m_pos.end());
+
+		// constructor, just casts the parent to NDArray*, then passes on
+		const_iterator(MRImage* parent, const list<size_t>& order, 
+				bool revorder=false) : 
+				NDArray::const_iterator((NDArray*)parent, order, revorder) 
+		{
 		}
-		void dblindex(std::vector<double>& ind) { 
-			ind.resize(m_pos.size());
-			for(size_t ii=0; ii<m_pos.size(); ii++)
-				ind[ii] = m_pos[ii];
-		}
-		void point(std::vector<double>& ras) {
+
+		// pass parent as NDArray to base constructor
+		const_iterator(MRImage* parent) : 
+			NDArray::const_iterator((NDArray*)parent) { }
+	
+		void get_point(std::vector<double>& ras) {
 			dynamic_cast<const MRImage*>(m_parent)->affine().mvproduct(m_pos, ras);
 		}
 	};

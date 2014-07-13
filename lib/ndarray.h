@@ -118,21 +118,21 @@ public:
 	class iterator;
 	class const_iterator;
 
-	virtual iterator begin() {
-		return iterator(this);
-	};
-
-	virtual iterator begin(const std::list<size_t>& order) {
-		return iterator(this, order);
-	};
-	
-	virtual const_iterator cbegin() const {
-		return const_iterator(this);
-	};
-
-	virtual const_iterator cbegin(const std::list<size_t>& order) const {
-		return const_iterator(this, order);
-	};
+//	virtual iterator begin() {
+//		return iterator(this);
+//	};
+//
+//	virtual iterator begin(const std::list<size_t>& order) {
+//		return iterator(this, order);
+//	};
+//	
+//	virtual const_iterator cbegin() const {
+//		return const_iterator(this);
+//	};
+//
+//	virtual const_iterator cbegin(const std::list<size_t>& order) const {
+//		return const_iterator(this, order);
+//	};
 
 	/*
 	 * get / set functions
@@ -166,15 +166,17 @@ public:
 	 */
 	class iterator : public virtual Slicer {
 	public:
-		iterator(iterator&& other) : m_parent(other.m_parent) {} ;
-		iterator(NDArray* parent, const std::list<size_t>& order) 
+		iterator() : m_parent(NULL) {} ;
+		iterator(const iterator& other) : m_parent(other.m_parent) {} ;
+		iterator(NDArray* parent, const list<size_t>& order, 
+					bool revorder = false) 
 		{
 			m_parent = parent;
 			std::vector<size_t> dim(m_parent->ndim());
 			for(size_t ii=0; ii<m_parent->ndim(); ii++)
 				dim[ii] = m_parent->dim(ii);
 			updateDim(dim);
-			setOrder(order);
+			setOrder(order, revorder);
 		};
 		iterator(NDArray* parent) 
 		{
@@ -194,15 +196,23 @@ public:
 		ITERFUNCS(rgba_t, get_rgba, set_rgba);
 		ITERFUNCS(long double, get_quad, set_quad);
 		ITERFUNCS(cquad_t, get_cquad, set_cquad);
+		
+		void get_index(std::vector<size_t>& ind) { 
+			ind.assign(m_pos.begin(), m_pos.end());
+		}
+		void get_index(std::vector<double>& ind) { 
+			ind.resize(m_pos.size());
+			for(size_t ii=0; ii<m_pos.size(); ii++)
+				ind[ii] = m_pos[ii];
+		}
 
 	protected:
-		iterator() {} ;
 		NDArray* m_parent;
 	};
 
 	class const_iterator : public virtual Slicer {
 	public:
-		const_iterator(const_iterator&& other) : m_parent(other.m_parent) {} ;
+		const_iterator(const const_iterator& other) : m_parent(other.m_parent) {} ;
 		const_iterator(const NDArray* parent, const std::list<size_t>& order) 
 		{
 			m_parent = parent;
@@ -231,6 +241,14 @@ public:
 		CITERFUNCS(long double, get_quad);
 		CITERFUNCS(cquad_t, get_cquad);
 	
+		void get_index(std::vector<size_t>& ind) { 
+			ind.assign(m_pos.begin(), m_pos.end());
+		}
+		void get_index(std::vector<double>& ind) { 
+			ind.resize(m_pos.size());
+			for(size_t ii=0; ii<m_pos.size(); ii++)
+				ind[ii] = m_pos[ii];
+		}
 	protected:
 		const_iterator() {} ;
 		const NDArray* m_parent;

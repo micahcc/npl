@@ -1,5 +1,8 @@
 
 def build(bld):
+    bld.program(features='test', target = 'array_test1', 
+            source = 'array_test1.cpp', use = 'ndarray')
+    
     bld.program(features='test', target = 'nifti_orient_test1', 
             source = 'nifti_orient_test1.cpp', use = 'mrimage')
 

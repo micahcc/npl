@@ -261,8 +261,8 @@ int NDArrayStore<D,T>::opself(const NDArray* right,
 	bool canElev = false;
 	bool comp = comparable(this, right, NULL, &canElev);
 	if(comp) {
-		auto lit = begin();
-		auto rit = right->cbegin();
+		iterator lit(this);
+		const_iterator rit(this);
 		for(; !lit.isEnd() && !rit.isEnd(); ++lit, ++rit) {
 			double result = func(lit.get_dbl(), rit.get_dbl());
 			lit.set_dbl(result);
@@ -277,9 +277,9 @@ int NDArrayStore<D,T>::opself(const NDArray* right,
 				commondim.push_front(ii);
 		}
 
-		for(auto lit = begin(commondim); !lit.isEnd() ; ) {
+		for(iterator lit(this, commondim); !lit.isEnd() ; ) {
 			// iterate together until right hits the end, then restart
-			auto rit = right->cbegin(commondim);
+			const_iterator rit(this, commondim);
 			for( ; !lit.isEnd() && !rit.isEnd(); ++lit, ++rit) {
 				double result = func(lit.get_dbl(), rit.get_dbl());
 				lit.set_dbl(result);
