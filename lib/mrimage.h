@@ -86,6 +86,7 @@ public:
 	class const_iterator;
 
 	class iterator : public virtual NDArray::iterator {
+		public:
 		// constructor, just casts the parent to NDArray*, then passes on
 		iterator(MRImage* parent, const list<size_t>& order, 
 				bool revorder=false) : 
@@ -103,16 +104,16 @@ public:
 	};
 	
 	class const_iterator : public virtual NDArray::const_iterator {
-
+		public:
 		// constructor, just casts the parent to NDArray*, then passes on
-		const_iterator(MRImage* parent, const list<size_t>& order, 
+		const_iterator(const MRImage* parent, const list<size_t>& order, 
 				bool revorder=false) : 
 				NDArray::const_iterator((NDArray*)parent, order, revorder) 
 		{
 		}
 
 		// pass parent as NDArray to base constructor
-		const_iterator(MRImage* parent) : 
+		const_iterator(const MRImage* parent) : 
 			NDArray::const_iterator((NDArray*)parent) { }
 	
 		void get_point(std::vector<double>& ras) {
@@ -123,7 +124,7 @@ public:
 	virtual int indexToPoint(const std::vector<size_t>& xyz, std::vector<double>& ras) const = 0;
 	virtual int indexToPoint(const std::vector<double>& xyz, std::vector<double>& ras) const = 0;
 	virtual int pointToIndex(const std::vector<double>& ras, std::vector<double>& xyz) const = 0;
-
+	
 //	virtual std::shared_ptr<MRImage> cloneImage() const = 0;
 //	virtual int unary(double(*func)(double,double)) const = 0;
 //	virtual int binOp(const MRImage* right, double(*func)(double,double), bool elevR) const = 0;
@@ -215,14 +216,12 @@ public:
 	int indexToPoint(const std::vector<double>& index, std::vector<double>& rast) const;
 	int pointToIndex(const std::vector<double>& rast, std::vector<double>& index) const;
 
-	//double& space(size_t d);
-	//double& origin(size_t d);
-	//double& direction(size_t d1, size_t d2);
-	//double& affine(size_t d1, size_t d2);
-	//const double& space(size_t d) const;
-	//const double& origin(size_t d) const;
-	//const double& direction(size_t d1, size_t d2) const;
-	//const double& affine(size_t d1, size_t d2) const;
+//	double kernSamplePt(const std::vector<double> point);
+//	double kernSampleInd(const std::vector<double> index);
+	double linSamplePt(const std::vector<double> point);
+	double linSampleInd(const std::vector<double> index);
+	double nnSamplePt(const std::vector<double> point);
+	double nnSampleInd(const std::vector<double> index);
 	
 	MatrixP& space() {return *((MatrixP*)&m_space); };
 	MatrixP& origin() {return *((MatrixP*)&m_origin); };

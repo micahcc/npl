@@ -40,13 +40,16 @@ Slicer::Slicer()
  *
  * @param dim	size of ND array
  * @param order	order of iteration during ++, this doesn't affect step()
+ * @param revorder	Reverse order, in which case the first element of order
+ * 					will have the slowest iteration, and dimensions not
+ * 					specified in order will be faster than those included.
  * @param roi	min/max, roi is pair<size_t,size_t> = [min,max] 
  */
 Slicer::Slicer(const std::vector<size_t>& dim, const std::list<size_t>& order,
-		const std::vector<std::pair<size_t,size_t>>& roi)
+		bool revorder, const std::vector<std::pair<size_t,size_t>>& roi)
 {
 	updateDim(dim);
-	setOrder(order);
+	setOrder(order, revorder);
 	setROI(roi);
 };
 
@@ -66,11 +69,15 @@ Slicer::Slicer(const std::vector<size_t>& dim)
  * @param dim	size of ND array
  * @param order	iteration direction, steps will be fastest in the direction
  * 				of order[0] and slowest in order.back()
+ * @param revorder	Reverse order, in which case the first element of order
+ * 					will have the slowest iteration, and dimensions not
+ * 					specified in order will be faster than those included.
  */
-Slicer::Slicer(const std::vector<size_t>& dim, const std::list<size_t>& order)
+Slicer::Slicer(const std::vector<size_t>& dim, const std::list<size_t>& order,
+		bool revorder)
 {
 	updateDim(dim);
-	setOrder(order);
+	setOrder(order, revorder);
 };
 
 /**
@@ -379,7 +386,7 @@ void Slicer::setROI(const std::vector<std::pair<size_t, size_t>>& roi)
 	}
 
 	updateLinRange();
-	gotoBegin();
+	goBegin();
 }
 
 /**
@@ -389,8 +396,11 @@ void Slicer::setROI(const std::vector<std::pair<size_t, size_t>>& roi)
  * @param order	vector of priorities, with first element being the fastest
  * iteration and last the slowest. All other dimensions not used will be 
  * slower than the last
+ * @param revorder	Reverse order, in which case the first element of order
+ * 					will have the slowest iteration, and dimensions not
+ * 					specified in order will be faster than those included.
  */
-void Slicer::setOrder(const std::list<size_t>& order)
+void Slicer::setOrder(const std::list<size_t>& order, bool revorder)
 {
 	size_t ndim = m_sizes.size();
 	m_order.clear();
@@ -398,7 +408,7 @@ void Slicer::setOrder(const std::list<size_t>& order)
 	// need to ensure that all dimensions get covered
 	std::list<size_t> avail;
 	for(size_t ii=0 ; ii<ndim ; ii++) {
-		avail.push_front(ii);
+		avail.push_back(ii);
 	}
 
 	// add dimensions to internal order, but make sure there are 
@@ -417,13 +427,27 @@ void Slicer::setOrder(const std::list<size_t>& order)
 		}
 	}
 
-
-	// add any remaining dimensions to the order
-	for(auto it=avail.begin(); it != avail.end(); ++it) 
-		m_order.push_back(*it);
+	// we would like the dimensions to be added so that steps are small, 
+	// so in revorder case, add dimensions in decreasing order (since they will
+	// be flipped), in normal case add in increasing order. 
+	// so dimensions 0 3, 5 might be remaining, with order currently:
+	// m_order = {1,4,2}, 
+	// in the case of revorder we will add the remaining dimensions as
+	// m_order = {1,4,2,0,3,5}, because once we flip it will be {5,3,0,2,4,1}
+	if(revorder) {
+		for(auto it=avail.begin(); it != avail.end(); ++it) 
+			m_order.push_back(*it);
+		// reverse 6D, {0,5},{1,4},{2,3}
+		// reverse 5D, {0,4},{1,3}
+		for(size_t ii=0; ii<ndim/2; ii++) 
+			std::swap(m_order[ii],m_order[ndim-1-ii]);
+	} else {
+		for(auto it=avail.rbegin(); it != avail.rend(); ++it) 
+			m_order.push_back(*it);
+	}
 
 	updateLinRange();
-	gotoBegin();
+	goBegin();
 };
 
 /**
@@ -431,7 +455,7 @@ void Slicer::setOrder(const std::list<size_t>& order)
  *
  * @param newpos	location to move to
  */
-void Slicer::gotoIndex(size_t len, size_t* newpos, bool* outside)
+void Slicer::goIndex(size_t len, size_t* newpos, bool* outside)
 {
 	m_linpos = 0;
 	size_t ii=0;
@@ -466,7 +490,7 @@ void Slicer::gotoIndex(size_t len, size_t* newpos, bool* outside)
  *
  * @param newpos	location to move to
  */
-void Slicer::gotoIndex(std::initializer_list<size_t> newpos, bool* outside)
+void Slicer::goIndex(std::initializer_list<size_t> newpos, bool* outside)
 {
 	m_linpos = 0;
 	size_t clamped;
@@ -503,7 +527,7 @@ void Slicer::gotoIndex(std::initializer_list<size_t> newpos, bool* outside)
  *
  * @return true if we are at the begining
  */
-void Slicer::gotoBegin()
+void Slicer::goBegin()
 {
 	for(size_t ii=0; ii<m_sizes.size(); ii++)
 		m_pos[ii] = m_roi[ii].first;
@@ -511,7 +535,7 @@ void Slicer::gotoBegin()
 	m_end = false;
 }
 	
-void Slicer::gotoEnd()
+void Slicer::goEnd()
 {
 	for(size_t ii=0; ii<m_sizes.size(); ii++)
 		m_pos[ii] = m_roi[ii].second;

@@ -185,7 +185,7 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 	switch(dim.size()) {
 		case 1: {
 			auto typed = new MRImageStore<1, T>(dim);
-			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
+			for(slicer.goBegin(); slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, pixsize);
 				if(doswap) swap<T>(&tmp);
 				(*typed)[*slicer] = tmp;
@@ -194,7 +194,7 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 			} break;
 		case 2:{
 			auto typed = new MRImageStore<2, T>(dim);
-			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
+			for(slicer.goBegin(); slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, pixsize);
 				if(doswap) swap<T>(&tmp);
 				(*typed)[*slicer] = tmp;
@@ -203,7 +203,7 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 			} break;
 		case 3:{
 			auto typed = new MRImageStore<3, T>(dim);
-			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
+			for(slicer.goBegin(); slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, pixsize);
 				if(doswap) swap<T>(&tmp);
 				(*typed)[*slicer] = tmp;
@@ -212,7 +212,7 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 			} break;
 		case 4:{
 			auto typed = new MRImageStore<4, T>(dim);
-			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
+			for(slicer.goBegin(); slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, pixsize);
 				if(doswap) swap<T>(&tmp);
 				(*typed)[*slicer] = tmp;
@@ -221,7 +221,7 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 			} break;
 		case 5:{
 			auto typed = new MRImageStore<5, T>(dim);
-			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
+			for(slicer.goBegin(); slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, pixsize);
 				if(doswap) swap<T>(&tmp);
 				(*typed)[*slicer] = tmp;
@@ -230,7 +230,7 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 			} break;
 		case 6:{
 			auto typed = new MRImageStore<6, T>(dim);
-			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
+			for(slicer.goBegin(); slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, pixsize);
 				if(doswap) swap<T>(&tmp);
 				(*typed)[*slicer] = tmp;
@@ -239,7 +239,7 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 			} break;
 		case 7:{
 			auto typed = new MRImageStore<7, T>(dim);
-			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
+			for(slicer.goBegin(); slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, pixsize);
 				if(doswap) swap<T>(&tmp);
 				(*typed)[*slicer] = tmp;
@@ -248,7 +248,7 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 			} break;
 		case 8:{
 			auto typed = new MRImageStore<8, T>(dim);
-			for(slicer.gotoBegin(); slicer.isEnd(); ++slicer) {
+			for(slicer.goBegin(); slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, pixsize);
 				if(doswap) swap<T>(&tmp);
 				(*typed)[*slicer] = tmp;

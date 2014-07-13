@@ -24,8 +24,9 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include "mrimage.h"
 
 using std::string;
+using namespace npl;
 
-MRImage* invertDeform(MRImage* in)
+MRImage* invertDeform(shared_ptr<MRImage> in)
 {
 //	MRImage::iterator it;
 //	if(in->ndim() == 5 && in->dim(4)) {
@@ -271,7 +272,7 @@ MRImage* invertDeform(MRImage* in)
 ////		++ito;
 ////	}
 ////	cerr << "Estimated Parameter Error: " << sqrt(error) << endl;
-//	return out;
+	return NULL;
 }
 int main()
 {
@@ -296,13 +297,13 @@ int main()
 	TCLAP::SwitchArg a_invert("I", "invert", "Whether to invert.", cmd);
 
 	// read input
-	std::shared_ptr<MRImage> deform = readMRImage(a_fmri.getValue());
+	std::shared_ptr<MRImage> deform(readMRImage(a_fmri.getValue()));
 
 	// check that it is 4D or 5D (with time=1)
 	
 
-	if(a_invert) {
-		deform = invert(deform);
+	if(a_invert.isSet()) {
+		deform.reset(invertDeform(deform));
 	}
 	
 

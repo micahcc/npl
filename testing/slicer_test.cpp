@@ -28,6 +28,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <cstdint>
 
 using namespace std;
+using namespace npl;
 
 void linToIndex(size_t lpos, size_t& x, size_t& y, size_t& z, size_t& w,
 		size_t sx, size_t sy, size_t sz, size_t sw)
@@ -87,11 +88,11 @@ int main()
 	size_t p, xx, yy, zz, ww;
 
 	std::vector<size_t> tdim({X,Y,Z,W});
-	npl::Slicer slicer(tdim);
+	Slicer slicer(tdim);
 
 	cerr << "Classic Ordering" << endl;
 	slicer.setOrder(order);
-	for(slicer.gotoBegin(); !slicer.isEnd(); slicer++, ii++) {
+	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
 		size_t sp = slicer.get(pos);
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
@@ -126,7 +127,7 @@ int main()
 	order.pop_front();
 
 	slicer.setOrder(order);
-	for(slicer.gotoBegin(); !slicer.isEnd(); slicer++, ii++) {
+	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
 		size_t sp = slicer.get(pos);
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
@@ -162,7 +163,7 @@ int main()
 	order.pop_front();
 
 	slicer.setOrder(order);
-	for(slicer.gotoBegin(); !slicer.isEnd(); slicer++, ii++) {
+	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
 		size_t sp = slicer.get(pos);
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
@@ -195,7 +196,7 @@ int main()
 	order.push_back(order.front());
 	order.pop_front();
 	slicer.setOrder(order);
-	for(slicer.gotoBegin(); !slicer.isEnd(); slicer++, ii++) {
+	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
 		size_t sp = slicer.get(pos);
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
@@ -229,7 +230,7 @@ int main()
 	// roi 
 	cerr << endl << "Previous, With ROI" << endl;
 	slicer.setROI(roi);
-	for(slicer.gotoBegin(); !slicer.isEnd(); slicer++, ii++) {
+	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
 		size_t sp = slicer.get(pos);
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
@@ -262,6 +263,52 @@ int main()
 		}
 	}
 	cerr << endl;
-	cerr << "PASS!" << endl;
-}
 
+	size_t ITERS = 100000;
+	size_t sum = 0;
+	cerr << "Speed Test!" << endl;
+	clock_t t = clock();
+	for(size_t ii=0 ; ii < ITERS; ii++) {
+		for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) 
+			sum += *slicer;
+	}
+	t = clock() - t;
+	cerr << "Large restart Runtime: " << t << " ( " << t/CLOCKS_PER_SEC << " ) seconds" << endl;
+	
+
+	std::vector<size_t> newdim({50, 50, 50, 50});
+	t = clock();
+	slicer.updateDim(newdim);
+	ii = 0;
+	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
+		sum += *slicer;
+		if(ii >= 50*50*50*50) {
+			cerr << "Error should have finished!" << endl;
+			return -1;
+		}
+	}
+	t = clock() - t;
+	cerr << "Large Area Runtime: " << t << " ( " << t/CLOCKS_PER_SEC << " ) seconds" << endl;
+
+	bool outside;
+	int64_t off[4] = {0,0,0,-1};
+	size_t prev = 0;;
+	ii = 0;
+	t = clock();
+	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
+		sum += *slicer;
+		size_t oprev = slicer.flatIndexAtOffset(4, off, &outside);
+		if(!outside && oprev != prev ) {
+			cerr << "Error in offset " << endl;
+			return -1;
+		}
+		if(ii >= 50*50*50*50) {
+			cerr << "Error should have finished!" << endl;
+			return -1;
+		}
+		prev = *slicer;
+	}
+	cerr << "Offset Runtime: " << t << " ( " << t/CLOCKS_PER_SEC << " ) seconds" << endl;
+	
+
+}

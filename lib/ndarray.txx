@@ -65,55 +65,48 @@ GETSETIMP(long double, get_quad, set_quad);
 GETSETIMP(cquad_t, get_cquad, set_cquad);
 
 template <int D, typename T>
-NDArrayStore<D,T>::NDArrayStore(std::initializer_list<size_t> a_args)
+NDArrayStore<D,T>::NDArrayStore(std::initializer_list<size_t> a_args) : _m_data(NULL)
 {
-	size_t dsize = 1;
-	size_t ii;
+	size_t tmp[D];
 	
 	// set dimensions with matching size to the minimum length, ignoring
 	// any extra parts of a_args
 	auto it = a_args.begin();
-	for(ii=0; ii < D && it != a_args.end(); ii++, ++it) {
-		_m_dim[ii] = *it;
-		dsize *= _m_dim[ii];
+	for(size_t ii=0; ii < D && it != a_args.end(); ii++, ++it) {
+		tmp[ii] = *it;
 	}
 
-	// make any remaining dimensions size 1
-	for(; ii < D; ii++) {
-		_m_dim[ii] = 1;
-		dsize *= _m_dim[ii];
-	}
-
-	_m_data = new T[dsize];
+	resize(tmp);
 }
 
 template <int D, typename T>
-NDArrayStore<D,T>::NDArrayStore(const std::vector<size_t>& a_args)
+NDArrayStore<D,T>::NDArrayStore(const std::vector<size_t>& a_args) : _m_data(NULL)
 {
-	size_t dsize = 1;
-	size_t ii;
+	size_t tmp[D];
 	
 	// set dimensions with matching size to the minimum length, ignoring
 	// any extra parts of a_args
 	auto it = a_args.begin();
-	for(ii=0; ii < D && it != a_args.end(); ii++, ++it) {
-		_m_dim[ii] = *it;
-		dsize *= _m_dim[ii];
+	for(size_t ii=0; ii < D && it != a_args.end(); ii++, ++it) {
+		tmp[ii] = *it;
 	}
 
-	// make any remaining dimensions size 1
-	for(; ii < D; ii++) {
-		_m_dim[ii] = 1;
-		dsize *= _m_dim[ii];
-	}
+	resize(tmp);
+}
 
-	_m_data = new T[dsize];
+template <int D, typename T>
+void NDArrayStore<D,T>::updateStrides()
+{
+	_m_stride[D-1] = 1;
+	for(int64_t ii=D-2; ii>=0; ii--) 
+		_m_stride[ii] = _m_stride[ii+1]*_m_dim[ii+1];
 }
 
 template <int D, typename T>
 void NDArrayStore<D,T>::resize(size_t dim[D])
 {
-	delete[] _m_data;
+	if(_m_data)
+		delete[] _m_data;
 
 	size_t dsize = 1;
 	for(size_t ii=0; ii<D; ii++) {
@@ -122,6 +115,8 @@ void NDArrayStore<D,T>::resize(size_t dim[D])
 	}
 
 	_m_data = new T[dsize];
+
+	updateStrides();
 }
 
 template <int D, typename T>
@@ -159,7 +154,7 @@ const size_t* NDArrayStore<D,T>::dim() const
 {
 	return _m_dim;
 }
-	
+
 /* 
  * Get Address of a Particular Index 
  */
@@ -167,45 +162,60 @@ template <int D, typename T>
 inline
 size_t NDArrayStore<D,T>::getAddr(std::initializer_list<size_t> index) const
 {
-	size_t tmp[D];
-	
-	size_t ii = 0;
-	for(auto it=index.begin(); ii<D && it != index.end(); ii++, ++it) 
-		tmp[ii] = *it;
-	for( ; ii<D ; ii++) 
-		tmp[ii] = 0;
+	size_t out = 0;
+	size_t clamped;
 
-	return getAddr(tmp);
+	// copy the dimensions 
+	size_t ii=0;
+	for(auto it=index.begin(); it != index.end() && ii<D; ii++, ++it) {
+		// clamp value
+		clamped = std::min(*it, _m_dim[ii]-1);
+
+		// set position
+		out += _m_stride[ii]*clamped;
+	}
+	
+	return out;
 }
 
 template <int D, typename T>
 inline
 size_t NDArrayStore<D,T>::getAddr(const size_t* index) const
 {
-	size_t loc = index[0];
-	size_t jump = _m_dim[0];           // jump to global position
-	for(size_t ii=1; ii<D; ii++) {
-		loc += index[ii]*jump;
-		jump *= _m_dim[ii];
+	size_t out = 0;
+	size_t clamped;
+
+	// copy the dimensions 
+	for(size_t ii = 0; ii<D; ii++) {
+		// clamp value
+		clamped = std::min(index[ii], _m_dim[ii]-1);
+
+		// set position
+		out += _m_stride[ii]*clamped;
 	}
-	return loc;
+
+	return out;
 }
 
 template <int D, typename T>
 inline
 size_t NDArrayStore<D,T>::getAddr(const std::vector<size_t>& index) const
 {
-	size_t tmp[D];
-	
-	size_t ii = 0;
-	for(auto it=index.begin(); ii<D && it != index.end(); ii++, ++it) 
-		tmp[ii] = *it;
-	for( ; ii<D ; ii++) 
-		tmp[ii] = 0;
+	size_t out = 0;
+	size_t clamped;
 
-	return getAddr(tmp);
+	// copy the dimensions 
+	size_t ii=0;
+	for(auto it=index.begin(); it != index.end() && ii<D; ii++) {
+		// clamp value
+		clamped = std::min(*it, _m_dim[ii]-1);
+
+		// set position
+		out += _m_stride[ii]*clamped;
+	}
+	return out;
 }
-
+	
 template <int D, typename T>
 const T& NDArrayStore<D,T>::operator[](std::initializer_list<size_t> index) const
 {
@@ -315,6 +325,7 @@ std::shared_ptr<NDArray> NDArrayStore<D,T>::clone() const
 
 	std::copy(_m_data, _m_data+total, out->_m_data);
 	std::copy(_m_dim, _m_dim+D, out->_m_dim);
+	std::copy(_m_stride, _m_stride+D, out->_m_stride);
 
 	return out;
 }

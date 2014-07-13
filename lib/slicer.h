@@ -58,10 +58,13 @@ public:
 	 *
 	 * @param dim	size of ND array
 	 * @param order	order of iteration during ++, this doesn't affect step()
+	 * @param revorder	Reverse order, in which case the first element of order
+	 * 					will have the slowest iteration, and dimensions not
+	 * 					specified in order will be faster than those included.
 	 * @param roi	min/max, roi is pair<size_t,size_t> = [min,max] 
 	 */
 	Slicer(const std::vector<size_t>& dim, const std::list<size_t>& order,
-			const std::vector<std::pair<size_t,size_t>>& roi);
+			bool revorder, const std::vector<std::pair<size_t,size_t>>& roi);
 
 	/**
 	 * @brief Simple (no ROI, no order) Constructor
@@ -76,8 +79,12 @@ public:
 	 * @param dim	size of ND array
 	 * @param order	iteration direction, steps will be fastest in the direction
 	 * 				of order[0] and slowest in order.back()
+	 * @param revorder	Reverse order, in which case the first element of order
+	 * 					will have the slowest iteration, and dimensions not
+	 * 					specified in order will be faster than those included.
 	 */
-	Slicer(const std::vector<size_t>& dim, const std::list<size_t>& order);
+	Slicer(const std::vector<size_t>& dim, const std::list<size_t>& order, 
+			bool revorder = false);
 
 	/**
 	 * @brief Constructor that takes a dimension and region of interest, which
@@ -99,32 +106,6 @@ public:
 	 */
 	size_t step(size_t dim, int64_t dist = 1, bool* outside = NULL);
 	
-	/******************************************
-	 *
-	 * Offset, useful to kernel processing
-	 *
-	 ******************************************/
-	
-	/**
-	 * @brief Get linear index at an offset location from the current, useful
-	 * for kernels.
-	 *
-	 * @param dindex	Vector (offset) from the current location 
-	 *
-	 * @return 		linear index
-	 */
-	size_t offset(size_t len, const int64_t* dindex, bool* outside = NULL) const;
-	
-	/**
-	 * @brief Get linear index at an offset location from the current, useful
-	 * for kernels.
-	 *
-	 * @param dindex	Vector (offset) from the current location 
-	 *
-	 * @return 		linear index
-	 */
-	size_t offset(std::initializer_list<int64_t> dindex, bool* outside = NULL) const;
-
 	/****************************************
 	 *
 	 * Query Location
@@ -208,27 +189,27 @@ public:
 	 * @brief Are we at the begining of iteration?
 	 *
 	 */
-	void gotoBegin();
+	void goBegin();
 
 	/**
 	 * @brief Jump to the end of iteration.
 	 *
 	 */
-	void gotoEnd();
+	void goEnd();
 
 	/**
 	 * @brief Jump to the given position
 	 *
 	 * @param newpos	location to move to
 	 */
-	void gotoIndex(size_t len, size_t* newpos, bool* outside = NULL);
+	void goIndex(size_t len, size_t* newpos, bool* outside = NULL);
 	
 	/**
 	 * @brief Jump to the given position
 	 *
 	 * @param newpos	location to move to
 	 */
-	void gotoIndex(std::initializer_list<size_t> newpos, bool* outside = NULL);
+	void goIndex(std::initializer_list<size_t> newpos, bool* outside = NULL);
 
 	/****************************************
 	 *
@@ -294,10 +275,45 @@ public:
 	 * @param order	vector of priorities, with first element being the fastest
 	 * iteration and last the slowest. All other dimensions not used will be 
 	 * slower than the last
+	 * @param revorder	Reverse order, in which case the first element of order
+	 * 					will have the slowest iteration, and dimensions not
+	 * 					specified in order will be faster than those included.
 	 */
-	void setOrder(const std::list<size_t>& order);
+	void setOrder(const std::list<size_t>& order, bool revorder = false);
 
+	size_t flatIndexAtOffset(size_t len, const int64_t* dindex, 
+			bool* outside = NULL) const { return offset(len, dindex, outside); };
+	
+	size_t flatIndexAtOffset(std::initializer_list<int64_t> dindex, 
+			bool* outside = NULL) const { return offset(dindex, outside); };
 protected:
+	
+	/******************************************
+	 *
+	 * Offset, useful to kernel processing
+	 *
+	 ******************************************/
+	
+	/**
+	 * @brief Get linear index at an offset location from the current, useful
+	 * for kernels.
+	 *
+	 * @param dindex	Vector (offset) from the current location 
+	 *
+	 * @return 		linear index
+	 */
+	size_t offset(size_t len, const int64_t* dindex, bool* outside = NULL) const;
+	
+	/**
+	 * @brief Get linear index at an offset location from the current, useful
+	 * for kernels.
+	 *
+	 * @param dindex	Vector (offset) from the current location 
+	 *
+	 * @return 		linear index
+	 */
+	size_t offset(std::initializer_list<int64_t> dindex, bool* outside = NULL) const;
+
 
 	size_t m_linpos;
 	size_t m_linfirst;

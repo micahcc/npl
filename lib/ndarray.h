@@ -62,12 +62,12 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 		assert(m_parent);\
 		return m_parent->GETFUNC(Slicer::get());\
 	};\
-	TYPE GETFUNC(size_t d, int64_t* dindex, bool* outside) \
+	TYPE GETFUNC(size_t d, int64_t* dindex, bool* outside=NULL) \
 	{\
 		assert(m_parent);\
 		return m_parent->GETFUNC(Slicer::offset(d, dindex, outside));\
 	};\
-	TYPE GETFUNC(std::initializer_list<int64_t> dindex, bool* outside) \
+	TYPE GETFUNC(std::initializer_list<int64_t> dindex, bool* outside=NULL) \
 	{\
 		assert(m_parent);\
 		return m_parent->GETFUNC(Slicer::offset(dindex, outside));\
@@ -84,23 +84,23 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 		assert(m_parent);\
 		m_parent->SETFUNC(Slicer::get(), v);\
 	};\
-	TYPE GETFUNC(size_t d, int64_t* dindex, bool* outside) \
+	TYPE GETFUNC(size_t d, int64_t* dindex, bool* outside = NULL) \
 	{\
 		assert(m_parent);\
 		return m_parent->GETFUNC(Slicer::offset(d, dindex, outside));\
 	};\
-	TYPE GETFUNC(std::initializer_list<int64_t> dindex, bool* outside) \
+	TYPE GETFUNC(std::initializer_list<int64_t> dindex, bool* outside = NULL) \
 	{\
 		assert(m_parent);\
 		return m_parent->GETFUNC(Slicer::offset(dindex, outside));\
 	};\
-	void SETFUNC(size_t d, int64_t* dindex, TYPE v, bool* outside) \
+	void SETFUNC(size_t d, int64_t* dindex, TYPE v, bool* outside=NULL) \
 	{\
 		assert(m_parent);\
 		m_parent->SETFUNC(Slicer::offset(d, dindex, outside), v);\
 	};\
 	void SETFUNC(std::initializer_list<int64_t> dindex, TYPE v, \
-			bool* outside) \
+			bool* outside=NULL) \
 	{\
 		assert(m_parent);\
 		m_parent->SETFUNC(Slicer::offset(dindex, outside), v);\
@@ -140,6 +140,7 @@ public:
 	// Get Address
 	virtual size_t getAddr(std::initializer_list<size_t> index) const = 0;
 	virtual size_t getAddr(const std::vector<size_t>& index) const = 0;
+	virtual size_t getAddr(const size_t* index) const = 0;
 
 	VIRTGETSET(double, get_dbl, set_dbl);
 	VIRTGETSET(int64_t, get_int, set_int);
@@ -167,7 +168,6 @@ public:
 	class iterator : public virtual Slicer {
 	public:
 		iterator() : m_parent(NULL) {} ;
-		iterator(const iterator& other) : m_parent(other.m_parent) {} ;
 		iterator(NDArray* parent, const list<size_t>& order, 
 					bool revorder = false) 
 		{
@@ -212,8 +212,8 @@ public:
 
 	class const_iterator : public virtual Slicer {
 	public:
-		const_iterator(const const_iterator& other) : m_parent(other.m_parent) {} ;
-		const_iterator(const NDArray* parent, const std::list<size_t>& order) 
+		const_iterator(const NDArray* parent, const std::list<size_t>& order, 
+				bool revorder = false) 
 		{
 			m_parent = parent;
 			std::vector<size_t> dim(m_parent->ndim());
@@ -318,8 +318,12 @@ public:
 	virtual std::shared_ptr<NDArray> opnew(const NDArray* right, 
 			double(*func)(double,double), bool elevR);
 
+	protected:
 	T* _m_data;
 	size_t _m_dim[D];	// overall image dimension
+	size_t _m_stride[D]; // steps between pixels
+
+	void updateStrides();
 };
 
 /**
