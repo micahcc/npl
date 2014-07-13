@@ -53,7 +53,7 @@ def configure(conf):
         conf.env.CXXFLAGS.extend(['-Wno-unused-parameter', '-Wno-sign-compare', '-Wno-unused-local-typedefs', '-Wall', '-Wextra','-g'])
     elif opts['release']:
         conf.env.DEFINES.append('NDEBUG=1')
-        conf.env.CXXFLAGS.extend(['-O3', '-march=nocona'])
+        conf.env.CXXFLAGS.extend(['-O3', '-march=core2'])
     elif opts['native']:
         conf.env.DEFINES.append('NDEBUG=1')
         conf.env.CXXFLAGS.extend(['-O3', '-march=native'])

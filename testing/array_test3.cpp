@@ -63,9 +63,9 @@ int main()
 	for(size_t xx=0; xx < testp->dim(0); xx++) {
 		for(size_t yy=0; yy < testp->dim(1); yy++) {
 			for(size_t zz=0; zz < testp->dim(1); zz++, ++it) {
-				for(int64_t xi = -1; xi < 1; xi++) {
-					for(int64_t yi = -1; yi < 1; yi++) {
-						for(int64_t zi = -1; zi < 1; zi++) {
+				for(int64_t xi = -1; xi <= 1; xi++) {
+					for(int64_t yi = -1; yi <= 1; yi++) {
+						for(int64_t zi = -1; zi <= 1; zi++) {
 							size_t realx = clamp(0, testp->dim(0), xx+xi);
 							size_t realy = clamp(0, testp->dim(0), yy+yi);
 							size_t realz = clamp(0, testp->dim(0), zz+zi);
@@ -87,9 +87,9 @@ int main()
 	double val = 9;
 	t = clock();
 	for(it.goBegin(); !it.isEnd(); ++it) {
-		for(int64_t xi = -1; xi < 1; xi++) {
-			for(int64_t yi = -1; yi < 1; yi++) {
-				for(int64_t zi = -1; zi < 1; zi++) {
+		for(int64_t xi = -1; xi <= 1; xi++) {
+			for(int64_t yi = -1; yi <= 1; yi++) {
+				for(int64_t zi = -1; zi <= 1; zi++) {
 					val += it.get_dbl({xi,yi,zi});
 				}
 			}
@@ -104,9 +104,9 @@ int main()
 	for(size_t xx=0; xx < testp->dim(0); xx++) {
 		for(size_t yy=0; yy < testp->dim(1); yy++) {
 			for(size_t zz=0; zz < testp->dim(1); zz++, ++it) {
-				for(int64_t xi = -1; xi < 1; xi++) {
-					for(int64_t yi = -1; yi < 1; yi++) {
-						for(int64_t zi = -1; zi < 1; zi++) {
+				for(int64_t xi = -1; xi <= 1; xi++) {
+					for(int64_t yi = -1; yi <= 1; yi++) {
+						for(int64_t zi = -1; zi <= 1; zi++) {
 							size_t realx = clamp(0, testp->dim(0), xx+xi);
 							size_t realy = clamp(0, testp->dim(0), yy+yi);
 							size_t realz = clamp(0, testp->dim(0), zz+zi);
