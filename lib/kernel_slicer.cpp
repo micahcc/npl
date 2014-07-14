@@ -34,15 +34,13 @@ int64_t clamp(int64_t inf, int64_t sup, int64_t val)
 /**
  * @brief Default Constructor, max a length 1, dimension 1 slicer
  */
-kernel_slicer::kernel_slicer() 
+KSlicer::KSlicer() 
 { 
-	std::vector<size_t> tmpsize(1,1);
+	size_t tmp = 1;
 	std::vector<std::pair<int64_t, int64_t>> tmpk;
-	std::vector<std::pair<size_t, size_t>> tmproi;
-	initialize(tmpsize, tmpk, tmproi);
+	initialize(1, &tmp, tmpk);
 };
 
-
 /**
  * @brief Constructs a iterator with the given dimensions and bounding 
  * box over the full area. Kernel will range from 
@@ -55,31 +53,10 @@ kernel_slicer::kernel_slicer()
  * @param kRange Range to iterate over. This determines the offset from 
  * center that will will traverse.
  */
-kernel_slicer::kernel_slicer(const std::vector<size_t>& dim, 
+KSlicer::KSlicer(size_t ndim, const size_t* dim, 
 		const std::vector<std::pair<int64_t, int64_t>>& krange)
 {
-	std::vector<std::pair<size_t,size_t>> tmp;
-	initialize(dim, krange, tmp);
-}
-
-/**
- * @brief Constructs a iterator with the given dimensions and bounding 
- * box over the full area. Kernel will range from 
- * [kRange[0].first, kRange[0].second] 
- * [kRange[1].first, kRange[1].second] 
- * ....
- *
- *
- * @param dim	size of ND array
- * @param kRange Range to iterate over. This determines the offset from 
- * center that will will traverse.
- * @param roi	min/max, roi is pair<size_t,size_t> = [min,max] 
- */
-kernel_slicer::kernel_slicer(const std::vector<size_t>& dim, 
-		const std::vector<std::pair<int64_t, int64_t>>& krange,
-		const std::vector<std::pair<size_t,size_t>>& roi)
-{
-	initialize(dim, krange, roi);
+	initialize(ndim, dim, krange);
 }
 	
 /**
@@ -94,10 +71,9 @@ kernel_slicer::kernel_slicer(const std::vector<size_t>& dim,
  * @param kradius Radius around center. Range will include [-R,R] 
  * center that will will traverse.
  */
-kernel_slicer::kernel_slicer(const std::vector<size_t>& dim, 
+KSlicer::KSlicer(size_t ndim, const size_t* dim, 
 		const std::vector<size_t>& kradius)
 {
-	std::vector<std::pair<size_t,size_t>> tmp;
 	std::vector<std::pair<int64_t,int64_t>> range(kradius.size());
 	for(size_t dd=0; dd<kradius.size(); dd++) {
 		int64_t tmp = kradius[dd];
@@ -105,36 +81,9 @@ kernel_slicer::kernel_slicer(const std::vector<size_t>& dim,
 		range[dd].second = tmp;
 	}
 
-	initialize(dim, range, tmp);
+	initialize(ndim, dim, range);
 }
 	
-/**
- * @brief Constructs a iterator with the given dimensions and bounding 
- * box over the full area. Kernel will range from 
- * [kRange[0].first, kRange[0].second] 
- * [kRange[1].first, kRange[1].second] 
- * ....
- *
- *
- * @param dim	size of ND array
- * @param kradius Radius around center. Range will include [-R,R] 
- * center that will will traverse.
- * @param roi	min/max, roi is pair<size_t,size_t> = [min,max] 
- */
-kernel_slicer::kernel_slicer(const std::vector<size_t>& dim, 
-		const std::vector<size_t>& kradius,
-		const std::vector<std::pair<size_t,size_t>>& roi)
-{
-	std::vector<std::pair<int64_t,int64_t>> range(kradius.size());
-	for(size_t dd=0; dd<kradius.size(); dd++) {
-		int64_t tmp = kradius[dd];
-		range[dd].first = -tmp;
-		range[dd].second = tmp;
-	}
-
-	initialize(dim, range, roi);
-}
-
 /**
  * @brief Postfix iterator. Iterates in the order dictatored by the dimension
  * order passsed during construction or by setOrder
@@ -143,7 +92,7 @@ kernel_slicer::kernel_slicer(const std::vector<size_t>& dim,
  *
  * @return 	old value of linear position
  */
-size_t kernel_slicer::operator++(int)
+size_t KSlicer::operator++(int)
 {
 	size_t ret = m_linpos[m_center];
 	operator++();
@@ -156,7 +105,7 @@ size_t kernel_slicer::operator++(int)
  *
  * @return 	new value of linear position
  */
-size_t kernel_slicer::operator++() 
+size_t KSlicer::operator++() 
 {
 	if(isEnd())
 		return m_linpos[m_center];
@@ -219,7 +168,7 @@ size_t kernel_slicer::operator++()
  *
  * @return 	new value of linear position
  */
-size_t kernel_slicer::operator--(int)
+size_t KSlicer::operator--(int)
 {
 	size_t ret = m_linpos[m_center];
 	operator--();
@@ -232,7 +181,7 @@ size_t kernel_slicer::operator--(int)
  *
  * @return 	new value of linear position
  */
-size_t kernel_slicer::operator--() 
+size_t KSlicer::operator--() 
 {
 	if(isBegin())
 		return m_linpos[m_center];
@@ -295,12 +244,11 @@ size_t kernel_slicer::operator--()
  * 					would cause the iterator to range from (1,0,32) to
  * 					(5,9,100)
  */
-void kernel_slicer::initialize(const std::vector<size_t>& dim, 
-			const std::vector<std::pair<int64_t, int64_t>>& krange,
-			const std::vector<std::pair<size_t,size_t>>& roi)
+void KSlicer::initialize(size_t ndim, const size_t* dim, 
+			const std::vector<std::pair<int64_t, int64_t>>& krange)
 {
-	m_dim = dim.size();;
-	m_size.assign(dim.begin(), dim.end());
+	m_dim = ndim;
+	m_size.assign(dim, dim+ndim);
 
 	std::vector<int64_t> kmin(m_dim, 0);
 	std::vector<int64_t> kmax(m_dim, 0);
@@ -308,7 +256,7 @@ void kernel_slicer::initialize(const std::vector<size_t>& dim,
 		kmin[dd] = krange[dd].first;
 		kmax[dd] = krange[dd].second;
 		if(kmin[dd] > 0 || kmax[dd] < 0) {
-			throw std::logic_error("Kernel window in kernel_slicer does "
+			throw std::logic_error("Kernel window in KSlicer does "
 					"not include the center!");
 		}
 	}
@@ -393,15 +341,9 @@ void kernel_slicer::initialize(const std::vector<size_t>& dim,
 	m_begin = 0;
 	m_roi.resize(m_dim);
 	for(size_t ii=0; ii<m_dim; ii++) {
-		if(ii<roi.size()) {
-			m_roi[ii] = roi[ii];
-		} else {
-			// default to full range 
-			m_roi[ii].first = 0;
-			m_roi[ii].second = dim[ii]-1;
-		}
-
-		m_begin += m_roi[ii].first*m_strides[ii];
+		// default to full range 
+		m_roi[ii].first = 0;
+		m_roi[ii].second = dim[ii]-1;
 	}
 	
 	m_pos.resize(m_numoffs);
@@ -411,13 +353,32 @@ void kernel_slicer::initialize(const std::vector<size_t>& dim,
 	goBegin();
 };
 
+void KSlicer::setROI(const std::vector<std::pair<size_t,size_t>>& roi)
+{
+	// set up ROI, and calculate the m_begin location
+	m_begin = 0;
+	for(size_t ii=0; ii<m_dim; ii++) {
+		if(ii<roi.size()) {
+			m_roi[ii] = roi[ii];
+		} else {
+			// default to full range 
+			m_roi[ii].first = 0;
+			m_roi[ii].second = m_size[ii]-1;
+		}
+
+		m_begin += m_roi[ii].first*m_strides[ii];
+	}
+
+	goBegin();
+}
+
 /**
  * @brief Jump to the given position
  *
  * @param newpos	location to move to
  * @param outside	variable to return whether we are outside the ROI or not
  */
-void kernel_slicer::goIndex(const std::vector<size_t>& newpos, bool* outside)
+void KSlicer::goIndex(const std::vector<size_t>& newpos, bool* outside)
 {
 	if(newpos.size() != m_dim) {
 		throw std::logic_error("Invalid index size in goIndex");
@@ -474,7 +435,7 @@ void kernel_slicer::goIndex(const std::vector<size_t>& newpos, bool* outside)
  * @brief Go to the beginning
  *
  */
-void kernel_slicer::goBegin()
+void KSlicer::goBegin()
 {
 	// copy the center
 	for(size_t dd = 0; dd<m_dim; dd++) {
@@ -504,7 +465,7 @@ void kernel_slicer::goBegin()
  * @brief Jump to the end of iteration.
  *
  */
-void kernel_slicer::goEnd()
+void KSlicer::goEnd()
 {
 	// copy the center
 	for(size_t dd = 0; dd<m_dim; dd++) {

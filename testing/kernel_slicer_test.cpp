@@ -12,9 +12,9 @@ int64_t clamp(int64_t inf, int64_t sup, int64_t v)
 int main()
 {
   size_t a,b,c;
-  std::vector<size_t> sz({10,20,30,10});
+  size_t sz[] = {10,20,30,10};
   std::vector<size_t> kern({1,1,1});
-  npl::kernel_slicer it(sz, kern);
+  npl::KSlicer it(4, sz, kern);
 
   assert(it.isBegin());
   assert(!it.isEnd());
@@ -153,8 +153,7 @@ int main()
   
   // now make the iterator uneven
   std::vector<std::pair<int64_t,int64_t>> newk({{-2,1},{-1,0},{0,2},{0,2}});
-  std::vector<std::pair<size_t,size_t>> roi;
-  it.initialize(sz, newk, roi);
+  it.initialize(4, sz, newk);
 
   it.goBegin();
   for(size_t xx = 0; xx < sz[0]; xx++){

@@ -51,7 +51,7 @@ enum BoundaryMethodT {OVER_ROI, WRAP, CLAMP};
  * 					would cause the iterator to range from (1,0,32) to
  * 					(5,9,100)
  */
-class kernel_slicer 
+class KSlicer 
 {
 public:
 	
@@ -64,7 +64,7 @@ public:
 	/**
 	 * @brief Default Constructor, size 1, dimension 1 slicer, krange = 0
 	 */
-	kernel_slicer();
+	KSlicer();
 	
 	/**
 	 * @brief Constructs a iterator with the given dimensions and bounding 
@@ -78,7 +78,7 @@ public:
 	 * @param kRange Range to iterate over. This determines the offset from 
 	 * center that will will traverse.
 	 */
-	kernel_slicer(const std::vector<size_t>& dim, 
+	KSlicer(size_t ndim, const size_t* dim, 
 			const std::vector<std::pair<int64_t, int64_t>>& krange);
 	
 	/**
@@ -93,7 +93,7 @@ public:
 	 * @param kradius Radius around center. Range will include [-R,R] 
 	 * center that will will traverse.
 	 */
-	kernel_slicer(const std::vector<size_t>& dim, 
+	KSlicer(const size_t ndim, const size_t* dim, 
 			const std::vector<size_t>& kradius);
 	
 	/**
@@ -109,26 +109,17 @@ public:
 	 * center that will will traverse.
 	 * @param roi	min/max, roi is pair<size_t,size_t> = [min,max] 
 	 */
-	kernel_slicer(const std::vector<size_t>& dim, 
+	KSlicer(size_t ndim, const size_t* dim, 
 			const std::vector<std::pair<int64_t, int64_t>>& krange,
 			const std::vector<std::pair<size_t,size_t>>& roi);
 	
 	/**
-	 * @brief Constructs a iterator with the given dimensions and bounding 
-	 * box over the full area. Kernel will range from 
-	 * [kRange[0].first, kRange[0].second] 
-	 * [kRange[1].first, kRange[1].second] 
-	 * ....
+	 * @brief Sets the region of interest. During iteration or any motion the
+	 * position will not move outside the specified range
 	 *
-	 *
-	 * @param dim	size of ND array
-	 * @param kradius Radius around center. Range will include [-R,R] 
-	 * center that will will traverse.
-	 * @param roi	min/max, roi is pair<size_t,size_t> = [min,max] 
+	 * @param roi	pair of [min,max] values in the desired hypercube
 	 */
-	kernel_slicer(const std::vector<size_t>& dim, 
-			const std::vector<size_t>& kradius,
-			const std::vector<std::pair<size_t,size_t>>& roi);
+	void setROI(const std::vector<std::pair<size_t, size_t>>& roi);
 	
 	/****************************************
 	 *
@@ -257,6 +248,21 @@ public:
 	};
 
 	/**
+	 * @brief Get both ND position and linear position. Same as get(vector) but 
+	 * with a better name.
+	 *
+	 * @param ndpos	Output, ND position
+	 *
+	 * @return linear position
+	 */
+	size_t get_index(std::vector<size_t>& ndpos) const
+	{
+		assert(!m_end);
+		ndpos.assign(m_pos[m_center].begin(), m_pos[m_center].end());
+		return m_linpos[m_center];
+	};
+
+	/**
 	 * @brief Get both ND position and linear position
 	 *
 	 * @param ndpos	Output, ND position
@@ -323,9 +329,8 @@ public:
 	 * 					would cause the iterator to range from (1,0,32) to
 	 * 					(5,9,100)
 	 */
-	void initialize(const std::vector<size_t>& dim, 
-			const std::vector<std::pair<int64_t, int64_t>>& krange,
-			const std::vector<std::pair<size_t,size_t>>& roi);
+	void initialize(size_t ndim, const size_t* dim, 
+			const std::vector<std::pair<int64_t, int64_t>>& krange);
 
 protected:
 	// order of traversal

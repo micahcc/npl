@@ -80,12 +80,12 @@ int main()
 	t = clock()-t;
 	cerr << "xyz: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
 	
-	std::vector<size_t> sz({100,100,100});
+	size_t sz[] = {100,100,100};
 	std::vector<size_t> rad({1,1,1});
 	std::vector<size_t> intind;
 	double sum = 0;
 	t = clock();
-	kernel_slicer kslicer(sz, rad);
+	KSlicer kslicer(3, sz, rad);
 	for(kslicer.goBegin(); !kslicer.isEnd(); ++kslicer) {
 		kslicer.get(intind);
 		for(size_t ii=0; ii<3; ii++)
