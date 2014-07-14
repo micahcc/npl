@@ -415,6 +415,7 @@ void kernel_slicer::initialize(const std::vector<size_t>& dim,
  * @brief Jump to the given position
  *
  * @param newpos	location to move to
+ * @param outside	variable to return whether we are outside the ROI or not
  */
 void kernel_slicer::goIndex(const std::vector<size_t>& newpos, bool* outside)
 {
@@ -422,9 +423,20 @@ void kernel_slicer::goIndex(const std::vector<size_t>& newpos, bool* outside)
 		throw std::logic_error("Invalid index size in goIndex");
 	}
 
+	// don't do anything if we are already where we need to be...
+	bool same = true;
+	for(size_t ii=0; ii<m_dim; ii++) {
+		if(newpos[ii] != m_pos[m_center][ii])
+			same = false;
+	}
+	if(same)
+		return ;
+
+	// set up outside if we have been asked for it
 	if(outside)
 		*outside = false;
 	
+	// copy/clamp the center
 	size_t clamped;
 	// copy the center
 	for(size_t dd = 0; dd<m_dim; dd++) {
@@ -459,9 +471,8 @@ void kernel_slicer::goIndex(const std::vector<size_t>& newpos, bool* outside)
 };
 
 /**
- * @brief Are we at the begining of iteration?
+ * @brief Go to the beginning
  *
- * @return true if we are at the begining
  */
 void kernel_slicer::goBegin()
 {
@@ -489,6 +500,10 @@ void kernel_slicer::goBegin()
 	m_end = false;
 };
 	
+/**
+ * @brief Jump to the end of iteration.
+ *
+ */
 void kernel_slicer::goEnd()
 {
 	// copy the center

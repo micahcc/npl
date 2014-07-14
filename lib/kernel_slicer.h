@@ -210,7 +210,7 @@ public:
 	size_t operator--();
 
 	/**
-	 * @brief Are we at the begining of iteration?
+	 * @brief Go to the beginning
 	 *
 	 */
 	void goBegin();
