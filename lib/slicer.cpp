@@ -31,26 +31,8 @@ namespace npl {
  */
 Slicer::Slicer() 
 { 
-	std::vector<size_t> tmp(1,1);
-	updateDim(tmp);
-};
-
-/**
- * @brief Full Featured Constructor
- *
- * @param dim	size of ND array
- * @param order	order of iteration during ++, this doesn't affect step()
- * @param revorder	Reverse order, in which case the first element of order
- * 					will have the slowest iteration, and dimensions not
- * 					specified in order will be faster than those included.
- * @param roi	min/max, roi is pair<size_t,size_t> = [min,max] 
- */
-Slicer::Slicer(const std::vector<size_t>& dim, const std::list<size_t>& order,
-		bool revorder, const std::vector<std::pair<size_t,size_t>>& roi)
-{
-	updateDim(dim);
-	setOrder(order, revorder);
-	setROI(roi);
+	size_t tmp = 1;
+	updateDim(1, &tmp);
 };
 
 /**
@@ -58,9 +40,9 @@ Slicer::Slicer(const std::vector<size_t>& dim, const std::list<size_t>& order,
  *
  * @param dim	size of ND array
  */
-Slicer::Slicer(const std::vector<size_t>& dim) 
+Slicer::Slicer(size_t ndim, const size_t* dim) 
 {
-	updateDim(dim);
+	updateDim(ndim, dim);
 };
 
 /**
@@ -73,24 +55,11 @@ Slicer::Slicer(const std::vector<size_t>& dim)
  * 					will have the slowest iteration, and dimensions not
  * 					specified in order will be faster than those included.
  */
-Slicer::Slicer(const std::vector<size_t>& dim, const std::list<size_t>& order,
+Slicer::Slicer(size_t ndim, const size_t* dim, const std::list<size_t>& order,
 		bool revorder)
 {
-	updateDim(dim);
+	updateDim(ndim, dim);
 	setOrder(order, revorder);
-};
-
-/**
- * @brief Constructor that takes a dimension and region of interest, which
- * is defined as min,max (inclusive)
- *
- * @param dim	size of ND array
- * @param roi	min/max, roi is pair<size_t,size_t> = [min,max] 
- */
-Slicer::Slicer(const std::vector<size_t>& dim, const std::vector<std::pair<size_t,size_t>>& roi)
-{
-	updateDim(dim);
-	setROI(roi);
 };
 
 /**
@@ -118,67 +87,6 @@ size_t Slicer::step(size_t dim, int64_t dist, bool* outside)
 	m_pos[dim] = clamped;
 
 	return m_linpos;
-}
-
-/**
- * @brief Get linear index at an offset location from the current, useful
- * for kernels.
- *
- * @param len 		Length of input array
- * @param dindex	Array offset from the current location 
- * @param outside 	Set to true if the point is outside the region of interest
- *
- * @return 		linear index
- */
-size_t Slicer::offset(size_t len, const int64_t* off, bool* outside) const
-{
-	size_t ret = m_linpos;
-	int64_t clamped;
-	size_t ii = 0;
-	
-	if(outside)
-		*outside = false;
-
-	for(ii=0; ii<m_pos.size() && ii<len; ii++) {
-		clamped = std::max<int64_t>(m_roi[ii].first, 
-				std::min<int64_t>(m_roi[ii].second, m_pos[ii]+off[ii]));
-		ret += (clamped-m_pos[ii])*m_strides[ii];
-		
-		// indicate that the value was outside the roi
-		if(outside && clamped != (int64_t)m_pos[ii] + off[ii])
-			*outside = true;
-	}
-
-	return ret;
-}
-
-/**
- * @brief Get linear index at an offset location from the current, useful
- * for kernels.
- *
- * @param dindex	Vector (offset) from the current location 
- *
- * @return 		linear index
- */
-size_t Slicer::offset(std::initializer_list<int64_t> off, bool* outside) const
-{
-	size_t ret = m_linpos;
-	int64_t clamped;
-	size_t ii = 0;
-			
-	if(outside)
-		*outside = false;
-
-	for(auto it = off.begin() ; it != off.end() && ii<m_pos.size(); it++,ii++) {
-		clamped = std::max<int64_t>(m_roi[ii].first, 
-				std::min<int64_t>(m_roi[ii].second, m_pos[ii]+*it));
-		ret += (clamped-m_pos[ii])*m_strides[ii];
-		
-		// indicate that the value was outside the roi
-		if(outside && clamped != (int64_t)m_pos[ii] + *it)
-			*outside = true;
-	}
-	return ret;
 }
 
 /**
@@ -331,13 +239,12 @@ void Slicer::updateLinRange()
  *
  * @param dim	size of nd array, number of dimesions given by dim.size()
  */
-void Slicer::updateDim(const std::vector<size_t>& dim)
+void Slicer::updateDim(size_t ndim, const size_t* dim)
 {
-	size_t ndim = dim.size();
 	assert(ndim > 0);
 
-	m_roi.resize(dim.size());
-	m_sizes.assign(dim.begin(), dim.end());
+	m_roi.resize(ndim);
+	m_sizes.assign(dim, dim+ndim);
 	m_order.resize(ndim);
 	m_pos.resize(ndim);
 	m_strides.resize(ndim);

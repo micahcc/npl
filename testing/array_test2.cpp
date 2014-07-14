@@ -66,21 +66,21 @@ int main()
 	std::list<size_t> order({2,1,0});
 	total = 0;
 	t = clock();
-	for(NDArray::iterator it(testp, order); !it.isEnd(); ++it) {
-		total += it.get_dbl();
+	for(Slicer it(testp->ndim(), testp->dim(), order); !it.isEnd(); ++it) {
+		total += testp->get_dbl(*it);
 	}
 	t = clock()-t;
 	std::cout << "zyx: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
     
 	// reverse order of dimensions (x,y,z), not reverse iterator
 	t = clock();
-	for(NDArray::iterator it(testp, order, true); !it.isEnd(); ++it) {
-		total += it.get_dbl();
+	for(Slicer it(testp->ndim(), testp->dim(), order, true); !it.isEnd(); ++it) {
+		total += testp->get_dbl(*it);
 	}
 	t = clock()-t;
 	std::cout << "xyz: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
 	
-	NDArray::iterator it(testp);
+	Slicer it(testp->ndim(), testp->dim());
 	
 	it.setOrder(order);
 	it.goBegin();
@@ -95,7 +95,7 @@ int main()
 				}
 
 				double dirv = testp->get_dbl({xx,yy,zz});
-				double itev = it.get_dbl();
+				double itev = testp->get_dbl(*it);
 				
 				if(dirv != itev) {
 					cerr << "Methods disagree, index: " << endl;
@@ -127,7 +127,7 @@ int main()
 				}
 
 				double dirv = testp->get_dbl({xx,yy,zz});
-				double itev = it.get_dbl();
+				double itev = testp->get_dbl(*it);
 				
 				if(dirv != itev) {
 					cerr << "Methods disagree, index: " << endl;

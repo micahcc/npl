@@ -115,25 +115,6 @@ namespace npl {
 class NDArray
 {
 public:
-	class iterator;
-	class const_iterator;
-
-//	virtual iterator begin() {
-//		return iterator(this);
-//	};
-//
-//	virtual iterator begin(const std::list<size_t>& order) {
-//		return iterator(this, order);
-//	};
-//	
-//	virtual const_iterator cbegin() const {
-//		return const_iterator(this);
-//	};
-//
-//	virtual const_iterator cbegin(const std::list<size_t>& order) const {
-//		return const_iterator(this, order);
-//	};
-
 	/*
 	 * get / set functions
 	 */
@@ -161,98 +142,6 @@ public:
 			bool elevR) = 0;
 	virtual std::shared_ptr<NDArray> opnew(const NDArray* right, 
 			double(*func)(double,double), bool elevR) = 0;
-
-	/* 
-	 * Iterator Declaration
-	 */
-	class iterator : public virtual Slicer {
-	public:
-		iterator() : m_parent(NULL) {} ;
-		iterator(NDArray* parent, const list<size_t>& order, 
-					bool revorder = false) 
-		{
-			m_parent = parent;
-			std::vector<size_t> dim(m_parent->ndim());
-			for(size_t ii=0; ii<m_parent->ndim(); ii++)
-				dim[ii] = m_parent->dim(ii);
-			updateDim(dim);
-			setOrder(order, revorder);
-		};
-		iterator(NDArray* parent) 
-		{
-			m_parent = parent;
-			std::vector<size_t> dim(m_parent->ndim());
-			std::list<size_t> order;
-			for(size_t ii=0; ii<m_parent->ndim(); ii++)
-				dim[ii] = m_parent->dim(ii);
-			updateDim(dim);
-			setOrder(order);
-		};
-
-		ITERFUNCS(double, get_dbl, set_dbl);
-		ITERFUNCS(int64_t, get_int, set_int);
-		ITERFUNCS(cdouble_t, get_cdbl, set_cdbl);
-		ITERFUNCS(cfloat_t, get_cfloat, set_cfloat);
-		ITERFUNCS(rgba_t, get_rgba, set_rgba);
-		ITERFUNCS(long double, get_quad, set_quad);
-		ITERFUNCS(cquad_t, get_cquad, set_cquad);
-		
-		void get_index(std::vector<size_t>& ind) { 
-			ind.assign(m_pos.begin(), m_pos.end());
-		}
-		void get_index(std::vector<double>& ind) { 
-			ind.resize(m_pos.size());
-			for(size_t ii=0; ii<m_pos.size(); ii++)
-				ind[ii] = m_pos[ii];
-		}
-
-	protected:
-		NDArray* m_parent;
-	};
-
-	class const_iterator : public virtual Slicer {
-	public:
-		const_iterator(const NDArray* parent, const std::list<size_t>& order, 
-				bool revorder = false) 
-		{
-			m_parent = parent;
-			std::vector<size_t> dim(m_parent->ndim());
-			for(size_t ii=0; ii<m_parent->ndim(); ii++)
-				dim[ii] = m_parent->dim(ii);
-			updateDim(dim);
-			setOrder(order);
-		};
-		const_iterator(const NDArray* parent) 
-		{
-			m_parent = parent;
-			std::vector<size_t> dim(m_parent->ndim());
-			std::list<size_t> order;
-			for(size_t ii=0; ii<m_parent->ndim(); ii++)
-				dim[ii] = m_parent->dim(ii);
-			updateDim(dim);
-			setOrder(order);
-		};
-		
-		CITERFUNCS(double, get_dbl);
-		CITERFUNCS(int64_t, get_int);
-		CITERFUNCS(cdouble_t, get_cdbl);
-		CITERFUNCS(cfloat_t, get_cfloat);
-		CITERFUNCS(rgba_t, get_rgba);
-		CITERFUNCS(long double, get_quad);
-		CITERFUNCS(cquad_t, get_cquad);
-	
-		void get_index(std::vector<size_t>& ind) { 
-			ind.assign(m_pos.begin(), m_pos.end());
-		}
-		void get_index(std::vector<double>& ind) { 
-			ind.resize(m_pos.size());
-			for(size_t ii=0; ii<m_pos.size(); ii++)
-				ind[ii] = m_pos[ii];
-		}
-	protected:
-		const_iterator() {} ;
-		const NDArray* m_parent;
-	};
 
 };
 

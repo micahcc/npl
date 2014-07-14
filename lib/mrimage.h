@@ -81,46 +81,6 @@ public:
 	
 	virtual int write(std::string filename, double version) const = 0;
 	
-	// iterators
-	class iterator;
-	class const_iterator;
-
-	class iterator : public virtual NDArray::iterator {
-		public:
-		// constructor, just casts the parent to NDArray*, then passes on
-		iterator(MRImage* parent, const list<size_t>& order, 
-				bool revorder=false) : 
-				NDArray::iterator((NDArray*)parent, order, revorder) 
-		{
-		}
-		
-		// pass parent as NDArray to base constructor
-		iterator(MRImage* parent) : 
-			NDArray::iterator((NDArray*)parent) { }
-	
-		void get_point(std::vector<double>& ras) {
-			dynamic_cast<MRImage*>(m_parent)->affine().mvproduct(m_pos, ras);
-		}
-	};
-	
-	class const_iterator : public virtual NDArray::const_iterator {
-		public:
-		// constructor, just casts the parent to NDArray*, then passes on
-		const_iterator(const MRImage* parent, const list<size_t>& order, 
-				bool revorder=false) : 
-				NDArray::const_iterator((NDArray*)parent, order, revorder) 
-		{
-		}
-
-		// pass parent as NDArray to base constructor
-		const_iterator(const MRImage* parent) : 
-			NDArray::const_iterator((NDArray*)parent) { }
-	
-		void get_point(std::vector<double>& ras) {
-			dynamic_cast<const MRImage*>(m_parent)->affine().mvproduct(m_pos, ras);
-		}
-	};
-	
 	virtual int indexToPoint(const std::vector<size_t>& xyz, std::vector<double>& ras) const = 0;
 	virtual int indexToPoint(const std::vector<double>& xyz, std::vector<double>& ras) const = 0;
 	virtual int pointToIndex(const std::vector<double>& ras, std::vector<double>& xyz) const = 0;

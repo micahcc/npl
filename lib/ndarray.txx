@@ -271,11 +271,9 @@ int NDArrayStore<D,T>::opself(const NDArray* right,
 	bool canElev = false;
 	bool comp = comparable(this, right, NULL, &canElev);
 	if(comp) {
-		iterator lit(this);
-		const_iterator rit(this);
-		for(; !lit.isEnd() && !rit.isEnd(); ++lit, ++rit) {
-			double result = func(lit.get_dbl(), rit.get_dbl());
-			lit.set_dbl(result);
+		for(size_t ii=0; ii<elements(); ii++) {
+			double result = func(get_dbl(ii), right->get_dbl(ii));
+			set_dbl(ii, result);
 		}
 	} else if(canElev && elevR) {
 		// match dimensions, to make this work, we need to iterate through the 
@@ -286,13 +284,12 @@ int NDArrayStore<D,T>::opself(const NDArray* right,
 			if(right->dim(ii) != 1)
 				commondim.push_front(ii);
 		}
-
-		for(iterator lit(this, commondim); !lit.isEnd() ; ) {
+		for(Slicer lit(ndim(), dim(), commondim); !lit.isEnd() ; ) {
 			// iterate together until right hits the end, then restart
-			const_iterator rit(this, commondim);
-			for( ; !lit.isEnd() && !rit.isEnd(); ++lit, ++rit) {
-				double result = func(lit.get_dbl(), rit.get_dbl());
-				lit.set_dbl(result);
+			for(Slicer rit(ndim(), dim(), commondim); 
+						!lit.isEnd() && !rit.isEnd(); ++lit, ++rit) {
+				double result = func(get_dbl(*rit), get_dbl(*rit));
+				set_dbl(*lit, result);
 			}
 		}
 	} else {

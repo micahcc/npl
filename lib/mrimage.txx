@@ -650,63 +650,63 @@ int MRImageStore<D,T>::writePixels(gzFile file) const
 		case UINT32:
 		case INT64:
 		case UINT64:
-			for(const_iterator it(this, order); !it.isEnd(); ++it) {
-				tmp = (T)it.get_int();
+			for(Slicer it(ndim(), dim(), order); !it.isEnd(); ++it) {
+				tmp = (T)get_int(*it);
 				gzwrite(file, &tmp, sizeof(T));
 			}
 			break;
 		case FLOAT32:
 		case FLOAT64:
-			for(const_iterator it(this, order); !it.isEnd(); ++it) {
-				tmp = (T)it.get_dbl();
+			for(Slicer it(ndim(), dim(), order); !it.isEnd(); ++it) {
+				tmp = (T)get_dbl(*it);
 				gzwrite(file, &tmp, sizeof(T));
 			}
 			break;
 		case FLOAT128:
-			for(const_iterator it(this, order); !it.isEnd(); ++it) {
-				tmp = (T)it.get_quad();
+			for(Slicer it(ndim(), dim(), order); !it.isEnd(); ++it) {
+				tmp = (T)get_quad(*it);
 				gzwrite(file, &tmp, sizeof(T));
 			}
 			break;
 		case COMPLEX64:
-			for(const_iterator it(this, order); !it.isEnd(); ++it) {
-				float re = it.get_cfloat().real();
-				float im = it.get_cfloat().imag();
+			for(Slicer it(ndim(), dim(), order); !it.isEnd(); ++it) {
+				float re = get_cfloat(*it).real();
+				float im = get_cfloat(*it).imag();
 				gzwrite(file, &re, sizeof(float));
 				gzwrite(file, &im, sizeof(float));
 			}
 		case COMPLEX128:
-			for(const_iterator it(this, order); !it.isEnd(); ++it) {
-				double re = it.get_cdbl().real();
-				double im = it.get_cdbl().imag();
+			for(Slicer it(ndim(), dim(), order); !it.isEnd(); ++it) {
+				double re = get_cdbl(*it).real();
+				double im = get_cdbl(*it).imag();
 				gzwrite(file, &re, sizeof(double));
 				gzwrite(file, &im, sizeof(double));
 			}
 			break;
 		case COMPLEX256:
-			for(const_iterator it(this, order); !it.isEnd(); ++it) {
-				long double re = it.get_cquad().real();
-				long double im = it.get_cquad().imag();
+			for(Slicer it(ndim(), dim(), order); !it.isEnd(); ++it) {
+				long double re = get_cquad(*it).real();
+				long double im = get_cquad(*it).imag();
 				gzwrite(file, &re, sizeof(long double));
 				gzwrite(file, &im, sizeof(long double));
 			}
 			break;
 		case RGB24:
-			for(const_iterator it(this, order); !it.isEnd(); ++it) {
-				char r = it.get_rgba().red;
-				char g = it.get_rgba().green;
-				char b = it.get_rgba().blue;
+			for(Slicer it(ndim(), dim(), order); !it.isEnd(); ++it) {
+				char r = get_rgba(*it).red;
+				char g = get_rgba(*it).green;
+				char b = get_rgba(*it).blue;
 				gzwrite(file, &r, sizeof(char));
 				gzwrite(file, &g, sizeof(char));
 				gzwrite(file, &b, sizeof(char));
 			}
 			break;
 		case RGBA32:
-			for(const_iterator it(this, order); !it.isEnd(); ++it) {
-				char r = it.get_rgba().red;
-				char g = it.get_rgba().green;
-				char b = it.get_rgba().blue;
-				char a = it.get_rgba().alpha;
+			for(Slicer it(ndim(), dim(), order); !it.isEnd(); ++it) {
+				char r = get_rgba(*it).red;
+				char g = get_rgba(*it).green;
+				char b = get_rgba(*it).blue;
+				char a = get_rgba(*it).alpha;
 				gzwrite(file, &r, sizeof(char));
 				gzwrite(file, &g, sizeof(char));
 				gzwrite(file, &b, sizeof(char));

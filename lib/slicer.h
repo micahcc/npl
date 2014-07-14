@@ -50,26 +50,13 @@ public:
 	 * @brief Default Constructor, max a length 1, dimension 1 slicer
 	 */
 	Slicer();
-	
-	/**
-	 * @brief Full Featured Constructor
-	 *
-	 * @param dim	size of ND array
-	 * @param order	order of iteration during ++, this doesn't affect step()
-	 * @param revorder	Reverse order, in which case the first element of order
-	 * 					will have the slowest iteration, and dimensions not
-	 * 					specified in order will be faster than those included.
-	 * @param roi	min/max, roi is pair<size_t,size_t> = [min,max] 
-	 */
-	Slicer(const std::vector<size_t>& dim, const std::list<size_t>& order,
-			bool revorder, const std::vector<std::pair<size_t,size_t>>& roi);
 
 	/**
 	 * @brief Simple (no ROI, no order) Constructor
 	 *
 	 * @param dim	size of ND array
 	 */
-	Slicer(const std::vector<size_t>& dim);
+	Slicer(size_t ndim, const size_t* dim);
 	
 	/**
 	 * @brief Constructor that takes a dimension and order of ++/-- iteration
@@ -81,17 +68,8 @@ public:
 	 * 					will have the slowest iteration, and dimensions not
 	 * 					specified in order will be faster than those included.
 	 */
-	Slicer(const std::vector<size_t>& dim, const std::list<size_t>& order, 
+	Slicer(size_t ndim, const size_t* dim, const std::list<size_t>& order, 
 			bool revorder = false);
-
-	/**
-	 * @brief Constructor that takes a dimension and region of interest, which
-	 * is defined as min,max (inclusive)
-	 *
-	 * @param dim	size of ND array
-	 * @param roi	min/max, roi is pair<size_t,size_t> = [min,max] 
-	 */
-	Slicer(const std::vector<size_t>& dim, const std::vector<std::pair<size_t,size_t>>& roi);
 
 	/**
 	 * @brief Directional step, this will not step outside the region of 
@@ -234,6 +212,20 @@ public:
 	size_t get() const { return m_linpos; };
 
 	/**
+	 * @brief Get both ND position and linear position. Same as get(vector) but
+	 * easier name to remember.
+	 *
+	 * @param ndpos	Output, ND position
+	 *
+	 * @return linear position
+	 */
+	size_t get_index(std::vector<size_t>& ndpos) const
+	{
+		ndpos.assign(m_pos.begin(), m_pos.end());
+		return m_linpos;
+	};
+
+	/**
 	 * @brief Get both ND position and linear position
 	 *
 	 * @param ndpos	Output, ND position
@@ -257,7 +249,7 @@ public:
 	 *
 	 * @param dim	size of nd array, number of dimesions given by dim.size()
 	 */
-	void updateDim(const std::vector<size_t>& dim);
+	void updateDim(size_t ndim, const size_t* dim);
 
 	/**
 	 * @brief Sets the region of interest. During iteration or any motion the
@@ -279,11 +271,6 @@ public:
 	 */
 	void setOrder(const std::list<size_t>& order, bool revorder = false);
 
-	size_t flatIndexAtOffset(size_t len, const int64_t* dindex, 
-			bool* outside = NULL) const { return offset(len, dindex, outside); };
-	
-	size_t flatIndexAtOffset(std::initializer_list<int64_t> dindex, 
-			bool* outside = NULL) const { return offset(dindex, outside); };
 protected:
 	
 	/******************************************
@@ -292,27 +279,6 @@ protected:
 	 *
 	 ******************************************/
 	
-	/**
-	 * @brief Get linear index at an offset location from the current, useful
-	 * for kernels.
-	 *
-	 * @param dindex	Vector (offset) from the current location 
-	 *
-	 * @return 		linear index
-	 */
-	size_t offset(size_t len, const int64_t* dindex, bool* outside = NULL) const;
-	
-	/**
-	 * @brief Get linear index at an offset location from the current, useful
-	 * for kernels.
-	 *
-	 * @param dindex	Vector (offset) from the current location 
-	 *
-	 * @return 		linear index
-	 */
-	size_t offset(std::initializer_list<int64_t> dindex, bool* outside = NULL) const;
-
-
 	size_t m_linpos;
 	size_t m_linfirst;
 	size_t m_linlast;

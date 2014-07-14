@@ -57,54 +57,12 @@ int main()
 	t = clock()-t;
 	cerr << "xyz: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
     
-	cerr << "Iterator Offset Acessors with Direct Accessor" << endl;
-	total = 0;
-	t = clock();
-	NDArray::iterator it(testp);
-	for(size_t xx=0; xx < testp->dim(0); xx++) {
-		for(size_t yy=0; yy < testp->dim(1); yy++) {
-			for(size_t zz=0; zz < testp->dim(1); zz++, ++it) {
-				for(int64_t xi = -1; xi <= 1; xi++) {
-					for(int64_t yi = -1; yi <= 1; yi++) {
-						for(int64_t zi = -1; zi <= 1; zi++) {
-							size_t realx = clamp(0, testp->dim(0), xx+xi);
-							size_t realy = clamp(0, testp->dim(0), yy+yi);
-							size_t realz = clamp(0, testp->dim(0), zz+zi);
-							if(testp->get_dbl({realx,realy,realz}) != it.get_dbl({xi,yi,zi})) {
-								cerr << "Error, difference between accessors!" << endl;
-								return -1;
-							}
-
-						}
-					}
-				}
-			}
-		}
-	}
-	t = clock()-t;
-	cerr << "xyz: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
-	
-	cerr << "Speed with with iterator/offset" << endl;
+	cerr << "Speed with with accessors" << endl;
 	double val = 9;
 	t = clock();
-	for(it.goBegin(); !it.isEnd(); ++it) {
-		for(int64_t xi = -1; xi <= 1; xi++) {
-			for(int64_t yi = -1; yi <= 1; yi++) {
-				for(int64_t zi = -1; zi <= 1; zi++) {
-					val += it.get_dbl({xi,yi,zi});
-				}
-			}
-		}
-	}
-	t = clock()-t;
-	cerr << "xyz: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
-	
-	cerr << "Speed with with accessors" << endl;
-	val = 9;
-	t = clock();
 	for(size_t xx=0; xx < testp->dim(0); xx++) {
 		for(size_t yy=0; yy < testp->dim(1); yy++) {
-			for(size_t zz=0; zz < testp->dim(1); zz++, ++it) {
+			for(size_t zz=0; zz < testp->dim(1); zz++) {
 				for(int64_t xi = -1; xi <= 1; xi++) {
 					for(int64_t yi = -1; yi <= 1; yi++) {
 						for(int64_t zi = -1; zi <= 1; zi++) {
@@ -122,31 +80,12 @@ int main()
 	t = clock()-t;
 	cerr << "xyz: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
 	
-	std::vector<double> index;
-	t = clock();
-	double sum =0;
-	for(it.goBegin(); !it.isEnd(); ++it) {
-		it.get_index(index);
-		for(size_t ii=0; ii<3; ii++)
-			sum += index[ii];
-
-		for(int64_t xi = -1; xi <= 1; xi++) {
-			for(int64_t yi = -1; yi <= 1; yi++) {
-				for(int64_t zi = -1; zi <= 1; zi++) {
-					val += it.get_dbl({xi,yi,zi});
-				}
-			}
-		}
-	}
-	t = clock()-t;
-	cerr << "xyz: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
-	
 	std::vector<size_t> sz({100,100,100});
 	std::vector<size_t> rad({1,1,1});
 	std::vector<size_t> intind;
-	sum =0;
+	double sum = 0;
 	t = clock();
-	npl::kernel_slicer kslicer(sz, rad);
+	kernel_slicer kslicer(sz, rad);
 	for(kslicer.goBegin(); !kslicer.isEnd(); ++kslicer) {
 		kslicer.get(intind);
 		for(size_t ii=0; ii<3; ii++)

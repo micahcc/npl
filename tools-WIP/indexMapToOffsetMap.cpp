@@ -22,47 +22,20 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <string>
 
 #include "mrimage.h"
+#include "kdtree.h"
 
 using std::string;
 using namespace npl;
 
-MRImage* invertDeform(shared_ptr<MRImage> in)
+shared_ptr<MRImage> invertDeform(shared_ptr<MRImage> in)
 {
-//	MRImage::iterator it;
-//	if(in->ndim() == 5 && in->dim(4)) {
-//		
-//	}
-//	it(in, {5,4,3,2,1});
-//
-//	int nterms = tfm->GetRequestedRegion().GetNumberOfPixels();
-//	const int DIM = V::ImageDimension;
-//	typename V::PointType point, cpoint, testpoint, pt1, pt2;
-//	double ERROR = 0.1; 
-//	double MAXITERS = 10; 
-//	typename V::PixelType def;
-//
-//	// create output image
-//	auto out = V::New();
-//	out->CopyInformation(tfm);
-//	out->SetRegions(tfm->GetRequestedRegion());
-//	out->Allocate();
-//	
-//	// forward map each point 
-//	// for each output point find the nearest deformed point
-//	// store the nearest reverse deformation 
-//	// solve bspline
-//	alglib::real_2d_array dpoints;
-//	alglib::real_1d_array searchpoint;
-//
-//	// x is the point location, y is the deformation value at the location
-//	dpoints.setlength(nterms, 2*DIM);
-//	searchpoint.setlength(DIM);
-//	alglib::kdtree kdtree;
-//	
-//	// iterators
-//	itk::ImageRegionIteratorWithIndex<V> itt(tfm, tfm->GetRequestedRegion());
-//	itk::ImageRegionIteratorWithIndex<V> ito(out, out->GetRequestedRegion());
-//
+	// create KDTree
+	KDTree<3, 3, float, float> tree;
+
+	// create output image
+//	shared_ptr<MRImage> out((NDArray*)in->clone().get());
+
+	std::list<size_t> order({0,1,2});
 //	itt.GoToBegin();
 //	for(int rr = 0 ; !itt.IsAtEnd(); rr++) {
 //		tfm->TransformIndexToPhysicalPoint(itt.GetIndex(), point);
@@ -303,7 +276,7 @@ int main()
 	
 
 	if(a_invert.isSet()) {
-		deform.reset(invertDeform(deform));
+		deform= invertDeform(deform);
 	}
 	
 

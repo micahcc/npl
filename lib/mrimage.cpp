@@ -174,7 +174,7 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 	for(size_t ii=0; ii<dim.size(); ii++) 
 		order.push_back(ii);
 	
-	Slicer slicer(dim, order);
+	Slicer slicer(dim.size(), dim.data(), order);
 
 	T tmp(0);
 	MRImage* out = NULL;

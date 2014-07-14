@@ -88,7 +88,7 @@ int main()
 	size_t p, xx, yy, zz, ww;
 
 	std::vector<size_t> tdim({X,Y,Z,W});
-	Slicer slicer(tdim);
+	Slicer slicer(tdim.size(), tdim.data());
 
 	cerr << "Classic Ordering" << endl;
 	slicer.setOrder(order);
@@ -278,7 +278,7 @@ int main()
 
 	std::vector<size_t> newdim({50, 50, 50, 50});
 	t = clock();
-	slicer.updateDim(newdim);
+	slicer.updateDim(newdim.size(), newdim.data());
 	ii = 0;
 	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		sum += *slicer;
@@ -289,26 +289,6 @@ int main()
 	}
 	t = clock() - t;
 	cerr << "Large Area Runtime: " << t << " ( " << t/CLOCKS_PER_SEC << " ) seconds" << endl;
-
-	bool outside;
-	int64_t off[4] = {0,0,0,-1};
-	size_t prev = 0;;
-	ii = 0;
-	t = clock();
-	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
-		sum += *slicer;
-		size_t oprev = slicer.flatIndexAtOffset(4, off, &outside);
-		if(!outside && oprev != prev ) {
-			cerr << "Error in offset " << endl;
-			return -1;
-		}
-		if(ii >= 50*50*50*50) {
-			cerr << "Error should have finished!" << endl;
-			return -1;
-		}
-		prev = *slicer;
-	}
-	cerr << "Offset Runtime: " << t << " ( " << t/CLOCKS_PER_SEC << " ) seconds" << endl;
 	
 
 }
