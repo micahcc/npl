@@ -1,6 +1,6 @@
 #include <cassert>
 #include <iostream>
-#include "kernel_iterator.h"
+#include "kernel_slicer.h"
 
 using namespace std;
 
@@ -14,7 +14,7 @@ int main()
   size_t a,b,c;
   std::vector<size_t> sz({10,20,30,10});
   std::vector<size_t> kern({1,1,1});
-  npl::kernel_iterator it(sz, kern);
+  npl::kernel_slicer it(sz, kern);
 
   assert(it.isBegin());
   assert(!it.isEnd());
@@ -97,6 +97,7 @@ int main()
       }
     }
   }
+  assert(it.isEnd());
   
   --it;
   // iterating backward
@@ -148,6 +149,7 @@ int main()
       }
     }
   }
+  assert(it.isBegin());
   
   // now make the iterator uneven
   std::vector<std::pair<int64_t,int64_t>> newk({{-2,1},{-1,0},{0,2},{0,2}});
@@ -203,6 +205,7 @@ int main()
       }
     }
   }
+  assert(it.isEnd());
   
   --it;
   // iterating backward
@@ -254,6 +257,8 @@ int main()
       }
     }
   }
+
+  assert(it.isBegin());
 
   // jumping to the current location
   for(int xx = sz[0]-1; xx >= 0; xx--){

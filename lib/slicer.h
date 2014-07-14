@@ -29,8 +29,6 @@ using namespace std;
 
 namespace npl {
 
-enum BoundaryMethodT {OVER_ROI, WRAP, CLAMP};
-
 /**
  * @brief This class is used to slice an image in along a dimension, and to 
  * step an arbitrary direction in an image. Order may be any size from 0 to the

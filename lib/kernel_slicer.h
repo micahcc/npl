@@ -17,8 +17,8 @@ You should have received a copy of the GNU General Public License along with
 the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
-#ifndef SLICER_H
-#define SLICER_H
+#ifndef KERNEL_SLICER_H
+#define KERNEL_SLICER_H
 
 #include <vector>
 #include <cstdint>
@@ -51,7 +51,7 @@ enum BoundaryMethodT {OVER_ROI, WRAP, CLAMP};
  * 					would cause the iterator to range from (1,0,32) to
  * 					(5,9,100)
  */
-class kernel_iterator 
+class kernel_slicer 
 {
 public:
 	
@@ -64,7 +64,7 @@ public:
 	/**
 	 * @brief Default Constructor, size 1, dimension 1 slicer, krange = 0
 	 */
-	kernel_iterator();
+	kernel_slicer();
 	
 	/**
 	 * @brief Constructs a iterator with the given dimensions and bounding 
@@ -78,7 +78,7 @@ public:
 	 * @param kRange Range to iterate over. This determines the offset from 
 	 * center that will will traverse.
 	 */
-	kernel_iterator(const std::vector<size_t>& dim, 
+	kernel_slicer(const std::vector<size_t>& dim, 
 			const std::vector<std::pair<int64_t, int64_t>>& krange);
 	
 	/**
@@ -93,7 +93,7 @@ public:
 	 * @param kradius Radius around center. Range will include [-R,R] 
 	 * center that will will traverse.
 	 */
-	kernel_iterator(const std::vector<size_t>& dim, 
+	kernel_slicer(const std::vector<size_t>& dim, 
 			const std::vector<size_t>& kradius);
 	
 	/**
@@ -109,7 +109,7 @@ public:
 	 * center that will will traverse.
 	 * @param roi	min/max, roi is pair<size_t,size_t> = [min,max] 
 	 */
-	kernel_iterator(const std::vector<size_t>& dim, 
+	kernel_slicer(const std::vector<size_t>& dim, 
 			const std::vector<std::pair<int64_t, int64_t>>& krange,
 			const std::vector<std::pair<size_t,size_t>>& roi);
 	
@@ -126,7 +126,7 @@ public:
 	 * center that will will traverse.
 	 * @param roi	min/max, roi is pair<size_t,size_t> = [min,max] 
 	 */
-	kernel_iterator(const std::vector<size_t>& dim, 
+	kernel_slicer(const std::vector<size_t>& dim, 
 			const std::vector<size_t>& kradius,
 			const std::vector<std::pair<size_t,size_t>>& roi);
 	
@@ -328,7 +328,8 @@ public:
 			const std::vector<std::pair<size_t,size_t>>& roi);
 
 protected:
-	size_t m_direction;
+	// order of traversal
+	std::vector<size_t> m_order;
 	size_t m_dim;
 	std::vector<size_t> m_size;
 	std::vector<size_t> m_strides;

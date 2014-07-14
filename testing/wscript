@@ -11,7 +11,10 @@ def build(bld):
             source = 'array_test2.cpp', use = 'ndarray')
     
     bld.program(features='test', target = 'array_test3', 
-            source = 'array_test3.cpp', use = 'ndarray')
+            source = 'array_test3.cpp', use = 'ndarray kernel_slicer')
+    
+    bld.program(features='test', target = 'kernel_slicer_test', 
+            source = 'kernel_slicer_test.cpp', use = 'kernel_slicer')
     
     bld.program(features='test', target = 'ndarray_accessor_test1', 
             source = 'ndarray_accessor_test1.cpp', use = 'ndarray')

@@ -17,6 +17,7 @@ You should have received a copy of the GNU General Public License along with
 the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
+#include "kernel_slicer.h"
 #include "ndarray.h"
 #include <iostream>
 #include <ctime>
@@ -135,6 +136,24 @@ int main()
 					val += it.get_dbl({xi,yi,zi});
 				}
 			}
+		}
+	}
+	t = clock()-t;
+	cerr << "xyz: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
+	
+	std::vector<size_t> sz({100,100,100});
+	std::vector<size_t> rad({1,1,1});
+	std::vector<size_t> intind;
+	sum =0;
+	t = clock();
+	npl::kernel_slicer kslicer(sz, rad);
+	for(kslicer.goBegin(); !kslicer.isEnd(); ++kslicer) {
+		kslicer.get(intind);
+		for(size_t ii=0; ii<3; ii++)
+			sum += intind[ii];
+
+		for(size_t ii=0; ii<kslicer.ksize(); ii++) {
+			val += testp->get_dbl(*kslicer);
 		}
 	}
 	t = clock()-t;

@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License along with
 the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
-#include "kernel_iterator.h"
+#include "kernel_slicer.h"
 
 #include <vector>
 #include <list>
@@ -34,7 +34,7 @@ int64_t clamp(int64_t inf, int64_t sup, int64_t val)
 /**
  * @brief Default Constructor, max a length 1, dimension 1 slicer
  */
-kernel_iterator::kernel_iterator() 
+kernel_slicer::kernel_slicer() 
 { 
 	std::vector<size_t> tmpsize(1,1);
 	std::vector<std::pair<int64_t, int64_t>> tmpk;
@@ -55,7 +55,7 @@ kernel_iterator::kernel_iterator()
  * @param kRange Range to iterate over. This determines the offset from 
  * center that will will traverse.
  */
-kernel_iterator::kernel_iterator(const std::vector<size_t>& dim, 
+kernel_slicer::kernel_slicer(const std::vector<size_t>& dim, 
 		const std::vector<std::pair<int64_t, int64_t>>& krange)
 {
 	std::vector<std::pair<size_t,size_t>> tmp;
@@ -75,7 +75,7 @@ kernel_iterator::kernel_iterator(const std::vector<size_t>& dim,
  * center that will will traverse.
  * @param roi	min/max, roi is pair<size_t,size_t> = [min,max] 
  */
-kernel_iterator::kernel_iterator(const std::vector<size_t>& dim, 
+kernel_slicer::kernel_slicer(const std::vector<size_t>& dim, 
 		const std::vector<std::pair<int64_t, int64_t>>& krange,
 		const std::vector<std::pair<size_t,size_t>>& roi)
 {
@@ -94,7 +94,7 @@ kernel_iterator::kernel_iterator(const std::vector<size_t>& dim,
  * @param kradius Radius around center. Range will include [-R,R] 
  * center that will will traverse.
  */
-kernel_iterator::kernel_iterator(const std::vector<size_t>& dim, 
+kernel_slicer::kernel_slicer(const std::vector<size_t>& dim, 
 		const std::vector<size_t>& kradius)
 {
 	std::vector<std::pair<size_t,size_t>> tmp;
@@ -121,7 +121,7 @@ kernel_iterator::kernel_iterator(const std::vector<size_t>& dim,
  * center that will will traverse.
  * @param roi	min/max, roi is pair<size_t,size_t> = [min,max] 
  */
-kernel_iterator::kernel_iterator(const std::vector<size_t>& dim, 
+kernel_slicer::kernel_slicer(const std::vector<size_t>& dim, 
 		const std::vector<size_t>& kradius,
 		const std::vector<std::pair<size_t,size_t>>& roi)
 {
@@ -143,7 +143,7 @@ kernel_iterator::kernel_iterator(const std::vector<size_t>& dim,
  *
  * @return 	old value of linear position
  */
-size_t kernel_iterator::operator++(int)
+size_t kernel_slicer::operator++(int)
 {
 	size_t ret = m_linpos[m_center];
 	operator++();
@@ -156,50 +156,41 @@ size_t kernel_iterator::operator++(int)
  *
  * @return 	new value of linear position
  */
-size_t kernel_iterator::operator++() 
+size_t kernel_slicer::operator++() 
 {
 	if(isEnd())
 		return m_linpos[m_center];
 	
-	int64_t forbound = (int64_t)m_pos[m_center][m_direction]+m_fradius;
-	int64_t revbound = (int64_t)m_pos[m_center][m_direction]-m_rradius;
+	int64_t forbound = (int64_t)m_pos[m_center][m_order[0]]+m_fradius;
+	int64_t revbound = (int64_t)m_pos[m_center][m_order[0]]-m_rradius;
 	
 	// if the entire kernel is within the line, then just add add 1/stride
-	if(forbound < (int64_t)m_roi[m_direction].second && 
-				revbound >= (int64_t)m_roi[m_direction].first) {
+	if(forbound < (int64_t)m_roi[m_order[0]].second && 
+				revbound >= (int64_t)m_roi[m_order[0]].first) {
 		for(size_t oo=0; oo<m_numoffs; oo++) {
-			m_pos[oo][m_direction]++;
-			m_linpos[oo] += m_strides[m_direction];
+			m_pos[oo][m_order[0]]++;
+			m_linpos[oo] += m_strides[m_order[0]];
 		}
 	} else { // brute force
 	
 		// iterate center
-		if(m_pos[m_center][m_direction] < m_roi[m_direction].second) {
-			// if we aren't at the boundary we can just add 1
-			m_pos[m_center][m_direction]++;
-		} else {
-			// wrap in direction
-			m_pos[m_center][m_direction] = m_roi[m_direction].first;
-			
-			// iterate ignoreing m_direction, since we just wrapped that
-			for(int64_t dd=m_dim-1; dd>=0; dd--){
-				if(dd == (int64_t)m_direction) 
-					continue;
-				
-				if(m_pos[m_center][dd] < m_roi[dd].second) {
-					m_pos[m_center][dd]++;
-					break;
-				} else if(dd == 0) {
-					// don't roll over last, since we want to be able to iterate
-					// back
-					m_pos[m_center][dd]++;
-					m_end = true;
-					// other values aren't valid so we can quit
-					return m_linpos[m_center];
-				} else {
-					// roll over dimension
-					m_pos[m_center][dd] = m_roi[dd].first;
-				}
+		for(size_t ii=0; ii<m_dim; ii++){
+			size_t dd = m_order[ii];
+			if(m_pos[m_center][dd] < m_roi[dd].second) {
+				m_pos[m_center][dd]++;
+				m_linpos[m_center] += m_strides[dd];
+				break;
+			} else if(ii != m_dim-1){
+				// reset dimension
+				m_pos[m_center][dd] = m_roi[dd].first;
+			} else {
+				// we are willing to go 1 past the last
+				m_pos[m_center][dd]++;
+				m_end = true;
+
+				// want to skip clamping, and not really a need to update 
+				// neighborhood when we are outside the image
+				return m_linpos[m_center]; 
 			}
 		}
 
@@ -228,7 +219,7 @@ size_t kernel_iterator::operator++()
  *
  * @return 	new value of linear position
  */
-size_t kernel_iterator::operator--(int)
+size_t kernel_slicer::operator--(int)
 {
 	size_t ret = m_linpos[m_center];
 	operator--();
@@ -241,45 +232,34 @@ size_t kernel_iterator::operator--(int)
  *
  * @return 	new value of linear position
  */
-size_t kernel_iterator::operator--() 
+size_t kernel_slicer::operator--() 
 {
 	if(isBegin())
 		return m_linpos[m_center];
 	
 	m_end = false;
 
-	int64_t forbound = (int64_t)m_pos[m_center][m_direction]+m_fradius;
-	int64_t revbound = (int64_t)m_pos[m_center][m_direction]-m_rradius;
+	int64_t forbound = (int64_t)m_pos[m_center][m_order[0]]+m_fradius;
+	int64_t revbound = (int64_t)m_pos[m_center][m_order[0]]-m_rradius;
 	
 	// if the entire kernel is within the line, then just add add 1/stride
-	if(forbound <= (int64_t)m_roi[m_direction].second && 
-				revbound > (int64_t)m_roi[m_direction].first) {
+	if(forbound <= (int64_t)m_roi[m_order[0]].second && 
+				revbound > (int64_t)m_roi[m_order[0]].first) {
 		for(size_t oo=0; oo<m_numoffs; oo++) {
-			m_pos[oo][m_direction]--;
-			m_linpos[oo] -= m_strides[m_direction];
+			m_pos[oo][m_order[0]]--;
+			m_linpos[oo] -= m_strides[m_order[0]];
 		}
 	} else { // brute force
 	
 		// iterate center
-		if(m_pos[m_center][m_direction] > m_roi[m_direction].first) {
-			// if we aren't at the boundary we can just add 1
-			m_pos[m_center][m_direction]--;
-		} else {
-			// wrap in direction
-			m_pos[m_center][m_direction] = m_roi[m_direction].second;
-			
-			// iterate ignoreing m_direction, since we just wrapped that
-			for(int64_t dd=m_dim-1; dd>=0; dd--){
-				if(dd == m_direction) 
-					continue;
-				
-				if(m_pos[m_center][dd] > m_roi[dd].first) {
-					m_pos[m_center][dd]--;
-					break;
-				} else {
-					// roll over dimension
-					m_pos[m_center][dd] = m_roi[dd].second;
-				}
+		for(size_t ii=0; ii<m_order.size(); ii++){
+			size_t dd = m_order[ii];
+			if(m_pos[m_center][dd] != m_roi[dd].first) {
+				m_pos[m_center][dd]--;
+				break;
+			} else if(ii != m_order.size()-1) {
+				// jump forward in dd, (will pull back in next)
+				m_pos[m_center][dd] = m_roi[dd].second;
 			}
 		}
 
@@ -315,7 +295,7 @@ size_t kernel_iterator::operator--()
  * 					would cause the iterator to range from (1,0,32) to
  * 					(5,9,100)
  */
-void kernel_iterator::initialize(const std::vector<size_t>& dim, 
+void kernel_slicer::initialize(const std::vector<size_t>& dim, 
 			const std::vector<std::pair<int64_t, int64_t>>& krange,
 			const std::vector<std::pair<size_t,size_t>>& roi)
 {
@@ -328,7 +308,7 @@ void kernel_iterator::initialize(const std::vector<size_t>& dim,
 		kmin[dd] = krange[dd].first;
 		kmax[dd] = krange[dd].second;
 		if(kmin[dd] > 0 || kmax[dd] < 0) {
-			throw std::logic_error("Kernel window in kernel_iterator does "
+			throw std::logic_error("Kernel window in kernel_slicer does "
 					"not include the center!");
 		}
 	}
@@ -336,11 +316,18 @@ void kernel_iterator::initialize(const std::vector<size_t>& dim,
 	// to ensure we aren't constantly bouncing wrapping, we will iterate
 	// in the direction of the longest dimension, rather than the fastest
 	int64_t longest = 0;
+	m_order.resize(m_dim);
 	for(size_t dd=0; dd<m_dim; dd++) {
-		if((int64_t)m_size[dd]+kmin[dd]-kmax[dd] > longest) {
+		if((int64_t)m_size[dd]+kmin[dd]-kmax[dd] >= longest) {
 			longest = (int64_t)m_size[dd]+kmin[dd]-kmax[dd]; 
-			m_direction = dd;
+			m_order[0] = dd;
 		}
+	}
+
+	// just add the remaining dimensions to order in reverse
+	for(int64_t ii=m_dim-1, jj=1; ii>=0; ii--) {
+		if(ii != m_order[0])
+			m_order[jj++] = ii;
 	}
 
 	// set up strides
@@ -353,8 +340,8 @@ void kernel_iterator::initialize(const std::vector<size_t>& dim,
 	// we need to know how far forward and back the kernel stretches because
 	// when the kernel gets near an edge, we have to recompute so the kernel
 	// doesn't go utside the image
-	m_fradius = kmax[m_direction];
-	m_rradius = -kmin[m_direction];
+	m_fradius = kmax[m_order[0]];
+	m_rradius = -kmin[m_order[0]];
 		
 	// for each point, we need this
 	m_numoffs = 1;
@@ -429,7 +416,7 @@ void kernel_iterator::initialize(const std::vector<size_t>& dim,
  *
  * @param newpos	location to move to
  */
-void kernel_iterator::goIndex(const std::vector<size_t>& newpos, bool* outside)
+void kernel_slicer::goIndex(const std::vector<size_t>& newpos, bool* outside)
 {
 	if(newpos.size() != m_dim) {
 		throw std::logic_error("Invalid index size in goIndex");
@@ -476,7 +463,7 @@ void kernel_iterator::goIndex(const std::vector<size_t>& newpos, bool* outside)
  *
  * @return true if we are at the begining
  */
-void kernel_iterator::goBegin()
+void kernel_slicer::goBegin()
 {
 	// copy the center
 	for(size_t dd = 0; dd<m_dim; dd++) {
@@ -502,7 +489,7 @@ void kernel_iterator::goBegin()
 	m_end = false;
 };
 	
-void kernel_iterator::goEnd()
+void kernel_slicer::goEnd()
 {
 	// copy the center
 	for(size_t dd = 0; dd<m_dim; dd++) {
