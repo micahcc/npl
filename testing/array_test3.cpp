@@ -121,5 +121,24 @@ int main()
 	t = clock()-t;
 	cerr << "xyz: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
 	
+	std::vector<double> index;
+	t = clock();
+	double sum =0;
+	for(it.goBegin(); !it.isEnd(); ++it) {
+		it.get_index(index);
+		for(size_t ii=0; ii<3; ii++)
+			sum += index[ii];
+
+		for(int64_t xi = -1; xi <= 1; xi++) {
+			for(int64_t yi = -1; yi <= 1; yi++) {
+				for(int64_t zi = -1; zi <= 1; zi++) {
+					val += it.get_dbl({xi,yi,zi});
+				}
+			}
+		}
+	}
+	t = clock()-t;
+	cerr << "xyz: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
+	
 	return 0;
 }
