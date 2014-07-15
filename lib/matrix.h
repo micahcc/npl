@@ -46,6 +46,7 @@ public:
 			std::vector<double>& out) const = 0;
 
 	virtual double det() const = 0;
+	virtual double norm() const = 0;
 	virtual size_t rows() const = 0;
 	virtual size_t cols() const = 0;
 };
@@ -160,6 +161,7 @@ public:
 			std::vector<double>& out) const;
 
 	virtual double det() const;
+	virtual double norm() const;
 
 	size_t rows() const {return D1;};
 	size_t cols() const {return D2;};
@@ -460,6 +462,37 @@ double determinant(const Matrix<DIM, DIM>& trg)
 			return b;
 	} else 
 		return a;
+}
+
+template <int D1, int D2>
+double norm(const Matrix<D1, D2>& trg)
+{
+	throw std::length_error("Matrix Passed to Norm Function");
+	return 0;
+}
+
+template <int DIM>
+double norm(const Matrix<DIM, 1>& trg)
+{
+	double sum = 0;
+	for(size_t ii=0; ii<DIM; ii++)
+		sum += trg[ii]*trg[ii];
+	return sqrt(sum);
+}
+
+template <int DIM>
+double norm(const Matrix<1, DIM>& trg)
+{
+	double sum = 0;
+	for(size_t ii=0; ii<DIM; ii++)
+		sum += trg(0,ii)*trg(0,ii);
+	return sqrt(sum);
+}
+
+template <int D1, int D2>
+double Matrix<D1,D2>::norm() const
+{
+	return npl::norm<D1,D2>(*this);
 }
 
 template <int D1, int D2>
