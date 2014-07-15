@@ -69,7 +69,6 @@ double interp(MRImage* img, std::vector<float> cindex,
 		throw std::out_of_range("cindex size does not match image dimensions");
 	}
 
-	std::cerr << "Cont. Index: " << cindex << endl;
 	int DIM = std::max(cindex.size(), img->ndim());
 	std::vector<size_t> index(cindex.size(), 0);
 	
@@ -113,12 +112,12 @@ shared_ptr<MRImage> invertDeform(shared_ptr<MRImage> in, size_t vdim)
 	KDTree<3, 3, float, float> tree;
 	const double MINERR = .5;
 	const size_t MAXITERS = 100;
-	vector<float> fwdsrc(3,0);
-	vector<float> fwdtrg(3,0);
-	vector<float> revsrc(3,0);
-	vector<float> revtrg(3,0);
-	std::vector<size_t> index(in->ndim(), 0);
-	std::vector<float> cindex(in->ndim(), 0);
+	vector<float> err(3,0);
+	vector<float> tmp(3,0);
+	vector<float> src(3,0);
+	vector<float> trg(3,0);
+	vector<size_t> index(in->ndim(), 0);
+	vector<float> cindex(in->ndim(), 0);
 
 	// map every current point back to its source
 	for(index[0]=0; index[0]<in->dim(0); index[0]++) {
@@ -128,13 +127,12 @@ shared_ptr<MRImage> invertDeform(shared_ptr<MRImage> in, size_t vdim)
 				// get full vector, 
 				for(size_t ii=0; ii<3; ii++) {
 					index[vdim] = ii;
-					fwdsrc[ii] = in->get_dbl(index.size(), index.data());
-					fwdtrg[ii] = index[ii];
+					src[ii] = in->get_dbl(index.size(), index.data());
+					trg[ii] = index[ii];
 				}
 
-//				cerr << "Inserting: " << fwdsrc << ", " << fwdtrg << endl;
 				// add point to kdtree
-				tree.insert(fwdsrc, fwdtrg);
+				tree.insert(src, trg);
 			}
 		}
 	}
@@ -149,78 +147,66 @@ shared_ptr<MRImage> invertDeform(shared_ptr<MRImage> in, size_t vdim)
 		for(index[1]=0; index[1]<in->dim(1); index[1]++) {
 			for(index[2]=0; index[2]<in->dim(2); index[2]++) {
 				for(size_t ii=0; ii<3; ii++)
-					revtrg[ii] = index[ii];
-				std::cerr << "Querying " << revtrg << endl;;
+					trg[ii] = index[ii];
 
 				// find point that maps near the current in
 				double dist = INFINITY;
-				auto result = tree.nearest(revtrg, dist);
-				cerr << "Distance: " << dist << endl;
+				auto result = tree.nearest(trg, dist);
 
 				if(!result) 
 					throw std::logic_error("Deformation too large!");
 
-				cerr << endl;
-				for(size_t ii=0; ii<3; ii++)
-					cerr << result->m_point[ii] << ", ";
-				cerr << endl;
-				for(size_t ii=0; ii<3; ii++)
-					cerr << result->m_data[ii] << ", ";
-				cerr << endl;
-
 				// we want the forward source = reverse target 
 				// and reverse source = forward target
-				fwdtrg.assign(result->m_point, result->m_point+3);
-				fwdsrc.assign(result->m_data, result->m_data+3);
-				for(size_t jj=0; jj<3; jj++) 
-					revsrc[jj] = revtrg[jj]-(fwdtrg[jj]-fwdsrc[jj]);
+//				fwdtrg.assign(result->m_point, result->m_point+3);
+//				fwdsrc.assign(result->m_data, result->m_data+3);
+
+				// intiailize theoretical source
+				for(size_t jj=0; jj<3; jj++) {
+					src[jj] = result->m_data[jj];
+				}
 
 				// use the error in app_target vs target to find a 
 				// source that fits
 				for(size_t ii = 0 ; dist > MINERR && ii < MAXITERS; ii++) {
-
 #ifdef DEBUG
-				std::cerr << "\tForward Source:\n" << fwdsrc << "\n" 
-					<< "\tReverse Target :\n" << revtrg << "\n"
-					<< "\tForward Target:\n" << fwdtrg << "\n"
-					<< "\tReverse Source:\n" << revsrc << "\n";
+					std::cerr << trg  << " <- ?? " << src << " ?? " << endl;
 #endif //DEBUG
 
-					// forward map computed revsrc (fwdtrg)
+					// forward map computed src (fwdtrg)
 					// load new source into cindex
 					for(size_t jj=0; jj<3; jj++) {
-						cindex[jj] = revsrc[jj];
-						fwdtrg[jj] = revsrc[jj];
+						cindex[jj] = src[jj];
 					}
 
-					// interpolate in original, to get forward source, then update
-					// revsrc with new deformation
 					for(size_t jj=0; jj<3; jj++) {
 						cindex[vdim] = jj;
-						fwdsrc[jj] = interp(in.get(), cindex, 1, linKern);
-						revsrc[jj] = revtrg[jj]-(fwdtrg[jj]-fwdsrc[jj]);
+						tmp[jj] = interp(in.get(), cindex, 1, linKern);
 					}
-
-					// calculate selfmap error, and add it to searchpoint to improve 
-					// the result
+#ifdef DEBUG
+					std::cerr << trg  << " vs " << tmp << " <- " << src << endl;
+#endif //DEBUG
 					dist = 0;
-					for(int dd = 0 ; dd < 3; dd++) {
-						dist += pow(revtrg[dd]-fwdsrc[dd],2);
-						dist = sqrt(dist);
+					for(size_t jj=0; jj<3; jj++) {
+						err[jj] = trg[jj]-tmp[jj];
+						dist += err[jj]*err[jj];
+						src[jj] = src[jj]+.5*err[jj];
 					}
+					dist = sqrt(dist);
+#ifdef DEBUG
+				std::cerr << "Err (" << dist << ") " << err << endl;
+#endif //DEBUG
+
 				}
 
 #ifdef DEBUG
-				std::cerr << "\tForward Source:\n" << fwdsrc << "\n" 
-					<< "\tReverse Target :\n" << revtrg << "\n"
-					<< "\tForward Target:\n" << fwdtrg << "\n"
-					<< "\tReverse Source:\n" << revsrc << "\n";
+				std::cerr << "Found: " << trg  << " <- " << src << endl;
 #endif //DEBUG
 
 				// set the inverted source in the output
 				for(size_t ii=0; ii<3; ii++) {
 					index[vdim] = ii;
-					out->set_dbl(index.size(), index.data(), revsrc[ii]);
+					out->set_dbl(index.size(), index.data(), src[ii]);
 				}
 
 			}
@@ -245,9 +231,11 @@ int main(int argc, char** argv)
 			"change that to A[a,b,c]^T. Its also possible to invert (-I) .",
 			' ', __version__ );
 
-	TCLAP::ValueArg<string> a_fmri("i", "input", "Input image.", 
+	TCLAP::ValueArg<string> a_in("i", "input", "Input image.", 
 			true, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
+			false, "", "*.nii.gz", cmd);
+	TCLAP::ValueArg<string> a_mask("m", "mask", "Input image.", 
 			true, "", "*.nii.gz", cmd);
 	TCLAP::SwitchArg a_invert("I", "invert", "Whether to invert.", cmd);
 	TCLAP::SwitchArg a_nohack("H", "dont-hack-ones", "Brainsute make 1 the "
@@ -259,7 +247,7 @@ int main(int argc, char** argv)
 	cmd.parse(argc, argv);
 
 	// read input
-	std::shared_ptr<MRImage> deform(readMRImage(a_fmri.getValue()));
+	std::shared_ptr<MRImage> deform(readMRImage(a_in.getValue()));
 	
 	// ensure the image dimensions match our expectations
 	size_t vdim = 4;
@@ -279,11 +267,26 @@ int main(int argc, char** argv)
 	}
 
 	// check that it is 4D or 5D (with time=1)
-
 	std::vector<size_t> index;
 	std::list<size_t> order({vdim});
 	Slicer it(deform->ndim(), deform->dim(), order);
-	if(!a_nohack.isSet()) {
+
+	// convert deform to offsets
+
+	if(a_mask.isSet()) {
+
+		// everything outside the mask takes on the nearest value
+		// from inside the mask
+		
+		std::shared_ptr<MRImage> mask(readMRImage(a_mask.getValue()));
+
+		//TODO
+		// for each point in mask add point and offset to KDTree
+		//
+		// for each point outside mask
+		// find nearest point in kdtree
+		// copy offset to point
+
 		cerr << "Making [1,1,1] values self-mapping" << endl;
 
 		it.goBegin();
@@ -304,6 +307,7 @@ int main(int argc, char** argv)
 		}
 		cerr << "Done" << endl;
 	}
+
 	deform->write("fixed.nii.gz");
 
 	if(a_invert.isSet()) {
