@@ -22,6 +22,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <algorithm>
 #include <cassert>
+#include <stdexcept>
 
 #include <iostream>
 using namespace std;
@@ -175,7 +176,7 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 		out = pos;
 	}
 
-	if(pos->left && pt[axis] < pos->m_point[axis]) {
+	if(pos->left && pt[axis] <= pos->m_point[axis]) {
 		// if it falls below the current coordinate, and there are nodes to 
 		// be inspected, recurse
 		auto tmp = nearest_help(depth+1, pos->left, pt, distsq);
@@ -208,7 +209,7 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 		/////////////////////////////////////
 		// go to the opposite side as before
 		/////////////////////////////////////
-		if(pos->right && pt[axis] < pos->m_point[axis]) {
+		if(pos->right && pt[axis] <= pos->m_point[axis]) {
 			// if it falls below the current coordinate, and there are nodes to 
 			// be inspected, recurse
 			
@@ -263,6 +264,9 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest(const std::vector<T>& pt, double& 
 		return NULL;
 	}
 
+	if(pt.size() != K) 
+		throw std::out_of_range("Incorrect point size");
+
 	if(std::isnormal(dist)) {
 		dist = dist*dist;
 	} else {
@@ -297,12 +301,12 @@ std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist_help(size_t de
 	// recurse to the side that pt is on, or to the opposite side if
 	// a point could be on the other side and still be under sqrt(distsq)
 	// away 
-	if(pos->left && (pt[axis] < pos->m_point[axis] || hypdistsq < distsq)) {
+	if(pos->left && (pt[axis] <= pos->m_point[axis] || hypdistsq < distsq)) {
 		auto tmplist = withindist_help(depth+1, pos->left, pt, distsq);
 		out.insert(out.begin(), tmplist.begin(), tmplist.end());
 	}
 
-	if(pos->right && (pt[axis] > pos->m_point[axis] || hypdistsq < distsq)) {
+	if(pos->right && (pt[axis] >= pos->m_point[axis] || hypdistsq < distsq)) {
 		auto tmplist = withindist_help(depth+1, pos->right, pt, distsq);
 		out.insert(out.begin(), tmplist.begin(), tmplist.end());
 	}

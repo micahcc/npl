@@ -63,11 +63,13 @@ class KDTreeNode
 
 		KDTreeNode(const KDTreeNode& other)
 		{
+			(void)(other);
 			throw -1;
 		}
 		
 		KDTreeNode(KDTreeNode&& other)
 		{
+			(void)(other);
 			throw -1;
 		}
 };

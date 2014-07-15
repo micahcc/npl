@@ -132,7 +132,7 @@ shared_ptr<MRImage> invertDeform(shared_ptr<MRImage> in, size_t vdim)
 					fwdtrg[ii] = index[ii];
 				}
 
-				cerr << "Inserting: " << fwdsrc << ", " << fwdtrg << endl;
+//				cerr << "Inserting: " << fwdsrc << ", " << fwdtrg << endl;
 				// add point to kdtree
 				tree.insert(fwdsrc, fwdtrg);
 			}
