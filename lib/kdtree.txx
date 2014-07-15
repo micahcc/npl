@@ -260,8 +260,9 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest(const std::vector<T>& pt, double& 
 		return NULL;
 	}
 
-	if(pt.size() != K) 
-		throw std::out_of_range("Incorrect point size");
+	std::vector<T> adjpt(K, 0);
+	for(size_t ii=0; ii<K && ii<pt.size(); ii++)
+		adjpt[ii] = pt[ii];
 
 	if(std::isnormal(dist)) {
 		dist = dist*dist;
@@ -269,7 +270,7 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest(const std::vector<T>& pt, double& 
 		dist = INFINITY;
 	}
 	
-	KDTreeNode<K,E,T,D>* out = nearest_help(0, m_treehead, pt, dist);
+	KDTreeNode<K,E,T,D>* out = nearest_help(0, m_treehead, adjpt, dist);
 	dist = sqrt(dist);
 
 	return out;

@@ -224,6 +224,7 @@ shared_ptr<MRImage> invertDeform(shared_ptr<MRImage> in, size_t vdim)
  */
 void growFromMask(shared_ptr<MRImage> deform, shared_ptr<MRImage> mask)
 {
+	cerr << "Changing Outside Points to match nearest inside-mask point" << endl;
 	// build KDTree
 	std::vector<int64_t> defInd(deform->ndim());
 	std::vector<double> point(deform->ndim());
@@ -249,9 +250,10 @@ void growFromMask(shared_ptr<MRImage> deform, shared_ptr<MRImage> mask)
 		}
 	}
 
+	cerr << "Building Tree" << endl;
 	tree.build();
 
-	it.goBegin();
+	cerr << "Mapping points using kd-tree" << endl;
 	for(it.goBegin(); !it.isEnd(); ) {
 		it.get_index(defInd);
 		
@@ -263,7 +265,9 @@ void growFromMask(shared_ptr<MRImage> deform, shared_ptr<MRImage> mask)
 		for(size_t ii=0; ii<3; ii++, ++it) {
 			deform->set_dbl(*it, result->m_data[ii]);
 		}
+		std::cout << *it << " " << "\r";
 	}
+	cerr << "Done" << endl;
 }
 
 int main(int argc, char** argv)
