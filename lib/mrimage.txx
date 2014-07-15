@@ -22,6 +22,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <typeinfo>
 
 #include "nifti.h"
+#include "clamp.h"
 
 namespace npl {
 
@@ -683,7 +684,18 @@ std::shared_ptr<MRImage> MRImageStore<D,T>::cloneImg() const
 
 	return out;
 }
-
+/**
+ * @brief Converts a integer index to a RAS point index. Result in
+ * may be outside the FOV. Input vector may be difference size that dimension.
+ * Excess dimensions are ignored, missing dimensions are treated as zeros.
+ *
+ * @tparam D Dimension of image
+ * @tparam T Pixeltype
+ * @param index Index (may be out of bounds)
+ * @param rast point in Right handed increasing RAS coordinate system
+ *
+ * @return 
+ */
 template <int D, typename T>
 int MRImageStore<D,T>::indexToPoint(const std::vector<int64_t>& index,
 		std::vector<double>& rast) const
@@ -698,6 +710,18 @@ int MRImageStore<D,T>::indexToPoint(const std::vector<int64_t>& index,
 	return 0;
 }
 
+/**
+ * @brief Converts a continous index to a RAS point index. Result in
+ * may be outside the FOV. Input vector may be difference size that dimension.
+ * Excess dimensions are ignored, missing dimensions are treated as zeros.
+ *
+ * @tparam D Dimension of image
+ * @tparam T Pixeltype
+ * @param index Index (may be out of bounds)
+ * @param rast point in Right handed increasing RAS coordinate system
+ *
+ * @return 
+ */
 template <int D, typename T>
 int MRImageStore<D,T>::indexToPoint(const std::vector<double>& index,
 		std::vector<double>& rast) const
@@ -712,6 +736,18 @@ int MRImageStore<D,T>::indexToPoint(const std::vector<double>& index,
 	return 0;
 }
 
+/**
+ * @brief Converts a point to an continous index. Could result in negative
+ * values. Input vector may be difference size that dimension. Excess
+ * dimensions are ignored, missing dimensions are treated as zeros.
+ *
+ * @tparam D Dimension of image
+ * @tparam T Pixeltype
+ * @param rast input in Right handed increasing RAS coordinate system
+ * @param index Index (may be out of bounds)
+ *
+ * @return 
+ */
 template <int D, typename T>
 int MRImageStore<D,T>::pointToIndex(const std::vector<double>& rast,
 		std::vector<double>& index) const
@@ -726,6 +762,18 @@ int MRImageStore<D,T>::pointToIndex(const std::vector<double>& rast,
 	return 0;
 }
 
+/**
+ * @brief Converts a point to an int64 index. Could result in negative values.
+ * Input vector may be difference size that dimension. Excess dimensions are 
+ * ignored, missing dimensions are treated as zeros.
+ *
+ * @tparam D Dimension of image
+ * @tparam T Pixeltype
+ * @param rast input in Right handed increasing RAS coordinate system
+ * @param index Index (may be out of bounds)
+ *
+ * @return 
+ */
 template <int D, typename T>
 int MRImageStore<D,T>::pointToIndex(const std::vector<double>& rast,
 		std::vector<int64_t>& index) const
@@ -738,6 +786,205 @@ int MRImageStore<D,T>::pointToIndex(const std::vector<double>& rast,
 	for(size_t ii=0; ii<D; ii++) 
 		index[ii] = round(out[ii]);
 	return 0;
+}
+
+/* Linear Kernel Sampling */
+double linKern(double x)
+{
+	return fabs(1-fmin(1,fabs(x)));
+}
+
+
+/**
+ * @brief Linearly interpolates image at a point.
+ *
+ * @param point Continuous point location (could be outside FOV)
+ * @param bound	What to return if the value is outside the FOV
+ * @param outside Set to true if the value is outside, false otherwise
+ *
+ * @return 
+ */
+template <int D, typename T>
+double MRImageStore<D,T>::linSamplePt(const std::vector<double> point, 
+		BoundaryConditionT bound, bool& outside)
+{
+	std::vector<double> cindex;
+	pointToIndex(point, cindex);
+	return linSampleInd(cindex, bound, outside);
+}
+
+/**
+ * @brief Linearly interpolates image at a contiuous index
+ *
+ * @param cindex Continuous index location (could be outside FOV)
+ * @param bound	What to return if the value is outside the FOV
+ * @param outside Set to true if the value is outside, false otherwise
+ *
+ * @return 
+ */
+template <int D, typename T>
+double MRImageStore<D,T>::linSampleInd(const std::vector<double> incindex,
+		BoundaryConditionT bound, bool& outside)
+{
+	double cindex[D];
+	int64_t index[D];
+	
+	// in case incindex is of the wrong size, copy
+	for(size_t ii=0 ; ii<incindex.size() && ii < D; ii++)
+		cindex[ii] = incindex[ii];
+	for(size_t ii=incindex.size(); ii < D; ii++)
+		cindex[ii] = 0;
+
+	//kernels essentially 1D, so we can save time by combining 1D kernls
+	//rather than recalculating
+	const int kpoints = 2;
+	const double rad = 0.5;
+	double karray[D*kpoints];
+	for(int dd = 0; dd < D; dd++) {
+		for(double ii = -rad; ii <= rad; ii++) {
+			int64_t nearpoint = round(cindex[dd]+ii);
+			karray[dd*kpoints+(int)(ii+rad)] = linKern(nearpoint-cindex[dd]);
+		}
+	}
+
+	bool iioutside = false;
+	outside = false;
+	double pixval = 0;
+	double rounded = 0;
+	double weight = 0;
+	div_t result;
+	//iterator over points in the neighborhood
+	for(int ii = 0 ; ii < pow(kpoints, D); ii++) {
+		weight = 1;
+		
+		//convert to local index, compute weight
+		result.quot = ii;
+		iioutside = false;
+		for(int dd = 0; dd < D; dd++) {
+			result = std::div(result.quot, kpoints);
+			weight *= karray[dd*kpoints+result.rem];
+			rounded = round(cindex[dd]+result.rem-rad);
+
+			index[dd] = (int64_t)rounded;
+			iioutside = iioutside || rounded < 0 || rounded >= dim(dd);
+		}
+
+		outside = iioutside || outside;
+	
+		// just use clamped value
+		if(iioutside) {
+			if(bound == ZEROFLUX) {
+				// clamp
+				for(size_t dd=0; dd<D; dd++)
+					index[dd] = clamp<int64_t>(0, dim(dd)-1, index[dd]);
+			} else if(bound == WRAP) {
+				// wrap
+				for(size_t dd=0; dd<D; dd++) {
+					if(index[dd] < 0)
+						index[dd] = dim(dd)-(std::abs(index[dd])%dim(dd));
+					else if(index[dd] >= dim(dd))
+						index[dd] = index[dd]%dim(dd);
+				}
+			} else if(bound == CONSTZERO) {
+				// set wieght to zero, then just clamp
+				weight = 0;
+				for(size_t dd=0; dd<D; dd++)
+					index[dd] = clamp<int64_t>(0, dim(dd)-1, index[dd]);
+			}
+		} 
+
+		pixval += weight*get_dbl(D, index);
+
+	}
+
+	return pixval;
+}
+
+/**
+ * @brief Nearest Neigbor interpolation, handles outside values.
+ *
+ * @param point	Point to get
+ * @param bound	What to return if the value is outside the FOV
+ * @param outside Set to true if the value is outside, false otherwise
+ *
+ * @return 
+ */
+template <int D, typename T>
+double MRImageStore<D,T>::nnSamplePt(const std::vector<double> point,
+		BoundaryConditionT bound, bool& outside)
+{
+	std::vector<double> cindex;
+	pointToIndex(point, cindex);
+	return nnSampleInd(cindex, bound, outside);
+}
+
+/**
+ * @brief Nearest Neigbor interpolation, handles outside values.
+ *
+ * @param point	Point to get
+ * @param bound	What to return if the value is outside the FOV
+ * @param outside Set to true if the value is outside, false otherwise
+ *
+ * @return 
+ */
+template <int D, typename T>
+double MRImageStore<D,T>::nnSampleInd(const std::vector<int64_t> inindex,
+		BoundaryConditionT bound, bool& outside)
+{
+	int64_t index[D];
+	
+	// in case incindex is of the wrong size, copy
+	for(size_t ii=0 ; ii<inindex.size() && ii < D; ii++)
+		index[ii] = inindex[ii];
+	for(size_t ii=inindex.size(); ii < D; ii++)
+		index[ii] = 0;
+
+	//convert to local index, compute weight
+	outside = false;
+	for(int dd = 0; dd < D; dd++) {
+		outside = outside || index[dd] < 0 || index[dd] >= dim(dd);
+	}
+
+	// just use clamped value
+	if(outside) {
+		if(bound == ZEROFLUX) {
+			// clamp
+			for(size_t dd=0; dd<D; dd++)
+				index[dd] = clamp<int64_t>(0, dim(dd)-1, index[dd]);
+		} else if(bound == WRAP) {
+			// wrap
+			for(size_t dd=0; dd<D; dd++) {
+				if(index[dd] < 0)
+					index[dd] = dim(dd)-(std::abs(index[dd])%dim(dd));
+				else if(index[dd] >= dim(dd))
+					index[dd] = index[dd]%dim(dd);
+			}
+		} else if(bound == CONSTZERO) {
+			return 0;
+		}
+	} 
+
+	return get_dbl(D, index);
+}
+
+/**
+ * @brief Nearest Neigbor interpolation, handles outside values.
+ *
+ * @param point	Point to get
+ * @param bound	What to return if the value is outside the FOV
+ * @param outside Set to true if the value is outside, false otherwise
+ *
+ * @return 
+ */
+template <int D, typename T>
+double MRImageStore<D,T>::nnSampleInd(const std::vector<double> incindex,
+		BoundaryConditionT bound, bool& outside)
+{
+	std::vector<int64_t> index(incindex.size());
+	for(size_t dd=0; dd<incindex.size(); dd++)
+		index[dd] = round(incindex[dd]);
+
+	return nnSampleInd(index, bound, outside);
 }
 
 } //npl

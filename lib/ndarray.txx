@@ -164,16 +164,14 @@ inline
 int64_t NDArrayStore<D,T>::getAddr(std::initializer_list<int64_t> index) const
 {
 	int64_t out = 0;
-	int64_t clamped;
 
 	// copy the dimensions 
 	int64_t ii=0;
 	for(auto it=index.begin(); it != index.end() && ii<D; ii++, ++it) {
-		// clamp value
-		clamped = std::min<int64_t>(*it, _m_dim[ii]-1);
-
+		assert(*it >= 0);
+		assert(*it < _m_dim[ii]);
 		// set position
-		out += _m_stride[ii]*clamped;
+		out += _m_stride[ii]*(*it);
 	}
 	
 	return out;
@@ -184,15 +182,14 @@ inline
 int64_t NDArrayStore<D,T>::getAddr(const int64_t* index) const
 {
 	int64_t out = 0;
-	int64_t clamped;
 
 	// copy the dimensions 
 	for(size_t ii = 0; ii<D; ii++) {
-		// clamp value
-		clamped = std::min<int64_t>(index[ii], _m_dim[ii]-1);
+		assert(index[ii] >= 0);
+		assert(index[ii] < _m_dim[ii]);
 
 		// set position
-		out += _m_stride[ii]*clamped;
+		out += _m_stride[ii]*index[ii];
 	}
 
 	return out;
@@ -203,16 +200,12 @@ inline
 int64_t NDArrayStore<D,T>::getAddr(const std::vector<int64_t>& index) const
 {
 	size_t out = 0;
-	size_t clamped;
 
 	// copy the dimensions 
 	size_t ii=0;
 	for(auto it=index.begin(); it != index.end() && ii<D; ii++) {
-		// clamp value
-		clamped = std::min<int64_t>(*it, _m_dim[ii]-1);
-
 		// set position
-		out += _m_stride[ii]*clamped;
+		out += _m_stride[ii]*(*it);
 	}
 	return out;
 }

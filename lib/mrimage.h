@@ -45,6 +45,7 @@ enum PixelT {UNKNOWN_TYPE=0, UINT8=2, INT16=4, INT32=8, FLOAT32=16, COMPLEX64=32
 	COMPLEX256=2048, RGBA32=2304 };
 
 enum SliceOrderT {UNKNOWN_SLICE=0, SEQ=1, RSEQ=2, ALT=3, RALT=4, ALT_SHFT=5, RALT_SHFT=6};
+enum BoundaryConditionT {ZEROFLUX=0, CONSTZERO=1, WRAP=2};
 
 class MRImage;
 
@@ -84,10 +85,27 @@ public:
 	
 	virtual std::shared_ptr<MRImage> cloneImg() const = 0;
 	
-	virtual int indexToPoint(const std::vector<int64_t>& xyz, std::vector<double>& ras) const = 0;
-	virtual int indexToPoint(const std::vector<double>& xyz, std::vector<double>& ras) const = 0;
-	virtual int pointToIndex(const std::vector<double>& ras, std::vector<double>& xyz) const = 0;
-	virtual int pointToIndex(const std::vector<double>& ras, std::vector<int64_t>& index) const = 0;
+	// coordinate system conversion 
+	virtual int indexToPoint(const std::vector<int64_t>& xyz,
+			std::vector<double>& ras) const = 0;
+	virtual int indexToPoint(const std::vector<double>& xyz,
+			std::vector<double>& ras) const = 0;
+	virtual int pointToIndex(const std::vector<double>& ras,
+			std::vector<double>& xyz) const = 0;
+	virtual int pointToIndex(const std::vector<double>& ras,
+			std::vector<int64_t>& index) const = 0;
+	
+	// sampling functions
+	virtual double linSampleInd(const std::vector<double> cindex,
+			BoundaryConditionT bound, bool& outside) = 0;
+	virtual double linSamplePt(const std::vector<double> point, 
+			BoundaryConditionT bound, bool& outside) = 0;
+	virtual double nnSamplePt(const std::vector<double> point,
+			BoundaryConditionT bound, bool& outside) = 0;
+	virtual double nnSampleInd(const std::vector<int64_t> index,
+			BoundaryConditionT bound, bool& outside) = 0;
+	virtual double nnSampleInd(const std::vector<double> cindex,
+			BoundaryConditionT bound, bool& outside) = 0;
 	
 //	virtual int unary(double(*func)(double,double)) const = 0;
 //	virtual int binOp(const MRImage* right, double(*func)(double,double), bool elevR) const = 0;
@@ -178,13 +196,17 @@ public:
 	int indexToPoint(const std::vector<double>& index, std::vector<double>& rast) const;
 	int pointToIndex(const std::vector<double>& rast, std::vector<double>& index) const;
 	int pointToIndex(const std::vector<double>& ras, std::vector<int64_t>& index) const;
-
-//	double kernSamplePt(const std::vector<double> point);
-//	double kernSampleInd(const std::vector<double> index);
-	double linSamplePt(const std::vector<double> point);
-	double linSampleInd(const std::vector<double> index);
-	double nnSamplePt(const std::vector<double> point);
-	double nnSampleInd(const std::vector<double> index);
+	
+	double linSampleInd(const std::vector<double> cindex,
+			BoundaryConditionT bound, bool& outside);
+	double linSamplePt(const std::vector<double> point, 
+			BoundaryConditionT bound, bool& outside);
+	double nnSamplePt(const std::vector<double> point,
+			BoundaryConditionT bound, bool& outside);
+	double nnSampleInd(const std::vector<int64_t> index,
+			BoundaryConditionT bound, bool& outside);
+	double nnSampleInd(const std::vector<double> cindex,
+			BoundaryConditionT bound, bool& outside);
 	
 	MatrixP& space() {return *((MatrixP*)&m_space); };
 	MatrixP& origin() {return *((MatrixP*)&m_origin); };

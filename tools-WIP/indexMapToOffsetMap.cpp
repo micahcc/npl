@@ -45,67 +45,6 @@ ostream& operator<<(ostream& out, const std::vector<T>& v)
 	return out;
 }
 
-/* Linear Kernel Sampling */
-double linKern(double x, double a)
-{
-	return fabs(1-fmin(1,fabs(x/a)))/a;
-}
-
-/* Linear Kernel Sampling */
-double dLinKern(double x, double a)
-{
-	if(x < -a || x > a)
-		return 0;
-	if(x < 0)
-		return 1/a;
-	else
-		return -1/a; 
-}
-
-double interp(MRImage* img, std::vector<float> cindex, 
-			double rad, double(*kfunc)(double, double))
-{
-	if(cindex.size() != img->ndim()) {
-		throw std::length_error("cindex size does not match image dimensions");
-	}
-
-	int DIM = std::max(cindex.size(), img->ndim());
-	std::vector<int64_t> index(cindex.size(), 0);
-	
-	//kernels are essentially 1D, so we can save time by combining 1D kernls
-	//rather than recalculating
-	int kpoints = rad*2+1;
-	vector<double> karray(DIM*kpoints);
-	for(int dd = 0; dd < DIM; dd++) {
-		for(double ii = -rad; ii <= rad; ii++) {
-			int nearpoint = round(cindex[dd]+ii);
-			karray[dd*kpoints+(int)(ii+rad)] = kfunc(nearpoint-cindex[dd], rad);
-		}
-	}
-
-	double pixval = 0;
-	double weight = 0;
-	div_t result;
-	//iterator over points in the neighborhood
-	for(int ii = 0 ; ii < pow(kpoints, DIM); ii++) {
-		weight = 1;
-		
-		//convert to local index, compute weight
-		result.quot = ii;
-		for(int dd = 0; dd < DIM; dd++) {
-			result = std::div(result.quot, kpoints);
-			weight *= karray[dd*kpoints+result.rem];
-			index[dd] = clamp(0, img->dim(dd), round(cindex[dd]+result.rem-rad));
-		}
-	
-//		std::cerr << "Point: " << ii << " weight: " << weight << " Cont. Index: " 
-//			<< cindex << ", Index: " << index << endl;
-		pixval += weight*img->get_dbl(index.size(), index.data());
-	}
-
-	return pixval;
-}
-
 shared_ptr<MRImage> invertDeform(shared_ptr<MRImage> in, size_t vdim)
 {
 	// create KDTree
@@ -117,7 +56,7 @@ shared_ptr<MRImage> invertDeform(shared_ptr<MRImage> in, size_t vdim)
 	vector<float> src(3,0);
 	vector<float> trg(3,0);
 	vector<int64_t> index(in->ndim(), 0);
-	vector<float> cindex(in->ndim(), 0);
+	vector<double> cindex(in->ndim(), 0);
 
 	// map every current point back to its source
 	for(index[0]=0; index[0]<in->dim(0); index[0]++) {
@@ -179,9 +118,10 @@ shared_ptr<MRImage> invertDeform(shared_ptr<MRImage> in, size_t vdim)
 						cindex[jj] = src[jj];
 					}
 
+					bool outside = false;
 					for(size_t jj=0; jj<3; jj++) {
 						cindex[vdim] = jj;
-						tmp[jj] = interp(in.get(), cindex, 1, linKern);
+						tmp[jj] = in->linSampleInd(cindex, CONSTZERO, outside);
 					}
 #ifdef DEBUG
 					std::cerr << trg  << " vs " << tmp << " <- " << src << endl;
@@ -265,7 +205,6 @@ void growFromMask(shared_ptr<MRImage> deform, shared_ptr<MRImage> mask)
 		for(size_t ii=0; ii<3; ii++, ++it) {
 			deform->set_dbl(*it, result->m_data[ii]);
 		}
-		std::cout << *it << " " << "\r";
 	}
 	cerr << "Done" << endl;
 }
