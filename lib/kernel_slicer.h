@@ -30,8 +30,6 @@ using namespace std;
 
 namespace npl {
 
-enum BoundaryMethodT {OVER_ROI, WRAP, CLAMP};
-
 /**
  * @brief This class is used to slice an image in along a dimension, and to 
  * step an arbitrary direction in an image. Order may be any size from 0 to the
@@ -226,82 +224,81 @@ public:
 	 ***************************************/
 
 	/**
-	 * @brief dereference operator. Returns the linear position in the array 
-	 * given the n-dimensional position.
+	 * @brief Get image linear index of center. 
 	 *
-	 * @return 
+	 * @return Linear index
 	 */
 	inline
-	int64_t operator*() const { return m_linpos[m_center]; };
+	int64_t center() const 
+	{ 
+		assert(!m_end);
+		return m_linpos[m_center]; 
+	};
 	
 	/**
-	 * @brief Same as dereference operator. Returns the linear position in the 
-	 * array given the n-dimensional position.
+	 * @brief Get image linear index of center. Identitcal to center() just 
+	 * more confusing
 	 *
-	 * @return 
+	 * @return Linear index
 	 */
 	inline
-	int64_t get() const 
+	int64_t operator*() const 
 	{ 
 		assert(!m_end);
 		return m_linpos[m_center]; 
 	};
 
-	/**
-	 * @brief Get both ND position and linear position. Same as get(vector) but 
-	 * with a better name.
-	 *
-	 * @param ndpos	Output, ND position
-	 *
-	 * @return linear position
-	 */
-	int64_t get_index(std::vector<int64_t>& ndpos) const
-	{
-		assert(!m_end);
-		ndpos.assign(m_pos[m_center].begin(), m_pos[m_center].end());
-		return m_linpos[m_center];
-	};
 
 	/**
-	 * @brief Get both ND position and linear position
+	 * @brief Get both ND position and linear position of center pixel.
 	 *
 	 * @param ndpos	Output, ND position
 	 *
 	 * @return linear position
 	 */
-	int64_t get(std::vector<int64_t>& ndpos) const
+	std::vector<int64_t> center_index() const
 	{
-		assert(!m_end);
-		ndpos.assign(m_pos[m_center].begin(), m_pos[m_center].end());
-		return m_linpos[m_center];
+		return m_pos[m_center]; 
 	};
 	
 	/**
-	 * @brief Same as dereference operator. Returns the linear position in the 
-	 * array given the n-dimensional position.
+	 * @brief Get index of i'th kernel (center-offset) element.
 	 *
-	 * @return 
+	 * @return linear position
 	 */
 	inline
-	int64_t get(int64_t kit) const { 
+	int64_t offset(int64_t kit) const { 
+		assert(!m_end);
+		assert(kit < m_numoffs);
+		return m_linpos[kit]; 
+	};
+	
+	/**
+	 * @brief Same as offset(int64_t kit)
+	 *
+	 * @return linear position
+	 */
+	inline
+	int64_t operator[](int64_t kit) const { 
 		assert(!m_end);
 		assert(kit < m_numoffs);
 		return m_linpos[kit]; 
 	};
 
 	/**
-	 * @brief Get both ND position and linear position
+	 * @brief Get both ND position and linear position of the specified
+	 * offset (kernel) element.
 	 *
+	 * @param Kernel index
 	 * @param ndpos	Output, ND position
 	 *
 	 * @return linear position
 	 */
-	int64_t get(size_t kit, std::vector<int64_t>& ndpos) const
+	std::vector<int64_t> offset_index(size_t kit) const
 	{
 		assert(!m_end);
 		assert(kit < m_numoffs);
-		ndpos.assign(m_pos[kit].begin(), m_pos[kit].end());
-		return m_linpos[kit]; 
+		return m_pos[kit];
 	};
 
 	/**

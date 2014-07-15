@@ -23,6 +23,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "nifti.h"
 #include "clamp.h"
+#include "slicer.h"
 
 namespace npl {
 
@@ -51,7 +52,7 @@ MRImageStore<D,T>::MRImageStore(const std::vector<size_t>& dim) :
 {
 	std::cerr << "ndims: " << dim.size(); 
 	for(size_t ii=0; ii<dim.size(); ii++)
-		std::cerr << "dim[" << ii << "]=" << dim[ii] << endl;
+		std::cerr << "dim[" << ii << "]=" << dim[ii] << std::endl;
 	orientDefault();
 }
 
@@ -292,16 +293,16 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 
 	if(nogz.substr(nogz.size()-4, 4) == ".nii") {
 		if(version >= 2) {
-			std::cerr << "version >= 2" << endl;
+			std::cerr << "version >= 2" << std::endl;
 			if(writeNifti2Image(gz) != 0) {
-				std::cerr << "Error writing" << std:: endl;
+				std::cerr << "Error writing" << std::endl;
 				gzclose(gz);
 				return -1;
 			}
 		} else {
-			std::cerr << "version < 2" << endl;
+			std::cerr << "version < 2" << std::endl;
 			if(writeNifti1Image(gz) != 0) {
-				std::cerr << "Error writing" << std:: endl;
+				std::cerr << "Error writing" << std::endl;
 				gzclose(gz);
 				return -1;
 			}
@@ -320,15 +321,15 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 template <int D, typename T>
 int MRImageStore<D,T>::writeNifti1Image(gzFile file) const
 {
-	cerr << "writeNifti1Image" << endl;
+	std::cerr << "writeNifti1Image" << std::endl;
 	int ret = writeNifti1Header(file);
 #ifdef DEBUG
-	cerr << "Writing Header" << endl;
+	std::cerr << "Writing Header" << std::endl;
 #endif
 	if(ret != 0) 
 		return ret;
 #ifdef DEBUG
-	cerr << "Writing Pixels" << endl;
+	std::cerr << "Writing Pixels" << std::endl;
 #endif
 	ret = writePixels(file);
 	return ret;
@@ -337,15 +338,15 @@ int MRImageStore<D,T>::writeNifti1Image(gzFile file) const
 template <int D, typename T>
 int MRImageStore<D,T>::writeNifti2Image(gzFile file) const
 {
-	cerr << "writeNifti2Image" << endl;
+	std::cerr << "writeNifti2Image" << std::endl;
 #ifdef DEBUG
-	cerr << "Writing Header" << endl;
+	std::cerr << "Writing Header" << std::endl;
 #endif
 	int ret = writeNifti2Header(file);
 	if(ret != 0) 
 		return ret;
 #ifdef DEBUG
-	cerr << "Writing Pixels" << endl;
+	std::cerr << "Writing Pixels" << std::endl;
 #endif
 	ret = writePixels(file);
 	return ret;
@@ -354,7 +355,7 @@ int MRImageStore<D,T>::writeNifti2Image(gzFile file) const
 template <int D, typename T>
 int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 {
-	cerr << "writeNifti1Header" << endl;
+	std::cerr << "writeNifti1Header" << std::endl;
 	static_assert(sizeof(nifti1_header) == 348, "Error, nifti header packing failed");
 	nifti1_header header;
 	std::fill((char*)&header, ((char*)&header)+sizeof(nifti1_header), 0);
@@ -408,7 +409,7 @@ int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 
 	double det = rotate.det();
 	if(fabs(det)-1 > 0.0001) {
-		cerr << "Non-orthogonal direction set! This may not end well" << endl;
+		std::cerr << "Non-orthogonal direction set! This may not end well" << std::endl;
 	}
 
 	if(det > 0) 
@@ -472,14 +473,14 @@ int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 template <int D, typename T>
 int MRImageStore<D,T>::writeNifti2Header(gzFile file) const
 {
-	cerr << "writeNifti2Header" << endl;
+	std::cerr << "writeNifti2Header" << std::endl;
 	static_assert(sizeof(nifti2_header) == 540, "Error, nifti header packing failed");
 	nifti2_header header;
 	std::fill((char*)&header, ((char*)&header)+sizeof(nifti2_header), 0);
 
-	std::cerr << header.sizeof_hdr << endl;
+	std::cerr << header.sizeof_hdr << std::endl;
 	header.sizeof_hdr = 540;
-	std::cerr << header.sizeof_hdr << endl;
+	std::cerr << header.sizeof_hdr << std::endl;
 
 	if(m_freqdim >= 0 && m_freqdim <= 2) 
 		header.dim_info.bits.freqdim = m_freqdim+1; 
@@ -527,7 +528,7 @@ int MRImageStore<D,T>::writeNifti2Header(gzFile file) const
 
 	double det = rotate.det();
 	if(fabs(det)-1 > 0.0001) {
-		cerr << "Non-orthogonal direction set! This may not end well" << endl;
+		std::cerr << "Non-orthogonal direction set! This may not end well" << std::endl;
 	}
 	if(det > 0) 
 		header.qfac = 1;
@@ -580,7 +581,7 @@ int MRImageStore<D,T>::writeNifti2Header(gzFile file) const
 	// write over extension
 	char ext[4] = {0,0,0,0};
 	
-	std::cerr << header.sizeof_hdr << endl;
+	std::cerr << header.sizeof_hdr << std::endl;
 	gzwrite(file, &header, sizeof(header));
 	gzwrite(file, ext, sizeof(ext));
 	
@@ -649,7 +650,7 @@ template <int D, typename T>
 int MRImageStore<D,T>::writePixels(gzFile file) const
 {
 	// x is the fastest in nifti, for us it is the slowest
-	list<size_t> order;
+	std::list<size_t> order;
 	for(size_t ii=0 ; ii<ndim(); ii++)
 		order.push_back(ii);
 
@@ -848,8 +849,8 @@ double MRImageStore<D,T>::linSampleInd(const std::vector<double>& incindex,
 	}
 
 //	for(size_t ii=0; ii<D*kpoints; ii+=2) {
-//		std::cerr << indarray[ii] << ", " << indarray[ii+1] << endl;
-//		std::cerr << karray[ii] << ", " << karray[ii+1] << endl;
+//		std::cerr << indarray[ii] << ", " << indarray[ii+1] << std::endl;
+//		std::cerr << karray[ii] << ", " << karray[ii+1] << std::endl;
 //	}
 
 	bool iioutside = false;
@@ -905,7 +906,7 @@ double MRImageStore<D,T>::linSampleInd(const std::vector<double>& incindex,
 //		std::cerr << ", Index: " ;
 //		for(size_t ii=0; ii<D; ii++)
 //			std::cerr << index[ii] << ",";
-//		std::cerr << endl;
+//		std::cerr << std::endl;
 
 		pixval += weight*get_dbl(D, index);
 

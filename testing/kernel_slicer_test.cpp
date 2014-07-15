@@ -63,7 +63,10 @@ int main()
                   int64_t zeff = clamp(0, sz[2]-1, zz+zzo);
                   int64_t teff = clamp(0, sz[3]-1, tt+tto);
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
-                  int64_t itlin = it.get(neighbor++, index);
+
+                  int64_t itlin = it.offset(neighbor);
+                  index = it.offset_index(neighbor);
+				  neighbor++;
 
                   if(xeff != index[0]) {
                     cerr << "Incorrect x map" << endl;
@@ -115,7 +118,10 @@ int main()
                   int64_t zeff = clamp(0, sz[2]-1, zz+zzo);
                   int64_t teff = clamp(0, sz[3]-1, tt+tto);
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
-                  int64_t itlin = it.get(neighbor++, index);
+
+                  int64_t itlin = it.offset(neighbor);
+                  index = it.offset_index(neighbor);
+				  neighbor++;
 
                   if(xeff != index[0]) {
                     cerr << "Incorrect x map" << endl;
@@ -170,7 +176,10 @@ int main()
                   int64_t zeff = clamp(0, sz[2]-1, zz+zzo);
                   int64_t teff = clamp(0, sz[3]-1, tt+tto);
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
-                  int64_t itlin = it.get(neighbor++, index);
+                  
+				  int64_t itlin = it.offset(neighbor);
+                  index = it.offset_index(neighbor);
+				  neighbor++;
 
                   if(xeff != index[0]) {
                     cerr << "Incorrect x map" << endl;
@@ -222,7 +231,10 @@ int main()
                   int64_t zeff = clamp(0, sz[2]-1, zz+zzo);
                   int64_t teff = clamp(0, sz[3]-1, tt+tto);
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
-                  int64_t itlin = it.get(neighbor++, index);
+				  
+				  int64_t itlin = it.offset(neighbor);
+                  index = it.offset_index(neighbor);
+				  neighbor++;
 
                   if(xeff != index[0]) {
                     cerr << "Incorrect x map" << endl;
@@ -280,7 +292,10 @@ int main()
                   int64_t zeff = clamp(0, sz[2]-1, zz+zzo);
                   int64_t teff = clamp(0, sz[3]-1, tt+tto);
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
-                  int64_t itlin = it.get(neighbor++, index);
+
+				  int64_t itlin = it.offset(neighbor);
+                  index = it.offset_index(neighbor);
+				  neighbor++;
 
                   if(xeff != index[0]) {
                     cerr << "Incorrect x map" << endl;

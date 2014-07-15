@@ -22,7 +22,10 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <string>
 
 #include "mrimage.h"
+#include "kernel_slicer.h"
 #include "kdtree.h"
+#include "slicer.h"
+#include "kernel_slicer.h"
 
 using std::string;
 using namespace npl;
@@ -165,6 +168,39 @@ shared_ptr<MRImage> invertDeform(shared_ptr<MRImage> in, size_t vdim)
 void growFromMask(shared_ptr<MRImage> deform, shared_ptr<MRImage> mask)
 {
 	cerr << "Changing Outside Points to match nearest inside-mask point" << endl;
+
+	// create kernel iterator, radius 1
+	std::vector<size_t> krad(mask->ndim(), 1);
+	KSlicer kern(mask->ndim(), mask->dim(), krad);
+	size_t minval;
+
+	for(kern.goBegin(); !kern.isEnd(); ++kern) {
+
+		// skip values in mask, or that have been reached
+		if(mask->get_int(kern.center()) != 0)
+			continue;
+		
+		// find minimum non-zero point in kernel 
+		minval = SIZE_MAX;
+		std::vector<int64_t> minind(mask->ndim());
+		for(size_t ii=0; ii<kern.ksize(); ii++) {
+			int v = mask->get_int(kern[ii]);
+			if(v > 0 && v < minval) {
+				minval = v;
+				minind = kern.offset_index(ii);
+			}
+		}
+
+		// copy value at index to deform, and set middle to minv+1
+		if(minval < SIZE_MAX) {
+			mask->set_int(kern.center(), minval+1);
+		}
+	}
+
+
+
+
+
 	// build KDTree
 	std::vector<int64_t> defInd(deform->ndim());
 	std::vector<double> point(deform->ndim());
@@ -176,7 +212,7 @@ void growFromMask(shared_ptr<MRImage> deform, shared_ptr<MRImage> mask)
 	for(it.goBegin(); !it.isEnd(); ) {
 
 		// convert index in deform to index in mask
-		it.get_index(defInd);
+		defInd = it.index();
 		deform->indexToPoint(defInd, point);
 		mask->pointToIndex(point, maskInd);
 
@@ -195,7 +231,7 @@ void growFromMask(shared_ptr<MRImage> deform, shared_ptr<MRImage> mask)
 
 	cerr << "Mapping points using kd-tree" << endl;
 	for(it.goBegin(); !it.isEnd(); ) {
-		it.get_index(defInd);
+		defInd = it.index();
 		
 		// search in tree
 		double dist = INFINITY;
@@ -269,7 +305,7 @@ int main(int argc, char** argv)
 
 	// convert deform to offsets
 	for(it.goBegin(); !it.isEnd(); ) {
-		it.get_index(defInd);
+		defInd = it.index();
 		for(int ii=0; ii<3; ii++, ++it) {
 			deform->set_dbl(*it, deform->get_dbl(*it)-defInd[ii]);
 		}

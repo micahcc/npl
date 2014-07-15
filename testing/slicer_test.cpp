@@ -94,7 +94,8 @@ int main()
 	slicer.setOrder(order);
 	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
-		int64_t sp = slicer.get(pos);
+		int64_t sp = *slicer;
+		pos = slicer.index();
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 
 		indexToLin(p, xx,yy,zz,ww, X,Y,Z,W);
@@ -129,7 +130,8 @@ int main()
 	slicer.setOrder(order);
 	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
-		int64_t sp = slicer.get(pos);
+		int64_t sp = *slicer;
+		pos = slicer.index();
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 		cerr << xx << "," << yy << "," << zz << "," << ww << endl;
 
@@ -165,7 +167,9 @@ int main()
 	slicer.setOrder(order);
 	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
-		int64_t sp = slicer.get(pos);
+		int64_t sp = *slicer;
+		pos = slicer.index();
+
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 		cerr << xx << "," << yy << "," << zz << "," << ww << endl;
 
@@ -198,7 +202,9 @@ int main()
 	slicer.setOrder(order);
 	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
-		int64_t sp = slicer.get(pos);
+		int64_t sp = *slicer;
+		pos = slicer.index();
+
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 		cerr << xx << "," << yy << "," << zz << "," << ww << endl;
 
@@ -232,7 +238,8 @@ int main()
 	slicer.setROI(roi);
 	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
-		int64_t sp = slicer.get(pos);
+		int64_t sp = *slicer;
+		pos = slicer.index();
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 		cerr << xx << "," << yy << "," << zz << "," << ww << endl;
 

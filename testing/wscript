@@ -12,17 +12,17 @@ def build(bld):
     bld.program(install_as='tests', features='test', 
             target='array_test2', 
             source='array_test2.cpp', 
-            use='ndarray')
+            use='ndarray slicer')
     
     bld.program(install_as='tests', features='test', 
             target='array_test3', 
             source='array_test3.cpp', 
-            use='ndarray kernel_slicer')
+            use='ndarray kslicer')
     
     bld.program(install_as='tests', features='test',
             target='kernel_slicer_test', 
             source='kernel_slicer_test.cpp',
-            use='kernel_slicer')
+            use='kslicer')
     
     bld.program(install_as='tests', features='test',
             target='ndarray_accessor_test1', 

@@ -3,12 +3,12 @@ def build(bld):
     bld(name = 'kdtree', export_includes = ['.'])
     
     bld.shlib(target = 'ndarray', source = 'ndarray.cpp', 
-            use='npltypes slicer', export_includes = ['.'])
+            use='npltypes', export_includes = ['.'])
     bld.shlib(target = 'slicer', source = 'slicer.cpp', 
             export_includes = ['.'])
-    bld.shlib(target = 'kernel_slicer', source = 'kernel_slicer.cpp', 
+    bld.shlib(target = 'kslicer', source = 'kernel_slicer.cpp', 
             export_includes = ['.'])
     bld.shlib(target = 'mrimage', source = 'mrimage.cpp', 
-            use='ZLIB ndarray', export_includes = ['.'])
+            use='ZLIB ndarray slicer', export_includes = ['.'])
     bld.shlib(target = 'npltypes', source = 'npltypes.cpp', 
             export_includes = ['.'])

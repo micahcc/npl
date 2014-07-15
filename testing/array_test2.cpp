@@ -18,7 +18,9 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 #include "ndarray.h"
+#include "slicer.h"
 #include <iostream>
+#include <list>
 #include <ctime>
 
 using namespace std;
@@ -100,7 +102,7 @@ int main()
 				if(dirv != itev) {
 					cerr << "Methods disagree, index: " << endl;
 					std::vector<int64_t> index;
-					it.get_index(index);
+					index = it.index();
 					for(auto val : index) {
 						cerr << val << ",";
 					}
@@ -132,7 +134,7 @@ int main()
 				if(dirv != itev) {
 					cerr << "Methods disagree, index: " << endl;
 					std::vector<int64_t> index;
-					it.get_index(index);
+					index = it.index();
 					for(auto val : index) {
 						cerr << val << ",";
 					}

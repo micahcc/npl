@@ -203,15 +203,6 @@ public:
 	int64_t operator*() const { return m_linpos; };
 	
 	/**
-	 * @brief Same as dereference operator. Returns the linear position in the 
-	 * array given the n-dimensional position.
-	 *
-	 * @return 
-	 */
-	inline
-	int64_t get() const { return m_linpos; };
-
-	/**
 	 * @brief Get both ND position and linear position. Same as get(vector) but
 	 * easier name to remember.
 	 *
@@ -219,23 +210,9 @@ public:
 	 *
 	 * @return linear position
 	 */
-	int64_t get_index(std::vector<int64_t>& ndpos) const
+	std::vector<int64_t> index() const
 	{
-		ndpos.assign(m_pos.begin(), m_pos.end());
-		return m_linpos;
-	};
-
-	/**
-	 * @brief Get both ND position and linear position
-	 *
-	 * @param ndpos	Output, ND position
-	 *
-	 * @return linear position
-	 */
-	int64_t get(std::vector<int64_t>& ndpos) const
-	{
-		ndpos.assign(m_pos.begin(), m_pos.end());
-		return m_linpos;
+		return m_pos;
 	};
 
 	/***********************************************

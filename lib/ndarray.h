@@ -21,7 +21,6 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #define NDARRAY_H
 
 #include "npltypes.h"
-#include "slicer.h"
 
 #include <cstddef>
 #include <cmath>

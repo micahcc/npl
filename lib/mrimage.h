@@ -34,7 +34,6 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace npl {
 
-using std::list;
 using std::vector;
 using std::shared_ptr;
 
@@ -55,7 +54,7 @@ shared_ptr<MRImage> readMRImage(std::string filename, bool verbose = false);
 shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dims, PixelT);
 int writeMRImage(MRImage* img, std::string fn, bool nifti2 = false);
 
-ostream& operator<<(ostream &out, const MRImage& img);
+std::ostream& operator<<(std::ostream &out, const MRImage& img);
 
 /**
  * @brief MRImage can basically be used like an NDArray, with the addition
@@ -146,7 +145,7 @@ public:
 	// 						slice_end-2 .. slice_start|slice_start+1
 	SliceOrderT m_slice_order;
 
-	friend ostream& operator<<(ostream &out, const MRImage& img);
+	friend std::ostream& operator<<(std::ostream &out, const MRImage& img);
 
 protected:
 	virtual int writeNifti1Image(gzFile file) const = 0;

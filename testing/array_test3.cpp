@@ -86,7 +86,7 @@ int main()
 	t = clock();
 	KSlicer kslicer(3, sz, rad);
 	for(kslicer.goBegin(); !kslicer.isEnd(); ++kslicer) {
-		kslicer.get(intind);
+		intind = kslicer.center_index();
 		for(int64_t ii=0; ii<3; ii++)
 			sum += intind[ii];
 
