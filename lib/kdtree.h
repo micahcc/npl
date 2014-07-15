@@ -98,7 +98,7 @@ public:
 	 * @param pt	Point
 	 * @param data	Node Data
 	 */
-	void insert(const std::vector<T>& pt, const std::vector<T>& data);
+	void insert(const std::vector<T>& pt, const std::vector<D>& data);
 
 	/**
 	 * @brief Create Tree, until this is called search won't find anything

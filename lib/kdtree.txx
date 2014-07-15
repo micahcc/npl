@@ -30,7 +30,7 @@ using namespace std;
 namespace npl {
 
 template <size_t K, size_t E, typename T, typename D>
-void KDTree<K,E,T,D>::insert(const std::vector<T>& pt, const std::vector<T>& data)
+void KDTree<K,E,T,D>::insert(const std::vector<T>& pt, const std::vector<D>& data)
 {
 	assert(pt.size() == K);
 	assert(data.size() == E);

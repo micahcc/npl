@@ -66,7 +66,7 @@ double interp(MRImage* img, std::vector<float> cindex,
 			double rad, double(*kfunc)(double, double))
 {
 	if(cindex.size() != img->ndim()) {
-		throw std::out_of_range("cindex size does not match image dimensions");
+		throw std::length_error("cindex size does not match image dimensions");
 	}
 
 	int DIM = std::max(cindex.size(), img->ndim());
@@ -215,6 +215,65 @@ shared_ptr<MRImage> invertDeform(shared_ptr<MRImage> in, size_t vdim)
 	return out;
 }
 
+/**
+ * @brief This function sets distortion levels outside of the masked region
+ * to the nearest within-mask value
+ *
+ * @param deform
+ * @param mask
+ */
+void growFromMask(shared_ptr<MRImage> deform, shared_ptr<MRImage> mask)
+{
+	// build KDTree
+	std::vector<size_t> defInd(deform->ndim());
+	std::vector<size_t> defIndShort(3);
+	std::vector<double> defPt(deform->ndim());
+	std::vector<double> maskPt(3);
+	std::vector<double> maskCInd(3);
+	std::vector<size_t> maskInd(3);
+	std::vector<double> offset(3);
+	KDTree<3, 3, size_t, double> tree;
+
+	Slicer it(deform->ndim(), deform->dim());
+	for(it.goBegin(); !it.isEnd(); ) {
+
+		// convert index in deform to index in mask
+		it.get_index(defInd);
+		deform->indexToPoint(defInd, defPt);
+		for(size_t ii=0; ii<3; ii++)
+			defPt[ii] = maskPt[ii]; 
+		mask->pointToIndex(maskPt, maskCInd);
+		for(size_t ii=0; ii<3; ii++) 
+			maskInd[ii] = clamp(0, mask->dim(ii)-1, round(maskCInd[ii]));
+
+		// get offset at point
+		for(int ii=0; ii<3; ii++, ++it) 
+			offset[ii] = deform->get_dbl(*it);
+
+		// insert if mask is > 0
+		if(mask->get_int(3, maskInd.data()) > 0) {
+			std::copy(defInd.begin(), defInd.begin()+3, defIndShort.begin());
+			tree.insert(defIndShort, offset);
+		}
+	}
+
+	tree.build();
+
+	it.goBegin();
+	for(it.goBegin(); !it.isEnd(); ) {
+		it.get_index(defInd);
+		
+		// search in tree
+		double dist = INFINITY;
+		auto result = tree.nearest(defInd, dist);
+
+		// copy offset
+		for(size_t ii=0; ii<3; ii++, ++it) {
+			deform->set_dbl(*it, result->m_data[ii]);
+		}
+	}
+}
+
 int main(int argc, char** argv)
 {
 	try {
@@ -234,6 +293,8 @@ int main(int argc, char** argv)
 	TCLAP::ValueArg<string> a_in("i", "input", "Input image.", 
 			true, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
+			false, "", "*.nii.gz", cmd);
+	TCLAP::ValueArg<string> a_offset("O", "offset-map", "Output offset map.", 
 			false, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_mask("m", "mask", "Input image.", 
 			true, "", "*.nii.gz", cmd);
@@ -267,79 +328,68 @@ int main(int argc, char** argv)
 	}
 
 	// check that it is 4D or 5D (with time=1)
-	std::vector<size_t> index;
-	std::list<size_t> order({vdim});
+	vector<size_t> defInd;
+	list<size_t> order({vdim});
 	Slicer it(deform->ndim(), deform->dim(), order);
 
 	// convert deform to offsets
+	for(it.goBegin(); !it.isEnd(); ) {
+		it.get_index(defInd);
+		for(int ii=0; ii<3; ii++, ++it) {
+			deform->set_dbl(*it, deform->get_dbl(*it)-defInd[ii]);
+		}
+	}
 
+	if(a_offset.isSet()) 
+		deform->write(a_offset.getValue());
+
+	// propogate values out from masked region
 	if(a_mask.isSet()) {
 
 		// everything outside the mask takes on the nearest value
 		// from inside the mask
-		
 		std::shared_ptr<MRImage> mask(readMRImage(a_mask.getValue()));
-
-		//TODO
-		// for each point in mask add point and offset to KDTree
-		//
-		// for each point outside mask
-		// find nearest point in kdtree
-		// copy offset to point
-
-		cerr << "Making [1,1,1] values self-mapping" << endl;
-
-		it.goBegin();
-		while(!it.isEnd()) {
-			bool allones = true;
-			for(size_t ii=0; ii<3; ii++, ++it) {
-				if(fabs(deform->get_dbl(*it) - 1) > 1) 
-					allones = false;
-			}
-
-			// if allones, convert deform value to current index
-			if(allones) {
-				--it; --it; --it;
-				it.get_index(index);
-				for(size_t ii=0; ii<3; ii++, ++it) 
-					deform->set_dbl(*it, index[ii]);
-			}
+		if(mask->ndim() != 3) {
+			cerr << "Mask should be 3D!" << endl;
+			return -1;
 		}
+
+		growFromMask(deform, mask);
 		cerr << "Done" << endl;
 	}
 
 	deform->write("fixed.nii.gz");
 
-	if(a_invert.isSet()) {
-		deform = invertDeform(deform, vdim);
-	}
-	deform->write("inverted.nii.gz");
-	
-	// convert each coordinate to an offset
-	
-	const auto& spacing = deform->space();
-	const auto& dir = deform->direction();
-
-	std::vector<double> offset(deform->ndim(), 0);
-	std::vector<double> pointoffset(deform->ndim(), 0);
-	it.goBegin();
-	while(!it.isEnd()) {
-		it.get_index(index);
-
-		// each value in deform is an index, so subtract current index from the
-		// source index to get the offset
-		for(size_t ii=0; ii<3; ii++, ++it) 
-			offset[ii] = (deform->get_dbl(*it)-index[ii])*spacing[ii];
-
-		dir.mvproduct(offset, pointoffset);
-
-		--it; --it; --it;
-		for(size_t ii=0; ii<3; ii++, ++it) {
-			deform->set_dbl(*it, pointoffset[ii]);
-		}
-	}
-
-	deform->write(a_out.getValue());
+	return 0;
+//	if(a_invert.isSet()) {
+//		deform = invertDeform(deform, vdim);
+//	}
+//	deform->write("inverted.nii.gz");
+//	
+//	// convert each coordinate to an offset
+//	const auto& spacing = deform->space();
+//	const auto& dir = deform->direction();
+//
+//	std::vector<double> offset(deform->ndim(), 0);
+//	std::vector<double> pointoffset(deform->ndim(), 0);
+//	it.goBegin();
+//	while(!it.isEnd()) {
+//		it.get_index(index);
+//
+//		// each value in deform is an index, so subtract current index from the
+//		// source index to get the offset
+//		for(size_t ii=0; ii<3; ii++, ++it) 
+//			offset[ii] = (deform->get_dbl(*it)-index[ii])*spacing[ii];
+//
+//		dir.mvproduct(offset, pointoffset);
+//
+//		--it; --it; --it;
+//		for(size_t ii=0; ii<3; ii++, ++it) {
+//			deform->set_dbl(*it, pointoffset[ii]);
+//		}
+//	}
+//
+//	deform->write(a_out.getValue());
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
