@@ -23,6 +23,8 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 using namespace std;
 using namespace npl;
 
+
+ostream& operator<<(ostream& os, const std::vector<int64_t>& vec);
 ostream& operator<<(ostream& os, const std::vector<size_t>& vec);
 ostream& operator<<(ostream& os, const std::vector<double>& vec);
 
@@ -56,7 +58,7 @@ int main()
 			{-288.325, 	9.27184, 	2.0559, 53.7},
 			{-331.669, 	178.378, 	209.206, 53.7}});
 	
-	std::vector<size_t> index(img->ndim(), 0);
+	std::vector<int64_t> index(img->ndim(), 0);
 	std::vector<double> cindex(img->ndim(), 0);
 	std::vector<double> ras;
 	size_t DIM = img->ndim();
@@ -92,6 +94,16 @@ int main()
 		}
     }
 	return 0;
+}
+
+ostream& operator<<(ostream& os, const std::vector<int64_t>& vec)
+{
+	os << "[ ";
+	for(auto v : vec) {
+		os << std::setw(4) << v << ",";
+	}
+	os << " ]";
+	return os;
 }
 
 ostream& operator<<(ostream& os, const std::vector<size_t>& vec)

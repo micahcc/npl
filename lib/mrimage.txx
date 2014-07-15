@@ -685,7 +685,7 @@ std::shared_ptr<MRImage> MRImageStore<D,T>::cloneImg() const
 }
 
 template <int D, typename T>
-int MRImageStore<D,T>::indexToPoint(const std::vector<size_t>& index,
+int MRImageStore<D,T>::indexToPoint(const std::vector<int64_t>& index,
 		std::vector<double>& rast) const
 {
 	Matrix<D+1,1> in(index);
@@ -723,6 +723,20 @@ int MRImageStore<D,T>::pointToIndex(const std::vector<double>& rast,
 	index.resize(D);
 	for(size_t ii=0; ii<D; ii++)
 		index[ii] = out[ii];
+	return 0;
+}
+
+template <int D, typename T>
+int MRImageStore<D,T>::pointToIndex(const std::vector<double>& rast,
+		std::vector<int64_t>& index) const
+{
+	Matrix<D+1,1> in(rast);
+	in[D] = 1;
+	Matrix<D+1,1> out;
+	iaffine().mvproduct(in, out);
+	index.resize(D);
+	for(size_t ii=0; ii<D; ii++) 
+		index[ii] = round(out[ii]);
 	return 0;
 }
 

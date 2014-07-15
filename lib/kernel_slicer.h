@@ -111,7 +111,7 @@ public:
 	 */
 	KSlicer(size_t ndim, const size_t* dim, 
 			const std::vector<std::pair<int64_t, int64_t>>& krange,
-			const std::vector<std::pair<size_t,size_t>>& roi);
+			const std::vector<std::pair<int64_t,int64_t>>& roi);
 	
 	/**
 	 * @brief Sets the region of interest. During iteration or any motion the
@@ -119,7 +119,7 @@ public:
 	 *
 	 * @param roi	pair of [min,max] values in the desired hypercube
 	 */
-	void setROI(const std::vector<std::pair<size_t, size_t>>& roi);
+	void setROI(const std::vector<std::pair<int64_t, int64_t>>& roi);
 	
 	/****************************************
 	 *
@@ -173,7 +173,7 @@ public:
 	 *
 	 * @return 	old value of linear position
 	 */
-	size_t operator++(int);
+	int64_t operator++(int);
 	
 
 	/**
@@ -182,7 +182,7 @@ public:
 	 *
 	 * @return 	new value of linear position
 	 */
-	size_t operator++();
+	int64_t operator++();
 	
 	/**
 	 * @brief Postfix negative  iterator. Iterates in the order dictatored by
@@ -190,7 +190,7 @@ public:
 	 *
 	 * @return 	old value of linear position
 	 */
-	size_t operator--(int);
+	int64_t operator--(int);
 	
 	/**
 	 * @brief Prefix negative  iterator. Iterates in the order dictatored by
@@ -198,7 +198,7 @@ public:
 	 *
 	 * @return 	new value of linear position
 	 */
-	size_t operator--();
+	int64_t operator--();
 
 	/**
 	 * @brief Go to the beginning
@@ -217,7 +217,7 @@ public:
 	 *
 	 * @param newpos	location to move to
 	 */
-	void goIndex(const std::vector<size_t>& newpos, bool* outside = NULL);
+	void goIndex(const std::vector<int64_t>& newpos, bool* outside = NULL);
 
 	/****************************************
 	 *
@@ -232,7 +232,7 @@ public:
 	 * @return 
 	 */
 	inline
-	size_t operator*() const { return m_linpos[m_center]; };
+	int64_t operator*() const { return m_linpos[m_center]; };
 	
 	/**
 	 * @brief Same as dereference operator. Returns the linear position in the 
@@ -241,7 +241,7 @@ public:
 	 * @return 
 	 */
 	inline
-	size_t get() const 
+	int64_t get() const 
 	{ 
 		assert(!m_end);
 		return m_linpos[m_center]; 
@@ -255,7 +255,7 @@ public:
 	 *
 	 * @return linear position
 	 */
-	size_t get_index(std::vector<size_t>& ndpos) const
+	int64_t get_index(std::vector<int64_t>& ndpos) const
 	{
 		assert(!m_end);
 		ndpos.assign(m_pos[m_center].begin(), m_pos[m_center].end());
@@ -269,7 +269,7 @@ public:
 	 *
 	 * @return linear position
 	 */
-	size_t get(std::vector<size_t>& ndpos) const
+	int64_t get(std::vector<int64_t>& ndpos) const
 	{
 		assert(!m_end);
 		ndpos.assign(m_pos[m_center].begin(), m_pos[m_center].end());
@@ -283,7 +283,7 @@ public:
 	 * @return 
 	 */
 	inline
-	size_t get(size_t kit) const { 
+	int64_t get(int64_t kit) const { 
 		assert(!m_end);
 		assert(kit < m_numoffs);
 		return m_linpos[kit]; 
@@ -296,7 +296,7 @@ public:
 	 *
 	 * @return linear position
 	 */
-	size_t get(size_t kit, std::vector<size_t>& ndpos) const
+	int64_t get(size_t kit, std::vector<int64_t>& ndpos) const
 	{
 		assert(!m_end);
 		assert(kit < m_numoffs);
@@ -340,7 +340,7 @@ protected:
 	std::vector<size_t> m_strides;
 
 	// for begin/end calculation
-	std::vector<std::pair<size_t,size_t>> m_roi;
+	std::vector<std::pair<int64_t,int64_t>> m_roi;
 
 	int64_t m_fradius; //forward radius, should be positive
 	int64_t m_rradius; //reverse radius, should be positive
@@ -352,8 +352,8 @@ protected:
 	bool m_end;
 	size_t m_begin;;
 
-	std::vector<std::vector<size_t>> m_pos;
-	std::vector<size_t> m_linpos;
+	std::vector<std::vector<int64_t>> m_pos;
+	std::vector<int64_t> m_linpos;
 
 };
 

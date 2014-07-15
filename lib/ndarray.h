@@ -40,20 +40,20 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 // double getdbl(const std::vector<size_t>& index) const;
 // void setdbl(const std::vector<size_t>& index, double newval) const;
 #define VIRTGETSET(TYPE, GETFUNC, SETFUNC) \
-	virtual TYPE GETFUNC(std::initializer_list<size_t> index) const = 0; \
-	virtual TYPE GETFUNC(size_t d, const size_t* index) const = 0; \
-	virtual TYPE GETFUNC(size_t index) const = 0; \
-	virtual void SETFUNC(std::initializer_list<size_t> index, TYPE) = 0; \
-	virtual void SETFUNC(size_t d, const size_t* index, TYPE) = 0; \
-	virtual void SETFUNC(size_t index, TYPE) = 0; \
+	virtual TYPE GETFUNC(std::initializer_list<int64_t> index) const = 0; \
+	virtual TYPE GETFUNC(size_t d, const int64_t* index) const = 0; \
+	virtual TYPE GETFUNC(int64_t index) const = 0; \
+	virtual void SETFUNC(std::initializer_list<int64_t> index, TYPE) = 0; \
+	virtual void SETFUNC(size_t d, const int64_t* index, TYPE) = 0; \
+	virtual void SETFUNC(int64_t index, TYPE) = 0; \
 
 #define GETSET(TYPE, GETFUNC, SETFUNC) \
-	TYPE GETFUNC(std::initializer_list<size_t> index) const; \
-	TYPE GETFUNC(size_t d, const size_t* index) const; \
-	TYPE GETFUNC(size_t index) const; \
-	void SETFUNC(std::initializer_list<size_t> index, TYPE); \
-	void SETFUNC(size_t d, const size_t* index, TYPE); \
-	void SETFUNC(size_t index, TYPE); \
+	TYPE GETFUNC(std::initializer_list<int64_t> index) const; \
+	TYPE GETFUNC(size_t d, const int64_t* index) const; \
+	TYPE GETFUNC(int64_t index) const; \
+	void SETFUNC(std::initializer_list<int64_t> index, TYPE); \
+	void SETFUNC(size_t d, const int64_t* index, TYPE); \
+	void SETFUNC(int64_t index, TYPE); \
 
 namespace npl {
 
@@ -67,9 +67,9 @@ public:
 	 * get / set functions
 	 */
 	// Get Address
-	virtual size_t getAddr(std::initializer_list<size_t> index) const = 0;
-	virtual size_t getAddr(const std::vector<size_t>& index) const = 0;
-	virtual size_t getAddr(const size_t* index) const = 0;
+	virtual int64_t  getAddr(std::initializer_list<int64_t> index) const = 0;
+	virtual int64_t  getAddr(const std::vector<int64_t>& index) const = 0;
+	virtual int64_t  getAddr(const int64_t* index) const = 0;
 
 	VIRTGETSET(double, get_dbl, set_dbl);
 	VIRTGETSET(int64_t, get_int, set_int);
@@ -120,19 +120,19 @@ public:
 	GETSET(cquad_t, get_cquad, set_cquad);
 
 	// Get Address
-	virtual size_t getAddr(std::initializer_list<size_t> index) const;
-	virtual size_t getAddr(const std::vector<size_t>& index) const;
-	virtual size_t getAddr(const size_t* index) const;
+	virtual int64_t getAddr(std::initializer_list<int64_t> index) const;
+	virtual int64_t getAddr(const std::vector<int64_t>& index) const;
+	virtual int64_t getAddr(const int64_t* index) const;
 	
-	T& operator[](std::initializer_list<size_t> index);
-	T& operator[](const std::vector<size_t>& index);
-	T& operator[](const size_t* index);
-	T& operator[](size_t pixel);
+	T& operator[](std::initializer_list<int64_t> index);
+	T& operator[](const std::vector<int64_t>& index);
+	T& operator[](const int64_t* index);
+	T& operator[](int64_t pixel);
 	
-	const T& operator[](std::initializer_list<size_t> index) const;
-	const T& operator[](const std::vector<size_t>& index) const;
-	const T& operator[](const size_t* index) const;
-	const T& operator[](size_t pixel) const;
+	const T& operator[](std::initializer_list<int64_t> index) const;
+	const T& operator[](const std::vector<int64_t>& index) const;
+	const T& operator[](const int64_t* index) const;
+	const T& operator[](int64_t pixel) const;
 
 	/* 
 	 * General Information 

@@ -106,6 +106,18 @@ public:
 		}
 	};
 
+	Matrix(const std::vector<int64_t>& v) {
+		size_t kk=0;
+		for(size_t ii=0; ii<D1; ii++) {
+			for(size_t jj=0; jj<D2; jj++) {
+				if(kk < v.size())
+					data[ii][jj] = v[kk++];
+				else
+					data[ii][jj] = 0;
+			}
+		}
+	};
+
 	Matrix(const Matrix& m)
 	{
 		for(size_t ii=0; ii<D1; ii++) {

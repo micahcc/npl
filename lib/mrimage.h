@@ -84,9 +84,10 @@ public:
 	
 	virtual std::shared_ptr<MRImage> cloneImg() const = 0;
 	
-	virtual int indexToPoint(const std::vector<size_t>& xyz, std::vector<double>& ras) const = 0;
+	virtual int indexToPoint(const std::vector<int64_t>& xyz, std::vector<double>& ras) const = 0;
 	virtual int indexToPoint(const std::vector<double>& xyz, std::vector<double>& ras) const = 0;
 	virtual int pointToIndex(const std::vector<double>& ras, std::vector<double>& xyz) const = 0;
+	virtual int pointToIndex(const std::vector<double>& ras, std::vector<int64_t>& index) const = 0;
 	
 //	virtual int unary(double(*func)(double,double)) const = 0;
 //	virtual int binOp(const MRImage* right, double(*func)(double,double), bool elevR) const = 0;
@@ -173,9 +174,10 @@ public:
 	void printSelf();
 	PixelT type() const;
 	
-	int indexToPoint(const std::vector<size_t>& index, std::vector<double>& rast) const;
+	int indexToPoint(const std::vector<int64_t>& index, std::vector<double>& rast) const;
 	int indexToPoint(const std::vector<double>& index, std::vector<double>& rast) const;
 	int pointToIndex(const std::vector<double>& rast, std::vector<double>& index) const;
+	int pointToIndex(const std::vector<double>& ras, std::vector<int64_t>& index) const;
 
 //	double kernSamplePt(const std::vector<double> point);
 //	double kernSampleInd(const std::vector<double> index);

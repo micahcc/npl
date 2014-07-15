@@ -80,7 +80,7 @@ public:
 	 *
 	 * @return new linear index
 	 */
-	size_t step(size_t dim, int64_t dist = 1, bool* outside = NULL);
+	int64_t step(size_t dim, int64_t dist = 1, bool* outside = NULL);
 	
 	/****************************************
 	 *
@@ -134,7 +134,7 @@ public:
 	 *
 	 * @return 	old value of linear position
 	 */
-	size_t operator++(int);
+	int64_t operator++(int);
 	
 
 	/**
@@ -143,7 +143,7 @@ public:
 	 *
 	 * @return 	new value of linear position
 	 */
-	size_t operator++();
+	int64_t operator++();
 	
 	/**
 	 * @brief Postfix negative  iterator. Iterates in the order dictatored by
@@ -151,7 +151,7 @@ public:
 	 *
 	 * @return 	old value of linear position
 	 */
-	size_t operator--(int);
+	int64_t operator--(int);
 	
 	/**
 	 * @brief Prefix negative  iterator. Iterates in the order dictatored by
@@ -159,7 +159,7 @@ public:
 	 *
 	 * @return 	new value of linear position
 	 */
-	size_t operator--();
+	int64_t operator--();
 
 	/**
 	 * @brief Are we at the begining of iteration?
@@ -178,14 +178,14 @@ public:
 	 *
 	 * @param newpos	location to move to
 	 */
-	void goIndex(size_t len, size_t* newpos, bool* outside = NULL);
+	void goIndex(size_t len, int64_t* newpos, bool* outside = NULL);
 	
 	/**
 	 * @brief Jump to the given position
 	 *
 	 * @param newpos	location to move to
 	 */
-	void goIndex(std::initializer_list<size_t> newpos, bool* outside = NULL);
+	void goIndex(std::initializer_list<int64_t> newpos, bool* outside = NULL);
 
 	/****************************************
 	 *
@@ -200,7 +200,7 @@ public:
 	 * @return 
 	 */
 	inline
-	size_t operator*() const { return m_linpos; };
+	int64_t operator*() const { return m_linpos; };
 	
 	/**
 	 * @brief Same as dereference operator. Returns the linear position in the 
@@ -209,7 +209,7 @@ public:
 	 * @return 
 	 */
 	inline
-	size_t get() const { return m_linpos; };
+	int64_t get() const { return m_linpos; };
 
 	/**
 	 * @brief Get both ND position and linear position. Same as get(vector) but
@@ -219,7 +219,7 @@ public:
 	 *
 	 * @return linear position
 	 */
-	size_t get_index(std::vector<size_t>& ndpos) const
+	int64_t get_index(std::vector<int64_t>& ndpos) const
 	{
 		ndpos.assign(m_pos.begin(), m_pos.end());
 		return m_linpos;
@@ -232,7 +232,7 @@ public:
 	 *
 	 * @return linear position
 	 */
-	size_t get(std::vector<size_t>& ndpos) const
+	int64_t get(std::vector<int64_t>& ndpos) const
 	{
 		ndpos.assign(m_pos.begin(), m_pos.end());
 		return m_linpos;
@@ -257,7 +257,7 @@ public:
 	 *
 	 * @param roi	pair of [min,max] values in the desired hypercube
 	 */
-	void setROI(const std::vector<std::pair<size_t, size_t>>& roi);
+	void setROI(const std::vector<std::pair<int64_t, int64_t>>& roi);
 
 	/**
 	 * @brief Sets the order of iteration from ++/-- operators
@@ -284,8 +284,8 @@ protected:
 	size_t m_linlast;
 	bool m_end;
 	std::vector<size_t> m_order;
-	std::vector<size_t> m_pos;
-	std::vector<std::pair<size_t,size_t>> m_roi;
+	std::vector<int64_t> m_pos;
+	std::vector<std::pair<int64_t,int64_t>> m_roi;
 
 	// these might benefit from being constant
 	std::vector<size_t> m_sizes;

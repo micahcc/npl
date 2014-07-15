@@ -30,8 +30,8 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 using namespace std;
 using namespace npl;
 
-void linToIndex(size_t lpos, size_t& x, size_t& y, size_t& z, size_t& w,
-		size_t sx, size_t sy, size_t sz, size_t sw)
+void linToIndex(int64_t lpos, int64_t& x, int64_t& y, int64_t& z, int64_t& w,
+		int64_t sx, int64_t sy, int64_t sz, int64_t sw)
 {
 	w = lpos%sw;
 	lpos = lpos/sw;
@@ -45,8 +45,8 @@ void linToIndex(size_t lpos, size_t& x, size_t& y, size_t& z, size_t& w,
 	x = lpos%sx;
 }
 
-void indexToLin(size_t& lpos, size_t x, size_t y, size_t z, size_t w,
-		size_t sx, size_t sy, size_t sz, size_t sw)
+void indexToLin(int64_t& lpos, int64_t x, int64_t y, int64_t z, int64_t w,
+		int64_t sx, int64_t sy, int64_t sz, int64_t sw)
 {
 	(void)sx;
 
@@ -56,18 +56,18 @@ void indexToLin(size_t& lpos, size_t x, size_t y, size_t z, size_t w,
 
 int main()
 {
-	size_t X=2, Y=3, Z=4, W=5;
-	std::vector<std::pair<size_t, size_t>> roi({{0,1},{0,1},{1,2},{1,3}});
+	int64_t X=2, Y=3, Z=4, W=5;
+	std::vector<std::pair<int64_t, int64_t>> roi({{0,1},{0,1},{1,2},{1,3}});
 	double array[X*Y*Z*W];
-	size_t tx, ty, tz, tw;
+	int64_t tx, ty, tz, tw;
 
 	// canonical ordering
-	size_t ii=0;
-	for(size_t xx=0; xx<X; xx++) {
-		for(size_t yy=0; yy<Y; yy++) {
-			for(size_t zz=0; zz<Z; zz++) {
-				for(size_t ww=0; ww<W; ww++) {
-					size_t p;
+	int64_t ii=0;
+	for(int64_t xx=0; xx<X; xx++) {
+		for(int64_t yy=0; yy<Y; yy++) {
+			for(int64_t zz=0; zz<Z; zz++) {
+				for(int64_t ww=0; ww<W; ww++) {
+					int64_t p;
 					indexToLin(p, xx,yy,zz,ww, X,Y,Z,W);
 					array[p] = ii++;
 
@@ -84,17 +84,17 @@ int main()
 
 	ii = 0;
 	list<size_t> order({3,2,1,0});
-	vector<size_t> pos;
-	size_t p, xx, yy, zz, ww;
+	vector<int64_t> pos;
+	int64_t p, xx, yy, zz, ww;
 
-	std::vector<size_t> tdim({X,Y,Z,W});
+	std::vector<size_t> tdim({(size_t)X,(size_t)Y,(size_t)Z,(size_t)W});
 	Slicer slicer(tdim.size(), tdim.data());
 
 	cerr << "Classic Ordering" << endl;
 	slicer.setOrder(order);
 	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
-		size_t sp = slicer.get(pos);
+		int64_t sp = slicer.get(pos);
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 
 		indexToLin(p, xx,yy,zz,ww, X,Y,Z,W);
@@ -129,7 +129,7 @@ int main()
 	slicer.setOrder(order);
 	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
-		size_t sp = slicer.get(pos);
+		int64_t sp = slicer.get(pos);
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 		cerr << xx << "," << yy << "," << zz << "," << ww << endl;
 
@@ -165,7 +165,7 @@ int main()
 	slicer.setOrder(order);
 	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
-		size_t sp = slicer.get(pos);
+		int64_t sp = slicer.get(pos);
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 		cerr << xx << "," << yy << "," << zz << "," << ww << endl;
 
@@ -198,7 +198,7 @@ int main()
 	slicer.setOrder(order);
 	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
-		size_t sp = slicer.get(pos);
+		int64_t sp = slicer.get(pos);
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 		cerr << xx << "," << yy << "," << zz << "," << ww << endl;
 
@@ -232,7 +232,7 @@ int main()
 	slicer.setROI(roi);
 	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
-		size_t sp = slicer.get(pos);
+		int64_t sp = slicer.get(pos);
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 		cerr << xx << "," << yy << "," << zz << "," << ww << endl;
 

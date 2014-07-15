@@ -19,7 +19,7 @@ int main()
   assert(it.isBegin());
   assert(!it.isEnd());
   
-  std::vector<size_t> index({1,1,1,0});
+  std::vector<int64_t> index({1,1,1,0});
   it.goIndex(index);
   assert(!it.isBegin());
   assert(!it.isEnd());
@@ -49,11 +49,11 @@ int main()
   // compare with brute force method, note that zz will be the fastest
   // because it is the longest dimension
   it.goBegin();
-  for(size_t xx = 0; xx < sz[0]; xx++){
-    for(size_t yy = 0; yy < sz[1]; yy++){
-      for(size_t tt = 0; tt < sz[3]; tt++){
-        for(size_t zz = 0; zz < sz[2]; zz++, ++it){
-          size_t neighbor = 0;
+  for(int64_t xx = 0; xx < sz[0]; xx++){
+    for(int64_t yy = 0; yy < sz[1]; yy++){
+      for(int64_t tt = 0; tt < sz[3]; tt++){
+        for(int64_t zz = 0; zz < sz[2]; zz++, ++it){
+          int64_t neighbor = 0;
           for(int64_t xxo = -1; xxo <= 1; xxo++){
             for(int64_t yyo = -1; yyo <= 1; yyo++){
               for(int64_t zzo = -1; zzo <= 1; zzo++){
@@ -62,8 +62,8 @@ int main()
                   int64_t yeff = clamp(0, sz[1]-1, yy+yyo);
                   int64_t zeff = clamp(0, sz[2]-1, zz+zzo);
                   int64_t teff = clamp(0, sz[3]-1, tt+tto);
-                  size_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
-                  size_t itlin = it.get(neighbor++, index);
+                  int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
+                  int64_t itlin = it.get(neighbor++, index);
 
                   if(xeff != index[0]) {
                     cerr << "Incorrect x map" << endl;
@@ -105,7 +105,7 @@ int main()
     for(int yy = sz[1]-1; yy >= 0; yy--){
       for(int tt = sz[3]-1; tt >= 0; tt--){
         for(int zz = sz[2]-1; zz >= 0; zz--, --it){
-          size_t neighbor = 0;
+          int64_t neighbor = 0;
           for(int64_t xxo = -1; xxo <= 1; xxo++){
             for(int64_t yyo = -1; yyo <= 1; yyo++){
               for(int64_t zzo = -1; zzo <= 1; zzo++){
@@ -114,8 +114,8 @@ int main()
                   int64_t yeff = clamp(0, sz[1]-1, yy+yyo);
                   int64_t zeff = clamp(0, sz[2]-1, zz+zzo);
                   int64_t teff = clamp(0, sz[3]-1, tt+tto);
-                  size_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
-                  size_t itlin = it.get(neighbor++, index);
+                  int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
+                  int64_t itlin = it.get(neighbor++, index);
 
                   if(xeff != index[0]) {
                     cerr << "Incorrect x map" << endl;
@@ -156,11 +156,11 @@ int main()
   it.initialize(4, sz, newk);
 
   it.goBegin();
-  for(size_t xx = 0; xx < sz[0]; xx++){
-    for(size_t yy = 0; yy < sz[1]; yy++){
-      for(size_t tt = 0; tt < sz[3]; tt++){
-        for(size_t zz = 0; zz < sz[2]; zz++, ++it){
-          size_t neighbor = 0;
+  for(int64_t xx = 0; xx < sz[0]; xx++){
+    for(int64_t yy = 0; yy < sz[1]; yy++){
+      for(int64_t tt = 0; tt < sz[3]; tt++){
+        for(int64_t zz = 0; zz < sz[2]; zz++, ++it){
+          int64_t neighbor = 0;
           for(int64_t xxo = -2; xxo <= 1; xxo++){
             for(int64_t yyo = -1; yyo <= 0; yyo++){
               for(int64_t zzo = 0; zzo <= 2; zzo++){
@@ -169,8 +169,8 @@ int main()
                   int64_t yeff = clamp(0, sz[1]-1, yy+yyo);
                   int64_t zeff = clamp(0, sz[2]-1, zz+zzo);
                   int64_t teff = clamp(0, sz[3]-1, tt+tto);
-                  size_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
-                  size_t itlin = it.get(neighbor++, index);
+                  int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
+                  int64_t itlin = it.get(neighbor++, index);
 
                   if(xeff != index[0]) {
                     cerr << "Incorrect x map" << endl;
@@ -212,7 +212,7 @@ int main()
     for(int yy = sz[1]-1; yy >= 0; yy--){
       for(int tt = sz[3]-1; tt >= 0; tt--){
         for(int zz = sz[2]-1; zz >= 0; zz--, --it){
-          size_t neighbor = 0;
+          int64_t neighbor = 0;
           for(int64_t xxo = -2; xxo <= 1; xxo++){
             for(int64_t yyo = -1; yyo <= 0; yyo++){
               for(int64_t zzo = 0; zzo <= 2; zzo++){
@@ -221,8 +221,8 @@ int main()
                   int64_t yeff = clamp(0, sz[1]-1, yy+yyo);
                   int64_t zeff = clamp(0, sz[2]-1, zz+zzo);
                   int64_t teff = clamp(0, sz[3]-1, tt+tto);
-                  size_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
-                  size_t itlin = it.get(neighbor++, index);
+                  int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
+                  int64_t itlin = it.get(neighbor++, index);
 
                   if(xeff != index[0]) {
                     cerr << "Incorrect x map" << endl;
@@ -264,7 +264,7 @@ int main()
     for(int yy = sz[1]-1; yy >= 0; yy--){
       for(int tt = sz[3]-1; tt >= 0; tt--){
         for(int zz = sz[2]-1; zz >= 0; zz--){
-          size_t neighbor = 0;
+          int64_t neighbor = 0;
           index[0] = xx;
           index[1] = yy;
           index[2] = zz;
@@ -279,8 +279,8 @@ int main()
                   int64_t yeff = clamp(0, sz[1]-1, yy+yyo);
                   int64_t zeff = clamp(0, sz[2]-1, zz+zzo);
                   int64_t teff = clamp(0, sz[3]-1, tt+tto);
-                  size_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
-                  size_t itlin = it.get(neighbor++, index);
+                  int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
+                  int64_t itlin = it.get(neighbor++, index);
 
                   if(xeff != index[0]) {
                     cerr << "Incorrect x map" << endl;

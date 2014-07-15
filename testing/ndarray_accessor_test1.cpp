@@ -42,8 +42,8 @@ int test1d(std::vector<size_t>& size, size_t bytes, size_t elements)
 	if(elements != arr->elements()) 
 		return -2;
 
-	std::vector<size_t> index(1);
-	unordered_map<std::vector<size_t>, double, hash_vector<size_t>> mapcomp;
+	std::vector<int64_t> index(1);
+	unordered_map<std::vector<int64_t>, double, hash_vector<int64_t>> mapcomp;
 
 	size_t count = 0;
 	for(index[0] = 0; index[0] < arr->dim(0); index[0]++, count++) {
@@ -85,8 +85,8 @@ int test2d(std::vector<size_t>& size, size_t bytes, size_t elements)
 	if(elements != arr->elements()) 
 		return -2;
 
-	std::vector<size_t> index(2);
-	unordered_map<std::vector<size_t>, double, hash_vector<size_t>> mapcomp;
+	std::vector<int64_t> index(2);
+	unordered_map<std::vector<int64_t>, double, hash_vector<int64_t>> mapcomp;
 
 	size_t count = 0;
 	for(index[0] = 0; index[0] < arr->dim(0); index[0]++) {
@@ -133,8 +133,8 @@ int test3d(std::vector<size_t>& size, size_t bytes, size_t elements)
 	if(elements != arr->elements()) 
 		return -2;
 
-	std::vector<size_t> index(3);
-	unordered_map<std::vector<size_t>, double, hash_vector<size_t>> mapcomp;
+	std::vector<int64_t> index(3);
+	unordered_map<std::vector<int64_t>, double, hash_vector<int64_t>> mapcomp;
 
 	size_t count = 0;
 	for(index[0] = 0; index[0] < arr->dim(0); index[0]++) {
@@ -185,8 +185,8 @@ int test5d(std::vector<size_t>& size, size_t bytes, size_t elements)
 	if(elements != arr->elements()) 
 		return -2;
 
-	std::vector<size_t> index(5);
-	unordered_map<std::vector<size_t>, double, hash_vector<size_t>> mapcomp;
+	std::vector<int64_t> index(5);
+	unordered_map<std::vector<int64_t>, double, hash_vector<int64_t>> mapcomp;
 
 	size_t count = 0;
 	for(index[0] = 0; index[0] < arr->dim(0); index[0]++) {

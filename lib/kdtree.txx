@@ -32,11 +32,7 @@ namespace npl {
 template <size_t K, size_t E, typename T, typename D>
 void KDTree<K,E,T,D>::insert(const std::vector<T>& pt, const std::vector<D>& data)
 {
-	assert(pt.size() == K);
-	assert(data.size() == E);
-	m_allnodes.push_back(new KDTreeNode<K,E,T,D>(
-				std::vector<T>(pt.begin(),pt.begin()+K), 
-				std::vector<T>(data.begin(),data.begin()+E)));
+	m_allnodes.push_back(new KDTreeNode<K,E,T,D>(pt, data));
 }
 
 
@@ -327,7 +323,8 @@ std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist_help(size_t de
  * @return 		List of KDTreeNodes which match the criterea
  */
 template <size_t K, size_t E, typename T, typename D>
-std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist(const std::vector<T>& pt, double dist)
+std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist(
+			const std::vector<T>& pt, double dist)
 {
 	return withindist_help(0, m_treehead, pt, dist*dist);
 }

@@ -92,9 +92,9 @@ KSlicer::KSlicer(size_t ndim, const size_t* dim,
  *
  * @return 	old value of linear position
  */
-size_t KSlicer::operator++(int)
+int64_t KSlicer::operator++(int)
 {
-	size_t ret = m_linpos[m_center];
+	int64_t ret = m_linpos[m_center];
 	operator++();
 	return ret;
 }
@@ -105,7 +105,7 @@ size_t KSlicer::operator++(int)
  *
  * @return 	new value of linear position
  */
-size_t KSlicer::operator++() 
+int64_t KSlicer::operator++() 
 {
 	if(isEnd())
 		return m_linpos[m_center];
@@ -168,9 +168,9 @@ size_t KSlicer::operator++()
  *
  * @return 	new value of linear position
  */
-size_t KSlicer::operator--(int)
+int64_t KSlicer::operator--(int)
 {
-	size_t ret = m_linpos[m_center];
+	int64_t ret = m_linpos[m_center];
 	operator--();
 	return ret;
 };
@@ -181,7 +181,7 @@ size_t KSlicer::operator--(int)
  *
  * @return 	new value of linear position
  */
-size_t KSlicer::operator--() 
+int64_t KSlicer::operator--() 
 {
 	if(isBegin())
 		return m_linpos[m_center];
@@ -347,13 +347,13 @@ void KSlicer::initialize(size_t ndim, const size_t* dim,
 	}
 	
 	m_pos.resize(m_numoffs);
-	fill(m_pos.begin(), m_pos.end(), std::vector<size_t>(m_dim));
+	fill(m_pos.begin(), m_pos.end(), std::vector<int64_t>(m_dim));
 	m_linpos.resize(m_numoffs);
 	
 	goBegin();
 };
 
-void KSlicer::setROI(const std::vector<std::pair<size_t,size_t>>& roi)
+void KSlicer::setROI(const std::vector<std::pair<int64_t,int64_t>>& roi)
 {
 	// set up ROI, and calculate the m_begin location
 	m_begin = 0;
@@ -378,7 +378,7 @@ void KSlicer::setROI(const std::vector<std::pair<size_t,size_t>>& roi)
  * @param newpos	location to move to
  * @param outside	variable to return whether we are outside the ROI or not
  */
-void KSlicer::goIndex(const std::vector<size_t>& newpos, bool* outside)
+void KSlicer::goIndex(const std::vector<int64_t>& newpos, bool* outside)
 {
 	if(newpos.size() != m_dim) {
 		throw std::logic_error("Invalid index size in goIndex");
@@ -398,7 +398,7 @@ void KSlicer::goIndex(const std::vector<size_t>& newpos, bool* outside)
 		*outside = false;
 	
 	// copy/clamp the center
-	size_t clamped;
+	int64_t clamped;
 	// copy the center
 	for(size_t dd = 0; dd<m_dim; dd++) {
 		// clamp to roi

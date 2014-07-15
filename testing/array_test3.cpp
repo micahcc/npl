@@ -42,10 +42,10 @@ int main()
 	
 	cerr << "Comparing Acessors" << endl;
 	t = clock();
-	for(size_t zz=0; zz < testp->dim(2); zz++) {
-		for(size_t yy=0; yy < testp->dim(1); yy++) {
-			for(size_t xx=0; xx < testp->dim(0); xx++) {
-				size_t ind[3] = {xx,yy,zz};
+	for(int64_t zz=0; zz < testp->dim(2); zz++) {
+		for(int64_t yy=0; yy < testp->dim(1); yy++) {
+			for(int64_t xx=0; xx < testp->dim(0); xx++) {
+				int64_t ind[3] = {xx,yy,zz};
 				if(testp->get_dbl({xx,yy,zz}) != testp->get_dbl(3, ind)) {
 					cerr << "Error, difference between accessors!" << endl;
 					return -1;
@@ -59,15 +59,15 @@ int main()
 	cerr << "Speed with with accessors" << endl;
 	double val = 9;
 	t = clock();
-	for(size_t xx=0; xx < testp->dim(0); xx++) {
-		for(size_t yy=0; yy < testp->dim(1); yy++) {
-			for(size_t zz=0; zz < testp->dim(1); zz++) {
+	for(int64_t xx=0; xx < testp->dim(0); xx++) {
+		for(int64_t yy=0; yy < testp->dim(1); yy++) {
+			for(int64_t zz=0; zz < testp->dim(1); zz++) {
 				for(int64_t xi = -1; xi <= 1; xi++) {
 					for(int64_t yi = -1; yi <= 1; yi++) {
 						for(int64_t zi = -1; zi <= 1; zi++) {
-							size_t realx = clamp(0, testp->dim(0), xx+xi);
-							size_t realy = clamp(0, testp->dim(0), yy+yi);
-							size_t realz = clamp(0, testp->dim(0), zz+zi);
+							int64_t realx = clamp(0, testp->dim(0), xx+xi);
+							int64_t realy = clamp(0, testp->dim(0), yy+yi);
+							int64_t realz = clamp(0, testp->dim(0), zz+zi);
 							val += testp->get_dbl({realx,realy,realz});
 
 						}
@@ -81,13 +81,13 @@ int main()
 	
 	size_t sz[] = {100,100,100};
 	std::vector<size_t> rad({1,1,1});
-	std::vector<size_t> intind;
+	std::vector<int64_t> intind;
 	double sum = 0;
 	t = clock();
 	KSlicer kslicer(3, sz, rad);
 	for(kslicer.goBegin(); !kslicer.isEnd(); ++kslicer) {
 		kslicer.get(intind);
-		for(size_t ii=0; ii<3; ii++)
+		for(int64_t ii=0; ii<3; ii++)
 			sum += intind[ii];
 
 		for(size_t ii=0; ii<kslicer.ksize(); ii++) {

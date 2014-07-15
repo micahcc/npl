@@ -39,9 +39,9 @@ int main()
 
 	double total = 0;
 	t = clock();
-	for(size_t zz=0; zz < testp->dim(2); zz++) {
-		for(size_t yy=0; yy < testp->dim(1); yy++) {
-			for(size_t xx=0; xx < testp->dim(0); xx++) {
+	for(int64_t zz=0; zz < testp->dim(2); zz++) {
+		for(int64_t yy=0; yy < testp->dim(1); yy++) {
+			for(int64_t xx=0; xx < testp->dim(0); xx++) {
 				total += testp->get_dbl({xx,yy,zz});
 //				cerr << testp->getD(xx,yy,zz) << endl;
 //				cerr << (*testp)(xx,yy,zz);
@@ -52,9 +52,9 @@ int main()
 	std::cout << "xyz: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
     
 	t = clock();
-	for(size_t xx=0; xx < testp->dim(0); xx++) {
-		for(size_t yy=0; yy < testp->dim(1); yy++) {
-			for(size_t zz=0; zz < testp->dim(2); zz++) {
+	for(int64_t xx=0; xx < testp->dim(0); xx++) {
+		for(int64_t yy=0; yy < testp->dim(1); yy++) {
+			for(int64_t zz=0; zz < testp->dim(2); zz++) {
 				total += testp->get_dbl({xx,yy,zz});
 //				cerr << testp->getD(xx,yy,zz) << endl;
 //				cerr << (*testp)(xx,yy,zz);

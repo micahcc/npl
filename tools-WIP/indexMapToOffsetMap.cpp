@@ -70,7 +70,7 @@ double interp(MRImage* img, std::vector<float> cindex,
 	}
 
 	int DIM = std::max(cindex.size(), img->ndim());
-	std::vector<size_t> index(cindex.size(), 0);
+	std::vector<int64_t> index(cindex.size(), 0);
 	
 	//kernels are essentially 1D, so we can save time by combining 1D kernls
 	//rather than recalculating
@@ -116,7 +116,7 @@ shared_ptr<MRImage> invertDeform(shared_ptr<MRImage> in, size_t vdim)
 	vector<float> tmp(3,0);
 	vector<float> src(3,0);
 	vector<float> trg(3,0);
-	vector<size_t> index(in->ndim(), 0);
+	vector<int64_t> index(in->ndim(), 0);
 	vector<float> cindex(in->ndim(), 0);
 
 	// map every current point back to its source
@@ -125,7 +125,7 @@ shared_ptr<MRImage> invertDeform(shared_ptr<MRImage> in, size_t vdim)
 			for(index[2]=0; index[2]<in->dim(2); index[2]++) {
 
 				// get full vector, 
-				for(size_t ii=0; ii<3; ii++) {
+				for(int64_t ii=0; ii<3; ii++) {
 					index[vdim] = ii;
 					src[ii] = in->get_dbl(index.size(), index.data());
 					trg[ii] = index[ii];
@@ -146,7 +146,7 @@ shared_ptr<MRImage> invertDeform(shared_ptr<MRImage> in, size_t vdim)
 	for(index[0]=0; index[0]<in->dim(0); index[0]++) {
 		for(index[1]=0; index[1]<in->dim(1); index[1]++) {
 			for(index[2]=0; index[2]<in->dim(2); index[2]++) {
-				for(size_t ii=0; ii<3; ii++)
+				for(int64_t ii=0; ii<3; ii++)
 					trg[ii] = index[ii];
 
 				// find point that maps near the current in
@@ -162,7 +162,7 @@ shared_ptr<MRImage> invertDeform(shared_ptr<MRImage> in, size_t vdim)
 //				fwdsrc.assign(result->m_data, result->m_data+3);
 
 				// intiailize theoretical source
-				for(size_t jj=0; jj<3; jj++) {
+				for(int64_t jj=0; jj<3; jj++) {
 					src[jj] = result->m_data[jj];
 				}
 
@@ -225,26 +225,19 @@ shared_ptr<MRImage> invertDeform(shared_ptr<MRImage> in, size_t vdim)
 void growFromMask(shared_ptr<MRImage> deform, shared_ptr<MRImage> mask)
 {
 	// build KDTree
-	std::vector<size_t> defInd(deform->ndim());
-	std::vector<size_t> defIndShort(3);
-	std::vector<double> defPt(deform->ndim());
-	std::vector<double> maskPt(3);
-	std::vector<double> maskCInd(3);
-	std::vector<size_t> maskInd(3);
+	std::vector<int64_t> defInd(deform->ndim());
+	std::vector<double> point(deform->ndim());
+	std::vector<int64_t> maskInd(3);
 	std::vector<double> offset(3);
-	KDTree<3, 3, size_t, double> tree;
+	KDTree<3, 3, int64_t, double> tree;
 
 	Slicer it(deform->ndim(), deform->dim());
 	for(it.goBegin(); !it.isEnd(); ) {
 
 		// convert index in deform to index in mask
 		it.get_index(defInd);
-		deform->indexToPoint(defInd, defPt);
-		for(size_t ii=0; ii<3; ii++)
-			defPt[ii] = maskPt[ii]; 
-		mask->pointToIndex(maskPt, maskCInd);
-		for(size_t ii=0; ii<3; ii++) 
-			maskInd[ii] = clamp(0, mask->dim(ii)-1, round(maskCInd[ii]));
+		deform->indexToPoint(defInd, point);
+		mask->pointToIndex(point, maskInd);
 
 		// get offset at point
 		for(int ii=0; ii<3; ii++, ++it) 
@@ -252,8 +245,7 @@ void growFromMask(shared_ptr<MRImage> deform, shared_ptr<MRImage> mask)
 
 		// insert if mask is > 0
 		if(mask->get_int(3, maskInd.data()) > 0) {
-			std::copy(defInd.begin(), defInd.begin()+3, defIndShort.begin());
-			tree.insert(defIndShort, offset);
+			tree.insert(defInd, offset);
 		}
 	}
 
@@ -328,7 +320,7 @@ int main(int argc, char** argv)
 	}
 
 	// check that it is 4D or 5D (with time=1)
-	vector<size_t> defInd;
+	vector<int64_t> defInd;
 	list<size_t> order({vdim});
 	Slicer it(deform->ndim(), deform->dim(), order);
 

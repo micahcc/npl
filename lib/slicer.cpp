@@ -71,7 +71,7 @@ Slicer::Slicer(size_t ndim, const size_t* dim, const std::list<size_t>& order,
  *
  * @return new linear index
  */
-size_t Slicer::step(size_t dim, int64_t dist, bool* outside)
+int64_t Slicer::step(size_t dim, int64_t dist, bool* outside)
 {
 	int64_t clamped = std::max<int64_t>(m_roi[dim].first, 
 			std::min<int64_t>(m_roi[dim].second, (int64_t)m_pos[dim]+dist));
@@ -97,12 +97,12 @@ size_t Slicer::step(size_t dim, int64_t dist, bool* outside)
  *
  * @return 	old value of linear position
  */
-size_t Slicer::operator++(int)
+int64_t Slicer::operator++(int)
 {
 	if(isEnd())
 		return m_linpos;
 
-	size_t ret = m_linpos;
+	int64_t ret = m_linpos;
 	for(size_t ii=0; ii<m_order.size(); ii++){
 		size_t dd = m_order[ii];
 		if(m_pos[dd] < m_roi[dd].second) {
@@ -131,7 +131,7 @@ size_t Slicer::operator++(int)
  *
  * @return 	new value of linear position
  */
-size_t Slicer::operator++() 
+int64_t Slicer::operator++() 
 {
 	if(isEnd())
 		return m_linpos;
@@ -163,13 +163,13 @@ size_t Slicer::operator++()
  *
  * @return 	new value of linear position
  */
-size_t Slicer::operator--(int)
+int64_t Slicer::operator--(int)
 {
 	if(isBegin())
 		return m_linpos;
 
 	m_end = false;
-	size_t ret = m_linpos;
+	int64_t ret = m_linpos;
 	for(size_t ii=0; ii<m_order.size(); ii++){
 		size_t dd = m_order[ii];
 		if(m_pos[dd] != m_roi[dd].first) {
@@ -192,7 +192,7 @@ size_t Slicer::operator--(int)
  *
  * @return 	new value of linear position
  */
-size_t Slicer::operator--() 
+int64_t Slicer::operator--() 
 {
 	if(isBegin())
 		return m_linpos;
@@ -278,13 +278,13 @@ void Slicer::updateDim(size_t ndim, const size_t* dim)
  *
  * @param roi	pair of [min,max] values in the desired hypercube
  */
-void Slicer::setROI(const std::vector<std::pair<size_t, size_t>>& roi)
+void Slicer::setROI(const std::vector<std::pair<int64_t, int64_t>>& roi)
 {
 	for(size_t ii=0; ii<m_sizes.size(); ii++) {
 		if(ii < roi.size()) {
 			// clamp, to be <= 0...sizes[ii]-1
-			m_roi[ii].first = std::min(roi[ii].first, m_sizes[ii]-1);
-			m_roi[ii].second = std::min(roi[ii].second, m_sizes[ii]-1);
+			m_roi[ii].first = std::min<int64_t>(roi[ii].first, m_sizes[ii]-1);
+			m_roi[ii].second = std::min<int64_t>(roi[ii].second, m_sizes[ii]-1);
 		} else {
 			// no specification, just make it all
 			m_roi[ii].first = 0;
@@ -362,11 +362,11 @@ void Slicer::setOrder(const std::list<size_t>& order, bool revorder)
  *
  * @param newpos	location to move to
  */
-void Slicer::goIndex(size_t len, size_t* newpos, bool* outside)
+void Slicer::goIndex(size_t len, int64_t* newpos, bool* outside)
 {
 	m_linpos = 0;
 	size_t ii=0;
-	size_t clamped = 0;
+	int64_t clamped = 0;
 
 	if(outside)
 		*outside = false;
@@ -397,10 +397,10 @@ void Slicer::goIndex(size_t len, size_t* newpos, bool* outside)
  *
  * @param newpos	location to move to
  */
-void Slicer::goIndex(std::initializer_list<size_t> newpos, bool* outside)
+void Slicer::goIndex(std::initializer_list<int64_t> newpos, bool* outside)
 {
 	m_linpos = 0;
-	size_t clamped;
+	int64_t clamped;
 
 	if(outside)
 		*outside = false;

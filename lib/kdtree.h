@@ -32,25 +32,19 @@ template <size_t K, size_t E, typename T = double, typename D = double>
 class KDTreeNode
 {
 	public:
-		KDTreeNode(const std::vector<T>& pt, const std::vector<T>& data) : 
+		KDTreeNode(const std::vector<T>& pt, const std::vector<D>& data) : 
 			left(NULL), right(NULL)
 		{
-			if(pt.size() != K) {
-				std::cerr << "Error, incorrect point dimensionality, "
-					"point will not be created!" << std::endl;
-				return;
-			}
-			if(data.size() != E) {
-				std::cerr << "Error, incorrect data dimensionality, "
-					"point will not be inserted!" << std::endl;
-				return;
-			}
-
-			for(size_t ii=0; ii<K; ii++)
+			size_t ii;
+			for(ii=0; ii<K && ii<pt.size(); ii++)
 				m_point[ii] = pt[ii];
+			for(; ii<K; ii++)
+				m_point[ii] = 0;
 			
-			for(size_t ii=0; ii<E; ii++)
+			for(size_t ii=0; ii<E && ii<data.size(); ii++)
 				m_data[ii] = data[ii];
+			for(; ii<K; ii++)
+				m_data[ii] = 0;
 		};
 
 		T m_point[K];

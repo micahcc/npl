@@ -40,9 +40,9 @@ int main()
 	cerr << "Using Acessors" << endl;
 	double total = 0;
 	t = clock();
-	for(size_t zz=0; zz < testp->dim(2); zz++) {
-		for(size_t yy=0; yy < testp->dim(1); yy++) {
-			for(size_t xx=0; xx < testp->dim(0); xx++) {
+	for(int64_t zz=0; zz < testp->dim(2); zz++) {
+		for(int64_t yy=0; yy < testp->dim(1); yy++) {
+			for(int64_t xx=0; xx < testp->dim(0); xx++) {
 				total += testp->get_dbl({xx,yy,zz});
 			}
 		}
@@ -51,9 +51,9 @@ int main()
 	cerr << "xyz: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
     
 	t = clock();
-	for(size_t xx=0; xx < testp->dim(0); xx++) {
-		for(size_t yy=0; yy < testp->dim(1); yy++) {
-			for(size_t zz=0; zz < testp->dim(2); zz++) {
+	for(int64_t xx=0; xx < testp->dim(0); xx++) {
+		for(int64_t yy=0; yy < testp->dim(1); yy++) {
+			for(int64_t zz=0; zz < testp->dim(2); zz++) {
 				total += testp->get_dbl({xx,yy,zz});
 			}
 		}
@@ -86,9 +86,9 @@ int main()
 	it.goBegin();
 	cerr << "Comparing Outputs, in zyx ordering" << endl;
 	// forward order
-	for(size_t xx=0; xx < testp->dim(0); xx++) {
-		for(size_t yy=0; yy < testp->dim(1); yy++) {
-			for(size_t zz=0; zz < testp->dim(2); zz++) {
+	for(int64_t xx=0; xx < testp->dim(0); xx++) {
+		for(int64_t yy=0; yy < testp->dim(1); yy++) {
+			for(int64_t zz=0; zz < testp->dim(2); zz++) {
 				if(it.isEnd()) {
 					cerr << "Error, iterator ended early" << endl;
 					return -1;
@@ -99,7 +99,7 @@ int main()
 				
 				if(dirv != itev) {
 					cerr << "Methods disagree, index: " << endl;
-					std::vector<size_t> index;
+					std::vector<int64_t> index;
 					it.get_index(index);
 					for(auto val : index) {
 						cerr << val << ",";
@@ -118,9 +118,9 @@ int main()
 	cerr << "Comparing Outputs, in xyz ordering" << endl;
 	it.setOrder(order, true);
 	it.goBegin();
-	for(size_t zz=0; zz < testp->dim(2); zz++) {
-		for(size_t yy=0; yy < testp->dim(1); yy++) {
-			for(size_t xx=0; xx < testp->dim(0); xx++) {
+	for(int64_t zz=0; zz < testp->dim(2); zz++) {
+		for(int64_t yy=0; yy < testp->dim(1); yy++) {
+			for(int64_t xx=0; xx < testp->dim(0); xx++) {
 				if(it.isEnd()) {
 					cerr << "Error, iterator ended early" << endl;
 					return -1;
@@ -131,7 +131,7 @@ int main()
 				
 				if(dirv != itev) {
 					cerr << "Methods disagree, index: " << endl;
-					std::vector<size_t> index;
+					std::vector<int64_t> index;
 					it.get_index(index);
 					for(auto val : index) {
 						cerr << val << ",";
