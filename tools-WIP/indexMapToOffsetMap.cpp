@@ -69,7 +69,7 @@ shared_ptr<MRImage> invertDeform(shared_ptr<MRImage> in, size_t vdim)
 				// get full vector, 
 				for(int64_t ii=0; ii<3; ii++) {
 					index[vdim] = ii;
-					src[ii] = in->get_dbl(index.size(), index.data());
+					src[ii] = in->get_dbl(index);
 					trg[ii] = index[ii];
 				}
 
@@ -149,7 +149,7 @@ shared_ptr<MRImage> invertDeform(shared_ptr<MRImage> in, size_t vdim)
 				// set the inverted source in the output
 				for(size_t ii=0; ii<3; ii++) {
 					index[vdim] = ii;
-					out->set_dbl(index.size(), index.data(), src[ii]);
+					out->set_dbl(index, src[ii]);
 				}
 
 			}
@@ -165,84 +165,59 @@ shared_ptr<MRImage> invertDeform(shared_ptr<MRImage> in, size_t vdim)
  * @param deform
  * @param mask
  */
-void growFromMask(shared_ptr<MRImage> deform, shared_ptr<MRImage> mask)
+void growFromMask(shared_ptr<MRImage> deform, shared_ptr<MRImage> mask, size_t vdim)
 {
 	cerr << "Changing Outside Points to match nearest inside-mask point" << endl;
 
 	// create kernel iterator, radius 1
 	std::vector<size_t> krad(mask->ndim(), 1);
 	KSlicer kern(mask->ndim(), mask->dim(), krad);
+	std::vector<int64_t> index;
+	std::vector<int64_t> dindex1(deform->ndim(), 0);
+	std::vector<int64_t> dindex2(deform->ndim(), 0);
 	size_t minval;
+	int nchange = 1;
 
-	for(kern.goBegin(); !kern.isEnd(); ++kern) {
+	while(nchange > 0) {
+		for(kern.goBegin(); !kern.isEnd(); ++kern) {
 
-		// skip values in mask, or that have been reached
-		if(mask->get_int(kern.center()) != 0)
-			continue;
-		
-		// find minimum non-zero point in kernel 
-		minval = SIZE_MAX;
-		std::vector<int64_t> minind(mask->ndim());
-		for(size_t ii=0; ii<kern.ksize(); ii++) {
-			int v = mask->get_int(kern[ii]);
-			if(v > 0 && v < minval) {
-				minval = v;
-				minind = kern.offset_index(ii);
+			// skip values in mask, or that have been reached
+			if(mask->get_int(kern.center()) != 0)
+				continue;
+
+			// find minimum non-zero point in kernel 
+			minval = SIZE_MAX;
+			std::vector<int64_t> minind(mask->ndim());
+			for(size_t ii=0; ii<kern.ksize(); ii++) {
+				int v = mask->get_int(kern[ii]);
+				if(v > 0 && v < minval) {
+					minval = v;
+					minind = kern.offset_index(ii);
+				}
+			}
+
+			// copy value at index to deform, and set middle to minv+1
+			if(minval < SIZE_MAX) {
+				mask->set_int(kern.center(), minval+1);
+
+				// convert to point
+				index = kern.center_index();
+
+				// move from 1 (min) to 2 (center)
+				for(size_t ii=0; ii<3; ii++) {
+					dindex1[ii] = minind[ii];
+					dindex2[ii] = index[ii];
+				}
+
+				for(size_t ii=0; ii<3; ii++) {
+					deform->set_dbl(dindex2, deform->get_dbl(dindex1));
+				}
+
+				nchange++;
 			}
 		}
-
-		// copy value at index to deform, and set middle to minv+1
-		if(minval < SIZE_MAX) {
-			mask->set_int(kern.center(), minval+1);
-		}
+		cerr << "Number Changed: " << nchange << endl;
 	}
-
-
-
-
-
-	// build KDTree
-	std::vector<int64_t> defInd(deform->ndim());
-	std::vector<double> point(deform->ndim());
-	std::vector<int64_t> maskInd(3);
-	std::vector<double> offset(3);
-	KDTree<3, 3, int64_t, double> tree;
-
-	Slicer it(deform->ndim(), deform->dim());
-	for(it.goBegin(); !it.isEnd(); ) {
-
-		// convert index in deform to index in mask
-		defInd = it.index();
-		deform->indexToPoint(defInd, point);
-		mask->pointToIndex(point, maskInd);
-
-		// get offset at point
-		for(int ii=0; ii<3; ii++, ++it) 
-			offset[ii] = deform->get_dbl(*it);
-
-		// insert if mask is > 0
-		if(mask->get_int(3, maskInd.data()) > 0) {
-			tree.insert(defInd, offset);
-		}
-	}
-
-	cerr << "Building Tree" << endl;
-	tree.build();
-
-	cerr << "Mapping points using kd-tree" << endl;
-	for(it.goBegin(); !it.isEnd(); ) {
-		defInd = it.index();
-		
-		// search in tree
-		double dist = INFINITY;
-		auto result = tree.nearest(defInd, dist);
-
-		// copy offset
-		for(size_t ii=0; ii<3; ii++, ++it) {
-			deform->set_dbl(*it, result->m_data[ii]);
-		}
-	}
-	cerr << "Done" << endl;
 }
 
 int main(int argc, char** argv)
@@ -303,6 +278,7 @@ int main(int argc, char** argv)
 	list<size_t> order({vdim});
 	Slicer it(deform->ndim(), deform->dim(), order);
 
+
 	// convert deform to offsets
 	for(it.goBegin(); !it.isEnd(); ) {
 		defInd = it.index();
@@ -325,7 +301,36 @@ int main(int argc, char** argv)
 			return -1;
 		}
 
-		growFromMask(deform, mask);
+		// check that orientation/size match
+		for(size_t ii = 0; ii<3; ii++) {
+			for(size_t jj = 0; jj<3; jj++) {
+				if(mask->direction()(ii,jj) != deform->direction()(ii,jj)) {
+					std::cerr << "Mask and Deform do not have matching "
+						"orientation" << endl;
+					return -1;
+				}
+			}
+			if(mask->origin()[ii] != deform->origin()[ii]) {
+				std::cerr << "Mask and Deform do not have matching "
+					"origin" << endl;
+				return -1;
+			}
+			if(mask->spacing()[ii] != deform->spacing()[ii]) {
+				std::cerr << "Mask and Deform do not have matching "
+					"spacing" << endl;
+				return -1;
+			}
+
+			if(mask->dim(ii) != deform->dim(ii)) {
+				std::cerr << "Mask and Deform do not have matching "
+					"size " << endl;
+				return -1;
+			}
+		}
+
+		// TODO just resample
+
+		growFromMask(deform, mask, vdim);
 		cerr << "Done" << endl;
 	}
 

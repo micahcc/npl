@@ -30,7 +30,7 @@ namespace npl {
 		return (TYPE)_m_data[getAddr(index)];									\
 	}																			\
 	template <int D, typename T>												\
-	TYPE NDArrayStore<D,T>::GETFUNC(size_t len, const int64_t* index) const 	\
+	TYPE NDArrayStore<D,T>::GETFUNC(const std::vector<int64_t>& index) const 	\
 	{																			\
 		return (TYPE)_m_data[getAddr(index)];									\
 	}																			\
@@ -45,7 +45,7 @@ namespace npl {
 		_m_data[getAddr(index)] = (T)val;										\
 	}																			\
 	template <int D, typename T>												\
-	void NDArrayStore<D,T>::SETFUNC(size_t len, const int64_t* index, TYPE val)	\
+	void NDArrayStore<D,T>::SETFUNC(const std::vector<int64_t>& index, TYPE val)	\
 	{																			\
 		_m_data[getAddr(index)] = (T)val;										\
 	}																			\
@@ -54,6 +54,17 @@ namespace npl {
 	{																			\
 		_m_data[addr] = (T)val;													\
 	}																			\
+
+//	template <int D, typename T>												\
+//	TYPE NDArrayStore<D,T>::GETFUNC(const int64_t* index) const 	\
+//	{																			\
+//		return (TYPE)_m_data[getAddr(index)];									\
+//	}																			\
+//	template <int D, typename T>												\
+//	void NDArrayStore<D,T>::SETFUNC(const int64_t* index, TYPE val)	\
+//	{																			\
+//		_m_data[getAddr(index)] = (T)val;										\
+//	}																			\
 
 
 GETSETIMP(double, get_dbl, set_dbl);
@@ -174,6 +185,7 @@ int64_t NDArrayStore<D,T>::getAddr(std::initializer_list<int64_t> index) const
 		out += _m_stride[ii]*(*it);
 	}
 	
+	assert(out < elements());
 	return out;
 }
 
@@ -192,6 +204,7 @@ int64_t NDArrayStore<D,T>::getAddr(const int64_t* index) const
 		out += _m_stride[ii]*index[ii];
 	}
 
+	assert(out < elements());
 	return out;
 }
 
@@ -203,10 +216,15 @@ int64_t NDArrayStore<D,T>::getAddr(const std::vector<int64_t>& index) const
 
 	// copy the dimensions 
 	size_t ii=0;
-	for(auto it=index.begin(); it != index.end() && ii<D; ii++) {
+	for(auto it=index.begin(); it != index.end() && ii<D; ++it, ii++) {
+		assert(index[ii] >= 0);
+		assert(index[ii] < _m_dim[ii]);
+
 		// set position
 		out += _m_stride[ii]*(*it);
 	}
+	
+	assert(out < elements());
 	return out;
 }
 	

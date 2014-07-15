@@ -24,6 +24,12 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace npl {
 
+template <typename T>
+inline T clamp(T inf, T sup, T v) 
+{
+	return std::min(sup, std::max(inf, v));
+}
+
 struct cfloat_t;
 struct cdouble_t;
 struct cquad_t;

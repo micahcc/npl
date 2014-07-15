@@ -4,85 +4,85 @@ def build(bld):
     bld.program(target='slicer_test', source='slicer_test.cpp', use='slicer')
 
     # test basic arrays
-    bld.program(install_as='tests', features='test', 
+    bld.program(install_path='${PREFIX}/tests', features='test', 
             target='array_test1', 
             source='array_test1.cpp', 
             use='ndarray')
 
-    bld.program(install_as='tests', features='test', 
+    bld.program(install_path='${PREFIX}/tests', features='test', 
             target='array_test2', 
             source='array_test2.cpp', 
             use='ndarray slicer')
     
-    bld.program(install_as='tests', features='test', 
+    bld.program(install_path='${PREFIX}/tests', features='test', 
             target='array_test3', 
             source='array_test3.cpp', 
             use='ndarray kslicer')
     
-    bld.program(install_as='tests', features='test',
+    bld.program(install_path='${PREFIX}/tests', features='test',
             target='kernel_slicer_test', 
             source='kernel_slicer_test.cpp',
             use='kslicer')
     
-    bld.program(install_as='tests', features='test',
+    bld.program(install_path='${PREFIX}/tests', features='test',
             target='ndarray_accessor_test1', 
             source='ndarray_accessor_test1.cpp', 
             use='ndarray')
     
     # test nifti orientation
-    bld.program(install_as='tests', features='test', 
+    bld.program(install_path='${PREFIX}/tests', features='test', 
             target='nifti_orient_test1', 
             source='nifti_orient_test1.cpp', 
             use='mrimage')
 
-    bld.program(install_as='tests', features='test', 
+    bld.program(install_path='${PREFIX}/tests', features='test', 
             target='nifti_orient_test2', 
             source='nifti_orient_test2.cpp', 
             use='mrimage')
 
-    bld.program(install_as='tests', features='test', 
+    bld.program(install_path='${PREFIX}/tests', features='test', 
             target='coordinate_test1', 
             source='coordinate_test1.cpp', 
             use='mrimage')
 
-    bld.program(install_as='tests', features='test', 
+    bld.program(install_path='${PREFIX}/tests', features='test', 
             target='coordinate_test2', 
             source='coordinate_test2.cpp', 
             use='mrimage')
 
     # test images
-    bld.program(install_as='tests', features='test', 
+    bld.program(install_path='${PREFIX}/tests', features='test', 
             target='coordinate_test2', 
             source='coordinate_test2.cpp', 
             use='mrimage')
 
-    bld.program(install_as='tests', features='test', 
+    bld.program(install_path='${PREFIX}/tests', features='test', 
             target='nifti_rwrw_test', 
             source='nifti_rwrw_test.cpp', 
             use='mrimage')
     
-    bld.program(install_as='tests', features='test', 
+    bld.program(install_path='${PREFIX}/tests', features='test', 
             target='img_nn_interp_test', 
             source='img_nn_interp_test.cpp', 
             use='mrimage')
     
-    bld.program(install_as='tests', features='test', 
+    bld.program(install_path='${PREFIX}/tests', features='test', 
             target='img_lin_interp_test', 
             source='img_lin_interp_test.cpp', 
             use='mrimage')
 
     # test KDTree functionality
-    bld.program(install_as='tests', features='test', 
+    bld.program(install_path='${PREFIX}/tests', features='test', 
             target='kdtree_test',
             source='kdtree_test.cpp', 
             use='kdtree')
 
-    bld.program(install_as='tests', features='test', 
+    bld.program(install_path='${PREFIX}/tests', features='test', 
             target='kdtree_test_multi', 
             source='kdtree_test_multi.cpp', 
             use='kdtree')
 
-    bld.program(install_as='tests', features='test', 
+    bld.program(install_path='${PREFIX}/tests', features='test', 
             target='kdtree_test_grid', 
             source='kdtree_test_grid.cpp', 
             use='kdtree')

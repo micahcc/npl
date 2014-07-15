@@ -24,7 +24,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 using namespace std;
 using namespace npl;
 
-int main(int argc, char** argv)
+int main()
 {
 	/* Create an image with: x+y*100+z*10000*/
 	BoundaryConditionT bound = CONSTZERO;
@@ -41,7 +41,7 @@ int main(int argc, char** argv)
 			for(index[2] = 0; index[2] < sz[2] ; index[2]++) {
 				for(index[3] = 0; index[3] < sz[3] ; index[3]++) {
 					val = index[0]+index[1]*10 + index[2]*100 + index[3]*1000;
-					testimg->set_dbl(index.size(), index.data(), val);
+					testimg->set_dbl(index, val);
 				}
 			}
 		}
@@ -55,10 +55,6 @@ int main(int argc, char** argv)
 					for(size_t ii=0; ii<index.size(); ii++)
 						cindex[ii] = index[ii];
 					double s = testimg->linSampleInd(cindex, bound, outside);
-					if(outside) {
-						std::cerr << "Should not be outside" << endl;
-						return -1;
-					}
 
 					if(fabs(val - s) > 0.00000000001) {
 						std::cerr << "On-grid point value mismatch" << endl;
@@ -75,10 +71,6 @@ int main(int argc, char** argv)
 				for(cindex[3] = 0; cindex[3] < sz[3] ; cindex[3]++) {
 					val = cindex[0]+cindex[1]*10 + cindex[2]*100 + cindex[3]*1000;
 					double s = testimg->linSampleInd(cindex, bound, outside);
-					if(outside) {
-						std::cerr << "Should not be outside" << endl;
-						return -1;
-					}
 
 					if(fabs(val - s) > 0.00000000001) {
 						std::cerr << "On-grid point (summed double) value mismatch" << endl;
@@ -94,11 +86,8 @@ int main(int argc, char** argv)
 			for(cindex[2] = .5; cindex[2] < sz[2]-.5 ; cindex[2]++) {
 				for(cindex[3] = .5; cindex[3] < sz[3]-.5 ; cindex[3]++) {
 					val = cindex[0]+cindex[1]*10 + cindex[2]*100 + cindex[3]*1000;
+
 					double s = testimg->linSampleInd(cindex, bound, outside);
-					if(outside) {
-						std::cerr << "Should not be outside" << endl;
-						return -1;
-					}
 
 					if(fabs(val - s) > 0.00000000001) {
 						std::cerr << "Off-grid point (summed double) value mismatch" << endl;

@@ -25,10 +25,6 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 using namespace std;
 using namespace npl;
 
-int64_t clamp(int64_t low, int64_t hi, int64_t v)
-{
-	return std::max(low, std::min(hi, v));
-}
 int main()
 {
 	NDArrayStore<3, float> test1({100,100,100});
@@ -45,8 +41,8 @@ int main()
 	for(int64_t zz=0; zz < testp->dim(2); zz++) {
 		for(int64_t yy=0; yy < testp->dim(1); yy++) {
 			for(int64_t xx=0; xx < testp->dim(0); xx++) {
-				int64_t ind[3] = {xx,yy,zz};
-				if(testp->get_dbl({xx,yy,zz}) != testp->get_dbl(3, ind)) {
+				std::vector<int64_t> ind= {xx,yy,zz};
+				if(testp->get_dbl({xx,yy,zz}) != testp->get_dbl(ind)) {
 					cerr << "Error, difference between accessors!" << endl;
 					return -1;
 				}
@@ -65,9 +61,9 @@ int main()
 				for(int64_t xi = -1; xi <= 1; xi++) {
 					for(int64_t yi = -1; yi <= 1; yi++) {
 						for(int64_t zi = -1; zi <= 1; zi++) {
-							int64_t realx = clamp(0, testp->dim(0), xx+xi);
-							int64_t realy = clamp(0, testp->dim(0), yy+yi);
-							int64_t realz = clamp(0, testp->dim(0), zz+zi);
+							int64_t realx = clamp<int64_t>(0, testp->dim(0)-1, xx+xi);
+							int64_t realy = clamp<int64_t>(0, testp->dim(0)-1, yy+yi);
+							int64_t realz = clamp<int64_t>(0, testp->dim(0)-1, zz+zi);
 							val += testp->get_dbl({realx,realy,realz});
 
 						}

@@ -40,19 +40,28 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 // void setdbl(const std::vector<size_t>& index, double newval) const;
 #define VIRTGETSET(TYPE, GETFUNC, SETFUNC) \
 	virtual TYPE GETFUNC(std::initializer_list<int64_t> index) const = 0; \
-	virtual TYPE GETFUNC(size_t d, const int64_t* index) const = 0; \
+	virtual TYPE GETFUNC(const std::vector<int64_t>& index) const = 0; \
 	virtual TYPE GETFUNC(int64_t index) const = 0; \
 	virtual void SETFUNC(std::initializer_list<int64_t> index, TYPE) = 0; \
-	virtual void SETFUNC(size_t d, const int64_t* index, TYPE) = 0; \
+	virtual void SETFUNC(const std::vector<int64_t>& index, TYPE) = 0; \
 	virtual void SETFUNC(int64_t index, TYPE) = 0; \
 
 #define GETSET(TYPE, GETFUNC, SETFUNC) \
 	TYPE GETFUNC(std::initializer_list<int64_t> index) const; \
-	TYPE GETFUNC(size_t d, const int64_t* index) const; \
+	TYPE GETFUNC(const std::vector<int64_t>& index) const; \
 	TYPE GETFUNC(int64_t index) const; \
 	void SETFUNC(std::initializer_list<int64_t> index, TYPE); \
-	void SETFUNC(size_t d, const int64_t* index, TYPE); \
+	void SETFUNC(const std::vector<int64_t>& index, TYPE); \
 	void SETFUNC(int64_t index, TYPE); \
+
+//	void SETFUNC(const int64_t* index, TYPE); 
+//	TYPE GETFUNC(const int64_t* index) const; 
+//	virtual TYPE GETFUNC(const int64_t* index) const = 0; 
+//	virtual void SETFUNC(const int64_t* index, TYPE) = 0; 
+//
+
+
+
 
 namespace npl {
 

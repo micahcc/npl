@@ -562,7 +562,7 @@ shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose)
 		 * set spacing 
 		 */
 		for(size_t ii=0; ii<out->ndim(); ii++)
-			out->space()[ii] = pixdim[ii];
+			out->spacing()[ii] = pixdim[ii];
 		
 		/* 
 		 * set origin 
@@ -660,7 +660,7 @@ shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose)
 	} else {
 		// only spacing changes
 		for(size_t ii=0; ii<dim.size(); ii++)
-			out->space()[ii] = pixdim[ii];
+			out->spacing()[ii] = pixdim[ii];
 		out->updateAffine();
 	}
 
@@ -878,7 +878,7 @@ ostream& operator<<(ostream &out, const MRImage& img)
 	out << "Spacing: " << endl;
 	for(size_t ii=0; ii<img.ndim(); ii++) {
 		out << "[ " << std::setw(10) << std::setprecision(3) 
-			<< img.space()[ii] << "] ";
+			<< img.spacing()[ii] << "] ";
 	}
 	out << endl;
 

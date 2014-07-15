@@ -67,12 +67,12 @@ public:
 				m_slice_duration(0), m_slice_start(-1), 
 				m_slice_end(-1), m_slice_order(UNKNOWN_SLICE) {} ;
 
-	virtual MatrixP& space() = 0;
+	virtual MatrixP& spacing() = 0;
 	virtual MatrixP& origin() = 0;
 	virtual MatrixP& direction() = 0;
 	virtual MatrixP& affine() = 0;
 	virtual MatrixP& iaffine() = 0;
-	virtual const MatrixP& space() const = 0;
+	virtual const MatrixP& spacing() const = 0;
 	virtual const MatrixP& origin() const  = 0;
 	virtual const MatrixP& direction() const = 0;
 	virtual const MatrixP& affine() const = 0;
@@ -207,12 +207,12 @@ public:
 	double nnSampleInd(const std::vector<double>& cindex,
 			BoundaryConditionT bound, bool& outside);
 	
-	MatrixP& space() {return *((MatrixP*)&m_space); };
+	MatrixP& spacing() {return *((MatrixP*)&m_space); };
 	MatrixP& origin() {return *((MatrixP*)&m_origin); };
 	MatrixP& direction() {return *((MatrixP*)&m_dir); };
 	MatrixP& affine() {return *((MatrixP*)&m_affine); };
 	MatrixP& iaffine() {return *((MatrixP*)&m_inv_affine); };
-	const MatrixP& space() const {return *((MatrixP*)&m_space); };
+	const MatrixP& spacing() const {return *((MatrixP*)&m_space); };
 	const MatrixP& origin() const {return *((MatrixP*)&m_origin); };
 	const MatrixP& direction() const {return *((MatrixP*)&m_dir); };
 	const MatrixP& affine() const {return *((MatrixP*)&m_affine); };

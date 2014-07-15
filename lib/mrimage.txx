@@ -22,7 +22,6 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <typeinfo>
 
 #include "nifti.h"
-#include "clamp.h"
 #include "slicer.h"
 
 namespace npl {
@@ -819,7 +818,9 @@ double MRImageStore<D,T>::linSamplePt(const std::vector<double>& point,
  *
  * @param cindex Continuous index location (could be outside FOV)
  * @param bound	What to return if the value is outside the FOV
- * @param outside Set to true if the value is outside, false otherwise
+ * @param outside Set to true if the value is outside, false otherwise. 
+ * 			sometimes boundary points can trigger this if they are identically
+ *			on the wall because their support might include outside voxels.
  *
  * @return 
  */
@@ -828,7 +829,7 @@ double MRImageStore<D,T>::linSampleInd(const std::vector<double>& incindex,
 		BoundaryConditionT bound, bool& outside)
 {
 	double cindex[D];
-	int64_t index[D];
+	std::vector<int64_t> index(D, 0);
 	
 	// in case incindex is of the wrong size, copy
 	for(size_t ii=0 ; ii<incindex.size() && ii < D; ii++)
@@ -870,7 +871,7 @@ double MRImageStore<D,T>::linSampleInd(const std::vector<double>& incindex,
 			result = std::div(result.quot, kpoints);
 			weight *= karray[dd*kpoints+result.rem];
 			index[dd] = indarray[dd*kpoints+result.rem];
-			iioutside = iioutside || rounded < 0 || rounded >= dim(dd);
+			iioutside = iioutside || index[dd] < 0 || index[dd] >= dim(dd);
 		}
 
 		outside = iioutside || outside;
@@ -908,7 +909,7 @@ double MRImageStore<D,T>::linSampleInd(const std::vector<double>& incindex,
 //			std::cerr << index[ii] << ",";
 //		std::cerr << std::endl;
 
-		pixval += weight*get_dbl(D, index);
+		pixval += weight*get_dbl(index);
 
 	}
 
@@ -946,7 +947,7 @@ template <int D, typename T>
 double MRImageStore<D,T>::nnSampleInd(const std::vector<int64_t>& inindex,
 		BoundaryConditionT bound, bool& outside)
 {
-	int64_t index[D];
+	std::vector<int64_t> index(D, 0);
 	
 	// in case incindex is of the wrong size, copy
 	for(size_t ii=0 ; ii<inindex.size() && ii < D; ii++)
@@ -979,7 +980,7 @@ double MRImageStore<D,T>::nnSampleInd(const std::vector<int64_t>& inindex,
 		}
 	} 
 
-	return get_dbl(D, index);
+	return get_dbl(index);
 }
 
 /**

@@ -50,7 +50,7 @@ int test1d(std::vector<size_t>& size, size_t bytes, size_t elements)
 		T val = dist(rangen);
 
 		mapcomp[index] = val;
-		arr->set_dbl(index.size(), index.data(), val);
+		arr->set_dbl(index, val);
 	}
 
 	if(count != size[0]) {
@@ -59,7 +59,7 @@ int test1d(std::vector<size_t>& size, size_t bytes, size_t elements)
 	
 	for(index[0] = 0; index[0] < arr->dim(0); index[0]++) {
 		try {
-			double v = arr->get_dbl(index.size(), index.data());
+			double v = arr->get_dbl(index);
 			if(mapcomp.at(index) != v) {
 				cerr << "Error, value mismatch" << endl;
 				return -4;
@@ -94,7 +94,7 @@ int test2d(std::vector<size_t>& size, size_t bytes, size_t elements)
 			T val = dist(rangen);
 
 			mapcomp[index] = val;
-			arr->set_dbl(index.size(), index.data(), val);
+			arr->set_dbl(index, val);
 		}
 	}
 
@@ -106,7 +106,7 @@ int test2d(std::vector<size_t>& size, size_t bytes, size_t elements)
 		for(index[1] = 0; index[1] < arr->dim(1); index[1]++, count++) {
 
 			try {
-				double v = arr->get_dbl(index.size(), index.data());
+				double v = arr->get_dbl(index);
 				if(mapcomp.at(index) != v) {
 					cerr << "Error, value mismatch" << endl;
 					return -4;
@@ -143,7 +143,7 @@ int test3d(std::vector<size_t>& size, size_t bytes, size_t elements)
 				T val = dist(rangen);
 
 				mapcomp[index] = val;
-				arr->set_dbl(index.size(), index.data(), val);
+				arr->set_dbl(index, val);
 			}
 		}
 	}
@@ -157,7 +157,7 @@ int test3d(std::vector<size_t>& size, size_t bytes, size_t elements)
 			for(index[2] = 0; index[2] < arr->dim(2); index[2]++) {
 
 				try {
-					double v = arr->get_dbl(index.size(), index.data());
+					double v = arr->get_dbl(index);
 					if(mapcomp.at(index) != v) {
 						cerr << "Error, value mismatch" << endl;
 						return -4;
@@ -197,7 +197,7 @@ int test5d(std::vector<size_t>& size, size_t bytes, size_t elements)
 						T val = dist(rangen);
 
 						mapcomp[index] = val;
-						arr->set_dbl(index.size(), index.data(), val);
+						arr->set_dbl(index, val);
 					}
 				}
 			}
@@ -215,7 +215,7 @@ int test5d(std::vector<size_t>& size, size_t bytes, size_t elements)
 					for(index[4] = 0; index[4] < arr->dim(4); index[4]++) {
 
 						try {
-							double v = arr->get_dbl(index.size(), index.data());
+							double v = arr->get_dbl(index);
 							if(mapcomp.at(index) != v) {
 								cerr << "Error, value mismatch" << endl;
 								return -4;

@@ -469,6 +469,7 @@ double det(const Matrix<DIM, DIM>& trg)
 template <int D1, int D2>
 double norm(const Matrix<D1, D2>& trg)
 {
+	(void)(trg);
 	throw std::length_error("Matrix Passed to Norm Function");
 	return 0;
 }

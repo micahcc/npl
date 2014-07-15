@@ -41,7 +41,7 @@ int main(int argc, char** argv)
 			for(index[2] = 0; index[2] < sz[2] ; index[2]++) {
 				for(index[3] = 0; index[3] < sz[3] ; index[3]++) {
 					val = index[0]+index[1]*10 + index[2]*100 + index[3]*1000;
-					testimg->set_dbl(index.size(), index.data(), val);
+					testimg->set_dbl(index, val);
 				}
 			}
 		}
