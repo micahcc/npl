@@ -55,58 +55,6 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 	void SETFUNC(size_t d, const size_t* index, TYPE); \
 	void SETFUNC(size_t index, TYPE); \
 
-// Iterator Functions
-#define CITERFUNCS(TYPE, GETFUNC)\
-	TYPE GETFUNC() const \
-	{\
-		assert(m_parent);\
-		return m_parent->GETFUNC(Slicer::get());\
-	};\
-	TYPE GETFUNC(size_t d, int64_t* dindex, bool* outside=NULL) \
-	{\
-		assert(m_parent);\
-		return m_parent->GETFUNC(Slicer::offset(d, dindex, outside));\
-	};\
-	TYPE GETFUNC(std::initializer_list<int64_t> dindex, bool* outside=NULL) \
-	{\
-		assert(m_parent);\
-		return m_parent->GETFUNC(Slicer::offset(dindex, outside));\
-	};\
-
-#define ITERFUNCS(TYPE, GETFUNC, SETFUNC)\
-	TYPE GETFUNC() const \
-	{\
-		assert(m_parent);\
-		return m_parent->GETFUNC(Slicer::get());\
-	};\
-	void SETFUNC(TYPE v) const \
-	{\
-		assert(m_parent);\
-		m_parent->SETFUNC(Slicer::get(), v);\
-	};\
-	TYPE GETFUNC(size_t d, int64_t* dindex, bool* outside = NULL) \
-	{\
-		assert(m_parent);\
-		return m_parent->GETFUNC(Slicer::offset(d, dindex, outside));\
-	};\
-	TYPE GETFUNC(std::initializer_list<int64_t> dindex, bool* outside = NULL) \
-	{\
-		assert(m_parent);\
-		return m_parent->GETFUNC(Slicer::offset(dindex, outside));\
-	};\
-	void SETFUNC(size_t d, int64_t* dindex, TYPE v, bool* outside=NULL) \
-	{\
-		assert(m_parent);\
-		m_parent->SETFUNC(Slicer::offset(d, dindex, outside), v);\
-	};\
-	void SETFUNC(std::initializer_list<int64_t> dindex, TYPE v, \
-			bool* outside=NULL) \
-	{\
-		assert(m_parent);\
-		m_parent->SETFUNC(Slicer::offset(dindex, outside), v);\
-	};
-
-
 namespace npl {
 
 /**
@@ -137,11 +85,10 @@ public:
 	virtual size_t dim(size_t dir) const = 0;
 	virtual const size_t* dim() const = 0;
 
-	virtual std::shared_ptr<NDArray> clone() const = 0;
-	virtual int opself(const NDArray* right, double(*func)(double,double), 
-			bool elevR) = 0;
-	virtual std::shared_ptr<NDArray> opnew(const NDArray* right, 
-			double(*func)(double,double), bool elevR) = 0;
+//	virtual int opself(const NDArray* right, double(*func)(double,double), 
+//			bool elevR) = 0;
+//	virtual std::shared_ptr<NDArray> opnew(const NDArray* right, 
+//			double(*func)(double,double), bool elevR) = 0;
 
 };
 
@@ -201,11 +148,10 @@ public:
 	/* 
 	 * Higher Level Operations
 	 */
-	virtual std::shared_ptr<NDArray> clone() const;
-	virtual int opself(const NDArray* right, double(*func)(double,double), 
-			bool elevR);
-	virtual std::shared_ptr<NDArray> opnew(const NDArray* right, 
-			double(*func)(double,double), bool elevR);
+//	virtual int opself(const NDArray* right, double(*func)(double,double), 
+//			bool elevR);
+//	virtual std::shared_ptr<NDArray> opnew(const NDArray* right, 
+//			double(*func)(double,double), bool elevR);
 
 	protected:
 	T* _m_data;
@@ -296,8 +242,6 @@ bool comparable(const NDArray* left, const NDArray* right,
 
 #undef VIRTGETSET
 #undef GETSET
-#undef CITERFUNCS
-#undef ITERFUNCS
 
 } //npl
 

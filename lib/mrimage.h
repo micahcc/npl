@@ -36,6 +36,7 @@ namespace npl {
 
 using std::list;
 using std::vector;
+using std::shared_ptr;
 
 // Match Nifti Codes
 enum PixelT {UNKNOWN_TYPE=0, UINT8=2, INT16=4, INT32=8, FLOAT32=16, COMPLEX64=32,
@@ -48,9 +49,9 @@ enum SliceOrderT {UNKNOWN_SLICE=0, SEQ=1, RSEQ=2, ALT=3, RALT=4, ALT_SHFT=5, RAL
 class MRImage;
 
 // simply reads an image in its native type
-MRImage* readNiftiImage(gzFile file, bool verbose);
-MRImage* readMRImage(std::string filename, bool verbose = false);
-MRImage* createMRImage(const std::vector<size_t>& dims, PixelT);
+shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose);
+shared_ptr<MRImage> readMRImage(std::string filename, bool verbose = false);
+shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dims, PixelT);
 int writeMRImage(MRImage* img, std::string fn, bool nifti2 = false);
 
 ostream& operator<<(ostream &out, const MRImage& img);
@@ -79,13 +80,14 @@ public:
 	
 	virtual PixelT type() const = 0;
 	
-	virtual int write(std::string filename, double version) const = 0;
+	virtual int write(std::string filename, double version = 1) const = 0;
+	
+	virtual std::shared_ptr<MRImage> cloneImg() const = 0;
 	
 	virtual int indexToPoint(const std::vector<size_t>& xyz, std::vector<double>& ras) const = 0;
 	virtual int indexToPoint(const std::vector<double>& xyz, std::vector<double>& ras) const = 0;
 	virtual int pointToIndex(const std::vector<double>& ras, std::vector<double>& xyz) const = 0;
 	
-//	virtual std::shared_ptr<MRImage> cloneImage() const = 0;
 //	virtual int unary(double(*func)(double,double)) const = 0;
 //	virtual int binOp(const MRImage* right, double(*func)(double,double), bool elevR) const = 0;
 
@@ -132,8 +134,9 @@ protected:
 	virtual int writeNifti2Image(gzFile file) const = 0;
 	
 	virtual void updateAffine() = 0;
+
 	
-	friend MRImage* readNiftiImage(gzFile file, bool verbose);
+	friend shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose);
 };
 
 /**
@@ -162,8 +165,6 @@ public:
 	MRImageStore(std::initializer_list<size_t> a_args);
 	MRImageStore(const std::vector<size_t>& a_args);
 	
-	std::shared_ptr<NDArray> clone() const;
-
 	/*************************************************************************
 	 * Coordinate Transform Functions
 	 ************************************************************************/
@@ -197,6 +198,8 @@ public:
 	std::string getUnits(size_t d1, double d2);
 
 	int write(std::string filename, double version) const;
+	
+	std::shared_ptr<MRImage> cloneImg() const;
 protected:
 	// used to transform index to RAS (Right Handed Coordinate System)
 	Matrix<D,D> m_dir;

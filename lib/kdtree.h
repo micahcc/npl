@@ -60,6 +60,16 @@ class KDTreeNode
 		KDTreeNode* right;
 
 		friend KDTree<K,E,T,D>;
+
+		KDTreeNode(const KDTreeNode& other)
+		{
+			throw -1;
+		}
+		
+		KDTreeNode(KDTreeNode&& other)
+		{
+			throw -1;
+		}
 };
 
 template <size_t K, size_t E, typename T, typename D>
@@ -71,6 +81,13 @@ public:
 	 * @brief Constructor
 	 */
 	KDTree() : m_built(false),m_treehead(NULL)  { };
+
+	~KDTree()  {
+		while(!m_allnodes.empty()) {
+			delete m_allnodes.back() ;
+			m_allnodes.pop_back();
+		}
+	};
 
 	/**
 	 * @brief Insert a node (not that this is not dynamic, new nodes won't be 
@@ -93,6 +110,7 @@ public:
 	void clear();
 
 	KDTreeNode<K,E,T,D>* nearest(const std::vector<T>& pt, double& dist);
+
 	std::list<const KDTreeNode<K,E,T,D>*> withindist(const std::vector<T>& pt, double dist);
 	
 private:
@@ -101,7 +119,7 @@ private:
 	bool m_built;
 
 	KDTreeNode<K,E,T,D>* m_treehead; 
-	std::vector<KDTreeNode<K,E,T,D>> m_allnodes; 
+	std::vector<KDTreeNode<K,E,T,D>*> m_allnodes; 
 
 	// helper functions
 	KDTreeNode<K,E,T,D>* nearest_help(size_t depth, KDTreeNode<K,E,T,D>* pos,
@@ -111,8 +129,8 @@ private:
 		KDTreeNode<K,E,T,D>* pos, const std::vector<T>& pt, double distsq);
 
 	KDTreeNode<K,E,T,D>* build_helper(
-		typename std::vector<KDTreeNode<K,E,T,D>>::iterator begin,
-		typename std::vector<KDTreeNode<K,E,T,D>>::iterator end,
+		typename std::vector<KDTreeNode<K,E,T,D>*>::iterator begin,
+		typename std::vector<KDTreeNode<K,E,T,D>*>::iterator end,
 		size_t depth);
 };
 

@@ -21,13 +21,21 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #define KDTREE_TXX
 
 #include <algorithm>
+#include <cassert>
+
+#include <iostream>
+using namespace std;
 
 namespace npl {
 
 template <size_t K, size_t E, typename T, typename D>
 void KDTree<K,E,T,D>::insert(const std::vector<T>& pt, const std::vector<T>& data)
 {
-	m_allnodes.push_back(KDTreeNode<K,E,T,D>(pt, data));
+	assert(pt.size() == K);
+	assert(data.size() == E);
+	m_allnodes.push_back(new KDTreeNode<K,E,T,D>(
+				std::vector<T>(pt.begin(),pt.begin()+K), 
+				std::vector<T>(data.begin(),data.begin()+E)));
 }
 
 
@@ -46,8 +54,8 @@ void KDTree<K,E,T,D>::insert(const std::vector<T>& pt, const std::vector<T>& dat
  */
 template <size_t K, size_t E, typename T, typename D>
 KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::build_helper(
-		typename std::vector<KDTreeNode<K,E,T,D>>::iterator begin,
-		typename std::vector<KDTreeNode<K,E,T,D>>::iterator end,
+		typename std::vector<KDTreeNode<K,E,T,D>*>::iterator begin,
+		typename std::vector<KDTreeNode<K,E,T,D>*>::iterator end,
 		size_t depth)
 {
 	size_t length = (size_t)(end-begin);
@@ -61,9 +69,9 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::build_helper(
 	
 	// sort based on the given axis
 	std::sort(begin, end, 
-		[&](const KDTreeNode<K,E,T,D>& left, const KDTreeNode<K,E,T,D>& right) 
+		[&](KDTreeNode<K,E,T,D>* left, KDTreeNode<K,E,T,D>* right) 
 		{
-			return left.m_point[axis] < right.m_point[axis];
+			return left->m_point[axis] < right->m_point[axis];
 		});
 
 	////////////////////////////////////////////////
@@ -75,23 +83,23 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::build_helper(
 
 	if(length == 1) {
 		// no children to be had
-		median_it->left = NULL;
-		median_it->right = NULL;
+		(*median_it)->left = NULL;
+		(*median_it)->right = NULL;
 	} else if(length == 2) {
 		// the median is the lower of the 2
-		median_it->left = &(*(median_it-1));
-		median_it->right = NULL;
+		(*median_it)->left = *(median_it-1);
+		(*median_it)->right = NULL;
 	} else if(length == 3) {
 		// the median is the middle of the 2
-		median_it->left = &(*(median_it-1));;
-		median_it->right = &(*(median_it+1));
+		(*median_it)->left = *(median_it-1);
+		(*median_it)->right = *(median_it+1);
 	} else {
 		// too big, need to recurse
-		median_it->left = build_helper(begin, median_it, depth+1);
-		median_it->right = build_helper(median_it+1, end, depth+1);
+		(*median_it)->left = build_helper(begin, median_it, depth+1);
+		(*median_it)->right = build_helper(median_it+1, end, depth+1);
 	}
 
-	return &(*median_it);
+	return *median_it;
 }
 
 /**
@@ -105,12 +113,30 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::build_helper(
 template <size_t K, size_t E, typename T, typename D>
 void KDTree<K,E,T,D>::build()
 {
+//	std::cerr << "Front: " << endl;
+//	for(size_t ii=0; ii<K; ii++) {
+//		std::cerr << m_allnodes.front().m_point[ii] << ", ";
+//	}
+//	std::cerr << endl;
+//	for(size_t ii=0; ii<K; ii++) {
+//		std::cerr << m_allnodes.front().m_data[ii] << ", ";
+//	}
+//	std::cerr << endl;
 	m_treehead = build_helper(m_allnodes.begin(), m_allnodes.end(), 0);
 	if(!m_treehead) {
 		std::cerr << "Something went wrong with building!" << std::endl;
 	}
 
 	m_built = true;
+//	std::cerr << "Front: " << endl;
+//	for(size_t ii=0; ii<K; ii++) {
+//		std::cerr << m_allnodes.front().m_point[ii] << ", ";
+//	}
+//	std::cerr << endl;
+//	for(size_t ii=0; ii<K; ii++) {
+//		std::cerr << m_allnodes.front().m_data[ii] << ", ";
+//	}
+//	std::cerr << endl;
 }
 
 
@@ -221,7 +247,16 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 template <size_t K, size_t E, typename T, typename D>
 KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest(const std::vector<T>& pt, double& dist)
 {
-
+//	std::cerr << "Front: " << endl;
+//	for(size_t ii=0; ii<K; ii++) {
+//		std::cerr << m_allnodes.front().m_point[ii] << ", ";
+//	}
+//	std::cerr << endl;
+//	for(size_t ii=0; ii<K; ii++) {
+//		std::cerr << m_allnodes.front().m_data[ii] << ", ";
+//	}
+//	std::cerr << endl;
+//
 	if(!m_built) {
 		std::cerr << "Error! Must build tree before performing search!" 
 			<< std::endl;

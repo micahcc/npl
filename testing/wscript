@@ -37,6 +37,7 @@ def build(bld):
     # test KDTree functionality
     bld.program(features='test', target = 'kdtree_test', source = 'kdtree_test.cpp', use = 'kdtree')
     bld.program(features='test', target = 'kdtree_test_multi', source = 'kdtree_test_multi.cpp', use = 'kdtree')
+    bld.program(features='test', target = 'kdtree_test_grid', source = 'kdtree_test_grid.cpp', use = 'kdtree')
     
     from waflib.Tools import waf_unit_test
     bld.add_post_fun(waf_unit_test.summary)

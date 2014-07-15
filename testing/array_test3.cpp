@@ -41,7 +41,6 @@ int main()
 	clock_t t;
 	
 	cerr << "Comparing Acessors" << endl;
-	double total = 0;
 	t = clock();
 	for(size_t zz=0; zz < testp->dim(2); zz++) {
 		for(size_t yy=0; yy < testp->dim(1); yy++) {

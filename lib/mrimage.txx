@@ -133,23 +133,23 @@ void MRImageStore<D,T>::printSelf()
 }
 
 template <typename T>
-MRImage* createMRImageHelp(const std::vector<size_t>& dim)
+shared_ptr<MRImage> createMRImageHelp(const std::vector<size_t>& dim)
 {
 	switch(dim.size()) {
 		case 1:
-			return new MRImageStore<1, T>(dim);
+			return std::make_shared<MRImageStore<1, T>>(dim);
 		case 2:
-			return new MRImageStore<2, T>(dim);
+			return std::make_shared<MRImageStore<2, T>>(dim);
 		case 3:
-			return new MRImageStore<3, T>(dim);
+			return std::make_shared<MRImageStore<3, T>>(dim);
 		case 4:
-			return new MRImageStore<4, T>(dim);
+			return std::make_shared<MRImageStore<4, T>>(dim);
 		case 5:
-			return new MRImageStore<5, T>(dim);
+			return std::make_shared<MRImageStore<5, T>>(dim);
 		case 6:
-			return new MRImageStore<6, T>(dim);
+			return std::make_shared<MRImageStore<6, T>>(dim);
 		case 7:
-			return new MRImageStore<7, T>(dim);
+			return std::make_shared<MRImageStore<7, T>>(dim);
 		default:
 			std::cerr << "Unsupported dimension: " << dim.size() << std::endl;
 			return NULL;
@@ -158,56 +158,56 @@ MRImage* createMRImageHelp(const std::vector<size_t>& dim)
 	return NULL;
 }
 
-MRImage* createMRImage(const std::vector<size_t>& dim, PixelT ptype)
+shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT ptype)
 {
 	switch(ptype) {
          case UINT8:
-			return (MRImage*)createMRImageHelp<uint8_t>(dim);
+			return createMRImageHelp<uint8_t>(dim);
         break;
          case INT16:
-			return (MRImage*)createMRImageHelp<int16_t>(dim);
+			return createMRImageHelp<int16_t>(dim);
         break;
          case INT32:
-			return (MRImage*)createMRImageHelp<int32_t>(dim);
+			return createMRImageHelp<int32_t>(dim);
         break;
          case FLOAT32:
-			return (MRImage*)createMRImageHelp<float>(dim);
+			return createMRImageHelp<float>(dim);
         break;
          case COMPLEX64:
-			return (MRImage*)createMRImageHelp<cfloat_t>(dim);
+			return createMRImageHelp<cfloat_t>(dim);
         break;
          case FLOAT64:
-			return (MRImage*)createMRImageHelp<double>(dim);
+			return createMRImageHelp<double>(dim);
         break;
          case RGB24:
-			return (MRImage*)createMRImageHelp<rgb_t>(dim);
+			return createMRImageHelp<rgb_t>(dim);
         break;
          case INT8:
-			return (MRImage*)createMRImageHelp<int8_t>(dim);
+			return createMRImageHelp<int8_t>(dim);
         break;
          case UINT16:
-			return (MRImage*)createMRImageHelp<uint16_t>(dim);
+			return createMRImageHelp<uint16_t>(dim);
         break;
          case UINT32:
-			return (MRImage*)createMRImageHelp<uint32_t>(dim);
+			return createMRImageHelp<uint32_t>(dim);
         break;
          case INT64:
-			return (MRImage*)createMRImageHelp<int64_t>(dim);
+			return createMRImageHelp<int64_t>(dim);
         break;
          case UINT64:
-			return (MRImage*)createMRImageHelp<uint64_t>(dim);
+			return createMRImageHelp<uint64_t>(dim);
         break;
          case FLOAT128:
-			return (MRImage*)createMRImageHelp<long double>(dim);
+			return createMRImageHelp<long double>(dim);
         break;
          case COMPLEX128:
-			return (MRImage*)createMRImageHelp<cdouble_t>(dim);
+			return createMRImageHelp<cdouble_t>(dim);
         break;
          case COMPLEX256:
-			return (MRImage*)createMRImageHelp<cquad_t>(dim);
+			return createMRImageHelp<cquad_t>(dim);
         break;
          case RGBA32:
-			return (MRImage*)createMRImageHelp<rgba_t>(dim);
+			return createMRImageHelp<rgba_t>(dim);
         break;
 		 default:
 		return NULL;
@@ -321,8 +321,14 @@ int MRImageStore<D,T>::writeNifti1Image(gzFile file) const
 {
 	cerr << "writeNifti1Image" << endl;
 	int ret = writeNifti1Header(file);
+#ifdef DEBUG
+	cerr << "Writing Header" << endl;
+#endif
 	if(ret != 0) 
 		return ret;
+#ifdef DEBUG
+	cerr << "Writing Pixels" << endl;
+#endif
 	ret = writePixels(file);
 	return ret;
 }
@@ -331,9 +337,15 @@ template <int D, typename T>
 int MRImageStore<D,T>::writeNifti2Image(gzFile file) const
 {
 	cerr << "writeNifti2Image" << endl;
+#ifdef DEBUG
+	cerr << "Writing Header" << endl;
+#endif
 	int ret = writeNifti2Header(file);
 	if(ret != 0) 
 		return ret;
+#ifdef DEBUG
+	cerr << "Writing Pixels" << endl;
+#endif
 	ret = writePixels(file);
 	return ret;
 }
@@ -640,89 +652,15 @@ int MRImageStore<D,T>::writePixels(gzFile file) const
 	for(size_t ii=0 ; ii<ndim(); ii++)
 		order.push_back(ii);
 
-	T tmp;
-	switch(type()) {
-		case INT8:
-		case UINT8:
-		case INT16:
-		case UINT16:
-		case INT32:
-		case UINT32:
-		case INT64:
-		case UINT64:
-			for(Slicer it(ndim(), dim(), order); !it.isEnd(); ++it) {
-				tmp = (T)get_int(*it);
-				gzwrite(file, &tmp, sizeof(T));
-			}
-			break;
-		case FLOAT32:
-		case FLOAT64:
-			for(Slicer it(ndim(), dim(), order); !it.isEnd(); ++it) {
-				tmp = (T)get_dbl(*it);
-				gzwrite(file, &tmp, sizeof(T));
-			}
-			break;
-		case FLOAT128:
-			for(Slicer it(ndim(), dim(), order); !it.isEnd(); ++it) {
-				tmp = (T)get_quad(*it);
-				gzwrite(file, &tmp, sizeof(T));
-			}
-			break;
-		case COMPLEX64:
-			for(Slicer it(ndim(), dim(), order); !it.isEnd(); ++it) {
-				float re = get_cfloat(*it).real();
-				float im = get_cfloat(*it).imag();
-				gzwrite(file, &re, sizeof(float));
-				gzwrite(file, &im, sizeof(float));
-			}
-		case COMPLEX128:
-			for(Slicer it(ndim(), dim(), order); !it.isEnd(); ++it) {
-				double re = get_cdbl(*it).real();
-				double im = get_cdbl(*it).imag();
-				gzwrite(file, &re, sizeof(double));
-				gzwrite(file, &im, sizeof(double));
-			}
-			break;
-		case COMPLEX256:
-			for(Slicer it(ndim(), dim(), order); !it.isEnd(); ++it) {
-				long double re = get_cquad(*it).real();
-				long double im = get_cquad(*it).imag();
-				gzwrite(file, &re, sizeof(long double));
-				gzwrite(file, &im, sizeof(long double));
-			}
-			break;
-		case RGB24:
-			for(Slicer it(ndim(), dim(), order); !it.isEnd(); ++it) {
-				char r = get_rgba(*it).red;
-				char g = get_rgba(*it).green;
-				char b = get_rgba(*it).blue;
-				gzwrite(file, &r, sizeof(char));
-				gzwrite(file, &g, sizeof(char));
-				gzwrite(file, &b, sizeof(char));
-			}
-			break;
-		case RGBA32:
-			for(Slicer it(ndim(), dim(), order); !it.isEnd(); ++it) {
-				char r = get_rgba(*it).red;
-				char g = get_rgba(*it).green;
-				char b = get_rgba(*it).blue;
-				char a = get_rgba(*it).alpha;
-				gzwrite(file, &r, sizeof(char));
-				gzwrite(file, &g, sizeof(char));
-				gzwrite(file, &b, sizeof(char));
-				gzwrite(file, &a, sizeof(char));
-			}
-			break;
-		default:
-			std::cerr << "Error Uknown Type!" << std:: endl;
-			return -1;
+	for(Slicer it(ndim(), dim(), order); !it.isEnd(); ++it) {
+		gzwrite(file, &this->_m_data[*it], sizeof(T));
 	}
 	return 0;
 
 }
 
 template <int D, typename T>
-std::shared_ptr<NDArray> MRImageStore<D,T>::clone() const
+std::shared_ptr<MRImage> MRImageStore<D,T>::cloneImg() const
 {
 	std::vector<size_t> newdims(this->_m_dim, this->_m_dim+D);
 	auto out = std::make_shared<MRImageStore<D,T>>(newdims);

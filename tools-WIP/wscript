@@ -1,6 +1,9 @@
 
 def build(bld):
+    # todo rename
     bld.program(target = 'indexMapToOffsetMap', 
-            source = 'indexMapToOffsetMap.cpp', use = 'mrimage tclap')
+            source = 'indexMapToOffsetMap.cpp', use = 'mrimage tclap kdtree')
 
+    bld.program(target = 'niiHeader', 
+            source = 'niiHeader.cpp', use = 'mrimage')
 

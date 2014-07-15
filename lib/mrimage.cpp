@@ -127,7 +127,7 @@ template class MRImageStore<8, uint8_t>;
 
 
 /* Pre-Compile Certain Image Types */
-MRImage* readMRImage(std::string filename, bool verbose)
+shared_ptr<MRImage> readMRImage(std::string filename, bool verbose)
 {
 	const size_t BSIZE = 1024*1024; //1M
 	auto gz = gzopen(filename.c_str(), "rb");
@@ -138,7 +138,7 @@ MRImage* readMRImage(std::string filename, bool verbose)
 	}
 	gzbuffer(gz, BSIZE);
 	
-	MRImage* out = NULL;
+	shared_ptr<MRImage> out;
 
 	if((out = readNiftiImage(gz, verbose))) {
 		gzclose(gz);
@@ -159,7 +159,7 @@ int writeMRImage(MRImage* img, std::string fn, bool nifti2)
 }
 
 template <typename T>
-MRImage* readPixels(gzFile file, size_t vox_offset, 
+shared_ptr<MRImage> readPixels(gzFile file, size_t vox_offset, 
 		const std::vector<size_t>& dim, size_t pixsize, bool doswap)
 {
 	// jump to voxel offset
@@ -177,15 +177,15 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 	Slicer slicer(dim.size(), dim.data(), order);
 
 	T tmp(0);
-	MRImage* out = NULL;
+	shared_ptr<MRImage> out;
 
 	// someday this all might be simplify by using MRImage* and the 
 	// dbl or int64 functions, as long as we trust that the type is
 	// going to be good enough to caputre the underlying pixle type
 	switch(dim.size()) {
 		case 1: {
-			auto typed = new MRImageStore<1, T>(dim);
-			for(slicer.goBegin(); slicer.isEnd(); ++slicer) {
+			auto typed = std::make_shared<MRImageStore<1, T>>(dim);
+			for(slicer.goBegin(); !slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, pixsize);
 				if(doswap) swap<T>(&tmp);
 				(*typed)[*slicer] = tmp;
@@ -193,8 +193,8 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 			out = typed;
 			} break;
 		case 2:{
-			auto typed = new MRImageStore<2, T>(dim);
-			for(slicer.goBegin(); slicer.isEnd(); ++slicer) {
+			auto typed = std::make_shared<MRImageStore<2, T>>(dim);
+			for(slicer.goBegin(); !slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, pixsize);
 				if(doswap) swap<T>(&tmp);
 				(*typed)[*slicer] = tmp;
@@ -202,8 +202,8 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 			out = typed;
 			} break;
 		case 3:{
-			auto typed = new MRImageStore<3, T>(dim);
-			for(slicer.goBegin(); slicer.isEnd(); ++slicer) {
+			auto typed = std::make_shared<MRImageStore<3, T>>(dim);
+			for(slicer.goBegin(); !slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, pixsize);
 				if(doswap) swap<T>(&tmp);
 				(*typed)[*slicer] = tmp;
@@ -211,8 +211,8 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 			out = typed;
 			} break;
 		case 4:{
-			auto typed = new MRImageStore<4, T>(dim);
-			for(slicer.goBegin(); slicer.isEnd(); ++slicer) {
+			auto typed = std::make_shared<MRImageStore<4, T>>(dim);
+			for(slicer.goBegin(); !slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, pixsize);
 				if(doswap) swap<T>(&tmp);
 				(*typed)[*slicer] = tmp;
@@ -220,8 +220,8 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 			out = typed;
 			} break;
 		case 5:{
-			auto typed = new MRImageStore<5, T>(dim);
-			for(slicer.goBegin(); slicer.isEnd(); ++slicer) {
+			auto typed = std::make_shared<MRImageStore<5, T>>(dim);
+			for(slicer.goBegin(); !slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, pixsize);
 				if(doswap) swap<T>(&tmp);
 				(*typed)[*slicer] = tmp;
@@ -229,8 +229,8 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 			out = typed;
 			} break;
 		case 6:{
-			auto typed = new MRImageStore<6, T>(dim);
-			for(slicer.goBegin(); slicer.isEnd(); ++slicer) {
+			auto typed = std::make_shared<MRImageStore<6, T>>(dim);
+			for(slicer.goBegin(); !slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, pixsize);
 				if(doswap) swap<T>(&tmp);
 				(*typed)[*slicer] = tmp;
@@ -238,8 +238,8 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 			out = typed;
 			} break;
 		case 7:{
-			auto typed = new MRImageStore<7, T>(dim);
-			for(slicer.goBegin(); slicer.isEnd(); ++slicer) {
+			auto typed = std::make_shared<MRImageStore<7, T>>(dim);
+			for(slicer.goBegin(); !slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, pixsize);
 				if(doswap) swap<T>(&tmp);
 				(*typed)[*slicer] = tmp;
@@ -247,8 +247,8 @@ MRImage* readPixels(gzFile file, size_t vox_offset,
 			out = typed;
 			} break;
 		case 8:{
-			auto typed = new MRImageStore<8, T>(dim);
-			for(slicer.goBegin(); slicer.isEnd(); ++slicer) {
+			auto typed = std::make_shared<MRImageStore<8, T>>(dim);
+			for(slicer.goBegin(); !slicer.isEnd(); ++slicer) {
 				gzread(file, &tmp, pixsize);
 				if(doswap) swap<T>(&tmp);
 				(*typed)[*slicer] = tmp;
@@ -391,7 +391,7 @@ int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap,
 /* 
  * Nifti Readers 
  */
-MRImage* readNiftiImage(gzFile file, bool verbose)
+shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose)
 {
 	bool doswap = false;
 	int16_t datatype = 0;
@@ -488,7 +488,7 @@ MRImage* readNiftiImage(gzFile file, bool verbose)
 		qfac = header2.qfac;
 	}
 
-	MRImage* out;
+	shared_ptr<MRImage> out;
 
 	// create image
 	switch(datatype) {
@@ -598,11 +598,8 @@ MRImage* readNiftiImage(gzFile file, bool verbose)
 
 		if(out->ndim() > 1) {
 			out->direction()(0,1) = 2*b*c-2*a*d;
-		std::cerr << "01" << out->direction()(0,1) << std::endl;
 			out->direction()(1,0) = 2*b*c+2*a*d;
-		std::cerr << "10" << out->direction()(1,0) << std::endl;
 			out->direction()(1,1) = a*a+c*c-b*b-d*d;
-		std::cerr << "11" << out->direction()(1,1) << std::endl;
 		}
 
 		if(qfac != -1)
@@ -610,19 +607,23 @@ MRImage* readNiftiImage(gzFile file, bool verbose)
 		
 		if(out->ndim() > 2) {
 			out->direction()(0,2) = qfac*(2*b*d+2*a*c);
-		std::cerr << "02" << out->direction()(0,2) << std::endl;
 			out->direction()(1,2) = qfac*(2*c*d-2*a*b);
-		std::cerr << "12" << out->direction()(1,2) << std::endl;
 			out->direction()(2,2) = qfac*(a*a+d*d-c*c-b*b);
-		std::cerr << "22" << out->direction()(2,2) << std::endl;
 			out->direction()(2,1) = 2*c*d+2*a*b;
-		std::cerr << "21" << out->direction()(2,1) << std::endl;
 			out->direction()(2,0) = 2*b*d-2*a*c;
-		std::cerr << "20" << out->direction()(2,0) << std::endl;
+		}
+		
+		if(verbose) {
+			std::cerr << "Direction:" << std::endl;
+			std::cerr << out->direction() << endl;;
 		}
 
 		// finally update affine, but scale pixdim[z] by qfac temporarily
 		out->updateAffine();
+		if(verbose) {
+			std::cerr << "Affine:" << std::endl;
+			std::cerr << out->affine() << endl;;
+		}
 //	} else if(header.sform_code > 0) {
 //		/* use the sform, since no qform exists */
 //

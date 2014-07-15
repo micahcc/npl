@@ -27,7 +27,7 @@ using namespace npl;
 int main()
 {
 	/* Read the Image */
-	MRImage* img = readMRImage("../../testing/test_nifti2.nii.gz", true);
+	shared_ptr<MRImage> img = readMRImage("../../testing/test_nifti2.nii.gz", true);
 	if(!img) {
 		std::cerr << "Failed to open image!" << std::endl;
 		return -1;

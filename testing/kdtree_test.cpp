@@ -30,7 +30,7 @@ int main()
 	std::default_random_engine gen;
 	std::normal_distribution<double> dist1(0,10);
 	std::normal_distribution<double> dist2(0,100);
-	std::normal_distribution<double> dist3(0,1);
+	std::normal_distribution<double> dist3(25,10);
 
 	const size_t DIM = 4;
 	const size_t DSIZE = 2;
