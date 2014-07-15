@@ -47,6 +47,7 @@ public:
 
 	virtual double det() const = 0;
 	virtual double norm() const = 0;
+	virtual double sum() const = 0;
 	virtual size_t rows() const = 0;
 	virtual size_t cols() const = 0;
 };
@@ -162,6 +163,7 @@ public:
 
 	virtual double det() const;
 	virtual double norm() const;
+	virtual double sum() const;
 
 	size_t rows() const {return D1;};
 	size_t cols() const {return D2;};
@@ -169,10 +171,10 @@ private:
 	double data[D1][D2];
 };
 
-//double determinant(const Matrix<1, 1>& trg);
-//double determinant(const Matrix<2, 2>& trg);
+//double det(const Matrix<1, 1>& trg);
+//double det(const Matrix<2, 2>& trg);
 //template <int D1, int D2>
-//double determinant(const Matrix<D1, D2>& trg);
+//double det(const Matrix<D1, D2>& trg);
 //Matrix<1, 1> inverse(const Matrix<1, 1>& trg);
 //Matrix<2, 2> inverse(const Matrix<2, 2>& trg);
 //template <int DIM>
@@ -428,18 +430,18 @@ void split(const Matrix<D1+D2, D1+D2>& input,
 }
 
 // Determinant //
-double determinant(const Matrix<1, 1>& trg)
+double det(const Matrix<1, 1>& trg)
 {
 	return trg(0,0);
 }
 
-double determinant(const Matrix<2, 2>& trg)
+double det(const Matrix<2, 2>& trg)
 {
 	return trg(0,0)*trg(1,1) - trg(1,0)*trg(0,1);
 }
 
 template <int DIM>
-double determinant(const Matrix<DIM, DIM>& trg)
+double det(const Matrix<DIM, DIM>& trg)
 {
 
 	// break up into smaller matrices
@@ -450,11 +452,11 @@ double determinant(const Matrix<DIM, DIM>& trg)
 	split(trg, A, B, C, D);
 	
 	auto AI = inverse(A);
-	double a = determinant(A)*determinant(D-C*AI*B);
+	double a = det(A)*det(D-C*AI*B);
 
 	if(std::isnan(a)) {
 		auto DI = inverse(D);
-		double b = determinant(D)*determinant(A-B*DI*C);
+		double b = det(D)*det(A-B*DI*C);
 		if(std::isnan(b)) {
 			std::cerr << "Determinant failed " << std::endl; 
 			return NAN;
@@ -506,7 +508,20 @@ double Matrix<D1,D2>::det() const
 		}
 	}
 
-	return determinant<DIM>(tmp);
+	return npl::det<DIM>(tmp);
+}
+
+template <int D1, int D2>
+double Matrix<D1,D2>::sum() const
+{
+	double sum = 0;
+	for(size_t ii=0; ii<D1; ii++) {
+		for(size_t jj=0; jj<D2; jj++) {
+			sum+=data[ii][jj];
+		}
+	}
+
+	return sum;
 }
 
 

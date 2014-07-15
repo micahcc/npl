@@ -357,12 +357,12 @@ int main(int argc, char** argv)
 	deform->write("fixed.nii.gz");
 
 	return 0;
-//	if(a_invert.isSet()) {
-//		deform = invertDeform(deform, vdim);
-//	}
-//	deform->write("inverted.nii.gz");
-//	
-//	// convert each coordinate to an offset
+	if(a_invert.isSet()) {
+		deform = invertDeform(deform, vdim);
+	}
+	deform->write("inverted.nii.gz");
+	
+	// convert each coordinate to an offset
 //	const auto& spacing = deform->space();
 //	const auto& dir = deform->direction();
 //

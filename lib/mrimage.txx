@@ -405,7 +405,7 @@ int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 		}
 	}
 
-	double det = determinant(rotate);
+	double det = rotate.det();
 	if(fabs(det)-1 > 0.0001) {
 		cerr << "Non-orthogonal direction set! This may not end well" << endl;
 	}
@@ -524,7 +524,7 @@ int MRImageStore<D,T>::writeNifti2Header(gzFile file) const
 		}
 	}
 
-	double det = determinant(rotate);
+	double det = rotate.det();
 	if(fabs(det)-1 > 0.0001) {
 		cerr << "Non-orthogonal direction set! This may not end well" << endl;
 	}
