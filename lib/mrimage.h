@@ -96,15 +96,15 @@ public:
 			std::vector<int64_t>& index) const = 0;
 	
 	// sampling functions
-	virtual double linSampleInd(const std::vector<double> cindex,
+	virtual double linSampleInd(const std::vector<double>& cindex,
 			BoundaryConditionT bound, bool& outside) = 0;
-	virtual double linSamplePt(const std::vector<double> point, 
+	virtual double linSamplePt(const std::vector<double>& point, 
 			BoundaryConditionT bound, bool& outside) = 0;
-	virtual double nnSamplePt(const std::vector<double> point,
+	virtual double nnSamplePt(const std::vector<double>& point,
 			BoundaryConditionT bound, bool& outside) = 0;
-	virtual double nnSampleInd(const std::vector<int64_t> index,
+	virtual double nnSampleInd(const std::vector<int64_t>& index,
 			BoundaryConditionT bound, bool& outside) = 0;
-	virtual double nnSampleInd(const std::vector<double> cindex,
+	virtual double nnSampleInd(const std::vector<double>& cindex,
 			BoundaryConditionT bound, bool& outside) = 0;
 	
 //	virtual int unary(double(*func)(double,double)) const = 0;
@@ -197,15 +197,15 @@ public:
 	int pointToIndex(const std::vector<double>& rast, std::vector<double>& index) const;
 	int pointToIndex(const std::vector<double>& ras, std::vector<int64_t>& index) const;
 	
-	double linSampleInd(const std::vector<double> cindex,
+	double linSampleInd(const std::vector<double>& cindex,
 			BoundaryConditionT bound, bool& outside);
-	double linSamplePt(const std::vector<double> point, 
+	double linSamplePt(const std::vector<double>& point, 
 			BoundaryConditionT bound, bool& outside);
-	double nnSamplePt(const std::vector<double> point,
+	double nnSamplePt(const std::vector<double>& point,
 			BoundaryConditionT bound, bool& outside);
-	double nnSampleInd(const std::vector<int64_t> index,
+	double nnSampleInd(const std::vector<int64_t>& index,
 			BoundaryConditionT bound, bool& outside);
-	double nnSampleInd(const std::vector<double> cindex,
+	double nnSampleInd(const std::vector<double>& cindex,
 			BoundaryConditionT bound, bool& outside);
 	
 	MatrixP& space() {return *((MatrixP*)&m_space); };

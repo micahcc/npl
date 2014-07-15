@@ -36,21 +36,21 @@ def configure(conf):
     conf.env.LINKFLAGS = ['-lm']
     # for static build
     if opts['static']: 
-        conf.env.CXXFLAGS = ['-Wall', '-std=c++11', '-static-libgcc', '-static-libstdc++']
+        conf.env.CXXFLAGS = ['-Wall', '-Wno-sign-compare', '-std=c++11', '-static-libgcc', '-static-libstdc++']
         conf.env.LINKFLAGS.extend('-static-libgcc', '-static-libstdc++')
         conf.env.STATIC_LINK = True
     else:
-        conf.env.CXXFLAGS = ['-Wall', '-std=c++11']
+        conf.env.CXXFLAGS = ['-Wall', '-Wno-sign-compare', '-std=c++11']
         conf.env.STATIC_LINK = False
 
 
     if opts['profile']:
         conf.env.DEFINES.append('DEBUG=1')
-        conf.env.CXXFLAGS.extend(['-Wno-unused-parameter', '-Wno-sign-compare', '-Wno-unused-local-typedefs', '-Wall', '-Wextra','-g', '-pg'])
+        conf.env.CXXFLAGS.extend(['-Wextra','-g', '-pg'])
         conf.env.LINKFLAGS.append('-pg')
     elif opts['debug']:
         conf.env.DEFINES.append('DEBUG=1')
-        conf.env.CXXFLAGS.extend(['-Wno-unused-parameter', '-Wno-sign-compare', '-Wno-unused-local-typedefs', '-Wall', '-Wextra','-g'])
+        conf.env.CXXFLAGS.extend(['-Wextra','-g'])
     elif opts['release']:
         conf.env.DEFINES.append('NDEBUG=1')
         conf.env.CXXFLAGS.extend(['-O3', '-march=core2'])

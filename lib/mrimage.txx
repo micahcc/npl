@@ -805,7 +805,7 @@ double linKern(double x)
  * @return 
  */
 template <int D, typename T>
-double MRImageStore<D,T>::linSamplePt(const std::vector<double> point, 
+double MRImageStore<D,T>::linSamplePt(const std::vector<double>& point, 
 		BoundaryConditionT bound, bool& outside)
 {
 	std::vector<double> cindex;
@@ -823,7 +823,7 @@ double MRImageStore<D,T>::linSamplePt(const std::vector<double> point,
  * @return 
  */
 template <int D, typename T>
-double MRImageStore<D,T>::linSampleInd(const std::vector<double> incindex,
+double MRImageStore<D,T>::linSampleInd(const std::vector<double>& incindex,
 		BoundaryConditionT bound, bool& outside)
 {
 	double cindex[D];
@@ -838,14 +838,19 @@ double MRImageStore<D,T>::linSampleInd(const std::vector<double> incindex,
 	//kernels essentially 1D, so we can save time by combining 1D kernls
 	//rather than recalculating
 	const int kpoints = 2;
-	const double rad = 0.5;
 	double karray[D*kpoints];
+	int64_t indarray[D*kpoints];
 	for(int dd = 0; dd < D; dd++) {
-		for(double ii = -rad; ii <= rad; ii++) {
-			int64_t nearpoint = round(cindex[dd]+ii);
-			karray[dd*kpoints+(int)(ii+rad)] = linKern(nearpoint-cindex[dd]);
-		}
+		indarray[dd*kpoints+0] = floor(cindex[dd]);
+		indarray[dd*kpoints+1] = indarray[dd*kpoints+0]+1;
+		karray[dd*kpoints+0] = linKern(indarray[dd*kpoints+0]-cindex[dd]);
+		karray[dd*kpoints+1] = linKern(indarray[dd*kpoints+1]-cindex[dd]);
 	}
+
+//	for(size_t ii=0; ii<D*kpoints; ii+=2) {
+//		std::cerr << indarray[ii] << ", " << indarray[ii+1] << endl;
+//		std::cerr << karray[ii] << ", " << karray[ii+1] << endl;
+//	}
 
 	bool iioutside = false;
 	outside = false;
@@ -863,9 +868,7 @@ double MRImageStore<D,T>::linSampleInd(const std::vector<double> incindex,
 		for(int dd = 0; dd < D; dd++) {
 			result = std::div(result.quot, kpoints);
 			weight *= karray[dd*kpoints+result.rem];
-			rounded = round(cindex[dd]+result.rem-rad);
-
-			index[dd] = (int64_t)rounded;
+			index[dd] = indarray[dd*kpoints+result.rem];
 			iioutside = iioutside || rounded < 0 || rounded >= dim(dd);
 		}
 
@@ -893,6 +896,17 @@ double MRImageStore<D,T>::linSampleInd(const std::vector<double> incindex,
 			}
 		} 
 
+//		std::cerr << "Point: " << ii << " weight: " << weight << " Cont. Index: " ;
+//		for(size_t ii=0; ii<D; ii++)
+//			std::cerr << incindex[ii] << ",";
+//		std::cerr << " Adj Cont Index: ";
+//		for(size_t ii=0; ii<D; ii++)
+//			std::cerr << cindex[ii] << ",";
+//		std::cerr << ", Index: " ;
+//		for(size_t ii=0; ii<D; ii++)
+//			std::cerr << index[ii] << ",";
+//		std::cerr << endl;
+
 		pixval += weight*get_dbl(D, index);
 
 	}
@@ -910,7 +924,7 @@ double MRImageStore<D,T>::linSampleInd(const std::vector<double> incindex,
  * @return 
  */
 template <int D, typename T>
-double MRImageStore<D,T>::nnSamplePt(const std::vector<double> point,
+double MRImageStore<D,T>::nnSamplePt(const std::vector<double>& point,
 		BoundaryConditionT bound, bool& outside)
 {
 	std::vector<double> cindex;
@@ -928,7 +942,7 @@ double MRImageStore<D,T>::nnSamplePt(const std::vector<double> point,
  * @return 
  */
 template <int D, typename T>
-double MRImageStore<D,T>::nnSampleInd(const std::vector<int64_t> inindex,
+double MRImageStore<D,T>::nnSampleInd(const std::vector<int64_t>& inindex,
 		BoundaryConditionT bound, bool& outside)
 {
 	int64_t index[D];
@@ -977,7 +991,7 @@ double MRImageStore<D,T>::nnSampleInd(const std::vector<int64_t> inindex,
  * @return 
  */
 template <int D, typename T>
-double MRImageStore<D,T>::nnSampleInd(const std::vector<double> incindex,
+double MRImageStore<D,T>::nnSampleInd(const std::vector<double>& incindex,
 		BoundaryConditionT bound, bool& outside)
 {
 	std::vector<int64_t> index(incindex.size());
