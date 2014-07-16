@@ -80,6 +80,9 @@ public:
 
 	virtual void setOrient(const MatrixP& orig, const MatrixP& space, 
 			const MatrixP& dir, bool reinit) = 0;
+	virtual void setOrigin(const MatrixP& orig, bool reinit = false) = 0;
+	virtual void setSpacing(const MatrixP& space, bool reinit = false) = 0;
+	virtual void setDirection(const MatrixP& dir, bool reinit = false) = 0;
 	
 	virtual PixelT type() const = 0;
 	
@@ -193,6 +196,9 @@ public:
 	void updateAffine();
 	void setOrient(const MatrixP& orig, const MatrixP& space, 
 			const MatrixP& dir, bool reinit);
+	void setOrigin(const MatrixP& orig, bool reinit = false);
+	void setSpacing(const MatrixP& space, bool reinit = false);
+	void setDirection(const MatrixP& dir, bool reinit = false);
 	
 	void printSelf();
 	PixelT type() const;

@@ -132,6 +132,87 @@ void MRImageStore<D,T>::setOrient(const MatrixP& orig, const MatrixP& space,
 }
 
 /**
+* @brief Updates spacing information. If reinit is given then it will first
+* set spacing to 1,1,1,1.... otherwise old values will be left. The first
+* min(DIM,space.rows()) will be copied. 
+*
+* @tparam D Image dimensionality
+* @tparam T Pixeltype
+* @param space Input spacing
+* @param reinit Whether to reinitialize prior to copying
+*/
+template <int D,typename T>
+void MRImageStore<D,T>::setSpacing(const MatrixP& space, bool reinit) 
+{
+	if(reinit) {
+		for(size_t ii=0; ii<D; ii++)
+			m_space[ii] = 1;
+	}
+
+	for(size_t ii=0; ii<space.rows() && ii < D; ii++) {
+		m_space[ii] = space[ii];
+	}
+
+	updateAffine();
+}
+
+/**
+* @brief Updates origin information. If reinit is given then it will first
+* set origin to 0,0,0,0.... otherwise old values will be left. The first
+* min(DIM,origin.rows()) will be copied. 
+*
+* @tparam D Image dimensionality
+* @tparam T Pixeltype
+* @param origin Input origin
+* @param reinit Whether to reinitialize prior to copying
+*/
+template <int D,typename T>
+void MRImageStore<D,T>::setOrigin(const MatrixP& origin, bool reinit) 
+{
+	if(reinit) {
+		for(size_t ii=0; ii<D; ii++)
+			m_origin[ii] = 1;
+	}
+
+	for(size_t ii=0; ii<origin.rows() && ii < D; ii++) {
+		m_space[ii] = origin[ii];
+	}
+
+	updateAffine();
+}
+
+/**
+* @brief Updates orientation information. If reinit is given then it will first
+* set direction to the identity. otherwise old values will be left. After this
+* the first min(DIMENSION,dir.rows()) columns and min(DIMENSION,dir.cols())
+* columns will be copies into the image direction matrix. 
+*
+* @tparam D Image dimensionality
+* @tparam T Pixeltype
+* @param dir Input direction/rotation
+* @param reinit Whether to reinitialize prior to copying
+*/
+template <int D,typename T>
+void MRImageStore<D,T>::setDirection(const MatrixP& dir, bool reinit) 
+{
+	if(reinit) {
+		for(size_t ii=0; ii < D; ii++) {
+			for(size_t jj=0; jj< D; jj++) {
+				m_dir(ii,jj) = (ii==jj);
+			}
+		}
+	}
+
+	for(size_t ii=0; ii<dir.rows() && ii < D; ii++) {
+		for(size_t jj=0; jj<dir.cols() && jj< D; jj++) 
+			m_dir(ii,jj) = dir(ii,jj);
+	}
+
+	updateAffine();
+}
+
+
+/**
  * @brief Just dump image information
  */
 template <int D,typename T>

@@ -189,15 +189,6 @@ void growFromMask(shared_ptr<MRImage> deform, shared_ptr<MRImage> mask, size_t v
 	int visitations = 1;
 	
 	// need an image to write to so that we don't detect our own changes
-
-	// convert any labels to a mask
-	for(size_t ii=0; ii<mask->elements(); ii++) {
-		if(mask->get_int(ii) != 0)
-			mask->set_int(ii, 1);
-		else 
-			mask->set_int(ii, 0);
-	}
-
 	auto mask_trg = mask->cloneImage();
 
 	while(nchange > 0) {
@@ -252,6 +243,65 @@ void growFromMask(shared_ptr<MRImage> deform, shared_ptr<MRImage> mask, size_t v
 		cerr << "Number Changed: " << nchange << endl;
 		cerr << "Visited: " << visitations << endl;
 	}
+}
+
+shared_ptr<MRImage> erode(shared_ptr<MRImage> in, size_t reps)
+{
+	auto out = in->cloneImage();
+	std::vector<size_t> krad(out->ndim(), 1);
+	KSlicer kernel(in->ndim(), in->dim(), krad);
+
+	for(size_t ii=0; ii<reps; ii++) {
+		// for each pixels neighborhood, smooth neightbors
+		for(kernel.goBegin(); !kernel.isEnd(); ++kernel) {
+
+			// if any of the neighbors are 0, then set to 0
+			bool erodeme = false;
+			for(size_t ii=0; ii<kernel.ksize(); ii++) {
+				if(in->get_int(kernel.offset(ii)) == 0)
+					erodeme = true;
+			}
+
+			if(erodeme)
+				out->set_int(*kernel, 0);
+			else
+				out->set_int(*kernel, in->get_int(*kernel));
+
+		}
+	}
+
+	return out;
+}
+
+shared_ptr<MRImage> dilate(shared_ptr<MRImage> in, size_t reps)
+{
+	auto out = in->cloneImage();
+	std::vector<size_t> krad(out->ndim(), 1);
+	KSlicer kernel(in->ndim(), in->dim(), krad);
+
+	for(size_t ii=0; ii<reps; ii++) {
+		// for each pixels neighborhood, smooth neightbors
+		for(kernel.goBegin(); !kernel.isEnd(); ++kernel) {
+
+			// if any of the neighbors are 0, then set to 0
+			bool dilateme = false;
+			int dilval = 0;
+			for(size_t ii=0; ii<kernel.ksize(); ii++) {
+				if(in->get_int(kernel.offset(ii)) != 0) {
+					dilval = in->get_int(kernel.offset(ii));
+					dilval = true;
+				}
+			}
+
+			if(dilateme)
+				out->set_int(*kernel, dilval);
+			else
+				out->set_int(*kernel, in->get_int(*kernel));
+
+		}
+	}
+
+	return out;
 }
 
 shared_ptr<MRImage> smoothOutsideMask(shared_ptr<MRImage> deform,
@@ -311,6 +361,8 @@ int main(int argc, char** argv)
 	TCLAP::SwitchArg a_invert("I", "invert", "Whether to invert.", cmd);
 	TCLAP::ValueArg<string> a_atlas("a", "atlas", "Atlas which will be used "
 			"for field of view during inversion.", true, "", "*.nii.gz", cmd);
+	TCLAP::ValueArg<size_t> a_dilate("d", "dilate", "Number of times to dilate "
+			"the input mask.", false, 2, "int", cmd);
 
 	cmd.parse(argc, argv);
 
@@ -363,6 +415,14 @@ int main(int argc, char** argv)
 			return -1;
 		}
 
+		// force the mask to be binary
+		for(size_t ii=0; ii<mask->elements(); ii++) {
+			if(mask->get_int(ii) != 0)
+				mask->set_int(ii, 0);
+		}
+
+		mask = dilate(mask, a_dilate.getValue());
+
 		// TODO just resample
 		// check that orientation/size match
 		for(size_t ii = 0; ii<3; ii++) {
@@ -394,14 +454,11 @@ int main(int argc, char** argv)
 		auto tmpmask = mask->cloneImage();
 		growFromMask(deform, tmpmask, vdim);
 		cerr << "Done" << endl;
-//		tmpmask->write("finalmask.nii.gz" );
 
 		// smooth masked deform
 		size_t SMOOTH_ITERS = 4;
-//		deform->write("presmooth.nii.gz");
 		for(size_t ii=0; ii<SMOOTH_ITERS; ii++)
 			deform = smoothOutsideMask(deform, mask, vdim);
-//		deform->write("postsmooth.nii.gz");
 		
 		// convert offset back to deform, 
 		for(it.goBegin(); !it.isEnd(); ) {

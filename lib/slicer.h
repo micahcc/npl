@@ -95,7 +95,7 @@ public:
 	 *
 	 * @return whether we are at the tail end of the particular dimension
 	 */
-	bool isEnd(size_t dim) const { return m_pos[dim] == m_roi[dim].second; };
+	bool isLineBegin(size_t dim) const { return m_pos[dim] == m_roi[dim].first; };
 	
 	/**
 	 * @brief Are we at the begin in a particular dimension
