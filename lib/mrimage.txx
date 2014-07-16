@@ -49,9 +49,6 @@ template <int D,typename T>
 MRImageStore<D,T>::MRImageStore(const std::vector<size_t>& dim) : 
 	NDArrayStore<D,T>(dim), MRImage()
 {
-	std::cerr << "ndims: " << dim.size(); 
-	for(size_t ii=0; ii<dim.size(); ii++)
-		std::cerr << "dim[" << ii << "]=" << dim[ii] << std::endl;
 	orientDefault();
 }
 
@@ -98,6 +95,40 @@ void MRImageStore<D,T>::updateAffine()
 	m_affine(D,D) = 1;
 
 	m_inv_affine = inverse(m_affine);
+}
+
+
+/**
+* @brief Updates orientation information. If reinit is given then it will first
+* set spacing to 1,1,1,1.... origin to 0,0,0,0... and direction to the identity.
+* otherwise old values will be left. After this the first min(DIMENSION,dir.rows())
+* columns and min(DIMENSION,dir.cols()) columns will be copies into the image 
+* direction matrix. The first min(DIM,orig.rows()) and min(DIM,space.rows()) will
+* be likewise copied. 
+*
+* @tparam D Image dimensionality
+* @tparam T Pixeltype
+* @param orig Input origin
+* @param space Input spacing
+* @param dir Input direction/rotation
+* @param reinit Whether to reinitialize prior to copying
+*/
+template <int D,typename T>
+void MRImageStore<D,T>::setOrient(const MatrixP& orig, const MatrixP& space, 
+			const MatrixP& dir, bool reinit) 
+{
+	if(reinit) {
+		orientDefault();
+	}
+
+	for(size_t ii=0; ii<dir.rows() && ii < D; ii++) {
+		for(size_t jj=0; jj<dir.cols() && jj< D; jj++) 
+			m_dir(ii,jj) = dir(ii,jj);
+		m_origin[ii] = orig[ii];
+		m_space[ii] = space[ii];
+	}
+
+	updateAffine();
 }
 
 /**
@@ -354,7 +385,6 @@ int MRImageStore<D,T>::writeNifti2Image(gzFile file) const
 template <int D, typename T>
 int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 {
-	std::cerr << "writeNifti1Header" << std::endl;
 	static_assert(sizeof(nifti1_header) == 348, "Error, nifti header packing failed");
 	nifti1_header header;
 	std::fill((char*)&header, ((char*)&header)+sizeof(nifti1_header), 0);
@@ -472,14 +502,11 @@ int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 template <int D, typename T>
 int MRImageStore<D,T>::writeNifti2Header(gzFile file) const
 {
-	std::cerr << "writeNifti2Header" << std::endl;
 	static_assert(sizeof(nifti2_header) == 540, "Error, nifti header packing failed");
 	nifti2_header header;
 	std::fill((char*)&header, ((char*)&header)+sizeof(nifti2_header), 0);
 
-	std::cerr << header.sizeof_hdr << std::endl;
 	header.sizeof_hdr = 540;
-	std::cerr << header.sizeof_hdr << std::endl;
 
 	if(m_freqdim >= 0 && m_freqdim <= 2) 
 		header.dim_info.bits.freqdim = m_freqdim+1; 
@@ -580,7 +607,6 @@ int MRImageStore<D,T>::writeNifti2Header(gzFile file) const
 	// write over extension
 	char ext[4] = {0,0,0,0};
 	
-	std::cerr << header.sizeof_hdr << std::endl;
 	gzwrite(file, &header, sizeof(header));
 	gzwrite(file, ext, sizeof(ext));
 	
@@ -661,7 +687,7 @@ int MRImageStore<D,T>::writePixels(gzFile file) const
 }
 
 template <int D, typename T>
-std::shared_ptr<MRImage> MRImageStore<D,T>::cloneImg() const
+std::shared_ptr<MRImage> MRImageStore<D,T>::cloneImage() const
 {
 	std::vector<size_t> newdims(this->_m_dim, this->_m_dim+D);
 	auto out = std::make_shared<MRImageStore<D,T>>(newdims);
@@ -678,6 +704,15 @@ std::shared_ptr<MRImage> MRImageStore<D,T>::cloneImg() const
 	size_t total = 1;
 	for(size_t ii=0; ii<D; ii++)
 		total *= this->_m_dim[ii];
+
+	out->m_dir       	 = m_dir;
+	out->m_space     	 = m_space;
+	out->m_origin    	 = m_origin;
+	for(size_t ii=0; ii<D; ii++)
+		out->m_units[ii] = m_units[ii];
+
+	out->m_affine    	 = m_affine;
+	out->m_inv_affine	 = m_inv_affine;
 
 	std::copy(this->_m_data, this->_m_data+total, out->_m_data);
 	std::copy(this->_m_dim, this->_m_dim+D, out->_m_dim);
@@ -849,15 +884,9 @@ double MRImageStore<D,T>::linSampleInd(const std::vector<double>& incindex,
 		karray[dd*kpoints+1] = linKern(indarray[dd*kpoints+1]-cindex[dd]);
 	}
 
-//	for(size_t ii=0; ii<D*kpoints; ii+=2) {
-//		std::cerr << indarray[ii] << ", " << indarray[ii+1] << std::endl;
-//		std::cerr << karray[ii] << ", " << karray[ii+1] << std::endl;
-//	}
-
 	bool iioutside = false;
 	outside = false;
 	double pixval = 0;
-	double rounded = 0;
 	double weight = 0;
 	div_t result;
 	//iterator over points in the neighborhood

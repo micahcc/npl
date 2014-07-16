@@ -77,12 +77,15 @@ public:
 	virtual const MatrixP& direction() const = 0;
 	virtual const MatrixP& affine() const = 0;
 	virtual const MatrixP& iaffine() const = 0;
+
+	virtual void setOrient(const MatrixP& orig, const MatrixP& space, 
+			const MatrixP& dir, bool reinit) = 0;
 	
 	virtual PixelT type() const = 0;
 	
 	virtual int write(std::string filename, double version = 1) const = 0;
 	
-	virtual std::shared_ptr<MRImage> cloneImg() const = 0;
+	virtual std::shared_ptr<MRImage> cloneImage() const = 0;
 	
 	// coordinate system conversion 
 	virtual int indexToPoint(const std::vector<int64_t>& xyz,
@@ -188,6 +191,9 @@ public:
 	 ************************************************************************/
 	void orientDefault();
 	void updateAffine();
+	void setOrient(const MatrixP& orig, const MatrixP& space, 
+			const MatrixP& dir, bool reinit);
+	
 	void printSelf();
 	PixelT type() const;
 	
@@ -222,7 +228,7 @@ public:
 
 	int write(std::string filename, double version) const;
 	
-	std::shared_ptr<MRImage> cloneImg() const;
+	std::shared_ptr<MRImage> cloneImage() const;
 protected:
 	// used to transform index to RAS (Right Handed Coordinate System)
 	Matrix<D,D> m_dir;

@@ -24,7 +24,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 using namespace std;
 using namespace npl;
 
-int main(int argc, char** argv)
+int main()
 {
 	/* Create an image with: x+y*100+z*10000*/
 	BoundaryConditionT bound = CONSTZERO;
