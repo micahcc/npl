@@ -68,7 +68,7 @@ void getBounds(shared_ptr<MRImage> deform, std::vector<double>& lowerbound,
 			point[ii] -= offset[ii];
 			if(point[ii] < lowerbound[ii]) 
 				lowerbound[ii] = point[ii];
-			if(point[ii] < upperbound[ii]) 
+			if(point[ii] > upperbound[ii]) 
 				upperbound[ii] = point[ii];
 		}
 	}
@@ -92,11 +92,13 @@ void applyDeform(shared_ptr<MRImage> in, shared_ptr<MRImage> deform,
 		slcorder.push_back(3); // iterate through time the fastest
 	
 	Slicer fit(out->ndim(), out->dim(), slcorder);
-	for(fit.goBegin(); fit.isEnd(); ) {
+	for(fit.goBegin(); !fit.isEnd(); ) {
 		// for point in deform image
 		out_index = fit.index();
 		out->indexToPoint(out_index, out_point);
+#ifdef DEBUG
 		cerr << "Out: " << out_index << " | " << out_point << endl;
+#endif //DEBUG
 
 		for(size_t ii=0; ii<3; ii++)
 			deform_point[ii] = out_point[ii];
@@ -105,16 +107,22 @@ void applyDeform(shared_ptr<MRImage> in, shared_ptr<MRImage> deform,
 
 		// sampe offset at point
 		deform->pointToIndex(deform_point, deform_index);
+#ifdef DEBUG
 		cerr << "Deform:" << deform_point << " | " << deform_index << endl;
+#endif //DEBUG
 		for(size_t ii=0; ii<3; ii++) {
 			deform_index[vdim] = ii;
 			offset[ii] = deform->linSampleInd(deform_index, ZEROFLUX, outside);
 			in_point[ii] = deform_point[ii] + offset[ii];
 		}
 
+#ifdef DEBUG
 		cerr << "Offset: " << offset << endl;
+#endif //DEBUG
 		in->pointToIndex(in_point, in_index);
+#ifdef DEBUG
 		cerr << "In: " << in_point << " | " << in_index << endl; 
+#endif //DEBUG
 
 		if(in->ndim() == 4){
 
@@ -149,6 +157,18 @@ int main(int argc, char** argv)
 			true, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
 			true, "", "*.nii.gz", cmd);
+	TCLAP::ValueArg<size_t> a_xsize("x", "xsize", "output image size in x dim.",
+			false, 0, "size", cmd);
+	TCLAP::ValueArg<size_t> a_ysize("y", "ysize", "Output image size y dim.",
+			false, 0, "size", cmd);
+	TCLAP::ValueArg<size_t> a_zsize("z", "zsize", "Output image size z dim.",
+			false, 0, "size", cmd);
+	TCLAP::ValueArg<double> a_xorigin("X", "xorigin", "output image origin [x dim].",
+			false, 0, "xcoord", cmd);
+	TCLAP::ValueArg<double> a_yorigin("Y", "yorigin", "Output image origin [y dim].",
+			false, 0, "ycoord", cmd);
+	TCLAP::ValueArg<double> a_zorigin("Z", "zorigin", "Output image origin [z dim].",
+			false, 0, "zcoord", cmd);
 	TCLAP::ValueArg<string> a_deform("d", "deform", "Deformation field.",
 			true, "", "*.nii.gz", cmd);
 
@@ -192,6 +212,9 @@ int main(int argc, char** argv)
 	vector<double> upperbound(3, -INFINITY);
 	getBounds(deform, lowerbound, upperbound);
 
+	cerr << "Computed Bound 1: " << lowerbound << endl;
+	cerr << "Computed Bound 2: " << upperbound << endl;
+
 	// convert bounds to indices, so we can figure out image size
 	std::vector<int64_t> index1;
 	std::vector<int64_t> index2;
@@ -204,12 +227,27 @@ int main(int argc, char** argv)
 		index2[ii] = std::max(tmp1, tmp2);
 	}
 
+	cerr << "Bounding Index 1: " << index1 << endl;
+	cerr << "Bounding Index 2: " << index2 << endl;
 	// create output image that covers FOV
-	std::vector<size_t> sz(4);
+	
+	std::vector<size_t> sz;
+	if(in->ndim() == 3) {
+		sz.resize(3);
+	} else {
+		sz.resize(4);
+		sz[3] = in->dim(3);
+	}
 	for(size_t ii=0; ii<3; ii++) 
 		sz[ii] = index2[ii]-index1[ii];
-	if(in->ndim() == 4)
-		sz[3] = in->dim(3);
+
+	// force size from input
+	if(a_xsize.isSet())
+		sz[0] = a_xsize.getValue();
+	if(a_ysize.isSet())
+		sz[1] = a_ysize.getValue();
+	if(a_zsize.isSet())
+		sz[2] = a_zsize.getValue();
 
 	cerr << "Size: " << sz << endl; 
 	auto out = createMRImage(sz, FLOAT32);
@@ -221,7 +259,17 @@ int main(int argc, char** argv)
 	in->indexToPoint(index1, point);
 	for(size_t ii=0; ii<3; ii++) 
 		out->origin()[ii] = point[ii];
-	std::cerr << "New Origin: " << point << endl;
+
+	// force size from input
+	if(a_xorigin.isSet()) 
+		out->origin()[0] = a_xorigin.getValue();
+	if(a_yorigin.isSet()) 
+		out->origin()[1] = a_yorigin.getValue();
+	if(a_zorigin.isSet()) 
+		out->origin()[2] = a_zorigin.getValue();
+
+	
+	std::cerr << "New Origin:\n" << out->origin() << endl;
 
 	out->setSpacing(in->spacing());
 	out->setDirection(in->direction());
