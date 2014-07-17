@@ -120,7 +120,14 @@ public:
 	 * @return true if we are at the end
 	 */
 	bool isEnd() const { return m_end; };
-
+	
+	/**
+	 * @brief Are we at the end of iteration? Note that this will be 1 past the
+	 * end, as typically is done in c++
+	 *
+	 * @return true if we are at the end
+	 */
+	bool eof() const { return m_end; };
 
 	/*************************************
 	 * Movement

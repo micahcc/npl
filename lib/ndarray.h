@@ -3,10 +3,10 @@ This file is part of Neuro Programs and Libraries (NPL),
 
 Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
 
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
+The Neuro Programs and Libraries are free software: you can redistribute it
+and/or modify it under the terms of the GNU General Public License as published
+by the Free Software Foundation, either version 3 of the License, or (at your
+option) any later version.
 
 The Neural Programs and Libraries are distributed in the hope that it will be
 useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -30,6 +30,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <complex>
 #include <cassert>
 #include <memory>
+
 
 // virtual get and set function macro, ie
 // VIRTGETSET(double, dbl); 
@@ -60,10 +61,97 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 //	virtual void SETFUNC(const int64_t* index, TYPE) = 0; 
 //
 
-
-
-
 namespace npl {
+
+// Match Nifti Codes
+enum PixelT {UNKNOWN_TYPE=0, UINT8=2, INT16=4, INT32=8, FLOAT32=16,
+	COMPLEX64=32, FLOAT64=64, RGB24=128, INT8=256, UINT16=512, UINT32=768,
+	INT64=1024, UINT64=1280, FLOAT128=1536, COMPLEX128=1792, COMPLEX256=2048,
+	RGBA32=2304 };
+
+template<typename T>
+class NDAccess
+{
+public:
+	NDAccess(std::shared_ptr<NDArray> in) : parent(in)
+	{
+		switch(in->type()) {
+			case UINT8:
+				castfunc = castor<uint8_t>;
+				break;
+			case INT8:
+				castfunc = castor<int8_t>;
+				break;
+			case UINT16:
+				castfunc = castor<uint16_t>;
+				break;
+			case INT16:
+				castfunc = castor<int16_t>;
+				break;
+			case UINT32:
+				castfunc = castor<uint32_t>;
+				break;
+			case INT32:
+				castfunc = castor<int32_t>;
+				break;
+			case UINT64:
+				castfunc = castor<uint64_t>;
+				break;
+			case INT64:
+				castfunc = castor<int64_t>;
+				break;
+			case FLOAT32:
+				castfunc = castor<float>;
+				break;
+			case FLOAT64:
+				castfunc = castor<double>;
+				break;
+			case FLOAT128:
+				castfunc = castor<long double>;
+				break;
+			case COMPLEX64:
+				castfunc = castor<cfloat_t>;
+				break;
+			case COMPLEX128:
+				castfunc = castor<cdouble_t>;
+				break;
+			case COMPLEX256:
+				castfunc = castor<cquad_t>;
+				break;
+			case RGB24:
+				castfunc = castor<rgb_t>;
+				break;
+			case RGBA32:
+				castfunc = castor<rgba_t>;
+				break;
+			case UNKNOWN_TYPE:
+				throw std::invalid_argument("Unknown type to BasicIter");
+				break;
+		}
+	};
+
+	/**
+	 * @brief Works just like a function
+	 *
+	 * @return current value
+	 */
+	T operator()(std::initializer_list<int64_t> index)
+	{
+		return castfunc(parent->getAddr(index)); 
+	};
+	
+private:
+	template <typename U>
+	static T castor(void* ptr)
+	{
+		return (T)(*((U*)ptr));
+	};
+
+	size_t i;
+
+	std::shared_ptr<NDArray> parent;
+	T (*castfunc)(void* ptr);
+};
 
 /**
  * @brief Pure virtual interface to interact with an ND array
@@ -75,17 +163,6 @@ public:
 	 * get / set functions
 	 */
 	// Get Address
-	virtual int64_t  getAddr(std::initializer_list<int64_t> index) const = 0;
-	virtual int64_t  getAddr(const std::vector<int64_t>& index) const = 0;
-	virtual int64_t  getAddr(const int64_t* index) const = 0;
-
-	VIRTGETSET(double, get_dbl, set_dbl);
-	VIRTGETSET(int64_t, get_int, set_int);
-	VIRTGETSET(cdouble_t, get_cdbl, set_cdbl);
-	VIRTGETSET(cfloat_t, get_cfloat, set_cfloat);
-	VIRTGETSET(rgba_t, get_rgba, set_rgba);
-	VIRTGETSET(long double, get_quad, set_quad);
-	VIRTGETSET(cquad_t, get_cquad, set_cquad);
 
 	virtual size_t ndim() const = 0;
 	virtual size_t bytes() const = 0;
@@ -93,11 +170,17 @@ public:
 	virtual size_t dim(size_t dir) const = 0;
 	virtual const size_t* dim() const = 0;
 
+	// return type of stored value
+	virtual PixelT type() const = 0;
+	
 //	virtual int opself(const NDArray* right, double(*func)(double,double), 
 //			bool elevR) = 0;
 //	virtual std::shared_ptr<NDArray> opnew(const NDArray* right, 
 //			double(*func)(double,double), bool elevR) = 0;
 
+protected:
+	virtual void* getAddr(size_t i) = 0;
+	friend NDAccess;
 };
 
 
@@ -119,27 +202,10 @@ public:
 	/* 
 	 * get / set functions
 	 */
-	GETSET(double, get_dbl, set_dbl);
-	GETSET(int64_t, get_int, set_int);
-	GETSET(cdouble_t, get_cdbl, set_cdbl);
-	GETSET(cfloat_t, get_cfloat, set_cfloat);
-	GETSET(rgba_t, get_rgba, set_rgba);
-	GETSET(long double, get_quad, set_quad);
-	GETSET(cquad_t, get_cquad, set_cquad);
-
-	// Get Address
-	virtual int64_t getAddr(std::initializer_list<int64_t> index) const;
-	virtual int64_t getAddr(const std::vector<int64_t>& index) const;
-	virtual int64_t getAddr(const int64_t* index) const;
-	
 	T& operator[](std::initializer_list<int64_t> index);
-	T& operator[](const std::vector<int64_t>& index);
-	T& operator[](const int64_t* index);
 	T& operator[](int64_t pixel);
 	
 	const T& operator[](std::initializer_list<int64_t> index) const;
-	const T& operator[](const std::vector<int64_t>& index) const;
-	const T& operator[](const int64_t* index) const;
 	const T& operator[](int64_t pixel) const;
 
 	/* 
@@ -152,6 +218,9 @@ public:
 	virtual const size_t* dim() const;
 
 	virtual void resize(size_t dim[D]);
+
+	// return the pixel type
+	virtual PixelT type() const;
 
 	/* 
 	 * Higher Level Operations
@@ -167,6 +236,8 @@ public:
 	size_t _m_stride[D]; // steps between pixels
 
 	void updateStrides();
+	
+	void* getAddr(size_t i) { return &_m_data[i]; };
 };
 
 /**

@@ -3,10 +3,10 @@ This file is part of Neuro Programs and Libraries (NPL),
 
 Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
 
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
+The Neuro Programs and Libraries are free software: you can redistribute it
+and/or modify it under the terms of the GNU General Public License as published
+by the Free Software Foundation, either version 3 of the License, or (at your
+option) any later version.
 
 The Neural Programs and Libraries are distributed in the hope that it will be
 useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -37,13 +37,9 @@ namespace npl {
 using std::vector;
 using std::shared_ptr;
 
-// Match Nifti Codes
-enum PixelT {UNKNOWN_TYPE=0, UINT8=2, INT16=4, INT32=8, FLOAT32=16, COMPLEX64=32,
-	FLOAT64=64, RGB24=128, INT8=256, UINT16=512, UINT32=768, INT64=1024,
-	UINT64=1280, FLOAT128=1536, COMPLEX128=1792,
-	COMPLEX256=2048, RGBA32=2304 };
+enum SliceOrderT {UNKNOWN_SLICE=0, SEQ=1, RSEQ=2, ALT=3, RALT=4, ALT_SHFT=5,
+	RALT_SHFT=6};
 
-enum SliceOrderT {UNKNOWN_SLICE=0, SEQ=1, RSEQ=2, ALT=3, RALT=4, ALT_SHFT=5, RALT_SHFT=6};
 enum BoundaryConditionT {ZEROFLUX=0, CONSTZERO=1, WRAP=2};
 
 class MRImage;
@@ -83,8 +79,6 @@ public:
 	virtual void setOrigin(const MatrixP& orig, bool reinit = false) = 0;
 	virtual void setSpacing(const MatrixP& space, bool reinit = false) = 0;
 	virtual void setDirection(const MatrixP& dir, bool reinit = false) = 0;
-	
-	virtual PixelT type() const = 0;
 	
 	virtual int write(std::string filename, double version = 1) const = 0;
 	
@@ -201,7 +195,6 @@ public:
 	void setDirection(const MatrixP& dir, bool reinit = false);
 	
 	void printSelf();
-	PixelT type() const;
 	
 	int indexToPoint(const std::vector<int64_t>& index, std::vector<double>& rast) const;
 	int indexToPoint(const std::vector<double>& index, std::vector<double>& rast) const;

@@ -55,6 +55,8 @@ namespace npl {
 		_m_data[addr] = (T)val;													\
 	}																			\
 
+
+	/*
 //	template <int D, typename T>												\
 //	TYPE NDArrayStore<D,T>::GETFUNC(const int64_t* index) const 	\
 //	{																			\
@@ -65,7 +67,7 @@ namespace npl {
 //	{																			\
 //		_m_data[getAddr(index)] = (T)val;										\
 //	}																			\
-
+*/
 
 GETSETIMP(double, get_dbl, set_dbl);
 GETSETIMP(int64_t, get_int, set_int);
@@ -338,6 +340,48 @@ T& NDArrayStore<D,T>::operator[](int64_t pixel)
 //
 //	return out;
 //}
+
+/* 
+ * type() Function specialized for all available types
+ */
+template <int D, typename T>
+PixelT NDArrayStore<D,T>::type() const 
+{
+	if(typeid(T) == typeid(uint8_t)) 
+		return UINT8;
+	else if(typeid(T) == typeid(int8_t)) 
+		return INT8;
+	else if(typeid(T) == typeid(uint16_t)) 
+		return UINT16;
+	else if(typeid(T) == typeid(int16_t)) 
+		return INT16;
+	else if(typeid(T) == typeid(uint32_t)) 
+		return UINT32;
+	else if(typeid(T) == typeid(int32_t)) 
+		return INT32;
+	else if(typeid(T) == typeid(uint64_t)) 
+		return UINT64;
+	else if(typeid(T) == typeid(int64_t)) 
+		return INT64;
+	else if(typeid(T) == typeid(float)) 
+		return FLOAT32;
+	else if(typeid(T) == typeid(double)) 
+		return FLOAT64;
+	else if(typeid(T) == typeid(long double)) 
+		return FLOAT128;
+	else if(typeid(T) == typeid(cfloat_t)) 
+		return COMPLEX64;
+	else if(typeid(T) == typeid(cdouble_t)) 
+		return COMPLEX128;
+	else if(typeid(T) == typeid(cquad_t)) 
+		return COMPLEX256;
+	else if(typeid(T) == typeid(rgb_t)) 
+		return RGB24;
+	else if(typeid(T) == typeid(rgba_t)) 
+		return RGBA32;
+	return UNKNOWN_TYPE;
+}
+
 
 } //npl
 #undef GETSETIMPL
