@@ -38,22 +38,22 @@ struct rgb_t;
 
 struct cdouble_t: public std::complex<double>
 {
-	explicit operator float();
-	explicit operator double();
-	explicit operator long double();
-	explicit operator int64_t();
-	explicit operator uint64_t();
-	explicit operator int32_t();
-	explicit operator uint32_t();
-	explicit operator int16_t();
-	explicit operator uint16_t();
-	explicit operator int8_t();
-	explicit operator uint8_t();
-//	explicit operator cfloat_t();
-//	explicit operator cquad_t();
+	explicit operator float() const;
+	explicit operator double() const;
+	explicit operator long double() const;
+	explicit operator int64_t() const;
+	explicit operator uint64_t() const;
+	explicit operator int32_t() const;
+	explicit operator uint32_t() const;
+	explicit operator int16_t() const;
+	explicit operator uint16_t() const;
+	explicit operator int8_t() const;
+	explicit operator uint8_t() const;
+//	explicit operator cfloat_t() const;
+//	explicit operator cquad_t() const;
 	explicit operator std::complex<float>();
 	explicit operator std::complex<long double>();
-	
+
 	cdouble_t(double re = 0, double im = 0) : std::complex<double>(re, im) {} ;
 	explicit cdouble_t(cfloat_t);
 	explicit cdouble_t(cquad_t);
@@ -65,20 +65,20 @@ struct cdouble_t: public std::complex<double>
 
 struct cfloat_t : public std::complex<float>
 {
-	explicit operator float();
-	explicit operator double();
-	explicit operator long double();
-	explicit operator int64_t();
-	explicit operator uint64_t();
-	explicit operator int32_t();
-	explicit operator uint32_t();
-	explicit operator int16_t();
-	explicit operator uint16_t();
-	explicit operator int8_t();
-	explicit operator uint8_t();
+	explicit operator float() const;
+	explicit operator double() const;
+	explicit operator long double() const;
+	explicit operator int64_t() const;
+	explicit operator uint64_t() const;
+	explicit operator int32_t() const;
+	explicit operator uint32_t() const;
+	explicit operator int16_t() const;
+	explicit operator uint16_t() const;
+	explicit operator int8_t() const;
+	explicit operator uint8_t() const;
 	explicit operator std::complex<double>();
 	explicit operator std::complex<long double>();
-	
+
 	cfloat_t(double re = 0, double im = 0) : std::complex<float>(re, im) {} ;
 	explicit cfloat_t(cdouble_t);
 	explicit cfloat_t(cquad_t);
@@ -90,17 +90,17 @@ struct cfloat_t : public std::complex<float>
 
 struct cquad_t : public std::complex<long double>
 {
-	explicit operator float();
-	explicit operator double();
-	explicit operator long double();
-	explicit operator int64_t();
-	explicit operator uint64_t();
-	explicit operator int32_t();
-	explicit operator uint32_t();
-	explicit operator int16_t();
-	explicit operator uint16_t();
-	explicit operator int8_t();
-	explicit operator uint8_t();
+	explicit operator float() const;
+	explicit operator double() const;
+	explicit operator long double() const;
+	explicit operator int64_t() const;
+	explicit operator uint64_t() const;
+	explicit operator int32_t() const;
+	explicit operator uint32_t() const;
+	explicit operator int16_t() const;
+	explicit operator uint16_t() const;
+	explicit operator int8_t() const;
+	explicit operator uint8_t() const;
 	explicit operator std::complex<float>();
 	explicit operator std::complex<double>();
 	
@@ -119,17 +119,30 @@ struct rgb_t
 	char green;
 	char blue;
 
-	explicit operator float();
-	explicit operator double();
-	explicit operator long double();
-	explicit operator int64_t();
-	explicit operator uint64_t();
-	explicit operator int32_t();
-	explicit operator uint32_t();
-	explicit operator int16_t();
-	explicit operator uint16_t();
-	explicit operator int8_t();
-	explicit operator uint8_t();
+	explicit operator float() const;
+	explicit operator double() const;
+	explicit operator long double() const;
+	explicit operator int64_t() const;
+	explicit operator uint64_t() const;
+	explicit operator int32_t() const;
+	explicit operator uint32_t() const;
+	explicit operator int16_t() const;
+	explicit operator uint16_t() const;
+	explicit operator int8_t() const;
+	explicit operator uint8_t() const;
+
+	// math operators
+	rgb_t& operator=(float v);
+	rgb_t& operator=(double v);
+	rgb_t& operator=(long double v);
+	rgb_t& operator=(int64_t v);
+	rgb_t& operator=(uint64_t v);
+	rgb_t& operator=(int32_t v);
+	rgb_t& operator=(uint32_t v);
+	rgb_t& operator=(int16_t v);
+	rgb_t& operator=(uint16_t v);
+	rgb_t& operator=(int8_t v);
+	rgb_t& operator=(uint8_t v);
 	
 	rgb_t() : red(0), green(0), blue(0) {} ;
 	rgb_t(char r, char g, char b) : 
@@ -158,17 +171,29 @@ struct rgba_t
 	char blue;
 	char alpha;
 
-	explicit operator float();
-	explicit operator double();
-	explicit operator long double();
-	explicit operator int64_t();
-	explicit operator uint64_t();
-	explicit operator int32_t();
-	explicit operator uint32_t();
-	explicit operator int16_t();
-	explicit operator uint16_t();
-	explicit operator int8_t();
-	explicit operator uint8_t();
+	explicit operator float() const;
+	explicit operator double() const;
+	explicit operator long double() const;
+	explicit operator int64_t() const;
+	explicit operator uint64_t() const;
+	explicit operator int32_t() const;
+	explicit operator uint32_t() const;
+	explicit operator int16_t() const;
+	explicit operator uint16_t() const;
+	explicit operator int8_t() const;
+	explicit operator uint8_t() const;
+	
+	rgba_t& operator=(float v);
+	rgba_t& operator=(double v);
+	rgba_t& operator=(long double v);
+	rgba_t& operator=(int64_t v);
+	rgba_t& operator=(uint64_t v);
+	rgba_t& operator=(int32_t v);
+	rgba_t& operator=(uint32_t v);
+	rgba_t& operator=(int16_t v);
+	rgba_t& operator=(uint16_t v);
+	rgba_t& operator=(int8_t v);
+	rgba_t& operator=(uint8_t v);
 	
 	rgba_t() : red(0), green(0), blue(0), alpha(0) {} ;
 	rgba_t(char r, char g, char b, char a = 0) : 
@@ -202,6 +227,65 @@ std::ostream& operator<< (std::ostream& stream, const rgba_t& v)
 		<< v.alpha << ")";
 	return stream;
 }
+
+
+// math
+
+// cdouble - double
+cdouble_t operator+(const cdouble_t& lhs, const double& rhs);
+cdouble_t operator+(const double& lhs, const cdouble_t& rhs);
+cdouble_t operator-(const cdouble_t& lhs, const double& rhs);
+cdouble_t operator-(const double& lhs, const cdouble_t& rhs);
+cdouble_t operator*(const cdouble_t& lhs, const double& rhs);
+cdouble_t operator*(const double& lhs, const cdouble_t& rhs);
+cdouble_t operator/(const cdouble_t& lhs, const double& rhs);
+cdouble_t operator/(const double& lhs, const cdouble_t& rhs);
+
+// cfloat - double
+cfloat_t operator+(const cfloat_t& lhs, const double& rhs);
+cfloat_t operator+(const double& lhs, const cfloat_t& rhs);
+cfloat_t operator-(const cfloat_t& lhs, const double& rhs);
+cfloat_t operator-(const double& lhs, const cfloat_t& rhs);
+cfloat_t operator*(const cfloat_t& lhs, const double& rhs);
+cfloat_t operator*(const double& lhs, const cfloat_t& rhs);
+cfloat_t operator/(const cfloat_t& lhs, const double& rhs);
+cfloat_t operator/(const double& lhs, const cfloat_t& rhs);
+
+// rgb - double
+rgb_t operator+(const rgb_t& lhs, const double& rhs);
+rgb_t operator+(const double& lhs, const rgb_t& rhs);
+rgb_t operator-(const rgb_t& lhs, const double& rhs);
+rgb_t operator-(const double& lhs, const rgb_t& rhs);
+rgb_t operator*(const rgb_t& lhs, const double& rhs);
+rgb_t operator*(const double& lhs, const rgb_t& rhs);
+rgb_t operator/(const rgb_t& lhs, const double& rhs);
+rgb_t operator/(const double& lhs, const rgb_t& rhs);
+
+// rgba - double
+rgba_t operator+(const rgba_t& lhs, const double& rhs);
+rgba_t operator+(const double& lhs, const rgba_t& rhs);
+rgba_t operator-(const rgba_t& lhs, const double& rhs);
+rgba_t operator-(const double& lhs, const rgba_t& rhs);
+rgba_t operator*(const rgba_t& lhs, const double& rhs);
+rgba_t operator*(const double& lhs, const rgba_t& rhs);
+rgba_t operator/(const rgba_t& lhs, const double& rhs);
+rgba_t operator/(const double& lhs, const rgba_t& rhs);
+
+//cdouble_t operator*(const cfloat_t& lhs, const double& rhs)
+//{
+//	return cdouble_t(lhs.real()*rhs, lhs.imag()*rhs);
+//}
+//
+//cdouble_t operator*(const cdouble_t& lhs, const double& rhs)
+//{
+//	return cdouble_t(lhs.real()*rhs, lhs.imag()*rhs);
+//}
+//
+//cdouble_t operator*(const cdouble_t& lhs, const rgba_t& rhs)
+//{
+//	double v = (double)rhs;
+//	return cdouble_t(lhs.real()*v, lhs.imag()*v);
+//}
 
 } //npl
 

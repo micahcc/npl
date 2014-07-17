@@ -83,7 +83,7 @@ int main()
 	}
 
 	ii = 0;
-	list<size_t> order({3,2,1,0});
+	vector<size_t> order({3,2,1,0});
 	vector<int64_t> pos;
 	int64_t p, xx, yy, zz, ww;
 
@@ -124,8 +124,7 @@ int main()
 	cerr << "Done" << endl;
 	
 	cerr << endl << "Rotated 1" << endl;
-	order.push_back(order.front());
-	order.pop_front();
+	std::rotate(order.begin(), order.begin()+1, order.end());
 
 	slicer.setOrder(order);
 	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
@@ -161,8 +160,7 @@ int main()
 	cerr << endl;
 	
 	cerr << endl << "Rotated 2" << endl;
-	order.push_back(order.front());
-	order.pop_front();
+	std::rotate(order.begin(), order.begin()+1, order.end());
 
 	slicer.setOrder(order);
 	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
@@ -197,8 +195,7 @@ int main()
 	cerr << endl;
 	
 	cerr << endl << "Rotated 3" << endl;
-	order.push_back(order.front());
-	order.pop_front();
+	std::rotate(order.begin(), order.begin()+1, order.end());
 	slicer.setOrder(order);
 	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		

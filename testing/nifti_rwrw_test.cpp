@@ -19,6 +19,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <iostream>
 #include "mrimage.h"
+#include "iterators.h"
 
 using namespace std;
 using namespace npl;
@@ -41,6 +42,15 @@ int main()
 	///////////////////////////////////////
 	// read version 2 image (be verbose)
 	auto img2 = readMRImage("rwrw_test1.nii.gz", true);
+
+	FlatIter<double> it1(img1);
+	FlatIter<double> it2(img2);
+	for(it1.goBegin(), it2.goBegin(); !it1.eof() && !it2.eof(); ++it1, ++it2) {
+		if(*it1 != *it2) {
+			cerr << "Written and read images differ!" << endl;
+			return -1;
+		}
+	}
 	
 	// compare metadata
 	if(img1->affine().det() != img2->affine().det()) {
@@ -82,6 +92,13 @@ int main()
 	///////////////////////////////////////
 	// read version 1 image
 	auto img3 = readMRImage("rwrw_test2.nii.gz", true);
+	FlatIter<double> it3(img3);
+	for(it1.goBegin(), it3.goBegin(); !it1.eof() && !it3.eof(); ++it1, ++it3) {
+		if(*it1 != *it3) {
+			cerr << "Written and read images differ!" << endl;
+			return -1;
+		}
+	}
 	
 	// compare metadata
 	if(img1->affine().det() != img3->affine().det()) {

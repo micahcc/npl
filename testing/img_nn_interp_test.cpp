@@ -33,6 +33,7 @@ int main()
 	std::vector<int64_t> index(4, 0);
 	std::vector<double> cindex(4, 0);
 	shared_ptr<MRImage> testimg = createMRImage(sz, FLOAT64);
+	NDAccess<double> img(testimg);
 
 	/* Create an image with: x+y*10+z*100+t*1000 */
 	double val = 0;
@@ -41,7 +42,7 @@ int main()
 			for(index[2] = 0; index[2] < sz[2] ; index[2]++) {
 				for(index[3] = 0; index[3] < sz[3] ; index[3]++) {
 					val = index[0]+index[1]*10 + index[2]*100 + index[3]*1000;
-					testimg->set_dbl(index, val);
+					img.set(index, val);
 				}
 			}
 		}

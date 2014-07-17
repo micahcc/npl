@@ -45,11 +45,11 @@ int main()
 				index[0] = xx;
 				index[1] = yy;
 				index[2] = zz;
-				if(arr1(index) != arr1({xx,yy,zz})) {
+				if(arr1[index] != arr1[{xx,yy,zz}]) {
 					cerr << "Difference in vector/initializer" << endl;
 					return -1;
 				}
-				if((*test1)[ii] != arr1({xx,yy,zz})) {
+				if((*test1)[ii] != arr1[{xx,yy,zz}]) {
 					cerr << "Difference in flat/accessor" << endl;
 					return -1;
 				}
@@ -64,7 +64,7 @@ int main()
 				index[0] = xx;
 				index[1] = yy;
 				index[2] = zz;
-				total += arr1(index);
+				total += arr1[index];
 			}
 		}
 	}
@@ -75,7 +75,7 @@ int main()
 	for(int64_t xx=0, ii=0; xx < test1->dim(0); xx++) {
 		for(int64_t yy=0; yy < test1->dim(1); yy++) {
 			for(int64_t zz=0; zz < test1->dim(2); zz++, ii++) {
-				total += arr1({xx,yy,zz});
+				total += arr1[{xx,yy,zz}];
 			}
 		}
 	}

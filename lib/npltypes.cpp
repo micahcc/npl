@@ -25,47 +25,47 @@ namespace npl {
 //////////////////////////////////////////////////////
 // cdouble_t
 //////////////////////////////////////////////////////
-cdouble_t::operator float() {
+cdouble_t::operator float() const {
 	return norm(*this);
 };
 
-cdouble_t::operator double() {
+cdouble_t::operator double() const {
 	return norm(*this);
 };
 
-cdouble_t::operator long double() {
+cdouble_t::operator long double() const {
 	return norm(*this);
 };
 
-cdouble_t::operator int64_t() {
+cdouble_t::operator int64_t() const {
 	return (int64_t)norm(*this);
 };
 
-cdouble_t::operator uint64_t() {
+cdouble_t::operator uint64_t() const {
 	return (uint64_t)norm(*this);
 };
 
-cdouble_t::operator int32_t() {
+cdouble_t::operator int32_t() const {
 	return (int32_t)norm(*this);
 };
 
-cdouble_t::operator uint32_t() {
+cdouble_t::operator uint32_t() const {
 	return (uint32_t)norm(*this);
 };
 
-cdouble_t::operator int16_t() {
+cdouble_t::operator int16_t() const {
 	return (int16_t)norm(*this);
 };
 
-cdouble_t::operator uint16_t() {
+cdouble_t::operator uint16_t() const {
 	return (uint16_t)norm(*this);
 };
 
-cdouble_t::operator int8_t() {
+cdouble_t::operator int8_t() const {
 	return (int8_t)norm(*this);
 };
 
-cdouble_t::operator uint8_t() {
+cdouble_t::operator uint8_t() const {
 	return (uint8_t)norm(*this);
 };
 
@@ -86,47 +86,47 @@ cdouble_t::cdouble_t(rgb_t v): std::complex<double>((double)v) {}
 //////////////////////////////////////////////////////
 // cfloat_t
 //////////////////////////////////////////////////////
-cfloat_t::operator float() {
+cfloat_t::operator float() const {
 	return norm(*this);
 };
 
-cfloat_t::operator double() {
+cfloat_t::operator double() const {
 	return norm(*this);
 };
 
-cfloat_t::operator long double() {
+cfloat_t::operator long double() const {
 	return norm(*this);
 };
 
-cfloat_t::operator int64_t() {
+cfloat_t::operator int64_t() const {
 	return (int64_t)norm(*this);
 };
 
-cfloat_t::operator uint64_t() {
+cfloat_t::operator uint64_t() const {
 	return (uint64_t)norm(*this);
 };
 
-cfloat_t::operator int32_t() {
+cfloat_t::operator int32_t() const {
 	return (int32_t)norm(*this);
 };
 
-cfloat_t::operator uint32_t() {
+cfloat_t::operator uint32_t() const {
 	return (uint32_t)norm(*this);
 };
 
-cfloat_t::operator int16_t() {
+cfloat_t::operator int16_t() const {
 	return (int16_t)norm(*this);
 };
 
-cfloat_t::operator uint16_t() {
+cfloat_t::operator uint16_t() const {
 	return (uint16_t)norm(*this);
 };
 
-cfloat_t::operator int8_t() {
+cfloat_t::operator int8_t() const {
 	return (int8_t)norm(*this);
 };
 
-cfloat_t::operator uint8_t() {
+cfloat_t::operator uint8_t() const {
 	return (uint8_t)norm(*this);
 };
 
@@ -144,47 +144,47 @@ cfloat_t::cfloat_t(rgb_t v) : std::complex<float>((float)v) {}
 //////////////////////////////////////////////////////
 // cquad_t
 //////////////////////////////////////////////////////
-cquad_t::operator float() {
+cquad_t::operator float() const {
 	return norm(*this);
 };
 
-cquad_t::operator double() {
+cquad_t::operator double() const {
 	return norm(*this);
 };
 
-cquad_t::operator long double() {
+cquad_t::operator long double() const {
 	return norm(*this);
 };
 
-cquad_t::operator int64_t() {
+cquad_t::operator int64_t() const {
 	return (int64_t)norm(*this);
 };
 
-cquad_t::operator uint64_t() {
+cquad_t::operator uint64_t() const {
 	return (uint64_t)norm(*this);
 };
 
-cquad_t::operator int32_t() {
+cquad_t::operator int32_t() const {
 	return (int32_t)norm(*this);
 };
 
-cquad_t::operator uint32_t() {
+cquad_t::operator uint32_t() const {
 	return (uint32_t)norm(*this);
 };
 
-cquad_t::operator int16_t() {
+cquad_t::operator int16_t() const {
 	return (int16_t)norm(*this);
 };
 
-cquad_t::operator uint16_t() {
+cquad_t::operator uint16_t() const {
 	return (uint16_t)norm(*this);
 };
 
-cquad_t::operator int8_t() {
+cquad_t::operator int8_t() const {
 	return (int8_t)norm(*this);
 };
 
-cquad_t::operator uint8_t() {
+cquad_t::operator uint8_t() const {
 	return (uint8_t)norm(*this);
 };
 
@@ -205,55 +205,55 @@ cquad_t::cquad_t(rgb_t v) : std::complex<long double>((long double)v) {}
 //////////////////////////////////////////////////////
 /// rgb_t
 //////////////////////////////////////////////////////
-rgb_t::operator float() {
+rgb_t::operator float() const {
 	return ((fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgb_t::operator double() {
+rgb_t::operator double() const {
 	return ((fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgb_t::operator long double() {
+rgb_t::operator long double() const {
 	return ((fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgb_t::operator int64_t() {
+rgb_t::operator int64_t() const {
 	return (int64_t)((fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgb_t::operator uint64_t() {
+rgb_t::operator uint64_t() const {
 	return (uint64_t)((fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgb_t::operator int32_t() {
+rgb_t::operator int32_t() const {
 	return (int32_t)((fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgb_t::operator uint32_t() {
+rgb_t::operator uint32_t() const {
 	return (uint32_t)((fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgb_t::operator int16_t() {
+rgb_t::operator int16_t() const {
 	return (int16_t)((fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgb_t::operator uint16_t() {
+rgb_t::operator uint16_t() const {
 	return (uint16_t)((fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgb_t::operator int8_t() {
+rgb_t::operator int8_t() const {
 	return (int8_t)((fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgb_t::operator uint8_t() {
+rgb_t::operator uint8_t() const {
 	return (uint8_t)((fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-//rgb_t::operator cdouble_t() {
+//rgb_t::operator cdouble_t() const {
 //	return (fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
 //};
 //
-//rgb_t::operator cfloat_t() {
+//rgb_t::operator cfloat_t() const {
 //	return (cfloat_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
 //};
 
@@ -363,55 +363,55 @@ rgb_t::rgb_t(rgba_t v) :
 //////////////////////////////////////////////////////
 /// rgba_t
 //////////////////////////////////////////////////////
-rgba_t::operator float() {
+rgba_t::operator float() const {
 	return fabs(alpha)*((fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgba_t::operator double() {
+rgba_t::operator double() const {
 	return fabs(alpha)*((fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgba_t::operator long double() {
+rgba_t::operator long double() const {
 	return fabs(alpha)*((fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgba_t::operator int64_t() {
+rgba_t::operator int64_t() const {
 	return (int64_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgba_t::operator uint64_t() {
+rgba_t::operator uint64_t() const {
 	return (uint64_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgba_t::operator int32_t() {
+rgba_t::operator int32_t() const {
 	return (int32_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgba_t::operator uint32_t() {
+rgba_t::operator uint32_t() const {
 	return (uint32_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgba_t::operator int16_t() {
+rgba_t::operator int16_t() const {
 	return (int16_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgba_t::operator uint16_t() {
+rgba_t::operator uint16_t() const {
 	return (uint16_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgba_t::operator int8_t() {
+rgba_t::operator int8_t() const {
 	return (int8_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-rgba_t::operator uint8_t() {
+rgba_t::operator uint8_t() const {
 	return (uint8_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-//rgba_t::operator cdouble_t() {
+//rgba_t::operator cdouble_t() const {
 //	return (fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
 //};
 //
-//rgba_t::operator cfloat_t() {
+//rgba_t::operator cfloat_t() const {
 //	return (cfloat_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
 //};
 
@@ -531,5 +531,5 @@ rgba_t::rgba_t(rgb_t v) :
 	red(v.red), green(v.green), blue(v.blue), alpha(255)
 {
 }
-	
+
 } //npl

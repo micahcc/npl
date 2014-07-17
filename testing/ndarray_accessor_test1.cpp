@@ -45,12 +45,13 @@ int test1d(std::vector<size_t>& size, size_t bytes, size_t elements)
 	std::vector<int64_t> index(1);
 	unordered_map<std::vector<int64_t>, double, hash_vector<int64_t>> mapcomp;
 
+	NDAccess<double> arrA(arr);
 	size_t count = 0;
 	for(index[0] = 0; index[0] < arr->dim(0); index[0]++, count++) {
 		T val = dist(rangen);
 
 		mapcomp[index] = val;
-		arr->set_dbl(index, val);
+		arrA.set(index, val);
 	}
 
 	if(count != size[0]) {
@@ -59,7 +60,7 @@ int test1d(std::vector<size_t>& size, size_t bytes, size_t elements)
 	
 	for(index[0] = 0; index[0] < arr->dim(0); index[0]++) {
 		try {
-			double v = arr->get_dbl(index);
+			double v = arrA[index];
 			if(mapcomp.at(index) != v) {
 				cerr << "Error, value mismatch" << endl;
 				return -4;
@@ -78,6 +79,7 @@ int test2d(std::vector<size_t>& size, size_t bytes, size_t elements)
 {
 	std::uniform_real_distribution<T> dist(0, 100000);
 	auto arr = std::make_shared<NDArrayStore<2,T>>(size);
+	NDAccess<double> arrA(arr);
 
 	if(bytes != arr->bytes()) 
 		return -1;
@@ -94,7 +96,7 @@ int test2d(std::vector<size_t>& size, size_t bytes, size_t elements)
 			T val = dist(rangen);
 
 			mapcomp[index] = val;
-			arr->set_dbl(index, val);
+			arrA.set(index, val);
 		}
 	}
 
@@ -106,7 +108,7 @@ int test2d(std::vector<size_t>& size, size_t bytes, size_t elements)
 		for(index[1] = 0; index[1] < arr->dim(1); index[1]++, count++) {
 
 			try {
-				double v = arr->get_dbl(index);
+				double v = arrA.get(index);
 				if(mapcomp.at(index) != v) {
 					cerr << "Error, value mismatch" << endl;
 					return -4;
@@ -126,6 +128,7 @@ int test3d(std::vector<size_t>& size, size_t bytes, size_t elements)
 {
 	std::uniform_real_distribution<T> dist(0, 100000);
 	auto arr = std::make_shared<NDArrayStore<3,T>>(size);
+	NDAccess<double> arrA(arr);
 
 	if(bytes != arr->bytes()) 
 		return -1;
@@ -143,7 +146,7 @@ int test3d(std::vector<size_t>& size, size_t bytes, size_t elements)
 				T val = dist(rangen);
 
 				mapcomp[index] = val;
-				arr->set_dbl(index, val);
+				arrA.set(index, val);
 			}
 		}
 	}
@@ -157,7 +160,7 @@ int test3d(std::vector<size_t>& size, size_t bytes, size_t elements)
 			for(index[2] = 0; index[2] < arr->dim(2); index[2]++) {
 
 				try {
-					double v = arr->get_dbl(index);
+					double v = arrA.get(index);
 					if(mapcomp.at(index) != v) {
 						cerr << "Error, value mismatch" << endl;
 						return -4;
@@ -178,6 +181,7 @@ int test5d(std::vector<size_t>& size, size_t bytes, size_t elements)
 {
 	std::uniform_real_distribution<T> dist(0, 100000);
 	auto arr = std::make_shared<NDArrayStore<5,T>>(size);
+	NDAccess<double> arrA(arr);
 
 	if(bytes != arr->bytes()) 
 		return -1;
@@ -197,7 +201,7 @@ int test5d(std::vector<size_t>& size, size_t bytes, size_t elements)
 						T val = dist(rangen);
 
 						mapcomp[index] = val;
-						arr->set_dbl(index, val);
+						arrA.set(index, val);
 					}
 				}
 			}
@@ -215,7 +219,7 @@ int test5d(std::vector<size_t>& size, size_t bytes, size_t elements)
 					for(index[4] = 0; index[4] < arr->dim(4); index[4]++) {
 
 						try {
-							double v = arr->get_dbl(index);
+							double v = arrA.get(index);
 							if(mapcomp.at(index) != v) {
 								cerr << "Error, value mismatch" << endl;
 								return -4;

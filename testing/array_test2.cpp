@@ -18,6 +18,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 #include "ndarray.h"
+#include "iterators.h"
 #include "slicer.h"
 #include <iostream>
 #include <list>
@@ -28,129 +29,157 @@ using namespace npl;
 
 int main()
 {
-	NDArrayStore<3, float> test1({100,100,100});
-	cerr << "Bytes: " << test1.bytes() << endl;
+	size_t ii=0;
+	std::vector<size_t> sz({100,78,83});
+	std::vector<size_t> order({2,1,0});
+	auto testp = make_shared<NDArrayStore<3, float>>(sz);
+	cerr << "Bytes: " << testp->bytes() << endl;
 
-	for(size_t ii = 0; ii < test1.elements(); ii++)
-		test1[ii] = ii;
+	for(ii = 0; ii < testp->elements(); ii++)
+		(*testp)[ii] = ii;
 	
-	NDArray* testp = &test1;
 	clock_t t;
 	
-	cerr << "Dimensions:" << testp->ndim() << endl;
-
-	cerr << "Using Acessors" << endl;
+	cerr << "Comparing Direct with Slicer" << endl;
+	ii = 0;
 	double total = 0;
 	t = clock();
-	for(int64_t zz=0; zz < testp->dim(2); zz++) {
-		for(int64_t yy=0; yy < testp->dim(1); yy++) {
-			for(int64_t xx=0; xx < testp->dim(0); xx++) {
-				total += testp->get_dbl({xx,yy,zz});
-			}
+	for(Slicer it(testp->ndim(), testp->dim(), order); !it.isEnd(); ++it, ++ii) {
+		if((*testp)[*it] != (*testp)[ii]) {
+			cerr << "Values Differ" << endl;
+			return -1;
+		}
+		if(*it != ii) {
+			cerr << "Indices Differ" << endl;
+			return -1;
 		}
 	}
 	t = clock()-t;
-	cerr << "xyz: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
-    
+	std::cout << "Time: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
+	
+	cerr << "Comparing Direct with Slicer (Through Accessor)" << endl;
+	NDAccess<double> img(testp);
+	ii = 0;
 	t = clock();
+	for(Slicer it(testp->ndim(), testp->dim(), order); !it.isEnd(); ++it, ++ii) {
+		if(img[*it] != (*testp)[ii]) {
+			cerr << "Values Differ" << endl;
+			return -1;
+		}
+		if(*it != ii) {
+			cerr << "Indices Differ" << endl;
+			return -1;
+		}
+	}
+	t = clock()-t;
+	std::cout << "Time: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
+	
+	cerr << "Comparing Direct with iterator" << endl;
+	ii = 0;
+	t = clock();
+	for(OrderIter<double> it(testp); !it.isEnd(); ++it, ++ii) {
+		if(*it != (*testp)[ii]) {
+			cerr << "Values Differ" << endl;
+			return -1;
+		}
+	}
+	t = clock()-t;
+	std::cout << "Time: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
+
+	cerr << "Comparing Reordered" << endl;
+	OrderIter<double> it(testp, {2,1,0});
+	it.goBegin();
+	std::vector<int64_t> index(3);
+	// forward order
+	ii = 0;
 	for(int64_t xx=0; xx < testp->dim(0); xx++) {
 		for(int64_t yy=0; yy < testp->dim(1); yy++) {
-			for(int64_t zz=0; zz < testp->dim(2); zz++) {
-				total += testp->get_dbl({xx,yy,zz});
+			for(int64_t zz=0; zz < testp->dim(2); zz++, ++it, ii++) {
+				if(*it != (*testp)[{xx,yy,zz}]) {
+					cerr << "iter, initializer list mismatch" << endl;
+					return -1;
+				}
+				
+				index[0] = xx;
+				index[1] = yy;
+				index[2] = zz;
+				if(*it != (*testp)[index]) {
+					cerr << "iter, vector mismatch" << endl;
+					return -1;
+				}
+				
+				if(*it != (*testp)[index.data()]) {
+					cerr << "iter, array mismatch" << endl;
+					return -1;
+				}
+			
+
+				if(*it != (*testp)[index.data()]) {
+					cerr << "iter, array mismatch" << endl;
+					return -1;
+				}
+				
+				if(*it != (*testp)[ii]) {
+					cerr << "iter, flat mismatch" << endl;
+					return -1;
+				}
 			}
 		}
 	}
-	t = clock()-t;
-	cerr << "zyx: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
 	
-	cerr << "Using Iterator" << endl;
-	// forward order
-	std::list<size_t> order({2,1,0});
+	cerr << "Flat Speed: ";
 	total = 0;
 	t = clock();
-	for(Slicer it(testp->ndim(), testp->dim(), order); !it.isEnd(); ++it) {
-		total += testp->get_dbl(*it);
+	for(int64_t xx=0; xx < testp->dim(0); xx++) {
+		for(int64_t yy=0; yy < testp->dim(1); yy++) {
+			for(int64_t zz=0; zz < testp->dim(2); zz++, ii++) {
+				total += (*testp)[ii];
+			}
+		}
 	}
 	t = clock()-t;
-	std::cout << "zyx: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
-    
-	// reverse order of dimensions (x,y,z), not reverse iterator
+	std::cout << "Time: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
+	 
+	cerr << "Vector Index Speed: ";
 	t = clock();
-	for(Slicer it(testp->ndim(), testp->dim(), order, true); !it.isEnd(); ++it) {
-		total += testp->get_dbl(*it);
+	for(int64_t xx=0; xx < testp->dim(0); xx++) {
+		for(int64_t yy=0; yy < testp->dim(1); yy++) {
+			for(int64_t zz=0; zz < testp->dim(2); zz++, ii++) {
+				index[0] = xx;
+				index[1] = yy;
+				index[2] = zz;
+				total += (*testp)[index];
+			}
+		}
 	}
 	t = clock()-t;
-	std::cout << "xyz: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
+	std::cout << "Time: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
 	
-	Slicer it(testp->ndim(), testp->dim());
-	
-	it.setOrder(order);
+	cerr << "Iterator Speed: ";
+	t = clock();
 	it.goBegin();
-	cerr << "Comparing Outputs, in zyx ordering" << endl;
-	// forward order
+	for(int64_t xx=0; xx < testp->dim(0); xx++) {
+		for(int64_t yy=0; yy < testp->dim(1); yy++) {
+			for(int64_t zz=0; zz < testp->dim(2); zz++, ++it) {
+				total += *it;
+			}
+		}
+	}
+	t = clock()-t;
+	std::cout << "Time: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
+	
+	cerr << "Initializer List Speed: ";
+	t = clock();
 	for(int64_t xx=0; xx < testp->dim(0); xx++) {
 		for(int64_t yy=0; yy < testp->dim(1); yy++) {
 			for(int64_t zz=0; zz < testp->dim(2); zz++) {
-				if(it.isEnd()) {
-					cerr << "Error, iterator ended early" << endl;
-					return -1;
-				}
-
-				double dirv = testp->get_dbl({xx,yy,zz});
-				double itev = testp->get_dbl(*it);
-				
-				if(dirv != itev) {
-					cerr << "Methods disagree, index: " << endl;
-					std::vector<int64_t> index;
-					index = it.index();
-					for(auto val : index) {
-						cerr << val << ",";
-					}
-
-					cerr << "\n" << xx << "," << yy << "," << zz << endl;
-					cerr << dirv << " vs " << itev << " = " << itev-dirv << endl;
-					return -2;
-				}
-				++it;
+				total += (*testp)[{xx,yy,zz}];
 			}
 		}
 	}
+	t = clock()-t;
+	std::cout << "Time: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
     
-	// reverse order
-	cerr << "Comparing Outputs, in xyz ordering" << endl;
-	it.setOrder(order, true);
-	it.goBegin();
-	for(int64_t zz=0; zz < testp->dim(2); zz++) {
-		for(int64_t yy=0; yy < testp->dim(1); yy++) {
-			for(int64_t xx=0; xx < testp->dim(0); xx++) {
-				if(it.isEnd()) {
-					cerr << "Error, iterator ended early" << endl;
-					return -1;
-				}
-
-				double dirv = testp->get_dbl({xx,yy,zz});
-				double itev = testp->get_dbl(*it);
-				
-				if(dirv != itev) {
-					cerr << "Methods disagree, index: " << endl;
-					std::vector<int64_t> index;
-					index = it.index();
-					for(auto val : index) {
-						cerr << val << ",";
-					}
-
-					cerr << "\n" << xx << "," << yy << "," << zz << endl;
-					cerr << dirv << " vs " << itev << " = " << itev-dirv << endl;
-					return -2;
-				}
-				++it;
-			}
-		}
-	}
-	if(!it.isEnd()) {
-		cerr << "Error, iterator ended late" << endl;
-		return -1;
-	}
 	
 	return 0;
 }

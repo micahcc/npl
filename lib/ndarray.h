@@ -172,90 +172,183 @@ public:
 	{
 		switch(in->type()) {
 			case UINT8:
-				castfunc = castor<uint8_t>;
+				castget = castgetStatic<uint8_t>;
+				castset = castsetStatic<uint8_t>;
 				break;
 			case INT8:
-				castfunc = castor<int8_t>;
+				castget = castgetStatic<int8_t>;
+				castset = castsetStatic<int8_t>;
 				break;
 			case UINT16:
-				castfunc = castor<uint16_t>;
+				castget = castgetStatic<uint16_t>;
+				castset = castsetStatic<uint16_t>;
 				break;
 			case INT16:
-				castfunc = castor<int16_t>;
+				castget = castgetStatic<int16_t>;
+				castset = castsetStatic<int16_t>;
 				break;
 			case UINT32:
-				castfunc = castor<uint32_t>;
+				castget = castgetStatic<uint32_t>;
+				castset = castsetStatic<uint32_t>;
 				break;
 			case INT32:
-				castfunc = castor<int32_t>;
+				castget = castgetStatic<int32_t>;
+				castset = castsetStatic<int32_t>;
 				break;
 			case UINT64:
-				castfunc = castor<uint64_t>;
+				castget = castgetStatic<uint64_t>;
+				castset = castsetStatic<uint64_t>;
 				break;
 			case INT64:
-				castfunc = castor<int64_t>;
+				castget = castgetStatic<int64_t>;
+				castset = castsetStatic<int64_t>;
 				break;
 			case FLOAT32:
-				castfunc = castor<float>;
+				castget = castgetStatic<float>;
+				castset = castsetStatic<float>;
 				break;
 			case FLOAT64:
-				castfunc = castor<double>;
+				castget = castgetStatic<double>;
+				castset = castsetStatic<double>;
 				break;
 			case FLOAT128:
-				castfunc = castor<long double>;
+				castget = castgetStatic<long double>;
+				castset = castsetStatic<long double>;
 				break;
 			case COMPLEX64:
-				castfunc = castor<cfloat_t>;
+				castget = castgetStatic<cfloat_t>;
+				castset = castsetStatic<cfloat_t>;
 				break;
 			case COMPLEX128:
-				castfunc = castor<cdouble_t>;
+				castget = castgetStatic<cdouble_t>;
+				castset = castsetStatic<cdouble_t>;
 				break;
 			case COMPLEX256:
-				castfunc = castor<cquad_t>;
+				castget = castgetStatic<cquad_t>;
+				castset = castsetStatic<cquad_t>;
 				break;
 			case RGB24:
-				castfunc = castor<rgb_t>;
+				castget = castgetStatic<rgb_t>;
+				castset = castsetStatic<rgb_t>;
 				break;
 			case RGBA32:
-				castfunc = castor<rgba_t>;
+				castget = castgetStatic<rgba_t>;
+				castset = castsetStatic<rgba_t>;
 				break;
+			default:
 			case UNKNOWN_TYPE:
-				throw std::invalid_argument("Unknown type to BasicIter");
+				castget = castgetStatic<uint8_t>;
+				castset = castsetStatic<uint8_t>;
+				throw std::invalid_argument("Unknown type to NDAccess");
 				break;
 		}
 	};
 	
 	/**
-	 * @brief Works just like a function
+	 * @brief Gets value linear position in array, then casts to T
 	 *
-	 * @return current value
+	 * @return value
 	 */
-	T operator()(const std::vector<int64_t>& index)
+	T operator[](int64_t index)
 	{
-		return castfunc(parent->__getAddr(index)); 
+		return castget(parent->__getAddr(index)); 
 	};
 	
 	/**
-	 * @brief Works just like a function
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T get(const std::vector<int64_t>& index)
+	{
+		return castget(parent->__getAddr(index)); 
+	};
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T operator[](const std::vector<int64_t>& index)
+	{
+		return castget(parent->__getAddr(index)); 
+	};
+	
+	/**
+	 * @brief Casts to the appropriate type then sets array at given index.
 	 *
 	 * @return current value
 	 */
-	T operator()(int64_t index)
+	void set(const std::vector<int64_t>& index, T v)
 	{
-		return castfunc(parent->__getAddr(index)); 
+		return castset(parent->__getAddr(index), v); 
+	};
+	
+	/**
+	 * @brief Casts to the appropriate type then sets array at given index.
+	 *
+	 * @return current value
+	 */
+	void set(int64_t index, T v)
+	{
+		return castset(parent->__getAddr(index), v); 
 	};
 	
 private:
+	
+
+	/**
+	 * @brief This is a wrapper function that will be called to safely cast 
+	 * from the underlying type.
+	 *
+	 * @tparam U Underlying type of pixel, figured out in the constructor
+	 * @param ptr Pointer to memory where the pixel is.
+	 *
+	 * @return Correctly cast value
+	 */
 	template <typename U>
-	static T castor(void* ptr)
+	static T castgetStatic(void* ptr)
 	{
-		return (T)(*((U*)ptr));
+		return (T)(*(static_cast<U*>(ptr)));
+	};
+	
+	/**
+	 * @brief This is a wrapper function that will be called to safely cast 
+	 * to the underlying type.
+	 *
+	 * @tparam U Underlying type of pixel, figured out in the constructor
+	 * @param ptr Pointer to memory where the pixel is.
+	 * @param val new value to write
+	 *
+	 */
+	template <typename U>
+	static void castsetStatic(void* ptr, const T& val)
+	{
+		(*(static_cast<U*>(ptr))) = (U)val;
 	};
 
-	size_t i;
-
+	/**
+	 * @brief Where to get the dat a from. Also the shared_ptr prevents dealloc
+	 */
 	std::shared_ptr<NDArray> parent;
-	T (*castfunc)(void* ptr);
+
+	/**
+	 * @brief Function pointer to the correct function for casting from the 
+	 * underlying type
+	 *
+	 * @param ptr location in memory where the pixel is stored
+	 */
+	T (*castget)(void* ptr);
+
+	/**
+	 * @brief Function pointer to the correct function for casting to the 
+	 * underlying type. This should be set during construction.
+	 *
+	 *
+	 * @param ptr pointer to memory 
+	 * @param v value to cast and write
+	 */
+	void (*castset)(void* ptr, const T& v);
 };
 
 /**
