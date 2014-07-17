@@ -48,6 +48,7 @@ bool compare(std::string name, std::shared_ptr<NDArrayStore<D, P>> array)
 
 int main()
 {
+	cerr << "Testing ND Ordered Iterator" << endl;
 	{
 	std::vector<size_t> sz({100,78,83});
 	auto test1 = make_shared<NDArrayStore<3, float>>(sz);
@@ -58,20 +59,20 @@ int main()
 		(*test1)[ii] = rand();
 
 
-	if(compare<FlatIter<float>, 3, float>("Float Modifiable Iterator", test1))
+	if(compare<OrderIter<float>, 3, float>("Float Modifiable Iterator", test1))
 		return -1;
-	if(compare<FlatIter<  int>, 3, float>("Int Modifiable Iterator", test1))
+	if(compare<OrderIter<  int>, 3, float>("Int Modifiable Iterator", test1))
 		return -1;
-	if(compare<FlatConstIter<float>, 3, float>("Float Const Iterator", test1))
+	if(compare<OrderConstIter<float>, 3, float>("Float Const Iterator", test1))
 		return -1;
-	if(compare<FlatConstIter<  int>, 3, float>("Int Const Iterator", test1))
+	if(compare<OrderConstIter<  int>, 3, float>("Int Const Iterator", test1))
 		return -1;
 	
-	FlatIter<float> fit(test1);
+	OrderIter<float> fit(test1);
 	for(fit.goBegin(); !fit.eof(); ++fit) 
 		fit.set(rand());
 
-	if(compare<FlatIter<float>, 3, float>("Set Float Iterator", test1))
+	if(compare<OrderIter<float>, 3, float>("Set Float Iterator", test1))
 		return -1;
 	
 	}
@@ -81,19 +82,20 @@ int main()
 	auto test1 = make_shared<NDArrayStore<4, uint8_t>>(sz);
 	cerr << "Bytes: " << test1->bytes() << endl;
 
-	FlatIter<float> fit(test1);
+	OrderIter<float> fit(test1);
 	for(fit.goBegin(); !fit.eof(); ++fit) 
 		fit.set(rand());
 
-	if(compare<FlatIter<float>, 4, uint8_t>("Float Modifiable Iterator", test1))
+	if(compare<OrderIter<float>, 4, uint8_t>("Float Modifiable Iterator", test1))
 		return -1;
-	if(compare<FlatIter<  int>, 4, uint8_t>("Int Modifiable Iterator", test1))
+	if(compare<OrderIter<  int>, 4, uint8_t>("Int Modifiable Iterator", test1))
 		return -1;
-	if(compare<FlatConstIter<float>, 4, uint8_t>("Float Const Iterator", test1))
+	if(compare<OrderConstIter<float>, 4, uint8_t>("Float Const Iterator", test1))
 		return -1;
-	if(compare<FlatConstIter<  int>, 4, uint8_t>("Int Const Iterator", test1))
+	if(compare<OrderConstIter<  int>, 4, uint8_t>("Int Const Iterator", test1))
 		return -1;
 
 	}
 	return 0;
 }
+

@@ -28,63 +28,91 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace npl {
 
+/**
+ * @brief Flat iterator for NDArray. No information is kept about 
+ * the current ND index. Just goes through all data. This casts the output to the
+ * type specified using T.
+ *
+ * @tparam T
+ */
 template <typename T>
-class FlatIter
+class FlatIter 
 {
 public:
-	FlatIter(std::shared_ptr<NDArray> in) : i(0), parent(in)
+	FlatIter(std::shared_ptr<NDArray> in)
+				: parent(in), m_linpos(0)
+
 	{
 		switch(in->type()) {
 			case UINT8:
-				castfunc = castor<uint8_t>;
+				castget = castgetStatic<uint8_t>;
+				castset = castsetStatic<uint8_t>;
 				break;
 			case INT8:
-				castfunc = castor<int8_t>;
+				castget = castgetStatic<int8_t>;
+				castset = castsetStatic<int8_t>;
 				break;
 			case UINT16:
-				castfunc = castor<uint16_t>;
+				castget = castgetStatic<uint16_t>;
+				castset = castsetStatic<uint16_t>;
 				break;
 			case INT16:
-				castfunc = castor<int16_t>;
+				castget = castgetStatic<int16_t>;
+				castset = castsetStatic<int16_t>;
 				break;
 			case UINT32:
-				castfunc = castor<uint32_t>;
+				castget = castgetStatic<uint32_t>;
+				castset = castsetStatic<uint32_t>;
 				break;
 			case INT32:
-				castfunc = castor<int32_t>;
+				castget = castgetStatic<int32_t>;
+				castset = castsetStatic<int32_t>;
 				break;
 			case UINT64:
-				castfunc = castor<uint64_t>;
+				castget = castgetStatic<uint64_t>;
+				castset = castsetStatic<uint64_t>;
 				break;
 			case INT64:
-				castfunc = castor<int64_t>;
+				castget = castgetStatic<int64_t>;
+				castset = castsetStatic<int64_t>;
 				break;
 			case FLOAT32:
-				castfunc = castor<float>;
+				castget = castgetStatic<float>;
+				castset = castsetStatic<float>;
 				break;
 			case FLOAT64:
-				castfunc = castor<double>;
+				castget = castgetStatic<double>;
+				castset = castsetStatic<double>;
 				break;
 			case FLOAT128:
-				castfunc = castor<long double>;
+				castget = castgetStatic<long double>;
+				castset = castsetStatic<long double>;
 				break;
 			case COMPLEX64:
-				castfunc = castor<cfloat_t>;
+				castget = castgetStatic<cfloat_t>;
+				castset = castsetStatic<cfloat_t>;
 				break;
 			case COMPLEX128:
-				castfunc = castor<cdouble_t>;
+				castget = castgetStatic<cdouble_t>;
+				castset = castsetStatic<cdouble_t>;
 				break;
 			case COMPLEX256:
-				castfunc = castor<cquad_t>;
+				castget = castgetStatic<cquad_t>;
+				castset = castsetStatic<cquad_t>;
 				break;
 			case RGB24:
-				castfunc = castor<rgb_t>;
+				castget = castgetStatic<rgb_t>;
+				castset = castsetStatic<rgb_t>;
 				break;
 			case RGBA32:
-				castfunc = castor<rgba_t>;
+				castget = castgetStatic<rgba_t>;
+				castset = castsetStatic<rgba_t>;
 				break;
+			default:
 			case UNKNOWN_TYPE:
-				throw std::invalid_argument("Unknown type to BasicIter");
+				castget = castgetStatic<uint8_t>;
+				castset = castsetStatic<uint8_t>;
+				throw std::invalid_argument("Unknown type to FlatIter");
 				break;
 		}
 	};
@@ -94,55 +122,95 @@ public:
 	 *
 	 * @return new value
 	 */
-	T operator++() { assert(!isEnd()); return castfunc(parent->getAddr(++i)); };
+	T operator++() 
+	{ 
+		return castget(parent->__getAddr(++m_linpos)); 
+	};
 
 	/**
 	 * @brief Postfix increment operator
 	 *
 	 * @return old value
 	 */
-	T operator++(int) { assert(!isEnd()); return castfunc(parent->getAddr(i++)); };
+	T operator++(int) 
+	{ 
+		return castget(parent->__getAddr(m_linpos++)); 
+	};
 
 	/**
 	 * @brief Prefix decrement operator
 	 *
 	 * @return new value
 	 */
-	T operator--() { assert(!isBegin()); return castfunc(parent->getAddr(--i)); };
+	T operator--() 
+	{ 
+		return castget(parent->__getAddr(--m_linpos)); 
+	};
 	
 	/**
 	 * @brief Postfix decrement operator
 	 *
 	 * @return old value
 	 */
-	T operator--(int) { assert(!isBegin()); return castfunc(parent->getAddr(i--)); };
+	T operator--(int) 
+	{ 
+		return castget(parent->__getAddr(m_linpos--)); 
+	};
 
 	/**
 	 * @brief Dereference operator
 	 *
 	 * @return current value
 	 */
-	T operator*() { assert(!isEnd()); return castfunc(parent->getAddr(i)); };
-
+	T operator*() const
+	{ 
+		return castget(parent->__getAddr(m_linpos)); 
+	};
+	
+	/**
+	 * @brief Dereference operator
+	 *
+	 * @return current value
+	 */
+	T get() const
+	{ 
+		return castget(parent->__getAddr(m_linpos)); 
+	};
+	
+	/**
+	 * @brief Dereference operator
+	 *
+	 * @return current value
+	 */
+	void set(T v) const
+	{ 
+		castset(parent->__getAddr(m_linpos), v); 
+	};
+	
 	/**
 	 * @brief Go to beginning of iteration
 	 */
-	void goBegin() { i = 0; };
+	void goBegin() { m_linpos=0; };
 
 	/**
 	 * @brief Go to end of iteration
 	 */
-	void goEnd() { i = parent->elements(); };
+	void goEnd() { m_linpos=parent->elements(); };
 	
 	/**
 	 * @brief Are we one past the last element?
 	 */
-	void isEnd() { i == parent->elements(); };
+	bool isEnd() const { return m_linpos==parent->elements(); };
+	
+	/**
+	 * @brief Are we one past the last element?
+	 */
+	bool eof() const { return m_linpos==parent->elements(); };
 	
 	/**
 	 * @brief Are we at the first element
 	 */
-	void isBegin() { i == 0; };
+	bool isBegin() const { return m_linpos == 0; };
 	
 	/**
 	 * @brief Whether the position and parent are the same as another 
@@ -151,9 +219,9 @@ public:
 	 *
 	 * @return 
 	 */
-	bool operator==(const BasicIter other) 
+	bool operator==(const FlatIter& other) const
 	{ 
-		return parent == other.parent && i == other.i; 
+		return parent == other.parent && m_linpos == other.m_linpos;
 	};
 
 	/**
@@ -163,9 +231,9 @@ public:
 	 *
 	 * @return 
 	 */
-	bool operator!=(const BasicIter other) 
+	bool operator!=(const FlatIter& other) const
 	{ 
-		return parent != other.parent || i != other.i; 
+		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
 	
 	/**
@@ -176,9 +244,9 @@ public:
 	 *
 	 * @return 
 	 */
-	bool operator<(const BasicIter other) 
+	bool operator<(const FlatIter& other) const
 	{ 
-		return parent == other.parent && i < other.i; 
+		return parent == other.parent && m_linpos < other.m_linpos;
 	};
 	
 	/**
@@ -189,9 +257,9 @@ public:
 	 *
 	 * @return 
 	 */
-	bool operator>(const BasicIter other) 
+	bool operator>(const FlatIter& other) const
 	{ 
-		return parent == other.parent && i > other.i; 
+		return parent == other.parent && m_linpos > other.m_linpos;
 	};
 	
 	/**
@@ -202,9 +270,9 @@ public:
 	 *
 	 * @return 
 	 */
-	bool operator<=(const BasicIter other) 
+	bool operator<=(const FlatIter& other) const
 	{ 
-		return parent == other.parent && i <= other.i; 
+		return parent == other.parent && m_linpos <= other.m_linpos; 
 	};
 	
 	/**
@@ -215,84 +283,102 @@ public:
 	 *
 	 * @return 
 	 */
-	bool operator>=(const BasicIter other) 
+	bool operator>=(const FlatIter& other) const
 	{ 
-		return parent == other.parent && i >= other.i; 
+		return parent == other.parent && m_linpos >= other.m_linpos; 
 	};
 
 private:
+	FlatIter();
 	template <typename U>
-	static T castor(void* ptr)
+	static T castgetStatic(void* ptr)
 	{
 		return (T)(*((U*)ptr));
 	};
+	
+	template <typename U>
+	static void castsetStatic(void* ptr, const T& val)
+	{
+		(*((U*)ptr)) = (U)val;
+	};
 
-
-	size_t i;
-
+	
 	std::shared_ptr<NDArray> parent;
-	T (*castfunc)(void* ptr);
+
+	T (*castget)(void* ptr);
+	void (*castset)(void* ptr, const T& v);
+
+	int64_t m_linpos;
 };
 
+/**
+ * @brief Flat iterator iterator for NDArray. No information is kept about 
+ * the current index. Just goes through all data. This casts the output to the
+ * type specified using T.
+ *
+ * @tparam T
+ */
 template <typename T>
-class NDIter : protected Slicer 
+class FlatConstIter 
 {
 public:
-	NDIter(std::shared_ptr<NDArray> in, std::initializer_list<size_t> order)
-				: i(0), parent(in), Slicer(in->ndim(), in->dim(), order)
+	FlatConstIter(std::shared_ptr<const NDArray> in)
+				: parent(in), m_linpos(0)
 
 	{
 		switch(in->type()) {
 			case UINT8:
-				castfunc = castor<uint8_t>;
+				castget = castgetStatic<uint8_t>;
 				break;
 			case INT8:
-				castfunc = castor<int8_t>;
+				castget = castgetStatic<int8_t>;
 				break;
 			case UINT16:
-				castfunc = castor<uint16_t>;
+				castget = castgetStatic<uint16_t>;
 				break;
 			case INT16:
-				castfunc = castor<int16_t>;
+				castget = castgetStatic<int16_t>;
 				break;
 			case UINT32:
-				castfunc = castor<uint32_t>;
+				castget = castgetStatic<uint32_t>;
 				break;
 			case INT32:
-				castfunc = castor<int32_t>;
+				castget = castgetStatic<int32_t>;
 				break;
 			case UINT64:
-				castfunc = castor<uint64_t>;
+				castget = castgetStatic<uint64_t>;
 				break;
 			case INT64:
-				castfunc = castor<int64_t>;
+				castget = castgetStatic<int64_t>;
 				break;
 			case FLOAT32:
-				castfunc = castor<float>;
+				castget = castgetStatic<float>;
 				break;
 			case FLOAT64:
-				castfunc = castor<double>;
+				castget = castgetStatic<double>;
 				break;
 			case FLOAT128:
-				castfunc = castor<long double>;
+				castget = castgetStatic<long double>;
 				break;
 			case COMPLEX64:
-				castfunc = castor<cfloat_t>;
+				castget = castgetStatic<cfloat_t>;
 				break;
 			case COMPLEX128:
-				castfunc = castor<cdouble_t>;
+				castget = castgetStatic<cdouble_t>;
 				break;
 			case COMPLEX256:
-				castfunc = castor<cquad_t>;
+				castget = castgetStatic<cquad_t>;
 				break;
 			case RGB24:
-				castfunc = castor<rgb_t>;
+				castget = castgetStatic<rgb_t>;
 				break;
 			case RGBA32:
-				castfunc = castor<rgba_t>;
+				castget = castgetStatic<rgba_t>;
 				break;
 			case UNKNOWN_TYPE:
-				throw std::invalid_argument("Unknown type to BasicIter");
+			default:
+				castget = castgetStatic<uint8_t>;
+				throw std::invalid_argument("Unknown type to FlatIter");
 				break;
 		}
 	};
@@ -302,35 +388,606 @@ public:
 	 *
 	 * @return new value
 	 */
-	T operator++() { return castfunc(parent->getAddr(++Slicer)); };
+	T operator++() 
+	{ 
+		return castget(parent->__getAddr(++m_linpos)); 
+	};
 
 	/**
 	 * @brief Postfix increment operator
 	 *
 	 * @return old value
 	 */
-	T operator++(int) { return castfunc(parent->getAddr(Slicer++)); };
+	T operator++(int) 
+	{ 
+		return castget(parent->__getAddr(m_linpos++)); 
+	};
 
 	/**
 	 * @brief Prefix decrement operator
 	 *
 	 * @return new value
 	 */
-	T operator--() { return castfunc(parent->getAddr(--Slicer)); };
+	T operator--() 
+	{ 
+		return castget(parent->__getAddr(--m_linpos)); 
+	};
 	
 	/**
 	 * @brief Postfix decrement operator
 	 *
 	 * @return old value
 	 */
-	T operator--(int) { return castfunc(parent->getAddr(Slicer--)); };
+	T operator--(int) 
+	{ 
+		return castget(parent->__getAddr(m_linpos--)); 
+	};
 
 	/**
 	 * @brief Dereference operator
 	 *
 	 * @return current value
 	 */
-	T operator*() { return castfunc(parent->getAddr(*Slicer)); };
+	T operator*() const
+	{ 
+		return castget(parent->__getAddr(m_linpos)); 
+	};
+	
+	/**
+	 * @brief Dereference operator
+	 *
+	 * @return current value
+	 */
+	T get() const
+	{ 
+		return castget(parent->__getAddr(m_linpos)); 
+	};
+	
+	/**
+	 * @brief Go to beginning of iteration
+	 */
+	void goBegin() { m_linpos=0; };
+
+	/**
+	 * @brief Go to end of iteration
+	 */
+	void goEnd() { m_linpos=parent->elements(); };
+	
+	/**
+	 * @brief Are we one past the last element?
+	 */
+	bool isEnd() const { return m_linpos==parent->elements(); };
+	
+	/**
+	 * @brief Are we one past the last element?
+	 */
+	bool eof() const { return m_linpos==parent->elements(); };
+	
+	/**
+	 * @brief Are we at the first element
+	 */
+	bool isBegin() const { return m_linpos == 0; };
+	
+	/**
+	 * @brief Whether the position and parent are the same as another 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator==(const FlatConstIter& other) const
+	{ 
+		return parent == other.parent && m_linpos == other.m_linpos;
+	};
+
+	/**
+	 * @brief Whether the position and parent are different from another 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator!=(const FlatConstIter& other) const
+	{ 
+		return parent != other.parent || this->m_linpos != other.m_linpos;
+	};
+	
+	/**
+	 * @brief If the parents are different then false, if they are the same, 
+	 * returns whether this iterator is before the other. 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator<(const FlatConstIter& other) const
+	{ 
+		return parent == other.parent && m_linpos < other.m_linpos;
+	};
+	
+	/**
+	 * @brief If the parents are different then false, if they are the same, 
+	 * returns whether this iterator is after the other. 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator>(const FlatConstIter& other) const
+	{ 
+		return parent == other.parent && m_linpos > other.m_linpos;
+	};
+	
+	/**
+	 * @brief If the parents are different then false, if they are the same, 
+	 * returns whether this iterator is the same or before the other. 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator<=(const FlatConstIter& other) const
+	{ 
+		return parent == other.parent && m_linpos <= other.m_linpos; 
+	};
+	
+	/**
+	 * @brief If the parents are different then false, if they are the same, 
+	 * returns whether this iterator is the same or after the other. 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator>=(const FlatConstIter& other) const
+	{ 
+		return parent == other.parent && m_linpos >= other.m_linpos; 
+	};
+
+private:
+	template <typename U>
+	static T castgetStatic(void* ptr)
+	{
+		return (T)(*((U*)ptr));
+	};
+	
+	std::shared_ptr<const NDArray> parent;
+
+	T (*castget)(void* ptr);
+
+	int64_t m_linpos;
+};
+
+
+/**
+ * @brief Constant iterator for NDArray. Typical usage calls for OrderConstIter it(array); it++; *it
+ *
+ * @tparam T
+ */
+template <typename T>
+class OrderConstIter : protected Slicer 
+{
+public:
+	OrderConstIter(std::shared_ptr<const NDArray> in, 
+				std::vector<size_t> order = {}, bool revorder = false)
+				: Slicer(in->ndim(), in->dim(), order, revorder), parent(in)
+	{
+		switch(in->type()) {
+			case UINT8:
+				castget = castgetStatic<uint8_t>;
+				break;
+			case INT8:
+				castget = castgetStatic<int8_t>;
+				break;
+			case UINT16:
+				castget = castgetStatic<uint16_t>;
+				break;
+			case INT16:
+				castget = castgetStatic<int16_t>;
+				break;
+			case UINT32:
+				castget = castgetStatic<uint32_t>;
+				break;
+			case INT32:
+				castget = castgetStatic<int32_t>;
+				break;
+			case UINT64:
+				castget = castgetStatic<uint64_t>;
+				break;
+			case INT64:
+				castget = castgetStatic<int64_t>;
+				break;
+			case FLOAT32:
+				castget = castgetStatic<float>;
+				break;
+			case FLOAT64:
+				castget = castgetStatic<double>;
+				break;
+			case FLOAT128:
+				castget = castgetStatic<long double>;
+				break;
+			case COMPLEX64:
+				castget = castgetStatic<cfloat_t>;
+				break;
+			case COMPLEX128:
+				castget = castgetStatic<cdouble_t>;
+				break;
+			case COMPLEX256:
+				castget = castgetStatic<cquad_t>;
+				break;
+			case RGB24:
+				castget = castgetStatic<rgb_t>;
+				break;
+			case RGBA32:
+				castget = castgetStatic<rgba_t>;
+				break;
+			case UNKNOWN_TYPE:
+			default:
+				castget = castgetStatic<uint8_t>;
+				throw std::invalid_argument("Unknown type to OrderConstIter");
+				break;
+		}
+	};
+
+	/**
+	 * @brief Prefix increment operator
+	 *
+	 * @return new value
+	 */
+	T operator++() 
+	{ 
+		return castget(parent->__getAddr(Slicer::operator++())); 
+	};
+
+	/**
+	 * @brief Postfix increment operator
+	 *
+	 * @return old value
+	 */
+	T operator++(int) 
+	{ 
+		return castget(parent->__getAddr(Slicer::operator++(0))); 
+	};
+
+	/**
+	 * @brief Prefix decrement operator
+	 *
+	 * @return new value
+	 */
+	T operator--() 
+	{ 
+		return castget(parent->__getAddr(Slicer::operator--())); 
+	};
+	
+	/**
+	 * @brief Postfix decrement operator
+	 *
+	 * @return old value
+	 */
+	T operator--(int) 
+	{ 
+		return castget(parent->__getAddr(Slicer::operator--(0))); 
+	};
+
+	/**
+	 * @brief Dereference operator
+	 *
+	 * @return current value
+	 */
+	T operator*() const
+	{ 
+		return castget(parent->__getAddr(Slicer::operator*())); 
+	};
+	
+	/**
+	 * @brief Dereference operator
+	 *
+	 * @return current value
+	 */
+	T get() const
+	{ 
+		return castget(parent->__getAddr(Slicer::operator*())); 
+	};
+	
+	/**
+	 * @brief Go to beginning of iteration
+	 */
+	void goBegin() { Slicer::goBegin(); };
+
+	/**
+	 * @brief Go to end of iteration
+	 */
+	void goEnd() { Slicer::goEnd(); };
+	
+	/**
+	 * @brief Are we one past the last element?
+	 */
+	bool isEnd() const { return Slicer::isEnd(); };
+	
+	/**
+	 * @brief Are we one past the last element?
+	 */
+	bool eof() const { return Slicer::isEnd(); };
+	
+	/**
+	 * @brief Are we at the first element
+	 */
+	bool isBegin() const { return Slicer::isBegin(); };
+	
+	/**
+	 * @brief Whether the position and parent are the same as another 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator==(const OrderConstIter& other) const
+	{ 
+		return parent == other.parent && m_linpos == other.m_linpos;
+	};
+
+	/**
+	 * @brief Whether the position and parent are different from another 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator!=(const OrderConstIter& other) const
+	{ 
+		return parent != other.parent || this->m_linpos != other.m_linpos;
+	};
+	
+	/**
+	 * @brief If the parents are different then false, if they are the same, 
+	 * returns whether this iterator is before the other. 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator<(const OrderConstIter& other) const
+	{ 
+		if(parent != other.parent)
+			return false;
+
+		for(size_t dd=0; dd<this->m_dim; dd++) {
+			if(this->m_pos[dd] < other.m_pos[dd])
+				return true;
+		}
+
+		return false;
+	};
+	
+	/**
+	 * @brief If the parents are different then false, if they are the same, 
+	 * returns whether this iterator is after the other. 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator>(const OrderConstIter& other) const
+	{ 
+		if(parent != other.parent)
+			return false;
+
+		for(size_t dd=0; dd<this->m_dim; dd++) {
+			if(this->m_pos[dd] > other.m_pos[dd])
+				return true;
+		}
+
+		return false;
+	};
+	
+	/**
+	 * @brief If the parents are different then false, if they are the same, 
+	 * returns whether this iterator is the same or before the other. 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator<=(const OrderConstIter& other) const
+	{ 
+		if(parent != other.parent)
+			return false;
+
+		if(*this == other)
+			return true;
+
+		return *this < other;
+	};
+	
+	/**
+	 * @brief If the parents are different then false, if they are the same, 
+	 * returns whether this iterator is the same or after the other. 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator>=(const OrderConstIter& other) const
+	{ 
+		if(parent != other.parent)
+			return false;
+
+		if(*this == other)
+			return true;
+
+		return *this > other;
+	};
+
+private:
+	template <typename U>
+	static T castgetStatic(void* ptr)
+	{
+		return (T)(*((U*)ptr));
+	};
+	
+	std::shared_ptr<const NDArray> parent;
+
+	T (*castget)(void* ptr);
+};
+
+
+/**
+ * @brief This class is used to iterate through an N-Dimensional array. 
+ *
+ * @tparam T
+ */
+template <typename T>
+class OrderIter : protected Slicer 
+{
+public:
+	OrderIter(std::shared_ptr<NDArray> in, 
+				std::initializer_list<size_t> order = {}, bool revorder = false)
+				: Slicer(in->ndim(), in->dim(), order, revorder), parent(in)
+
+	{
+		switch(in->type()) {
+			case UINT8:
+				castget = castgetStatic<uint8_t>;
+				castset = castsetStatic<uint8_t>;
+				break;
+			case INT8:
+				castget = castgetStatic<int8_t>;
+				castset = castsetStatic<int8_t>;
+				break;
+			case UINT16:
+				castget = castgetStatic<uint16_t>;
+				castset = castsetStatic<uint16_t>;
+				break;
+			case INT16:
+				castget = castgetStatic<int16_t>;
+				castset = castsetStatic<int16_t>;
+				break;
+			case UINT32:
+				castget = castgetStatic<uint32_t>;
+				castset = castsetStatic<uint32_t>;
+				break;
+			case INT32:
+				castget = castgetStatic<int32_t>;
+				castset = castsetStatic<int32_t>;
+				break;
+			case UINT64:
+				castget = castgetStatic<uint64_t>;
+				castset = castsetStatic<uint64_t>;
+				break;
+			case INT64:
+				castget = castgetStatic<int64_t>;
+				castset = castsetStatic<int64_t>;
+				break;
+			case FLOAT32:
+				castget = castgetStatic<float>;
+				castset = castsetStatic<float>;
+				break;
+			case FLOAT64:
+				castget = castgetStatic<double>;
+				castset = castsetStatic<double>;
+				break;
+			case FLOAT128:
+				castget = castgetStatic<long double>;
+				castset = castsetStatic<long double>;
+				break;
+			case COMPLEX64:
+				castget = castgetStatic<cfloat_t>;
+				castset = castsetStatic<cfloat_t>;
+				break;
+			case COMPLEX128:
+				castget = castgetStatic<cdouble_t>;
+				castset = castsetStatic<cdouble_t>;
+				break;
+			case COMPLEX256:
+				castget = castgetStatic<cquad_t>;
+				castset = castsetStatic<cquad_t>;
+				break;
+			case RGB24:
+				castget = castgetStatic<rgb_t>;
+				castset = castsetStatic<rgb_t>;
+				break;
+			case RGBA32:
+				castget = castgetStatic<rgba_t>;
+				castset = castsetStatic<rgba_t>;
+				break;
+			default:
+			case UNKNOWN_TYPE:
+				castget = castgetStatic<uint8_t>;
+				castset = castsetStatic<uint8_t>;
+				throw std::invalid_argument("Unknown type to OrderIter");
+				break;
+		}
+	};
+
+	/**
+	 * @brief Prefix increment operator
+	 *
+	 * @return new value
+	 */
+	T operator++() 
+	{ 
+		return castget(parent->__getAddr(Slicer::operator++())); 
+	};
+
+	/**
+	 * @brief Postfix increment operator
+	 *
+	 * @return old value
+	 */
+	T operator++(int) 
+	{ 
+		return castget(parent->__getAddr(Slicer::operator++(0))); 
+	};
+
+	/**
+	 * @brief Prefix decrement operator
+	 *
+	 * @return new value
+	 */
+	T operator--() 
+	{ 
+		return castget(parent->__getAddr(Slicer::operator--())); 
+	};
+	
+	/**
+	 * @brief Postfix decrement operator
+	 *
+	 * @return old value
+	 */
+	T operator--(int) 
+	{ 
+		return castget(parent->__getAddr(Slicer::operator--(0))); 
+	};
+
+	/**
+	 * @brief Dereference operator
+	 *
+	 * @return current value
+	 */
+	T operator*() const
+	{ 
+		return castget(parent->__getAddr(Slicer::operator*())); 
+	};
+	
+	/**
+	 * @brief Dereference operator
+	 *
+	 * @return current value
+	 */
+	T get() const
+	{ 
+		return castget(parent->__getAddr(Slicer::operator*())); 
+	};
+	
+	/**
+	 * @brief Dereference operator
+	 *
+	 * @return current value
+	 */
+	void set(const T& v) 
+	{ 
+		this->castset(parent->__getAddr(Slicer::operator*()), v); 
+	};
 
 	/**
 	 * @brief Go to beginning of iteration
@@ -345,17 +1002,17 @@ public:
 	/**
 	 * @brief Are we one past the last element?
 	 */
-	void isEnd() { Slicer::isEnd(); };
+	bool isEnd() const { return Slicer::isEnd(); };
 	
 	/**
 	 * @brief Are we one past the last element?
 	 */
-	void eof() { Slicer::isEnd(); };
+	bool eof() const { return Slicer::isEnd(); };
 	
 	/**
 	 * @brief Are we at the first element
 	 */
-	void isBegin() { Slicer::isBegin(); };
+	bool isBegin() const { return Slicer::isBegin(); };
 	
 	/**
 	 * @brief Whether the position and parent are the same as another 
@@ -364,9 +1021,9 @@ public:
 	 *
 	 * @return 
 	 */
-	bool operator==(const NDArray& other) 
+	bool operator==(const OrderIter& other) const
 	{ 
-		return parent == other.parent && this->m_linpos == other.m_linpos;
+		return parent == other.parent && m_linpos == other.m_linpos;
 	};
 
 	/**
@@ -376,7 +1033,7 @@ public:
 	 *
 	 * @return 
 	 */
-	bool operator!=(const BasicIter other) 
+	bool operator!=(const OrderIter other) const
 	{ 
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
@@ -389,10 +1046,17 @@ public:
 	 *
 	 * @return 
 	 */
-	bool operator<(const BasicIter other) 
+	bool operator<(const OrderIter& other) const
 	{ 
-		for(size_t dd=0; dd<m_dim; dd++)
-		return parent == other.parent && i < other.i; 
+		if(parent != other.parent)
+			return false;
+
+		for(size_t dd=0; dd<this->m_dim; dd++) {
+			if(this->m_pos[dd] < other.m_pos[dd])
+				return true;
+		}
+
+		return false;
 	};
 	
 	/**
@@ -403,9 +1067,17 @@ public:
 	 *
 	 * @return 
 	 */
-	bool operator>(const BasicIter other) 
+	bool operator>(const OrderIter& other) const
 	{ 
-		return parent == other.parent && i > other.i; 
+		if(parent != other.parent)
+			return false;
+
+		for(size_t dd=0; dd<this->m_dim; dd++) {
+			if(this->m_pos[dd] > other.m_pos[dd])
+				return true;
+		}
+
+		return false;
 	};
 	
 	/**
@@ -416,9 +1088,15 @@ public:
 	 *
 	 * @return 
 	 */
-	bool operator<=(const BasicIter other) 
+	bool operator<=(const OrderIter& other) const
 	{ 
-		return parent == other.parent && i <= other.i; 
+		if(parent != other.parent)
+			return false;
+
+		if(*this == other)
+			return true;
+
+		return *this < other;
 	};
 	
 	/**
@@ -429,23 +1107,35 @@ public:
 	 *
 	 * @return 
 	 */
-	bool operator>=(const BasicIter other) 
+	bool operator>=(const OrderIter& other) const
 	{ 
-		return parent == other.parent && i >= other.i; 
+		if(parent != other.parent)
+			return false;
+
+		if(*this == other)
+			return true;
+
+		return *this > other;
 	};
 
 private:
 	template <typename U>
-	static T castor(void* ptr)
+	static T castgetStatic(void* ptr)
 	{
 		return (T)(*((U*)ptr));
 	};
+	
+	template <typename U>
+	static void castsetStatic(void* ptr, const T& val)
+	{
+		(*((U*)ptr)) = (U)val;
+	};
 
-
-	size_t i;
-
+	
 	std::shared_ptr<NDArray> parent;
-	T (*castfunc)(void* ptr);
+
+	T (*castget)(void* ptr);
+	void (*castset)(void* ptr, const T& val);
 };
 
 }

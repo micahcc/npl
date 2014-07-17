@@ -32,35 +32,6 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <memory>
 
 
-// virtual get and set function macro, ie
-// VIRTGETSET(double, dbl); 
-// generates:
-// double getdbl(std::initializer_list<size_t> index) const;
-// void setdbl(std::initializer_list<size_t> index, double newval) const;
-// double getdbl(const std::vector<size_t>& index) const;
-// void setdbl(const std::vector<size_t>& index, double newval) const;
-#define VIRTGETSET(TYPE, GETFUNC, SETFUNC) \
-	virtual TYPE GETFUNC(std::initializer_list<int64_t> index) const = 0; \
-	virtual TYPE GETFUNC(const std::vector<int64_t>& index) const = 0; \
-	virtual TYPE GETFUNC(int64_t index) const = 0; \
-	virtual void SETFUNC(std::initializer_list<int64_t> index, TYPE) = 0; \
-	virtual void SETFUNC(const std::vector<int64_t>& index, TYPE) = 0; \
-	virtual void SETFUNC(int64_t index, TYPE) = 0; \
-
-#define GETSET(TYPE, GETFUNC, SETFUNC) \
-	TYPE GETFUNC(std::initializer_list<int64_t> index) const; \
-	TYPE GETFUNC(const std::vector<int64_t>& index) const; \
-	TYPE GETFUNC(int64_t index) const; \
-	void SETFUNC(std::initializer_list<int64_t> index, TYPE); \
-	void SETFUNC(const std::vector<int64_t>& index, TYPE); \
-	void SETFUNC(int64_t index, TYPE); \
-
-//	void SETFUNC(const int64_t* index, TYPE); 
-//	TYPE GETFUNC(const int64_t* index) const; 
-//	virtual TYPE GETFUNC(const int64_t* index) const = 0; 
-//	virtual void SETFUNC(const int64_t* index, TYPE) = 0; 
-//
-
 namespace npl {
 
 // Match Nifti Codes
@@ -68,6 +39,130 @@ enum PixelT {UNKNOWN_TYPE=0, UINT8=2, INT16=4, INT32=8, FLOAT32=16,
 	COMPLEX64=32, FLOAT64=64, RGB24=128, INT8=256, UINT16=512, UINT32=768,
 	INT64=1024, UINT64=1280, FLOAT128=1536, COMPLEX128=1792, COMPLEX256=2048,
 	RGBA32=2304 };
+
+template <typename T> class NDAccess;
+
+/**
+ * @brief Pure virtual interface to interact with an ND array
+ */
+class NDArray
+{
+public:
+	/*
+	 * get / set functions
+	 */
+	// Get Address
+
+	virtual size_t ndim() const = 0;
+	virtual size_t bytes() const = 0;
+	virtual size_t elements() const = 0;
+	virtual size_t dim(size_t dir) const = 0;
+	virtual const size_t* dim() const = 0;
+
+	// return type of stored value
+	virtual PixelT type() const = 0;
+	
+//	virtual int opself(const NDArray* right, double(*func)(double,double), 
+//			bool elevR) = 0;
+//	virtual std::shared_ptr<NDArray> opnew(const NDArray* right, 
+//			double(*func)(double,double), bool elevR) = 0;
+
+	virtual void* __getAddr(std::initializer_list<int64_t> index) const = 0;
+	virtual void* __getAddr(const int64_t* index) const = 0;
+	virtual void* __getAddr(const std::vector<int64_t>& index) const = 0;
+	virtual void* __getAddr(int64_t i) const = 0;
+	
+	virtual int64_t getLinIndex(std::initializer_list<int64_t> index) const = 0;
+	virtual int64_t getLinIndex(const int64_t* index) const = 0;
+	virtual int64_t getLinIndex(const std::vector<int64_t>& index) const = 0;
+
+protected:
+	NDArray() {} ;
+
+};
+
+
+/**
+ * @brief Basic storage unity for ND array. Creates a big chunk of memory.
+ *
+ * @tparam D dimension of array
+ * @tparam T type of sample
+ */
+template <int D, typename T>
+class NDArrayStore : public virtual NDArray
+{
+public:
+	NDArrayStore(const std::vector<size_t>& dim);
+	
+	~NDArrayStore() { delete[] _m_data; };
+
+	/* 
+	 * get / set functions
+	 */
+	T& operator[](const std::vector<int64_t>& index);
+	T& operator[](const int64_t* index);
+	T& operator[](std::initializer_list<int64_t> index);
+	T& operator[](int64_t pixel);
+	
+	const T& operator[](const std::vector<int64_t>& index) const;
+	const T& operator[](const int64_t* index) const;
+	const T& operator[](std::initializer_list<int64_t> index) const;
+	const T& operator[](int64_t pixel) const;
+
+	/* 
+	 * General Information 
+	 */
+	virtual size_t ndim() const;
+	virtual size_t bytes() const;
+	virtual size_t elements() const;
+	virtual size_t dim(size_t dir) const;
+	virtual const size_t* dim() const;
+
+	virtual void resize(size_t dim[D]);
+
+	// return the pixel type
+	virtual PixelT type() const;
+
+	/* 
+	 * Higher Level Operations
+	 */
+//	virtual int opself(const NDArray* right, double(*func)(double,double), 
+//			bool elevR);
+//	virtual std::shared_ptr<NDArray> opnew(const NDArray* right, 
+//			double(*func)(double,double), bool elevR);
+	
+	inline virtual void* __getAddr(std::initializer_list<int64_t> index) const 
+	{
+		return &_m_data[getLinIndex(index)];
+	};
+
+	inline virtual void* __getAddr(const int64_t* index) const
+	{
+		return &_m_data[getLinIndex(index)];
+	};
+
+	inline virtual void* __getAddr(const std::vector<int64_t>& index) const
+	{
+		return &_m_data[getLinIndex(index)];
+	};
+
+	inline virtual void* __getAddr(int64_t i) const 
+	{
+		return &_m_data[i]; 
+	};
+
+	virtual int64_t getLinIndex(std::initializer_list<int64_t> index) const;
+	virtual int64_t getLinIndex(const int64_t* index) const;
+	virtual int64_t getLinIndex(const std::vector<int64_t>& index) const;
+
+	protected:
+	T* _m_data;
+	size_t _m_dim[D];	// overall image dimension
+	size_t _m_stride[D]; // steps between pixels
+
+	void updateStrides();
+	
+};
 
 template<typename T>
 class NDAccess
@@ -129,15 +224,25 @@ public:
 				break;
 		}
 	};
-
+	
 	/**
 	 * @brief Works just like a function
 	 *
 	 * @return current value
 	 */
-	T operator()(std::initializer_list<int64_t> index)
+	T operator()(const std::vector<int64_t>& index)
 	{
-		return castfunc(parent->getAddr(index)); 
+		return castfunc(parent->__getAddr(index)); 
+	};
+	
+	/**
+	 * @brief Works just like a function
+	 *
+	 * @return current value
+	 */
+	T operator()(int64_t index)
+	{
+		return castfunc(parent->__getAddr(index)); 
 	};
 	
 private:
@@ -151,93 +256,6 @@ private:
 
 	std::shared_ptr<NDArray> parent;
 	T (*castfunc)(void* ptr);
-};
-
-/**
- * @brief Pure virtual interface to interact with an ND array
- */
-class NDArray
-{
-public:
-	/*
-	 * get / set functions
-	 */
-	// Get Address
-
-	virtual size_t ndim() const = 0;
-	virtual size_t bytes() const = 0;
-	virtual size_t elements() const = 0;
-	virtual size_t dim(size_t dir) const = 0;
-	virtual const size_t* dim() const = 0;
-
-	// return type of stored value
-	virtual PixelT type() const = 0;
-	
-//	virtual int opself(const NDArray* right, double(*func)(double,double), 
-//			bool elevR) = 0;
-//	virtual std::shared_ptr<NDArray> opnew(const NDArray* right, 
-//			double(*func)(double,double), bool elevR) = 0;
-
-protected:
-	virtual void* getAddr(size_t i) = 0;
-	friend NDAccess;
-};
-
-
-/**
- * @brief Basic storage unity for ND array. Creates a big chunk of memory.
- *
- * @tparam D dimension of array
- * @tparam T type of sample
- */
-template <int D, typename T>
-class NDArrayStore : public virtual NDArray
-{
-public:
-	NDArrayStore(std::initializer_list<size_t> a_args);
-	NDArrayStore(const std::vector<size_t>& dim);
-	
-	~NDArrayStore() { delete[] _m_data; };
-
-	/* 
-	 * get / set functions
-	 */
-	T& operator[](std::initializer_list<int64_t> index);
-	T& operator[](int64_t pixel);
-	
-	const T& operator[](std::initializer_list<int64_t> index) const;
-	const T& operator[](int64_t pixel) const;
-
-	/* 
-	 * General Information 
-	 */
-	virtual size_t ndim() const;
-	virtual size_t bytes() const;
-	virtual size_t elements() const;
-	virtual size_t dim(size_t dir) const;
-	virtual const size_t* dim() const;
-
-	virtual void resize(size_t dim[D]);
-
-	// return the pixel type
-	virtual PixelT type() const;
-
-	/* 
-	 * Higher Level Operations
-	 */
-//	virtual int opself(const NDArray* right, double(*func)(double,double), 
-//			bool elevR);
-//	virtual std::shared_ptr<NDArray> opnew(const NDArray* right, 
-//			double(*func)(double,double), bool elevR);
-
-	protected:
-	T* _m_data;
-	size_t _m_dim[D];	// overall image dimension
-	size_t _m_stride[D]; // steps between pixels
-
-	void updateStrides();
-	
-	void* getAddr(size_t i) { return &_m_data[i]; };
 };
 
 /**

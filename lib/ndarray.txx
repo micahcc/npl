@@ -22,76 +22,6 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace npl {
 
-//macros to actually create the get/set functions
-#define GETSETIMP(TYPE, GETFUNC, SETFUNC) \
-	template <int D, typename T>												\
-	TYPE NDArrayStore<D,T>::GETFUNC(std::initializer_list<int64_t> index) const 	\
-	{																			\
-		return (TYPE)_m_data[getAddr(index)];									\
-	}																			\
-	template <int D, typename T>												\
-	TYPE NDArrayStore<D,T>::GETFUNC(const std::vector<int64_t>& index) const 	\
-	{																			\
-		return (TYPE)_m_data[getAddr(index)];									\
-	}																			\
-	template <int D, typename T>												\
-	TYPE NDArrayStore<D,T>::GETFUNC(int64_t addr)	const						\
-	{																			\
-		return (TYPE)_m_data[addr];												\
-	}																			\
-	template <int D, typename T>												\
-	void NDArrayStore<D,T>::SETFUNC(std::initializer_list<int64_t> index, TYPE val)\
-	{																			\
-		_m_data[getAddr(index)] = (T)val;										\
-	}																			\
-	template <int D, typename T>												\
-	void NDArrayStore<D,T>::SETFUNC(const std::vector<int64_t>& index, TYPE val)	\
-	{																			\
-		_m_data[getAddr(index)] = (T)val;										\
-	}																			\
-	template <int D, typename T>												\
-	void NDArrayStore<D,T>::SETFUNC(int64_t addr, TYPE val)						\
-	{																			\
-		_m_data[addr] = (T)val;													\
-	}																			\
-
-
-	/*
-//	template <int D, typename T>												\
-//	TYPE NDArrayStore<D,T>::GETFUNC(const int64_t* index) const 	\
-//	{																			\
-//		return (TYPE)_m_data[getAddr(index)];									\
-//	}																			\
-//	template <int D, typename T>												\
-//	void NDArrayStore<D,T>::SETFUNC(const int64_t* index, TYPE val)	\
-//	{																			\
-//		_m_data[getAddr(index)] = (T)val;										\
-//	}																			\
-*/
-
-GETSETIMP(double, get_dbl, set_dbl);
-GETSETIMP(int64_t, get_int, set_int);
-GETSETIMP(cdouble_t, get_cdbl, set_cdbl);
-GETSETIMP(cfloat_t, get_cfloat, set_cfloat);
-GETSETIMP(rgba_t, get_rgba, set_rgba);
-GETSETIMP(long double, get_quad, set_quad);
-GETSETIMP(cquad_t, get_cquad, set_cquad);
-
-template <int D, typename T>
-NDArrayStore<D,T>::NDArrayStore(std::initializer_list<size_t> a_args) : _m_data(NULL)
-{
-	size_t tmp[D];
-	
-	// set dimensions with matching size to the minimum length, ignoring
-	// any extra parts of a_args
-	auto it = a_args.begin();
-	for(size_t ii=0; ii < D && it != a_args.end(); ii++, ++it) {
-		tmp[ii] = *it;
-	}
-
-	resize(tmp);
-}
-
 template <int D, typename T>
 NDArrayStore<D,T>::NDArrayStore(const std::vector<size_t>& a_args) : _m_data(NULL)
 {
@@ -173,8 +103,7 @@ const size_t* NDArrayStore<D,T>::dim() const
  * TODO add *outside
  */
 template <int D, typename T>
-inline
-int64_t NDArrayStore<D,T>::getAddr(std::initializer_list<int64_t> index) const
+int64_t NDArrayStore<D,T>::getLinIndex(std::initializer_list<int64_t> index) const
 {
 	int64_t out = 0;
 
@@ -193,7 +122,7 @@ int64_t NDArrayStore<D,T>::getAddr(std::initializer_list<int64_t> index) const
 
 template <int D, typename T>
 inline
-int64_t NDArrayStore<D,T>::getAddr(const int64_t* index) const
+int64_t NDArrayStore<D,T>::getLinIndex(const int64_t* index) const
 {
 	int64_t out = 0;
 
@@ -212,7 +141,7 @@ int64_t NDArrayStore<D,T>::getAddr(const int64_t* index) const
 
 template <int D, typename T>
 inline
-int64_t NDArrayStore<D,T>::getAddr(const std::vector<int64_t>& index) const
+int64_t NDArrayStore<D,T>::getLinIndex(const std::vector<int64_t>& index) const
 {
 	size_t out = 0;
 
@@ -233,19 +162,19 @@ int64_t NDArrayStore<D,T>::getAddr(const std::vector<int64_t>& index) const
 template <int D, typename T>
 const T& NDArrayStore<D,T>::operator[](std::initializer_list<int64_t> index) const
 {
-	return _m_data[getAddr(index)];
+	return _m_data[getLinIndex(index)];
 }
 
 template <int D, typename T>
 const T& NDArrayStore<D,T>::operator[](const std::vector<int64_t>& index) const
 {
-	return _m_data[getAddr(index)];
+	return _m_data[getLinIndex(index)];
 }
 
 template <int D, typename T>
 const T& NDArrayStore<D,T>::operator[](const int64_t* index) const
 {
-	return _m_data[getAddr(index)];
+	return _m_data[getLinIndex(index)];
 }
 
 template <int D, typename T>
@@ -257,19 +186,19 @@ const T& NDArrayStore<D,T>::operator[](int64_t pixel) const
 template <int D, typename T>
 T& NDArrayStore<D,T>::operator[](std::initializer_list<int64_t> index) 
 {
-	return _m_data[getAddr(index)];
+	return _m_data[getLinIndex(index)];
 }
 
 template <int D, typename T>
 T& NDArrayStore<D,T>::operator[](const std::vector<int64_t>& index) 
 {
-	return _m_data[getAddr(index)];
+	return _m_data[getLinIndex(index)];
 }
 
 template <int D, typename T>
 T& NDArrayStore<D,T>::operator[](const int64_t* index) 
 {
-	return _m_data[getAddr(index)];
+	return _m_data[getLinIndex(index)];
 }
 
 template <int D, typename T>

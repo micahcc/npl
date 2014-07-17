@@ -17,7 +17,12 @@ def build(bld):
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='array_test3', 
             source='array_test3.cpp', 
-            use='ndarray kslicer')
+            use='ndarray iterators')
+    
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='array_test4', 
+            source='array_test4.cpp', 
+            use='ndarray iterators')
     
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='kernel_slicer_test', 

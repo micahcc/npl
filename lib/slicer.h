@@ -21,7 +21,6 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #define SLICER_H
 
 #include <vector>
-#include <list>
 #include <cstdint>
 #include <cstddef>
 
@@ -68,19 +67,8 @@ public:
 	 * 					will have the slowest iteration, and dimensions not
 	 * 					specified in order will be faster than those included.
 	 */
-	Slicer(size_t ndim, const size_t* dim, const std::list<size_t>& order, 
+	Slicer(size_t ndim, const size_t* dim, const std::vector<size_t>& order, 
 			bool revorder = false);
-
-	/**
-	 * @brief Directional step, this will not step outside the region of 
-	 * interest. Useful for kernels (maybe)
-	 *
-	 * @param dd	dimension to step in
-	 * @param dist	distance to step (may be negative)
-	 *
-	 * @return new linear index
-	 */
-	int64_t step(size_t dim, int64_t dist = 1, bool* outside = NULL);
 	
 	/****************************************
 	 *
@@ -185,14 +173,14 @@ public:
 	 *
 	 * @param newpos	location to move to
 	 */
-	void goIndex(size_t len, int64_t* newpos, bool* outside = NULL);
+	void goIndex(size_t len, int64_t* newpos);
 	
 	/**
 	 * @brief Jump to the given position
 	 *
 	 * @param newpos	location to move to
 	 */
-	void goIndex(std::initializer_list<int64_t> newpos, bool* outside = NULL);
+	void goIndex(std::vector<int64_t> newpos);
 
 	/****************************************
 	 *
@@ -253,7 +241,8 @@ public:
 	 * 					will have the slowest iteration, and dimensions not
 	 * 					specified in order will be faster than those included.
 	 */
-	void setOrder(const std::list<size_t>& order, bool revorder = false);
+	void setOrder(const std::vector<size_t>& order, bool revorder = false);
+	const std::vector<size_t>& getOrder() const { return m_order; } ;
 
 protected:
 	

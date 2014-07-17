@@ -26,43 +26,72 @@ using namespace npl;
 
 int main()
 {
-	NDArrayStore<3, float> test1({100,1000,1000});
-	cerr << "Bytes: " << test1.bytes() << endl;
+	std::vector<size_t> sz({100,78,83});
+	auto test1 = make_shared<NDArrayStore<3, float>>(sz);
+	cerr << "Bytes: " << test1->bytes() << endl;
 
-	for(size_t ii = 0; ii < test1.bytes()/sizeof(float); ii++)
-		test1[ii] = ii;
+	for(size_t ii = 0; ii < test1->elements(); ii++)
+		(*test1)[ii] = ii;
 	
-	NDArray* testp = &test1;
-	clock_t t;
-	
-	cerr << "Dimensions:" << testp->ndim() << endl;
+	cerr << "Dimensions:" << test1->ndim() << endl;
+
+	NDAccess<double> arr1(test1);
 
 	double total = 0;
-	t = clock();
-	for(int64_t zz=0; zz < testp->dim(2); zz++) {
-		for(int64_t yy=0; yy < testp->dim(1); yy++) {
-			for(int64_t xx=0; xx < testp->dim(0); xx++) {
-				total += testp->get_dbl({xx,yy,zz});
-//				cerr << testp->getD(xx,yy,zz) << endl;
-//				cerr << (*testp)(xx,yy,zz);
+	std::vector<int64_t> index(3);
+	for(int64_t xx=0, ii=0; xx < test1->dim(0); xx++) {
+		for(int64_t yy=0; yy < test1->dim(1); yy++) {
+			for(int64_t zz=0; zz < test1->dim(2); zz++, ii++) {
+				index[0] = xx;
+				index[1] = yy;
+				index[2] = zz;
+				if(arr1(index) != arr1({xx,yy,zz})) {
+					cerr << "Difference in vector/initializer" << endl;
+					return -1;
+				}
+				if((*test1)[ii] != arr1({xx,yy,zz})) {
+					cerr << "Difference in flat/accessor" << endl;
+					return -1;
+				}
+			}
+		}
+	}
+	
+	auto t = clock();
+	for(int64_t xx=0, ii=0; xx < test1->dim(0); xx++) {
+		for(int64_t yy=0; yy < test1->dim(1); yy++) {
+			for(int64_t zz=0; zz < test1->dim(2); zz++, ii++) {
+				index[0] = xx;
+				index[1] = yy;
+				index[2] = zz;
+				total += arr1(index);
 			}
 		}
 	}
 	t = clock()-t;
-	std::cout << "xyz: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
+	std::cout << "vector access: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
+	
+	t = clock();
+	for(int64_t xx=0, ii=0; xx < test1->dim(0); xx++) {
+		for(int64_t yy=0; yy < test1->dim(1); yy++) {
+			for(int64_t zz=0; zz < test1->dim(2); zz++, ii++) {
+				total += arr1({xx,yy,zz});
+			}
+		}
+	}
+	t = clock()-t;
+	std::cout << "Implicit vector access: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
+	
+	t = clock();
+	for(int64_t xx=0, ii=0; xx < test1->dim(0); xx++) {
+		for(int64_t yy=0; yy < test1->dim(1); yy++) {
+			for(int64_t zz=0; zz < test1->dim(2); zz++, ii++) {
+				total += (*test1)[ii];
+			}
+		}
+	}
+	t = clock()-t;
+	std::cout << "Linear access: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
     
-	t = clock();
-	for(int64_t xx=0; xx < testp->dim(0); xx++) {
-		for(int64_t yy=0; yy < testp->dim(1); yy++) {
-			for(int64_t zz=0; zz < testp->dim(2); zz++) {
-				total += testp->get_dbl({xx,yy,zz});
-//				cerr << testp->getD(xx,yy,zz) << endl;
-//				cerr << (*testp)(xx,yy,zz);
-			}
-		}
-	}
-	t = clock()-t;
-	std::cout << "zyx: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
-
 	return 0;
 }

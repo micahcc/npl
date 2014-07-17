@@ -20,7 +20,6 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include "slicer.h"
 
 #include <vector>
-#include <list>
 #include <algorithm>
 #include <cassert>
 
@@ -55,39 +54,12 @@ Slicer::Slicer(size_t ndim, const size_t* dim)
  * 					will have the slowest iteration, and dimensions not
  * 					specified in order will be faster than those included.
  */
-Slicer::Slicer(size_t ndim, const size_t* dim, const std::list<size_t>& order,
+Slicer::Slicer(size_t ndim, const size_t* dim, const std::vector<size_t>& order,
 		bool revorder)
 {
 	updateDim(ndim, dim);
 	setOrder(order, revorder);
 };
-
-/**
- * @brief Directional step, this will not step outside the region of 
- * interest. Useful for kernels (maybe)
- *
- * @param dd	dimension to step in
- * @param dist	distance to step (may be negative)
- *
- * @return new linear index
- */
-int64_t Slicer::step(size_t dim, int64_t dist, bool* outside)
-{
-	int64_t clamped = std::max<int64_t>(m_roi[dim].first, 
-			std::min<int64_t>(m_roi[dim].second, (int64_t)m_pos[dim]+dist));
-	
-	if(outside) {
-		if(clamped != (int64_t)m_pos[dim]+dist)
-			*outside = true;
-		else
-			*outside = false;
-	}
-
-	m_linpos += (clamped-m_pos[dim])*m_strides[dim];
-	m_pos[dim] = clamped;
-
-	return m_linpos;
-}
 
 /**
  * @brief Postfix iterator. Iterates in the order dictatored by the dimension
@@ -307,13 +279,13 @@ void Slicer::setROI(const std::vector<std::pair<int64_t, int64_t>>& roi)
  * 					will have the slowest iteration, and dimensions not
  * 					specified in order will be faster than those included.
  */
-void Slicer::setOrder(const std::list<size_t>& order, bool revorder)
+void Slicer::setOrder(const std::vector<size_t>& order, bool revorder)
 {
 	size_t ndim = m_sizes.size();
 	m_order.clear();
 
 	// need to ensure that all dimensions get covered
-	std::list<size_t> avail;
+	std::vector<size_t> avail;
 	for(size_t ii=0 ; ii<ndim ; ii++) {
 		avail.push_back(ii);
 	}
@@ -362,26 +334,17 @@ void Slicer::setOrder(const std::list<size_t>& order, bool revorder)
  *
  * @param newpos	location to move to
  */
-void Slicer::goIndex(size_t len, int64_t* newpos, bool* outside)
+void Slicer::goIndex(size_t len, int64_t* newpos)
 {
 	m_linpos = 0;
 	size_t ii=0;
-	int64_t clamped = 0;
-
-	if(outside)
-		*outside = false;
 
 	// copy the dimensions 
 	for(ii = 0;  ii<len && ii<m_pos.size(); ii++) {
-		// clamp to roi
-		clamped = std::max(std::min(newpos[ii], m_roi[ii].second), 
-				m_roi[ii].first);
-		// if clamping had an effect, then set outside
-		if(outside && clamped != newpos[ii])
-			*outside = true;
+		assert(newpos[ii] >= m_roi[ii].first && newpos[ii] <= m_roi[ii].second);
 
 		// set position
-		m_pos[ii] = clamped;
+		m_pos[ii] = newpos[ii];
 		m_linpos += m_strides[ii]*m_pos[ii];
 	}
 
@@ -397,27 +360,18 @@ void Slicer::goIndex(size_t len, int64_t* newpos, bool* outside)
  *
  * @param newpos	location to move to
  */
-void Slicer::goIndex(std::initializer_list<int64_t> newpos, bool* outside)
+void Slicer::goIndex(std::vector<int64_t> newpos)
 {
 	m_linpos = 0;
-	int64_t clamped;
-
-	if(outside)
-		*outside = false;
 
 	// copy the dimensions 
 	size_t ii=0;
 	for(auto it=newpos.begin(); it != newpos.end() && ii<m_pos.size(); ii++) {
 		// clamp value
-		clamped = std::max(std::min(*it, m_roi[ii].second), 
-				m_roi[ii].first);
-
-		// if clamping had an effect, set outside
-		if(outside && clamped != *it)
-			*outside = true;
+		assert(newpos[ii] >= m_roi[ii].first && newpos[ii] <= m_roi[ii].second);
 
 		// set position
-		m_pos[ii] = clamped;
+		m_pos[ii] = newpos[ii];
 		m_linpos += m_strides[ii]*m_pos[ii];
 	}
 
@@ -449,6 +403,5 @@ void Slicer::goEnd()
 	m_linpos = m_linlast;
 	m_end = true;
 }
-
-} //npl
-
+	
+} //npl 
