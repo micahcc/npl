@@ -18,6 +18,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 #include "ndarray.h"
+#include "accessors.h"
 #include "iterators.h"
 #include "slicer.h"
 #include <iostream>

@@ -30,6 +30,15 @@ inline T clamp(T inf, T sup, T v)
 	return std::min(sup, std::max(inf, v));
 }
 
+template <typename T>
+T wrap(T inf, T sup, T v)
+{
+	T len = sup-inf+1;
+	T vtmp = v-inf;
+	T out = vtmp < 0 ? sup-((-vtmp-1)%len) : inf+(vtmp%len); 
+	return out;
+}
+
 struct cfloat_t;
 struct cdouble_t;
 struct cquad_t;

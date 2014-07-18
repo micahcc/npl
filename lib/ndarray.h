@@ -40,8 +40,6 @@ enum PixelT {UNKNOWN_TYPE=0, UINT8=2, INT16=4, INT32=8, FLOAT32=16,
 	INT64=1024, UINT64=1280, FLOAT128=1536, COMPLEX128=1792, COMPLEX256=2048,
 	RGBA32=2304 };
 
-template <typename T> class NDAccess;
-
 /**
  * @brief Pure virtual interface to interact with an ND array
  */
@@ -155,200 +153,14 @@ public:
 	virtual int64_t getLinIndex(const int64_t* index) const;
 	virtual int64_t getLinIndex(const std::vector<int64_t>& index) const;
 
+	size_t _m_stride[D]; // steps between pixels
 	protected:
+
 	T* _m_data;
 	size_t _m_dim[D];	// overall image dimension
-	size_t _m_stride[D]; // steps between pixels
 
 	void updateStrides();
 	
-};
-
-template<typename T>
-class NDAccess
-{
-public:
-	NDAccess(std::shared_ptr<NDArray> in) : parent(in)
-	{
-		switch(in->type()) {
-			case UINT8:
-				castget = castgetStatic<uint8_t>;
-				castset = castsetStatic<uint8_t>;
-				break;
-			case INT8:
-				castget = castgetStatic<int8_t>;
-				castset = castsetStatic<int8_t>;
-				break;
-			case UINT16:
-				castget = castgetStatic<uint16_t>;
-				castset = castsetStatic<uint16_t>;
-				break;
-			case INT16:
-				castget = castgetStatic<int16_t>;
-				castset = castsetStatic<int16_t>;
-				break;
-			case UINT32:
-				castget = castgetStatic<uint32_t>;
-				castset = castsetStatic<uint32_t>;
-				break;
-			case INT32:
-				castget = castgetStatic<int32_t>;
-				castset = castsetStatic<int32_t>;
-				break;
-			case UINT64:
-				castget = castgetStatic<uint64_t>;
-				castset = castsetStatic<uint64_t>;
-				break;
-			case INT64:
-				castget = castgetStatic<int64_t>;
-				castset = castsetStatic<int64_t>;
-				break;
-			case FLOAT32:
-				castget = castgetStatic<float>;
-				castset = castsetStatic<float>;
-				break;
-			case FLOAT64:
-				castget = castgetStatic<double>;
-				castset = castsetStatic<double>;
-				break;
-			case FLOAT128:
-				castget = castgetStatic<long double>;
-				castset = castsetStatic<long double>;
-				break;
-			case COMPLEX64:
-				castget = castgetStatic<cfloat_t>;
-				castset = castsetStatic<cfloat_t>;
-				break;
-			case COMPLEX128:
-				castget = castgetStatic<cdouble_t>;
-				castset = castsetStatic<cdouble_t>;
-				break;
-			case COMPLEX256:
-				castget = castgetStatic<cquad_t>;
-				castset = castsetStatic<cquad_t>;
-				break;
-			case RGB24:
-				castget = castgetStatic<rgb_t>;
-				castset = castsetStatic<rgb_t>;
-				break;
-			case RGBA32:
-				castget = castgetStatic<rgba_t>;
-				castset = castsetStatic<rgba_t>;
-				break;
-			default:
-			case UNKNOWN_TYPE:
-				castget = castgetStatic<uint8_t>;
-				castset = castsetStatic<uint8_t>;
-				throw std::invalid_argument("Unknown type to NDAccess");
-				break;
-		}
-	};
-	
-	/**
-	 * @brief Gets value linear position in array, then casts to T
-	 *
-	 * @return value
-	 */
-	T operator[](int64_t index)
-	{
-		return castget(parent->__getAddr(index)); 
-	};
-	
-	/**
-	 * @brief Gets value at array index and then casts to T
-	 *
-	 * @return value
-	 */
-	T get(const std::vector<int64_t>& index)
-	{
-		return castget(parent->__getAddr(index)); 
-	};
-	
-	/**
-	 * @brief Gets value at array index and then casts to T
-	 *
-	 * @return value
-	 */
-	T operator[](const std::vector<int64_t>& index)
-	{
-		return castget(parent->__getAddr(index)); 
-	};
-	
-	/**
-	 * @brief Casts to the appropriate type then sets array at given index.
-	 *
-	 * @return current value
-	 */
-	void set(const std::vector<int64_t>& index, T v)
-	{
-		return castset(parent->__getAddr(index), v); 
-	};
-	
-	/**
-	 * @brief Casts to the appropriate type then sets array at given index.
-	 *
-	 * @return current value
-	 */
-	void set(int64_t index, T v)
-	{
-		return castset(parent->__getAddr(index), v); 
-	};
-	
-private:
-	
-
-	/**
-	 * @brief This is a wrapper function that will be called to safely cast 
-	 * from the underlying type.
-	 *
-	 * @tparam U Underlying type of pixel, figured out in the constructor
-	 * @param ptr Pointer to memory where the pixel is.
-	 *
-	 * @return Correctly cast value
-	 */
-	template <typename U>
-	static T castgetStatic(void* ptr)
-	{
-		return (T)(*(static_cast<U*>(ptr)));
-	};
-	
-	/**
-	 * @brief This is a wrapper function that will be called to safely cast 
-	 * to the underlying type.
-	 *
-	 * @tparam U Underlying type of pixel, figured out in the constructor
-	 * @param ptr Pointer to memory where the pixel is.
-	 * @param val new value to write
-	 *
-	 */
-	template <typename U>
-	static void castsetStatic(void* ptr, const T& val)
-	{
-		(*(static_cast<U*>(ptr))) = (U)val;
-	};
-
-	/**
-	 * @brief Where to get the dat a from. Also the shared_ptr prevents dealloc
-	 */
-	std::shared_ptr<NDArray> parent;
-
-	/**
-	 * @brief Function pointer to the correct function for casting from the 
-	 * underlying type
-	 *
-	 * @param ptr location in memory where the pixel is stored
-	 */
-	T (*castget)(void* ptr);
-
-	/**
-	 * @brief Function pointer to the correct function for casting to the 
-	 * underlying type. This should be set during construction.
-	 *
-	 *
-	 * @param ptr pointer to memory 
-	 * @param v value to cast and write
-	 */
-	void (*castset)(void* ptr, const T& v);
 };
 
 /**

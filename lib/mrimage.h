@@ -94,18 +94,6 @@ public:
 	virtual int pointToIndex(const std::vector<double>& ras,
 			std::vector<int64_t>& index) const = 0;
 	
-//	// sampling functions
-//	virtual double linSampleInd(const std::vector<double>& cindex,
-//			BoundaryConditionT bound, bool& outside) = 0;
-//	virtual double linSamplePt(const std::vector<double>& point, 
-//			BoundaryConditionT bound, bool& outside) = 0;
-//	virtual double nnSamplePt(const std::vector<double>& point,
-//			BoundaryConditionT bound, bool& outside) = 0;
-//	virtual double nnSampleInd(const std::vector<int64_t>& index,
-//			BoundaryConditionT bound, bool& outside) = 0;
-//	virtual double nnSampleInd(const std::vector<double>& cindex,
-//			BoundaryConditionT bound, bool& outside) = 0;
-	
 //	virtual int unary(double(*func)(double,double)) const = 0;
 //	virtual int binOp(const MRImage* right, double(*func)(double,double), bool elevR) const = 0;
 
@@ -200,17 +188,6 @@ public:
 	int indexToPoint(const std::vector<double>& index, std::vector<double>& rast) const;
 	int pointToIndex(const std::vector<double>& rast, std::vector<double>& index) const;
 	int pointToIndex(const std::vector<double>& ras, std::vector<int64_t>& index) const;
-	
-//	double linSampleInd(const std::vector<double>& cindex,
-//			BoundaryConditionT bound, bool& outside);
-//	double linSamplePt(const std::vector<double>& point, 
-//			BoundaryConditionT bound, bool& outside);
-//	double nnSamplePt(const std::vector<double>& point,
-//			BoundaryConditionT bound, bool& outside);
-//	double nnSampleInd(const std::vector<int64_t>& index,
-//			BoundaryConditionT bound, bool& outside);
-//	double nnSampleInd(const std::vector<double>& cindex,
-//			BoundaryConditionT bound, bool& outside);
 	
 	MatrixP& spacing() {return *((MatrixP*)&m_space); };
 	MatrixP& origin() {return *((MatrixP*)&m_origin); };

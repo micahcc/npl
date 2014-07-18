@@ -17,6 +17,7 @@ You should have received a copy of the GNU General Public License along with
 the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
+#include "accessors.h"
 #include "ndarray.h"
 #include "hasher.h"
 #include <iostream>
