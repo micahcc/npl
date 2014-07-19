@@ -152,13 +152,18 @@ public:
 	/**
 	 * @brief Are we at the end in a particular dimension
 	 *
-	 * @param dim	dimension to check
+	 * @param dim	dimension to check, 
+	 *
+	 *  TODO test
 	 *
 	 * @return whether we are at the tail end of the particular dimension
 	 */
-	bool isLineBegin(size_t dim) const
+	bool isLineEnd(size_t dim) const
 	{
-		return m_pos[m_center][dim] == m_roi[dim].first;
+		if(dim == m_order.back())
+			return m_pos[m_center][dim] == m_roi[dim].second+1;
+		else
+			return m_pos[m_center][dim] == m_roi[dim].first;
 	};
 	
 	/**
@@ -184,6 +189,14 @@ public:
 	 * @return true if we are at the end
 	 */
 	bool isEnd() const { return m_end; };
+
+	/**
+	 * @brief Are we at the end of iteration? Note that this will be 1 past the
+	 * end, as typically is done in c++
+	 *
+	 * @return true if we are at the end
+	 */
+	bool eof() const { return m_end; };
 
 
 	/*************************************
@@ -242,7 +255,7 @@ public:
 	 *
 	 * @param newpos	location to move to
 	 */
-	void goIndex(const std::vector<int64_t>& newpos, bool* outside = NULL);
+	void goIndex(const std::vector<int64_t>& newpos);
 
 	/****************************************
 	 *
@@ -317,15 +330,27 @@ public:
 	 * offset (kernel) element.
 	 *
 	 * @param Kernel index
-	 * @param ndpos	Output, ND position
+	 * @param bound report the actual sampled point, rather than the 
+	 * theoretical position (offset the exact value from the center). 
+	 * Interior points will be the same, but on the
+	 * boundary if you set bound you will only get indices inside the image 
+	 * ROI, otherwise you would get values like -1, -1 -1 for radius 1 pos 
+	 * 0,0,0
 	 *
-	 * @return linear position
+	 * @return ND position
 	 */
-	std::vector<int64_t> offset_index(size_t kit) const
+	std::vector<int64_t> offset_index(size_t kit, bool bound=false) const
 	{
 		assert(!m_end);
 		assert(kit < m_numoffs);
-		return m_pos[kit];
+		if(bound) {
+			return m_pos[kit];
+		} else {
+			std::vector<int64_t> out(m_dim);
+			for(size_t ii=0; ii < m_dim; ii++)
+				out[ii] = m_pos[m_center][ii]+m_offs[kit][ii];
+			return out;
+		}
 	};
 
 	/**
@@ -340,6 +365,8 @@ public:
 		return m_numoffs;
 	};
 
+protected:
+
 	/**
 	 * @brief All around intializer. Sets all internal variables.
 	 *
@@ -351,7 +378,6 @@ public:
 	 */
 	void initialize(size_t ndim, const size_t* dim);
 
-protected:
 	// order of traversal, constructor initializes
 	size_t m_dim; // constructor
 	std::vector<size_t> m_size; // constructor

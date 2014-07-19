@@ -18,6 +18,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 #include <functional>
+#include <vector>
 
 template <typename T>
 void hash_combine(size_t& seed, T const& v)

@@ -20,6 +20,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <iostream>
 
 #include "mrimage.h"
+#include "accessors.h"
 
 using namespace std;
 using namespace npl;
@@ -27,30 +28,31 @@ using namespace npl;
 int main()
 {
 	/* Create an image with: x+y*100+z*10000*/
-	MRImageStore<3, double> testimage({10, 23, 39});
-	MRImage* oimage = &testimage;
+	auto oimage = createMRImage({10, 23, 39}, FLOAT64);
+	NDAccess<double> acc(oimage);
 
-	for(size_t zz=0; zz < oimage->dim(2); zz++) {
-		for(size_t yy=0; yy < oimage->dim(1); yy++) {
-			for(size_t xx=0; xx < oimage->dim(0); xx++) {
+	for(int64_t zz=0; zz < oimage->dim(2); zz++) {
+		for(int64_t yy=0; yy < oimage->dim(1); yy++) {
+			for(int64_t xx=0; xx < oimage->dim(0); xx++) {
 				double pix = xx+yy*100+zz*10000;
-				oimage->dbl({xx,yy,zz}, pix);
+				acc.set(pix, {xx,yy,zz});
 			}
 		}
 	}
 
 	/* Write the Image */
-	writeMRImage(oimage, "test4.nii", false);
+	oimage->write("test4.nii", false);
 
 	/* Read the Image */
-	MRImage* iimage = readMRImage("test4.nii.gz", true);
+	auto iimage = readMRImage("test4.nii.gz", true);
+	NDAccess<double> in(iimage);
 	
 	/* Check the Image */
-	for(size_t zz=0; zz < oimage->dim(2); zz++) {
-		for(size_t yy=0; yy < oimage->dim(1); yy++) {
-			for(size_t xx=0; xx < oimage->dim(0); xx++) {
+	for(int64_t zz=0; zz < oimage->dim(2); zz++) {
+		for(int64_t yy=0; yy < oimage->dim(1); yy++) {
+			for(int64_t xx=0; xx < oimage->dim(0); xx++) {
 				double pix = xx+yy*100+zz*10000;
-				if(pix != iimage->dbl({xx,yy,zz})) {
+				if(pix != in[{xx,yy,zz}]) {
 					cerr << "Mismatch!" << endl;
 					return -1;
 				}

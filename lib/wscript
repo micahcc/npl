@@ -21,7 +21,7 @@ def build(bld):
             export_includes = ['.'])
     bld.shlib( target = 'iterators', 
             source = 'iterators.cpp', 
-            use='ndarray slicer',
+            use='ndarray slicer kslicer',
             export_includes = ['.'])
 
 

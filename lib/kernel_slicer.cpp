@@ -94,7 +94,6 @@ int64_t KSlicer::operator++()
 			size_t dd = m_order[ii];
 			if(m_pos[m_center][dd] < m_roi[dd].second) {
 				m_pos[m_center][dd]++;
-				m_linpos[m_center] += m_strides[dd];
 				break;
 			} else if(ii != m_dim-1){
 				// reset dimension
@@ -102,6 +101,7 @@ int64_t KSlicer::operator++()
 			} else {
 				// we are willing to go 1 past the last
 				m_pos[m_center][dd]++;
+				m_linpos[m_center] += m_strides[dd];
 				m_end = true;
 
 				// want to skip clamping, and not really a need to update 
@@ -358,8 +358,8 @@ void KSlicer::setROI(std::vector<std::pair<int64_t, int64_t>> roi)
 	m_begin = 0;
 	for(size_t ii=0; ii<m_dim; ii++) {
 		if(ii < roi.size()) {
-			m_roi[ii].first = roi[ii].first;
-			m_roi[ii].second = roi[ii].second;
+			m_roi[ii].first = clamp(0, m_size[ii]-1, roi[ii].first);
+			m_roi[ii].second = clamp(0, m_size[ii]-1, roi[ii].second);
 		} else {
 			// default to full range 
 			m_roi[ii].first = 0;
@@ -456,6 +456,13 @@ void KSlicer::setOrder(std::vector<size_t> order, bool revorder)
 		assert(jj < m_order.size());
 		m_order[jj++] = *it;
 	}
+	
+	if(revorder) {
+		// reverse 6D, {0,5},{1,4},{2,3}
+		// reverse 5D, {0,4},{1,3}
+		for(size_t ii=0; ii<m_dim/2; ii++) 
+			std::swap(m_order[ii],m_order[m_dim-1-ii]);
+	}
 
 //	goBegin();
 };
@@ -464,9 +471,8 @@ void KSlicer::setOrder(std::vector<size_t> order, bool revorder)
  * @brief Jump to the given position
  *
  * @param newpos	location to move to
- * @param outside	variable to return whether we are outside the ROI or not
  */
-void KSlicer::goIndex(const std::vector<int64_t>& newpos, bool* outside)
+void KSlicer::goIndex(const std::vector<int64_t>& newpos)
 {
 	if(newpos.size() != m_dim) {
 		throw std::logic_error("Invalid index size in goIndex");
@@ -481,10 +487,6 @@ void KSlicer::goIndex(const std::vector<int64_t>& newpos, bool* outside)
 	if(same)
 		return ;
 
-	// set up outside if we have been asked for it
-	if(outside)
-		*outside = false;
-	
 	// copy/clamp the center
 	int64_t clamped;
 	// copy the center
@@ -492,10 +494,6 @@ void KSlicer::goIndex(const std::vector<int64_t>& newpos, bool* outside)
 		// clamp to roi
 		clamped = clamp(m_roi[dd].first, m_roi[dd].second, newpos[dd]);
 		
-		// if clamping had an effect, then set outside
-		if(outside && clamped != newpos[dd])
-			*outside = true;
-
 		// set position
 		m_pos[m_center][dd] = clamped;
 

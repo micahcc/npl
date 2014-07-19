@@ -66,7 +66,7 @@ int main()
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
 
                   int64_t itlin = it.offset(neighbor);
-                  index = it.offset_index(neighbor);
+                  index = it.offset_index(neighbor, true);
 				  neighbor++;
 
                   if(xeff != index[0]) {
@@ -121,7 +121,7 @@ int main()
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
 
                   int64_t itlin = it.offset(neighbor);
-                  index = it.offset_index(neighbor);
+                  index = it.offset_index(neighbor, true);
 				  neighbor++;
 
                   if(xeff != index[0]) {
@@ -160,7 +160,6 @@ int main()
   
   // now make the iterator uneven
   std::vector<std::pair<int64_t,int64_t>> newk({{-2,1},{-1,0},{0,2},{0,2}});
-  it.initialize(4, sz);
   it.setWindow(newk);
 
   it.goBegin();
@@ -180,7 +179,7 @@ int main()
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
                   
 				  int64_t itlin = it.offset(neighbor);
-                  index = it.offset_index(neighbor);
+                  index = it.offset_index(neighbor, true);
 				  neighbor++;
 
                   if(xeff != index[0]) {
@@ -235,7 +234,7 @@ int main()
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
 				  
 				  int64_t itlin = it.offset(neighbor);
-                  index = it.offset_index(neighbor);
+                  index = it.offset_index(neighbor, true);
 				  neighbor++;
 
                   if(xeff != index[0]) {
@@ -296,7 +295,7 @@ int main()
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
 
 				  int64_t itlin = it.offset(neighbor);
-                  index = it.offset_index(neighbor);
+                  index = it.offset_index(neighbor, true);
 				  neighbor++;
 
                   if(xeff != index[0]) {

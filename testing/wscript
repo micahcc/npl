@@ -76,6 +76,11 @@ def build(bld):
             source='img_lin_interp_test.cpp', 
             use='mrimage')
 
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='img_kernel_test', 
+            source='img_kernel_test.cpp', 
+            use='mrimage iterators')
+
     # test KDTree functionality
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='kdtree_test',
@@ -96,7 +101,7 @@ def build(bld):
     bld.add_post_fun(waf_unit_test.summary)
 #    bld.program(target='test3', source='test3.cpp', use='mrimage')
 #    bld.program(target='test4', source='test4.cpp', use='mrimage')
-#    bld.program(target='nifti_test2', source='nifti_test2.cpp', use='mrimage')
+    bld.program(target='nifti_test2', source='nifti_test2.cpp', use='mrimage')
 #    bld.program(target='nifti_test3', source='nifti_test3.cpp', use='mrimage')
 #    
 #    bld.program(target='nl_store_test1', 

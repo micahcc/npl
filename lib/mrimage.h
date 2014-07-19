@@ -48,7 +48,7 @@ class MRImage;
 shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose);
 shared_ptr<MRImage> readMRImage(std::string filename, bool verbose = false);
 shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dims, PixelT);
-int writeMRImage(MRImage* img, std::string fn, bool nifti2 = false);
+//int writeMRImage(MRImage* img, std::string fn, bool nifti2 = false);
 
 std::ostream& operator<<(std::ostream &out, const MRImage& img);
 
