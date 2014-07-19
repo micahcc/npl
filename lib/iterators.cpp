@@ -74,4 +74,21 @@ template <> class OrderIter<cquad_t>;
 template <> class OrderIter<rgb_t>;
 template <> class OrderIter<rgba_t>;
 
+//template <> class KernelIter<double>;
+//template <> class KernelIter<uint8_t>;
+//template <> class KernelIter<int8_t>;
+//template <> class KernelIter<uint16_t>;
+//template <> class KernelIter<int16_t>;
+//template <> class KernelIter<uint32_t>;
+//template <> class KernelIter<int32_t>;
+//template <> class KernelIter<uint64_t>;
+//template <> class KernelIter<int64_t>;
+//template <> class KernelIter<float>;
+//template <> class KernelIter<double>;
+//template <> class KernelIter<long double>;
+//template <> class KernelIter<cfloat_t>;
+//template <> class KernelIter<cdouble_t>;
+//template <> class KernelIter<cquad_t>;
+//template <> class KernelIter<rgb_t>;
+//template <> class KernelIter<rgba_t>;
 }

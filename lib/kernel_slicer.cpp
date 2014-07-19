@@ -37,51 +37,18 @@ int64_t clamp(int64_t inf, int64_t sup, int64_t val)
 KSlicer::KSlicer() 
 { 
 	size_t tmp = 1;
-	std::vector<std::pair<int64_t, int64_t>> tmpk;
-	initialize(1, &tmp, tmpk);
+	initialize(1, &tmp);
 };
 
 /**
- * @brief Constructs a iterator with the given dimensions and bounding 
- * box over the full area. Kernel will range from 
- * [kRange[0].first, kRange[0].second] 
- * [kRange[1].first, kRange[1].second] 
- * ....
+ * @brief Constructs a iterator with the given dimensions 
  *
- *
+ * @param ndim	Number of dimensions 
  * @param dim	size of ND array
- * @param kRange Range to iterate over. This determines the offset from 
- * center that will will traverse.
  */
-KSlicer::KSlicer(size_t ndim, const size_t* dim, 
-		const std::vector<std::pair<int64_t, int64_t>>& krange)
+KSlicer::KSlicer(size_t ndim, const size_t* dim)
 {
-	initialize(ndim, dim, krange);
-}
-	
-/**
- * @brief Constructs a iterator with the given dimensions and bounding 
- * box over the full area. Kernel will range from 
- * [kRange[0].first, kRange[0].second] 
- * [kRange[1].first, kRange[1].second] 
- * ....
- *
- *
- * @param dim	size of ND array
- * @param kradius Radius around center. Range will include [-R,R] 
- * center that will will traverse.
- */
-KSlicer::KSlicer(size_t ndim, const size_t* dim, 
-		const std::vector<size_t>& kradius)
-{
-	std::vector<std::pair<int64_t,int64_t>> range(kradius.size());
-	for(size_t dd=0; dd<kradius.size(); dd++) {
-		int64_t tmp = kradius[dd];
-		range[dd].first = -tmp;
-		range[dd].second = tmp;
-	}
-
-	initialize(ndim, dim, range);
+	initialize(ndim, dim);
 }
 	
 /**
@@ -230,26 +197,79 @@ int64_t KSlicer::operator--()
 
 	return m_linpos[m_center];
 }
+	
+/**
+ * @brief Set the radius of the kernel window. All directions will 
+ * have equal distance, with the radius in each dimension set by the 
+ * magntitude of the kradius vector. So if kradius = {2,1,0} then 
+ * dimension 0 (x) will have a radius of 2, dimension 1 (y) will have 
+ * a readius of 1 and dimension 2 will have a radius of 0 (won't step
+ * out from the middle at all).
+ *
+ * You should call goBegin() after this
+ *
+ * @param kradius vector of radii in the given dimension. Unset values
+ * assumed to be 0. So a 10 dimensional image with 3 values will have
+ * non-zero values for x,y,z but 0 values in higher dimensions
+ */
+void KSlicer::setRadius(std::vector<size_t> kradius)
+{
+	std::vector<std::pair<int64_t, int64_t>> tmp(m_dim);
+	for(size_t ii=0; ii<m_dim; ii++) {
+		if(ii < kradius.size()) {
+			tmp[ii].first = -clamp(0, m_size[ii]-1, kradius[ii]);
+			tmp[ii].second = clamp(0, m_size[ii]-1, kradius[ii]);
+		} else {
+			tmp[ii].first = 0;
+			tmp[ii].second = 0;
+		}
+	}
+
+	setWindow(tmp);
+}
 
 /**
- * @brief All around intializer. Sets all internal variables.
+ * @brief Set the radius of the kernel window. All directions will 
+ * have equal distance in all dimensions. So if kradius = 2 then 
+ * dimension 0 (x) will have a radius of 2, dimension 2 (y) will have 
+ * a readius of 2 and so on. Warning images may have more dimensions
+ * than you know, so if the image has a dimension that is only size 1
+ * it will have a radius of 0, but if you didn't know you had a 10D image
+ * all the dimensions about to support the radius will.
  *
- * @param dim 		Dimension (size) of memory block.
- * @param krange 	Range of offset values. Each pair indicats a min and max
- * 					in the i'th dimension. So {{-3,0}, {-3,3},{0,3}} would
- * 					indicate a kernel from (X-3,Y-3,Z+0) to (X+0,Y+3,Z+3).
- * 					Ranges must include zero.
- * @param roi 		Range of region of interest. Pairs indicates the range 
- * 					in i'th dimension, so krange = {{1,5},{0,9},{32,100}}
- * 					would cause the iterator to range from (1,0,32) to
- * 					(5,9,100)
+ * You should call goBegin() after this
+ *
+ * @param radii in all directions. 
  */
-void KSlicer::initialize(size_t ndim, const size_t* dim, 
-			const std::vector<std::pair<int64_t, int64_t>>& krange)
+void KSlicer::setRadius(size_t kradius)
 {
-	m_dim = ndim;
-	m_size.assign(dim, dim+ndim);
+	std::vector<std::pair<int64_t, int64_t>> tmp(m_dim);
+	for(size_t ii=0; ii<m_dim; ii++) {
+		tmp[ii].first = -clamp(0, m_size[ii]-1, kradius);
+		tmp[ii].second = clamp(0, m_size[ii]-1, kradius);
+	}
 
+	setWindow(tmp);
+}
+
+/**
+ * @brief Set the ROI from the center of the kernel. The first value 
+ * should be <= 0, the second should be >= 0. The ranges are inclusive.
+ * So if kradius = {{-1,1},{0,1},{-1,0}}, in the x dimension values will 
+ * range from center - 1 to center + 1, y indices will range from center 
+ * to center + 1, and z indices will range from center-1 to center. 
+ * Kernel will range from
+ * [kRange[0].first, kRange[0].second]
+ * [kRange[1].first, kRange[1].second]
+ * ...
+ *
+ * You should call goBegin() after this
+ *
+ * @param Vector of [inf, sup] in each dimension. Unaddressed (missing) 
+ * values are assumed to be [0,0]. 
+ */
+void KSlicer::setWindow(const std::vector<std::pair<int64_t, int64_t>>& krange)
+{
 	std::vector<int64_t> kmin(m_dim, 0);
 	std::vector<int64_t> kmax(m_dim, 0);
 	for(size_t dd=0; dd<krange.size(); dd++) {
@@ -261,36 +281,12 @@ void KSlicer::initialize(size_t ndim, const size_t* dim,
 		}
 	}
 
-	// to ensure we aren't constantly bouncing wrapping, we will iterate
-	// in the direction of the longest dimension, rather than the fastest
-	int64_t longest = 0;
-	m_order.resize(m_dim);
-	for(size_t dd=0; dd<m_dim; dd++) {
-		if((int64_t)m_size[dd]+kmin[dd]-kmax[dd] >= longest) {
-			longest = (int64_t)m_size[dd]+kmin[dd]-kmax[dd]; 
-			m_order[0] = dd;
-		}
-	}
-
-	// just add the remaining dimensions to order in reverse
-	for(int64_t ii=m_dim-1, jj=1; ii>=0; ii--) {
-		if(ii != m_order[0])
-			m_order[jj++] = ii;
-	}
-
-	// set up strides
-	m_strides.resize(m_dim);
-	m_strides[m_dim-1] = 1;
-	for(int64_t ii=(int64_t)m_dim-2; ii>=0; ii--) {
-		m_strides[ii] = m_strides[ii+1]*dim[ii+1];
-	}
-	
 	// we need to know how far forward and back the kernel stretches because
 	// when the kernel gets near an edge, we have to recompute so the kernel
 	// doesn't go utside the image
 	m_fradius = kmax[m_order[0]];
 	m_rradius = -kmin[m_order[0]];
-		
+
 	// for each point, we need this
 	m_numoffs = 1;
 	for(size_t ii=0; ii<m_dim; ii++) {
@@ -336,41 +332,133 @@ void KSlicer::initialize(size_t ndim, const size_t* dim,
 		if(center)
 			m_center = oo;
 	}
-	
-	// set up ROI, and calculate the m_begin location
-	m_begin = 0;
-	m_roi.resize(m_dim);
-	for(size_t ii=0; ii<m_dim; ii++) {
-		// default to full range 
-		m_roi[ii].first = 0;
-		m_roi[ii].second = dim[ii]-1;
-	}
-	
-	m_pos.resize(m_numoffs);
-	fill(m_pos.begin(), m_pos.end(), std::vector<int64_t>(m_dim));
-	m_linpos.resize(m_numoffs);
-	
-	goBegin();
-};
 
-void KSlicer::setROI(const std::vector<std::pair<int64_t,int64_t>>& roi)
+	m_pos.resize(m_offs.size());
+	for(size_t ii=0; ii<m_pos.size(); ii++)
+		m_pos[ii].resize(m_dim,0);
+	m_linpos.resize(m_offs.size());
+}
+	
+
+/**
+ * @brief Sets the region of interest. During iteration or any motion the
+ * position will not move outside the specified range. Note that behavior
+ * is not defined after you do this, until you call goBegin()
+ *
+ * You should call goBegin() after this
+ *
+ * @param roi Range of region of interest. Pairs indicates the range 
+ * 	in i'th dimension, so krange = {{1,5},{0,9},{32,100}}
+ * 	would cause the iterator to range from (1,0,32) to (5,9,100)
+ */
+void KSlicer::setROI(std::vector<std::pair<int64_t, int64_t>> roi)
 {
 	// set up ROI, and calculate the m_begin location
+	m_roi.resize(m_dim);
 	m_begin = 0;
 	for(size_t ii=0; ii<m_dim; ii++) {
-		if(ii<roi.size()) {
-			m_roi[ii] = roi[ii];
+		if(ii < roi.size()) {
+			m_roi[ii].first = roi[ii].first;
+			m_roi[ii].second = roi[ii].second;
 		} else {
 			// default to full range 
 			m_roi[ii].first = 0;
 			m_roi[ii].second = m_size[ii]-1;
 		}
-
 		m_begin += m_roi[ii].first*m_strides[ii];
 	}
-
-	goBegin();
 }
+
+/**
+ * @brief All around intializer. Sets all internal variables.
+ *
+ * @param dim 		Dimension (size) of memory block.
+ * @param krange 	Range of offset values. Each pair indicats a min and max
+ * 					in the i'th dimension. So {{-3,0}, {-3,3},{0,3}} would
+ * 					indicate a kernel from (X-3,Y-3,Z+0) to (X+0,Y+3,Z+3).
+ * 					Ranges must include zero.
+ */
+void KSlicer::initialize(size_t ndim, const size_t* dim)
+{
+	m_dim = ndim;
+	m_size.assign(dim, dim+ndim);
+
+	// set up strides
+	m_strides.resize(m_dim);
+	m_strides[m_dim-1] = 1;
+	for(int64_t ii=(int64_t)m_dim-2; ii>=0; ii--) {
+		m_strides[ii] = m_strides[ii+1]*dim[ii+1];
+	}
+
+	setOrder();
+	setRadius(0);
+	setROI();
+	goBegin();
+
+};
+
+/**
+ * @brief Set the order of iteration, in terms of which dimensions iterate
+ * the fastest and which the slowest.
+ *
+ * Changes m_order
+ *
+ * @param order order of iteration. {0,1,2} would mean that dimension 0 (x)
+ * would move the fastest and 2 the slowest. If the image is a 5D image then
+ * that unmentioned (3,4) would be the slowest. 
+ * @param revorder Reverse the speed of iteration. So the first dimension 
+ * in the order vector would in fact be the slowest and un-referenced 
+ * dimensions will be the fastest. (in the example for order this would be
+ * 4 and 3).
+ */
+void KSlicer::setOrder(std::vector<size_t> order, bool revorder)
+{
+	m_order.resize(m_dim);
+	size_t jj = 0;
+
+	// need to ensure that all dimensions get covered
+	std::list<size_t> avail;
+	for(size_t ii=0 ; ii<m_dim ; ii++) 
+		avail.push_front(ii);
+
+	// add dimensions to internal order, but make sure there are 
+	// no repeats
+	for(size_t ii=0; ii<order.size(); ii++) {
+
+		// determine whether the given is available still
+		auto it = std::find(avail.begin(), avail.end(), order[ii]);
+
+		// should be available, although technically we could handle it, it
+		// seems like a repeat would be a logic error
+		assert(it != avail.end());
+		if(it != avail.end()) {
+			m_order[jj++] = order[ii];
+			avail.erase(it);
+		}
+	}
+	
+	// to ensure we aren't constantly bouncing wrapping, we will iterate
+	// in the direction of the longest dimension, rather than the fastest
+	int64_t longest = 0;
+	std::list<size_t>::iterator lit;
+	for(auto it=avail.begin(); it != avail.end(); ++it) {
+		if((int64_t)m_size[*it] >= longest) {
+			longest = (int64_t)m_size[*it];
+			lit = it;
+		}
+	}
+	assert(jj < m_order.size());
+	m_order[jj++] = *lit;
+	avail.erase(lit);
+
+	// just add the remaining dimensions to order in reverse
+	for(auto it=avail.begin(); it != avail.end(); ++it) {
+		assert(jj < m_order.size());
+		m_order[jj++] = *it;
+	}
+
+//	goBegin();
+};
 
 /**
  * @brief Jump to the given position

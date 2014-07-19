@@ -14,7 +14,8 @@ int main()
   size_t a,b,c;
   size_t sz[] = {10,20,30,10};
   std::vector<size_t> kern({1,1,1});
-  npl::KSlicer it(4, sz, kern);
+  npl::KSlicer it(4, sz);
+  it.setRadius(kern);
 
   assert(it.isBegin());
   assert(!it.isEnd());
@@ -159,7 +160,8 @@ int main()
   
   // now make the iterator uneven
   std::vector<std::pair<int64_t,int64_t>> newk({{-2,1},{-1,0},{0,2},{0,2}});
-  it.initialize(4, sz, newk);
+  it.initialize(4, sz);
+  it.setWindow(newk);
 
   it.goBegin();
   for(int64_t xx = 0; xx < sz[0]; xx++){

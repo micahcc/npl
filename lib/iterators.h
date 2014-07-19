@@ -829,8 +829,6 @@ private:
 
 	T (*castget)(void* ptr);
 };
-
-
 /**
  * @brief This class is used to iterate through an N-Dimensional array. 
  *
@@ -1137,6 +1135,278 @@ private:
 	T (*castget)(void* ptr);
 	void (*castset)(void* ptr, const T& val);
 };
+
+
+///**
+// * @brief Constant iterator for NDArray. Typical usage calls for OrderConstIter it(array); it++; *it
+// *
+// * @tparam T
+// */
+//template <typename T>
+//class KernelIter : protected Slicer 
+//{
+//public:
+//	KernelIter(std::shared_ptr<const NDArray> in)
+//				: KSlicer(in->ndim(), in->dim()), parent(in)
+//	{
+//		switch(in->type()) {
+//			case UINT8:
+//				castget = castgetStatic<uint8_t>;
+//				break;
+//			case INT8:
+//				castget = castgetStatic<int8_t>;
+//				break;
+//			case UINT16:
+//				castget = castgetStatic<uint16_t>;
+//				break;
+//			case INT16:
+//				castget = castgetStatic<int16_t>;
+//				break;
+//			case UINT32:
+//				castget = castgetStatic<uint32_t>;
+//				break;
+//			case INT32:
+//				castget = castgetStatic<int32_t>;
+//				break;
+//			case UINT64:
+//				castget = castgetStatic<uint64_t>;
+//				break;
+//			case INT64:
+//				castget = castgetStatic<int64_t>;
+//				break;
+//			case FLOAT32:
+//				castget = castgetStatic<float>;
+//				break;
+//			case FLOAT64:
+//				castget = castgetStatic<double>;
+//				break;
+//			case FLOAT128:
+//				castget = castgetStatic<long double>;
+//				break;
+//			case COMPLEX64:
+//				castget = castgetStatic<cfloat_t>;
+//				break;
+//			case COMPLEX128:
+//				castget = castgetStatic<cdouble_t>;
+//				break;
+//			case COMPLEX256:
+//				castget = castgetStatic<cquad_t>;
+//				break;
+//			case RGB24:
+//				castget = castgetStatic<rgb_t>;
+//				break;
+//			case RGBA32:
+//				castget = castgetStatic<rgba_t>;
+//				break;
+//			case UNKNOWN_TYPE:
+//			default:
+//				castget = castgetStatic<uint8_t>;
+//				throw std::invalid_argument("Unknown type to OrderConstIter");
+//				break;
+//		}
+//	};
+//
+//	/**
+//	 * @brief Prefix increment operator
+//	 *
+//	 * @return new value
+//	 */
+//	T operator++() 
+//	{ 
+//		return castget(parent->__getAddr(Slicer::operator++())); 
+//	};
+//
+//	/**
+//	 * @brief Postfix increment operator
+//	 *
+//	 * @return old value
+//	 */
+//	T operator++(int) 
+//	{ 
+//		return castget(parent->__getAddr(Slicer::operator++(0))); 
+//	};
+//
+//	/**
+//	 * @brief Prefix decrement operator
+//	 *
+//	 * @return new value
+//	 */
+//	T operator--() 
+//	{ 
+//		return castget(parent->__getAddr(Slicer::operator--())); 
+//	};
+//	
+//	/**
+//	 * @brief Postfix decrement operator
+//	 *
+//	 * @return old value
+//	 */
+//	T operator--(int) 
+//	{ 
+//		return castget(parent->__getAddr(Slicer::operator--(0))); 
+//	};
+//
+//	/**
+//	 * @brief Dereference operator
+//	 *
+//	 * @return current value
+//	 */
+//	T operator*() const
+//	{ 
+//		return castget(parent->__getAddr(Slicer::operator*())); 
+//	};
+//	
+//	/**
+//	 * @brief Dereference operator
+//	 *
+//	 * @return current value
+//	 */
+//	T get() const
+//	{ 
+//		return castget(parent->__getAddr(Slicer::operator*())); 
+//	};
+//	
+//	/**
+//	 * @brief Go to beginning of iteration
+//	 */
+//	void goBegin() { Slicer::goBegin(); };
+//
+//	/**
+//	 * @brief Go to end of iteration
+//	 */
+//	void goEnd() { Slicer::goEnd(); };
+//	
+//	/**
+//	 * @brief Are we one past the last element?
+//	 */
+//	bool isEnd() const { return Slicer::isEnd(); };
+//	
+//	/**
+//	 * @brief Are we one past the last element?
+//	 */
+//	bool eof() const { return Slicer::isEnd(); };
+//	
+//	/**
+//	 * @brief Are we at the first element
+//	 */
+//	bool isBegin() const { return Slicer::isBegin(); };
+//	
+//	/**
+//	 * @brief Whether the position and parent are the same as another 
+//	 *
+//	 * @param other
+//	 *
+//	 * @return 
+//	 */
+//	bool operator==(const OrderConstIter& other) const
+//	{ 
+//		return parent == other.parent && m_linpos == other.m_linpos;
+//	};
+//
+//	/**
+//	 * @brief Whether the position and parent are different from another 
+//	 *
+//	 * @param other
+//	 *
+//	 * @return 
+//	 */
+//	bool operator!=(const OrderConstIter& other) const
+//	{ 
+//		return parent != other.parent || this->m_linpos != other.m_linpos;
+//	};
+//	
+//	/**
+//	 * @brief If the parents are different then false, if they are the same, 
+//	 * returns whether this iterator is before the other. 
+//	 *
+//	 * @param other
+//	 *
+//	 * @return 
+//	 */
+//	bool operator<(const OrderConstIter& other) const
+//	{ 
+//		if(parent != other.parent)
+//			return false;
+//
+//		for(size_t dd=0; dd<this->m_dim; dd++) {
+//			if(this->m_pos[dd] < other.m_pos[dd])
+//				return true;
+//		}
+//
+//		return false;
+//	};
+//	
+//	/**
+//	 * @brief If the parents are different then false, if they are the same, 
+//	 * returns whether this iterator is after the other. 
+//	 *
+//	 * @param other
+//	 *
+//	 * @return 
+//	 */
+//	bool operator>(const OrderConstIter& other) const
+//	{ 
+//		if(parent != other.parent)
+//			return false;
+//
+//		for(size_t dd=0; dd<this->m_dim; dd++) {
+//			if(this->m_pos[dd] > other.m_pos[dd])
+//				return true;
+//		}
+//
+//		return false;
+//	};
+//	
+//	/**
+//	 * @brief If the parents are different then false, if they are the same, 
+//	 * returns whether this iterator is the same or before the other. 
+//	 *
+//	 * @param other
+//	 *
+//	 * @return 
+//	 */
+//	bool operator<=(const OrderConstIter& other) const
+//	{ 
+//		if(parent != other.parent)
+//			return false;
+//
+//		if(*this == other)
+//			return true;
+//
+//		return *this < other;
+//	};
+//	
+//	/**
+//	 * @brief If the parents are different then false, if they are the same, 
+//	 * returns whether this iterator is the same or after the other. 
+//	 *
+//	 * @param other
+//	 *
+//	 * @return 
+//	 */
+//	bool operator>=(const OrderConstIter& other) const
+//	{ 
+//		if(parent != other.parent)
+//			return false;
+//
+//		if(*this == other)
+//			return true;
+//
+//		return *this > other;
+//	};
+//
+//private:
+//	template <typename U>
+//	static T castgetStatic(void* ptr)
+//	{
+//		return (T)(*((U*)ptr));
+//	};
+//	
+//	std::shared_ptr<const NDArray> parent;
+//
+//	T (*castget)(void* ptr);
+//};
+//
 
 }
 
