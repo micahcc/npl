@@ -131,6 +131,7 @@ int main()
 	cerr << "Flat Speed: ";
 	total = 0;
 	t = clock();
+	ii = 0;
 	for(int64_t xx=0; xx < testp->dim(0); xx++) {
 		for(int64_t yy=0; yy < testp->dim(1); yy++) {
 			for(int64_t zz=0; zz < testp->dim(2); zz++, ii++) {
@@ -145,7 +146,7 @@ int main()
 	t = clock();
 	for(int64_t xx=0; xx < testp->dim(0); xx++) {
 		for(int64_t yy=0; yy < testp->dim(1); yy++) {
-			for(int64_t zz=0; zz < testp->dim(2); zz++, ii++) {
+			for(int64_t zz=0; zz < testp->dim(2); zz++) {
 				index[0] = xx;
 				index[1] = yy;
 				index[2] = zz;

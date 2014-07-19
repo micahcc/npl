@@ -69,10 +69,20 @@ public:
 	virtual void* __getAddr(const int64_t* index) const = 0;
 	virtual void* __getAddr(const std::vector<int64_t>& index) const = 0;
 	virtual void* __getAddr(int64_t i) const = 0;
+	virtual void* __getAddr(int64_t x, int64_t y, int64_t z, int64_t t) const = 0;
 	
 	virtual int64_t getLinIndex(std::initializer_list<int64_t> index) const = 0;
 	virtual int64_t getLinIndex(const int64_t* index) const = 0;
 	virtual int64_t getLinIndex(const std::vector<int64_t>& index) const = 0;
+	virtual int64_t getLinIndex(int64_t x, int64_t y, int64_t z, int64_t t) const = 0;
+	
+	/**
+	 * @brief This function just returns the number of elements in a theoretical
+	 * fourth dimension (ignoring orgnaization of higher dimensions)
+	 *
+	 * @return number of elements in the 4th or greater dimensions
+	 */
+	virtual int64_t tlen() = 0;
 
 protected:
 	NDArray() {} ;
@@ -148,13 +158,31 @@ public:
 	{
 		return &_m_data[i]; 
 	};
+	inline virtual void* __getAddr(int64_t x, int64_t y, int64_t z, int64_t t) const
+	{
+		return &_m_data[getLinIndex(x,y,z,t)]; 
+	};
 
 	virtual int64_t getLinIndex(std::initializer_list<int64_t> index) const;
 	virtual int64_t getLinIndex(const int64_t* index) const;
 	virtual int64_t getLinIndex(const std::vector<int64_t>& index) const;
+	virtual int64_t getLinIndex(int64_t x, int64_t y, int64_t z, int64_t t) const;
 
-	size_t _m_stride[D]; // steps between pixels
+	/**
+	 * @brief This function just returns the number of elements in a theoretical
+	 * fourth dimension (ignoring orgnaization of higher dimensions)
+	 *
+	 * @return number of elements in the 4th or greater dimensions
+	 */
+	virtual int64_t tlen() {
+		if(D >= 3)
+			return _m_stride[2];
+		else 
+			return 1;
+	};
+
 	protected:
+	size_t _m_stride[D]; // steps between pixels
 
 	T* _m_data;
 	size_t _m_dim[D];	// overall image dimension

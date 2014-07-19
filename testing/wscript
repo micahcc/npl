@@ -66,16 +66,16 @@ def build(bld):
             source='nifti_rwrw_test.cpp', 
             use='mrimage')
     
-#    bld.program(install_path='${PREFIX}/tests', features='test', 
-#            target='img_nn_interp_test', 
-#            source='img_nn_interp_test.cpp', 
-#            use='mrimage')
-#    
-#    bld.program(install_path='${PREFIX}/tests', features='test', 
-#            target='img_lin_interp_test', 
-#            source='img_lin_interp_test.cpp', 
-#            use='mrimage')
-#
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='img_nn_interp_test', 
+            source='img_nn_interp_test.cpp', 
+            use='mrimage')
+    
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='img_lin_interp_test', 
+            source='img_lin_interp_test.cpp', 
+            use='mrimage')
+
     # test KDTree functionality
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='kdtree_test',

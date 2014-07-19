@@ -118,7 +118,7 @@ public:
 	 */
 	T operator[](int64_t index)
 	{
-		return castget(parent->__getAddr(index)); 
+		return castget(this->parent->__getAddr(index)); 
 	};
 	
 	/**
@@ -128,7 +128,7 @@ public:
 	 */
 	T get(const std::vector<int64_t>& index)
 	{
-		return castget(parent->__getAddr(index)); 
+		return castget(this->parent->__getAddr(index)); 
 	};
 	
 	/**
@@ -138,7 +138,7 @@ public:
 	 */
 	T operator[](const std::vector<int64_t>& index)
 	{
-		return castget(parent->__getAddr(index)); 
+		return castget(this->parent->__getAddr(index)); 
 	};
 	
 	/**
@@ -146,9 +146,9 @@ public:
 	 *
 	 * @return current value
 	 */
-	void set(const std::vector<int64_t>& index, T v)
+	void set(T v, const std::vector<int64_t>& index)
 	{
-		return castset(parent->__getAddr(index), v); 
+		return castset(this->parent->__getAddr(index), v); 
 	};
 	
 	/**
@@ -156,12 +156,14 @@ public:
 	 *
 	 * @return current value
 	 */
-	void set(int64_t index, T v)
+	void set(T v, int64_t index)
 	{
-		return castset(parent->__getAddr(index), v); 
+		return castset(this->parent->__getAddr(index), v); 
 	};
 	
-private:
+	int64_t tlen() { return this->parent->tlen(); };
+	
+protected:
 	
 
 	/**
@@ -220,6 +222,59 @@ private:
 };
 
 /**
+ * @brief The purpose of this class is to view an image as a 3D 
+ * image rather than a ND image. Therefore all dimensions above the third will
+ * be ignored and index 0 will be used. 
+ *
+ * @tparam T Type of value to cast and return
+ */
+template<typename T>
+class Pixel3DView : public NDAccess<T>
+{
+public:
+	Pixel3DView(std::shared_ptr<NDArray> in) : NDAccess<T>(in) 
+	{ };
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T operator()(int64_t x=0, int64_t y=0, int64_t z=0)
+	{
+		return this->castget(this->parent->__getAddr(x,y,z,0)); 
+	};
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T get(int64_t x=0, int64_t y=0, int64_t z=0)
+	{
+		return this->castget(this->parent->__getAddr(x,y,z,0)); 
+	};
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	void set(T v, int64_t x=0, int64_t y=0, int64_t z=0)
+	{
+		this->castset(this->parent->__getAddr(x,y,z,0), v); 
+	};
+	
+protected:
+	
+	// Remove functions that aren't relevent from NDAccess
+	T operator[](int64_t i) { (void)(i); return T(); };
+	T get(const std::vector<int64_t>& i) {  (void)(i); return T(); };
+	T operator[](const std::vector<int64_t>& i) { (void)(i); return T(); };
+};
+
+
+/**
  * @brief The purpose of this class is to view an image as a 3D+vector dimension
  * image rather than a 4+D image. Therefore all dimensions above the third are 
  * cast as a vector. If there is demand I may create a matrixx verion as well
@@ -240,7 +295,7 @@ public:
 	 */
 	T operator()(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
-		return castget(getLinIndex(x,y,z,t)); 
+		return this->castget(this->parent->__getAddr(x,y,z,t)); 
 	};
 	
 	/**
@@ -250,7 +305,7 @@ public:
 	 */
 	T get(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
-		return castget(getLinIndex(x,y,z,t)); 
+		return this->castget(this->parent->__getAddr(x,y,z,t)); 
 	};
 	
 	/**
@@ -260,58 +315,10 @@ public:
 	 */
 	void set(T v, int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
-		castset(getLinIndex(x,y,z,t), v); 
+		this->castset(this->parent->__getAddr(x,y,z,t), v); 
 	};
 	
-	/**
-	 * @brief Get nunmber of elements in higher dimensions (vector length)
-	 *
-	 * @return vector length
-	 */
-	size_t tlen()
-	{
-		if(this->parent->ndim() >= 3)
-			return this->parent->m_stride[2];
-		else 
-			return 1;
-	};
-
-private:
-	
-
-	/**
-	 * @brief Used instead of the normal NDArray mapper because the built in
-	 * one treats higher dimensions differently, whereas we want all the upper
-	 * dimensions to be treated as flat
-	 *
-	 * @param x
-	 * @param y
-	 * @param z
-	 * @param t
-	 *
-	 * @return 
-	 */
-	int64_t getLinIndex(int64_t x, int64_t y, int64_t z, int64_t t)
-	{
-		if(this->parent->ndim() >= 3) {
-			assert(x>= 0 && x < this->parent->dim(0));
-			assert(y>= 0 && y < this->parent->dim(1));
-			assert(z>= 0 && z < this->parent->dim(2));
-			assert(t>= 0 && t < this->parent->m_stride[2]);
-			return x*this->parent->m_stride[0]+y*this->parent->m_stride[1]+
-						z*this->parent->m_stride[2]+t;
-		} else if(this->parent->ndim() == 2) {
-				assert(x>= 0 && x < this->parent->dim(0));
-				assert(y>= 0 && y < this->parent->dim(1));
-				return x*this->parent->m_stride[0]+y*this->parent->m_stride[1];
-		} else if(this->parent->ndim() == 1) {
-			assert(x>= 0 && x < this->parent->dim(0));
-			return x*this->parent->m_stride[0];
-		} else {
-			return 0;
-		}
-	};
-	
+protected:
 	
 	// Remove functions that aren't relevent from NDAccess
 	T operator[](int64_t i) { (void)(i); return T(); };
@@ -351,8 +358,7 @@ public:
 	 */
 	T operator()(double x=0, double y=0, double z=0, int64_t t=0)
 	{
-		bool outside = true;
-		return get(outside, x,y,z,t);
+		return get(x,y,z,t);
 	};
 	
 	/**
@@ -362,26 +368,15 @@ public:
 	 */
 	T get(double x=0, double y=0, double z=0, int64_t t=0)
 	{
-		bool outside = true;
-		return get(outside, x,y,z,t);
-	};
-	
-	/**
-	 * @brief Gets value at array index and then casts to T
-	 *
-	 * @return value
-	 */
-	T get(bool& outside, double x=0, double y=0, double z=0, int64_t t=0)
-	{
 		// figure out size of dimensions in parent
 		size_t dim[4];
 		dim[0] = this->parent->dim(0);
 		dim[1] = this->parent->ndim() > 1 ? this->parent->dim(1) : 1;
 		dim[2] = this->parent->ndim() > 2 ? this->parent->dim(2) : 1;
-		dim[3] = this->parent->ndim() > 3 ? this->parent->m_stride[2] : 1;
+		dim[3] = this->parent->tlen();
 		
 		// deal with t being outside bounds
-		if(t < 0 || t > dim[3]) {
+		if(t < 0 || t >= dim[3]) {
 			if(m_boundmethod == ZEROFLUX) {
 				// clamp
 				t = clamp<int64_t>(0, dim[3]-1, t);
@@ -398,6 +393,8 @@ public:
 		int64_t index[3];
 		const int KPOINTS = 2;
 		const int DIM = 3;
+
+		// 1D version of the weights and indices
 		double karray[DIM][KPOINTS];
 		int64_t indarray[DIM][KPOINTS];
 		
@@ -409,9 +406,10 @@ public:
 		}
 
 		bool iioutside = false;
-		outside = false;
+//		outside = false;
 
-		// compute weighted pixval by iterating over neighbors
+		// compute weighted pixval by iterating over neighbors, which are 
+		// combinations of KPOINTS
 		T pixval = 0;
 		double weight = 0;
 		div_t result;
@@ -433,7 +431,7 @@ public:
 			//				continue;
 
 			// if the current point maps outside, then we need to deal with it
-			outside = (weight != 0 && iioutside) || outside;
+//			outside = (weight != 0 && iioutside) || outside;
 			if(iioutside) {
 				if(m_boundmethod == ZEROFLUX) {
 					// clamp
@@ -446,32 +444,20 @@ public:
 				} else {
 					// set wieght to zero, then just clamp
 					weight = 0;
-					for(size_t dd=0; dd<D; dd++)
+					for(size_t dd=0; dd<DIM; dd++)
 						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
 				}
 			} 
 
-			pixval += castget(this->getLinIndex(index[0],index[1],index[2],t)); 
+			T v = this->castget(this->parent->__getAddr(index[0], index[1],index[2],t));
+			pixval += weight*v; 
 		}
 
 		return pixval;
 	}
-
-	/**
-	 * @brief Get nunmber of elements in higher dimensions (vector length)
-	 *
-	 * @return vector length
-	 */
-	size_t tlen()
-	{
-		if(this->parent->ndim() >= 3)
-			return this->parent->m_stride[2];
-		else 
-			return 1;
-	};
 	
 	BoundaryConditionT m_boundmethod;
-private:
+protected:
 	
 	/**
 	 * @brief Gets value at array index and then casts to T
@@ -514,7 +500,7 @@ public:
 	 */
 	T operator()(double x=0, double y=0, double z=0, int64_t t=0)
 	{
-		return get(x,y,z,t)); 
+		return get(x,y,z,t); 
 	};
 	
 	/**
@@ -522,18 +508,7 @@ public:
 	 *
 	 * @return value
 	 */
-	T get(double x=0, doubley=0, double z=0, int64_t t=0)
-	{
-		bool outside;
-		return get(outside, x,y,z,t);
-	};
-	
-	/**
-	 * @brief Gets value at array index and then casts to T
-	 *
-	 * @return value
-	 */
-	T get(bool& outside, double x=0, doubley=0, double z=0, int64_t t=0)
+	T get(double x=0, double y=0, double z=0, int64_t t=0)
 	{
 		// interpolate
 		int64_t i = round(x);
@@ -542,15 +517,15 @@ public:
 		size_t xdim = this->parent->dim(0);
 		size_t ydim = this->parent->ndim() > 1 ? this->parent->dim(1) : 1;
 		size_t zdim = this->parent->ndim() > 2 ? this->parent->dim(2) : 1;
-		size_t tdim = this->parent->ndim() > 3 ? this->parent->m_stride[2] : 1;
+		size_t tdim = this->parent->tlen(); 
 
 		bool xout = (i < 0 || i >= xdim);
-		bool yout = (i < 0 || j >= ydim);
-		bool zout = (i < 0 || k >= zdim);
-		bool tout = (i < 0 || t >= tdim);
+		bool yout = (j < 0 || j >= ydim);
+		bool zout = (k < 0 || k >= zdim);
+		bool tout = (t < 0 || t >= tdim);
 		
 		if(xout || yout || zout || tout) {
-			outside = true;
+//			outside = true;
 			switch(m_boundmethod) {
 				case ZEROFLUX:
 					i = clamp<int64_t>(0, xdim-1, i);
@@ -565,26 +540,13 @@ public:
 					t = wrap<int64_t>(0, tdim-1, t);
 					break;
 				case CONSTZERO:
-				default
+				default:
 					return 0;
 					break;
 			}
 		}
 
-		return castget(this->getLinIndex(i,j,k,t)); 
-	};
-	
-	/**
-	 * @brief Get nunmber of elements in higher dimensions (vector length)
-	 *
-	 * @return vector length
-	 */
-	size_t tlen()
-	{
-		if(this->parent->ndim() >= 3)
-			return this->parent->m_stride[2];
-		else 
-			return 1;
+		return this->castget(this->parent->__getAddr(i,j,k,t)); 
 	};
 	
 	BoundaryConditionT m_boundmethod;;

@@ -20,6 +20,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <iostream>
 
 #include "mrimage.h"
+#include "accessors.h"
 
 using namespace std;
 using namespace npl;
@@ -27,43 +28,26 @@ using namespace npl;
 int main()
 {
 	/* Create an image with: x+y*100+z*10000*/
-	BoundaryConditionT bound = CONSTZERO;
-	bool outside = false;
-	std::vector<size_t> sz({9, 4, 5, 8});
-	std::vector<int64_t> index(4, 0);
-	std::vector<double> cindex(4, 0);
+	std::vector<size_t> sz({9, 4, 5, 7, 3});
+	std::vector<double> cindex(5, 0);
 	shared_ptr<MRImage> testimg = createMRImage(sz, FLOAT64);
-	NDAccess<double> img(testimg);
+	NNInterp3DView<double> interp(testimg);
+	NDAccess<double> view(testimg);
+	Pixel3DView<double> pview(testimg);
+	Vector3DView<double> tview(testimg);
+	bool outside = false;
 
 	/* Create an image with: x+y*10+z*100+t*1000 */
 	double val = 0;
+	std::vector<int64_t> index(5, 0);
 	for(index[0] = 0; index[0] < sz[0] ; index[0]++) {
 		for(index[1] = 0; index[1] < sz[1] ; index[1]++) {
 			for(index[2] = 0; index[2] < sz[2] ; index[2]++) {
 				for(index[3] = 0; index[3] < sz[3] ; index[3]++) {
-					val = index[0]+index[1]*10 + index[2]*100 + index[3]*1000;
-					img.set(index, val);
-				}
-			}
-		}
-	}
-	
-	for(index[0] = 0; index[0] < sz[0] ; index[0]++) {
-		for(index[1] = 0; index[1] < sz[1] ; index[1]++) {
-			for(index[2] = 0; index[2] < sz[2] ; index[2]++) {
-				for(index[3] = 0; index[3] < sz[3] ; index[3]++) {
-					val = index[0]+index[1]*10 + index[2]*100 + index[3]*1000;
-					for(size_t ii=0; ii<index.size(); ii++)
-						cindex[ii] = index[ii];
-					double s = testimg->nnSampleInd(cindex, bound, outside);
-					if(outside) {
-						std::cerr << "Should not be outside" << endl;
-						return -1;
-					}
-
-					if(fabs(val - s) > 0.00000000001) {
-						std::cerr << "On-grid point value mismatch" << endl;
-						return -1;
+					for(index[4] = 0; index[4] < sz[4] ; index[4]++) {
+						val = index[0]+index[1]*10 + index[2]*100 
+									+ index[3]*1000+index[4]*10000;
+						view.set(val, index);
 					}
 				}
 			}
@@ -73,18 +57,36 @@ int main()
 	for(cindex[0] = 0; cindex[0] < sz[0] ; cindex[0]++) {
 		for(cindex[1] = 0; cindex[1] < sz[1] ; cindex[1]++) {
 			for(cindex[2] = 0; cindex[2] < sz[2] ; cindex[2]++) {
-				for(cindex[3] = 0; cindex[3] < sz[3] ; cindex[3]++) {
-					val = cindex[0]+cindex[1]*10 + cindex[2]*100 + cindex[3]*1000;
-					double s = testimg->nnSampleInd(cindex, bound, outside);
-					if(outside) {
-						std::cerr << "Should not be outside" << endl;
-						return -1;
-					}
+				val = cindex[0]+cindex[1]*10 + cindex[2]*100;
+				double s = interp.get(cindex[0], cindex[1], cindex[2]);
+				
+				if(outside) {
+					std::cerr << "Should not be outside" << endl;
+					return -1;
+				}
 
-					if(fabs(val - s) > 0.00000000001) {
-						std::cerr << "On-grid point (summed double) value mismatch" << endl;
-						return -1;
-					}
+				if(fabs(val - s) > 0.00000000001) {
+					std::cerr << "On-grid point value mismatch" << endl;
+					return -1;
+				}
+			}
+		}
+	}
+	
+	for(cindex[0] = 0; cindex[0] < sz[0] ; cindex[0]+=1.001) {
+		for(cindex[1] = 0; cindex[1] < sz[1] ; cindex[1]+=1.001) {
+			for(cindex[2] = 0; cindex[2] < sz[2] ; cindex[2]+=1.001) {
+				val = round(cindex[0])+round(cindex[1])*10 + round(cindex[2])*100;
+				double s = interp.get(cindex[0], cindex[1], cindex[2]);
+				
+				if(outside) {
+					std::cerr << "Should not be outside" << endl;
+					return -1;
+				}
+
+				if(fabs(val - s) > 0.00000000001) {
+					std::cerr << "On-grid point (summed double) value mismatch" << endl;
+					return -1;
 				}
 			}
 		}
@@ -93,31 +95,21 @@ int main()
 	for(cindex[0] = .45; cindex[0] < sz[0]-.5 ; cindex[0]++) {
 		for(cindex[1] = .45; cindex[1] < sz[1]-.5 ; cindex[1]++) {
 			for(cindex[2] = .45; cindex[2] < sz[2]-.5 ; cindex[2]++) {
-				for(cindex[3] = .45; cindex[3] < sz[3]-.5 ; cindex[3]++) {
-					val = round(cindex[0])+round(cindex[1])*10 +
-						round(cindex[2])*100 + round(cindex[3])*1000;
-					double s = testimg->nnSampleInd(cindex, bound, outside);
-					if(outside) {
-						std::cerr << "Should not be outside" << endl;
-						return -1;
-					}
+				val = round(cindex[0])+round(cindex[1])*10 +
+					round(cindex[2])*100;
+				double s = interp(cindex[0], cindex[1], cindex[2]);
 
-					if(fabs(val - s) > 0.00000000001) {
-						std::cerr << "Off-grid point (.45) value mismatch" << endl;
-						std::cerr << "Calcu: " << val << " versus Estimate: " << s << endl;
-						std::cerr << " at " << cindex[0] << ", " << cindex[1]
-									<< ", " << cindex[2] << ", " << cindex[3]
-									<< endl;
+				if(outside) {
+					std::cerr << "Should not be outside" << endl;
+					return -1;
+				}
 
-						for(size_t ii=0 ; ii < 4; ii++) 
-							cindex[ii] = round(cindex[ii]);
-						std::cerr << testimg->nnSampleInd(cindex, bound, outside) << endl;
-						
-						for(size_t ii=0 ; ii < 4; ii++) 
-							cindex[ii]++;
-						std::cerr << testimg->nnSampleInd(cindex, bound, outside) << endl;
-						return -1;
-					}
+				if(fabs(val - s) > 0.00000000001) {
+					std::cerr << "Off-grid point (.45) value mismatch" << endl;
+					std::cerr << "Calcu: " << val << " versus Estimate: " << s << endl;
+					std::cerr << " at " << cindex[0] << ", " << cindex[1]
+						<< ", " << cindex[2] << endl;
+					return -1;
 				}
 			}
 		}
@@ -126,33 +118,22 @@ int main()
 	for(cindex[0] = .50; cindex[0] < sz[0]-.5 ; cindex[0]++) {
 		for(cindex[1] = .50; cindex[1] < sz[1]-.5 ; cindex[1]++) {
 			for(cindex[2] = .50; cindex[2] < sz[2]-.5 ; cindex[2]++) {
-				for(cindex[3] = .50; cindex[3] < sz[3]-.5 ; cindex[3]++) {
-					val = round(cindex[0])+round(cindex[1])*10 +
-						round(cindex[2])*100 + round(cindex[3])*1000;
-					double s = testimg->nnSampleInd(cindex, bound, outside);
-					if(outside) {
-						std::cerr << "Should not be outside" << endl;
-						return -1;
-					}
+				val = round(cindex[0])+round(cindex[1])*10 +
+					round(cindex[2])*100;
+				double s = interp.get(cindex[0], cindex[1], cindex[2]);
+				if(outside) {
+					std::cerr << "Should not be outside" << endl;
+					return -1;
+				}
 
-					if(fabs(val - s) > 0.00000000001) {
-						std::cerr << "Off-grid point (.5) value mismatch" << endl;
-						std::cerr << "Calcu: " << val << " versus Estimate: " << s << endl;
-						std::cerr << " at " << cindex[0] << ", " << cindex[1]
-									<< ", " << cindex[2] << ", " << cindex[3]
-									<< endl;
+				if(fabs(val - s) > 0.00000000001) {
+					std::cerr << "Off-grid point (.5) value mismatch" << endl;
+					std::cerr << "Calcu: " << val << " versus Estimate: " << s << endl;
+					std::cerr << " at " << cindex[0] << ", " << cindex[1]
+						<< ", " << cindex[2] << ", " << cindex[3]
+						<< endl;
 
-						std::cerr << "Lower Corner: " ;
-						for(size_t ii=0 ; ii < 4; ii++) 
-							cindex[ii] = round(cindex[ii]);
-						std::cerr << testimg->linSampleInd(cindex, bound, outside) << endl;
-						
-						std::cerr << "Upper Corner: " ;
-						for(size_t ii=0 ; ii < 4; ii++) 
-							cindex[ii]++;
-						std::cerr << testimg->linSampleInd(cindex, bound, outside) << endl;
-						return -1;
-					}
+					return -1;
 				}
 			}
 		}
