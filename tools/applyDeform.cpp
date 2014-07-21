@@ -143,24 +143,23 @@ void applyDeform(shared_ptr<MRImage> in, shared_ptr<MRImage> deform,
 }
 
 
-shared_ptr<MRImage> invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> atlas,
-		shared_ptr<MRImage> deform)
+shared_ptr<MRImage> invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
+		shared_ptr<MRImage> atlas)
 {
 	const double MINERR = .1;
 	const double LAMBDA = .1;
 	const size_t MAXITERS = 300;
-	vectort<int64_t> index;
-	vectort<double> point(3);
-	vectort<double> cindex(3);
-	vectort<double> err(3);
+	int64_t index[3];
+	double subpoint[3];
+	double cindex[3];
 	vectort<double> atlpoint(3);
-	vectort<double> subpoint(3);
-	vector<double> atlind(3,0); //atlas index
-	vector<double> subind(3,0); //sub index
+	vectort<double> sub2atl(3);
+	vectort<double> atl2sub(3);
 	OrderIter<int> mit(mask);
 	double prevdist;
 	double dist;
 	LinInterp3DView<double> definterp(deform);
+	NNInterp3DView<double> maskinterp(mask);
 
 	if(deform->tlen() != 3) {
 		cerr << "Error invalid deform image, needs 3 points in the 4th or "
@@ -178,18 +177,17 @@ shared_ptr<MRImage> invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> atlas,
 			continue;
 
 		// target is current coordinate
-		index = mit.index();
-		for(int ii=0; ii<3; ii++)
-			subind[ii] = index[ii];
-		
-		// interpolate source from deformation image
-		mask->indexToPoint(index, point);
-		deform->pointToIndex(point, cindex);
-		for(int ii=0; ii<3; ii++)
-			atlindex[ii] = definterp(cindex[0], cindex[1], cindex[2], ii);
+		mit.index(3, index);
+		mask->indexToPoint(3, index, subpoint);
+		deform->pointToIndex(3, subpoint, cindex);
+		for(int ii=0; ii<3; ii++) {
+			sub2atl[ii] = definterp(cindex[0], cindex[1], cindex[2], ii);
+			atl2sub[ii] = sub2atl[ii];
+			atlpoint[ii] = subpoint[ii] + atl2sub[ii];
+		}
 
 		// add point to kdtree
-		tree.insert(atlindex, subind);
+		tree.insert(atlpoint, sub2atl);
 	}
 	tree.build();
 
@@ -199,40 +197,58 @@ shared_ptr<MRImage> invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> atlas,
 	 */
 	OrderIter<double> ait(atlas);
 	// zero atlas
-	for(ait.goBegin(); !ait.eof(); ++ait) 
-		ait.set(NAN);
+//	for(ait.goBegin(); !ait.eof(); ++ait) 
+//		ait.set(NAN);
 
 	// at each point in atlas try to find the best mapping in the subject by
 	// going back and forth. Since the mapping from sub to atlas is ground truth
 	// we need to keep checking until we find a point in the subject that maps
 	// to our current atlas location
 	for(ait.goBegin(); !ait.eof(); ++ait) {
-		index = ait.index();
-		for(size_t ii=0; ii<3; ii++)
-			atlindex[ii] = index[ii];
+		ait.index(3, index);
+		atlas->indexToPoint(3, index, atlpoint);
 
 		double dist = INFINITY;
-		auto result = tree.nearest(atlindex, dist);
+		auto result = tree.nearest(atlpoint, dist);
+			
+		for(size_t ii=0; ii<3; ii++) {
+			sub2atl[ii] = result->m_data[ii];
+			subpoint[ii] = atlpoint[ii] - sub2atl[ii];
+		}
 
-		// this should be an offset, but it should also be done in real space
-		// so that orientation doesn't screw with it ....
-		// make an offset variable, inv offset variale
-		for(size_t ii=0; ii<3; ii++)
-			subind[ii] = result->m_data[ii];
-
+		// SUB <- ATLAS (given)
+		//    atl2sub
 		prevdist = dist+1;
 		for(size_t ii = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR && 
-					ii < MAXITERS; ii++) {
-			for(size_t jj=0; jj<3; jj++)
-				cindex[jj] = definterp(subind[0], subind[1], subind[2], jj);
+						ii < MAXITERS; ii++) {
+
+//			// atlpoint-sub2atl = subpoint
+//			for(size_t ii=0; ii<3; ii++) 
+//				subpoint[ii] = atlpoint[ii] + atl2sub[ii];
+			mask->pointToIndex(3, subpoint, cindex);
 			if(maskinterp(subind[0], subind[1], subind[2]) == 0) 
 				break;
+
+			// (estimate) SUB <- ATLAS (given)
+			//              offset
+			// interpolate new offset at subpoint
+			for(size_t ii=0; ii<3; ii++)
+				sub2atl[ii] = definterp(cindex[0], cindex[1], cindex[2], ii);
+
+			// compute error
 			prevdist = dist;
 			dist = 0;
-			for(size_t jj=0; jj<3; jj++) {
-				err[jj] = atlindex[ii]-cindex[jj];
+			for(size_t ii=0; ii<3; ii++) {
+				// SUB
+				//  | 
+				//  | 
+				//  v     err
+				// ATLAS2 -> ATLAS (given)
+				atlpoint2[ii] = subpoint[ii] - offset[ii];
+				err[ii] = atlpoint[ii]-atlpoint2[ii];
 				dist += err[jj]*err[jj];
-				subind[jj] += LAMBDA*err[jj];
+				offset[ii] += LAMBDA*err[ii];
+				// offset[ii] = LAMBDA*(atlpoint-subpoint+offset)
 			}
 			dist = sqrt(dist);
 		}
@@ -258,6 +274,9 @@ int main(int argc, char** argv)
 	TCLAP::ValueArg<string> a_mask("m", "mask", "Mask image.",
 			true, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_deform("d", "deform", "Deformation field.",
+			true, "", "*.nii.gz", cmd);
+	TCLAP::ValueArg<string> a_atlas("a", "atlas", "Atlas image (image where "
+			"indices in the deform refer to).",
 			true, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
 			true, "", "*.nii.gz", cmd);
@@ -293,14 +312,47 @@ int main(int argc, char** argv)
 	}
 	
 	std::shared_ptr<MRImage> defimg(readMRImage(a_deform.getValue()));
-	if(defimg->ndim() > 5 || defimg->ndim() < 4) {
-		cerr << "Expected dform to be 4D/5D Image!" << endl;
+	if(defimg->ndim() > 5 || defimg->ndim() < 4 || defimg->tlen() != 3) {
+		cerr << "Expected dform to be 4D/5D Image, with 3 volumes!" << endl;
 		return -1;
 	}
 
+	std::shared_ptr<MRImage> atlas(readMRImage(a_atlas.getValue()));
+	if(atlas->ndim() != 3) {
+		cerr << "Expected atlas to be 3D!" << endl;
+		return -1;
+	}
+	// convert deform to RAS space offsets
+	{
+		OrderIter it(defimg);
+		int64_t index[3];
+		double cindex[3];
+		double pointS[3]; //subject
+		double pointA[3]; //atlas
+		for(it.goBegin(); !it.eof(); ) {
+			// fill index with coordinate
+			it->index(3, index);
+			defimg->indexToPoint(3, index, pointS);
+
+			// convert source pixel to pointA
+			for(size_t ii=0; ii<3; ii++, ++it) 
+				cindex[ii] = *it;
+			atlas->pointToIndex(3, cindex, pointA);
+			
+			// set value to offset
+			for(int64_t ii=2; ii >= 0; --ii, --it) 
+				it.set(pointA[ii] - pointS[ii]);
+			++it; ++it; ++it;
+		}
+	}
+	defimg->write("offset.nii.gz");
+
 	if(a_invert) {
-		// apply deform to mask
-		defimg = invert(maskimg, defimg);
+		// create output the size of atlas, with 3 volumes in the 4th dimension
+		auto idef = createMRImage({atlas->dim(0), atlas->dim(1), 
+				atlas->dim2(2), 3}, FLOAT64);
+		//
+		invert(maskimg, defimg, idef);
 	}
 
 	/*********
