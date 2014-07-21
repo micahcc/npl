@@ -33,17 +33,69 @@ namespace npl {
 class MatrixP
 {
 public:
+	/**
+	 * @brief Returns row in column 0.
+	 *
+	 * @param row Row to lookup
+	 *
+	 * @return Value at (row,0)
+	 */
 	virtual double& operator[](size_t row) = 0;
+	
+	/**
+	 * @brief Returns value at given row/column. 
+	 *
+	 * @param row Row to lookup
+	 * @param col Col to lookup
+	 *
+	 * @return Value at (row,col)
+	 */
 	virtual double& operator()(size_t row, size_t col = 0) = 0;
+	
+	/**
+	 * @brief Returns row in column 0.
+	 *
+	 * @param row Row to lookup
+	 *
+	 * @return Value at (row,0)
+	 */
 	virtual const double& operator[](size_t row) const = 0;
+	
+	/**
+	 * @brief Returns value at given row/column. 
+	 *
+	 * @param row Row to lookup
+	 * @param col Col to lookup
+	 *
+	 * @return Value at (row,col)
+	 */
 	virtual const double& operator()(size_t row, size_t col = 0) const = 0;
 
+	/**
+	 * @brief Performs matrix-vector product of right hand side (rhs) and 
+	 * the current matrix, writing the result in out. RHS and OUT are 
+	 * cast to the appropriate types (dimensions). Will throw if the dimension
+	 * requirements are not met.
+	 *
+	 * @param rhs Right hand side of matrix-vector product
+	 * @param out Output of matrix-vector product
+	 */
 	virtual void mvproduct(const MatrixP* rhs, MatrixP* out) const = 0;
+	
+	/**
+	 * @brief Performs matrix-vector product of right hand side (rhs) and 
+	 * the current matrix, writing the result in out. RHS and OUT are 
+	 * cast to the appropriate types (dimensions). Will throw if the dimension
+	 * requirements are not met.
+	 *
+	 * @param rhs Right hand side of matrix-vector product
+	 * @param out Output of matrix-vector product
+	 */
 	virtual void mvproduct(const MatrixP& rhs, MatrixP& out) const = 0;
-	virtual void mvproduct(const std::vector<double>& rhs, 
-			std::vector<double>& out) const = 0;
-	virtual void mvproduct(const std::vector<size_t>& rhs, 
-			std::vector<double>& out) const = 0;
+//	virtual void mvproduct(const std::vector<double>& rhs, 
+//			std::vector<double>& out) const = 0;
+//	virtual void mvproduct(const std::vector<size_t>& rhs, 
+//			std::vector<double>& out) const = 0;
 
 	virtual double det() const = 0;
 	virtual double norm() const = 0;
@@ -57,7 +109,9 @@ class Matrix : public virtual MatrixP
 {
 public:
 
-	// identity
+	/**
+	 * @brief Default constructor, sets the matrix to the identity matrix.
+	 */
 	Matrix() {
 		for(size_t ii=0; ii<D1; ii++) {
 			for(size_t jj=0; jj<D2; jj++) {
@@ -66,7 +120,12 @@ public:
 		}
 	};
 	
-	// constant
+
+	/**
+	 * @brief Constructor, sets the entire matrix to the given constant
+	 *
+	 * @param v constant to set all elements to 
+	 */
 	Matrix(double v) {
 		for(size_t ii=0; ii<D1; ii++) {
 			for(size_t jj=0; jj<D2; jj++) {
@@ -75,15 +134,50 @@ public:
 		}
 	};
 	
-	// data 
-	Matrix(double* v) {
+	/**
+	 * @brief Initialize a matrix from array of length l, made up of an array
+	 * at v*. Missing values are assumed to be 0, extra values ignored.
+	 *
+	 * @param l length of v
+	 * @param v vector of data
+	 */
+	Matrix(size_t l, const double* v) {
+		size_t kk=0;
 		for(size_t ii=0; ii<D1; ii++) {
 			for(size_t jj=0; jj<D2; jj++) {
-				data[ii][jj] = *v++;
+				if(kk < l)
+					data[ii][jj] = v[kk++];
+				else
+					data[ii][jj] = 0;
 			}
 		}
 	};
 	
+	/**
+	 * @brief Initialize a matrix from array of length l, made up of an array
+	 * at v*. Missing values are assumed to be 0, extra values ignored.
+	 *
+	 * @param l length of v
+	 * @param v vector of data
+	 */
+	Matrix(size_t l, const int64_t* v) {
+		size_t kk=0;
+		for(size_t ii=0; ii<D1; ii++) {
+			for(size_t jj=0; jj<D2; jj++) {
+				if(kk < l)
+					data[ii][jj] = v[kk++];
+				else
+					data[ii][jj] = 0;
+			}
+		}
+	};
+	
+	/**
+	 * @brief Initialize matrix with vector, any missing values will be assumed
+	 * zero, extra values are ignored.
+	 *
+	 * @param v Input data vector
+	 */
 	Matrix(const std::vector<double>& v) {
 		size_t kk=0;
 		for(size_t ii=0; ii<D1; ii++) {
@@ -96,6 +190,12 @@ public:
 		}
 	};
 	
+	/**
+	 * @brief Initialize matrix with vector, any missing values will be assumed
+	 * zero, extra values are ignored.
+	 *
+	 * @param v Input data vector
+	 */
 	Matrix(const std::vector<size_t>& v) {
 		size_t kk=0;
 		for(size_t ii=0; ii<D1; ii++) {
@@ -108,6 +208,12 @@ public:
 		}
 	};
 
+	/**
+	 * @brief Initialize matrix with vector, any missing values will be assumed
+	 * zero, extra values are ignored.
+	 *
+	 * @param v Input data vector
+	 */
 	Matrix(const std::vector<int64_t>& v) {
 		size_t kk=0;
 		for(size_t ii=0; ii<D1; ii++) {
@@ -120,6 +226,11 @@ public:
 		}
 	};
 
+	/**
+	 * @brief Copy constructor, copies all the elements of the other vector.
+	 *
+	 * @param m
+	 */
 	Matrix(const Matrix& m)
 	{
 		for(size_t ii=0; ii<D1; ii++) {
@@ -129,37 +240,87 @@ public:
 		}
 	}
 
+	/**
+	 * @brief Returns row in column 0.
+	 *
+	 * @param row Row to lookup
+	 *
+	 * @return Value at (row,0)
+	 */
 	double& operator[](size_t row) 
 	{ 
 		assert(row < D1);
 		return data[row][0]; 
 	};
 
+	/**
+	 * @brief Returns value at given row/column. 
+	 *
+	 * @param row Row to lookup
+	 * @param col Col to lookup
+	 *
+	 * @return Value at (row,col)
+	 */
 	double& operator()(size_t row, size_t col = 0) 
 	{
 		assert(row < D1 && col < D2);
 		return data[row][col]; 
 	};
 
+	/**
+	 * @brief Returns row in column 0.
+	 *
+	 * @param row Row to lookup
+	 *
+	 * @return Value at (row,0)
+	 */
 	const double& operator[](size_t row) const
 	{ 
 		assert(row < D1);
 		return data[row][0]; 
 	};
 
+	/**
+	 * @brief Returns value at given row/column. 
+	 *
+	 * @param row Row to lookup
+	 * @param col Col to lookup
+	 *
+	 * @return Value at (row,col)
+	 */
 	const double& operator()(size_t row, size_t col = 0) const
 	{
 		assert(row < D1 && col < D2);
 		return data[row][col]; 
 	};
 
-	// 
+
+	/**
+	 * @brief Performs matrix-vector product of right hand side (rhs) and 
+	 * the current matrix, writing the result in out. RHS and OUT are 
+	 * cast to the appropriate types (dimensions). Will throw if the dimension
+	 * requirements are not met.
+	 *
+	 * @param rhs Right hand side of matrix-vector product
+	 * @param out Output of matrix-vector product
+	 */
 	void mvproduct(const MatrixP* rhs, MatrixP* out) const;
+	
+	/**
+	 * @brief Performs matrix-vector product of right hand side (rhs) and 
+	 * the current matrix, writing the result in out. RHS and OUT are 
+	 * cast to the appropriate types (dimensions). Will throw if the dimension
+	 * requirements are not met.
+	 *
+	 * @param rhs Right hand side of matrix-vector product
+	 * @param out Output of matrix-vector product
+	 */
 	void mvproduct(const MatrixP& rhs, MatrixP& out) const;
-	void mvproduct(const std::vector<double>& rhs, 
-			std::vector<double>& out) const;
-	void mvproduct(const std::vector<size_t>& rhs, 
-			std::vector<double>& out) const;
+	
+//	void mvproduct(const std::vector<double>& rhs, 
+//			std::vector<double>& out) const;
+//	void mvproduct(const std::vector<size_t>& rhs, 
+//			std::vector<double>& out) const;
 
 	virtual double det() const;
 	virtual double norm() const;
@@ -222,40 +383,40 @@ void Matrix<D1,D2>::mvproduct(const MatrixP& rhs, MatrixP& out) const
 		throw;
 	}
 }
-
-template <int D1, int D2>
-void Matrix<D1,D2>::mvproduct(const std::vector<double>& iv, 
-		std::vector<double>& ov) const
-{
-	assert(&iv != &ov);
-	assert(iv.size() == D2);
-	ov.resize(D1);
-	const Matrix<D1,D2>& m = *this;
-
-	for(size_t ii=0; ii<D1; ii++) {
-		ov[ii] = 0;
-		for(size_t jj=0; jj<D2; jj++) {
-			ov[ii] += m(ii,jj)*iv[jj];
-		}
-	}
-}
-
-template <int D1, int D2>
-void Matrix<D1,D2>::mvproduct(const std::vector<size_t>& iv, 
-		std::vector<double>& ov) const
-{
-	assert(iv.size() == D2);
-	ov.resize(D1);
-	const Matrix<D1,D2>& m = *this;
-
-	for(size_t ii=0; ii<D1; ii++) {
-		ov[ii] = 0;
-		for(size_t jj=0; jj<D2; jj++) {
-			ov[ii] += m(ii,jj)*iv[jj];
-		}
-	}
-}
-
+//
+//template <int D1, int D2>
+//void Matrix<D1,D2>::mvproduct(const std::vector<double>& iv, 
+//		std::vector<double>& ov) const
+//{
+//	assert(&iv != &ov);
+//	assert(iv.size() == D2);
+//	ov.resize(D1);
+//	const Matrix<D1,D2>& m = *this;
+//
+//	for(size_t ii=0; ii<D1; ii++) {
+//		ov[ii] = 0;
+//		for(size_t jj=0; jj<D2; jj++) {
+//			ov[ii] += m(ii,jj)*iv[jj];
+//		}
+//	}
+//}
+//
+//template <int D1, int D2>
+//void Matrix<D1,D2>::mvproduct(const std::vector<size_t>& iv, 
+//		std::vector<double>& ov) const
+//{
+//	assert(iv.size() == D2);
+//	ov.resize(D1);
+//	const Matrix<D1,D2>& m = *this;
+//
+//	for(size_t ii=0; ii<D1; ii++) {
+//		ov[ii] = 0;
+//		for(size_t jj=0; jj<D2; jj++) {
+//			ov[ii] += m(ii,jj)*iv[jj];
+//		}
+//	}
+//}
+//
 template <int D1, int D2>
 std::ostream& operator<<(std::ostream& os, const Matrix<D1,D2>& b)
 {

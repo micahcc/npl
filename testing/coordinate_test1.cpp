@@ -60,7 +60,7 @@ int main()
 	
 	std::vector<int64_t> index(img->ndim(), 0);
 	std::vector<double> cindex(img->ndim(), 0);
-	std::vector<double> ras;
+	std::vector<double> ras(img->ndim(), 0);;
 	size_t DIM = img->ndim();
 
 	std::cerr << "Corners: " << endl;
@@ -68,7 +68,7 @@ int main()
         for(uint32_t j = 0 ; j < DIM ; j++) {
             index[j] = ((bool)(i&(1<<j)))*(img->dim(j)-1);
         }
-		img->indexToPoint(index, ras);
+		img->indexToPoint(img->ndim(), index.data(), ras.data());
 		std::cerr << "Mine: " << index << " -> " << ras << endl;
 		std::cerr << "Prev: " << index << " -> " << correct[i] << endl;
 		
@@ -79,11 +79,11 @@ int main()
 			}
 		}
 
-		img->pointToIndex(ras, cindex);
+		img->pointToIndex(img->ndim(), ras.data(), cindex.data());
 		std::cerr << "Back to index: " << cindex << endl;
-		img->indexToPoint(cindex, ras);
+		img->indexToPoint(img->ndim(), cindex.data(), ras.data());
 		std::cerr << "Back to Point: " << ras << endl;
-		img->pointToIndex(ras, cindex);
+		img->pointToIndex(img->ndim(), ras.data(), cindex.data());
 		std::cerr << "Back to Index: " << cindex << endl;
 		
 		for(size_t dd=0; dd<DIM; dd++) {

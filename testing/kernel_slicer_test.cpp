@@ -66,24 +66,26 @@ int main()
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
 
                   int64_t itlin = it.offset(neighbor);
-                  it.offset_index(index.size(), index.data(), neighbor, true);
-				  neighbor++;
 
+                  it.offset_index(1, index.data(), neighbor, true);
                   if(xeff != index[0]) {
                     cerr << "Incorrect x map" << endl;
                     return -1;
                   }
                   
+                  it.offset_index(2, index.data(), neighbor, true);
                   if(yeff != index[1]) {
                     cerr << "Incorrect y map" << endl;
                     return -1;
                   }
                   
+                  it.offset_index(3, index.data(), neighbor, true);
                   if(zeff != index[2]) {
                     cerr << "Incorrect z map" << endl;
                     return -1;
                   }
                   
+                  it.offset_index(4, index.data(), neighbor, true);
                   if(teff != index[3]) {
                     cerr << "Incorrect t map" << endl;
                     return -1;
@@ -93,6 +95,7 @@ int main()
                     cerr << "Incorrect linear mapping" << endl;
                     return -1;
                   }
+				  neighbor++;
                 }
               }
             }

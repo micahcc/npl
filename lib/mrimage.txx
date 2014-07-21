@@ -773,16 +773,17 @@ std::shared_ptr<MRImage> MRImageStore<D,T>::cloneImage() const
  * @return 
  */
 template <int D, typename T>
-int MRImageStore<D,T>::indexToPoint(const std::vector<int64_t>& index,
-		std::vector<double>& rast) const
+int MRImageStore<D,T>::indexToPoint(size_t len, const int64_t* index,
+			double* rast) const
 {
-	Matrix<D+1,1> in(index);
+	Matrix<D+1,1> in(len, index);
 	in[D] = 1;
 	Matrix<D+1,1> out;
 	affine().mvproduct(in, out);
-	rast.resize(D);
-	for(size_t ii=0; ii<D; ii++)
+	for(size_t ii=0; ii<D && ii < len; ii++)
 		rast[ii] = out[ii];
+	for(size_t ii=D; ii < len; ii++)
+		rast[ii] = 0;
 	return 0;
 }
 
@@ -799,16 +800,17 @@ int MRImageStore<D,T>::indexToPoint(const std::vector<int64_t>& index,
  * @return 
  */
 template <int D, typename T>
-int MRImageStore<D,T>::indexToPoint(const std::vector<double>& index,
-		std::vector<double>& rast) const
+int MRImageStore<D,T>::indexToPoint(size_t len, const double* index,
+			double* rast) const
 {
-	Matrix<D+1,1> in(index);
+	Matrix<D+1,1> in(len, index);
 	in[D] = 1;
 	Matrix<D+1,1> out;
 	affine().mvproduct(in, out);
-	rast.resize(D);
-	for(size_t ii=0; ii<D; ii++)
+	for(size_t ii=0; ii<D && ii<len; ii++)
 		rast[ii] = out[ii];
+	for(size_t ii=D; ii<len; ii++)
+		rast[ii] = 0;
 	return 0;
 }
 
@@ -825,16 +827,17 @@ int MRImageStore<D,T>::indexToPoint(const std::vector<double>& index,
  * @return 
  */
 template <int D, typename T>
-int MRImageStore<D,T>::pointToIndex(const std::vector<double>& rast,
-		std::vector<double>& index) const
+int MRImageStore<D,T>::pointToIndex(size_t len, const double* rast,
+			double* index) const
 {
-	Matrix<D+1,1> in(rast);
+	Matrix<D+1,1> in(len, rast);
 	in[D] = 1;
 	Matrix<D+1,1> out;
 	iaffine().mvproduct(in, out);
-	index.resize(D);
-	for(size_t ii=0; ii<D; ii++)
+	for(size_t ii=0; ii<len && ii<D; ii++)
 		index[ii] = out[ii];
+	for(size_t ii=D; ii<len; ii++)
+		index[ii] = 0;
 	return 0;
 }
 
@@ -851,15 +854,16 @@ int MRImageStore<D,T>::pointToIndex(const std::vector<double>& rast,
  * @return 
  */
 template <int D, typename T>
-int MRImageStore<D,T>::pointToIndex(const std::vector<double>& rast,
-		std::vector<int64_t>& index) const
+int MRImageStore<D,T>::pointToIndex(size_t len, const double* rast,
+			int64_t* index) const
 {
-	Matrix<D+1,1> in(rast);
+	Matrix<D+1,1> in(len, rast);
 	in[D] = 1;
 	Matrix<D+1,1> out;
 	iaffine().mvproduct(in, out);
-	index.resize(D);
-	for(size_t ii=0; ii<D; ii++) 
+	for(size_t ii=0; ii<D && ii<len; ii++) 
+		index[ii] = round(out[ii]);
+	for(size_t ii=D; ii<len; ii++) 
 		index[ii] = round(out[ii]);
 	return 0;
 }

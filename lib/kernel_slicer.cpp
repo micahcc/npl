@@ -530,15 +530,7 @@ void KSlicer::goIndex(const std::vector<int64_t>& newpos)
  */
 void KSlicer::center_index(size_t len, int64_t* index) const
 {
-	assert(!m_end);
-	for(size_t ii=0; ii<len && ii<m_dim; ii++) {
-		index[ii] = m_pos[m_center][ii];
-	}
-	
-	// extra values to 0
-	for(size_t ii=m_dim; ii<len; ii++) {
-		index[ii] = 0;
-	}
+	offset_index(len, index, m_center, true);
 }
 	
 /**

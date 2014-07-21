@@ -66,8 +66,8 @@ public:
 	virtual MatrixP& spacing() = 0;
 	virtual MatrixP& origin() = 0;
 	virtual MatrixP& direction() = 0;
-	virtual MatrixP& affine() = 0;
-	virtual MatrixP& iaffine() = 0;
+//	virtual MatrixP& affine() = 0;
+//	virtual MatrixP& iaffine() = 0;
 	virtual const MatrixP& spacing() const = 0;
 	virtual const MatrixP& origin() const  = 0;
 	virtual const MatrixP& direction() const = 0;
@@ -85,14 +85,62 @@ public:
 	virtual std::shared_ptr<MRImage> cloneImage() const = 0;
 	
 	// coordinate system conversion 
-	virtual int indexToPoint(const std::vector<int64_t>& xyz,
-			std::vector<double>& ras) const = 0;
-	virtual int indexToPoint(const std::vector<double>& xyz,
-			std::vector<double>& ras) const = 0;
-	virtual int pointToIndex(const std::vector<double>& ras,
-			std::vector<double>& xyz) const = 0;
-	virtual int pointToIndex(const std::vector<double>& ras,
-			std::vector<int64_t>& index) const = 0;
+	
+	/**
+	 * @brief Converts an index in pixel space to RAS, physical/time coordinates.
+	 * If len < dimensions, additional dimensions are assumed to be 0. If len >
+	 * dimensions then additional values are ignored, and only the first DIM 
+	 * values will be transformed and written to ras.
+	 *
+	 * @param len Length of xyz/ras arrays.
+	 * @param xyz Array in xyz... coordinates (maybe as long as you want).
+	 * @param ras Corresponding coordinate
+	 *
+	 * @return 0
+	 */
+	virtual int indexToPoint(size_t len, const int64_t* xyz, double* ras) const=0;
+	
+	/**
+	 * @brief Converts an index in pixel space to RAS, physical/time coordinates.
+	 * If len < dimensions, additional dimensions are assumed to be 0. If len >
+	 * dimensions then additional values are ignored, and only the first DIM 
+	 * values will be transformed and written to ras.
+	 *
+	 * @param len Length of xyz/ras arrays.
+	 * @param xyz Array in xyz... coordinates (maybe as long as you want).
+	 * @param ras Corresponding coordinate
+	 *
+	 * @return 0
+	 */
+	virtual int indexToPoint(size_t len, const double* xyz, double* ras) const=0;
+	
+	/**
+	 * @brief Converts a point in RAS coordinate system to index.
+	 * If len < dimensions, additional dimensions are assumed to be 0. If len >
+	 * dimensions then additional values are ignored, and only the first DIM 
+	 * values will be transformed and written to ras.
+	 *
+	 * @param len Length of xyz/ras arrays.
+	 * @param ras Array in RAS... coordinates (may be as long as you want).
+	 * @param xyz Corresponding coordinate
+	 *
+	 * @return 0
+	 */
+	virtual int pointToIndex(size_t len, const double* ras, double* xyz) const=0;
+	
+	/**
+	 * @brief Converts a point in RAS coordinate system to index.
+	 * If len < dimensions, additional dimensions are assumed to be 0. If len >
+	 * dimensions then additional values are ignored, and only the first DIM 
+	 * values will be transformed and written to ras.
+	 *
+	 * @param len Length of xyz/ras arrays.
+	 * @param ras Array in RAS... coordinates (may be as long as you want).
+	 * @param xyz Corresponding coordinate, rounded to nearest integer
+	 *
+	 * @return 0
+	 */
+	virtual int pointToIndex(size_t len, const double* ras, int64_t* index) const=0;
 	
 //	virtual int unary(double(*func)(double,double)) const = 0;
 //	virtual int binOp(const MRImage* right, double(*func)(double,double), bool elevR) const = 0;
@@ -184,36 +232,195 @@ public:
 	
 	void printSelf();
 	
-	int indexToPoint(const std::vector<int64_t>& index, std::vector<double>& rast) const;
-	int indexToPoint(const std::vector<double>& index, std::vector<double>& rast) const;
-	int pointToIndex(const std::vector<double>& rast, std::vector<double>& index) const;
-	int pointToIndex(const std::vector<double>& ras, std::vector<int64_t>& index) const;
+	/**
+	 * @brief Converts an index in pixel space to RAS, physical/time coordinates.
+	 * If len < dimensions, additional dimensions are assumed to be 0. If len >
+	 * dimensions then additional values are ignored, and only the first DIM 
+	 * values will be transformed and written to ras.
+	 *
+	 * @param len Length of xyz/ras arrays.
+	 * @param xyz Array in xyz... coordinates (maybe as long as you want).
+	 * @param ras Corresponding coordinate
+	 *
+	 * @return 0
+	 */
+	virtual int indexToPoint(size_t len, const int64_t* xyz, double* ras) const;
 	
+	/**
+	 * @brief Converts an index in pixel space to RAS, physical/time coordinates.
+	 * If len < dimensions, additional dimensions are assumed to be 0. If len >
+	 * dimensions then additional values are ignored, and only the first DIM 
+	 * values will be transformed and written to ras.
+	 *
+	 * @param len Length of xyz/ras arrays.
+	 * @param xyz Array in xyz... coordinates (maybe as long as you want).
+	 * @param ras Corresponding coordinate
+	 *
+	 * @return 0
+	 */
+	virtual int indexToPoint(size_t len, const double* xyz, double* ras) const;
+	
+	/**
+	 * @brief Converts a point in RAS coordinate system to index.
+	 * If len < dimensions, additional dimensions are assumed to be 0. If len >
+	 * dimensions then additional values are ignored, and only the first DIM 
+	 * values will be transformed and written to ras.
+	 *
+	 * @param len Length of xyz/ras arrays.
+	 * @param ras Array in RAS... coordinates (may be as long as you want).
+	 * @param xyz Corresponding coordinate
+	 *
+	 * @return 0
+	 */
+	virtual int pointToIndex(size_t len, const double* ras, double* xyz) const;
+	
+	/**
+	 * @brief Converts a point in RAS coordinate system to index.
+	 * If len < dimensions, additional dimensions are assumed to be 0. If len >
+	 * dimensions then additional values are ignored, and only the first DIM 
+	 * values will be transformed and written to ras.
+	 *
+	 * @param len Length of xyz/ras arrays.
+	 * @param ras Array in RAS... coordinates (may be as long as you want).
+	 * @param xyz Corresponding coordinate, rounded to nearest integer
+	 *
+	 * @return 0
+	 */
+	virtual int pointToIndex(size_t len, const double* ras, int64_t* index) const;
+	
+
+	/**
+	 * @brief Returns a matrix (single column) with spacing information. The 
+	 * number of rows is equal to the number of dimensions in the image.
+	 *
+	 * @return Reference to spacing matrix
+	 */
 	MatrixP& spacing() {return *((MatrixP*)&m_space); };
+	
+	/**
+	 * @brief Returns a matrix (single column) with origin (RAS coordinate of 
+	 * index 0,0,0). The number of rows is equal to the number of dimensions in
+	 * the image.
+	 *
+	 * @return Reference to origin matrix
+	 */
 	MatrixP& origin() {return *((MatrixP*)&m_origin); };
+	
+	/**
+	 * @brief Returns a square matrix with direction, which is the rotation off
+	 * the indices to +R +A +S. 
+	 *
+	 * @return Reference to direction matrix
+	 */
 	MatrixP& direction() {return *((MatrixP*)&m_dir); };
-	MatrixP& affine() {return *((MatrixP*)&m_affine); };
-	MatrixP& iaffine() {return *((MatrixP*)&m_inv_affine); };
+
+
+//	MatrixP& affine() {return *((MatrixP*)&m_affine); };
+//	MatrixP& iaffine() {return *((MatrixP*)&m_inv_affine); };
+	
+	/**
+	 * @brief Returns a matrix (single column) with spacing information. The 
+	 * number of rows is equal to the number of dimensions in the image.
+	 *
+	 * @return Reference to spacing matrix
+	 */
 	const MatrixP& spacing() const {return *((MatrixP*)&m_space); };
+	
+	/**
+	 * @brief Returns a matrix (single column) with origin (RAS coordinate of 
+	 * index 0,0,0). The number of rows is equal to the number of dimensions in
+	 * the image.
+	 *
+	 * @return Reference to origin matrix
+	 */
 	const MatrixP& origin() const {return *((MatrixP*)&m_origin); };
+	
+	/**
+	 * @brief Returns a square matrix with direction, which is the rotation off
+	 * the indices to +R +A +S. 
+	 *
+	 * @return Reference to direction matrix
+	 */
 	const MatrixP& direction() const {return *((MatrixP*)&m_dir); };
+	
+	/**
+	 * @brief Returns a square matrix that may be used to convert an index to 
+	 * a point in the coordinate system of real RAS space (rather than index
+	 * space).
+	 *
+	 * @return Reference to affine matrix
+	 */
 	const MatrixP& affine() const {return *((MatrixP*)&m_affine); };
+
+	/**
+	 * @brief Returns a square matrix that may be used to convert a point in
+	 * the coordinate system of real RAS space to index space.
+	 *
+	 * @return Reference to inverse affine matrix
+	 */
 	const MatrixP& iaffine() const {return *((MatrixP*)&m_inv_affine); };
 
-	std::string getUnits(size_t d1, double d2);
+	/**
+	 * @brief Returns units of given dimension, note that this is prior to the
+	 * direction matrix, so if there is oblique orientation you are really
+	 * looking at a mix of units.
+	 *
+	 * @param d Dimension
+	 *
+	 * @return String describing units.
+	 */
+	std::string getUnits(size_t d) { return m_units[d]; };
 
+	/**
+	 * @brief Write out nifti image with the current images data.
+	 *
+	 * @param filename
+	 * @param version > 2 or < 2 to indicate whether to use nifti version 2
+	 * or nifti version 1.
+	 *
+	 * @return Success if 0
+	 */
 	int write(std::string filename, double version) const;
 	
+	/**
+	 * @brief Create an exact copy of the current image object, and return
+	 * a pointer to it.
+	 *
+	 * @return Pointer to exact duplicate of current image.
+	 */
 	std::shared_ptr<MRImage> cloneImage() const;
 protected:
 	// used to transform index to RAS (Right Handed Coordinate System)
+
+	/**
+	 * @brief Raw direction matrix
+	 */
 	Matrix<D,D> m_dir;
+
+	/**
+	 * @brief Raw spacing matrix
+	 */
 	Matrix<D,1> m_space;
+
+	/**
+	 * @brief Raw origin
+	 */
 	Matrix<D,1> m_origin;
+
+	/**
+	 * @brief String indicating units
+	 */
 	std::string m_units[D];
 	
-	// chache of the affine index -> RAS (right handed coordiante system)
+	/**
+	 * @brief Matrix which transforms an index vector into a point vector
+	 */
 	Matrix<D+1,D+1> m_affine;
+
+
+	/**
+	 * @brief Matrix which transforms a space vector to an index vector.
+	 */
 	Matrix<D+1,D+1> m_inv_affine;
 	
 	int writeNifti1Image(gzFile file) const;
