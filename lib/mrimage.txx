@@ -171,11 +171,11 @@ void MRImageStore<D,T>::setOrigin(const MatrixP& origin, bool reinit)
 {
 	if(reinit) {
 		for(size_t ii=0; ii<D; ii++)
-			m_origin[ii] = 1;
+			m_origin[ii] = 0;
 	}
 
 	for(size_t ii=0; ii<origin.rows() && ii < D; ii++) {
-		m_space[ii] = origin[ii];
+		m_origin[ii] = origin[ii];
 	}
 
 	updateAffine();

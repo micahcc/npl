@@ -86,6 +86,11 @@ def build(bld):
             target='kdtree_test2',
             source='kdtree_test2.cpp', 
             use='kdtree')
+    
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='kdtree_test3',
+            source='kdtree_test3.cpp', 
+            use='kdtree')
 
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='kdtree_test_multi', 
