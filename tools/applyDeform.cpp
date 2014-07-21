@@ -188,7 +188,16 @@ shared_ptr<MRImage> dilate(shared_ptr<MRImage> in, size_t reps)
 	return out;
 }
 
-int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
+/**
+ * @brief Inverts a deformation, given a mask in the target space.
+ *
+ * @param mask Mask in target space (where the current deform maps from)
+ * @param deform Maps from mask space.
+ * @param atldef Maps to mask space, should be same size as mask
+ *
+ * @return 
+ */
+int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform, 
 		shared_ptr<MRImage> atldef)
 {
 	const double MINERR = .1;
@@ -203,6 +212,7 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 	vector<double> atl2sub(3);
 	LinInterp3DView<double> definterp(deform);
 	NNInterp3DView<double> maskinterp(mask);
+	KDTree<3,3,double, double> tree;
 
 	if(deform->tlen() != 3) {
 		cerr << "Error invalid deform image, needs 3 points in the 4th or "
@@ -214,21 +224,20 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 	 * Construct KDTree indexed by atlas-space indices, and storing indices
 	 * in subject (mask) space. Only do it if mask value is non-zero however
 	 */
-	KDTree<3,3,double, double> tree;
-	OrderIter<int> mit(mask);
-	for(mit.goBegin(); !mit.eof(); ++mit) {
-		// ignore zeros in mask
-		if(*mit == 0)
+	Vector3DIter<double> dit(deform);
+	for(dit.goBegin(); !dit.eof(); ++dit) {
+		dit.index(3, index);
+		deform->indexToPoint(3, index, subpoint);
+		mask->pointToIndex(3, subpoint, cindex);
+
+		// skip 0s mask
+		if(maskinterp(cindex[0], cindex[1], cindex[2]) == 0)
 			continue;
 
-		// target is current coordinate
-		mit.index(3, index);
-		mask->indexToPoint(3, index, subpoint);
-		deform->pointToIndex(3, subpoint, cindex);
 		for(int ii=0; ii<3; ii++) {
-			sub2atl[ii] = definterp(cindex[0], cindex[1], cindex[2], ii);
-			atl2sub[ii] = sub2atl[ii];
-			atlpoint[ii] = subpoint[ii] + atl2sub[ii];
+			sub2atl[ii] = dit[ii];
+			atl2sub[ii] = -dit[ii];
+			atlpoint[ii] = subpoint[ii] + sub2atl[ii];
 		}
 
 		// add point to kdtree, use atl2sub since this will be our best guess
@@ -241,12 +250,9 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 	 * In atlas image try to find the correct source in the subject by first
 	 * finding a point from the KDTree then improving on that result 
 	 */
-	{
-	FlatIter<double> ait(atldef);
 	// set atlas deform to NANs
-	for(ait.goBegin(); !ait.eof(); ++ait) 
+	for(FlatIter<double> ait(atldef); !ait.eof(); ++ait) 
 		ait.set(NAN);
-	}
 
 	// at each point in atlas try to find the best mapping in the subject by
 	// going back and forth. Since the mapping from sub to atlas is ground truth
@@ -255,59 +261,76 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 	Vector3DIter<double> ait(atldef);
 	assert(ait.tlen() == 3);
 	for(ait.goBegin(); !ait.eof(); ++ait) {
+		
+		cout << setw(10) << index[0] << setw(10) << index[1] << setw(10) << index[2] << "\r";
+
 		ait.index(3, index);
-		cout << setw(10) << index[0] << setw(10) << index[1] << setw(10) << index[2];
 		atldef->indexToPoint(3, index, atlpoint.data());
 
-		double dist = INFINITY;
+//		double dist = INFINITY;
+		double dist = 20;
 		auto result = tree.nearest(atlpoint, dist);
-
-		for(size_t ii=0; ii<3; ii++) 
-			atl2sub[ii] = result->m_data[ii];
-
-		// SUB <- ATLAS (given)
-		//    atl2sub
-		double prevdist = dist+1;
-		size_t jj = 0;
-		for(jj = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR && 
-						jj < MAXITERS; jj++) {
-
+		if(result) {
 			for(size_t ii=0; ii<3; ii++) 
-				subpoint[ii] = atlpoint[ii] + atl2sub[ii];
-
-			// ignore points that map outside the mask, just accept this as the
-			// best approximate deform
-			mask->pointToIndex(3, subpoint, cindex);
-			if(maskinterp(cindex[0], cindex[1], cindex[2]) == 0) 
-				break;
-
-			// (estimate) SUB <- ATLAS (given)
-			//              offset
-			// interpolate new offset at subpoint
-			deform->pointToIndex(3, subpoint, cindex);
-			for(size_t ii=0; ii<3; ii++) {
-				sub2atl[ii] = definterp(cindex[0], cindex[1], cindex[2], ii);
-				err[ii] = atl2sub[ii]+sub2atl[ii];
-			}
-
-			// compute error
-			prevdist = dist;
-			dist = 0;
-			for(size_t ii=0; ii<3; ii++) {
-				atl2sub[ii] += -LAMBDA*err[ii];
-				dist += err[jj]*err[jj];
-			}
-			dist = sqrt(dist);
+				atl2sub[ii] = result->m_data[ii];
+			for(size_t ii=0; ii<3; ii++) 
+				ait.set(ii, atl2sub[ii]);
 		}
 
-		cout << setw(10) << jj << "\r";
-		// save out final deform
-		for(size_t ii=0; ii<3; ii++) 
-			ait.set(ii, atl2sub[ii]);
+//		for(size_t ii=0; ii<3; ii++) 
+//			atl2sub[ii] = result->m_data[ii];
+//
+//		// SUB <- ATLAS (given)
+//		//    atl2sub
+//		double prevdist = dist+1;
+//		size_t jj = 0;
+//		for(jj = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR && 
+//						jj < MAXITERS; jj++) {
+//
+//			for(size_t ii=0; ii<3; ii++) 
+//				subpoint[ii] = atlpoint[ii] + atl2sub[ii];
+//
+//			// ignore points that map outside the mask, just accept this as the
+//			// best approximate deform
+//			mask->pointToIndex(3, subpoint, cindex);
+//
+//			// (estimate) SUB <- ATLAS (given)
+//			//              offset
+//			// interpolate new offset at subpoint
+//			deform->pointToIndex(3, subpoint, cindex);
+//			for(size_t ii=0; ii<3; ii++) {
+//				sub2atl[ii] = definterp(cindex[0], cindex[1], cindex[2], ii);
+//				err[ii] = atl2sub[ii]+sub2atl[ii];
+//			}
+//
+//			// compute error
+//			prevdist = dist;
+//			dist = 0;
+//			for(size_t ii=0; ii<3; ii++) {
+//				atl2sub[ii] += -LAMBDA*err[ii];
+//				dist += err[jj]*err[jj];
+//			}
+//			dist = sqrt(dist);
+//		}
+//
+//		cout << setw(10) << jj << "\r";
+//		// save out final deform
+//		for(size_t ii=0; ii<3; ii++) 
+//			ait.set(ii, atl2sub[ii]);
 
 	}
 
 	return 0;
+}
+
+void binarize(shared_ptr<MRImage> in)
+{
+	OrderIter<int> it(in);
+	for(it.goBegin(); !it.eof(); ++it) {
+		if(*it != 0) 
+			it.set(1);
+	}
+
 }
 
 int main(int argc, char** argv)
@@ -323,12 +346,11 @@ int main(int argc, char** argv)
 
 	TCLAP::ValueArg<string> a_in("i", "input", "Input image.", 
 			true, "", "*.nii.gz", cmd);
-	TCLAP::ValueArg<string> a_mask("m", "mask", "Mask image.",
-			true, "", "*.nii.gz", cmd);
+	TCLAP::ValueArg<string> a_mask("m", "mask", "Mask image in "
+			"deform space.", true, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_deform("d", "deform", "Deformation field.",
 			true, "", "*.nii.gz", cmd);
-	TCLAP::ValueArg<string> a_atlas("a", "atlas", "Atlas image (image where "
-			"indices in the deform refer to).",
+	TCLAP::ValueArg<string> a_atlas("a", "atlas", "Atlas image.",
 			true, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
 			true, "", "*.nii.gz", cmd);
@@ -359,35 +381,25 @@ int main(int argc, char** argv)
 		return -1;
 	}
 	
-	std::shared_ptr<MRImage> maskimg(readMRImage(a_mask.getValue()));
-	if(maskimg->ndim() != 3) {
+	std::shared_ptr<MRImage> mask(readMRImage(a_mask.getValue()));
+	if(mask->ndim() != 3) {
+		cerr << "Expected mask to be 3D Image!" << endl;
+		return -1;
+	}
+	binarize(mask);
+	
+	std::shared_ptr<MRImage> atlas(readMRImage(a_atlas.getValue()));
+	if(atlas->ndim() != 3) {
 		cerr << "Expected mask to be 3D Image!" << endl;
 		return -1;
 	}
 
-	// make mask image binary
-	{
-		OrderIter<int> it(maskimg);
-		for(it.goBegin(); !it.eof(); ++it) {
-			if(*it != 0) 
-				it.set(1);
-		}
-	}
-
-	maskimg = dilate(maskimg, a_dilate.getValue());
-	maskimg->write("maskdilate.nii.gz");
-	
 	std::shared_ptr<MRImage> defimg(readMRImage(a_deform.getValue()));
 	if(defimg->ndim() > 5 || defimg->ndim() < 4 || defimg->tlen() != 3) {
 		cerr << "Expected dform to be 4D/5D Image, with 3 volumes!" << endl;
 		return -1;
 	}
 
-	std::shared_ptr<MRImage> atlas(readMRImage(a_atlas.getValue()));
-	if(atlas->ndim() != 3) {
-		cerr << "Expected atlas to be 3D!" << endl;
-		return -1;
-	}
 	// convert deform to RAS space offsets
 	{
 		Vector3DIter<double> it(defimg);
@@ -406,7 +418,8 @@ int main(int argc, char** argv)
 			for(size_t ii=0; ii<3; ii++) {
 				cindex[ii] = it[ii];
 			}
-			atlas->pointToIndex(3, cindex, pointA);
+			//since values in deformation vector are indices in atlas space
+			atlas->indexToPoint(3, cindex, pointA);
 			// set value to offset
 			// store sub2atl (vector going from subject to atlas space)
 			for(int64_t ii=0; ii < 3; ii++) 
@@ -418,9 +431,11 @@ int main(int argc, char** argv)
 	if(a_invert.isSet()) {
 		// create output the size of atlas, with 3 volumes in the 4th dimension
 		auto idef = createMRImage({atlas->dim(0), atlas->dim(1), 
-				atlas->dim(2), 3}, FLOAT64);
-		//
-		invert(maskimg, defimg, idef);
+					atlas->dim(2), 3}, FLOAT64);
+		idef->setDirection(atlas->direction(), true);
+		idef->setSpacing(atlas->spacing(), true);
+		idef->setOrigin(atlas->origin(), true);
+		invert(mask, defimg, idef);
 		idef->write("inversedef.nii.gz");
 	}
 
