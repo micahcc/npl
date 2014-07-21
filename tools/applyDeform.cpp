@@ -144,18 +144,31 @@ ostream& operator<<(ostream& out, const std::vector<T>& v)
 
 shared_ptr<MRImage> dilate(shared_ptr<MRImage> in, size_t reps)
 {
-	std::vector<int64_t> index(in->ndim(), 0);
+	std::vector<int64_t> index1(in->ndim(), 0);
+	std::vector<int64_t> index2(in->ndim(), 0);
 	auto prev = in->cloneImage();
 	auto out = in->cloneImage();
 	shared_ptr<MRImage> tmp; 
 	for(size_t rr=0; rr<reps; rr++) {
 		cerr << "Dilate " << rr << endl;
+
+		tmp = prev;
+		prev = out;
+		out = tmp;
 		
 		KernelIter<int> it(prev);
 		it.setRadius(1);
 		OrderIter<int> oit(out);
+		oit.setOrder(it.getOrder());
 		// for each pixels neighborhood, smooth neightbors
 		for(oit.goBegin(), it.goBegin(); !it.eof(); ++it, ++oit) {
+			oit.index(index1.size(), index1.data());
+			it.center_index(index2.size(), index2.data());
+			for(size_t ii=0; ii<in->ndim(); ii++) {
+				if(index1[ii] != index2[ii]) {
+					throw std::logic_error("Error differece in iteration!");
+				}
+			}
 
 			// if any of the neighbors are 0, then set to 0
 			bool dilateme = false;
@@ -170,10 +183,6 @@ shared_ptr<MRImage> dilate(shared_ptr<MRImage> in, size_t reps)
 			if(dilateme) 
 				oit.set(dilval);
 		}
-
-		tmp = prev;
-		prev = out;
-		out = tmp;
 	}
 
 	return out;
@@ -192,7 +201,6 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 	double err[3];
 	vector<double> atlpoint(3);
 	vector<double> atl2sub(3);
-	OrderIter<int> mit(mask);
 	LinInterp3DView<double> definterp(deform);
 	NNInterp3DView<double> maskinterp(mask);
 
@@ -207,6 +215,7 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 	 * in subject (mask) space. Only do it if mask value is non-zero however
 	 */
 	KDTree<3,3,double, double> tree;
+	OrderIter<int> mit(mask);
 	for(mit.goBegin(); !mit.eof(); ++mit) {
 		// ignore zeros in mask
 		if(*mit == 0)
@@ -249,9 +258,8 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 		double dist = INFINITY;
 		auto result = tree.nearest(atlpoint, dist);
 			
-		for(size_t ii=0; ii<3; ii++) {
+		for(size_t ii=0; ii<3; ii++) 
 			atl2sub[ii] = result->m_data[ii];
-		}
 
 		// SUB <- ATLAS (given)
 		//    atl2sub
@@ -262,9 +270,8 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 			for(size_t ii=0; ii<3; ii++) 
 				subpoint[ii] = atlpoint[ii] + atl2sub[ii];
 
-//			// atlpoint-sub2atl = subpoint
-//			for(size_t ii=0; ii<3; ii++) 
-//				subpoint[ii] = atlpoint[ii] + atl2sub[ii];
+			// ignore points that map outside the mask, just accept this as the
+			// best approximate deform
 			mask->pointToIndex(3, subpoint, cindex);
 			if(maskinterp(cindex[0], cindex[1], cindex[2]) == 0) 
 				break;
@@ -377,26 +384,27 @@ int main(int argc, char** argv)
 	}
 	// convert deform to RAS space offsets
 	{
-		OrderIter<double> it(defimg);
+		Vector3DIter<double> it(defimg);
+		if(it.tlen() != 3) 
+			cerr << "Error expected 3 volumes!" << endl;
 		int64_t index[3];
 		double cindex[3];
 		double pointS[3]; //subject
 		double pointA[3]; //atlas
-		for(it.goBegin(); !it.eof(); ) {
+		for(it.goBegin(); !it.eof(); ++it) {
 			// fill index with coordinate
 			it.index(3, index);
 			defimg->indexToPoint(3, index, pointS);
 
 			// convert source pixel to pointA
-			for(size_t ii=0; ii<3; ii++, ++it) 
-				cindex[ii] = *it;
+			for(size_t ii=0; ii<3; ii++) {
+				cindex[ii] = it[ii];
+			}
 			atlas->pointToIndex(3, cindex, pointA);
-			
 			// set value to offset
 			// store sub2atl (vector going from subject to atlas space)
-			for(int64_t ii=2; ii >= 0; --ii, --it) 
-				it.set(pointA[ii] - pointS[ii]);
-			++it; ++it; ++it;
+			for(int64_t ii=0; ii < 3; ii++) 
+				it.set(ii, pointA[ii] - pointS[ii]);
 		}
 	}
 	defimg->write("deform.nii.gz");
