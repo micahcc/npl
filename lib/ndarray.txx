@@ -179,7 +179,8 @@ int64_t NDArrayStore<D,T>::getLinIndex(int64_t x, int64_t y, int64_t z,
 	int64_t tmp[4] = {x,y,z,t};
 	for(size_t ii=0; ii<3; ii++) {
 		assert(tmp[ii] >= 0 && tmp[ii] < dim(ii));
-		out += tmp[ii]*_m_stride[ii];
+		if(ii<D)
+			out += tmp[ii]*_m_stride[ii];
 	}
 
 	// assert(z < _m_stride[2]);

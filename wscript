@@ -111,4 +111,4 @@ def build(bld):
         f.write('#define __version__ "%s"\n\n' % gitversion())
         f.close()
 
-    bld.recurse('deps lib testing tools-WIP deps')
+    bld.recurse('deps lib testing tools deps')

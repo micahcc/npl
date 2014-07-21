@@ -4,6 +4,3 @@ def build(bld):
     bld.program(target = 'applyDeform', 
             source = 'applyDeform.cpp', use = 'mrimage tclap iterators accessors')
 
-    bld.program(target = 'niiHeader', 
-            source = 'niiHeader.cpp', use = 'mrimage')
-

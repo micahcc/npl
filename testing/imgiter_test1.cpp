@@ -20,42 +20,34 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <iostream>
 
 #include "mrimage.h"
+#include "iterators.h"
 
 using namespace std;
 using namespace npl;
 
-int main(int argc, char** argv)
+int main()
 {
-	if(argc != 2) {
-		cerr << "Need a filename!" << endl;
-		return -1;
-	}
-
-	/* Create an image with: x+y*100+z*10000*/
-	std::vector<size_t> sz({10, 23, 39, 8});
-	MRImage* testimg = createMRImage(sz, FLOAT64);
-
-	int64_t ii = 0;
-	for(auto iter = testimg->begin(); !iter.isEnd(); ++iter) {
-		iter.int64(ii++);
-	}
-
-	/* Write the Image */
-	writeMRImage(testimg, argv[1]);
-
-	/* Read the Image */
-	MRImage* iimage = readMRImage(argv[1], true);
-	
-	/* Check the Image */
-	ii = 0;
-	for(auto iter = iimage->begin(); !iter.isEnd(); ++iter) {
-		if(iter.int64() != ii++) {
-			cerr << "Error, mismatch in read image" << endl;
+	auto img = readMRImage("../../data/grad_imag.nii.gz");
+	OrderIter<int> it(img);
+	it.setOrder({0,1,2});
+	it.goBegin();
+	for(size_t ii=1; ii<=125; ii++, ++it) {
+		if(*it != ii) {
+			cerr << "Difference between read image and theoretical image" << endl;
 			return -1;
 		}
 	}
-
-	cerr << "PASS!" << endl;
+	
+	it.setOrder({}, true);
+	it.goBegin();
+	for(size_t ii=1; ii<=125; ii++, ++it) {
+		if(*it != ii) {
+			cerr << "Difference between read image and theoretical image" 
+				" when using reversed default order" << endl;
+			return -1;
+		}
+	}
+	
 	return 0;
 }
 

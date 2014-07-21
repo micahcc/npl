@@ -123,6 +123,39 @@ int main()
 	}
 	cerr << "Done" << endl;
 	
+	cerr << "Classic Ordering (Default)" << endl;
+	slicer.setOrder({});
+	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
+		
+		int64_t sp = *slicer;
+		slicer.index(pos.size(), pos.data());
+		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
+
+		indexToLin(p, xx,yy,zz,ww, X,Y,Z,W);
+		if(p != sp) {
+			cerr << "Disagreement on linear position" << endl;
+			cerr << xx << "," << yy << "," << zz << "," << ww << endl;
+			cerr << p << " vs " << sp << endl;
+			return -1;
+		}
+
+		linToIndex(sp, tx,ty,tz,tw, X,Y,Z,W);
+
+		if(tx != xx || ty != yy || tz != zz || tw != ww) {
+			cerr << "Disagreement on ND position!" << endl;
+			cerr << xx << "," << yy << "," << zz << "," << ww << endl;
+			cerr << tx << "," << ty << "," << tz << "," << tw << endl;
+			cerr << p << " vs " << sp << endl;
+			return -1;
+		}
+		
+		if(*slicer != array[sp]) {
+			cerr << "Error, incorrect ordering!" << endl;
+			return -1;
+		}
+	}
+	cerr << "Done" << endl;
+	
 	cerr << endl << "Rotated 1" << endl;
 	std::rotate(order.begin(), order.begin()+1, order.end());
 
