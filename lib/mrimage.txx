@@ -718,7 +718,9 @@ int MRImageStore<D,T>::writePixels(gzFile file) const
 	for(size_t ii=0 ; ii<ndim(); ii++)
 		order.push_back(ii);
 
-	for(Slicer it(ndim(), dim(), order); !it.isEnd(); ++it) {
+	Slicer it(ndim(), dim());
+	it.setOrder(order);
+	for(it.goBegin(); !it.isEnd(); ++it) {
 		gzwrite(file, &this->_m_data[*it], sizeof(T));
 	}
 	return 0;

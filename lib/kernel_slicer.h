@@ -101,6 +101,16 @@ public:
 	void setOrder(const std::vector<size_t> order = {}, bool revorder = false);
 	
 	/**
+	 * @brief Returns the array giving the order of dimension being traversed.
+	 * So 3,2,1,0 would mean that the next point in dimension 3 will be next,
+	 * when wrapping the next point in 2 is visited, when that wraps the next
+	 * in one and so on. 
+	 *
+	 * @return Order of dimensions
+	 */
+	const std::vector<size_t>& getOrder() const { return m_order; } ;
+	
+	/**
 	 * @brief Set the radius of the kernel window. All directions will 
 	 * have equal distance, with the radius in each dimension set by the 
 	 * magntitude of the kradius vector. So if kradius = {2,1,0} then 
@@ -290,16 +300,17 @@ public:
 
 
 	/**
-	 * @brief Get both ND position and linear position of center pixel.
+	 * @brief Places the first len dimensions of ND-position in the given
+	 * array. If the number
+	 * of dimensions exceed the len then the additional dimensions will be 
+	 * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
+	 * In other words index will be completely overwritten in the most sane way
+	 * possible if the internal dimensions and size index differ. 
 	 *
-	 * @param ndpos	Output, ND position
-	 *
-	 * @return linear position
+	 * @param ndim size of index 
+	 * @param index output index variable
 	 */
-	std::vector<int64_t> center_index() const
-	{
-		return m_pos[m_center];
-	};
+	void center_index(size_t len, int64_t* index) const;
 	
 	/**
 	 * @brief Get index of i'th kernel (center-offset) element.
@@ -326,9 +337,10 @@ public:
 	};
 
 	/**
-	 * @brief Get both ND position and linear position of the specified
-	 * offset (kernel) element.
+	 * @brief Get the ND position of the specified offset (kernel) element.
 	 *
+	 * @param len size of index 
+	 * @param index output index variable
 	 * @param Kernel index
 	 * @param bound report the actual sampled point, rather than the 
 	 * theoretical position (offset the exact value from the center). 
@@ -339,19 +351,7 @@ public:
 	 *
 	 * @return ND position
 	 */
-	std::vector<int64_t> offset_index(size_t kit, bool bound=false) const
-	{
-		assert(!m_end);
-		assert(kit < m_numoffs);
-		if(bound) {
-			return m_pos[kit];
-		} else {
-			std::vector<int64_t> out(m_dim);
-			for(size_t ii=0; ii < m_dim; ii++)
-				out[ii] = m_pos[m_center][ii]+m_offs[kit][ii];
-			return out;
-		}
-	};
+	void offset_index(size_t len, int64_t* index, size_t kit, bool bound = false) const;
 
 	/**
 	 * @brief Get both ND position and linear position

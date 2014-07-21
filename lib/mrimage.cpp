@@ -170,7 +170,8 @@ shared_ptr<MRImage> readPixels(gzFile file, size_t vox_offset,
 	 */
 
 	// dim 0 is the fastest in nifti images, so go in that order
-	Slicer slicer(dim.size(), dim.data(), {}, true);
+	Slicer slicer(dim.size(), dim.data());
+	slicer.setOrder({}, true);
 
 	T tmp(0);
 	shared_ptr<MRImage> out;

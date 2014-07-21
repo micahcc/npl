@@ -51,24 +51,13 @@ public:
 	Slicer();
 
 	/**
-	 * @brief Simple (no ROI, no order) Constructor
+	 * @brief Constructor, takses the number of dimensions and the size of the
+	 * image.
 	 *
-	 * @param dim	size of ND array
+	 * @param ndim	size of ND array
+	 * @param dim	array providing the size in each dimension 
 	 */
 	Slicer(size_t ndim, const size_t* dim);
-	
-	/**
-	 * @brief Constructor that takes a dimension and order of ++/-- iteration
-	 *
-	 * @param dim	size of ND array
-	 * @param order	iteration direction, steps will be fastest in the direction
-	 * 				of order[0] and slowest in order.back()
-	 * @param revorder	Reverse order, in which case the first element of order
-	 * 					will have the slowest iteration, and dimensions not
-	 * 					specified in order will be faster than those included.
-	 */
-	Slicer(size_t ndim, const size_t* dim, const std::vector<size_t>& order, 
-			bool revorder = false);
 	
 	/****************************************
 	 *
@@ -169,7 +158,9 @@ public:
 	void goEnd();
 
 	/**
-	 * @brief Jump to the given position
+	 * @brief Jump to the given position, additional values in newpos beyond dim
+	 * will be ignored. Any values missing due to ndim > len will be treated as
+	 * zeros.
 	 *
 	 * @param newpos	location to move to
 	 */
@@ -198,30 +189,22 @@ public:
 	int64_t operator*() const { return m_linpos; };
 	
 	/**
-	 * @brief Get both ND position and linear position. Same as get(vector) but
-	 * easier name to remember.
+	 * @brief Places the first len dimension in the given array. If the number
+	 * of dimensions exceed the len then the additional dimensions will be 
+	 * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
+	 * In other words index will be completely overwritten in the most sane way
+	 * possible if the internal dimensions and size index differ. 
 	 *
-	 * @param ndpos	Output, ND position
-	 *
-	 * @return linear position
+	 * @param ndim size of index 
+	 * @param index output index variable
 	 */
-	std::vector<int64_t> index() const
-	{
-		return m_pos;
-	};
+	void index(size_t len, int64_t* index) const;
 
 	/***********************************************
 	 *
 	 * Modification
 	 *
 	 **********************************************/
-
-	/**
-	 * @brief Updates dimensions of target nd array
-	 *
-	 * @param dim	size of nd array, number of dimesions given by dim.size()
-	 */
-	void updateDim(size_t ndim, const size_t* dim);
 
 	/**
 	 * @brief Sets the region of interest. During iteration or any motion the
@@ -242,6 +225,15 @@ public:
 	 * 					specified in order will be faster than those included.
 	 */
 	void setOrder(const std::vector<size_t>& order, bool revorder = false);
+
+	/**
+	 * @brief Returns the array giving the order of dimension being traversed.
+	 * So 3,2,1,0 would mean that the next point in dimension 3 will be next,
+	 * when wrapping the next point in 2 is visited, when that wraps the next
+	 * in one and so on. 
+	 *
+	 * @return Order of dimensions
+	 */
 	const std::vector<size_t>& getOrder() const { return m_order; } ;
 
 protected:
@@ -266,6 +258,13 @@ protected:
 	size_t m_total;
 
 	void updateLinRange();
+
+	/**
+	 * @brief Updates dimensions of target nd array
+	 *
+	 * @param dim	size of nd array, number of dimesions given by dim.size()
+	 */
+	void updateDim(size_t ndim, const size_t* dim);
 };
 
 } // npl

@@ -146,13 +146,21 @@ void applyDeform(shared_ptr<MRImage> in, shared_ptr<MRImage> deform,
 shared_ptr<MRImage> invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> atlas,
 		shared_ptr<MRImage> deform)
 {
+	const double MINERR = .1;
+	const double LAMBDA = .1;
+	const size_t MAXITERS = 300;
 	vectort<int64_t> index;
-	vectort<double> point;
-	vectort<double> cindex;
-	vector<float> src(3,0);
-	vector<float> trg(3,0);
-	OrderIter mit(mask);
-	LinInterp3DView definterp(deform);
+	vectort<double> point(3);
+	vectort<double> cindex(3);
+	vectort<double> err(3);
+	vectort<double> atlpoint(3);
+	vectort<double> subpoint(3);
+	vector<double> atlind(3,0); //atlas index
+	vector<double> subind(3,0); //sub index
+	OrderIter<int> mit(mask);
+	double prevdist;
+	double dist;
+	LinInterp3DView<double> definterp(deform);
 
 	if(deform->tlen() != 3) {
 		cerr << "Error invalid deform image, needs 3 points in the 4th or "
@@ -169,27 +177,65 @@ shared_ptr<MRImage> invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> atlas,
 		if(*mit == 0)
 			continue;
 
+		// target is current coordinate
 		index = mit.index();
+		for(int ii=0; ii<3; ii++)
+			subind[ii] = index[ii];
+		
+		// interpolate source from deformation image
 		mask->indexToPoint(index, point);
 		deform->pointToIndex(point, cindex);
 		for(int ii=0; ii<3; ii++)
-			src[ii] = definterp(cindex[0], cindex[1], cindex[2], ii);
-		for(int ii=0; ii<3; ii++)
-			trg[ii] = index[ii];
+			atlindex[ii] = definterp(cindex[0], cindex[1], cindex[2], ii);
+
 		// add point to kdtree
-		tree.insert(src, trg);
+		tree.insert(atlindex, subind);
 	}
 	tree.build();
 
-	OrderIter ait(atlas);
+	/* 
+	 * In atlas image try to find the correct source in the subject by first
+	 * finding a point from the KDTree then improving on that result 
+	 */
+	OrderIter<double> ait(atlas);
+	// zero atlas
+	for(ait.goBegin(); !ait.eof(); ++ait) 
+		ait.set(NAN);
+
+	// at each point in atlas try to find the best mapping in the subject by
+	// going back and forth. Since the mapping from sub to atlas is ground truth
+	// we need to keep checking until we find a point in the subject that maps
+	// to our current atlas location
 	for(ait.goBegin(); !ait.eof(); ++ait) {
 		index = ait.index();
 		for(size_t ii=0; ii<3; ii++)
-			cindex[ii] = index[ii];
-		double dist = INFINITY;
-		tree.nearest(cindex, dist);
+			atlindex[ii] = index[ii];
 
-		// 
+		double dist = INFINITY;
+		auto result = tree.nearest(atlindex, dist);
+
+		// this should be an offset, but it should also be done in real space
+		// so that orientation doesn't screw with it ....
+		// make an offset variable, inv offset variale
+		for(size_t ii=0; ii<3; ii++)
+			subind[ii] = result->m_data[ii];
+
+		prevdist = dist+1;
+		for(size_t ii = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR && 
+					ii < MAXITERS; ii++) {
+			for(size_t jj=0; jj<3; jj++)
+				cindex[jj] = definterp(subind[0], subind[1], subind[2], jj);
+			if(maskinterp(subind[0], subind[1], subind[2]) == 0) 
+				break;
+			prevdist = dist;
+			dist = 0;
+			for(size_t jj=0; jj<3; jj++) {
+				err[jj] = atlindex[ii]-cindex[jj];
+				dist += err[jj]*err[jj];
+				subind[jj] += LAMBDA*err[jj];
+			}
+			dist = sqrt(dist);
+		}
 
 	}
 

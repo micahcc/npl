@@ -45,7 +45,9 @@ int main()
 	ii = 0;
 	double total = 0;
 	t = clock();
-	for(Slicer it(testp->ndim(), testp->dim(), order); !it.isEnd(); ++it, ++ii) {
+	Slicer it(testp->ndim(), testp->dim());
+	it.setOrder(order);
+	for(it.goBegin(); !it.isEnd(); ++it, ++ii) {
 		if((*testp)[*it] != (*testp)[ii]) {
 			cerr << "Values Differ" << endl;
 			return -1;
@@ -62,7 +64,9 @@ int main()
 	NDAccess<double> img(testp);
 	ii = 0;
 	t = clock();
-	for(Slicer it(testp->ndim(), testp->dim(), order); !it.isEnd(); ++it, ++ii) {
+	
+	it.setOrder(order);
+	for(it.goBegin(); !it.isEnd(); ++it, ++ii) {
 		if(img[*it] != (*testp)[ii]) {
 			cerr << "Values Differ" << endl;
 			return -1;
@@ -88,9 +92,11 @@ int main()
 	std::cout << "Time: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
 
 	cerr << "Comparing Reordered" << endl;
-	OrderIter<double> it(testp, {2,1,0});
-	it.goBegin();
 	std::vector<int64_t> index(3);
+	{
+	OrderIter<double> it(testp);
+	it.setOrder({2,1,0});
+	it.goBegin();
 	// forward order
 	ii = 0;
 	for(int64_t xx=0; xx < testp->dim(0); xx++) {
@@ -126,6 +132,7 @@ int main()
 				}
 			}
 		}
+	}
 	}
 	
 	cerr << "Flat Speed: ";

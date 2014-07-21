@@ -22,9 +22,10 @@ void fillRandom(PixelT type, std::vector<size_t>& size,
 	OrderIter<double> it(testimg);
 	assert(it.isBegin());
 	assert(!it.isEnd());
+	std::vector<int64_t> index(size.size());
 	for(it.goBegin(); !it.eof(); ++it) { 
 		T val = (T)dist(rangen);
-		std::vector<int64_t> index = it.index();
+		it.index(index.size(), index.data());
 
 		mp[index] = val;
 		it.set(val);
@@ -41,13 +42,13 @@ int testRadius(std::vector<size_t> size, size_t radius)
 	fillRandom<double>(FLOAT64, size, testimg, mp);
 	cerr << *testimg << endl << "radius " << radius << endl;
 	
-	std::vector<int64_t> index;
+	std::vector<int64_t> index(size.size());
 	KernelIter<double> it(testimg);
 	it.setRadius(radius);
 	for(it.goBegin(); !it.eof(); ++it) {
 		double v1, v2, v3;
 		for(size_t ii=0; ii<it.ksize(); ii++) {
-			index = it.offset_index(ii, false);
+			it.offset_index(index.size(), index.data(), ii, false);
 			if(mp.count(index) > 0) {
 				v1 = it[ii];
 				v2 = it.offset(ii);
@@ -81,14 +82,15 @@ int testRadius2(std::vector<size_t> size)
 		{ 1,-1, 0}, { 1, 0, 0}, { 1, 1, 0},
 		{ 2,-1, 0}, { 2, 0, 0}, { 2, 1, 0}});
 
-	std::vector<int64_t> index;
+	std::vector<int64_t> index(size.size());
+	std::vector<int64_t> center(size.size());
 	KernelIter<double> it(testimg);
 	it.setRadius({2,1,0});
 	for(it.goBegin(); !it.eof(); ++it) {
 		auto check = shouldget;
 		double v1, v2, v3;
 		for(size_t ii=0; ii<it.ksize(); ii++) {
-			index = it.offset_index(ii, false);
+			it.offset_index(index.size(), index.data(), ii, false);
 			
 			//check value
 			if(mp.count(index) > 0) {
@@ -106,7 +108,7 @@ int testRadius2(std::vector<size_t> size)
 			}
 			
 			// convert index to offset
-			auto center = it.center_index();
+			it.center_index(center.size(), center.data());
 			for(size_t j=0; j<index.size(); j++)
 				index[j] -= center[j];
 
@@ -162,14 +164,15 @@ int testWindow(std::vector<size_t> size)
 			{ 0, 1,-2},{ 0, 1,-1},{ 0, 1, 0},{ 0, 1, 1},{ 0, 1, 2}
 	});
 
-	std::vector<int64_t> index;
+	std::vector<int64_t> index(testimg->ndim());
+	std::vector<int64_t> center(testimg->ndim());
 	KernelIter<double> it(testimg);
 	it.setWindow({{-2,0},{0,1},{-2,2}});
 	for(it.goBegin(); !it.eof(); ++it) {
 		auto check = shouldget;
 		double v1, v2, v3;
 		for(size_t ii=0; ii<it.ksize(); ii++) {
-			index = it.offset_index(ii, false);
+			it.offset_index(index.size(), index.data(), ii, false);
 			
 			//check value
 			if(mp.count(index) > 0) {
@@ -187,7 +190,7 @@ int testWindow(std::vector<size_t> size)
 			}
 			
 			// convert index to offset
-			auto center = it.center_index();
+			it.center_index(center.size(), center.data());
 			for(size_t j=0; j<index.size(); j++)
 				index[j] -= center[j];
 

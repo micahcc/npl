@@ -66,7 +66,7 @@ int main()
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
 
                   int64_t itlin = it.offset(neighbor);
-                  index = it.offset_index(neighbor, true);
+                  it.offset_index(index.size(), index.data(), neighbor, true);
 				  neighbor++;
 
                   if(xeff != index[0]) {
@@ -121,7 +121,7 @@ int main()
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
 
                   int64_t itlin = it.offset(neighbor);
-                  index = it.offset_index(neighbor, true);
+                  it.offset_index(index.size(), index.data(), neighbor, true);
 				  neighbor++;
 
                   if(xeff != index[0]) {
@@ -179,7 +179,7 @@ int main()
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
                   
 				  int64_t itlin = it.offset(neighbor);
-                  index = it.offset_index(neighbor, true);
+                  it.offset_index(index.size(), index.data(), neighbor, true);
 				  neighbor++;
 
                   if(xeff != index[0]) {
@@ -234,7 +234,7 @@ int main()
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
 				  
 				  int64_t itlin = it.offset(neighbor);
-                  index = it.offset_index(neighbor, true);
+                  it.offset_index(index.size(), index.data(), neighbor, true);
 				  neighbor++;
 
                   if(xeff != index[0]) {
@@ -295,7 +295,7 @@ int main()
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
 
 				  int64_t itlin = it.offset(neighbor);
-                  index = it.offset_index(neighbor, true);
+                  it.offset_index(index.size(), index.data(), neighbor, true);
 				  neighbor++;
 
                   if(xeff != index[0]) {

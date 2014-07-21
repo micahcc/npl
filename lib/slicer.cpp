@@ -32,6 +32,7 @@ Slicer::Slicer()
 { 
 	size_t tmp = 1;
 	updateDim(1, &tmp);
+	goBegin();
 };
 
 /**
@@ -42,25 +43,8 @@ Slicer::Slicer()
 Slicer::Slicer(size_t ndim, const size_t* dim) 
 {
 	updateDim(ndim, dim);
+	goBegin();
 };
-
-/**
- * @brief Constructor that takes a dimension and order of ++/-- iteration
- *
- * @param dim	size of ND array
- * @param order	iteration direction, steps will be fastest in the direction
- * 				of order[0] and slowest in order.back()
- * @param revorder	Reverse order, in which case the first element of order
- * 					will have the slowest iteration, and dimensions not
- * 					specified in order will be faster than those included.
- */
-Slicer::Slicer(size_t ndim, const size_t* dim, const std::vector<size_t>& order,
-		bool revorder)
-{
-	updateDim(ndim, dim);
-	setOrder(order, revorder);
-};
-
 /**
  * @brief Postfix iterator. Iterates in the order dictatored by the dimension
  * order passsed during construction or by setOrder
@@ -245,6 +229,26 @@ void Slicer::updateDim(size_t ndim, const size_t* dim)
 };
 
 /**
+ * @brief Places the first ndim dimension in the given array. If the number
+ * of dimensions exceed the ndim then the additional dimensions will be 
+ * ignored, if ndim exceeds the dimensionality then index[dim...ndim-1] = 0.
+ * In other words index will be completely overwritten in the most sane way
+ * possible if the internal dimensions and size index differ. 
+ *
+ * @param ndim size of index 
+ * @param index output index variable
+ */
+void Slicer::index(size_t len, int64_t* index) const
+{
+	for(size_t ii=0; ii< len && ii<m_pos.size(); ii++) {
+		index[ii] = m_pos[ii];
+	}
+
+	for(size_t ii=m_pos.size(); ii<len; ii++)
+		index[ii] = 0;
+}
+
+/**
  * @brief Sets the region of interest. During iteration or any motion the
  * position will not move outside the specified range. Invalidates position.
  *
@@ -330,7 +334,9 @@ void Slicer::setOrder(const std::vector<size_t>& order, bool revorder)
 };
 
 /**
- * @brief Jump to the given position
+ * @brief Jump to the given position, additional values in newpos beyond dim
+ * will be ignored. Any values missing due to ndim > len will be treated as
+ * zeros.
  *
  * @param newpos	location to move to
  */

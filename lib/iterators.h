@@ -569,9 +569,8 @@ template <typename T>
 class OrderConstIter : public Slicer 
 {
 public:
-	OrderConstIter(std::shared_ptr<const NDArray> in, 
-				std::vector<size_t> order = {}, bool revorder = false)
-				: Slicer(in->ndim(), in->dim(), order, revorder), parent(in)
+	OrderConstIter(std::shared_ptr<const NDArray> in) : 
+		Slicer(in->ndim(), in->dim()), parent(in)
 	{
 		switch(in->type()) {
 			case UINT8:
@@ -839,9 +838,7 @@ template <typename T>
 class OrderIter : public Slicer 
 {
 public:
-	OrderIter(std::shared_ptr<NDArray> in, 
-				std::initializer_list<size_t> order = {}, bool revorder = false)
-				: Slicer(in->ndim(), in->dim(), order, revorder), parent(in)
+	OrderIter(std::shared_ptr<NDArray> in) : Slicer(in->ndim(), in->dim()), parent(in)
 
 	{
 		switch(in->type()) {

@@ -516,6 +516,63 @@ void KSlicer::goIndex(const std::vector<int64_t>& newpos)
 	
 	m_end = false;
 };
+	
+/**
+ * @brief Places the first len dimensions of ND-position in the given
+ * array. If the number
+ * of dimensions exceed the len then the additional dimensions will be 
+ * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
+ * In other words index will be completely overwritten in the most sane way
+ * possible if the internal dimensions and size index differ. 
+ *
+ * @param ndim size of index 
+ * @param index output index variable
+ */
+void KSlicer::center_index(size_t len, int64_t* index) const
+{
+	assert(!m_end);
+	for(size_t ii=0; ii<len && ii<m_dim; ii++) {
+		index[ii] = m_pos[m_center][ii];
+	}
+	
+	// extra values to 0
+	for(size_t ii=m_dim; ii<len; ii++) {
+		index[ii] = 0;
+	}
+}
+	
+/**
+ * @brief Places the first len dimensions of ND-position in the given
+ * array. If the number
+ * of dimensions exceed the len then the additional dimensions will be 
+ * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
+ * In other words index will be completely overwritten in the most sane way
+ * possible if the internal dimensions and size index differ. 
+ *
+ * @param ndim size of index 
+ * @param index output index variable
+ */
+void KSlicer::offset_index(size_t len, int64_t* index, size_t kit, bool bound) const
+{
+	assert(!m_end);
+	assert(kit < m_numoffs);
+	assert(kit < m_numoffs);
+	
+	if(bound) {
+		// m_pos already has been bound
+		for(size_t ii=0; ii<len && ii<m_dim; ii++) 
+			index[ii] = m_pos[kit][ii];
+	} else {
+		// unbound 
+		for(size_t ii=0; ii < len && ii < m_dim; ii++)
+			index[ii] = m_pos[m_center][ii]+m_offs[kit][ii];
+	}
+	
+	// extra values to 0
+	for(size_t ii=m_dim; ii<len; ii++) {
+		index[ii] = 0;
+	}
+}
 
 /**
  * @brief Go to the beginning

@@ -84,7 +84,7 @@ int main()
 
 	ii = 0;
 	vector<size_t> order({3,2,1,0});
-	vector<int64_t> pos;
+	vector<int64_t> pos(4);
 	int64_t p, xx, yy, zz, ww;
 
 	std::vector<size_t> tdim({(size_t)X,(size_t)Y,(size_t)Z,(size_t)W});
@@ -95,7 +95,7 @@ int main()
 	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
 		int64_t sp = *slicer;
-		pos = slicer.index();
+		slicer.index(pos.size(), pos.data());
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 
 		indexToLin(p, xx,yy,zz,ww, X,Y,Z,W);
@@ -130,7 +130,7 @@ int main()
 	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
 		int64_t sp = *slicer;
-		pos = slicer.index();
+		slicer.index(pos.size(), pos.data());
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 		cerr << xx << "," << yy << "," << zz << "," << ww << endl;
 
@@ -166,7 +166,7 @@ int main()
 	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
 		int64_t sp = *slicer;
-		pos = slicer.index();
+		slicer.index(pos.size(), pos.data());
 
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 		cerr << xx << "," << yy << "," << zz << "," << ww << endl;
@@ -200,7 +200,7 @@ int main()
 	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
 		int64_t sp = *slicer;
-		pos = slicer.index();
+		slicer.index(pos.size(), pos.data());
 
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 		cerr << xx << "," << yy << "," << zz << "," << ww << endl;
@@ -236,7 +236,7 @@ int main()
 	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
 		
 		int64_t sp = *slicer;
-		pos = slicer.index();
+		slicer.index(pos.size(), pos.data());
 		xx = pos[0]; yy = pos[1]; zz = pos[2]; ww = pos[3];
 		cerr << xx << "," << yy << "," << zz << "," << ww << endl;
 
@@ -282,10 +282,12 @@ int main()
 
 	std::vector<size_t> newdim({50, 50, 50, 50});
 	t = clock();
-	slicer.updateDim(newdim.size(), newdim.data());
+	
+	Slicer slicer2(newdim.size(), newdim.data());
+//	slicer.updateDim(newdim.size(), newdim.data());
 	ii = 0;
-	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
-		sum += *slicer;
+	for(slicer2.goBegin(); !slicer2.isEnd(); slicer2++, ii++) {
+		sum += *slicer2;
 		if(ii >= 50*50*50*50) {
 			cerr << "Error should have finished!" << endl;
 			return -1;
