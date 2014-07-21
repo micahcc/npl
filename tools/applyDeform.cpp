@@ -241,30 +241,35 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 	 * In atlas image try to find the correct source in the subject by first
 	 * finding a point from the KDTree then improving on that result 
 	 */
-	OrderIter<double> ait(atldef);
+	{
+	FlatIter<double> ait(atldef);
 	// set atlas deform to NANs
 	for(ait.goBegin(); !ait.eof(); ++ait) 
 		ait.set(NAN);
+	}
 
 	// at each point in atlas try to find the best mapping in the subject by
 	// going back and forth. Since the mapping from sub to atlas is ground truth
 	// we need to keep checking until we find a point in the subject that maps
 	// to our current atlas location
-	for(ait.goBegin(); !ait.eof(); ) {
+	Vector3DIter<double> ait(atldef);
+	assert(ait.tlen() == 3);
+	for(ait.goBegin(); !ait.eof(); ++ait) {
 		ait.index(3, index);
-		cout << index[0] << "|" << index[1] << "|" << index[2] << "\r";
+		cout << setw(10) << index[0] << setw(10) << index[1] << setw(10) << index[2];
 		atldef->indexToPoint(3, index, atlpoint.data());
 
 		double dist = INFINITY;
 		auto result = tree.nearest(atlpoint, dist);
-			
+
 		for(size_t ii=0; ii<3; ii++) 
 			atl2sub[ii] = result->m_data[ii];
 
 		// SUB <- ATLAS (given)
 		//    atl2sub
 		double prevdist = dist+1;
-		for(size_t jj = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR && 
+		size_t jj = 0;
+		for(jj = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR && 
 						jj < MAXITERS; jj++) {
 
 			for(size_t ii=0; ii<3; ii++) 
@@ -295,9 +300,10 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 			dist = sqrt(dist);
 		}
 
+		cout << setw(10) << jj << "\r";
 		// save out final deform
-		for(size_t ii=0; ii<3; ii++, ait++) 
-			ait.set(atl2sub[ii]);
+		for(size_t ii=0; ii<3; ii++) 
+			ait.set(ii, atl2sub[ii]);
 
 	}
 
