@@ -383,6 +383,31 @@ int main(int argc, char** argv)
 		return -1;
 	}
 	binarize(mask);
+
+	////////////////////////////////////////////////////////////////////////////
+	//   HACK
+	////////////////////////////////////////////////////////////////////////////
+	// calculate overlap of input and mask, sometimes brainsuite produces images
+	// without correct origin, so this should throw an error if thats the case.
+	{
+	int64_t index[3];
+	double point[3];
+	size_t incount = 0;
+	size_t maskcount = 0;
+	for(OrderIter<int64_t> it(mask); !it.eof(); ++it) {
+		it.index(3, index);
+		mask->indexToPoint(3, index, point);
+		maskcount++;
+		incount += (inimg->pointInsideFOV(3, point));
+	}
+	double f = (double)(incount)/(double)(maskcount);
+	if(f < .5)  {
+		cerr << "Warning the input and mask images do not overlap very much."
+			" This could indicate bad orientation, overlap: " << f << endl;
+		return -1;
+	}
+	}
+	////////////////////////////////////////////////////////////////////////////
 	
 	std::shared_ptr<MRImage> atlas(readMRImage(a_atlas.getValue()));
 	if(atlas->ndim() != 3) {
