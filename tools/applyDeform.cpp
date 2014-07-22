@@ -201,7 +201,7 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 		shared_ptr<MRImage> atldef)
 {
 	const double MINERR = .1;
-	const double LAMBDA = .1;
+	const double LAMBDA = .5;
 	const size_t MAXITERS = 300;
 	int64_t index[3];
 	double subpoint[3];
@@ -267,56 +267,52 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 		ait.index(3, index);
 		atldef->indexToPoint(3, index, atlpoint.data());
 
-//		double dist = INFINITY;
-		double dist = 20;
+		double dist = 50;
 		auto result = tree.nearest(atlpoint, dist);
-		if(result) {
+		if(!result)
+			continue;
+
+		for(size_t ii=0; ii<3; ii++) 
+			atl2sub[ii] = result->m_data[ii];
+
+		// SUB <- ATLAS (given)
+		//    atl2sub
+		double prevdist = dist+1;
+		size_t jj = 0;
+		for(jj = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR && 
+						jj < MAXITERS; jj++) {
+
 			for(size_t ii=0; ii<3; ii++) 
-				atl2sub[ii] = result->m_data[ii];
-			for(size_t ii=0; ii<3; ii++) 
-				ait.set(ii, atl2sub[ii]);
+				subpoint[ii] = atlpoint[ii] + atl2sub[ii];
+
+			// ignore points that map outside the mask, just accept this as the
+			// best approximate deform
+			mask->pointToIndex(3, subpoint, cindex);
+			if(maskinterp(cindex[0], cindex[1], cindex[2]) == 0)
+				break;
+
+			// (estimate) SUB <- ATLAS (given)
+			//              offset
+			// interpolate new offset at subpoint
+			deform->pointToIndex(3, subpoint, cindex);
+			for(size_t ii=0; ii<3; ii++) {
+				sub2atl[ii] = definterp(cindex[0], cindex[1], cindex[2], ii);
+				err[ii] = atl2sub[ii]+sub2atl[ii];
+			}
+
+			// compute error
+			prevdist = dist;
+			dist = 0;
+			for(size_t ii=0; ii<3; ii++) {
+				atl2sub[ii] -= LAMBDA*err[ii];
+				dist += err[jj]*err[jj];
+			}
+			dist = sqrt(dist);
 		}
 
-//		for(size_t ii=0; ii<3; ii++) 
-//			atl2sub[ii] = result->m_data[ii];
-//
-//		// SUB <- ATLAS (given)
-//		//    atl2sub
-//		double prevdist = dist+1;
-//		size_t jj = 0;
-//		for(jj = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR && 
-//						jj < MAXITERS; jj++) {
-//
-//			for(size_t ii=0; ii<3; ii++) 
-//				subpoint[ii] = atlpoint[ii] + atl2sub[ii];
-//
-//			// ignore points that map outside the mask, just accept this as the
-//			// best approximate deform
-//			mask->pointToIndex(3, subpoint, cindex);
-//
-//			// (estimate) SUB <- ATLAS (given)
-//			//              offset
-//			// interpolate new offset at subpoint
-//			deform->pointToIndex(3, subpoint, cindex);
-//			for(size_t ii=0; ii<3; ii++) {
-//				sub2atl[ii] = definterp(cindex[0], cindex[1], cindex[2], ii);
-//				err[ii] = atl2sub[ii]+sub2atl[ii];
-//			}
-//
-//			// compute error
-//			prevdist = dist;
-//			dist = 0;
-//			for(size_t ii=0; ii<3; ii++) {
-//				atl2sub[ii] += -LAMBDA*err[ii];
-//				dist += err[jj]*err[jj];
-//			}
-//			dist = sqrt(dist);
-//		}
-//
-//		cout << setw(10) << jj << "\r";
-//		// save out final deform
-//		for(size_t ii=0; ii<3; ii++) 
-//			ait.set(ii, atl2sub[ii]);
+		// save out final deform
+		for(size_t ii=0; ii<3; ii++) 
+			ait.set(ii, atl2sub[ii]);
 
 	}
 
