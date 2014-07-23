@@ -32,6 +32,55 @@ using std::string;
 using namespace npl;
 using std::shared_ptr;
 
+double gaussian(double x)
+{
+	const double PI = acos(-1);
+	const double den = sqrt(2*PI);
+	return exp(x*x)*den;
+}
+
+double gaussianFilter(shared_ptr<MRImage> in, double sd)
+{
+	std::vector<size_t> rvector(in->ndim(), 0);
+	auto out = in->cloneImage();
+
+	// split up and perform on each dimension separately
+	for(size_t dd=0; dd<in->ndim(); dd++) {
+
+		// create iterators, make them have the same order
+		KernelIter it(in);
+		OrderIter oit(out);
+		oit.setOrder(it.getOrder());
+
+		// construct weights array
+		double normsd = sd/in->spacing()[dd];
+		int64_t rad = 2*normsd;
+		double weights[rad*2+1];
+		for(int64_t oo = -rad; oo <= rad; oo++) 
+			weights[oo+rad] = gaussian(oo/normsd);
+
+		// set radius
+		rvector[dd] = rad;
+		it.setRadius(rvector);
+
+		// apply kernel
+		for(it.goBegin(); !it.eof(); ++it) {
+			double vv = 0;
+			assert(it.ksize() == rad*2+1);
+			for(int64_t oo=-rad; oo <= rad; oo++) {
+				vv += weights[oo+rad]*it[oo+rad];
+			}
+				
+			oit.set(vv);
+		}
+
+		// reset radius vector to 0
+		rvector[dd] = 0;
+	}
+
+	return out;
+}
+
 template <typename T>
 ostream& operator<<(ostream& out, const std::vector<T>& v)
 {
