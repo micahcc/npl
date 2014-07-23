@@ -60,6 +60,7 @@ shared_ptr<MRImage> gaussianSmooth(shared_ptr<MRImage> in, double stddev,
 	//spacing
 
 	std::vector<double> window(in->ndim());
+	std::vector<size_t> radius(in->ndim());
 	for(size_t dd=0; dd<dim.size(); dd++) {
 		if(dd >= in->ndim())
 			throw std::out_of_range("Invalid dimensions passed to "
@@ -75,20 +76,25 @@ shared_ptr<MRImage> gaussianSmooth(shared_ptr<MRImage> in, double stddev,
 			weights[ii+iwidth] = gaussKern(iwidth, width);
 		}
 
-		// construct window
+		// construct radius
 		for(size_t ii=0; ii<in->ndim(); ii++) {
 			if(dd == ii)
-				window[ii] = std::make_pair<int64_t,int64_t>(-iwidth, iwidth);
+				radius[ii] = iwidth;
 			else
-				window.push_back({0,0});
+				radius[ii] = 0;
 		}
 
 		// create kernel iterator
-		KernelIter kit(
+		KernelIter<double> kit(in);
+		kit.setRadius(radius);
+		
+
+		// iterator....
 	}
+
+	return NULL;
 }
 
-
 } // npl
-#endif  //IMAGE_PROCESSING_H
+
 

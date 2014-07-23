@@ -188,6 +188,81 @@ shared_ptr<MRImage> dilate(shared_ptr<MRImage> in, size_t reps)
 	return out;
 }
 
+void deriv(shared_ptr<MRImage> in, shared_ptr<MRImage>& dx, 
+		shared_ptr<MRImage>& dy, shared_ptr<MRImage>& dz)
+{
+	Vector3DView<double> inview(in);
+	int64_t index[3];
+	dy = in->cloneImage();
+	dz = in->cloneImage();
+
+	// dx
+	dx = in->cloneImage();
+	for(Vector3DIter<double> it(dx); !it.eof(); ++it) {
+		it.index(3, index);
+		if(index[0] == 0) {
+			for(size_t tt=0; tt<it.tlen(); tt++) {
+				it.set(tt, inview(index[0]+1, index[1], index[2], tt) -
+						inview(index[0], index[1], index[2], tt));
+			}
+		} else if(index[0] >= in->dim(0)) {
+			for(size_t tt=0; tt<it.tlen(); tt++) {
+				it.set(tt, inview(index[0], index[1], index[2], tt) -
+						inview(index[0]-1, index[1], index[2], tt));
+			}
+		} else {
+			for(size_t tt=0; tt<it.tlen(); tt++) {
+				it.set(tt, .5*(inview(index[0]+1, index[1], index[2], tt) -
+						inview(index[0]-1, index[1], index[2], tt)));
+			}
+		}
+	}
+	
+	// dy
+	dy = in->cloneImage();
+	for(Vector3DIter<double> it(dy); !it.eof(); ++it) {
+		it.index(3, index);
+		if(index[1] == 0) {
+			for(size_t tt=0; tt<it.tlen(); tt++) {
+				it.set(tt, inview(index[0], index[1]+1, index[2], tt) -
+						inview(index[0], index[1], index[2], tt));
+			}
+		} else if(index[1] >= in->dim(1)) {
+			for(size_t tt=0; tt<it.tlen(); tt++) {
+				it.set(tt, inview(index[0], index[1], index[2], tt) -
+						inview(index[0], index[1]-1, index[2], tt));
+			}
+		} else {
+			for(size_t tt=0; tt<it.tlen(); tt++) {
+				it.set(tt, .5*(inview(index[0], index[1]+1, index[2], tt) -
+						inview(index[0], index[1]-1, index[2], tt)));
+			}
+		}
+	}
+	
+	// dz
+	dz = in->cloneImage();
+	for(Vector3DIter<double> it(dz); !it.eof(); ++it) {
+		it.index(3, index);
+		if(index[2] == 0) {
+			for(size_t tt=0; tt<it.tlen(); tt++) {
+				it.set(tt, inview(index[0], index[1], index[2]+1, tt) -
+						inview(index[0], index[1], index[2], tt));
+			}
+		} else if(index[2] >= in->dim(2)) {
+			for(size_t tt=0; tt<it.tlen(); tt++) {
+				it.set(tt, inview(index[0], index[1], index[2], tt) -
+						inview(index[0], index[1], index[2]-1, tt));
+			}
+		} else {
+			for(size_t tt=0; tt<it.tlen(); tt++) {
+				it.set(tt, .5*(inview(index[0], index[1], index[2]-1, tt) -
+						inview(index[0], index[1], index[2]+1, tt)));
+			}
+		}
+	}
+}
+
 /**
  * @brief Inverts a deformation, given a mask in the target space.
  *
@@ -200,19 +275,26 @@ shared_ptr<MRImage> dilate(shared_ptr<MRImage> in, size_t reps)
 int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform, 
 		shared_ptr<MRImage> atldef)
 {
+
+	shared_ptr<MRImage> imgdx, imgdy, imgdz;
+	deriv(deform, imgdx, imgdy, imgdz);
+
 	const double MINERR = .1;
-	const double LAMBDA = .5;
+	const double LAMBDA = .2;
 	const size_t MAXITERS = 300;
 	int64_t index[3];
 	double subpoint[3];
 	double cindex[3];
 	double sub2atl[3];
-	double err[3];
+	Matrix<3,1> err;
 	vector<double> atlpoint(3);
 	vector<double> atl2sub(3);
+	Vector3DView<double> defview(deform);
 	LinInterp3DView<double> definterp(deform);
 	NNInterp3DView<double> maskinterp(mask);
 	KDTree<3,3,double, double> tree;
+	int64_t neighbors[3][2];
+	Matrix<3,3> dVdX;
 
 	if(deform->tlen() != 3) {
 		cerr << "Error invalid deform image, needs 3 points in the 4th or "
@@ -275,40 +357,70 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 		for(size_t ii=0; ii<3; ii++) 
 			atl2sub[ii] = result->m_data[ii];
 
-		// SUB <- ATLAS (given)
-		//    atl2sub
-		double prevdist = dist+1;
-		size_t jj = 0;
-		for(jj = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR && 
-						jj < MAXITERS; jj++) {
-
-			for(size_t ii=0; ii<3; ii++) 
-				subpoint[ii] = atlpoint[ii] + atl2sub[ii];
-
-			// ignore points that map outside the mask, just accept this as the
-			// best approximate deform
-			mask->pointToIndex(3, subpoint, cindex);
-			if(maskinterp(cindex[0], cindex[1], cindex[2]) == 0)
-				break;
-
-			// (estimate) SUB <- ATLAS (given)
-			//              offset
-			// interpolate new offset at subpoint
-			deform->pointToIndex(3, subpoint, cindex);
-			for(size_t ii=0; ii<3; ii++) {
-				sub2atl[ii] = definterp(cindex[0], cindex[1], cindex[2], ii);
-				err[ii] = atl2sub[ii]+sub2atl[ii];
-			}
-
-			// compute error
-			prevdist = dist;
-			dist = 0;
-			for(size_t ii=0; ii<3; ii++) {
-				atl2sub[ii] -= LAMBDA*err[ii];
-				dist += err[jj]*err[jj];
-			}
-			dist = sqrt(dist);
-		}
+//		// SUB <- ATLAS (given)
+//		//    atl2sub
+//		double prevdist = dist+1;
+//		size_t iters = 0;
+//		for(iters = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR && 
+//						iters < MAXITERS; iters++) {
+//
+//			for(size_t ii=0; ii<3; ii++) 
+//				subpoint[ii] = atlpoint[ii] + atl2sub[ii];
+//
+//			// ignore points that map outside the mask, just accept this as the
+//			// best approximate deform
+//			mask->pointToIndex(3, subpoint, cindex);
+//			if(maskinterp(cindex[0], cindex[1], cindex[2]) == 0)
+//				break;
+//
+//			// (estimate) SUB <- ATLAS (given)
+//			//              offset
+//			// interpolate new offset at subpoint
+//			deform->pointToIndex(3, subpoint, cindex);
+//
+//			/* 
+//			 * Compute teh Derivative of the Vector Field
+//			 */
+//
+//			// compute the neighbors of the nearest point, and update sub2atl
+//			// with interpolation
+//			for(size_t ii=0; ii<3; ii++) {
+//				neighbors[ii][0] = floor(cindex[ii]);
+//				neighbors[ii][1] = neighbors[ii][0]+1;
+//			}
+//
+//			/* Update */
+//
+//			// update sub2atl
+//			for(size_t ii=0; ii<3; ii++) {
+//				sub2atl[ii] = definterp(cindex[0], cindex[1], cindex[2], ii);
+//			}
+//
+//			for(size_t ii=0; ii<3; ii++) {
+//				for(size_t jj=0; jj<3; jj++) {
+//					cindex[jj]+=0.00001;
+//					dVdX(ii,jj) = (definterp(cindex[0], cindex[1], cindex[2], ii)-sub2atl[ii])/0.00001;
+//					cindex[jj]-=0.00001;
+//				}
+//			}
+//			for(size_t ii=0; ii<3; ii++)
+//				dVdX(ii,ii) += 1;
+//
+//			// update image with the error, using the derivative to estimate
+//			// where error crosses 0
+//			prevdist = dist;
+//			dist = 0;
+//			for(size_t ii=0; ii<3; ii++) {
+//				err[ii] = atl2sub[ii]+sub2atl[ii];
+//			}
+//
+//			err = inverse(dVdX)*err;
+//			for(size_t ii=0; ii<3; ii++) {
+//				atl2sub[ii] -= LAMBDA*err[ii];
+//				dist += err[ii]*err[ii];
+//			}
+//			dist = sqrt(dist);
+//		}
 
 		// save out final deform
 		for(size_t ii=0; ii<3; ii++) 

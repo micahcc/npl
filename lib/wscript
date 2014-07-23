@@ -23,5 +23,13 @@ def build(bld):
             source = 'iterators.cpp', 
             use='ndarray slicer kslicer',
             export_includes = ['.'])
+    bld.shlib( target = 'image_algos', 
+            source = 'image_algos.cpp', 
+            use='mrimage iterators nd_algos',
+            export_includes = ['.'])
+    bld.shlib( target = 'nd_algos', 
+            source = 'nd_algos.cpp', 
+            use='ndarray iterators FFTW',
+            export_includes = ['.'])
 
 

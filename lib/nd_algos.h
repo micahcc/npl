@@ -17,17 +17,12 @@ You should have received a copy of the GNU General Public License along with
 the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
-#ifndef IMAGE_PROCESSING_H
-#define IMAGE_PROCESSING_H
+#ifndef ND_ALGOS_H
+#define ND_ALGOS_H
 
 #include "ndarray.h"
 #include "npltypes.h"
-#include "matrix.h"
 
-#include <string>
-#include <iostream>
-#include <iomanip>
-#include <cassert>
 #include <memory>
 
 namespace npl {
@@ -35,6 +30,8 @@ namespace npl {
 using std::vector;
 using std::shared_ptr;
 
+shared_ptr<NDArray> fft(shared_ptr<NDArray> in, bool inverse = false);
 
 } // npl
-#endif  //IMAGE_PROCESSING_H
+#endif  //ND_ALGOS_H
+

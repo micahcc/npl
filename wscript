@@ -67,6 +67,8 @@ def configure(conf):
     conf.check_cfg(atleast_pkgconfig_version='0.0.0')
     conf.check_cfg(package='zlib', uselib_store='ZLIB',
                 args=['--cflags', '--libs'])
+    conf.check_cfg(package='fftw3', uselib_store='FFTW',
+                args=['--cflags', '--libs'])
 
 def options(ctx):
     ctx.load('compiler_cxx')
