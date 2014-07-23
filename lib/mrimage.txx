@@ -33,7 +33,7 @@ namespace npl {
  * may not be fully used if a_args is longer than D. If it is shorter
  * then D then additional dimensions are left as size 1.
  */
-template <int D,typename T>
+template <size_t D,typename T>
 MRImageStore<D,T>::MRImageStore(std::initializer_list<size_t> a_args) :
 	NDArrayStore<D,T>(a_args), MRImage()
 {
@@ -45,7 +45,7 @@ MRImageStore<D,T>::MRImageStore(std::initializer_list<size_t> a_args) :
  *
  * @param dim dimensions of input 
  */
-template <int D,typename T>
+template <size_t D,typename T>
 MRImageStore<D,T>::MRImageStore(const std::vector<size_t>& dim) : 
 	NDArrayStore<D,T>(dim), MRImage()
 {
@@ -55,7 +55,7 @@ MRImageStore<D,T>::MRImageStore(const std::vector<size_t>& dim) :
 /**
  * @brief Default orientation (dir=ident, space=1 and origin=0)
  */
-template <int D,typename T>
+template <size_t D,typename T>
 void MRImageStore<D,T>::orientDefault()
 {
 	
@@ -73,7 +73,7 @@ void MRImageStore<D,T>::orientDefault()
 /**
  * @brief Updates index->RAS affine transform cache
  */
-template <int D,typename T>
+template <size_t D,typename T>
 void MRImageStore<D,T>::updateAffine()
 {
 	// first DxD section
@@ -113,7 +113,7 @@ void MRImageStore<D,T>::updateAffine()
 * @param dir Input direction/rotation
 * @param reinit Whether to reinitialize prior to copying
 */
-template <int D,typename T>
+template <size_t D,typename T>
 void MRImageStore<D,T>::setOrient(const MatrixP& orig, const MatrixP& space, 
 			const MatrixP& dir, bool reinit) 
 {
@@ -141,7 +141,7 @@ void MRImageStore<D,T>::setOrient(const MatrixP& orig, const MatrixP& space,
 * @param space Input spacing
 * @param reinit Whether to reinitialize prior to copying
 */
-template <int D,typename T>
+template <size_t D,typename T>
 void MRImageStore<D,T>::setSpacing(const MatrixP& space, bool reinit) 
 {
 	if(reinit) {
@@ -166,16 +166,16 @@ void MRImageStore<D,T>::setSpacing(const MatrixP& space, bool reinit)
 * @param origin Input origin
 * @param reinit Whether to reinitialize prior to copying
 */
-template <int D,typename T>
+template <size_t D,typename T>
 void MRImageStore<D,T>::setOrigin(const MatrixP& origin, bool reinit) 
 {
 	if(reinit) {
 		for(size_t ii=0; ii<D; ii++)
-			m_origin[ii] = 1;
+			m_origin[ii] = 0;
 	}
 
 	for(size_t ii=0; ii<origin.rows() && ii < D; ii++) {
-		m_space[ii] = origin[ii];
+		m_origin[ii] = origin[ii];
 	}
 
 	updateAffine();
@@ -192,7 +192,7 @@ void MRImageStore<D,T>::setOrigin(const MatrixP& origin, bool reinit)
 * @param dir Input direction/rotation
 * @param reinit Whether to reinitialize prior to copying
 */
-template <int D,typename T>
+template <size_t D,typename T>
 void MRImageStore<D,T>::setDirection(const MatrixP& dir, bool reinit) 
 {
 	if(reinit) {
@@ -215,7 +215,7 @@ void MRImageStore<D,T>::setDirection(const MatrixP& dir, bool reinit)
 /**
  * @brief Just dump image information
  */
-template <int D,typename T>
+template <size_t D,typename T>
 void MRImageStore<D,T>::printSelf()
 {
 	std::cerr << D << "D Image\n[";
@@ -334,7 +334,7 @@ shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT ptype)
  * Image Writers 
  ******************************************************************************/
 
-template <int D, typename T>
+template <size_t D, typename T>
 int MRImageStore<D,T>::write(std::string filename, double version) const
 {
 	std::string mode = "wb";
@@ -387,7 +387,7 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 	return 0;
 }
 
-template <int D, typename T>
+template <size_t D, typename T>
 int MRImageStore<D,T>::writeNifti1Image(gzFile file) const
 {
 	std::cerr << "writeNifti1Image" << std::endl;
@@ -404,7 +404,7 @@ int MRImageStore<D,T>::writeNifti1Image(gzFile file) const
 	return ret;
 }
 
-template <int D, typename T>
+template <size_t D, typename T>
 int MRImageStore<D,T>::writeNifti2Image(gzFile file) const
 {
 	std::cerr << "writeNifti2Image" << std::endl;
@@ -421,7 +421,7 @@ int MRImageStore<D,T>::writeNifti2Image(gzFile file) const
 	return ret;
 }
 
-template <int D, typename T>
+template <size_t D, typename T>
 int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 {
 	static_assert(sizeof(nifti1_header) == 348, "Error, nifti header packing failed");
@@ -538,7 +538,7 @@ int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 	return 0;
 }
 
-template <int D, typename T>
+template <size_t D, typename T>
 int MRImageStore<D,T>::writeNifti2Header(gzFile file) const
 {
 	static_assert(sizeof(nifti2_header) == 540, "Error, nifti header packing failed");
@@ -710,7 +710,7 @@ int MRImageStore<D,T>::writeNifti2Header(gzFile file) const
 //	return 0;
 //}
 
-template <int D, typename T>
+template <size_t D, typename T>
 int MRImageStore<D,T>::writePixels(gzFile file) const
 {
 	// x is the fastest in nifti, for us it is the slowest
@@ -727,7 +727,7 @@ int MRImageStore<D,T>::writePixels(gzFile file) const
 
 }
 
-template <int D, typename T>
+template <size_t D, typename T>
 std::shared_ptr<MRImage> MRImageStore<D,T>::cloneImage() const
 {
 	std::vector<size_t> newdims(this->_m_dim, this->_m_dim+D);
@@ -772,7 +772,7 @@ std::shared_ptr<MRImage> MRImageStore<D,T>::cloneImage() const
  *
  * @return 
  */
-template <int D, typename T>
+template <size_t D, typename T>
 int MRImageStore<D,T>::indexToPoint(size_t len, const int64_t* index,
 			double* rast) const
 {
@@ -799,7 +799,7 @@ int MRImageStore<D,T>::indexToPoint(size_t len, const int64_t* index,
  *
  * @return 
  */
-template <int D, typename T>
+template <size_t D, typename T>
 int MRImageStore<D,T>::indexToPoint(size_t len, const double* index,
 			double* rast) const
 {
@@ -826,7 +826,7 @@ int MRImageStore<D,T>::indexToPoint(size_t len, const double* index,
  *
  * @return 
  */
-template <int D, typename T>
+template <size_t D, typename T>
 int MRImageStore<D,T>::pointToIndex(size_t len, const double* rast,
 			double* index) const
 {
@@ -853,7 +853,7 @@ int MRImageStore<D,T>::pointToIndex(size_t len, const double* rast,
  *
  * @return 
  */
-template <int D, typename T>
+template <size_t D, typename T>
 int MRImageStore<D,T>::pointToIndex(size_t len, const double* rast,
 			int64_t* index) const
 {
@@ -868,213 +868,76 @@ int MRImageStore<D,T>::pointToIndex(size_t len, const double* rast,
 	return 0;
 }
 
-///* Linear Kernel Sampling */
-//double linKern(double x)
-//{
-//	return fabs(1-fmin(1,fabs(x)));
-//}
-//
-//
-///**
-// * @brief Linearly interpolates image at a point.
-// *
-// * @param point Continuous point location (could be outside FOV)
-// * @param bound	What to return if the value is outside the FOV
-// * @param outside Set to true if the value is outside, false otherwise
-// *
-// * @return 
-// */
-//template <int D, typename T>
-//double MRImageStore<D,T>::linSamplePt(const std::vector<double>& point, 
-//		BoundaryConditionT bound, bool& outside)
-//{
-//	std::vector<double> cindex;
-//	pointToIndex(point, cindex);
-//	return linSampleInd(cindex, bound, outside);
-//}
-//
-///**
-// * @brief Linearly interpolates image at a contiuous index
-// *
-// * @param cindex Continuous index location (could be outside FOV)
-// * @param bound	What to return if the value is outside the FOV
-// * @param outside Set to true if the value is outside, false otherwise. 
-// * 			sometimes boundary points can trigger this if they are identically
-// *			on the wall because their support might include outside voxels.
-// *
-// * @return 
-// */
-//template <int D, typename T>
-//double MRImageStore<D,T>::linSampleInd(const std::vector<double>& incindex,
-//		BoundaryConditionT bound, bool& outside)
-//{
-//	double cindex[D];
-//	std::vector<int64_t> index(D, 0);
-//	
-//	// in case incindex is of the wrong size, copy
-//	for(size_t ii=0 ; ii<incindex.size() && ii < D; ii++)
-//		cindex[ii] = incindex[ii];
-//	for(size_t ii=incindex.size(); ii < D; ii++)
-//		cindex[ii] = 0;
-//
-//	//kernels essentially 1D, so we can save time by combining 1D kernls
-//	//rather than recalculating
-//	const int kpoints = 2;
-//	double karray[D*kpoints];
-//	int64_t indarray[D*kpoints];
-//	for(int dd = 0; dd < D; dd++) {
-//		indarray[dd*kpoints+0] = floor(cindex[dd]);
-//		indarray[dd*kpoints+1] = indarray[dd*kpoints+0]+1;
-//		karray[dd*kpoints+0] = linKern(indarray[dd*kpoints+0]-cindex[dd]);
-//		karray[dd*kpoints+1] = linKern(indarray[dd*kpoints+1]-cindex[dd]);
-//	}
-//
-//	bool iioutside = false;
-//	outside = false;
-//	T pixval = 0;
-//	double weight = 0;
-//	div_t result;
-//	//iterator over points in the neighborhood
-//	for(int ii = 0 ; ii < pow(kpoints, D); ii++) {
-//		weight = 1;
-//		
-//		//convert to local index, compute weight
-//		result.quot = ii;
-//		iioutside = false;
-//		for(int dd = 0; dd < D; dd++) {
-//			result = std::div(result.quot, kpoints);
-//			weight *= karray[dd*kpoints+result.rem];
-//			index[dd] = indarray[dd*kpoints+result.rem];
-//			iioutside = iioutside || index[dd] < 0 || index[dd] >= dim(dd);
-//		}
-//
-//		outside = iioutside || outside;
-//	
-//		// just use clamped value
-//		if(iioutside) {
-//			if(bound == ZEROFLUX) {
-//				// clamp
-//				for(size_t dd=0; dd<D; dd++)
-//					index[dd] = clamp<int64_t>(0, dim(dd)-1, index[dd]);
-//			} else if(bound == WRAP) {
-//				// wrap
-//				for(size_t dd=0; dd<D; dd++) {
-//					if(index[dd] < 0)
-//						index[dd] = dim(dd)-(std::abs(index[dd])%dim(dd));
-//					else if(index[dd] >= dim(dd))
-//						index[dd] = index[dd]%dim(dd);
-//				}
-//			} else if(bound == CONSTZERO) {
-//				// set wieght to zero, then just clamp
-//				weight = 0;
-//				for(size_t dd=0; dd<D; dd++)
-//					index[dd] = clamp<int64_t>(0, dim(dd)-1, index[dd]);
-//			}
-//		} 
-//
-////		std::cerr << "Point: " << ii << " weight: " << weight << " Cont. Index: " ;
-////		for(size_t ii=0; ii<D; ii++)
-////			std::cerr << incindex[ii] << ",";
-////		std::cerr << " Adj Cont Index: ";
-////		for(size_t ii=0; ii<D; ii++)
-////			std::cerr << cindex[ii] << ",";
-////		std::cerr << ", Index: " ;
-////		for(size_t ii=0; ii<D; ii++)
-////			std::cerr << index[ii] << ",";
-////		std::cerr << std::endl;
-//
-//		pixval = pixval + (*this)[index]*weight;
-//
-//	}
-//
-//	return pixval;
-//}
-//
-///**
-// * @brief Nearest Neigbor interpolation, handles outside values.
-// *
-// * @param point	Point to get
-// * @param bound	What to return if the value is outside the FOV
-// * @param outside Set to true if the value is outside, false otherwise
-// *
-// * @return 
-// */
-//template <int D, typename T>
-//double MRImageStore<D,T>::nnSamplePt(const std::vector<double>& point,
-//		BoundaryConditionT bound, bool& outside)
-//{
-//	std::vector<double> cindex;
-//	pointToIndex(point, cindex);
-//	return nnSampleInd(cindex, bound, outside);
-//}
-//
-///**
-// * @brief Nearest Neigbor interpolation, handles outside values.
-// *
-// * @param point	Point to get
-// * @param bound	What to return if the value is outside the FOV
-// * @param outside Set to true if the value is outside, false otherwise
-// *
-// * @return 
-// */
-//template <int D, typename T>
-//double MRImageStore<D,T>::nnSampleInd(const std::vector<int64_t>& inindex,
-//		BoundaryConditionT bound, bool& outside)
-//{
-//	std::vector<int64_t> index(D, 0);
-//	
-//	// in case incindex is of the wrong size, copy
-//	for(size_t ii=0 ; ii<inindex.size() && ii < D; ii++)
-//		index[ii] = inindex[ii];
-//	for(size_t ii=inindex.size(); ii < D; ii++)
-//		index[ii] = 0;
-//
-//	//convert to local index, compute weight
-//	outside = false;
-//	for(int dd = 0; dd < D; dd++) {
-//		outside = outside || index[dd] < 0 || index[dd] >= dim(dd);
-//	}
-//
-//	// just use clamped value
-//	if(outside) {
-//		if(bound == ZEROFLUX) {
-//			// clamp
-//			for(size_t dd=0; dd<D; dd++)
-//				index[dd] = clamp<int64_t>(0, dim(dd)-1, index[dd]);
-//		} else if(bound == WRAP) {
-//			// wrap
-//			for(size_t dd=0; dd<D; dd++) {
-//				if(index[dd] < 0)
-//					index[dd] = dim(dd)-(std::abs(index[dd])%dim(dd));
-//				else if(index[dd] >= dim(dd))
-//					index[dd] = index[dd]%dim(dd);
-//			}
-//		} else if(bound == CONSTZERO) {
-//			return 0;
-//		}
-//	} 
-//
-//	return (*this)[index];
-//}
-//
-///**
-// * @brief Nearest Neigbor interpolation, handles outside values.
-// *
-// * @param point	Point to get
-// * @param bound	What to return if the value is outside the FOV
-// * @param outside Set to true if the value is outside, false otherwise
-// *
-// * @return 
-// */
-//template <int D, typename T>
-//double MRImageStore<D,T>::nnSampleInd(const std::vector<double>& incindex,
-//		BoundaryConditionT bound, bool& outside)
-//{
-//	std::vector<int64_t> index(incindex.size());
-//	for(size_t dd=0; dd<incindex.size(); dd++)
-//		index[dd] = round(incindex[dd]);
-//
-//	return nnSampleInd(index, bound, outside);
-//}
+/**
+ * @brief Returns true if the point is within the field of view of the 
+ * image. Note, like all coordinates pass to MRImage, if the array given
+ * differs from the dimensions of the image, then the result will either
+ * pad out zeros and ignore extra values in the input array.
+ *
+ * @param len Length of RAS array
+ * @param ras Array of Right-handed coordinates Right+, Anterior+, Superior+
+ *
+ * @return Whether the point would round to a voxel inside the image.
+ */
+template <size_t D, typename T>
+bool MRImageStore<D,T>::pointInsideFOV(size_t len, const double* ras) const
+{
+	Matrix<D+1,1> in(len, ras);
+	in[D] = 1;
+	Matrix<D+1,1> out;
+	iaffine().mvproduct(in, out);
+	for(size_t ii=0; ii<D; ii++) {
+		int64_t v = round(out[ii]);
+		if(v < 0 || v >= this->_m_dim[ii])
+			return false;
+	}
+	return true;
+}
+
+/**
+ * @brief Returns true if the constinuous index is within the field of 
+ * view of the image. Note, like all coordinates pass to MRImage, if the
+ * array given differs from the dimensions of the image, then the result
+ * will either pad out zeros and ignore extra values in the input array.
+
+ *
+ * @param len Length of xyz array
+ * @param xyz Array of continouos indices 
+ *
+ * @return Whether the index would round to a voxel inside the image.
+ */
+template <size_t D, typename T>
+bool MRImageStore<D,T>::indexInsideFOV(size_t len, const double* xyz) const
+{
+	for(size_t ii=0; ii<len && ii<D; ii++) {
+		int64_t v = round(xyz[ii]);
+		if(v < 0 || v >= this->_m_dim[ii])
+			return false;
+	}
+	return true;
+}
+
+/**
+ * @brief Returns true if the constinuous index is within the field of 
+ * view of the image. Note, like all coordinates pass to MRImage, if the
+ * array given differs from the dimensions of the image, then the result
+ * will either pad out zeros and ignore extra values in the input array.
+ *
+ * @param len Length of xyz array
+ * @param xyz Array of indices 
+ *
+ * @return Whether the index is inside the image
+ */
+template <size_t D, typename T>
+bool MRImageStore<D,T>::indexInsideFOV(size_t len, const int64_t* xyz) const
+{
+	for(size_t ii=0; ii<len && ii<D; ii++) {
+		int64_t v = xyz[ii];
+		if(v < 0 || v >= this->_m_dim[ii])
+			return false;
+	}
+	return true;
+}
+
 
 } //npl

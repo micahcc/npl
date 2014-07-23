@@ -142,6 +142,46 @@ public:
 	 */
 	virtual int pointToIndex(size_t len, const double* ras, int64_t* index) const=0;
 	
+	/**
+	 * @brief Returns true if the point is within the field of view of the 
+	 * image. Note, like all coordinates pass to MRImage, if the array given
+	 * differs from the dimensions of the image, then the result will either
+	 * pad out zeros and ignore extra values in the input array.
+	 *
+	 * @param len Length of RAS array
+	 * @param ras Array of Right-handed coordinates Right+, Anterior+, Superior+
+	 *
+	 * @return Whether the point would round to a voxel inside the image.
+	 */
+	virtual bool pointInsideFOV(size_t len, const double* ras) const=0;
+	
+	/**
+	 * @brief Returns true if the constinuous index is within the field of 
+	 * view of the image. Note, like all coordinates pass to MRImage, if the
+	 * array given differs from the dimensions of the image, then the result
+	 * will either pad out zeros and ignore extra values in the input array.
+
+	 *
+	 * @param len Length of xyz array
+	 * @param xyz Array of continouos indices 
+	 *
+	 * @return Whether the index would round to a voxel inside the image.
+	 */
+	virtual bool indexInsideFOV(size_t len, const double* xyz) const=0;
+	
+	/**
+	 * @brief Returns true if the constinuous index is within the field of 
+	 * view of the image. Note, like all coordinates pass to MRImage, if the
+	 * array given differs from the dimensions of the image, then the result
+	 * will either pad out zeros and ignore extra values in the input array.
+	 *
+	 * @param len Length of xyz array
+	 * @param xyz Array of indices 
+	 *
+	 * @return Whether the index is inside the image
+	 */
+	virtual bool indexInsideFOV(size_t len, const int64_t* xyz) const=0;
+
 //	virtual int unary(double(*func)(double,double)) const = 0;
 //	virtual int binOp(const MRImage* right, double(*func)(double,double), bool elevR) const = 0;
 
@@ -202,7 +242,7 @@ protected:
  * @tparam D 	Number of dimensions
  * @tparam T	Pixel type
  */
-template <int D, typename T>
+template <size_t D, typename T>
 class MRImageStore :  public virtual NDArrayStore<D,T>, public virtual MRImage
 {
 
@@ -288,6 +328,45 @@ public:
 	 */
 	virtual int pointToIndex(size_t len, const double* ras, int64_t* index) const;
 	
+	/**
+	 * @brief Returns true if the point is within the field of view of the 
+	 * image. Note, like all coordinates pass to MRImage, if the array given
+	 * differs from the dimensions of the image, then the result will either
+	 * pad out zeros and ignore extra values in the input array.
+	 *
+	 * @param len Length of RAS array
+	 * @param ras Array of Right-handed coordinates Right+, Anterior+, Superior+
+	 *
+	 * @return Whether the point would round to a voxel inside the image.
+	 */
+	virtual bool pointInsideFOV(size_t len, const double* ras) const;
+	
+	/**
+	 * @brief Returns true if the constinuous index is within the field of 
+	 * view of the image. Note, like all coordinates pass to MRImage, if the
+	 * array given differs from the dimensions of the image, then the result
+	 * will either pad out zeros and ignore extra values in the input array.
+
+	 *
+	 * @param len Length of xyz array
+	 * @param xyz Array of continouos indices 
+	 *
+	 * @return Whether the index would round to a voxel inside the image.
+	 */
+	virtual bool indexInsideFOV(size_t len, const double* xyz) const;
+	
+	/**
+	 * @brief Returns true if the constinuous index is within the field of 
+	 * view of the image. Note, like all coordinates pass to MRImage, if the
+	 * array given differs from the dimensions of the image, then the result
+	 * will either pad out zeros and ignore extra values in the input array.
+	 *
+	 * @param len Length of xyz array
+	 * @param xyz Array of indices 
+	 *
+	 * @return Whether the index is inside the image
+	 */
+	virtual bool indexInsideFOV(size_t len, const int64_t* xyz) const;
 
 	/**
 	 * @brief Returns a matrix (single column) with spacing information. The 

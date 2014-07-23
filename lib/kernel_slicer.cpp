@@ -427,10 +427,6 @@ void KSlicer::setOrder(std::vector<size_t> order, bool revorder)
 
 		// determine whether the given is available still
 		auto it = std::find(avail.begin(), avail.end(), order[ii]);
-
-		// should be available, although technically we could handle it, it
-		// seems like a repeat would be a logic error
-		assert(it != avail.end());
 		if(it != avail.end()) {
 			m_order[jj++] = order[ii];
 			avail.erase(it);

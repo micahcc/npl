@@ -20,6 +20,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include "slicer.h"
 
 #include <vector>
+#include <list>
 #include <algorithm>
 #include <cassert>
 
@@ -289,9 +290,12 @@ void Slicer::setOrder(const std::vector<size_t>& order, bool revorder)
 	m_order.clear();
 
 	// need to ensure that all dimensions get covered
-	std::vector<size_t> avail;
+	std::list<size_t> avail;
 	for(size_t ii=0 ; ii<ndim ; ii++) {
-		avail.push_back(ii);
+		if(revorder)
+			avail.push_front(ii);
+		else
+			avail.push_back(ii);
 	}
 
 	// add dimensions to internal order, but make sure there are 
@@ -301,9 +305,6 @@ void Slicer::setOrder(const std::vector<size_t>& order, bool revorder)
 		// determine whether the given is available still
 		auto it = std::find(avail.begin(), avail.end(), *ito);
 
-		// should be available, although technically we could handle it, it
-		// seems like a repeat would be a logic error
-		assert(it != avail.end());
 		if(it != avail.end()) {
 			m_order.push_back(*it);
 			avail.erase(it);
@@ -311,7 +312,7 @@ void Slicer::setOrder(const std::vector<size_t>& order, bool revorder)
 	}
 
 	// we would like the dimensions to be added so that steps are small, 
-	// so in revorder case, add dimensions in decreasing order (since they will
+	// so in revorder case, add dimensions in increasing order (since they will
 	// be flipped), in normal case add in increasing order. 
 	// so dimensions 0 3, 5 might be remaining, with order currently:
 	// m_order = {1,4,2}, 

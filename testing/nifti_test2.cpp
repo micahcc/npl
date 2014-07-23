@@ -41,7 +41,7 @@ int main()
 	}
 
 	/* Write the Image */
-	oimage->write("test4.nii", false);
+	oimage->write("test4.nii.gz", false);
 
 	/* Read the Image */
 	auto iimage = readMRImage("test4.nii.gz", true);

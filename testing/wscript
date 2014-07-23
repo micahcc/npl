@@ -81,6 +81,16 @@ def build(bld):
             target='kdtree_test',
             source='kdtree_test.cpp', 
             use='kdtree')
+    
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='kdtree_test2',
+            source='kdtree_test2.cpp', 
+            use='kdtree')
+    
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='kdtree_test3',
+            source='kdtree_test3.cpp', 
+            use='kdtree')
 
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='kdtree_test_multi', 
@@ -92,7 +102,15 @@ def build(bld):
             source='kdtree_test_grid.cpp', 
             use='kdtree')
     
-    bld.program(target='nifti_test2', source='nifti_test2.cpp', use='mrimage')
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='nifti_test2', 
+            source='nifti_test2.cpp', 
+            use='mrimage')
+    
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='imgiter_test1', 
+            source='imgiter_test1.cpp', 
+            use='mrimage iterators') 
 
     from waflib.Tools import waf_unit_test
     bld.add_post_fun(waf_unit_test.summary)
@@ -123,7 +141,6 @@ def build(bld):
 #    bld.program(target='matrix_test1', source='matrix_test1.cpp') 
 #    bld.program(target='matrix_test2', source='matrix_test2.cpp') 
 #    bld.program(target='matrix_test4', source='matrix_test4.cpp') 
-#    bld.program(target='imgiter_test1', source='imgiter_test1.cpp', use='mrimage') 
 #
 #    bld(cmd='${SRC[0]}', features='etest', 
 #            source=['slicer_test'], regex='PASS!')

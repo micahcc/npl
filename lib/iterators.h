@@ -829,6 +829,7 @@ private:
 
 	T (*castget)(void* ptr);
 };
+
 /**
  * @brief This class is used to iterate through an N-Dimensional array. 
  *
@@ -1029,7 +1030,7 @@ public:
 	 *
 	 * @return 
 	 */
-	bool operator!=(const OrderIter other) const
+	bool operator!=(const OrderIter& other) const
 	{ 
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
@@ -1143,6 +1144,12 @@ private:
  * it.center()/it.center_index(). [] may also be used in place of offset. To 
  * get the number of neighbors in the kernel use ksize(), so
  * it.offset(0), it.offset(1), ..., it.offset(ksize()-1) are valid calls.
+ *
+ * Note that order is the not the default order. If you use using this iterator
+ * with another iterator, be sure to setOrder(it.getOrder()) so that both 
+ * iterators have the same directions.
+ *
+ * There are no 'set' functions so this is const iterator.
  * 
  * @tparam T
  */
@@ -1406,6 +1413,649 @@ private:
 	T (*castget)(void* ptr);
 };
 
+/**
+ * @brief This class is used to iterate through an 3D array, where each point
+ * then has has multiple higher dimensional variable. This is analogous to 
+ * Vector3DView, where even if there are multiple higher dimensions they are all
+ * alligned into a single vector at each 3D point. This makes them easier to 
+ * than simple iteration in N-dimensions.
+ *
+ * @tparam T
+ */
+template <typename T>
+class Vector3DIter : public Slicer 
+{
+public:
+	Vector3DIter(std::shared_ptr<NDArray> in) : Slicer(in->ndim(), in->dim()), parent(in)
+
+	{
+		// iterate through the first 3 dimensions
+		std::vector<std::pair<int64_t,int64_t>> roi(in->ndim());
+		for(size_t ii=0; ii<3 && ii<in->ndim(); ii++) {
+			roi[ii].first = 0;
+			roi[ii].second = in->dim(ii)-1;
+		}
+		
+		// don't iterate in higher dimensions
+		for(size_t ii=3; ii<in->ndim(); ii++) {
+			roi[ii].first = 0;
+			roi[ii].second = 0;
+		}
+		this->setROI(roi);
+
+		switch(in->type()) {
+			case UINT8:
+				castget = castgetStatic<uint8_t>;
+				castset = castsetStatic<uint8_t>;
+				break;
+			case INT8:
+				castget = castgetStatic<int8_t>;
+				castset = castsetStatic<int8_t>;
+				break;
+			case UINT16:
+				castget = castgetStatic<uint16_t>;
+				castset = castsetStatic<uint16_t>;
+				break;
+			case INT16:
+				castget = castgetStatic<int16_t>;
+				castset = castsetStatic<int16_t>;
+				break;
+			case UINT32:
+				castget = castgetStatic<uint32_t>;
+				castset = castsetStatic<uint32_t>;
+				break;
+			case INT32:
+				castget = castgetStatic<int32_t>;
+				castset = castsetStatic<int32_t>;
+				break;
+			case UINT64:
+				castget = castgetStatic<uint64_t>;
+				castset = castsetStatic<uint64_t>;
+				break;
+			case INT64:
+				castget = castgetStatic<int64_t>;
+				castset = castsetStatic<int64_t>;
+				break;
+			case FLOAT32:
+				castget = castgetStatic<float>;
+				castset = castsetStatic<float>;
+				break;
+			case FLOAT64:
+				castget = castgetStatic<double>;
+				castset = castsetStatic<double>;
+				break;
+			case FLOAT128:
+				castget = castgetStatic<long double>;
+				castset = castsetStatic<long double>;
+				break;
+			case COMPLEX64:
+				castget = castgetStatic<cfloat_t>;
+				castset = castsetStatic<cfloat_t>;
+				break;
+			case COMPLEX128:
+				castget = castgetStatic<cdouble_t>;
+				castset = castsetStatic<cdouble_t>;
+				break;
+			case COMPLEX256:
+				castget = castgetStatic<cquad_t>;
+				castset = castsetStatic<cquad_t>;
+				break;
+			case RGB24:
+				castget = castgetStatic<rgb_t>;
+				castset = castsetStatic<rgb_t>;
+				break;
+			case RGBA32:
+				castget = castgetStatic<rgba_t>;
+				castset = castsetStatic<rgba_t>;
+				break;
+			default:
+			case UNKNOWN_TYPE:
+				castget = castgetStatic<uint8_t>;
+				castset = castsetStatic<uint8_t>;
+				throw std::invalid_argument("Unknown type to OrderIter");
+				break;
+		}
+	};
+
+	/**
+	 * @brief Prefix increment operator
+	 *
+	 * @return new value in 0th element of vector
+	 */
+	T operator++() 
+	{ 
+		return castget(parent->__getAddr(Slicer::operator++())); 
+	};
+
+	/**
+	 * @brief Postfix increment operator
+	 *
+	 * @return old value in 0th element of vector
+	 */
+	T operator++(int) 
+	{ 
+		return castget(parent->__getAddr(Slicer::operator++(0))); 
+	};
+
+	/**
+	 * @brief Prefix decrement operator
+	 *
+	 * @return new value in 0th element of vector
+	 */
+	T operator--() 
+	{ 
+		return castget(parent->__getAddr(Slicer::operator--())); 
+	};
+	
+	/**
+	 * @brief Postfix decrement operator
+	 *
+	 * @return old value in 0th element of vector
+	 */
+	T operator--(int) 
+	{ 
+		return castget(parent->__getAddr(Slicer::operator--(0))); 
+	};
+
+	/**
+	 * @brief Dereference operator
+	 *
+	 * @return Value in 0th element of vector
+	 */
+	T operator*() const
+	{ 
+		return castget(parent->__getAddr(Slicer::operator*())); 
+	};
+	
+	/**
+	 * @brief Get value at ith element of vector
+	 *
+	 * @return current value
+	 */
+	T get(int64_t i = 0) const
+	{ 
+		return castget(parent->__getAddr(Slicer::operator*()+i)); 
+	};
+	
+	/**
+	 * @brief Get value at ith element of vector
+	 *
+	 * @return current value
+	 */
+	T operator[](int64_t i) const
+	{ 
+		return castget(parent->__getAddr(Slicer::operator*()+i)); 
+	};
+	
+	/**
+	 * @brief Set the value at the ith element of thevector
+	 *
+	 */
+	void set(int64_t i, const T& v) 
+	{ 
+		this->castset(parent->__getAddr(Slicer::operator*()+i), v); 
+	};
+	
+	/**
+	 * @brief Set the value at the 0th element of the vector
+	 *
+	 */
+	void set(const T& v) 
+	{ 
+		this->castset(parent->__getAddr(Slicer::operator*()), v); 
+	};
+
+	/**
+	 * @brief Go to beginning of iteration
+	 */
+	void goBegin() { Slicer::goBegin(); };
+
+	/**
+	 * @brief Go to end of iteration
+	 */
+	void goEnd() { Slicer::goEnd(); };
+	
+	/**
+	 * @brief Are we one past the last element?
+	 */
+	bool isEnd() const { return Slicer::isEnd(); };
+	
+	/**
+	 * @brief Are we one past the last element?
+	 */
+	bool eof() const { return Slicer::isEnd(); };
+	
+	/**
+	 * @brief Are we at the first element
+	 */
+	bool isBegin() const { return Slicer::isBegin(); };
+	
+	/**
+	 * @brief Whether the position and parent are the same as another 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator==(const Vector3DIter& other) const
+	{ 
+		return parent == other.parent && m_linpos == other.m_linpos;
+	};
+
+	/**
+	 * @brief Whether the position and parent are different from another 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator!=(const Vector3DIter& other) const
+	{ 
+		return parent != other.parent || this->m_linpos != other.m_linpos;
+	};
+	
+	/**
+	 * @brief If the parents are different then false, if they are the same, 
+	 * returns whether this iterator is before the other. 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator<(const Vector3DIter& other) const
+	{ 
+		if(parent != other.parent)
+			return false;
+
+		for(size_t dd=0; dd<this->m_dim; dd++) {
+			if(this->m_pos[dd] < other.m_pos[dd])
+				return true;
+		}
+
+		return false;
+	};
+	
+	/**
+	 * @brief If the parents are different then false, if they are the same, 
+	 * returns whether this iterator is after the other. 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator>(const Vector3DIter& other) const
+	{ 
+		if(parent != other.parent)
+			return false;
+
+		for(size_t dd=0; dd<this->m_dim; dd++) {
+			if(this->m_pos[dd] > other.m_pos[dd])
+				return true;
+		}
+
+		return false;
+	};
+	
+	/**
+	 * @brief If the parents are different then false, if they are the same, 
+	 * returns whether this iterator is the same or before the other. 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator<=(const Vector3DIter& other) const
+	{ 
+		if(parent != other.parent)
+			return false;
+
+		if(*this == other)
+			return true;
+
+		return *this < other;
+	};
+	
+	/**
+	 * @brief If the parents are different then false, if they are the same, 
+	 * returns whether this iterator is the same or after the other. 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator>=(const Vector3DIter& other) const
+	{ 
+		if(parent != other.parent)
+			return false;
+
+		if(*this == other)
+			return true;
+
+		return *this > other;
+	};
+
+	size_t tlen() const { return this->parent->tlen(); };
+
+private:
+	template <typename U>
+	static T castgetStatic(void* ptr)
+	{
+		return (T)(*((U*)ptr));
+	};
+	
+	template <typename U>
+	static void castsetStatic(void* ptr, const T& val)
+	{
+		(*((U*)ptr)) = (U)val;
+	};
+
+	
+	std::shared_ptr<NDArray> parent;
+
+	T (*castget)(void* ptr);
+	void (*castset)(void* ptr, const T& val);
+};
+
+/**
+ * @brief This class is used to iterate through an 3D array, where each point
+ * then has has multiple higher dimensional variable. This is analogous to 
+ * Vector3DView, where even if there are multiple higher dimensions they are all
+ * alligned into a single vector at each 3D point. This makes them easier to 
+ * than simple iteration in N-dimensions. This is the constant version
+ *
+ * @tparam T
+ */
+template <typename T>
+class Vector3DConstIter : public Slicer 
+{
+public:
+	Vector3DConstIter(std::shared_ptr<const NDArray> in) : Slicer(in->ndim(), in->dim()),
+				parent(in)
+
+	{
+		// iterate through the first 3 dimensions
+		std::vector<std::pair<int64_t,int64_t>> roi(in->ndim());
+		for(size_t ii=0; ii<3 && ii<in->ndim(); ii++) {
+			roi[ii].first = 0;
+			roi[ii].second = in->dim(ii)-1;
+		}
+		
+		// don't iterate in higher dimensions
+		for(size_t ii=3; ii<in->ndim(); ii++) {
+			roi[ii].first = 0;
+			roi[ii].second = 0;
+		}
+		this->setROI(roi);
+
+		switch(in->type()) {
+			case UINT8:
+				castget = castgetStatic<uint8_t>;
+				break;
+			case INT8:
+				castget = castgetStatic<int8_t>;
+				break;
+			case UINT16:
+				castget = castgetStatic<uint16_t>;
+				break;
+			case INT16:
+				castget = castgetStatic<int16_t>;
+				break;
+			case UINT32:
+				castget = castgetStatic<uint32_t>;
+				break;
+			case INT32:
+				castget = castgetStatic<int32_t>;
+				break;
+			case UINT64:
+				castget = castgetStatic<uint64_t>;
+				break;
+			case INT64:
+				castget = castgetStatic<int64_t>;
+				break;
+			case FLOAT32:
+				castget = castgetStatic<float>;
+				break;
+			case FLOAT64:
+				castget = castgetStatic<double>;
+				break;
+			case FLOAT128:
+				castget = castgetStatic<long double>;
+				break;
+			case COMPLEX64:
+				castget = castgetStatic<cfloat_t>;
+				break;
+			case COMPLEX128:
+				castget = castgetStatic<cdouble_t>;
+				break;
+			case COMPLEX256:
+				castget = castgetStatic<cquad_t>;
+				break;
+			case RGB24:
+				castget = castgetStatic<rgb_t>;
+				break;
+			case RGBA32:
+				castget = castgetStatic<rgba_t>;
+				break;
+			default:
+			case UNKNOWN_TYPE:
+				castget = castgetStatic<uint8_t>;
+				throw std::invalid_argument("Unknown type to OrderIter");
+				break;
+		}
+	};
+
+	/**
+	 * @brief Prefix increment operator
+	 *
+	 * @return new value in 0th element of vector
+	 */
+	T operator++() 
+	{ 
+		return castget(parent->__getAddr(Slicer::operator++())); 
+	};
+
+	/**
+	 * @brief Postfix increment operator
+	 *
+	 * @return old value in 0th element of vector
+	 */
+	T operator++(int) 
+	{ 
+		return castget(parent->__getAddr(Slicer::operator++(0))); 
+	};
+
+	/**
+	 * @brief Prefix decrement operator
+	 *
+	 * @return new value in 0th element of vector
+	 */
+	T operator--() 
+	{ 
+		return castget(parent->__getAddr(Slicer::operator--())); 
+	};
+	
+	/**
+	 * @brief Postfix decrement operator
+	 *
+	 * @return old value in 0th element of vector
+	 */
+	T operator--(int) 
+	{ 
+		return castget(parent->__getAddr(Slicer::operator--(0))); 
+	};
+
+	/**
+	 * @brief Dereference operator
+	 *
+	 * @return Value in 0th element of vector
+	 */
+	T operator*() const
+	{ 
+		return castget(parent->__getAddr(Slicer::operator*())); 
+	};
+	
+	/**
+	 * @brief Get value at ith element of vector
+	 *
+	 * @return current value
+	 */
+	T get(int64_t i = 0) const
+	{ 
+		return castget(parent->__getAddr(Slicer::operator*()+i)); 
+	};
+	
+	/**
+	 * @brief Get value at ith element of vector
+	 *
+	 * @return current value
+	 */
+	T operator[](int64_t i) const
+	{ 
+		return castget(parent->__getAddr(Slicer::operator*()+i)); 
+	};
+	
+	/**
+	 * @brief Go to beginning of iteration
+	 */
+	void goBegin() { Slicer::goBegin(); };
+
+	/**
+	 * @brief Go to end of iteration
+	 */
+	void goEnd() { Slicer::goEnd(); };
+	
+	/**
+	 * @brief Are we one past the last element?
+	 */
+	bool isEnd() const { return Slicer::isEnd(); };
+	
+	/**
+	 * @brief Are we one past the last element?
+	 */
+	bool eof() const { return Slicer::isEnd(); };
+	
+	/**
+	 * @brief Are we at the first element
+	 */
+	bool isBegin() const { return Slicer::isBegin(); };
+	
+	/**
+	 * @brief Whether the position and parent are the same as another 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator==(const Vector3DConstIter& other) const
+	{ 
+		return parent == other.parent && m_linpos == other.m_linpos;
+	};
+
+	/**
+	 * @brief Whether the position and parent are different from another 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator!=(const Vector3DConstIter& other) const
+	{ 
+		return parent != other.parent || this->m_linpos != other.m_linpos;
+	};
+	
+	/**
+	 * @brief If the parents are different then false, if they are the same, 
+	 * returns whether this iterator is before the other. 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator<(const Vector3DConstIter& other) const
+	{ 
+		if(parent != other.parent)
+			return false;
+
+		for(size_t dd=0; dd<this->m_dim; dd++) {
+			if(this->m_pos[dd] < other.m_pos[dd])
+				return true;
+		}
+
+		return false;
+	};
+	
+	/**
+	 * @brief If the parents are different then false, if they are the same, 
+	 * returns whether this iterator is after the other. 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator>(const Vector3DConstIter& other) const
+	{ 
+		if(parent != other.parent)
+			return false;
+
+		for(size_t dd=0; dd<this->m_dim; dd++) {
+			if(this->m_pos[dd] > other.m_pos[dd])
+				return true;
+		}
+
+		return false;
+	};
+	
+	/**
+	 * @brief If the parents are different then false, if they are the same, 
+	 * returns whether this iterator is the same or before the other. 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator<=(const Vector3DConstIter& other) const
+	{ 
+		if(parent != other.parent)
+			return false;
+
+		if(*this == other)
+			return true;
+
+		return *this < other;
+	};
+	
+	/**
+	 * @brief If the parents are different then false, if they are the same, 
+	 * returns whether this iterator is the same or after the other. 
+	 *
+	 * @param other
+	 *
+	 * @return 
+	 */
+	bool operator>=(const Vector3DConstIter& other) const
+	{ 
+		if(parent != other.parent)
+			return false;
+
+		if(*this == other)
+			return true;
+
+		return *this > other;
+	};
+
+	size_t tlen() const { return this->parent->tlen(); };
+
+private:
+	template <typename U>
+	static T castgetStatic(void* ptr)
+	{
+		return (T)(*((U*)ptr));
+	};
+	
+	std::shared_ptr<const NDArray> parent;
+
+	T (*castget)(void* ptr);
+};
 
 }
 
