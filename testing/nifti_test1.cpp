@@ -31,7 +31,7 @@ int main()
 {
 	std::map<int64_t,double> slice_timing;
 	Matrix<3,3> direction({.36,.48,-.8,-.8,.6,0,.48,.64,.6});
-	Matrix<3,1> spacing({1.1,1.2});
+	Matrix<3,1> spacing({1.1,1.2,1.3});
 	Matrix<3,1> origin({12,32,-3});
 
 	{
@@ -197,15 +197,33 @@ int main()
 		}
 	}
 
-	if(dblversion->spacing() != (MatrixP&)spacing) {
+	double diff = 0;
+	for(size_t ii=0; ii<spacing.rows(); ii++){
+		diff += pow(spacing[ii] - dblversion->spacing()[ii],2);
+	}
+	if(diff > 1e-5) {
 		cerr << "Diffrence in Spacng!" << endl;
+		cerr << "dblversion loaded:" << endl << dblversion->spacing() << endl;
+		cerr << "Original:" << endl << spacing << endl;
 		return -1;
 	}
-	if(dblversion->origin() != origin) {
+	
+	diff=0;
+	for(size_t ii=0; ii<origin.rows(); ii++){
+		diff += pow(origin[ii] - dblversion->origin()[ii],2);
+	}
+	if(diff > 1e-5){
 		cerr << "Diffrence in Origin!" << endl;
 		return -1;
 	}
-	if(dblversion->direction() != direction) {
+	
+	diff=0;
+	for(size_t ii=0; ii<direction.rows(); ii++){
+		for(size_t jj=0; jj<direction.cols(); jj++){
+			diff += pow(direction(ii,jj) - dblversion->direction()(ii,jj),2);
+		}
+	}
+	if(diff > 1e-5) {
 		cerr << "Difference in Direction!" << endl;
 		return -1;
 	}
