@@ -91,38 +91,6 @@ ostream& operator<<(ostream& out, const std::vector<T>& v)
 	out << v[v.size()-1] << " ]";
 	return out;
 }
-
-//void getBounds(shared_ptr<MRImage> deform, std::vector<double>& lowerbound, 
-//		std::vector<double>& upperbound)
-//{
-//	lowerbound.resize(3);
-//	upperbound.resize(3);
-//
-//	for(size_t ii=0; ii<3; ii++) {
-//		lowerbound[ii] = INFINITY;
-//		upperbound[ii] = -INFINITY;
-//	}
-//
-//	vector<double> offset(3);
-//	vector<int64_t> index;
-//	vector<double> point;
-//	Slicer it(deform->ndim(), deform->dim());
-//	for(it.goBegin(); !it.isEnd(); ) {
-//		for(size_t ii=0; ii<3; ii++, ++it) {
-//			offset[ii] = deform->get_dbl(*it);
-//		}
-//
-//		index = it.index();
-//		deform->indexToPoint(index, point);
-//		for(size_t ii=0; ii<3; ii++) {
-//			point[ii] -= offset[ii];
-//			if(point[ii] < lowerbound[ii]) 
-//				lowerbound[ii] = point[ii];
-//			if(point[ii] > upperbound[ii]) 
-//				upperbound[ii] = point[ii];
-//		}
-//	}
-//}
 //
 //void applyDeform(shared_ptr<MRImage> in, shared_ptr<MRImage> deform,
 //		shared_ptr<MRImage> out, size_t vdim)
@@ -192,6 +160,45 @@ ostream& operator<<(ostream& out, const std::vector<T>& v)
 //	}
 //}
 
+shared_ptr<MRImage> erode(shared_ptr<MRImage> in, size_t reps)
+{
+	std::vector<int64_t> index1(in->ndim(), 0);
+	std::vector<int64_t> index2(in->ndim(), 0);
+	auto prev = in->cloneImage();
+	auto out = in->cloneImage();
+	shared_ptr<MRImage> tmp; 
+	for(size_t rr=0; rr<reps; rr++) {
+		cerr << "Erode " << rr << endl;
+
+		tmp = prev;
+		prev = out;
+		out = tmp;
+		
+		KernelIter<int> it(prev);
+		it.setRadius(1);
+		OrderIter<int> oit(out);
+		oit.setOrder(it.getOrder());
+		// for each pixels neighborhood, smooth neightbors
+		for(oit.goBegin(), it.goBegin(); !it.eof(); ++it, ++oit) {
+			oit.index(index1.size(), index1.data());
+			it.center_index(index2.size(), index2.data());
+
+			// if any of the neighbors are 0, then set to 0
+			bool erodeme = false;
+			for(size_t ii=0; ii<it.ksize(); ii++) {
+				if(it.offset(ii) == 0) {
+					erodeme = true;
+				}
+			}
+
+			if(erodeme) 
+				oit.set(0);
+		}
+	}
+
+	return out;
+}
+
 shared_ptr<MRImage> dilate(shared_ptr<MRImage> in, size_t reps)
 {
 	std::vector<int64_t> index1(in->ndim(), 0);
@@ -236,6 +243,19 @@ shared_ptr<MRImage> dilate(shared_ptr<MRImage> in, size_t reps)
 	}
 
 	return out;
+}
+
+bool lessNode(const KDTreeNode<3,3,double, double>* lhs, 
+			const KDTreeNode<3,3,double, double>* rhs) 
+{
+	double m1 = 0, m2 = 0;
+	for(size_t ii=0; ii<3; ii++) {
+		m1 += lhs->m_data[ii]*lhs->m_data[ii];
+		m2 += rhs->m_data[ii]*rhs->m_data[ii];
+	}
+	if(m1 < m2)
+		return true;
+	return false;
 }
 
 /**
@@ -337,12 +357,31 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 		// use withindist, ignore values that map from outside, then compute
 		// the median of the remaining
 		double dist = MINDIST;
-		auto result = tree.nearest(atlpoint, dist);
-		if(!result)
+		auto results = tree.withindist(atlpoint, dist);
+
+		// sort 
+		if(results.empty())
 			continue;
 
+		// remove elements that map outside the masked region
+		for(auto rit=results.begin(); rit != results.end(); ++rit) {
+			for(size_t ii=0; ii<3; ii++) 
+				subpoint[ii] = atlpoint[ii] + (*rit)->m_data[ii];
+
+			mask->pointToIndex(3, subpoint, cindex);
+			if(maskinterp(cindex[0], cindex[1], cindex[2]) == 0)
+				rit = results.erase(rit);
+		} 
+
+		// find the median of the magnitudes
+		results.sort(lessNode);
+		size_t rsize = results.size();
+		auto tmpit = results.begin();
+		for(size_t ii=0; ii<rsize/2; ++tmpit) {} ;
+
+		// use the median vector
 		for(size_t ii=0; ii<3; ii++) 
-			atl2sub[ii] = result->m_data[ii];
+			atl2sub[ii] = (*tmpit)->m_data[ii];
 
 		// SUB <- ATLAS (given)
 		//    atl2sub
