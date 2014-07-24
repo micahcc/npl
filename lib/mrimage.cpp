@@ -37,6 +37,54 @@ namespace npl {
  * and MRImageStore; we don't want to call across libraries if we can avoid
  * it.
  ******************************************************************************/
+	
+void MRImage::updateSliceTiming(double duration, int start, int end, SliceOrderT order)
+{
+	m_slice_duration = duration;
+	m_slice_start = start;
+	m_slice_end = end;
+
+	switch(order) {
+		case NIFTI_SLICE_SEQ_INC:
+			m_slice_order = SEQ;
+			for(int ii=m_slice_start; ii<=m_slice_end; ii++)
+				m_slice_timing[ii] = ii*m_slice_duration;
+		break;
+		case NIFTI_SLICE_SEQ_DEC:
+			m_slice_order = RSEQ;
+			for(int ii=m_slice_end; ii>=m_slice_start; ii--)
+				m_slice_timing[ii] = ii*m_slice_duration;
+		break;
+		case NIFTI_SLICE_ALT_INC:
+			m_slice_order = ALT;
+			for(int ii=m_slice_start; ii<=m_slice_end; ii+=2)
+				m_slice_timing[ii] = ii*m_slice_duration;
+			for(int ii=m_slice_start+1; ii<=m_slice_end; ii+=2)
+				m_slice_timing[ii] = ii*m_slice_duration;
+		break;
+		case NIFTI_SLICE_ALT_DEC:
+			m_slice_order = RALT;
+			for(int ii=m_slice_end; ii>=m_slice_start; ii-=2)
+				m_slice_timing[ii] = ii*m_slice_duration;
+			for(int ii=m_slice_end-1; ii>=m_slice_start; ii-=2)
+				m_slice_timing[ii] = ii*m_slice_duration;
+		break;
+		case NIFTI_SLICE_ALT_INC2:
+			m_slice_order = ALT_SHFT;
+			for(int ii=m_slice_start+1; ii<=m_slice_end; ii+=2)
+				m_slice_timing[ii] = ii*m_slice_duration;
+			for(int ii=m_slice_start; ii<=m_slice_end; ii+=2)
+				m_slice_timing[ii] = ii*m_slice_duration;
+		break;
+		case NIFTI_SLICE_ALT_DEC2:
+			m_slice_order = RALT_SHFT;
+			for(int ii=m_slice_end-1; ii>=m_slice_start; ii-=2)
+				m_slice_timing[ii] = ii*m_slice_duration;
+			for(int ii=m_slice_end; ii>=m_slice_start; ii-=2)
+				m_slice_timing[ii] = ii*m_slice_duration;
+		break;
+	}
+}
 
 /**
  * @brief Template helper for creating new images.
@@ -221,6 +269,18 @@ shared_ptr<MRImage> _copyCast(shared_ptr<const MRImage> in, size_t newdims,
 		const size_t* newsize, PixelT newtype)
 {
 	auto out = createMRImage(newdims, newsize, newtype);
+	
+	// copy image metadata
+	out->m_freqdim = in->m_freqdim;
+	out->m_slicedim = in->m_slicedim;
+	out->m_phasedim = in->m_phasedim;
+	out->m_slice_duration = in->m_slice_duration;
+	out->m_slice_start = in->m_slice_start;
+	out->m_slice_end = in->m_slice_end;
+	out->m_slice_timing = in->m_slice_timing;
+	out->m_slice_order = in->m_slice_order;
+	out->setOrient(in->origin(), in->spacing(), in->direction(), 1);
+
 	
 	switch(newtype) {
 		case UINT8:

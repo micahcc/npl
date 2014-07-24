@@ -31,6 +31,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <iomanip>
 #include <cassert>
 #include <memory>
+#include <map>
 
 namespace npl {
 
@@ -289,9 +290,6 @@ public:
 	 * medical image specific stuff, eventually these should be moved to a 
 	 * medical image subclass
 	 */
-
-	// each slice is given its relative time, with 0 as the first
-	std::vector<double> m_slice_timing;
 	
 	// < 0 indicate unset variables
 	int m_freqdim;
@@ -302,6 +300,8 @@ public:
 	 * nifti specific stuff, eventually these should be moved to a nifti 
 	 * image subclass
 	 */
+
+	void updateSliceTiming(double duration, int start, int end, SliceOrderT order);
 
 	// raw values for slice data, < 0 indicate unset
 	double m_slice_duration;
@@ -320,6 +320,9 @@ public:
 	// RALT (reverse alt): 	slice_end-1, slice_end-3, .. slice_start|slice_start+1,
 	// 						slice_end-2 .. slice_start|slice_start+1
 	SliceOrderT m_slice_order;
+
+	// each slice is given its relative time, with 0 as the first
+	std::map<int64_t,double> m_slice_timing;
 
 	friend std::ostream& operator<<(std::ostream &out, const MRImage& img);
 

@@ -384,7 +384,7 @@ int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap,
 					<< header->saffine[ii*4+jj] << std::endl;
 			}
 		}
-		std::cerr << "slice_code=" << header->slice_code << std::endl;
+		std::cerr << "slice_code=" << (int)header->slice_code << std::endl;
 		std::cerr << "xyzt_units=" << header->xyzt_units << std::endl;
 		std::cerr << "intent_code =" << header->intent_code  << std::endl;
 		std::cerr << "intent_name=" << header->intent_name << std::endl;
@@ -667,60 +667,13 @@ shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose)
 	 **************************************************************************/
 	
 	// direct copies
-	out->m_slice_duration = slice_duration;
-	out->m_slice_start = slice_start;
-	out->m_slice_end = slice_end;
 	out->m_freqdim = freqdim;
 	out->m_phasedim = phasedim;
 	out->m_slicedim = slicedim;
-
-	if(out->m_slicedim > 0) {
-		out->m_slice_timing.resize(out->dim(out->m_slicedim), NAN);
-	}
-			
-	// we use the same encoding as nifti
-
+	
 	// slice timing
-	switch(slice_code) {
-		case NIFTI_SLICE_SEQ_INC:
-			out->m_slice_order = SEQ;
-			for(int ii=out->m_slice_start; ii<=out->m_slice_end; ii++)
-				out->m_slice_timing[ii] = ii*out->m_slice_duration;
-		break;
-		case NIFTI_SLICE_SEQ_DEC:
-			out->m_slice_order = RSEQ;
-			for(int ii=out->m_slice_end; ii>=out->m_slice_start; ii--)
-				out->m_slice_timing[ii] = ii*out->m_slice_duration;
-		break;
-		case NIFTI_SLICE_ALT_INC:
-			out->m_slice_order = ALT;
-			for(int ii=out->m_slice_start; ii<=out->m_slice_end; ii+=2)
-				out->m_slice_timing[ii] = ii*out->m_slice_duration;
-			for(int ii=out->m_slice_start+1; ii<=out->m_slice_end; ii+=2)
-				out->m_slice_timing[ii] = ii*out->m_slice_duration;
-		break;
-		case NIFTI_SLICE_ALT_DEC:
-			out->m_slice_order = RALT;
-			for(int ii=out->m_slice_end; ii>=out->m_slice_start; ii-=2)
-				out->m_slice_timing[ii] = ii*out->m_slice_duration;
-			for(int ii=out->m_slice_end-1; ii>=out->m_slice_start; ii-=2)
-				out->m_slice_timing[ii] = ii*out->m_slice_duration;
-		break;
-		case NIFTI_SLICE_ALT_INC2:
-			out->m_slice_order = ALT_SHFT;
-			for(int ii=out->m_slice_start+1; ii<=out->m_slice_end; ii+=2)
-				out->m_slice_timing[ii] = ii*out->m_slice_duration;
-			for(int ii=out->m_slice_start; ii<=out->m_slice_end; ii+=2)
-				out->m_slice_timing[ii] = ii*out->m_slice_duration;
-		break;
-		case NIFTI_SLICE_ALT_DEC2:
-			out->m_slice_order = RALT_SHFT;
-			for(int ii=out->m_slice_end-1; ii>=out->m_slice_start; ii-=2)
-				out->m_slice_timing[ii] = ii*out->m_slice_duration;
-			for(int ii=out->m_slice_end; ii>=out->m_slice_start; ii-=2)
-				out->m_slice_timing[ii] = ii*out->m_slice_duration;
-		break;
-	}
+	out->updateSliceTiming(slice_duration,  slice_start, slice_end, 
+			(SliceOrderT)slice_code);
 
 	return out;
 }
@@ -842,7 +795,7 @@ int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap,
 					<< header->saffine[ii*4+jj] << std::endl;
 			}
 		}
-		std::cerr << "slice_code=" << header->slice_code << std::endl;
+		std::cerr << "slice_code=" << (int)header->slice_code << std::endl;
 		std::cerr << "xyzt_units=" << header->xyzt_units << std::endl;
 		std::cerr << "intent_code =" << header->intent_code  << std::endl;
 		std::cerr << "intent_name=" << header->intent_name << std::endl;
@@ -996,9 +949,9 @@ ostream& operator<<(ostream &out, const MRImage& img)
 			break;
 	}
 	out << "Slice Timing: " << endl;
-	for(size_t ii=0; ii<img.m_slice_timing.size(); ii++) {
-		out << std::setw(10) << std::setprecision(3) 
-			<< img.m_slice_timing[ii] << ",";
+	for(auto it=img.m_slice_timing.begin(); it != img.m_slice_timing.end(); ++it) {
+		out << std::setw(10) << it->first << std::setw(10) << std::setprecision(3) 
+			<< it->second << ",";
 	}
 	out << endl;
 	out << "---------------------------" << endl;

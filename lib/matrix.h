@@ -102,7 +102,26 @@ public:
 	virtual double sum() const = 0;
 	virtual size_t rows() const = 0;
 	virtual size_t cols() const = 0;
+
+	bool operator==(const MatrixP& rhs) {
+		if(rows() != rhs.rows())
+			return false;
+		if(cols() != rhs.cols())
+			return false;
+		for(size_t rr=0; rr<rows(); rr++) {
+			for(size_t cc=0; cc<cols(); cc++) {
+				if(rhs(rr,cc) != (*this)(rr,cc))
+					return false;
+			}
+		}
+		return true;
+	}
+
+	bool operator!=(const MatrixP& rhs) {
+		return !(*this == rhs);
+	}
 };
+
 
 template <int D1, int D2>
 class Matrix : public virtual MatrixP
@@ -168,6 +187,26 @@ public:
 					data[ii][jj] = v[kk++];
 				else
 					data[ii][jj] = 0;
+			}
+		}
+	};
+	
+	/**
+	 * @brief Initialize matrix with vector, any missing values will be assumed
+	 * zero, extra values are ignored.
+	 *
+	 * @param v Input data vector
+	 */
+	Matrix(std::initializer_list<double> v) {
+		auto it = v.begin();
+		for(size_t ii=0; ii<D1; ii++) {
+			for(size_t jj=0; jj<D2; jj++) {
+				if(it != v.end()) {
+					data[ii][jj] = *it;
+					it++;
+				} else {
+					data[ii][jj] = 0;
+				}
 			}
 		}
 	};
