@@ -890,6 +890,74 @@ shared_ptr<NDArray> MRImageStore<D,T>::copy() const
 
 	return out;
 }
+	
+/**
+ * @brief Create a new image that is a copy of the input, possibly with new
+ * dimensions and pixeltype. The new image will have all overlapping pixels
+ * copied from the old image.
+ *
+ * This function just calls the outside copyCast, the reason for this 
+ * craziness is that making a template function nested in the already 
+ * huge number of templates I have kills the compiler, so we call an 
+ * outside function that calls templates that has all combinations of D,T.
+ *
+ * @param in Input image, anything that can be copied will be
+ * @param newdims Number of dimensions in output image
+ * @param newsize Size of output image
+ * @param newtype Type of pixels in output image
+ *
+ * @return Image with overlapping sections cast and copied from 'in' 
+ */
+template <size_t D, typename T>
+shared_ptr<NDArray> MRImageStore<D,T>::copyCast(size_t newdims, 
+		const size_t* newsize, PixelT newtype) const
+{
+	return _copyCast(getConstPtr(), newdims, newsize, newtype);
+}
 
+/**
+ * @brief Create a new image that is a copy of the input, with same dimensions
+ * but pxiels cast to newtype. The new image will have all overlapping pixels
+ * copied from the old image.
+ *
+ * This function just calls the outside copyCast, the reason for this 
+ * craziness is that making a template function nested in the already 
+ * huge number of templates I have kills the compiler, so we call an 
+ * outside function that calls templates that has all combinations of D,T.
+ *
+ * @param in Input image, anything that can be copied will be
+ * @param newtype Type of pixels in output image
+ *
+ * @return Image with overlapping sections cast and copied from 'in' 
+ */
+template <size_t D, typename T>
+shared_ptr<NDArray> MRImageStore<D,T>::copyCast(PixelT newtype) const
+{
+	return _copyCast(getConstPtr(), newtype);
+}
+
+/**
+ * @brief Create a new image that is a copy of the input, possibly with new
+ * dimensions or size. The new image will have all overlapping pixels
+ * copied from the old image. The new image will have the same pixel type as
+ * the input image
+ *
+ * This function just calls the outside copyCast, the reason for this 
+ * craziness is that making a template function nested in the already 
+ * huge number of templates I have kills the compiler, so we call an 
+ * outside function that calls templates that has all combinations of D,T.
+ *
+ * @param in Input image, anything that can be copied will be
+ * @param newdims Number of dimensions in output image
+ * @param newsize Size of output image
+ *
+ * @return Image with overlapping sections cast and copied from 'in' 
+ */
+template <size_t D, typename T>
+shared_ptr<NDArray> MRImageStore<D,T>::copyCast(size_t newdims, 
+		const size_t* newsize) const
+{
+	return _copyCast(getConstPtr(), newdims, newsize);
+}
 
 } //npl

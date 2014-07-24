@@ -47,9 +47,9 @@ int main()
 	dblversion->write("test1a.nii.gz", false);
 
 	/* Create a Cast Copy and write */
-	shared_ptr<MRImage> intversion = copyCast(dblversion, dblversion->ndim(), 
-				dblversion->dim(), INT64);
-	intversion->write("test1b.nii.gz");
+	auto intversion = dblversion->copyCast(dblversion->ndim(), 
+			dblversion->dim(), INT64);
+	dynamic_pointer_cast<MRImage>(intversion)->write("test1b.nii.gz");
 	}
 
 	/* Read the Image */

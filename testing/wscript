@@ -32,7 +32,7 @@ def build(bld):
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='ndarray_accessor_test1', 
             source='ndarray_accessor_test1.cpp', 
-            use='ndarray')
+            use='ndarray accessors')
     
     # test nifti orientation
     bld.program(install_path='${PREFIX}/tests', features='test', 

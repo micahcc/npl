@@ -442,137 +442,89 @@ T& NDArrayStore<D,T>::operator[](int64_t pixel)
 //	return out;
 //}
 
+/**
+ * @brief Performs a deep copy of the entire array and all metadata.
+ *
+ * @return Copied array.
+ */
 template <size_t D, typename T>
 shared_ptr<NDArray> NDArrayStore<D,T>::copy() const
 {
-	shared_ptr<NDArrayStore> out(new NDArrayStore<D,T>(D, _m_dim));
+	shared_ptr<NDArrayStore> out(new NDArrayStore<D,T>(D, this->_m_dim));
 	for(size_t ii=0; ii<elements(); ii++) 
-		out->_m_data[ii] = _m_data[ii];
+		out->_m_data[ii] = this->_m_data[ii];
 
 	return out;
 }
+	
+/**
+ * @brief Create a new array that is a copy of the input, possibly with new
+ * dimensions and pixeltype. The new array will have all overlapping pixels
+ * copied from the old array.
+ *
+ * This function just calls the outside copyCast, the reason for this 
+ * craziness is that making a template function nested in the already 
+ * huge number of templates I have kills the compiler, so we call an 
+ * outside function that calls templates that has all combinations of D,T.
+ *
+ * @param in Input array, anything that can be copied will be
+ * @param newdims Number of dimensions in output array
+ * @param newsize Size of output array
+ * @param newtype Type of pixels in output array
+ *
+ * @return Image with overlapping sections cast and copied from 'in' 
+ */
+template <size_t D, typename T>
+shared_ptr<NDArray> NDArrayStore<D,T>::copyCast(size_t newdims, 
+		const size_t* newsize, PixelT newtype) const
+{
+	return _copyCast(getConstPtr(), newdims, newsize, newtype);
+}
 
-//template <size_t D, typename T>
-//template <size_t NEWD, typename NEWT>
-//shared_ptr<NDArray> NDArrayStore<D,T>::copyCastStatic(const size_t* dim) const
-//{
-//	shared_ptr<NDArrayStore<NEWD, NEWT>> out(new NDArrayStore<NEWD,NEWT>(NEWD, dim));
-//	
-//	// Set up slicers to iterate through the input and output images. Only
-//	// common dimensions are iterated over, and only the minimum of the two
-//	// sizes are used for ROI. so a 10x10x10 image cast to a 20x5 image will
-//	// iterator copy ROI 10x5x1 
-//	Slicer iit(D, _m_dim);
-//	Slicer oit(NEWD, dim);
-//	
-//	std::vector<std::pair<int64_t,int64_t>> roi(max(NEWD, D));
-//	for(size_t ii=0; ii<max(NEWD, D); ii++) {
-//		if(ii < min(NEWD, D)) {
-//			roi[ii].first = 0;
-//			roi[ii].second = min(dim[ii], _m_dim[ii]);
-//		} else {
-//			roi[ii].first = 0;
-//			roi[ii].second = 0;
-//		}
-//	}
-//
-//	iit.setROI(roi);
-//	oit.setROI(roi);
-//
-//	// use the larger of the two order vectors as the reference
-//	if(NEWD > D) {
-//		iit.setOrder(oit.getOrder());
-//	} else {
-//		oit.setOrder(iit.getOrder());
-//	}
-//
-//	// perform copy/cast
-//	for(iit.goBegin(), oit.goBegin(); !oit.eof() && !iit.eof(); ++oit, ++iit) 
-//		out->_m_data[*oit] = (NEWT)_m_data[*iit];
-//
-//	return out;
-//}
-//
-//template <size_t D, typename T>
-//template <typename NEWT>
-//shared_ptr<NDArray> NDArrayStore<D,T>::copyCastTType(size_t newdims, 
-//			const size_t* newsize) const
-//{
-//	switch(newdims) {
-//		case 1:
-//			return copyCastStatic<1, NEWT>(newsize);
-//		case 2:
-//			return copyCastStatic<2, NEWT>(newsize);
-//		case 3:
-//			return copyCastStatic<3, NEWT>(newsize);
-//		case 4:
-//			return copyCastStatic<4, NEWT>(newsize);
-//		case 5:
-//			return copyCastStatic<5, NEWT>(newsize);
-//		case 6:
-//			return copyCastStatic<6, NEWT>(newsize);
-//		case 7:
-//			return copyCastStatic<7, NEWT>(newsize);
-//		case 8:
-//			return copyCastStatic<8, NEWT>(newsize);
-//		case 9:
-//			return copyCastStatic<9, NEWT>(newsize);
-//		default:
-//			throw std::invalid_argument("Unknown image dimension passed to "
-//					"copyCastTType the programmers may need to add more "
-//					"dimensions to the shared objects at build time");
-//			return NULL;
-//	}
-//	return NULL;
-//}
-//
-//template <size_t D, typename T>
-//shared_ptr<NDArray> NDArrayStore<D,T>::copyCast(size_t newdims, 
-//		const size_t* newsize, PixelT newtype) const
-//{
-//	shared_ptr<NDArray> out;
-//	
-//	switch(newtype) {
-//		case UINT8:
-//			return copyCastTType<uint8_t>(newdims, newsize);
-//		case INT16:
-//			return copyCastTType<int16_t>(newdims, newsize);
-//		case INT32:
-//			return copyCastTType<int32_t>(newdims, newsize);
-//		case FLOAT32:
-//			return copyCastTType<float>(newdims, newsize);
-//		case COMPLEX64:
-//			return copyCastTType<cfloat_t>(newdims, newsize);
-//		case FLOAT64:
-//			return copyCastTType<double>(newdims, newsize);
-//		case RGB24:
-//			return copyCastTType<rgb_t>(newdims, newsize);
-//		case INT8:
-//			return copyCastTType<int8_t>(newdims, newsize);
-//		case UINT16:
-//			return copyCastTType<uint16_t>(newdims, newsize);
-//		case UINT32:
-//			return copyCastTType<uint32_t>(newdims, newsize);
-//		case INT64:
-//			return copyCastTType<int64_t>(newdims, newsize);
-//		case UINT64:
-//			return copyCastTType<uint64_t>(newdims, newsize);
-//		case FLOAT128:
-//			return copyCastTType<long double>(newdims, newsize);
-//		case COMPLEX128:
-//			return copyCastTType<cdouble_t>(newdims, newsize);
-//		case COMPLEX256:
-//			return copyCastTType<cquad_t>(newdims, newsize);
-//		case RGBA32:
-//			return copyCastTType<rgba_t>(newdims, newsize);
-//		default:
-//		case UNKNOWN_TYPE:
-//		throw std::invalid_argument("Unknown type specified for cast");
-//		break;
-//	}
-//	return NULL;
-//}
+/**
+ * @brief Create a new array that is a copy of the input, with same dimensions
+ * but pxiels cast to newtype. The new array will have all overlapping pixels
+ * copied from the old array.
+ *
+ * This function just calls the outside copyCast, the reason for this 
+ * craziness is that making a template function nested in the already 
+ * huge number of templates I have kills the compiler, so we call an 
+ * outside function that calls templates that has all combinations of D,T.
+ *
+ * @param in Input array, anything that can be copied will be
+ * @param newtype Type of pixels in output array
+ *
+ * @return Image with overlapping sections cast and copied from 'in' 
+ */
+template <size_t D, typename T>
+shared_ptr<NDArray> NDArrayStore<D,T>::copyCast(PixelT newtype) const
+{
+	return _copyCast(getConstPtr(), newtype);
+}
 
+/**
+ * @brief Create a new array that is a copy of the input, possibly with new
+ * dimensions or size. The new array will have all overlapping pixels
+ * copied from the old array. The new array will have the same pixel type as
+ * the input array
+ *
+ * This function just calls the outside copyCast, the reason for this 
+ * craziness is that making a template function nested in the already 
+ * huge number of templates I have kills the compiler, so we call an 
+ * outside function that calls templates that has all combinations of D,T.
+ *
+ * @param in Input array, anything that can be copied will be
+ * @param newdims Number of dimensions in output array
+ * @param newsize Size of output array
+ *
+ * @return Image with overlapping sections cast and copied from 'in' 
+ */
+template <size_t D, typename T>
+shared_ptr<NDArray> NDArrayStore<D,T>::copyCast(size_t newdims, 
+		const size_t* newsize) const
+{
+	return _copyCast(getConstPtr(), newdims, newsize);
+}
 
 /* 
  * type() Function specialized for all available types

@@ -44,6 +44,38 @@ enum BoundaryConditionT {ZEROFLUX=0, CONSTZERO=1, WRAP=2};
 
 class MRImage;
 
+/****************************************************************************** 
+ * Basic Functions. 
+ ******************************************************************************/
+
+/**
+ * @brief Creates a new MRImage with dimensions set by ndim, and size set by
+ * size. Output pixel type is decided by ptype variable.
+ *
+ * @param ndim number of image dimensions
+ * @param size size of image, in each dimension
+ * @param ptype Pixel type npl::PixelT
+ *
+ * @return New image, default orientation
+ */
+shared_ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT ptype);
+
+/**
+ * @brief Creates a new MRImage with dimensions set by ndim, and size set by
+ * size. Output pixel type is decided by ptype variable.
+ *
+ * @param size size of image, in each dimension, number of dimensions decied by
+ * length of size vector
+ * @param ptype Pixel type npl::PixelT
+ *
+ * @return New image, default orientation
+ */
+shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT ptype);
+
+/****************************************************************************** 
+ * Classes. 
+ ******************************************************************************/
+
 /**
  * @brief MRImage can basically be used like an NDArray, with the addition
  * of orientation related additions.
@@ -54,6 +86,15 @@ public:
 	MRImage() : m_freqdim(-1), m_phasedim(-1), m_slicedim(-1), 
 				m_slice_duration(0), m_slice_start(-1), 
 				m_slice_end(-1), m_slice_order(UNKNOWN_SLICE) {} ;
+	
+	shared_ptr<MRImage> getPtr()  {
+		return std::dynamic_pointer_cast<MRImage>(shared_from_this());
+	};
+	
+	shared_ptr<const MRImage> getConstPtr() const {
+		return std::dynamic_pointer_cast<const MRImage>(shared_from_this());
+	};
+
 
 	virtual MatrixP& spacing() = 0;
 	virtual MatrixP& origin() = 0;
@@ -84,7 +125,66 @@ public:
 	 */
 	virtual shared_ptr<NDArray> copy() const = 0;
 
+	/**
+	 * @brief Create a new image that is a copy of the input, possibly with new
+	 * dimensions and pixeltype. The new image will have all overlapping pixels
+	 * copied from the old image.
+	 *
+	 * This function just calls the outside copyCast, the reason for this 
+	 * craziness is that making a template function nested in the already 
+	 * huge number of templates I have kills the compiler, so we call an 
+	 * outside function that calls templates that has all combinations of D,T.
+	 *
+	 * @param in Input image, anything that can be copied will be
+	 * @param newdims Number of dimensions in output image
+	 * @param newsize Size of output image
+	 * @param newtype Type of pixels in output image
+	 *
+	 * @return Image with overlapping sections cast and copied from 'in' 
+	 */
+	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize, 
+			PixelT newtype) const = 0;
+
+	/**
+	 * @brief Create a new image that is a copy of the input, with same dimensions
+	 * but pxiels cast to newtype. The new image will have all overlapping pixels
+	 * copied from the old image.
+	 *
+	 * This function just calls the outside copyCast, the reason for this 
+	 * craziness is that making a template function nested in the already 
+	 * huge number of templates I have kills the compiler, so we call an 
+	 * outside function that calls templates that has all combinations of D,T.
+	 *
+	 * @param in Input image, anything that can be copied will be
+	 * @param newtype Type of pixels in output image
+	 *
+	 * @return Image with overlapping sections cast and copied from 'in' 
+	 */
+	virtual shared_ptr<NDArray> copyCast(PixelT newtype) const = 0;
+
+	/**
+	 * @brief Create a new image that is a copy of the input, possibly with new
+	 * dimensions or size. The new image will have all overlapping pixels
+	 * copied from the old image. The new image will have the same pixel type as
+	 * the input image
+	 *
+	 * This function just calls the outside copyCast, the reason for this 
+	 * craziness is that making a template function nested in the already 
+	 * huge number of templates I have kills the compiler, so we call an 
+	 * outside function that calls templates that has all combinations of D,T.
+	 *
+	 * @param in Input image, anything that can be copied will be
+	 * @param newdims Number of dimensions in output image
+	 * @param newsize Size of output image
+	 *
+	 * @return Image with overlapping sections cast and copied from 'in' 
+	 */
+	virtual shared_ptr<NDArray> copyCast(size_t newdims, 
+				const size_t* newsize) const = 0;
+
+	//////////////////////////////////
 	// coordinate system conversion 
+	//////////////////////////////////
 	
 	/**
 	 * @brief Converts an index in pixel space to RAS, physical/time coordinates.
@@ -300,6 +400,62 @@ public:
 	 * @return Copied image.
 	 */
 	virtual shared_ptr<NDArray> copy() const;
+
+	/**
+	 * @brief Create a new image that is a copy of the input, possibly with new
+	 * dimensions and pixeltype. The new image will have all overlapping pixels
+	 * copied from the old image.
+	 *
+	 * This function just calls the outside copyCast, the reason for this 
+	 * craziness is that making a template function nested in the already 
+	 * huge number of templates I have kills the compiler, so we call an 
+	 * outside function that calls templates that has all combinations of D,T.
+	 *
+	 * @param in Input image, anything that can be copied will be
+	 * @param newdims Number of dimensions in output image
+	 * @param newsize Size of output image
+	 * @param newtype Type of pixels in output image
+	 *
+	 * @return Image with overlapping sections cast and copied from 'in' 
+	 */
+	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize, 
+			PixelT newtype) const;
+
+	/**
+	 * @brief Create a new image that is a copy of the input, with same dimensions
+	 * but pxiels cast to newtype. The new image will have all overlapping pixels
+	 * copied from the old image.
+	 *
+	 * This function just calls the outside copyCast, the reason for this 
+	 * craziness is that making a template function nested in the already 
+	 * huge number of templates I have kills the compiler, so we call an 
+	 * outside function that calls templates that has all combinations of D,T.
+	 *
+	 * @param in Input image, anything that can be copied will be
+	 * @param newtype Type of pixels in output image
+	 *
+	 * @return Image with overlapping sections cast and copied from 'in' 
+	 */
+	virtual shared_ptr<NDArray> copyCast(PixelT newtype) const;
+
+	/**
+	 * @brief Create a new image that is a copy of the input, possibly with new
+	 * dimensions or size. The new image will have all overlapping pixels
+	 * copied from the old image. The new image will have the same pixel type as
+	 * the input image
+	 *
+	 * This function just calls the outside copyCast, the reason for this 
+	 * craziness is that making a template function nested in the already 
+	 * huge number of templates I have kills the compiler, so we call an 
+	 * outside function that calls templates that has all combinations of D,T.
+	 *
+	 * @param in Input image, anything that can be copied will be
+	 * @param newdims Number of dimensions in output image
+	 * @param newsize Size of output image
+	 *
+	 * @return Image with overlapping sections cast and copied from 'in' 
+	 */
+	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize) const;
 
 	/*************************************************************************
 	 * Coordinate Transform Functions
