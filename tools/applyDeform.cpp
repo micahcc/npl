@@ -282,6 +282,8 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 	const double MINDIST = 10;
 	const double LAMBDA = .2;
 	const size_t MAXITERS = 300;
+	const double MINNORM = 0.00001;
+	const double CHNORM = 0.00001;
 	int64_t index[3];
 	double subpoint[3];
 	double cindex[3];
@@ -373,6 +375,7 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 				rit = results.erase(rit);
 		} 
 
+/*
 		// find the median of the magnitudes
 		results.sort(lessNode);
 		size_t rsize = results.size();
@@ -382,11 +385,68 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 		// use the median vector
 		for(size_t ii=0; ii<3; ii++) 
 			atl2sub[ii] = (*tmpit)->m_data[ii];
+*/
 
-		// SUB <- ATLAS (given)
-		//    atl2sub
-		double prevdist = dist+1;
-		size_t iters = 0;
+		/*****************************
+		 * find the geometric median 
+		 *****************************/
+		
+		// intiialize with the mean
+		for(size_t ii=0; ii<3; ii++)
+			atl2sub[ii] = 0;
+			
+		for(auto lit = results.begin(); lit != results.end(); ++lit) {
+			for(size_t ii=0; ii<3; ii++)
+				atl2sub[ii] += (*lit)->m_data[ii];
+		}
+		for(size_t ii=0; ii<3; ii++)
+			atl2sub[ii] /= results.size();
+
+		// iteratively reweight least squares solution
+		double norm = CHNORM+1;
+		for(size_t iter = 0; iter < MAXITERS && norm > CHNORM; iter++) {
+			double sumnorm = 0;
+			double prev[3];
+			for(auto lit = results.begin(); lit != results.end(); ++lit) {
+				// copy current best into previous
+				for(size_t ii=0; ii<3; ii++) {
+					prev[ii] = atl2sub[ii];
+					atl2sub[ii] = 0;
+				}
+				
+				// compute distance between point and current best
+				norm = 0;
+				for(size_t ii=0; ii<3; ii++) {
+					norm += (atl2sub[ii]-(*lit)->m_data[ii])*(atl2sub[ii]-
+							(*lit)->m_data[ii]);
+				}
+				norm = sqrt(norm);
+				if(norm == 0) 
+					norm = MINNORM;
+
+				// add up total weights
+				sumnorm += (1./norm);
+
+				for(size_t ii=0; ii<3; ii++)
+					atl2sub[ii] += (*lit)->m_data[ii]/norm;
+
+			}
+
+			// divide by total weights
+			for(size_t ii=0; ii<3; ii++)
+				atl2sub[ii] /= sumnorm;
+
+			// compute difference from previous
+			norm = 0;
+			for(size_t ii=0; ii<3; ii++)
+				norm += (atl2sub[ii] - prev[ii])*(atl2sub[ii] - prev[ii]);
+			norm = sqrt(norm);
+		}
+
+//		// SUB <- ATLAS (given)
+//		//    atl2sub
+//		double prevdist = dist+1;
+//		size_t iters = 0;
 //		for(iters = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR && 
 //						iters < MAXITERS; iters++) {
 //
