@@ -23,6 +23,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdexcept>
 
 #include "mrimage.h"
+#include "mrimage_utils.h"
 
 using std::string;
 using namespace npl;

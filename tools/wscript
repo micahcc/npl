@@ -2,7 +2,7 @@
 def build(bld):
     # todo rename
     bld.program(target = 'applyDeform', 
-            source = 'applyDeform.cpp', use = 'mrimage tclap iterators accessors')
+            source = 'applyDeform.cpp', use = 'mrimage_utils tclap iterators accessors')
     bld.program(target = 'copyOrientation', 
-            source = 'copyOrientation.cpp', use = 'mrimage tclap')
+            source = 'copyOrientation.cpp', use = 'mrimage_utils tclap')
 

@@ -68,8 +68,6 @@ public:
 //			double(*func)(double,double), bool elevR) = 0;
 
 	virtual shared_ptr<NDArray> copy() const = 0;
-	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize, 
-				PixelT newtype) const = 0;
 
 	virtual void* __getAddr(std::initializer_list<int64_t> index) const = 0;
 	virtual void* __getAddr(const int64_t* index) const = 0;
@@ -177,7 +175,6 @@ public:
 	virtual const size_t* dim() const;
 
 	virtual void resize(const size_t dim[D]);
-	virtual void graft(size_t dim[D], T* ptr);
 
 	// return the pixel type
 	virtual PixelT type() const;
@@ -191,51 +188,6 @@ public:
 	 * @return Pointer to an exact copy of this array
 	 */
 	virtual shared_ptr<NDArray> copy() const;
-
-	/**
-	 * @brief Creates a new array with given dimensions and pixel type, then 
-	 * copies overlappying areas from this to the new array.
-	 *
-	 * @tparam NEWD Number of dimensions in new image/array
-	 * @tparam NEWT Pixel type of new image/array
-	 * @param dim Size in each dimenion (the dimensions) of the new array. Areas
-	 * beyond the current arrays size will be zero, areas within the current 
-	 * array will have been copied.
-	 *
-	 * @return New NDArray with NEWD dimensions and NEWT pixel type.
-	 */
-	template <size_t NEWD, typename NEWT>
-	shared_ptr<NDArray> copyCastStatic(const size_t* dim) const;
-
-	/**
-	 * @brief Creates a new array with given dimensions and pixel type, then 
-	 * copies overlappying areas from this to the new array.
-	 *
-	 * @tparam NEWT Pixel type of new image/array
-	 * @param newdims Number of dimensions in the newly created image
-	 * @param newsize Size in each dimenion (the dimensions) of the new array. Areas
-	 * beyond the current arrays size will be zero, areas within the current 
-	 * array will have been copied.
-	 *
-	 * @return Brand new array with the given dimensions and NEWT pixel type.
-	 */
-	template <typename NEWT>
-	shared_ptr<NDArray> copyCastTType(size_t newdims, const size_t* newsize) const;
-
-	/**
-	 * @brief Create a new image of the specified pixel type, dimensions and 
-	 * number of dimensions. Overlapping areas of this and the new image will be
-	 * copied.
-	 *
-	 * @param newdims The number dimensions in the new array
-	 * @param newsize An array (length newdims) with size of the new array in 
-	 * each dimension
-	 * @param newtype Type of new array
-	 *
-	 * @return New ND array of the specified size and pixel type
-	 */
-	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize, 
-				PixelT newtype) const;
 
 	/* 
 	 * Higher Level Operations
@@ -296,84 +248,6 @@ public:
 	void updateStrides();
 	
 };
-
-/**
- * @brief Returns whether two NDArrays have the same dimensions, and therefore
- * can be element-by-element compared/operated on. elL is set to true if left
- * is elevatable to right (ie all dimensions match or are missing or are unary).
- * elR is the same but for the right. 
- *
- * Strictly R is elevatable if all dimensions that don't match are missing or 1
- * Strictly L is elevatable if all dimensions that don't match are missing or 1
- *
- * Examples of *elR = true (return false):
- *
- * left = [10, 20, 1]
- * right = [10, 20, 39]
- *
- * left = [10]
- * right = [10, 20, 39]
- *
- * Examples where neither elR or elL (returns true):
- *
- * left = [10, 20, 39]
- * right = [10, 20, 39]
- *
- * Examples where neither elR or elL (returns false):
- *
- * left = [10, 20, 9]
- * right = [10, 20, 39]
- *
- * left = [10, 1, 9]
- * right = [10, 20, 1]
- *
- * @param left	NDArray input
- * @param right NDArray input
- * @param elL Whether left is elevatable to right (see description of function)
- * @param elR Whether right is elevatable to left (see description of function)
- *
- * @return 
- */
-bool comparable(const NDArray* left, const NDArray* right, 
-		bool* elL = NULL, bool* elR = NULL)
-{
-	bool ret = true;
-
-	bool rightEL = true;
-	bool leftEL = true;
-
-	for(size_t ii = 0; ii < left->ndim(); ii++) {
-		if(ii < right->ndim()) {
-			if(right->dim(ii) != left->dim(ii)) {
-				ret = false;
-				// if not 1, then R is not elevateable
-				if(right->dim(ii) != 1)
-					rightEL = false;
-			}
-		}
-	}
-	
-	for(size_t ii = 0; ii < right->ndim(); ii++) {
-		if(ii < left->ndim()) {
-			if(right->dim(ii) != left->dim(ii)) {
-				ret = false;
-				// if not 1, then R is not elevateable
-				if(left->dim(ii) != 1)
-					leftEL = false;
-			}
-		}
-	}
-	
-	if(ret) {
-		leftEL = false;
-		rightEL = false;
-	}
-
-	if(elL) *elL = leftEL;
-	if(elR) *elR = rightEL;
-
-	return ret;
-}
 
 
 #undef VIRTGETSET

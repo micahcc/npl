@@ -38,43 +38,43 @@ def build(bld):
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='nifti_orient_test1', 
             source='nifti_orient_test1.cpp', 
-            use='mrimage')
+            use='mrimage_utils')
 
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='nifti_orient_test2', 
             source='nifti_orient_test2.cpp', 
-            use='mrimage')
+            use='mrimage_utils')
 
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='coordinate_test1', 
             source='coordinate_test1.cpp', 
-            use='mrimage')
+            use='mrimage_utils')
 
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='coordinate_test2', 
             source='coordinate_test2.cpp', 
-            use='mrimage')
+            use='mrimage_utils')
 
     # test images
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='nifti_rwrw_test', 
             source='nifti_rwrw_test.cpp', 
-            use='mrimage')
+            use='mrimage_utils')
     
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='img_nn_interp_test', 
             source='img_nn_interp_test.cpp', 
-            use='mrimage')
+            use='mrimage_utils')
     
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='img_lin_interp_test', 
             source='img_lin_interp_test.cpp', 
-            use='mrimage')
+            use='mrimage_utils')
 
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='img_kernel_test', 
             source='img_kernel_test.cpp', 
-            use='mrimage iterators')
+            use='mrimage_utils iterators')
 
     # test KDTree functionality
     bld.program(install_path='${PREFIX}/tests', features='test', 
@@ -106,23 +106,23 @@ def build(bld):
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='nifti_test1', 
             source='nifti_test1.cpp', 
-            use='mrimage')
+            use='mrimage_utils')
 
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='nifti_test2', 
             source='nifti_test2.cpp', 
-            use='mrimage')
+            use='mrimage_utils')
     
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='imgiter_test1', 
             source='imgiter_test1.cpp', 
-            use='mrimage iterators') 
+            use='mrimage_utils iterators') 
 
     from waflib.Tools import waf_unit_test
     bld.add_post_fun(waf_unit_test.summary)
-#    bld.program(target='test3', source='test3.cpp', use='mrimage')
-#    bld.program(target='test4', source='test4.cpp', use='mrimage')
-#    bld.program(target='nifti_test3', source='nifti_test3.cpp', use='mrimage')
+#    bld.program(target='test3', source='test3.cpp', use='mrimage_utils')
+#    bld.program(target='test4', source='test4.cpp', use='mrimage_utils')
+#    bld.program(target='nifti_test3', source='nifti_test3.cpp', use='mrimage_utils')
 #    
 #    bld.program(target='nl_store_test1', 
 #                source='nl_store_test1.cpp', 

@@ -210,19 +210,9 @@ struct rgba_t
 	explicit rgba_t(rgb_t);
 };
 
-std::ostream& operator<< (std::ostream& stream, const rgb_t& v)
-{
-	stream << "(" <<v.red << "," << v.green << "," << v.blue << ")";
-	return stream;
-}
 
-std::ostream& operator<< (std::ostream& stream, const rgba_t& v)
-{
-	stream << "(" <<v.red << "," << v.green << "," << v.blue << "," 
-		<< v.alpha << ")";
-	return stream;
-}
-
+std::ostream& operator<< (std::ostream& stream, const rgb_t& v);
+std::ostream& operator<< (std::ostream& stream, const rgba_t& v);
 
 // math
 

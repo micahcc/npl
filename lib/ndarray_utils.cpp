@@ -20,7 +20,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef IMAGE_PROCESSING_H
 #define IMAGE_PROCESSING_H
 
-#include "nd_algos.h"
+#include "ndarray_utils.h"
 #include "ndarray.h"
 #include "npltypes.h"
 #include "matrix.h"
@@ -82,6 +82,84 @@ int64_t round2(int64_t in)
 //	// copy data
 //	
 //}
+
+
+/**
+ * @brief Returns whether two NDArrays have the same dimensions, and therefore
+ * can be element-by-element compared/operated on. elL is set to true if left
+ * is elevatable to right (ie all dimensions match or are missing or are unary).
+ * elR is the same but for the right. 
+ *
+ * Strictly R is elevatable if all dimensions that don't match are missing or 1
+ * Strictly L is elevatable if all dimensions that don't match are missing or 1
+ *
+ * Examples of *elR = true (return false):
+ *
+ * left = [10, 20, 1]
+ * right = [10, 20, 39]
+ *
+ * left = [10]
+ * right = [10, 20, 39]
+ *
+ * Examples where neither elR or elL (returns true):
+ *
+ * left = [10, 20, 39]
+ * right = [10, 20, 39]
+ *
+ * Examples where neither elR or elL (returns false):
+ *
+ * left = [10, 20, 9]
+ * right = [10, 20, 39]
+ *
+ * left = [10, 1, 9]
+ * right = [10, 20, 1]
+ *
+ * @param left	NDArray input
+ * @param right NDArray input
+ * @param elL Whether left is elevatable to right (see description of function)
+ * @param elR Whether right is elevatable to left (see description of function)
+ *
+ * @return 
+ */
+bool comparable(const NDArray* left, const NDArray* right, bool* elL, bool* elR)
+{
+	bool ret = true;
+
+	bool rightEL = true;
+	bool leftEL = true;
+
+	for(size_t ii = 0; ii < left->ndim(); ii++) {
+		if(ii < right->ndim()) {
+			if(right->dim(ii) != left->dim(ii)) {
+				ret = false;
+				// if not 1, then R is not elevateable
+				if(right->dim(ii) != 1)
+					rightEL = false;
+			}
+		}
+	}
+	
+	for(size_t ii = 0; ii < right->ndim(); ii++) {
+		if(ii < left->ndim()) {
+			if(right->dim(ii) != left->dim(ii)) {
+				ret = false;
+				// if not 1, then R is not elevateable
+				if(left->dim(ii) != 1)
+					leftEL = false;
+			}
+		}
+	}
+	
+	if(ret) {
+		leftEL = false;
+		rightEL = false;
+	}
+
+	if(elL) *elL = leftEL;
+	if(elR) *elR = rightEL;
+
+	return ret;
+}
 
 } // npl
 #endif  //IMAGE_PROCESSING_H

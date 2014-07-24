@@ -22,6 +22,19 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace npl {
 
+std::ostream& operator<< (std::ostream& stream, const rgb_t& v)
+{
+	stream << "(" <<v.red << "," << v.green << "," << v.blue << ")";
+	return stream;
+}
+
+std::ostream& operator<< (std::ostream& stream, const rgba_t& v)
+{
+	stream << "(" <<v.red << "," << v.green << "," << v.blue << "," 
+		<< v.alpha << ")";
+	return stream;
+}
+
 
 //////////////////////////////////////////////////////
 // cdouble_t
@@ -361,6 +374,73 @@ rgb_t::rgb_t(rgba_t v) :
 {
 }
 
+rgb_t& rgb_t::operator=(float v)
+{
+	*this = (rgb_t)v;
+	return *this;
+}
+
+rgb_t& rgb_t::operator=(double v)
+{
+	*this = (rgb_t)v;
+	return *this;
+}
+
+rgb_t& rgb_t::operator=(long double v)
+{
+	*this = (rgb_t)v;
+	return *this;
+}
+
+rgb_t& rgb_t::operator=(int64_t v)
+{
+	*this = (rgb_t)v;
+	return *this;
+}
+
+rgb_t& rgb_t::operator=(uint64_t v)
+{
+	*this = (rgb_t)v;
+	return *this;
+}
+
+rgb_t& rgb_t::operator=(int32_t v)
+{
+	*this = (rgb_t)v;
+	return *this;
+}
+
+rgb_t& rgb_t::operator=(uint32_t v)
+{
+	*this = (rgb_t)v;
+	return *this;
+}
+
+rgb_t& rgb_t::operator=(int16_t v)
+{
+	*this = (rgb_t)v;
+	return *this;
+}
+
+rgb_t& rgb_t::operator=(uint16_t v)
+{
+	*this = (rgb_t)v;
+	return *this;
+}
+
+rgb_t& rgb_t::operator=(int8_t v)
+{
+	*this = (rgb_t)v;
+	return *this;
+}
+
+rgb_t& rgb_t::operator=(uint8_t v)
+{
+	*this = (rgb_t)v;
+	return *this;
+}
+
+
 //////////////////////////////////////////////////////
 /// rgba_t
 //////////////////////////////////////////////////////
@@ -531,6 +611,72 @@ rgba_t::rgba_t(cquad_t v) :
 rgba_t::rgba_t(rgb_t v) : 
 	red(v.red), green(v.green), blue(v.blue), alpha(255)
 {
+}
+
+rgba_t& rgba_t::operator=(float v)
+{
+	*this = (rgba_t)v;
+	return *this;
+}
+
+rgba_t& rgba_t::operator=(double v)
+{
+	*this = (rgba_t)v;
+	return *this;
+}
+
+rgba_t& rgba_t::operator=(long double v)
+{
+	*this = (rgba_t)v;
+	return *this;
+}
+
+rgba_t& rgba_t::operator=(int64_t v)
+{
+	*this = (rgba_t)v;
+	return *this;
+}
+
+rgba_t& rgba_t::operator=(uint64_t v)
+{
+	*this = (rgba_t)v;
+	return *this;
+}
+
+rgba_t& rgba_t::operator=(int32_t v)
+{
+	*this = (rgba_t)v;
+	return *this;
+}
+
+rgba_t& rgba_t::operator=(uint32_t v)
+{
+	*this = (rgba_t)v;
+	return *this;
+}
+
+rgba_t& rgba_t::operator=(int16_t v)
+{
+	*this = (rgba_t)v;
+	return *this;
+}
+
+rgba_t& rgba_t::operator=(uint16_t v)
+{
+	*this = (rgba_t)v;
+	return *this;
+}
+
+rgba_t& rgba_t::operator=(int8_t v)
+{
+	*this = (rgba_t)v;
+	return *this;
+}
+
+rgba_t& rgba_t::operator=(uint8_t v)
+{
+	*this = (rgba_t)v;
+	return *this;
 }
 
 } //npl

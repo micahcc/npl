@@ -6,6 +6,7 @@
 #include "hasher.h"
 #include "iterators.h"
 #include "mrimage.h"
+#include "mrimage_utils.h"
 
 using namespace std;
 using namespace npl;

@@ -20,6 +20,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <iostream>
 
 #include "mrimage.h"
+#include "mrimage_utils.h"
 #include "iterators.h"
 
 using namespace std;

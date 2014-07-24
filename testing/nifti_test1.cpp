@@ -18,9 +18,11 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 #include <iostream>
+#include <memory>
 
 #include "mrimage.h"
 #include "accessors.h"
+#include "mrimage_utils.h"
 
 using namespace std;
 using namespace npl;
@@ -45,8 +47,8 @@ int main()
 	dblversion->write("test1a.nii.gz", false);
 
 	/* Create a Cast Copy and write */
-	auto intversion = dblversion->copyCast(dblversion->ndim(), dblversion->dim(),
-				INT64);
+	shared_ptr<MRImage> intversion = copyCast(dblversion, dblversion->ndim(), 
+				dblversion->dim(), INT64);
 	intversion->write("test1b.nii.gz");
 	}
 
@@ -68,7 +70,7 @@ int main()
 	for(int64_t zz=0; zz < dblversion->dim(2); zz++) {
 		for(int64_t yy=0; yy < dblversion->dim(1); yy++) {
 			for(int64_t xx=0; xx < dblversion->dim(0); xx++) {
-				if(v1[{xx,yy,zz}] != v2[{xx,yy,zz}])
+				if(v1[{xx,yy,zz}] != v2[{xx,yy,zz}]) {
 					cerr << "Mismatch!" << endl;
 					return -1;
 				}

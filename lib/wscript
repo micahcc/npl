@@ -4,7 +4,11 @@ def build(bld):
     
     bld.shlib(target = 'ndarray',
             source = 'ndarray.cpp', 
-            use='npltypes',
+            use='npltypes slicer',
+            export_includes = ['.'])
+    bld.shlib(target = 'ndarray_utils',
+            source = 'ndarray_utils.cpp', 
+            use='npltypes slicer ndarray',
             export_includes = ['.'])
     bld.shlib(target = 'slicer',
             source = 'slicer.cpp', 
@@ -16,20 +20,16 @@ def build(bld):
             source = 'mrimage.cpp', 
             export_includes = ['.'],
             use='ZLIB ndarray slicer') 
+    bld.shlib( target = 'mrimage_utils', 
+            source = 'mrimage_utils.cpp', 
+            export_includes = ['.'],
+            use='ZLIB slicer mrimage kslicer') 
     bld.shlib( target = 'npltypes', 
             source = 'npltypes.cpp', 
             export_includes = ['.'])
     bld.shlib( target = 'iterators', 
             source = 'iterators.cpp', 
             use='ndarray slicer kslicer',
-            export_includes = ['.'])
-    bld.shlib( target = 'image_algos', 
-            source = 'image_algos.cpp', 
-            use='mrimage iterators nd_algos',
-            export_includes = ['.'])
-    bld.shlib( target = 'nd_algos', 
-            source = 'nd_algos.cpp', 
-            use='ndarray iterators FFTW',
             export_includes = ['.'])
 
 

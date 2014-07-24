@@ -23,6 +23,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdexcept>
 
 #include "mrimage.h"
+#include "mrimage_utils.h"
 #include "kernel_slicer.h"
 #include "kdtree.h"
 #include "iterators.h"

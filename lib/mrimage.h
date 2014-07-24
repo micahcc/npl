@@ -44,14 +44,6 @@ enum BoundaryConditionT {ZEROFLUX=0, CONSTZERO=1, WRAP=2};
 
 class MRImage;
 
-// simply reads an image in its native type
-shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose);
-shared_ptr<MRImage> readMRImage(std::string filename, bool verbose = false);
-shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dims, PixelT);
-//int writeMRImage(MRImage* img, std::string fn, bool nifti2 = false);
-
-std::ostream& operator<<(std::ostream &out, const MRImage& img);
-
 /**
  * @brief MRImage can basically be used like an NDArray, with the addition
  * of orientation related additions.
@@ -91,21 +83,6 @@ public:
 	 * @return Copied image.
 	 */
 	virtual shared_ptr<NDArray> copy() const = 0;
-
-	/**
-	 * @brief Creates a new image of the given size and type, and copies/casts
-	 * overlapping areas of this image to the new image.
-	 *
-	 * @param newdims Number of dimensions in new image
-	 * @param newsize Size of image in each dimension (array size newdims)
-	 * @param newtype Type of new image pixels
-	 *
-	 * @return New image (cast as an NDArray)
-	 */
-	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize, 
-				PixelT newtype) const = 0;
-	
-
 
 	// coordinate system conversion 
 	
@@ -324,49 +301,6 @@ public:
 	 */
 	virtual shared_ptr<NDArray> copy() const;
 
-	/**
-	 * @brief Creates a new image of the given size and type, and copies/casts
-	 * overlapping areas of this image to the new image.
-	 *
-	 * @param newdims Number of dimensions in new image
-	 * @param newsize Size of image in each dimension (array size newdims)
-	 * @param newtype Type of new image pixels
-	 *
-	 * @return New image (cast as an NDArray)
-	 */
-	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize, 
-				PixelT newtype) const;
-	
-	/**
-	 * @brief Creates a new image with given dimensions and pixel type, then 
-	 * copies overlappying areas from this to the new image.
-	 *
-	 * @tparam NEWD Number of dimensions in new image
-	 * @tparam NEWT Pixel type of new image
-	 * @param dim Size in each dimenion (the dimensions) of the new image. Areas
-	 * beyond the current image's size will be zero, areas within the current 
-	 * image will have been copied.
-	 *
-	 * @return New NDArray with NEWD dimensions and NEWT pixel type.
-	 */
-	template <size_t NEWD, typename NEWT>
-	shared_ptr<NDArray> copyCastStatic(const size_t* dim) const;
-
-	/**
-	 * @brief Creates a new image with given dimensions and pixel type, then 
-	 * copies overlappying areas from this to the new image .
-	 *
-	 * @tparam NEWT Pixel type of new image
-	 * @param newdims Number of dimensions in the newly created image
-	 * @param newsize Size in each dimenion (the dimensions) of the new image. Areas
-	 * beyond the current image size will be zero, areas within the current 
-	 * image will have been copied.
-	 *
-	 * @return Brand new image with the given dimensions and NEWT pixel type.
-	 */
-	template <typename NEWT>
-	shared_ptr<NDArray> copyCastTType(size_t newdims, const size_t* newsize) const;
-	
 	/*************************************************************************
 	 * Coordinate Transform Functions
 	 ************************************************************************/
