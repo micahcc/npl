@@ -238,81 +238,6 @@ shared_ptr<MRImage> dilate(shared_ptr<MRImage> in, size_t reps)
 	return out;
 }
 
-void deriv(shared_ptr<MRImage> in, shared_ptr<MRImage>& dx, 
-		shared_ptr<MRImage>& dy, shared_ptr<MRImage>& dz)
-{
-	Vector3DView<double> inview(in);
-	int64_t index[3];
-	dy = in->cloneImage();
-	dz = in->cloneImage();
-
-	// dx
-	dx = in->cloneImage();
-	for(Vector3DIter<double> it(dx); !it.eof(); ++it) {
-		it.index(3, index);
-		if(index[0] == 0) {
-			for(size_t tt=0; tt<it.tlen(); tt++) {
-				it.set(tt, inview(index[0]+1, index[1], index[2], tt) -
-						inview(index[0], index[1], index[2], tt));
-			}
-		} else if(index[0] >= in->dim(0)) {
-			for(size_t tt=0; tt<it.tlen(); tt++) {
-				it.set(tt, inview(index[0], index[1], index[2], tt) -
-						inview(index[0]-1, index[1], index[2], tt));
-			}
-		} else {
-			for(size_t tt=0; tt<it.tlen(); tt++) {
-				it.set(tt, .5*(inview(index[0]+1, index[1], index[2], tt) -
-						inview(index[0]-1, index[1], index[2], tt)));
-			}
-		}
-	}
-	
-	// dy
-	dy = in->cloneImage();
-	for(Vector3DIter<double> it(dy); !it.eof(); ++it) {
-		it.index(3, index);
-		if(index[1] == 0) {
-			for(size_t tt=0; tt<it.tlen(); tt++) {
-				it.set(tt, inview(index[0], index[1]+1, index[2], tt) -
-						inview(index[0], index[1], index[2], tt));
-			}
-		} else if(index[1] >= in->dim(1)) {
-			for(size_t tt=0; tt<it.tlen(); tt++) {
-				it.set(tt, inview(index[0], index[1], index[2], tt) -
-						inview(index[0], index[1]-1, index[2], tt));
-			}
-		} else {
-			for(size_t tt=0; tt<it.tlen(); tt++) {
-				it.set(tt, .5*(inview(index[0], index[1]+1, index[2], tt) -
-						inview(index[0], index[1]-1, index[2], tt)));
-			}
-		}
-	}
-	
-	// dz
-	dz = in->cloneImage();
-	for(Vector3DIter<double> it(dz); !it.eof(); ++it) {
-		it.index(3, index);
-		if(index[2] == 0) {
-			for(size_t tt=0; tt<it.tlen(); tt++) {
-				it.set(tt, inview(index[0], index[1], index[2]+1, tt) -
-						inview(index[0], index[1], index[2], tt));
-			}
-		} else if(index[2] >= in->dim(2)) {
-			for(size_t tt=0; tt<it.tlen(); tt++) {
-				it.set(tt, inview(index[0], index[1], index[2], tt) -
-						inview(index[0], index[1], index[2]-1, tt));
-			}
-		} else {
-			for(size_t tt=0; tt<it.tlen(); tt++) {
-				it.set(tt, .5*(inview(index[0], index[1], index[2]-1, tt) -
-						inview(index[0], index[1], index[2]+1, tt)));
-			}
-		}
-	}
-}
-
 /**
  * @brief Inverts a deformation, given a mask in the target space.
  *
@@ -333,12 +258,8 @@ void deriv(shared_ptr<MRImage> in, shared_ptr<MRImage>& dx,
 int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform, 
 		shared_ptr<MRImage> atlmask, shared_ptr<MRImage> atldef)
 {
-
-	shared_ptr<MRImage> imgdx, imgdy, imgdz;
-	deriv(deform, imgdx, imgdy, imgdz);
-
 	const double MINERR = .1;
-	const double MINDIST = 5;
+	const double MINDIST = 10;
 	const double LAMBDA = .2;
 	const size_t MAXITERS = 300;
 	int64_t index[3];
@@ -403,14 +324,18 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 	OrderConstIter<int> mit(atlmask);
 	mit.setOrder(ait.getOrder());
 	for(mit.goBegin(), ait.goBegin(); !mit.eof() && !ait.eof(); ++ait, ++mit) {
-		if(!*mit) 
-			continue;
+//		if(!*mit) 
+//			continue;
 
 		cout << setw(10) << index[0] << setw(10) << index[1] << setw(10) << index[2] << "\r";
 
 		ait.index(3, index);
 		atldef->indexToPoint(3, index, atlpoint.data());
 
+
+		// TODO
+		// use withindist, ignore values that map from outside, then compute
+		// the median of the remaining
 		double dist = MINDIST;
 		auto result = tree.nearest(atlpoint, dist);
 		if(!result)
@@ -423,42 +348,42 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 		//    atl2sub
 		double prevdist = dist+1;
 		size_t iters = 0;
-		for(iters = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR && 
-						iters < MAXITERS; iters++) {
-
-			for(size_t ii=0; ii<3; ii++) 
-				subpoint[ii] = atlpoint[ii] + atl2sub[ii];
-
-			// ignore points that map outside the mask, just accept this as the
-			// best approximate deform
-			mask->pointToIndex(3, subpoint, cindex);
-			if(maskinterp(cindex[0], cindex[1], cindex[2]) == 0)
-				break;
-
-			// (estimate) SUB <- ATLAS (given)
-			//              offset
-			// interpolate new offset at subpoint
-			deform->pointToIndex(3, subpoint, cindex);
-
-			// update sub2atl
-			for(size_t ii=0; ii<3; ii++) {
-				sub2atl[ii] = definterp(cindex[0], cindex[1], cindex[2], ii);
-			}
-
-			// update image with the error, using the derivative to estimate
-			// where error crosses 0
-			prevdist = dist;
-			dist = 0;
-			for(size_t ii=0; ii<3; ii++) {
-				err[ii] = atl2sub[ii]+sub2atl[ii];
-			}
-
-			for(size_t ii=0; ii<3; ii++) {
-				atl2sub[ii] -= LAMBDA*err[ii];
-				dist += err[ii]*err[ii];
-			}
-			dist = sqrt(dist);
-		}
+//		for(iters = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR && 
+//						iters < MAXITERS; iters++) {
+//
+//			for(size_t ii=0; ii<3; ii++) 
+//				subpoint[ii] = atlpoint[ii] + atl2sub[ii];
+//
+//			// ignore points that map outside the mask, just accept this as the
+//			// best approximate deform
+//			mask->pointToIndex(3, subpoint, cindex);
+//			if(maskinterp(cindex[0], cindex[1], cindex[2]) == 0)
+//				break;
+//
+//			// (estimate) SUB <- ATLAS (given)
+//			//              offset
+//			// interpolate new offset at subpoint
+//			deform->pointToIndex(3, subpoint, cindex);
+//
+//			// update sub2atl
+//			for(size_t ii=0; ii<3; ii++) {
+//				sub2atl[ii] = definterp(cindex[0], cindex[1], cindex[2], ii);
+//			}
+//
+//			// update image with the error, using the derivative to estimate
+//			// where error crosses 0
+//			prevdist = dist;
+//			dist = 0;
+//			for(size_t ii=0; ii<3; ii++) {
+//				err[ii] = atl2sub[ii]+sub2atl[ii];
+//			}
+//
+//			for(size_t ii=0; ii<3; ii++) {
+//				atl2sub[ii] -= LAMBDA*err[ii];
+//				dist += err[ii]*err[ii];
+//			}
+//			dist = sqrt(dist);
+//		}
 
 		// save out final deform
 		for(size_t ii=0; ii<3; ii++) 
