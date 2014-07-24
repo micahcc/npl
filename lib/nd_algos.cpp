@@ -55,28 +55,33 @@ int64_t round2(int64_t in)
 	return (hob(in) << 1);
 }
 
-shared_ptr<NDArray> fft(shared_ptr<NDArray> in)
-{
-	// pad 
-	std::vector<int> newsize(in->ndim());
-	size_t npixel = 1;
-	for(size_t ii=0; ii<in->ndim(); ii++) {
-		newsize[ii] = round2(in->dim(ii));
-		npixel *= newsize[ii];
-	}
-
-	auto data = new fftw_complex[npixel];
-	// fill data
-	for(;;) {
-		// TODO
-	}
-
-	fftw_plan plan = fftw_plan_dft(newsize.size(), newsize.data(), data, data, 
-			1, FFTW_MEASURE);
-	
-	// copy data
-	
-}
+//shared_ptr<NDArray> fft(shared_ptr<const NDArray> in)
+//{
+//	// pad 
+//	std::vector<int> newsize(in->ndim());
+//	size_t npixel = 1;
+//	for(size_t ii=0; ii<in->ndim(); ii++) {
+//		newsize[ii] = round2(in->dim(ii));
+//		npixel *= newsize[ii];
+//	}
+//	
+//	auto data = new fftw_complex[npixel];
+//
+//	// fill data
+//	OrderConstIter<cdouble_t> it(in);
+//	
+//
+//	for(size_t ii=0; ii<;;) {
+//
+//		// TODO
+//	}
+//
+//	fftw_plan plan = fftw_plan_dft(newsize.size(), newsize.data(), data, data, 
+//			1, FFTW_MEASURE);
+//	
+//	// copy data
+//	
+//}
 
 } // npl
 #endif  //IMAGE_PROCESSING_H

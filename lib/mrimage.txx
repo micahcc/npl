@@ -41,9 +41,11 @@ MRImageStore<D,T>::MRImageStore(std::initializer_list<size_t> a_args) :
 }
 
 /**
- * @brief Constructor with array to set size
+ * @brief Constructor with vector 
  *
- * @param dim dimensions of input 
+ * @param a_args dimensions of input, the length of this initializer list
+ * may not be fully used if a_args is longer than D. If it is shorter
+ * then D then additional dimensions are left as size 1.
  */
 template <size_t D,typename T>
 MRImageStore<D,T>::MRImageStore(const std::vector<size_t>& dim) : 
@@ -51,6 +53,21 @@ MRImageStore<D,T>::MRImageStore(const std::vector<size_t>& dim) :
 {
 	orientDefault();
 }
+
+template <size_t D,typename T>
+MRImageStore<D,T>::MRImageStore(size_t len, const size_t* size) :
+	NDArrayStore<D,T>(len, size), MRImage()
+{
+	orientDefault();
+}
+
+template <size_t D,typename T>
+MRImageStore<D,T>::MRImageStore(size_t len, const size_t* size, T* ptr) :
+	NDArrayStore<D,T>(len, size, ptr), MRImage()
+{
+	orientDefault();
+}
+
 
 /**
  * @brief Default orientation (dir=ident, space=1 and origin=0)
@@ -938,6 +955,167 @@ bool MRImageStore<D,T>::indexInsideFOV(size_t len, const int64_t* xyz) const
 	}
 	return true;
 }
+
+/**
+ * @brief Performs a deep copy of the entire image and all metadata.
+ *
+ * @return Copied image.
+ */
+template <size_t D, typename T>
+shared_ptr<NDArray> MRImageStore<D,T>::copy() const
+{
+	shared_ptr<MRImageStore> out(new MRImageStore<D,T>(D, this->_m_dim));
+	for(size_t ii=0; ii<elements(); ii++) 
+		out->_m_data[ii] = this->_m_data[ii];
+
+	return out;
+}
+
+/**
+ * @brief Creates a new image with given dimensions and pixel type, then 
+ * copies overlappying areas from this to the new image.
+ *
+ * @tparam NEWD Number of dimensions in new image
+ * @tparam NEWT Pixel type of new image
+ * @param dim Size in each dimenion (the dimensions) of the new image. Areas
+ * beyond the current image's size will be zero, areas within the current 
+ * image will have been copied.
+ *
+ * @return New NDArray with NEWD dimensions and NEWT pixel type.
+ */
+template <size_t D, typename T>
+template <size_t NEWD, typename NEWT>
+shared_ptr<NDArray> MRImageStore<D,T>::copyCastStatic(const size_t* dim) const
+{
+	shared_ptr<MRImageStore<NEWD, NEWT>> out(new MRImageStore<NEWD,NEWT>(NEWD, dim));
+	
+	// Set up slicers to iterate through the input and output images. Only
+	// common dimensions are iterated over, and only the minimum of the two
+	// sizes are used for ROI. so a 10x10x10 image cast to a 20x5 image will
+	// iterator copy ROI 10x5x1 
+	Slicer iit(D, this->_m_dim);
+	Slicer oit(NEWD, dim);
+	
+	std::vector<std::pair<int64_t,int64_t>> roi(max(NEWD, D));
+	for(size_t ii=0; ii<max(NEWD, D); ii++) {
+		if(ii < min(NEWD, D)) {
+			roi[ii].first = 0;
+			roi[ii].second = min(dim[ii], this->_m_dim[ii]);
+		} else {
+			roi[ii].first = 0;
+			roi[ii].second = 0;
+		}
+	}
+
+	iit.setROI(roi);
+	oit.setROI(roi);
+
+	// use the larger of the two order vectors as the reference
+	if(NEWD > D) {
+		iit.setOrder(oit.getOrder());
+	} else {
+		oit.setOrder(iit.getOrder());
+	}
+
+	// perform copy/cast
+	for(iit.goBegin(), oit.goBegin(); !oit.eof() && !iit.eof(); ++oit, ++iit) 
+		out->_m_data[*oit] = (NEWT)this->_m_data[*iit];
+
+	return out;
+}
+
+/**
+ * @brief Creates a new image with given dimensions and pixel type, then 
+ * copies overlappying areas from this to the new image .
+ *
+ * @tparam NEWT Pixel type of new image
+ * @param newdims Number of dimensions in the newly created image
+ * @param newsize Size in each dimenion (the dimensions) of the new image. Areas
+ * beyond the current image size will be zero, areas within the current 
+ * image will have been copied.
+ *
+ * @return Brand new image with the given dimensions and NEWT pixel type.
+ */
+template <size_t D, typename T>
+template <typename NEWT>
+shared_ptr<NDArray> MRImageStore<D,T>::copyCastTType(size_t newdims, 
+			const size_t* newsize) const
+{
+	switch(newdims) {
+		case 1:
+			return copyCastStatic<1, NEWT>(newsize);
+		case 2:
+			return copyCastStatic<2, NEWT>(newsize);
+		case 3:
+			return copyCastStatic<3, NEWT>(newsize);
+		case 4:
+			return copyCastStatic<4, NEWT>(newsize);
+		case 5:
+			return copyCastStatic<5, NEWT>(newsize);
+		case 6:
+			return copyCastStatic<6, NEWT>(newsize);
+		case 7:
+			return copyCastStatic<7, NEWT>(newsize);
+		case 8:
+			return copyCastStatic<8, NEWT>(newsize);
+		case 9:
+			return copyCastStatic<9, NEWT>(newsize);
+		default:
+			throw std::invalid_argument("Unknown image dimension passed to "
+					"copyCastTType the programmers may need to add more "
+					"dimensions to the shared objects at build time");
+			return NULL;
+	}
+	return NULL;
+}
+
+template <size_t D, typename T>
+shared_ptr<NDArray> MRImageStore<D,T>::copyCast(size_t newdims, 
+		const size_t* newsize, PixelT newtype) const
+{
+	shared_ptr<NDArray> out;
+	
+	switch(newtype) {
+		case UINT8:
+			return copyCastTType<uint8_t>(newdims, newsize);
+		case INT16:
+			return copyCastTType<int16_t>(newdims, newsize);
+		case INT32:
+			return copyCastTType<int32_t>(newdims, newsize);
+		case FLOAT32:
+			return copyCastTType<float>(newdims, newsize);
+		case COMPLEX64:
+			return copyCastTType<cfloat_t>(newdims, newsize);
+		case FLOAT64:
+			return copyCastTType<double>(newdims, newsize);
+		case RGB24:
+			return copyCastTType<rgb_t>(newdims, newsize);
+		case INT8:
+			return copyCastTType<int8_t>(newdims, newsize);
+		case UINT16:
+			return copyCastTType<uint16_t>(newdims, newsize);
+		case UINT32:
+			return copyCastTType<uint32_t>(newdims, newsize);
+		case INT64:
+			return copyCastTType<int64_t>(newdims, newsize);
+		case UINT64:
+			return copyCastTType<uint64_t>(newdims, newsize);
+		case FLOAT128:
+			return copyCastTType<long double>(newdims, newsize);
+		case COMPLEX128:
+			return copyCastTType<cdouble_t>(newdims, newsize);
+		case COMPLEX256:
+			return copyCastTType<cquad_t>(newdims, newsize);
+		case RGBA32:
+			return copyCastTType<rgba_t>(newdims, newsize);
+		default:
+		case UNKNOWN_TYPE:
+		throw std::invalid_argument("Unknown type specified for cast");
+		break;
+	}
+	return NULL;
+}
+
 
 
 } //npl

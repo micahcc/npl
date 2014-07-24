@@ -208,11 +208,23 @@ public:
 
 	/**
 	 * @brief Sets the region of interest. During iteration or any motion the
-	 * position will not move outside the specified range
+	 * position will not move outside the specified range. Extra elements in 
+	 * roi beyond the number of dimensions, are ignored
 	 *
 	 * @param roi	pair of [min,max] values in the desired hypercube
 	 */
 	void setROI(const std::vector<std::pair<int64_t, int64_t>>& roi);
+
+	/**
+	 * @brief Sets the region of interest. During iteration or motion the
+	 * position will not move outside the specified range
+	 *
+	 * @param len	Length of both lower and upper arrays.
+	 * @param lower	Coordinate at lower bound of bounding box. 
+	 * @param upper	Coordinate at upper bound of bounding box. 
+	 * @param roi	pair of [min,max] values in the desired hypercube
+	 */
+	void setROI(size_t len, const int64_t* lower, const int64_t* upper);
 
 	/**
 	 * @brief Sets the order of iteration from ++/-- operators

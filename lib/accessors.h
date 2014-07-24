@@ -22,6 +22,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "ndarray.h"
 #include "mrimage.h"
+#include "basic_functions.h"
 
 namespace npl {
 

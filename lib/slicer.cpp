@@ -18,6 +18,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 #include "slicer.h"
+#include "basic_functions.h"
 
 #include <vector>
 #include <list>
@@ -260,8 +261,8 @@ void Slicer::setROI(const std::vector<std::pair<int64_t, int64_t>>& roi)
 	for(size_t ii=0; ii<m_sizes.size(); ii++) {
 		if(ii < roi.size()) {
 			// clamp, to be <= 0...sizes[ii]-1
-			m_roi[ii].first = std::min<int64_t>(roi[ii].first, m_sizes[ii]-1);
-			m_roi[ii].second = std::min<int64_t>(roi[ii].second, m_sizes[ii]-1);
+			m_roi[ii].first = clamp<int64_t>(0, m_sizes[ii]-1, roi[ii].first);
+			m_roi[ii].second = clamp<int64_t>(0, m_sizes[ii]-1, roi[ii].second);
 		} else {
 			// no specification, just make it all
 			m_roi[ii].first = 0;
@@ -270,12 +271,38 @@ void Slicer::setROI(const std::vector<std::pair<int64_t, int64_t>>& roi)
 	}
 
 	updateLinRange();
-	goBegin();
+}
+
+/**
+ * @brief Sets the region of interest. During iteration or any motion the
+ * position will not move outside the specified range. Invalidates position.
+ * Any missing dimensions will be set to the largest possible region. IE a 
+ * length=2 lower and upper for a 3D space will have [0, dim[2]] as the range
+ *
+ * @param len	Length of lower/upper arrays
+ * @param lower	Lower bound of ROI (ND-index)
+ * @param upper Upper bound of ROI (ND-index)
+ */
+void Slicer::setROI(size_t len, const int64_t* lower, const int64_t* upper)
+{
+	for(size_t ii=0; ii<m_sizes.size(); ii++) {
+		if(ii < len) {
+			// clamp, to be <= 0...sizes[ii]-1
+			m_roi[ii].first = clamp<int64_t>(0, m_sizes[ii]-1, lower[ii]);
+			m_roi[ii].second = clamp<int64_t>(0, m_sizes[ii]-1, upper[ii]);
+		} else {
+			// no specification, just make it all
+			m_roi[ii].first = 0;
+			m_roi[ii].second= m_sizes[ii]-1;
+		}
+	}
+
+	updateLinRange();
 }
 
 /**
  * @brief Sets the order of iteration from ++/-- operators. Invalidates
- * position, because the location of the last pixel changes.
+ * position
  *
  * @param order	vector of priorities, with first element being the fastest
  * iteration and last the slowest. All other dimensions not used will be 
@@ -331,7 +358,6 @@ void Slicer::setOrder(const std::vector<size_t>& order, bool revorder)
 	}
 
 	updateLinRange();
-	goBegin();
 };
 
 /**

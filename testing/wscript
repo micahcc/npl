@@ -102,6 +102,12 @@ def build(bld):
             source='kdtree_test_grid.cpp', 
             use='kdtree')
     
+    # nifti tests
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='nifti_test1', 
+            source='nifti_test1.cpp', 
+            use='mrimage')
+
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='nifti_test2', 
             source='nifti_test2.cpp', 

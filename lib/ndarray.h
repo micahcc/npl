@@ -34,6 +34,8 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace npl {
 
+using std::shared_ptr;
+
 // Match Nifti Codes
 enum PixelT {UNKNOWN_TYPE=0, UINT8=2, INT16=4, INT32=8, FLOAT32=16,
 	COMPLEX64=32, FLOAT64=64, RGB24=128, INT8=256, UINT16=512, UINT32=768,
@@ -64,6 +66,10 @@ public:
 //			bool elevR) = 0;
 //	virtual std::shared_ptr<NDArray> opnew(const NDArray* right, 
 //			double(*func)(double,double), bool elevR) = 0;
+
+	virtual shared_ptr<NDArray> copy() const = 0;
+	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize, 
+				PixelT newtype) const = 0;
 
 	virtual void* __getAddr(std::initializer_list<int64_t> index) const = 0;
 	virtual void* __getAddr(const int64_t* index) const = 0;
@@ -96,11 +102,55 @@ protected:
  * @tparam D dimension of array
  * @tparam T type of sample
  */
-template <int D, typename T>
+template <size_t D, typename T>
 class NDArrayStore : public virtual NDArray
 {
 public:
+	/**
+	 * @brief Constructor with initializer list. Orientation will be default
+	 * (direction = identity, spacing = 1, origin = 0). 
+	 *
+	 * @param a_args dimensions of input, the length of this initializer list
+	 * may not be fully used if a_args is longer than D. If it is shorter
+	 * then D then additional dimensions are left as size 1.
+	 */
+	NDArrayStore(const std::initializer_list<size_t>& dim);
+
+	/**
+	 * @brief Constructor with vector. Orientation will be default
+	 * (direction = identity, spacing = 1, origin = 0). 
+	 *
+	 * @param a_args dimensions of input, the length of this initializer list
+	 * may not be fully used if a_args is longer than D. If it is shorter
+	 * then D then additional dimensions are left as size 1.
+	 */
 	NDArrayStore(const std::vector<size_t>& dim);
+	
+	/**
+	 * @brief Constructor with array of length len, Orientation will be default
+	 * (direction = identity, spacing = 1, origin = 0). 
+	 *
+	 * @param len Length of array 'size'
+	 * @param size dimensions of input, the length of this initializer list
+	 * may not be fully used if a_args is longer than D. If it is shorter
+	 * then D then additional dimensions are left as size 1.
+	 */
+	NDArrayStore(size_t len, const size_t* dim);
+	
+	/**
+	 * @brief Constructor which uses a preexsting array, to graft into the
+	 * image. No new allocation will be performed, however ownership of the
+	 * array will be taken, meaning it could be deleted anytime after this 
+	 * constructor completes.
+	 *
+	 * @param len Length of array 'size'
+	 * @param size dimensions of input, the length of this initializer list
+	 * may not be fully used if a_args is longer than D. If it is shorter
+	 * then D then additional dimensions are left as size 1.
+	 * @param ptr Pointer to data array, should be allocated with new, and 
+	 * size should be exactly sizeof(T)*size[0]*size[1]*...*size[len-1]
+	 */
+	NDArrayStore(size_t len, const size_t* dim, T* ptr);
 	
 	~NDArrayStore() { delete[] _m_data; };
 
@@ -126,10 +176,66 @@ public:
 	virtual size_t dim(size_t dir) const;
 	virtual const size_t* dim() const;
 
-	virtual void resize(size_t dim[D]);
+	virtual void resize(const size_t dim[D]);
+	virtual void graft(size_t dim[D], T* ptr);
 
 	// return the pixel type
 	virtual PixelT type() const;
+
+	// graft on data
+	void graft(const size_t dim[D], T* ptr);
+
+	/**
+	 * @brief Produces an exact copy of this NDArray
+	 *
+	 * @return Pointer to an exact copy of this array
+	 */
+	virtual shared_ptr<NDArray> copy() const;
+
+	/**
+	 * @brief Creates a new array with given dimensions and pixel type, then 
+	 * copies overlappying areas from this to the new array.
+	 *
+	 * @tparam NEWD Number of dimensions in new image/array
+	 * @tparam NEWT Pixel type of new image/array
+	 * @param dim Size in each dimenion (the dimensions) of the new array. Areas
+	 * beyond the current arrays size will be zero, areas within the current 
+	 * array will have been copied.
+	 *
+	 * @return New NDArray with NEWD dimensions and NEWT pixel type.
+	 */
+	template <size_t NEWD, typename NEWT>
+	shared_ptr<NDArray> copyCastStatic(const size_t* dim) const;
+
+	/**
+	 * @brief Creates a new array with given dimensions and pixel type, then 
+	 * copies overlappying areas from this to the new array.
+	 *
+	 * @tparam NEWT Pixel type of new image/array
+	 * @param newdims Number of dimensions in the newly created image
+	 * @param newsize Size in each dimenion (the dimensions) of the new array. Areas
+	 * beyond the current arrays size will be zero, areas within the current 
+	 * array will have been copied.
+	 *
+	 * @return Brand new array with the given dimensions and NEWT pixel type.
+	 */
+	template <typename NEWT>
+	shared_ptr<NDArray> copyCastTType(size_t newdims, const size_t* newsize) const;
+
+	/**
+	 * @brief Create a new image of the specified pixel type, dimensions and 
+	 * number of dimensions. Overlapping areas of this and the new image will be
+	 * copied.
+	 *
+	 * @param newdims The number dimensions in the new array
+	 * @param newsize An array (length newdims) with size of the new array in 
+	 * each dimension
+	 * @param newtype Type of new array
+	 *
+	 * @return New ND array of the specified size and pixel type
+	 */
+	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize, 
+				PixelT newtype) const;
 
 	/* 
 	 * Higher Level Operations
@@ -180,12 +286,12 @@ public:
 		else 
 			return 1;
 	};
+	
+	T* _m_data;
+	size_t _m_stride[D]; // steps between pixels
+	size_t _m_dim[D];	// overall image dimension
 
 	protected:
-	size_t _m_stride[D]; // steps between pixels
-
-	T* _m_data;
-	size_t _m_dim[D];	// overall image dimension
 
 	void updateStrides();
 	

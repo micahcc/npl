@@ -84,6 +84,29 @@ public:
 	
 	virtual std::shared_ptr<MRImage> cloneImage() const = 0;
 	
+
+	/**
+	 * @brief Performs a deep copy of the entire image and all metadata.
+	 *
+	 * @return Copied image.
+	 */
+	virtual shared_ptr<NDArray> copy() const = 0;
+
+	/**
+	 * @brief Creates a new image of the given size and type, and copies/casts
+	 * overlapping areas of this image to the new image.
+	 *
+	 * @param newdims Number of dimensions in new image
+	 * @param newsize Size of image in each dimension (array size newdims)
+	 * @param newtype Type of new image pixels
+	 *
+	 * @return New image (cast as an NDArray)
+	 */
+	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize, 
+				PixelT newtype) const = 0;
+	
+
+
 	// coordinate system conversion 
 	
 	/**
@@ -249,15 +272,100 @@ class MRImageStore :  public virtual NDArrayStore<D,T>, public virtual MRImage
 public:
 
 	/**
-	 * @brief Create an image with default orientation, of the specified size
+	 * @brief Constructor with initializer list. Orientation will be default
+	 * (direction = identity, spacing = 1, origin = 0). 
 	 *
-	 * @param dim	number of image dimensions
-	 * @param size	vector of size dim, with the image size
-	 * @param orient orientation
+	 * @param a_args dimensions of input, the length of this initializer list
+	 * may not be fully used if a_args is longer than D. If it is shorter
+	 * then D then additional dimensions are left as size 1.
 	 */
-
 	MRImageStore(std::initializer_list<size_t> a_args);
+
+	/**
+	 * @brief Constructor with vector. Orientation will be default
+	 * (direction = identity, spacing = 1, origin = 0). 
+	 *
+	 * @param a_args dimensions of input, the length of this initializer list
+	 * may not be fully used if a_args is longer than D. If it is shorter
+	 * then D then additional dimensions are left as size 1.
+	 */
 	MRImageStore(const std::vector<size_t>& a_args);
+	
+	/**
+	 * @brief Constructor with array of length len, Orientation will be default
+	 * (direction = identity, spacing = 1, origin = 0). 
+	 *
+	 * @param len Length of array 'size'
+	 * @param size dimensions of input, the length of this initializer list
+	 * may not be fully used if a_args is longer than D. If it is shorter
+	 * then D then additional dimensions are left as size 1.
+	 */
+	MRImageStore(size_t len, const size_t* size);
+	
+	/**
+	 * @brief Constructor which uses a preexsting array, to graft into the
+	 * image. No new allocation will be performed, however ownership of the
+	 * array will be taken, meaning it could be deleted anytime after this 
+	 * constructor completes.
+	 *
+	 * @param len Length of array 'size'
+	 * @param size dimensions of input, the length of this initializer list
+	 * may not be fully used if a_args is longer than D. If it is shorter
+	 * then D then additional dimensions are left as size 1.
+	 * @param ptr Pointer to data array, should be allocated with new, and 
+	 * size should be exactly sizeof(T)*size[0]*size[1]*...*size[len-1]
+	 */
+	MRImageStore(size_t len, const size_t* size, T* ptr);
+	
+	/**
+	 * @brief Performs a deep copy of the entire image and all metadata.
+	 *
+	 * @return Copied image.
+	 */
+	virtual shared_ptr<NDArray> copy() const;
+
+	/**
+	 * @brief Creates a new image of the given size and type, and copies/casts
+	 * overlapping areas of this image to the new image.
+	 *
+	 * @param newdims Number of dimensions in new image
+	 * @param newsize Size of image in each dimension (array size newdims)
+	 * @param newtype Type of new image pixels
+	 *
+	 * @return New image (cast as an NDArray)
+	 */
+	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize, 
+				PixelT newtype) const;
+	
+	/**
+	 * @brief Creates a new image with given dimensions and pixel type, then 
+	 * copies overlappying areas from this to the new image.
+	 *
+	 * @tparam NEWD Number of dimensions in new image
+	 * @tparam NEWT Pixel type of new image
+	 * @param dim Size in each dimenion (the dimensions) of the new image. Areas
+	 * beyond the current image's size will be zero, areas within the current 
+	 * image will have been copied.
+	 *
+	 * @return New NDArray with NEWD dimensions and NEWT pixel type.
+	 */
+	template <size_t NEWD, typename NEWT>
+	shared_ptr<NDArray> copyCastStatic(const size_t* dim) const;
+
+	/**
+	 * @brief Creates a new image with given dimensions and pixel type, then 
+	 * copies overlappying areas from this to the new image .
+	 *
+	 * @tparam NEWT Pixel type of new image
+	 * @param newdims Number of dimensions in the newly created image
+	 * @param newsize Size in each dimenion (the dimensions) of the new image. Areas
+	 * beyond the current image size will be zero, areas within the current 
+	 * image will have been copied.
+	 *
+	 * @return Brand new image with the given dimensions and NEWT pixel type.
+	 */
+	template <typename NEWT>
+	shared_ptr<NDArray> copyCastTType(size_t newdims, const size_t* newsize) const;
 	
 	/*************************************************************************
 	 * Coordinate Transform Functions

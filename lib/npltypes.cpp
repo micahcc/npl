@@ -18,6 +18,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 #include "npltypes.h"
+#include "basic_functions.h"
 
 namespace npl {
 
