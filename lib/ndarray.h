@@ -106,6 +106,9 @@ public:
 		return shared_from_this();
 	};
 
+	virtual void* data() = 0;
+	virtual const void* data() const = 0;
+
 	/**
 	 * @brief Performs a deep copy of the entire array.
 	 *
@@ -285,8 +288,28 @@ public:
 
 	// return the pixel type
 	virtual PixelT type() const;
+	
+	/**
+	 * @brief Returns a pointer to the data array. Be careful
+	 *
+	 * @return Pointer to data
+	 */
+	void* data() {return _m_data; };
+	
+	/**
+	 * @brief Returns a pointer to the data array. Be careful
+	 *
+	 * @return Pointer to data
+	 */
+	const void* data() const { return _m_data; };
 
-	// graft on data
+	/**
+	 * @brief Grafts data of the given dimensions into the image, effectively
+	 * changing the image size.
+	 *
+	 * @param dim[D] Dimensions of image
+	 * @param ptr Pointer to data which we will take control of
+	 */
 	void graft(const size_t dim[D], T* ptr);
 	
 	/**************************************************************************

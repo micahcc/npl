@@ -55,33 +55,54 @@ int64_t round2(int64_t in)
 	return (hob(in) << 1);
 }
 
-//shared_ptr<NDArray> fft(shared_ptr<const NDArray> in)
-//{
-//	// pad 
-//	std::vector<int> newsize(in->ndim());
-//	size_t npixel = 1;
-//	for(size_t ii=0; ii<in->ndim(); ii++) {
-//		newsize[ii] = round2(in->dim(ii));
-//		npixel *= newsize[ii];
-//	}
-//	
-//	auto data = new fftw_complex[npixel];
-//
-//	// fill data
-//	OrderConstIter<cdouble_t> it(in);
-//	
-//
-//	for(size_t ii=0; ii<;;) {
-//
-//		// TODO
-//	}
-//
-//	fftw_plan plan = fftw_plan_dft(newsize.size(), newsize.data(), data, data, 
-//			1, FFTW_MEASURE);
-//	
-//	// copy data
-//	
-//}
+shared_ptr<NDArray> ifft(shared_ptr<const NDArray> in)
+{
+	// pad 
+	std::vector<int> newsizeI(in->ndim());
+	std::vector<size_t> newsizeZ(in->ndim());
+	size_t npixel = 1;
+	for(size_t ii=0; ii<in->ndim(); ii++) {
+		newsizeI[ii] = round2(in->dim(ii));
+		newsizeZ[ii] = round2(in->dim(ii));
+		npixel *= newsizeZ[ii];
+	}
+	
+	// create output image
+	auto out = in->copyCast(in->ndim(), newsizeZ.data(), COMPLEX128);
+
+	// plan and execute DFT in place
+	fftw_complex* idata = (fftw_complex*)in->data();
+	fftw_complex* odata = (fftw_complex*)out->data();
+	fftw_plan plan = fftw_plan_dft(in->ndim(), newsizeI.data(), idata, odata, 
+				FFTW_BACKWARD, FFTW_MEASURE);
+	fftw_execute(plan);
+
+	return out;
+}
+
+shared_ptr<NDArray> fft(shared_ptr<const NDArray> in)
+{
+	// pad 
+	std::vector<int> newsize(in->ndim());
+	std::vector<size_t> newsize2(in->ndim());
+	size_t npixel = 1;
+	for(size_t ii=0; ii<in->ndim(); ii++) {
+		newsize[ii] = round2(in->dim(ii));
+		newsize2[ii] = round2(in->dim(ii));
+		npixel *= newsize[ii];
+	}
+	
+	// create output image
+	auto out = in->copyCast(in->ndim(), newsize2.data(), COMPLEX128);
+
+	// plan and execute DFT in place
+	fftw_complex* data = (fftw_complex*)out->data();
+	fftw_plan plan = fftw_plan_dft(newsize.size(), newsize.data(), data, data, 
+				FFTW_FORWARD, FFTW_MEASURE);
+	fftw_execute(plan);
+
+	return out;
+}
 
 
 /**
