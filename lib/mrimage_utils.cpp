@@ -278,7 +278,6 @@ int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap,
 
 	// read header
 	gzread(file, header, sizeof(nifti1_header));
-	std::cerr << header->magic << std::endl;
 	if(strncmp(header->magic, "n+1", 3)) {
 		gzclearerr(file);
 		gzrewind(file);
@@ -287,15 +286,11 @@ int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap,
 
 	// byte swap
 	int64_t npixel = 1;
-	std::cerr << header->sizeof_hdr << endl;
 	if(header->sizeof_hdr != 348) {
 		*doswap = true;
 		swap(&header->sizeof_hdr);
 		if(header->sizeof_hdr != 348) {
-			std::cerr << "Swapped Header Size: " << header->sizeof_hdr << std::endl;
 			swap(&header->sizeof_hdr);
-			std::cerr << "UnSwapped Header Size: " << header->sizeof_hdr << std::endl;
-			std::cerr << "Malformed nifti input" << std::endl;
 			return -1;
 		}
 		swap(&header->ndim);
@@ -432,7 +427,6 @@ shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose)
 		dim.resize(header1.ndim, 0);
 		for(int64_t ii=0; ii<header1.ndim && ii < 7; ii++) {
 			dim[ii] = header1.dim[ii];
-			cerr << dim[ii] << endl;
 		}
 		psize = (header1.bitpix >> 3);
 		qform_code = header1.qform_code;
@@ -469,7 +463,6 @@ shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose)
 		dim.resize(header2.ndim, 0);
 		for(int64_t ii=0; ii<header2.ndim && ii < 7; ii++) {
 			dim[ii] = header2.dim[ii];
-			cerr << dim[ii] << endl;
 		}
 		psize = (header2.bitpix >> 3);
 		qform_code = header2.qform_code;

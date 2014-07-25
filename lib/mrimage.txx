@@ -299,14 +299,12 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 
 	if(nogz.substr(nogz.size()-4, 4) == ".nii") {
 		if(version >= 2) {
-			std::cerr << "version >= 2" << std::endl;
 			if(writeNifti2Image(gz) != 0) {
 				std::cerr << "Error writing" << std::endl;
 				gzclose(gz);
 				return -1;
 			}
 		} else {
-			std::cerr << "version < 2" << std::endl;
 			if(writeNifti1Image(gz) != 0) {
 				std::cerr << "Error writing" << std::endl;
 				gzclose(gz);
@@ -327,16 +325,9 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 template <size_t D, typename T>
 int MRImageStore<D,T>::writeNifti1Image(gzFile file) const
 {
-	std::cerr << "writeNifti1Image" << std::endl;
 	int ret = writeNifti1Header(file);
-#ifdef DEBUG
-	std::cerr << "Writing Header" << std::endl;
-#endif
 	if(ret != 0) 
 		return ret;
-#ifdef DEBUG
-	std::cerr << "Writing Pixels" << std::endl;
-#endif
 	ret = writePixels(file);
 	return ret;
 }
@@ -344,16 +335,9 @@ int MRImageStore<D,T>::writeNifti1Image(gzFile file) const
 template <size_t D, typename T>
 int MRImageStore<D,T>::writeNifti2Image(gzFile file) const
 {
-	std::cerr << "writeNifti2Image" << std::endl;
-#ifdef DEBUG
-	std::cerr << "Writing Header" << std::endl;
-#endif
 	int ret = writeNifti2Header(file);
 	if(ret != 0) 
 		return ret;
-#ifdef DEBUG
-	std::cerr << "Writing Pixels" << std::endl;
-#endif
 	ret = writePixels(file);
 	return ret;
 }
@@ -884,11 +868,7 @@ bool MRImageStore<D,T>::indexInsideFOV(size_t len, const int64_t* xyz) const
 template <size_t D, typename T>
 shared_ptr<NDArray> MRImageStore<D,T>::copy() const
 {
-	shared_ptr<MRImageStore> out(new MRImageStore<D,T>(D, this->_m_dim));
-	for(size_t ii=0; ii<elements(); ii++) 
-		out->_m_data[ii] = this->_m_data[ii];
-
-	return out;
+	return _copyCast(getConstPtr(), D, this->_m_dim, type());
 }
 	
 /**

@@ -83,6 +83,11 @@ void MRImage::updateSliceTiming(double duration, int start, int end, SliceOrderT
 			for(int ii=m_slice_end; ii>=m_slice_start; ii-=2)
 				m_slice_timing[ii] = ii*m_slice_duration;
 		break;
+		default:
+		case UNKNOWN_SLICE:
+			m_slice_order = UNKNOWN_SLICE;
+			m_slice_timing.clear();
+		break;
 	}
 }
 
