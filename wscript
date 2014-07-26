@@ -33,15 +33,8 @@ def configure(conf):
         conf.env.RPATH.append('$ORIGIN/../lib')
     
     conf.env.LINKFLAGS = ['-lm']
-    # for static build
-    if opts['static']: 
-        conf.env.CXXFLAGS = ['-Wall', '-Wextra', '-Wno-sign-compare', '-std=c++11', '-static-libgcc', '-static-libstdc++']
-        conf.env.LINKFLAGS.extend('-static-libgcc', '-static-libstdc++')
-        conf.env.STATIC_LINK = True
-    else:
-        conf.env.CXXFLAGS = ['-Wall', '-Wextra', '-Wno-sign-compare', '-std=c++11']
-        conf.env.STATIC_LINK = False
-
+    conf.env.CXXFLAGS = ['-Wall', '-Wextra', '-Wno-sign-compare', '-std=c++11']
+    conf.env.STATIC_LINK = False
 
     if opts['profile']:
         conf.env.DEFINES.append('DEBUG=1')
@@ -68,6 +61,8 @@ def configure(conf):
                 args=['--cflags', '--libs'])
     conf.check_cfg(package='fftw3', uselib_store='FFTW',
                 args=['--cflags', '--libs'])
+    conf.check_cfg(package='eigen3', uselib_store='EIGEN',
+                args=['--cflags', '--libs'])
 
 def options(ctx):
     ctx.load('compiler_cxx')
@@ -82,7 +77,6 @@ def options(ctx):
     gr.add_option('--profile', action='store_true', default = False, help = 'Build with debug and profiler flags')
     gr.add_option('--release', action='store_true', default = False, help = 'Build with tuned compiler optimizations')
     gr.add_option('--native', action='store_true', default = False, help = 'Build with highly specific compiler optimizations')
-    gr.add_option('--static', action='store_true', default = False, help = "Build statically (turns off R and python)")
     
 def gitversion():
     if not os.path.isdir(".git"):
