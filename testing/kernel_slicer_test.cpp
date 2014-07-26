@@ -31,17 +31,10 @@ int main()
   index.assign({3,4,5,6});
   it.goIndex(index);
 
-  a = ++it;
+  a = *++it;
   b = *it;
-  c = it++;
-  cerr << a << " == " << b << " == " << c << endl;
-  if(a != b || b != c) {
-    return -1;
-  }
-  
-  a = *it;
-  b = it++;
-  c = --it;
+  ++it;
+  c = *--it;
   cerr << a << " == " << b << " == " << c << endl;
   if(a != b || b != c) {
     return -1;
@@ -50,15 +43,15 @@ int main()
   // compare with brute force method, note that zz will be the fastest
   // because it is the longest dimension
   it.goBegin();
-  for(int64_t xx = 0; xx < sz[0]; xx++){
-    for(int64_t yy = 0; yy < sz[1]; yy++){
-      for(int64_t tt = 0; tt < sz[3]; tt++){
-        for(int64_t zz = 0; zz < sz[2]; zz++, ++it){
+  for(int64_t xx = 0; xx < sz[0]; ++xx){
+    for(int64_t yy = 0; yy < sz[1]; ++yy){
+      for(int64_t tt = 0; tt < sz[3]; ++tt){
+        for(int64_t zz = 0; zz < sz[2]; ++zz, ++it){
           int64_t neighbor = 0;
-          for(int64_t xxo = -1; xxo <= 1; xxo++){
-            for(int64_t yyo = -1; yyo <= 1; yyo++){
-              for(int64_t zzo = -1; zzo <= 1; zzo++){
-                for(int64_t tto = 0; tto <= 0; tto++){
+          for(int64_t xxo = -1; xxo <= 1; ++xxo){
+            for(int64_t yyo = -1; yyo <= 1; ++yyo){
+              for(int64_t zzo = -1; zzo <= 1; ++zzo){
+                for(int64_t tto = 0; tto <= 0; ++tto){
                   int64_t xeff = clamp(0, sz[0]-1, xx+xxo);
                   int64_t yeff = clamp(0, sz[1]-1, yy+yyo);
                   int64_t zeff = clamp(0, sz[2]-1, zz+zzo);
@@ -95,7 +88,7 @@ int main()
                     cerr << "Incorrect linear mapping" << endl;
                     return -1;
                   }
-				  neighbor++;
+				  ++neighbor;
                 }
               }
             }
@@ -113,10 +106,10 @@ int main()
       for(int tt = sz[3]-1; tt >= 0; tt--){
         for(int zz = sz[2]-1; zz >= 0; zz--, --it){
           int64_t neighbor = 0;
-          for(int64_t xxo = -1; xxo <= 1; xxo++){
-            for(int64_t yyo = -1; yyo <= 1; yyo++){
-              for(int64_t zzo = -1; zzo <= 1; zzo++){
-                for(int64_t tto = 0; tto <= 0; tto++){
+          for(int64_t xxo = -1; xxo <= 1; ++xxo){
+            for(int64_t yyo = -1; yyo <= 1; ++yyo){
+              for(int64_t zzo = -1; zzo <= 1; ++zzo){
+                for(int64_t tto = 0; tto <= 0; ++tto){
                   int64_t xeff = clamp(0, sz[0]-1, xx+xxo);
                   int64_t yeff = clamp(0, sz[1]-1, yy+yyo);
                   int64_t zeff = clamp(0, sz[2]-1, zz+zzo);
@@ -125,7 +118,7 @@ int main()
 
                   int64_t itlin = it.offset(neighbor);
                   it.offset_index(index.size(), index.data(), neighbor, true);
-				  neighbor++;
+				  ++neighbor;
 
                   if(xeff != index[0]) {
                     cerr << "Incorrect x map" << endl;
@@ -166,15 +159,15 @@ int main()
   it.setWindow(newk);
 
   it.goBegin();
-  for(int64_t xx = 0; xx < sz[0]; xx++){
-    for(int64_t yy = 0; yy < sz[1]; yy++){
-      for(int64_t tt = 0; tt < sz[3]; tt++){
-        for(int64_t zz = 0; zz < sz[2]; zz++, ++it){
+  for(int64_t xx = 0; xx < sz[0]; ++xx){
+    for(int64_t yy = 0; yy < sz[1]; ++yy){
+      for(int64_t tt = 0; tt < sz[3]; ++tt){
+        for(int64_t zz = 0; zz < sz[2]; ++zz, ++it){
           int64_t neighbor = 0;
-          for(int64_t xxo = -2; xxo <= 1; xxo++){
-            for(int64_t yyo = -1; yyo <= 0; yyo++){
-              for(int64_t zzo = 0; zzo <= 2; zzo++){
-                for(int64_t tto = 0; tto <= 2; tto++){
+          for(int64_t xxo = -2; xxo <= 1; ++xxo){
+            for(int64_t yyo = -1; yyo <= 0; ++yyo){
+              for(int64_t zzo = 0; zzo <= 2; ++zzo){
+                for(int64_t tto = 0; tto <= 2; ++tto){
                   int64_t xeff = clamp(0, sz[0]-1, xx+xxo);
                   int64_t yeff = clamp(0, sz[1]-1, yy+yyo);
                   int64_t zeff = clamp(0, sz[2]-1, zz+zzo);
@@ -183,7 +176,7 @@ int main()
                   
 				  int64_t itlin = it.offset(neighbor);
                   it.offset_index(index.size(), index.data(), neighbor, true);
-				  neighbor++;
+				  ++neighbor;
 
                   if(xeff != index[0]) {
                     cerr << "Incorrect x map" << endl;
@@ -226,10 +219,10 @@ int main()
       for(int tt = sz[3]-1; tt >= 0; tt--){
         for(int zz = sz[2]-1; zz >= 0; zz--, --it){
           int64_t neighbor = 0;
-          for(int64_t xxo = -2; xxo <= 1; xxo++){
-            for(int64_t yyo = -1; yyo <= 0; yyo++){
-              for(int64_t zzo = 0; zzo <= 2; zzo++){
-                for(int64_t tto = 0; tto <= 2; tto++){
+          for(int64_t xxo = -2; xxo <= 1; ++xxo){
+            for(int64_t yyo = -1; yyo <= 0; ++yyo){
+              for(int64_t zzo = 0; zzo <= 2; ++zzo){
+                for(int64_t tto = 0; tto <= 2; ++tto){
                   int64_t xeff = clamp(0, sz[0]-1, xx+xxo);
                   int64_t yeff = clamp(0, sz[1]-1, yy+yyo);
                   int64_t zeff = clamp(0, sz[2]-1, zz+zzo);
@@ -238,7 +231,7 @@ int main()
 				  
 				  int64_t itlin = it.offset(neighbor);
                   it.offset_index(index.size(), index.data(), neighbor, true);
-				  neighbor++;
+				  ++neighbor;
 
                   if(xeff != index[0]) {
                     cerr << "Incorrect x map" << endl;
@@ -287,10 +280,10 @@ int main()
           index[3] = tt;
           it.goBegin(); // just to make sure jumping around doesn't screw with it
           it.goIndex(index);
-          for(int64_t xxo = -2; xxo <= 1; xxo++){
-            for(int64_t yyo = -1; yyo <= 0; yyo++){
-              for(int64_t zzo = 0; zzo <= 2; zzo++){
-                for(int64_t tto = 0; tto <= 2; tto++){
+          for(int64_t xxo = -2; xxo <= 1; ++xxo){
+            for(int64_t yyo = -1; yyo <= 0; ++yyo){
+              for(int64_t zzo = 0; zzo <= 2; ++zzo){
+                for(int64_t tto = 0; tto <= 2; ++tto){
                   int64_t xeff = clamp(0, sz[0]-1, xx+xxo);
                   int64_t yeff = clamp(0, sz[1]-1, yy+yyo);
                   int64_t zeff = clamp(0, sz[2]-1, zz+zzo);
@@ -299,7 +292,7 @@ int main()
 
 				  int64_t itlin = it.offset(neighbor);
                   it.offset_index(index.size(), index.data(), neighbor, true);
-				  neighbor++;
+				  ++neighbor;
 
                   if(xeff != index[0]) {
                     cerr << "Incorrect x map" << endl;

@@ -47,41 +47,6 @@ Slicer::Slicer(size_t ndim, const size_t* dim)
 	updateDim(ndim, dim);
 	goBegin();
 };
-/**
- * @brief Postfix iterator. Iterates in the order dictatored by the dimension
- * order passsed during construction or by setOrder
- *
- * @param int	unused
- *
- * @return 	old value of linear position
- */
-int64_t Slicer::operator++(int)
-{
-	if(isEnd())
-		return m_linpos;
-
-	int64_t ret = m_linpos;
-	for(size_t ii=0; ii<m_order.size(); ii++){
-		size_t dd = m_order[ii];
-		if(m_pos[dd] < m_roi[dd].second) {
-			m_pos[dd]++;
-			m_linpos += m_strides[dd];
-			break;
-		} else if(ii != m_order.size()-1){
-			// highest dimension doesn't roll over
-			// reset dimension
-			m_linpos -= (m_pos[dd]-m_roi[dd].first)*m_strides[dd];
-			m_pos[dd] = m_roi[dd].first;
-		} else {
-			// we are willing to go 1 past the last
-			m_pos[dd]++;
-			m_linpos += m_strides[dd];
-			m_end = true;
-		}
-	}
-
-	return ret;
-}
 
 /**
  * @brief Prefix iterator. Iterates in the order dictatored by the dimension
@@ -89,10 +54,10 @@ int64_t Slicer::operator++(int)
  *
  * @return 	new value of linear position
  */
-int64_t Slicer::operator++() 
+Slicer& Slicer::operator++() 
 {
 	if(isEnd())
-		return m_linpos;
+		return *this;
 
 	for(size_t ii=0; ii<m_order.size(); ii++){
 		size_t dd = m_order[ii];
@@ -112,37 +77,8 @@ int64_t Slicer::operator++()
 		}
 	}
 
-	return m_linpos;
+	return *this;
 }
-
-/**
- * @brief Postfix negative  iterator. Iterates in the order dictatored by
- * the dimension order passsed during construction or by setOrder
- *
- * @return 	new value of linear position
- */
-int64_t Slicer::operator--(int)
-{
-	if(isBegin())
-		return m_linpos;
-
-	m_end = false;
-	int64_t ret = m_linpos;
-	for(size_t ii=0; ii<m_order.size(); ii++){
-		size_t dd = m_order[ii];
-		if(m_pos[dd] != m_roi[dd].first) {
-			m_pos[dd]--;
-			m_linpos -= m_strides[dd];
-			break;
-		} else if(ii != m_order.size()-1) {
-			// jump forward in dd, (will pull back in next)
-			m_linpos += m_roi[dd].second*m_strides[dd];
-			m_pos[dd] = m_roi[dd].second;
-		}
-	}
-
-	return ret;
-};
 
 /**
  * @brief Prefix negative  iterator. Iterates in the order dictatored by
@@ -150,10 +86,10 @@ int64_t Slicer::operator--(int)
  *
  * @return 	new value of linear position
  */
-int64_t Slicer::operator--() 
+Slicer& Slicer::operator--() 
 {
 	if(isBegin())
-		return m_linpos;
+		return *this;
 
 	m_end = false;
 	for(size_t ii=0; ii<m_order.size(); ii++){
@@ -169,7 +105,7 @@ int64_t Slicer::operator--()
 		}
 	}
 
-	return m_linpos;
+	return *this;
 };
 
 void Slicer::updateLinRange()

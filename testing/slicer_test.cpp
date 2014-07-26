@@ -63,13 +63,13 @@ int main()
 
 	// canonical ordering
 	int64_t ii=0;
-	for(int64_t xx=0; xx<X; xx++) {
-		for(int64_t yy=0; yy<Y; yy++) {
-			for(int64_t zz=0; zz<Z; zz++) {
-				for(int64_t ww=0; ww<W; ww++) {
+	for(int64_t xx=0; xx<X; ++xx) {
+		for(int64_t yy=0; yy<Y; ++yy) {
+			for(int64_t zz=0; zz<Z; ++zz) {
+				for(int64_t ww=0; ww<W; ++ww) {
 					int64_t p;
 					indexToLin(p, xx,yy,zz,ww, X,Y,Z,W);
-					array[p] = ii++;
+					array[p] = ++ii;
 
 					linToIndex(p, tx,ty,tz,tw, X,Y,Z,W);
 					if(tx != xx || ty != yy || tz != zz || tw != ww) {
@@ -92,7 +92,7 @@ int main()
 
 	cerr << "Classic Ordering" << endl;
 	slicer.setOrder(order);
-	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
+	for(slicer.goBegin(); !slicer.isEnd(); ++slicer, ++ii) {
 		
 		int64_t sp = *slicer;
 		slicer.index(pos.size(), pos.data());
@@ -125,7 +125,7 @@ int main()
 	
 	cerr << "Classic Ordering (Default)" << endl;
 	slicer.setOrder({});
-	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
+	for(slicer.goBegin(); !slicer.isEnd(); ++slicer, ++ii) {
 		
 		int64_t sp = *slicer;
 		slicer.index(pos.size(), pos.data());
@@ -160,7 +160,7 @@ int main()
 	std::rotate(order.begin(), order.begin()+1, order.end());
 
 	slicer.setOrder(order);
-	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
+	for(slicer.goBegin(); !slicer.isEnd(); ++slicer, ++ii) {
 		
 		int64_t sp = *slicer;
 		slicer.index(pos.size(), pos.data());
@@ -196,7 +196,7 @@ int main()
 	std::rotate(order.begin(), order.begin()+1, order.end());
 
 	slicer.setOrder(order);
-	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
+	for(slicer.goBegin(); !slicer.isEnd(); ++slicer, ++ii) {
 		
 		int64_t sp = *slicer;
 		slicer.index(pos.size(), pos.data());
@@ -230,7 +230,7 @@ int main()
 	cerr << endl << "Rotated 3" << endl;
 	std::rotate(order.begin(), order.begin()+1, order.end());
 	slicer.setOrder(order);
-	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
+	for(slicer.goBegin(); !slicer.isEnd(); ++slicer, ++ii) {
 		
 		int64_t sp = *slicer;
 		slicer.index(pos.size(), pos.data());
@@ -266,7 +266,7 @@ int main()
 	// roi 
 	cerr << endl << "Previous, With ROI" << endl;
 	slicer.setROI(roi);
-	for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) {
+	for(slicer.goBegin(); !slicer.isEnd(); ++slicer, ++ii) {
 		
 		int64_t sp = *slicer;
 		slicer.index(pos.size(), pos.data());
@@ -305,8 +305,8 @@ int main()
 	size_t sum = 0;
 	cerr << "Speed Test!" << endl;
 	clock_t t = clock();
-	for(size_t ii=0 ; ii < ITERS; ii++) {
-		for(slicer.goBegin(); !slicer.isEnd(); slicer++, ii++) 
+	for(size_t ii=0 ; ii < ITERS; ++ii) {
+		for(slicer.goBegin(); !slicer.isEnd(); ++slicer, ++ii) 
 			sum += *slicer;
 	}
 	t = clock() - t;
@@ -319,7 +319,7 @@ int main()
 	Slicer slicer2(newdim.size(), newdim.data());
 //	slicer.updateDim(newdim.size(), newdim.data());
 	ii = 0;
-	for(slicer2.goBegin(); !slicer2.isEnd(); slicer2++, ii++) {
+	for(slicer2.goBegin(); !slicer2.isEnd(); ++slicer2, ++ii) {
 		sum += *slicer2;
 		if(ii >= 50*50*50*50) {
 			cerr << "Error should have finished!" << endl;

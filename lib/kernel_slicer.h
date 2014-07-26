@@ -214,31 +214,12 @@ public:
 	 ***********************************/
 
 	/**
-	 * @brief Postfix iterator. Iterates in the order dictatored by the dimension
-	 * order passsed during construction or by setOrder
-	 *
-	 * @param int	unused
-	 *
-	 * @return 	old value of linear position
-	 */
-	int64_t operator++(int);
-	
-
-	/**
 	 * @brief Prefix iterator. Iterates in the order dictatored by the dimension
 	 * order passsed during construction or by setOrder
 	 *
 	 * @return 	new value of linear position
 	 */
-	int64_t operator++();
-	
-	/**
-	 * @brief Postfix negative  iterator. Iterates in the order dictatored by
-	 * the dimension order passsed during construction or by setOrder
-	 *
-	 * @return 	old value of linear position
-	 */
-	int64_t operator--(int);
+	KSlicer& operator++();
 	
 	/**
 	 * @brief Prefix negative  iterator. Iterates in the order dictatored by
@@ -246,7 +227,7 @@ public:
 	 *
 	 * @return 	new value of linear position
 	 */
-	int64_t operator--();
+	KSlicer& operator--();
 
 	/**
 	 * @brief Go to the beginning

@@ -54,7 +54,7 @@ int main()
 	cerr << "Bytes: " << test1->bytes() << endl;
 
 	size_t ii;
-	for(ii = 0; ii < test1->elements(); ii++)
+	for(ii = 0; ii < test1->elements(); ++ii)
 		(*test1)[ii] = rand();
 
 

@@ -123,19 +123,10 @@ public:
 	 *
 	 * @return new value
 	 */
-	T operator++() 
+	FlatIter& operator++() 
 	{ 
-		return castget(parent->__getAddr(++m_linpos)); 
-	};
-
-	/**
-	 * @brief Postfix increment operator
-	 *
-	 * @return old value
-	 */
-	T operator++(int) 
-	{ 
-		return castget(parent->__getAddr(m_linpos++)); 
+		++m_linpos;
+		return *this; 
 	};
 
 	/**
@@ -143,21 +134,12 @@ public:
 	 *
 	 * @return new value
 	 */
-	T operator--() 
+	FlatIter& operator--() 
 	{ 
-		return castget(parent->__getAddr(--m_linpos)); 
+		--m_linpos;
+		return *this; 
 	};
 	
-	/**
-	 * @brief Postfix decrement operator
-	 *
-	 * @return old value
-	 */
-	T operator--(int) 
-	{ 
-		return castget(parent->__getAddr(m_linpos--)); 
-	};
-
 	/**
 	 * @brief Dereference operator
 	 *
@@ -175,7 +157,8 @@ public:
 	 */
 	T get() const
 	{ 
-		return castget(parent->__getAddr(m_linpos)); 
+		m_linpos;
+		return *this; 
 	};
 	
 	/**
@@ -389,19 +372,10 @@ public:
 	 *
 	 * @return new value
 	 */
-	T operator++() 
+	FlatConstIter& operator++() 
 	{ 
-		return castget(parent->__getAddr(++m_linpos)); 
-	};
-
-	/**
-	 * @brief Postfix increment operator
-	 *
-	 * @return old value
-	 */
-	T operator++(int) 
-	{ 
-		return castget(parent->__getAddr(m_linpos++)); 
+		++m_linpos;
+		return *this; 
 	};
 
 	/**
@@ -409,21 +383,12 @@ public:
 	 *
 	 * @return new value
 	 */
-	T operator--() 
+	FlatConstIter& operator--() 
 	{ 
-		return castget(parent->__getAddr(--m_linpos)); 
+		--m_linpos;
+		return *this; 
 	};
 	
-	/**
-	 * @brief Postfix decrement operator
-	 *
-	 * @return old value
-	 */
-	T operator--(int) 
-	{ 
-		return castget(parent->__getAddr(m_linpos--)); 
-	};
-
 	/**
 	 * @brief Dereference operator
 	 *
@@ -441,7 +406,8 @@ public:
 	 */
 	T get() const
 	{ 
-		return castget(parent->__getAddr(m_linpos)); 
+		m_linpos;
+		return *this; 
 	};
 	
 	/**
@@ -634,19 +600,10 @@ public:
 	 *
 	 * @return new value
 	 */
-	T operator++() 
+	OrderConstIter& operator++() 
 	{ 
-		return castget(parent->__getAddr(Slicer::operator++())); 
-	};
-
-	/**
-	 * @brief Postfix increment operator
-	 *
-	 * @return old value
-	 */
-	T operator++(int) 
-	{ 
-		return castget(parent->__getAddr(Slicer::operator++(0))); 
+		Slicer::operator++();
+		return *this;
 	};
 
 	/**
@@ -654,21 +611,12 @@ public:
 	 *
 	 * @return new value
 	 */
-	T operator--() 
+	OrderConstIter& operator--() 
 	{ 
-		return castget(parent->__getAddr(Slicer::operator--())); 
+		Slicer::operator--();
+		return *this;
 	};
 	
-	/**
-	 * @brief Postfix decrement operator
-	 *
-	 * @return old value
-	 */
-	T operator--(int) 
-	{ 
-		return castget(parent->__getAddr(Slicer::operator--(0))); 
-	};
-
 	/**
 	 * @brief Dereference operator
 	 *
@@ -921,19 +869,10 @@ public:
 	 *
 	 * @return new value
 	 */
-	T operator++() 
+	OrderIter& operator++() 
 	{ 
-		return castget(parent->__getAddr(Slicer::operator++())); 
-	};
-
-	/**
-	 * @brief Postfix increment operator
-	 *
-	 * @return old value
-	 */
-	T operator++(int) 
-	{ 
-		return castget(parent->__getAddr(Slicer::operator++(0))); 
+		Slicer::operator++();
+		return *this;
 	};
 
 	/**
@@ -941,21 +880,12 @@ public:
 	 *
 	 * @return new value
 	 */
-	T operator--() 
+	OrderIter& operator--() 
 	{ 
-		return castget(parent->__getAddr(Slicer::operator--())); 
+		Slicer::operator--();
+		return *this;
 	};
 	
-	/**
-	 * @brief Postfix decrement operator
-	 *
-	 * @return old value
-	 */
-	T operator--(int) 
-	{ 
-		return castget(parent->__getAddr(Slicer::operator--(0))); 
-	};
-
 	/**
 	 * @brief Dereference operator
 	 *
@@ -1222,19 +1152,10 @@ public:
 	 *
 	 * @return new value
 	 */
-	T operator++() 
+	KernelIter& operator++() 
 	{ 
-		return castget(parent->__getAddr(KSlicer::operator++())); 
-	};
-
-	/**
-	 * @brief Postfix increment operator
-	 *
-	 * @return old value
-	 */
-	T operator++(int) 
-	{ 
-		return castget(parent->__getAddr(KSlicer::operator++(0))); 
+		KSlicer::operator++();
+		return *this;
 	};
 
 	/**
@@ -1242,21 +1163,12 @@ public:
 	 *
 	 * @return new value
 	 */
-	T operator--() 
+	KernelIter& operator--() 
 	{ 
-		return castget(parent->__getAddr(KSlicer::operator--())); 
+		KSlicer::operator--();
+		return *this;
 	};
 	
-	/**
-	 * @brief Postfix decrement operator
-	 *
-	 * @return old value
-	 */
-	T operator--(int) 
-	{ 
-		return castget(parent->__getAddr(KSlicer::operator--(0))); 
-	};
-
 	/**
 	 * @brief Dereference operator
 	 *
@@ -1522,19 +1434,10 @@ public:
 	 *
 	 * @return new value in 0th element of vector
 	 */
-	T operator++() 
+	Vector3DIter& operator++() 
 	{ 
-		return castget(parent->__getAddr(Slicer::operator++())); 
-	};
-
-	/**
-	 * @brief Postfix increment operator
-	 *
-	 * @return old value in 0th element of vector
-	 */
-	T operator++(int) 
-	{ 
-		return castget(parent->__getAddr(Slicer::operator++(0))); 
+		Slicer::operator++();
+		return *this;
 	};
 
 	/**
@@ -1542,21 +1445,12 @@ public:
 	 *
 	 * @return new value in 0th element of vector
 	 */
-	T operator--() 
+	Vector3DIter& operator--() 
 	{ 
-		return castget(parent->__getAddr(Slicer::operator--())); 
+		Slicer::operator--();
+		return *this;
 	};
 	
-	/**
-	 * @brief Postfix decrement operator
-	 *
-	 * @return old value in 0th element of vector
-	 */
-	T operator--(int) 
-	{ 
-		return castget(parent->__getAddr(Slicer::operator--(0))); 
-	};
-
 	/**
 	 * @brief Dereference operator
 	 *
@@ -1849,19 +1743,10 @@ public:
 	 *
 	 * @return new value in 0th element of vector
 	 */
-	T operator++() 
+	Vector3DConstIter& operator++() 
 	{ 
-		return castget(parent->__getAddr(Slicer::operator++())); 
-	};
-
-	/**
-	 * @brief Postfix increment operator
-	 *
-	 * @return old value in 0th element of vector
-	 */
-	T operator++(int) 
-	{ 
-		return castget(parent->__getAddr(Slicer::operator++(0))); 
+		Slicer::operator++();
+		return *this;
 	};
 
 	/**
@@ -1869,21 +1754,12 @@ public:
 	 *
 	 * @return new value in 0th element of vector
 	 */
-	T operator--() 
+	Vector3DConstIter& operator--() 
 	{ 
-		return castget(parent->__getAddr(Slicer::operator--())); 
+		Slicer::operator--();
+		return *this;
 	};
 	
-	/**
-	 * @brief Postfix decrement operator
-	 *
-	 * @return old value in 0th element of vector
-	 */
-	T operator--(int) 
-	{ 
-		return castget(parent->__getAddr(Slicer::operator--(0))); 
-	};
-
 	/**
 	 * @brief Dereference operator
 	 *

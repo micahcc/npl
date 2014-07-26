@@ -52,30 +52,15 @@ KSlicer::KSlicer(size_t ndim, const size_t* dim)
 }
 	
 /**
- * @brief Postfix iterator. Iterates in the order dictatored by the dimension
- * order passsed during construction or by setOrder
- *
- * @param int	unused
- *
- * @return 	old value of linear position
- */
-int64_t KSlicer::operator++(int)
-{
-	int64_t ret = m_linpos[m_center];
-	operator++();
-	return ret;
-}
-
-/**
  * @brief Prefix iterator. Iterates in the order dictatored by the dimension
  * order passsed during construction or by setOrder
  *
  * @return 	new value of linear position
  */
-int64_t KSlicer::operator++() 
+KSlicer& KSlicer::operator++() 
 {
 	if(isEnd())
-		return m_linpos[m_center];
+		return *this;
 	
 	int64_t forbound = (int64_t)m_pos[m_center][m_order[0]]+m_fradius;
 	int64_t revbound = (int64_t)m_pos[m_center][m_order[0]]-m_rradius;
@@ -106,7 +91,7 @@ int64_t KSlicer::operator++()
 
 				// want to skip clamping, and not really a need to update 
 				// neighborhood when we are outside the image
-				return m_linpos[m_center]; 
+				return *this;
 			}
 		}
 
@@ -126,21 +111,8 @@ int64_t KSlicer::operator++()
 		}
 	}
 
-	return m_linpos[m_center];
+	return *this;
 }
-
-/**
- * @brief Postfix negative  iterator. Iterates in the order dictatored by
- * the dimension order passsed during construction or by setOrder
- *
- * @return 	new value of linear position
- */
-int64_t KSlicer::operator--(int)
-{
-	int64_t ret = m_linpos[m_center];
-	operator--();
-	return ret;
-};
 
 /**
  * @brief Prefix negative  iterator. Iterates in the order dictatored by
@@ -148,10 +120,10 @@ int64_t KSlicer::operator--(int)
  *
  * @return 	new value of linear position
  */
-int64_t KSlicer::operator--() 
+KSlicer& KSlicer::operator--() 
 {
 	if(isBegin())
-		return m_linpos[m_center];
+		return *this;
 	
 	m_end = false;
 
@@ -195,7 +167,7 @@ int64_t KSlicer::operator--()
 		}
 	}
 
-	return m_linpos[m_center];
+	return *this;
 }
 	
 /**

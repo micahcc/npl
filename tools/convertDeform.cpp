@@ -725,7 +725,7 @@ shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def,
 				if(pmit[ii] != 0) {
 					++count;
 					for(size_t jj=0; jj<3; ++jj) 
-						offset[ii] += idview(index[0], index[1], index[2], jj);
+						offset[jj] += idview(index[0], index[1], index[2], jj);
 				} 
 			}
 
