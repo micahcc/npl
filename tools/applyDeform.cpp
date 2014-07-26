@@ -269,7 +269,7 @@ double overlapRatio(shared_ptr<MRImage> a, shared_ptr<MRImage> b)
 }
 
 shared_ptr<MRImage> indexMapToOffsetMap(shared_ptr<const MRImage> defimg,
-		shared_ptr<const MRImage> atlas)
+		shared_ptr<const MRImage> atlas, bool one_based_indexing = false)
 {
 	shared_ptr<MRImage> out = dynamic_pointer_cast<MRImage>(defimg->copy());
 
@@ -287,7 +287,7 @@ shared_ptr<MRImage> indexMapToOffsetMap(shared_ptr<const MRImage> defimg,
 
 		// convert source pixel to pointA
 		for(size_t ii=0; ii<3; ii++) {
-			cindex[ii] = it[ii];
+			cindex[ii] = it[ii]-one_based_indexing;
 		}
 		//since values in deformation vector are indices in atlas space
 		atlas->indexToPoint(3, cindex, pointA);
@@ -318,8 +318,8 @@ shared_ptr<MRImage> indexMapToOffsetMap(shared_ptr<const MRImage> defimg,
  * @return 
  */
 int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform, 
-		shared_ptr<MRImage> atlmask, shared_ptr<MRImage> atldef,
-		size_t MAXITERS, double CHNORM, double MINDIST)
+		shared_ptr<MRImage> atldef, size_t MAXITERS, double CHNORM, 
+		double MINDIST)
 {
 	const double MINNORM = 0.000001;
 	int64_t index[3];
@@ -377,13 +377,9 @@ int invert(shared_ptr<MRImage> mask, shared_ptr<MRImage> deform,
 	// to our current atlas location
 	Vector3DIter<double> ait(atldef);
 	assert(ait.tlen() == 3);
-	OrderConstIter<int> mit(atlmask);
-	mit.setOrder(ait.getOrder());
 
 	cout << setw(30) << "Inverting: "  << "Median Iterations" << endl; 
-	for(mit.goBegin(), ait.goBegin(); !mit.eof() && !ait.eof(); ++ait, ++mit) {
-//		if(!*mit) 
-//			continue;
+	for(ait.goBegin(); !ait.eof(); ++ait) {
 
 		ait.index(3, index);
 		atldef->indexToPoint(3, index, atlpoint.data());
@@ -486,6 +482,120 @@ void binarize(shared_ptr<MRImage> in)
 
 }
 
+/**
+ * @brief Takes an input and output mask and deformation field, then
+ * extrapolates outside-the-brain deformations, which 1) do not map into output
+ * masked region and 2) are continuous with within-the brain region
+ *
+ * @param def input deformation
+ * @param dmask mask in deform space 
+ * @param omask mask in output (space that the points in the deform refer to)
+ *
+ * @return 
+ */
+shared_ptr<MRImage> extrapolate(shared_ptr<MRImage> def, 
+		shared_ptr<MRImage> dmask, shared_ptr<MRImage> omask)
+{
+	cerr << "Extrapolating Outside Masked Region" << endl;
+
+	// we are going to spread out to outside-the mask regions until there are
+	// no untouched regions left
+	Vector3DView<double> idview(def);
+	NNInterp3DView<int> omask_interp(omask);
+	auto maskprev = omask->copyCast(INT8);
+	auto maskcur = omask->copyCast(INT8);
+	auto outdef = def->copyCast(FLOAT32);
+	Vector3DView<double> odview(outdef);
+	double offset[3];
+	double cindex[3];
+	double point[3];
+	int64_t index[3];
+
+	// construct tree from points currently inside mask omask
+	KDTree<3, 0> tree;
+	for(OrderIter<int> it(omask); !it.eof(); ++it) {
+		if(*it != 0) {
+			it.index(3, index);
+			omask->indexToPoint(3, index, point);
+			tree.insert(3, point, 0, point);
+		}
+	}
+	// rebuild tree
+	tree.build();
+
+	size_t changed = 1;
+	while(changed) {
+		changed = false;
+
+		// swap source and target images
+		maskprev.swap(maskcur);
+
+		// construct iterators
+		KernelIter<int> pmit(maskprev);
+		OrderIter<int> cmit(maskcur);
+		cmit.setOrder(pmit.getOrder());
+
+		for(pmit.goBegin(), cmit.goBegin(); !cmit.eof(); ++pmit, ++cmit) {
+			// skip regions inside the mask
+			if(*pmit != 0)
+				continue;
+			changed++;
+
+			// get the current index in deform/mask
+			pmit.center_index(3, index);
+
+			// zero continuous index
+			std::fill(offset, offset+3, 0);
+
+			// look at all the members of the kernel, compute the average deform
+			// among the non-masked kernel members
+			size_t count = 0;
+			for(size_t ii=0; ii<pmit.ksize(); ii++) {
+				if(pmit[ii] != 0) {
+
+					count++;
+					for(size_t jj=0; jj<3; jj++) 
+						offset[ii] += idview(index[0], index[1], index[2], jj);
+				} 
+			}
+			for(size_t jj=0; jj<3; jj++) 
+				offset[jj] /= count;
+
+			/*
+			 * force the offset to map into unmasked space
+			 */
+
+			// get the mapped point
+			dmask->indexToPoint(3, index, point);
+			for(size_t jj=0; jj<3; jj++)
+				point[jj] += offset[jj];
+
+			omask->pointToIndex(3, point, cindex);
+			if(omask_interp(cindex[0], cindex[1], cindex[2]) != 0) {
+				// find the nearest point outside
+				double dist = INFINITY;
+				auto nearby = tree.nearest(3, point, dist);
+				
+				// add (point to found) offset
+				// offset += found - point 
+				for(size_t ii=0; ii<3; ii++)
+					offset[ii] += nearby->m_point[ii]-point[ii];
+			}
+
+			// mark this pixel as valid, set value in deform
+			cmit.set(1);
+			for(size_t ii=0; ii<3; ii++)
+				odview.set(offset[ii], index[0], index[1], index[2], ii);
+		}
+
+		assert(pmit.isEnd() && cmit.isEnd());
+	}
+
+	cerr << "Done with extrapolation" << endl;
+	return dynamic_pointer_cast<MRImage>(outdef);
+}
+
+
 int main(int argc, char** argv)
 {
 	try {
@@ -505,13 +615,18 @@ int main(int argc, char** argv)
 			true, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_atlas("a", "atlas", "Atlas (mask) image.",
 			true, "", "*.nii.gz", cmd);
+
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
 			true, "", "*.nii.gz", cmd);
+
+	// TODO IMPELEMENT
+//	TCLAP::SwitchArg a_svreg("O", "offset", "Indicates that the input is "
+//			"already an offset map (rather than a exact position.", cmd);
+//	TCLAP::SwitchArg a_svreg("R", "realspace", "Indicates that the input is "
+//			"already in real space (rather than index space).", cmd);
+
+
 	TCLAP::SwitchArg a_invert("I", "invert", "Invert deformatoin.", cmd);
-	TCLAP::ValueArg<size_t> a_dilate("D", "dilate", "Number of times to "
-			"dilate mask.", false, 0, "iters", cmd);
-	TCLAP::ValueArg<size_t> a_erode("E", "erode", "Number of times to "
-			"erode mask.", false, 1, "iters", cmd);
 	TCLAP::ValueArg<size_t> a_iters("", "iters", "Number of iterations during "
 			"median-smoothing of input deform during inverse", false, 100, "iters", cmd);
 	TCLAP::ValueArg<double> a_improve("", "delta", "Amount of improvement in "
@@ -520,6 +635,12 @@ int main(int argc, char** argv)
 			"for points that may map to a coordinate in the output image. "
 			"We compute the geometric median of the points to give a smoothed "
 			"deformation.", false, 10, "mm", cmd);
+
+	TCLAP::ValueArg<size_t> a_dilate("D", "dilate", "Number of times to "
+			"dilate mask.", false, 0, "iters", cmd);
+	TCLAP::ValueArg<size_t> a_erode("E", "erode", "Number of times to "
+			"erode mask.", false, 1, "iters", cmd);
+
 
 	cmd.parse(argc, argv);
 
@@ -568,8 +689,13 @@ int main(int argc, char** argv)
 	}
 
 	// convert deform to RAS space offsets
-	defimg = indexMapToOffsetMap(defimg, atlas);
+	defimg = indexMapToOffsetMap(defimg, atlas, true);
 	defimg->write("deform.nii.gz");
+
+	// perform interpolation to estimate outside-the brain deformations that
+	// are continuous with the within-brain deformations
+	defimg = extrapolate(defimg, mask, atlas);
+	defimg->write("extrapolated.nii.gz");
 
 	if(a_invert.isSet()) {
 		// create output the size of atlas, with 3 volumes in the 4th dimension
@@ -578,7 +704,7 @@ int main(int argc, char** argv)
 		idef->setDirection(atlas->direction(), true);
 		idef->setSpacing(atlas->spacing(), true);
 		idef->setOrigin(atlas->origin(), true);
-		invert(mask, defimg, atlas, idef, a_iters.getValue(), 
+		invert(mask, defimg, idef, a_iters.getValue(), 
 				a_improve.getValue(), a_radius.getValue());
 		idef->write("inversedef.nii.gz");
 	}
