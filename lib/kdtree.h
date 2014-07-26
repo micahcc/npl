@@ -41,7 +41,7 @@ class KDTreeNode
 			for(; ii<K; ii++)
 				m_point[ii] = 0;
 			
-			for(size_t ii=0; ii<E && ii<data.size(); ii++)
+			for(ii=0; ii<E && ii<data.size(); ii++)
 				m_data[ii] = data[ii];
 			for(; ii<E; ii++)
 				m_data[ii] = 0;
@@ -56,7 +56,7 @@ class KDTreeNode
 			for(; ii<K; ii++)
 				m_point[ii] = 0;
 			
-			for(size_t ii=0; ii<E && ii<dlen; ii++)
+			for(ii=0; ii<E && ii<dlen; ii++)
 				m_data[ii] = data[ii];
 			for(; ii<E; ii++)
 				m_data[ii] = 0;
