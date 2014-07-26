@@ -43,7 +43,22 @@ class KDTreeNode
 			
 			for(size_t ii=0; ii<E && ii<data.size(); ii++)
 				m_data[ii] = data[ii];
+			for(; ii<E; ii++)
+				m_data[ii] = 0;
+		};
+		
+		KDTreeNode(size_t plen, const T* pt, size_t dlen, const D* data) : 
+			left(NULL), right(NULL)
+		{
+			size_t ii;
+			for(ii=0; ii<K && ii<plen; ii++)
+				m_point[ii] = pt[ii];
 			for(; ii<K; ii++)
+				m_point[ii] = 0;
+			
+			for(size_t ii=0; ii<E && ii<dlen; ii++)
+				m_data[ii] = data[ii];
+			for(; ii<E; ii++)
 				m_data[ii] = 0;
 		};
 
@@ -95,6 +110,17 @@ public:
 	void insert(const std::vector<T>& pt, const std::vector<D>& data);
 
 	/**
+	 * @brief Insert a node (not that this is not dynamic, new nodes won't be 
+	 * found by search until build() is called)
+	 *
+	 * @param plen	Length of point array
+	 * @param pt	Point
+	 * @param dlen	Length of data array
+	 * @param data	Node Data
+	 */
+	void insert(size_t plen, const T* pt, size_t dlen, const D* data);
+
+	/**
 	 * @brief Create Tree, until this is called search won't find anything
 	 */
 	void build();
@@ -106,8 +132,10 @@ public:
 	void clear();
 
 	KDTreeNode<K,E,T,D>* nearest(const std::vector<T>& pt, double& dist);
+	KDTreeNode<K,E,T,D>* nearest(size_t len, const T* pt, double& dist);
 
 	std::list<const KDTreeNode<K,E,T,D>*> withindist(const std::vector<T>& pt, double dist);
+	std::list<const KDTreeNode<K,E,T,D>*> withindist(size_t len, const T* pt, double dist);
 	
 private:
 	
@@ -119,10 +147,10 @@ private:
 
 	// helper functions
 	KDTreeNode<K,E,T,D>* nearest_help(size_t depth, KDTreeNode<K,E,T,D>* pos,
-		const std::vector<T>& pt, double& distsq);
+		const T* pt, double& distsq);
 
 	std::list<const KDTreeNode<K,E,T,D>*> withindist_help(size_t depth, 
-		KDTreeNode<K,E,T,D>* pos, const std::vector<T>& pt, double distsq);
+		KDTreeNode<K,E,T,D>* pos, const T* pt, double distsq);
 
 	KDTreeNode<K,E,T,D>* build_helper(
 		typename std::vector<KDTreeNode<K,E,T,D>*>::iterator begin,

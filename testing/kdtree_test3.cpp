@@ -34,8 +34,8 @@ int main()
 	std::normal_distribution<double> dist2(0,100);
 	std::normal_distribution<double> dist3(25,10);
 
-	const size_t DIM = 4;
-	const size_t DSIZE = 2;
+	const size_t DIM = 2;
+	const size_t DSIZE = 4;
 	const size_t NUMSAMPLE = 1000;
 	const size_t NUMTEST = 1000;
 

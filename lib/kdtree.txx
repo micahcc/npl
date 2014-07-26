@@ -30,9 +30,16 @@ using namespace std;
 namespace npl {
 
 template <size_t K, size_t E, typename T, typename D>
+void KDTree<K,E,T,D>::insert(size_t plen, const T* pt, size_t dlen, const D* data)
+{
+	m_allnodes.push_back(new KDTreeNode<K,E,T,D>(plen, pt, dlen, data));
+}
+
+template <size_t K, size_t E, typename T, typename D>
 void KDTree<K,E,T,D>::insert(const std::vector<T>& pt, const std::vector<D>& data)
 {
-	m_allnodes.push_back(new KDTreeNode<K,E,T,D>(pt, data));
+	m_allnodes.push_back(new KDTreeNode<K,E,T,D>(pt.size(), pt.data(),
+				data.size(), data.data()));
 }
 
 
@@ -110,30 +117,12 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::build_helper(
 template <size_t K, size_t E, typename T, typename D>
 void KDTree<K,E,T,D>::build()
 {
-//	std::cerr << "Front: " << endl;
-//	for(size_t ii=0; ii<K; ii++) {
-//		std::cerr << m_allnodes.front().m_point[ii] << ", ";
-//	}
-//	std::cerr << endl;
-//	for(size_t ii=0; ii<K; ii++) {
-//		std::cerr << m_allnodes.front().m_data[ii] << ", ";
-//	}
-//	std::cerr << endl;
 	m_treehead = build_helper(m_allnodes.begin(), m_allnodes.end(), 0);
 	if(!m_treehead) {
 		std::cerr << "Something went wrong with building!" << std::endl;
 	}
 
 	m_built = true;
-//	std::cerr << "Front: " << endl;
-//	for(size_t ii=0; ii<K; ii++) {
-//		std::cerr << m_allnodes.front().m_point[ii] << ", ";
-//	}
-//	std::cerr << endl;
-//	for(size_t ii=0; ii<K; ii++) {
-//		std::cerr << m_allnodes.front().m_data[ii] << ", ";
-//	}
-//	std::cerr << endl;
 }
 
 
@@ -154,7 +143,7 @@ void KDTree<K,E,T,D>::build()
  */
 template <size_t K, size_t E, typename T, typename D>
 KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth, 
-		KDTreeNode<K,E,T,D>* pos, const std::vector<T>& pt, double& distsq)
+		KDTreeNode<K,E,T,D>* pos, const T* pt, double& distsq)
 {
 	size_t axis = depth%K;
 
@@ -226,7 +215,6 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 	return out;
 }
 
-
 /**
  * @brief Reeturns a pointer to a single KDTreeNode that is within distance and 
  * is nearest to the center point.
@@ -244,24 +232,37 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 template <size_t K, size_t E, typename T, typename D>
 KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest(const std::vector<T>& pt, double& dist)
 {
-//	std::cerr << "Front: " << endl;
-//	for(size_t ii=0; ii<K; ii++) {
-//		std::cerr << m_allnodes.front().m_point[ii] << ", ";
-//	}
-//	std::cerr << endl;
-//	for(size_t ii=0; ii<K; ii++) {
-//		std::cerr << m_allnodes.front().m_data[ii] << ", ";
-//	}
-//	std::cerr << endl;
-//
+	return nearest(pt.size(), pt.data(), dist);
+}
+
+/**
+ * @brief Reeturns a pointer to a single KDTreeNode that is within distance and 
+ * is nearest to the center point.
+ *
+ * @tparam K	Number of dimensions
+ * @tparam E	Number of data elements
+ * @tparam T	Type of coordinates
+ * @tparam D	Type data stored
+ * @param len	Length (rank/dimension) of point (pt)
+ * @param pt	Point to search for (must be length K)
+ * @param dist	Distance away from pt to search
+ *
+ * @return 		Pointer to KDTree node that is closest, may be null if none is 
+ * 				found
+ */
+template <size_t K, size_t E, typename T, typename D>
+KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest(size_t len, const T* pt, double& dist)
+{
 	if(!m_built) {
 		std::cerr << "Error! Must build tree before performing search!" 
 			<< std::endl;
 		return NULL;
 	}
 
-	std::vector<T> adjpt(K, 0);
-	for(size_t ii=0; ii<K && ii<pt.size(); ii++)
+	T adjpt[K];
+	std::fill(adjpt, adjpt+K, 0);
+
+	for(size_t ii=0; ii<K && ii<len; ii++)
 		adjpt[ii] = pt[ii];
 
 	if(std::isnormal(dist)) {
@@ -279,7 +280,7 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest(const std::vector<T>& pt, double& 
 
 template <size_t K, size_t E, typename T, typename D>
 std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist_help(size_t depth, 
-		KDTreeNode<K,E,T,D>* pos, const std::vector<T>& pt, double distsq)
+		KDTreeNode<K,E,T,D>* pos, const T* pt, double distsq)
 {
 	size_t axis = depth%K;
 	std::list<const KDTreeNode<K,E,T,D>*> out;
@@ -327,7 +328,33 @@ template <size_t K, size_t E, typename T, typename D>
 std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist(
 			const std::vector<T>& pt, double dist)
 {
-	return withindist_help(0, m_treehead, pt, dist*dist);
+	return withindist(pt.size(), pt.data(), dist);
+}
+
+/**
+ * @brief Returns a list of KDTreeNodes within the given distance
+ *
+ * @tparam K	Number of dimensions
+ * @tparam E	Number of data elements
+ * @tparam T	Type of coordinates
+ * @tparam D	Type data stored
+ * @param len	Length/rank/dim of the input point. 
+ * @param pt	Point to search for (must be length K)
+ * @param dist	Distance away from pt to search
+ *
+ * @return 		List of KDTreeNodes which match the criterea
+ */
+template <size_t K, size_t E, typename T, typename D>
+std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist(
+			size_t len, const T* pt, double dist)
+{
+	// create adjusted point of known length
+	T adjpt[K];
+	std::fill(adjpt, adjpt+K, 0);
+	for(size_t ii=0; ii<K && ii<len; ii++)
+		adjpt[ii] = pt[ii];
+
+	return withindist_help(0, m_treehead, adjpt, dist*dist);
 }
 
 template <size_t K, size_t E, typename T, typename D>
