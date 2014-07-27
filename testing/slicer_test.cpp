@@ -69,7 +69,7 @@ int main()
 				for(int64_t ww=0; ww<W; ++ww) {
 					int64_t p;
 					indexToLin(p, xx,yy,zz,ww, X,Y,Z,W);
-					array[p] = ++ii;
+					array[p] = ii++;
 
 					linToIndex(p, tx,ty,tz,tw, X,Y,Z,W);
 					if(tx != xx || ty != yy || tz != zz || tw != ww) {
