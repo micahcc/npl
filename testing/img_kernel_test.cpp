@@ -49,7 +49,7 @@ int testRadius(std::vector<size_t> size, size_t radius)
 	for(it.goBegin(); !it.eof(); ++it) {
 		double v1, v2, v3;
 		for(size_t ii=0; ii<it.ksize(); ii++) {
-			it.offset_index(index.size(), index.data(), ii, false);
+			it.offset_index(ii, index.size(), index.data(), false);
 			if(mp.count(index) > 0) {
 				v1 = it[ii];
 				v2 = it.offset(ii);
@@ -91,7 +91,7 @@ int testRadius2(std::vector<size_t> size)
 		auto check = shouldget;
 		double v1, v2, v3;
 		for(size_t ii=0; ii<it.ksize(); ii++) {
-			it.offset_index(index.size(), index.data(), ii, false);
+			it.offset_index(ii, index.size(), index.data(), false);
 			
 			//check value
 			if(mp.count(index) > 0) {
@@ -173,7 +173,7 @@ int testWindow(std::vector<size_t> size)
 		auto check = shouldget;
 		double v1, v2, v3;
 		for(size_t ii=0; ii<it.ksize(); ii++) {
-			it.offset_index(index.size(), index.data(), ii, false);
+			it.offset_index(ii, index.size(), index.data(), false);
 			
 			//check value
 			if(mp.count(index) > 0) {

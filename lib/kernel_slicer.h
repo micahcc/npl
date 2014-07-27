@@ -158,32 +158,6 @@ public:
 	 * Query Location
 	 *
 	 ****************************************/
-
-	/**
-	 * @brief Are we at the end in a particular dimension
-	 *
-	 * @param dim	dimension to check, 
-	 *
-	 *  TODO test
-	 *
-	 * @return whether we are at the tail end of the particular dimension
-	 */
-	bool isLineEnd(size_t dim) const
-	{
-		if(dim == m_order.back())
-			return m_pos[m_center][dim] == m_roi[dim].second+1;
-		else
-			return m_pos[m_center][dim] == m_roi[dim].first;
-	};
-	
-	/**
-	 * @brief Are we at the begin in a particular dimension
-	 *
-	 * @param dim	dimension to check
-	 *
-	 * @return whether we are at the start of the particular dimension
-	 */
-	bool isBegin(size_t dim) const { return m_pos[m_center][dim] == m_roi[dim].first; };
 	
 	/**
 	 * @brief Are we at the begining of iteration?
@@ -320,19 +294,42 @@ public:
 	/**
 	 * @brief Get the ND position of the specified offset (kernel) element.
 	 *
+	 * @param kit Kernel index
 	 * @param len size of index 
 	 * @param index output index variable
-	 * @param Kernel index
-	 * @param bound report the actual sampled point, rather than the 
-	 * theoretical position (offset the exact value from the center). 
-	 * Interior points will be the same, but on the
-	 * boundary if you set bound you will only get indices inside the image 
+	 * @param bound report the actual sampled point (ie point after clamping 
+	 * position to be in the image. Interior points will be the same, but on
+	 * the boundary if you set bound you will only get indices inside the image 
 	 * ROI, otherwise you would get values like -1, -1 -1 for radius 1 pos 
 	 * 0,0,0
 	 *
 	 * @return ND position
 	 */
-	void offset_index(size_t len, int64_t* index, size_t kit, bool bound = false) const;
+	void offset_index(size_t kit, size_t len, int64_t* index, bool bound = true) const;
+
+	/**
+	 * @brief Returns the distance from the center projected onto the specified
+	 * dimension. So center is {0,0,0}, and {1,2,1} would return 1,2,1 for inputs
+	 * dim=0, dim=1, dim=2
+	 *
+	 * @param kit Which pixel to return distance from
+	 * @param dim dimension to get distance in
+	 *
+	 * @return Offset from center of given pixel (kit)
+	 */
+	int64_t from_center(size_t kit, size_t dim);
+	
+	/**
+	 * @brief Returns offset from center of specified pixel (kit).
+	 *
+	 * @param kit Pixel we are referring to
+	 * @param len lenght of dindex array
+	 * @param dindex output paramter indicating distance of pixel from the 
+	 * center of the kernel in each dimension. If this array is shorter than 
+	 * the iteration dimensions, only the first len will be filled. If it is 
+	 * longer the additional values won't be touched
+	 */
+	void from_center(size_t kit, size_t len, int64_t* dindex) const;
 
 	/**
 	 * @brief Get both ND position and linear position

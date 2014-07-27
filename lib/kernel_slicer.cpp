@@ -498,7 +498,7 @@ void KSlicer::goIndex(const std::vector<int64_t>& newpos)
  */
 void KSlicer::center_index(size_t len, int64_t* index) const
 {
-	offset_index(len, index, m_center, true);
+	offset_index(m_center, len, index, true);
 }
 	
 /**
@@ -512,7 +512,7 @@ void KSlicer::center_index(size_t len, int64_t* index) const
  * @param ndim size of index 
  * @param index output index variable
  */
-void KSlicer::offset_index(size_t len, int64_t* index, size_t kit, bool bound) const
+void KSlicer::offset_index(size_t kit, size_t len, int64_t* index, bool bound) const
 {
 	assert(!m_end);
 	assert(kit < m_numoffs);
@@ -533,6 +533,37 @@ void KSlicer::offset_index(size_t len, int64_t* index, size_t kit, bool bound) c
 		index[ii] = 0;
 	}
 }
+
+/**
+ * @brief Returns the distance from the center projected onto the specified
+ * dimension. So center is {0,0,0}, and {1,2,1} would return 1,2,1 for inputs
+ * dim=0, dim=1, dim=2
+ *
+ * @param dim dimension to get distance in
+ * @param kit Which pixel to return distance from
+ *
+ * @return Offset from center of given pixel (kit)
+ */
+int64_t KSlicer::from_center(size_t kit, size_t dim)
+{
+	return m_offs[kit][dim];
+}
+
+/**
+ * @brief Returns offset from center of specified pixel (kit).
+ *
+ * @param len lenght of dindex array
+ * @param dindex output paramter indicating distance of pixel from the 
+ * center of the kernel in each dimension. If this array is shorter than 
+ * the iteration dimensions, only the first len will be filled. If it is 
+ * longer the additional values won't be touched
+ * @param kit Pixel we are referring to
+ */
+void KSlicer::from_center(size_t kit, size_t len, int64_t* dindex) const
+{
+	for(size_t ii=0; ii<len && ii<m_dim; ii++)
+		dindex[ii] = m_offs[kit][ii];
+};
 
 /**
  * @brief Go to the beginning

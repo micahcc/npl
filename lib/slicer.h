@@ -64,24 +64,6 @@ public:
 	 * Query Location
 	 *
 	 ****************************************/
-
-	/**
-	 * @brief Are we at the end in a particular dimension
-	 *
-	 * @param dim	dimension to check
-	 *
-	 * @return whether we are at the tail end of the particular dimension
-	 */
-	bool isLineBegin(size_t dim) const { return m_pos[dim] == m_roi[dim].first; };
-	
-	/**
-	 * @brief Are we at the begin in a particular dimension
-	 *
-	 * @param dim	dimension to check
-	 *
-	 * @return whether we are at the start of the particular dimension
-	 */
-	bool isBegin(size_t dim) const { return m_pos[dim] == m_roi[dim].first; };
 	
 	/**
 	 * @brief Are we at the begining of iteration?

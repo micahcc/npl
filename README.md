@@ -2,9 +2,10 @@ NPL: Neuro Programs and Libraries
 =======
 
 Next Features:
-Need to make the interface between kernel_slicer and slicer more uniform (remove vector requirements?)
+Improve interface for iterators/slicers? I don't realy like some of the
+function names and argument orderings.
 
-Reimplement iterators, more intelligently
+Add basic fMRI inference
 
 motion correction
 

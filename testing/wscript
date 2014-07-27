@@ -1,7 +1,15 @@
 
 def build(bld):
     # test underlying slicer library
-    bld.program(target='slicer_test', source='slicer_test.cpp', use='slicer')
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='slicer_test', 
+            source='slicer_test.cpp', 
+            use='slicer')
+
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='slicer_test_lineend', 
+            source='slicer_test_lineend.cpp', 
+            use='slicer')
 
     # test basic arrays
     bld.program(install_path='${PREFIX}/tests', features='test', 

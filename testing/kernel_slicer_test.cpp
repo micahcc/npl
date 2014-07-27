@@ -60,25 +60,25 @@ int main()
 
                   int64_t itlin = it.offset(neighbor);
 
-                  it.offset_index(1, index.data(), neighbor, true);
+                  it.offset_index(neighbor, 1, index.data(), true);
                   if(xeff != index[0]) {
                     cerr << "Incorrect x map" << endl;
                     return -1;
                   }
                   
-                  it.offset_index(2, index.data(), neighbor, true);
+                  it.offset_index(neighbor, 2, index.data(), true);
                   if(yeff != index[1]) {
                     cerr << "Incorrect y map" << endl;
                     return -1;
                   }
                   
-                  it.offset_index(3, index.data(), neighbor, true);
+                  it.offset_index(neighbor, 3, index.data(), true);
                   if(zeff != index[2]) {
                     cerr << "Incorrect z map" << endl;
                     return -1;
                   }
                   
-                  it.offset_index(4, index.data(), neighbor, true);
+                  it.offset_index(neighbor, 4, index.data(), true);
                   if(teff != index[3]) {
                     cerr << "Incorrect t map" << endl;
                     return -1;
@@ -117,7 +117,7 @@ int main()
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
 
                   int64_t itlin = it.offset(neighbor);
-                  it.offset_index(index.size(), index.data(), neighbor, true);
+                  it.offset_index(neighbor, index.size(), index.data(), true);
 				  ++neighbor;
 
                   if(xeff != index[0]) {
@@ -175,7 +175,7 @@ int main()
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
                   
 				  int64_t itlin = it.offset(neighbor);
-                  it.offset_index(index.size(), index.data(), neighbor, true);
+                  it.offset_index(neighbor, index.size(), index.data(), true);
 				  ++neighbor;
 
                   if(xeff != index[0]) {
@@ -230,7 +230,7 @@ int main()
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
 				  
 				  int64_t itlin = it.offset(neighbor);
-                  it.offset_index(index.size(), index.data(), neighbor, true);
+                  it.offset_index(neighbor, index.size(), index.data(), true);
 				  ++neighbor;
 
                   if(xeff != index[0]) {
@@ -291,7 +291,7 @@ int main()
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
 
 				  int64_t itlin = it.offset(neighbor);
-                  it.offset_index(index.size(), index.data(), neighbor, true);
+                  it.offset_index(neighbor, index.size(), index.data(), true);
 				  ++neighbor;
 
                   if(xeff != index[0]) {

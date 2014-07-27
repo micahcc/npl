@@ -35,67 +35,131 @@ namespace npl {
 using std::vector;
 using std::shared_ptr;
 
-double gaussKern(double sigma, double x)
+double gaussKern(double x)
 {
 	const double PI = acos(-1);
 	const double den = 1./sqrt(2*PI);
-	return den*exp(-x*x/(2*sigma*sigma))/sigma;
+	return den*exp(-x*x/(2));
 }
 
 /**
- * @brief Converts a point in RAS coordinate system to index.
- * If len < dimensions, additional dimensions are assumed to be 0. If len >
- * dimensions then additional values are ignored, and only the first DIM 
- * values will be transformed and written to ras.
+ * @brief Smooths an image in 1 dimension
  *
- * @param in Input image to smooth
- * @param stddev standard deviation in physical units index*spacing
+ * @param in Input/output image to smooth
  * @param dim dimensions to smooth in. If you are smoothing individual volumes
  * of an fMRI you would provide dim={0,1,2}
+ * @param stddev standard deviation in physical units index*spacing
  *
- * @return Smoothed image
  */
-shared_ptr<MRImage> gaussianSmooth(shared_ptr<MRImage> in, double stddev, 
-		std::vector<size_t> dim = {})
+void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, 
+		double stddev)
 {
 	//TODO figure out how to scale this properly, including with stddev and 
 	//spacing
-
-	std::vector<double> window(in->ndim());
-	std::vector<size_t> radius(in->ndim());
-	for(size_t dd=0; dd<dim.size(); dd++) {
-		if(dd >= in->ndim())
-			throw std::out_of_range("Invalid dimensions passed to "
-					"gaussian smoother");
-
-		// convert stddev from spatial units to pixels
-		double width = stddev/in->spacing()[dd];
-		int64_t iwidth = round(width);
-
-		// construct weights
-		std::vector<double> weights(iwidth*2+2);
-		for(int64_t ii=-iwidth; ii<= iwidth; ii++) {
-			weights[ii+iwidth] = gaussKern(iwidth, width);
-		}
-
-		// construct radius
-		for(size_t ii=0; ii<in->ndim(); ii++) {
-			if(dd == ii)
-				radius[ii] = iwidth;
-			else
-				radius[ii] = 0;
-		}
-
-		// create kernel iterator
-		KernelIter<double> kit(in);
-		kit.setRadius(radius);
-		
-
-		// iterator....
+	if(dim >= inout->ndim()) {
+		throw std::out_of_range("Invalid dimension specified for 1D gaussian "
+				"smoothing");
 	}
 
-	return NULL;
+	std::vector<int64_t> index(dim, 0);
+	stddev /= inout->spacing()[dim];
+	std::vector<double> buff(inout->dim(dim));
+
+	// for reading have the kernel iterator
+	KernelIter<double> kit(inout);
+	std::vector<size_t> radius(inout->ndim(), 0);
+	for(size_t dd=0; dd<inout->ndim(); dd++) {
+		if(dd == dim)
+			radius[dd] = round(2*stddev);
+	}
+	kit.setRadius(radius);
+	kit.goBegin();
+
+	// for writing, have the regular iterator
+	OrderIter<double> it(inout);
+	it.setOrder(kit.getOrder());
+	it.goBegin();
+	while(!it.eof()) {
+
+		// perform kernel math, writing to buffer
+		for(size_t ii=0; ii<inout->dim(dim); ii++, ++kit) {
+			double tmp = 0;
+			for(size_t kk=0; kk<kit.ksize(); kk++) 
+				tmp += gaussKern(kit.from_center(kk, dim)/stddev)*kit[kk];
+			buff[ii] = tmp;
+		}
+		
+		// write back out
+		for(size_t ii=0; ii<inout->dim(dim); ii++, ++it) 
+			it.set(buff[ii]);
+
+	}
 }
+
+/**
+ * @brief Smooths an image in 1 dimension, masked version. Only updates pixels
+ * within masked region.
+ *
+ * @param in Input/output image to smooth
+ * @param dim dimensions to smooth in. If you are smoothing individual volumes
+ * of an fMRI you would provide dim={0,1,2}
+ * @param stddev standard deviation in physical units index*spacing
+ * @param mask Only smooth (alter) point within the mask, inverted by 'invert'
+ * @param invert only smooth points outside the mask
+ */
+void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, 
+		double stddev, shared_ptr<MRImage> mask, bool invert)
+{
+	//TODO figure out how to scale this properly, including with stddev and 
+	//spacing
+	if(dim >= inout->ndim()) {
+		throw std::out_of_range("Invalid dimension specified for 1D gaussian "
+				"smoothing");
+	}
+
+	std::vector<int64_t> index(dim, 0);
+	stddev /= inout->spacing()[dim];
+	std::vector<double> buff(inout->dim(dim));
+	
+
+	// for reading have the kernel iterator
+	KernelIter<double> kit(inout);
+	std::vector<size_t> radius(inout->ndim(), 0);
+	for(size_t dd=0; dd<inout->ndim(); dd++) {
+		if(dd == dim)
+			radius[dd] = round(2*stddev);
+	}
+	kit.setRadius(radius);
+	kit.goBegin();
+
+	// for writing, have the regular iterator
+	OrderIter<double> it(inout);
+	it.setOrder(kit.getOrder());
+	it.goBegin();
+	
+	OrderIter<int> mit(mask);
+	mit.setOrder(kit.getOrder());
+	mit.goBegin();
+	while(!it.eof()) {
+		if((*mit != 0 && !invert) || (*mit == 0 && invert)) {
+			// perform kernel math, writing to buffer
+			for(size_t ii=0; ii<inout->dim(dim); ii++, ++kit) {
+				double tmp = 0;
+				for(size_t kk=0; kk<kit.ksize(); kk++) 
+					tmp += gaussKern(kit.from_center(kk, dim)/stddev)*kit[kk];
+				buff[ii] = tmp;
+			}
+
+			// write back out
+			for(size_t ii=0; ii<inout->dim(dim); ii++, ++it) 
+				it.set(buff[ii]);
+		} else {
+			// just walk through line, and don't change anything
+			for(size_t ii=0; ii<inout->dim(dim); ii++, ++kit, ++it) { }
+		}
+	}
+}
+
 /**
  * @brief Reads an MRI image. Right now only nift images are supported. later
  * on, it will try to load image using different reader functions until one 
@@ -112,7 +176,7 @@ shared_ptr<MRImage> readMRImage(std::string filename, bool verbose)
 	auto gz = gzopen(filename.c_str(), "rb");
 
 	if(!gz) {
-		cerr << "Error, could not open MRI Image " << filename << endl;
+		throw std::ios_base::failure("Could not open " + filename + " for readin");
 		return NULL;
 	}
 	gzbuffer(gz, BSIZE);
@@ -124,6 +188,7 @@ shared_ptr<MRImage> readMRImage(std::string filename, bool verbose)
 		return out;
 	}
 
+	throw std::ios_base::failure("Error reading " + filename );
 	return NULL;
 }
 

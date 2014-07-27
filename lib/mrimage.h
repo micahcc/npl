@@ -100,8 +100,6 @@ public:
 	virtual MatrixP& spacing() = 0;
 	virtual MatrixP& origin() = 0;
 	virtual MatrixP& direction() = 0;
-//	virtual MatrixP& affine() = 0;
-//	virtual MatrixP& iaffine() = 0;
 	virtual const MatrixP& spacing() const = 0;
 	virtual const MatrixP& origin() const  = 0;
 	virtual const MatrixP& direction() const = 0;

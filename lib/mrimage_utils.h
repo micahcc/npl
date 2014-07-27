@@ -174,5 +174,14 @@ int writeMRImage(MRImage* img, std::string fn, bool nifti2 = false);
 std::ostream& operator<<(std::ostream &out, const MRImage& img);
 
 
+/**
+ * @brief Gaussian smooths an image in 1 direction.
+ *
+ * @param inout Input/Output image
+ * @param dim Direction to smooth in
+ * @param stddev in real space, for example millimeters.
+ */
+void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, double stddev);
+
 } // npl
 #endif  //IMAGE_PROCESSING_H

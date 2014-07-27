@@ -33,55 +33,6 @@ using std::string;
 using namespace npl;
 using std::shared_ptr;
 
-double gaussian(double x)
-{
-	const double PI = acos(-1);
-	const double den = sqrt(2*PI);
-	return exp(x*x)*den;
-}
-
-shared_ptr<MRImage> gaussianFilter(shared_ptr<MRImage> in, double sd)
-{
-	std::vector<size_t> rvector(in->ndim(), 0);
-	auto out = in->cloneImage();
-
-	// split up and perform on each dimension separately
-	for(size_t dd=0; dd<in->ndim(); ++dd) {
-
-		// create iterators, make them have the same order
-		KernelIter<double> it(in);
-		OrderIter<double> oit(out);
-		oit.setOrder(it.getOrder());
-
-		// construct weights array
-		double normsd = sd/in->spacing()[dd];
-		int64_t rad = 2*normsd;
-		double weights[rad*2+1];
-		for(int64_t oo = -rad; oo <= rad; ++oo) 
-			weights[oo+rad] = gaussian(oo/normsd);
-
-		// set radius
-		rvector[dd] = rad;
-		it.setRadius(rvector);
-
-		// apply kernel
-		for(it.goBegin(); !it.eof(); ++it) {
-			double vv = 0;
-			assert(it.ksize() == rad*2+1);
-			for(int64_t oo=-rad; oo <= rad; ++oo) {
-				vv += weights[oo+rad]*it[oo+rad];
-			}
-				
-			oit.set(vv);
-		}
-
-		// reset radius vector to 0
-		rvector[dd] = 0;
-	}
-
-	return out;
-}
-
 template <typename T>
 ostream& operator<<(ostream& out, const std::vector<T>& v)
 {
@@ -669,7 +620,6 @@ shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def,
 
 	// we are going to spread out to outside-the mask regions until there are
 	// no untouched regions left
-	Vector3DView<double> idview(def);
 	NNInterp3DView<int> omask_interp(omask);
 	auto maskprev = dynamic_pointer_cast<MRImage>(omask->copyCast(INT8));
 	auto maskcur = dynamic_pointer_cast<MRImage>(omask->copyCast(INT8));
@@ -680,10 +630,10 @@ shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def,
 	double point[3];
 	int64_t index[3];
 
-	// construct tree from points currently inside mask omask
+	// construct tree from points currently outside mask omask
 	KDTree<3, 0> tree;
 	for(OrderIter<int> it(omask); !it.eof(); ++it) {
-		if(*it != 0) {
+		if(*it == 0) {
 			it.index(3, index);
 			omask->indexToPoint(3, index, point);
 			tree.insert(3, point, 0, point);
@@ -691,20 +641,21 @@ shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def,
 	}
 	// rebuild tree
 	tree.build();
+		
+	// construct iterators
+	KernelIter<int> pmit(maskprev);
+	pmit.setRadius(1);
+	OrderIter<int> cmit(maskcur);
+	cmit.setOrder(pmit.getOrder());
 
 	size_t changed = 1;
 	for(size_t iters = 0; changed; ++iters) {
 		cerr << iters << setw(10) << changed << "\r";
 		changed = 0;
 
-		// swap source and target images
-		maskprev.swap(maskcur);
-
-		// construct iterators
-		KernelIter<int> pmit(maskprev);
-		pmit.setRadius(1);
-		OrderIter<int> cmit(maskcur);
-		cmit.setOrder(pmit.getOrder());
+		// copy cur into previous
+		for(FlatIter<int> pit(maskprev), cit(maskcur); !cit.eof(); ++cit, ++pit) 
+			pit.set(*cit);
 
 		for(pmit.goBegin(), cmit.goBegin(); !cmit.eof(); ++pmit, ++cmit) {
 			// skip regions inside the mask
@@ -724,15 +675,22 @@ shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def,
 			for(size_t ii=0; ii<pmit.ksize(); ++ii) {
 				if(pmit[ii] != 0) {
 					++count;
-					for(size_t jj=0; jj<3; ++jj) 
-						offset[jj] += idview(index[0], index[1], index[2], jj);
-				} 
+				}
 			}
 
 			// skip if there were no neighbors inside the mask (we'll get 
 			// back to it later)
 			if(count == 0)
 				continue;
+			
+			for(size_t ii=0; ii<pmit.ksize(); ++ii) {
+				int64_t tmp[3];
+				if(pmit[ii] != 0) {
+					pmit.offset_index(ii, 3, tmp);
+					for(size_t jj=0; jj<3; ++jj) 
+						offset[jj] += odview(tmp[0], tmp[1], tmp[2], jj);
+				}
+			}
 
 			for(size_t jj=0; jj<3; ++jj) 
 				offset[jj] /= count;
@@ -741,35 +699,39 @@ shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def,
 			 * force the offset to map into unmasked space
 			 */
 
-			// get the mapped point
-			dmask->indexToPoint(3, index, point);
-			for(size_t jj=0; jj<3; ++jj)
-				point[jj] += offset[jj];
-
-			omask->pointToIndex(3, point, cindex);
-			if(omask_interp(cindex[0], cindex[1], cindex[2]) != 0) {
-				// find the nearest point outside
-				double dist = INFINITY;
-				auto nearby = tree.nearest(3, point, dist);
-				
-				// add (point to found) offset
-				// offset += found - point 
-				for(size_t ii=0; ii<3; ++ii)
-					offset[ii] += nearby->m_point[ii]-point[ii];
-			}
-
+//			// get the mapped point
+//			dmask->indexToPoint(3, index, point);
+//			for(size_t jj=0; jj<3; ++jj)
+//				point[jj] += offset[jj];
+//
+//			omask->pointToIndex(3, point, cindex);
+//			if(omask_interp(cindex[0], cindex[1], cindex[2]) != 0) {
+//				// find the nearest point outside
+//				double dist = INFINITY;
+//				auto nearby = tree.nearest(3, point, dist);
+//				
+//				// add (point to found) offset
+//				// offset += found - point 
+//				for(size_t ii=0; ii<3; ++ii)
+//					offset[ii] += nearby->m_point[ii]-point[ii];
+//			}
+//
 			// mark this pixel as valid, set value in deform
 			cmit.set(1);
-			for(size_t ii=0; ii<3; ++ii)
+			for(size_t ii=0; ii<3; ++ii) {
 				odview.set(offset[ii], index[0], index[1], index[2], ii);
+			}
 		}
 
 		assert(pmit.isEnd() && cmit.isEnd());
-		
-		maskprev->write("prev.nii.gz");
-		maskcur->write("cur.nii.gz");
 	}
 
+	// smooth extrapolated points
+	gaussianSmooth1D(outdef, 0, 3.0);
+	gaussianSmooth1D(outdef, 1, 3.0);
+	gaussianSmooth1D(outdef, 2, 3.0);
+
+	outdef->write("extrap.nii.gz");
 	cerr << "Done with extrapolation" << endl;
 	return dynamic_pointer_cast<MRImage>(outdef);
 }
@@ -901,7 +863,7 @@ int main(int argc, char** argv)
 			return -1;
 		}
 		indef = extrapolateFromMasked(indef, atlas, mask);
-		
+		indef->write("extrapolated.nii.gz");
 		// don't need mask anymore
 		mask.reset();
 	}
@@ -912,6 +874,7 @@ int main(int argc, char** argv)
 			cerr << "Must provide atlas for inversion!" << endl;
 		}
 
+		cerr << "Inverting" << endl;
 		if(mask) {
 			indef = invertMasked(mask, indef, atlas, a_iters.getValue(), 
 					a_improve.getValue(), a_radius.getValue());
@@ -919,6 +882,9 @@ int main(int argc, char** argv)
 			indef = invertUnMasked(indef, atlas, a_iters.getValue(), 
 					a_improve.getValue(), a_radius.getValue());
 		}
+		cerr << "Done" << endl;
+
+		indef->write("invert.nii.gz");
 	}
 
 	// convert to correct output type
