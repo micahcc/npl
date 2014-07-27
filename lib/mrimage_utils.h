@@ -183,5 +183,19 @@ std::ostream& operator<<(std::ostream &out, const MRImage& img);
  */
 void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, double stddev);
 
+/**
+ * @brief Smooths an image in 1 dimension, masked version. Only updates pixels
+ * within masked region.
+ *
+ * @param in Input/output image to smooth
+ * @param dim dimensions to smooth in. If you are smoothing individual volumes
+ * of an fMRI you would provide dim={0,1,2}
+ * @param stddev standard deviation in physical units index*spacing
+ * @param mask Only smooth (alter) point within the mask, inverted by 'invert'
+ * @param invert only smooth points outside the mask
+ */
+void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, 
+		double stddev, shared_ptr<MRImage> mask, bool invert);
+
 } // npl
 #endif  //IMAGE_PROCESSING_H

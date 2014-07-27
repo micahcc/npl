@@ -75,6 +75,12 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
 	kit.setRadius(radius);
 	kit.goBegin();
 
+	// calculate normalization factor
+	double normalize = 0;
+	int64_t rad = radius[dim];
+	for(int64_t ii=-rad; ii<=rad; ii++)
+		normalize += gaussKern(ii/stddev);
+
 	// for writing, have the regular iterator
 	OrderIter<double> it(inout);
 	it.setOrder(kit.getOrder());
@@ -84,8 +90,13 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
 		// perform kernel math, writing to buffer
 		for(size_t ii=0; ii<inout->dim(dim); ii++, ++kit) {
 			double tmp = 0;
-			for(size_t kk=0; kk<kit.ksize(); kk++) 
-				tmp += gaussKern(kit.from_center(kk, dim)/stddev)*kit[kk];
+			for(size_t kk=0; kk<kit.ksize(); kk++) {
+				double dist = kit.from_center(kk, dim);
+				double nval = kit[kk];
+				double stddist = dist/stddev;
+				double weighted = gaussKern(stddist)*nval/normalize;
+				tmp += weighted;
+			}
 			buff[ii] = tmp;
 		}
 		
@@ -132,6 +143,12 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
 	kit.setRadius(radius);
 	kit.goBegin();
 
+	// calculate normalization factor
+	double normalize = 0;
+	int64_t rad = radius[dim];
+	for(int64_t ii=-rad; ii<=rad; ii++)
+		normalize += gaussKern(ii/stddev);
+
 	// for writing, have the regular iterator
 	OrderIter<double> it(inout);
 	it.setOrder(kit.getOrder());
@@ -145,8 +162,13 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
 			// perform kernel math, writing to buffer
 			for(size_t ii=0; ii<inout->dim(dim); ii++, ++kit) {
 				double tmp = 0;
-				for(size_t kk=0; kk<kit.ksize(); kk++) 
-					tmp += gaussKern(kit.from_center(kk, dim)/stddev)*kit[kk];
+				for(size_t kk=0; kk<kit.ksize(); kk++) {
+					double dist = kit.from_center(kk, dim);
+					double nval = kit[kk];
+					double stddist = dist/stddev;
+					double weighted = gaussKern(stddist)*nval/normalize;
+					tmp += weighted;
+				}
 				buff[ii] = tmp;
 			}
 

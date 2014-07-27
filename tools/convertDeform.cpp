@@ -727,9 +727,9 @@ shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def,
 	}
 
 	// smooth extrapolated points
-	gaussianSmooth1D(outdef, 0, 3.0);
-	gaussianSmooth1D(outdef, 1, 3.0);
-	gaussianSmooth1D(outdef, 2, 3.0);
+	gaussianSmooth1D(outdef, 0, 3.0, omask, true);
+	gaussianSmooth1D(outdef, 1, 3.0, omask, true);
+	gaussianSmooth1D(outdef, 2, 3.0, omask, true);
 
 	outdef->write("extrap.nii.gz");
 	cerr << "Done with extrapolation" << endl;
