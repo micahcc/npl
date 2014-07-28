@@ -1,6 +1,8 @@
 
 def build(bld):
     # todo rename
+    bld.program(target = 'deformJacobianMap', 
+            source = 'deformJacobianMap.cpp', use = 'mrimage_utils tclap iterators accessors')
     bld.program(target = 'convertDeform', 
             source = 'convertDeform.cpp', use = 'mrimage_utils tclap iterators accessors')
 #    bld.program(target = 'applyDeform', 
