@@ -89,6 +89,26 @@ shared_ptr<NDArray> ifft(shared_ptr<NDArray> in);
 bool comparable(const NDArray* left, const NDArray* right, 
 		bool* elL = NULL, bool* elR = NULL);
 
+/**
+ * @brief Dilate an binary array repeatedly
+ *
+ * @param in Input to dilate
+ * @param reps Number of radius-1 kernel dilations to perform
+ *
+ * @return Dilated Image
+ */
+shared_ptr<NDArray> dilate(shared_ptr<NDArray> in, size_t reps);
+
+/**
+ * @brief Erode an binary array repeatedly
+ *
+ * @param in Input to erode
+ * @param reps Number of radius-1 kernel erosions to perform
+ *
+ * @return Eroded Image
+ */
+shared_ptr<NDArray> erode(shared_ptr<NDArray> in, size_t reps);
+
 } // npl
 #endif  //ND_ALGOS_H
 

@@ -33,6 +33,14 @@ using std::string;
 using namespace npl;
 using std::shared_ptr;
 
+double gaussKern(double x)
+{
+	const double PI = acos(-1);
+	const double den = 1./sqrt(2*PI);
+	return den*exp(-x*x/(2));
+}
+
+
 template <typename T>
 ostream& operator<<(ostream& out, const std::vector<T>& v)
 {
@@ -42,158 +50,94 @@ ostream& operator<<(ostream& out, const std::vector<T>& v)
 	out << v[v.size()-1] << " ]";
 	return out;
 }
-//
-//void applyDeform(shared_ptr<MRImage> in, shared_ptr<MRImage> deform,
-//		shared_ptr<MRImage> out, size_t vdim)
-//{
-//	vector<double> in_index(in->ndim());
-//	vector<double> in_point(3);
-//	vector<double> deform_index(deform->ndim());
-//	vector<double> deform_point(deform->ndim());
-//	vector<int64_t> out_index(out->ndim());
-//	vector<double> out_point(out->ndim());
-//	vector<double> offset(3);
-//	bool outside = false;
-//
-//	// map all the points
-//	list<size_t> slcorder;
-//	if(in->ndim() == 4)
-//		slcorder.push_back(3); // iterate through time the fastest
-//	
-//	Slicer fit(out->ndim(), out->dim(), slcorder);
-//	for(fit.goBegin(); !fit.isEnd(); ) {
-//		// for point in deform image
-//		out_index = fit.index();
-//		out->indexToPoint(out_index, out_point);
-//#ifdef DEBUG
-//		cerr << "Out: " << out_index << " | " << out_point << endl;
-//#endif //DEBUG
-//
-//		for(size_t ii=0; ii<3; ++ii)
-//			deform_point[ii] = out_point[ii];
-//		for(size_t ii=3; ii<deform_point.size(); ++ii)
-//			deform_point[ii] = 0;
-//
-//		// sampe offset at point
-//		deform->pointToIndex(deform_point, deform_index);
-//#ifdef DEBUG
-//		cerr << "Deform:" << deform_point << " | " << deform_index << endl;
-//#endif //DEBUG
-//		for(size_t ii=0; ii<3; ++ii) {
-//			deform_index[vdim] = ii;
-//			offset[ii] = deform->linSampleInd(deform_index, ZEROFLUX, outside);
-//			in_point[ii] = deform_point[ii] + offset[ii];
-//		}
-//
-//#ifdef DEBUG
-//		cerr << "Offset: " << offset << endl;
-//#endif //DEBUG
-//		in->pointToIndex(in_point, in_index);
-//#ifdef DEBUG
-//		cerr << "In: " << in_point << " | " << in_index << endl; 
-//#endif //DEBUG
-//
-//		if(in->ndim() == 4){
-//
-//			// run through time
-//			assert(in->dim(3) == out->dim(3));
-//			for(size_t tt=0; tt < in->dim(3); ++tt, ++fit) {
-//				in_index[3] = tt;
-//				out->set_dbl(*fit, in->linSampleInd(in_index,ZEROFLUX, outside));
-//			}
-//		} else {
-//			
-//			// just do one
-//			assert(in->dim(3) == out->dim(3));
-//			out->set_dbl(*fit, in->linSampleInd(in_index, ZEROFLUX, outside));
-//			++fit; 
-//		}
-//	}
-//}
 
-shared_ptr<MRImage> erode(shared_ptr<MRImage> in, size_t reps)
+shared_ptr<MRImage> optimizeInverse(shared_ptr<MRImage> forward, 
+		shared_ptr<MRImage> inverse)
 {
-	std::vector<int64_t> index1(in->ndim(), 0);
-	std::vector<int64_t> index2(in->ndim(), 0);
-	auto prev = in->cloneImage();
-	auto out = in->cloneImage();
-	shared_ptr<MRImage> tmp; 
-	for(size_t rr=0; rr<reps; ++rr) {
-		cerr << "Erode " << rr << endl;
-
-		tmp = prev;
-		prev = out;
-		out = tmp;
-		
-		KernelIter<int> it(prev);
-		it.setRadius(1);
-		OrderIter<int> oit(out);
-		oit.setOrder(it.getOrder());
-		// for each pixels neighborhood, smooth neightbors
-		for(oit.goBegin(), it.goBegin(); !it.eof(); ++it, ++oit) {
-			oit.index(index1.size(), index1.data());
-			it.center_index(index2.size(), index2.data());
-
-			// if any of the neighbors are 0, then set to 0
-			bool erodeme = false;
-			for(size_t ii=0; ii<it.ksize(); ++ii) {
-				if(it.offset(ii) == 0) {
-					erodeme = true;
-				}
-			}
-
-			if(erodeme) 
-				oit.set(0);
-		}
-	}
-
+	shared_ptr<MRImage> out = dynamic_pointer_cast<MRImage>(inverse->copy());
+	
+	
 	return out;
 }
 
-shared_ptr<MRImage> dilate(shared_ptr<MRImage> in, size_t reps)
+
+/**
+ * @brief Smooths an image in 1 dimension, masked version. Only updates pixels
+ * within masked region.
+ *
+ * @param in Input/output image to smooth
+ * @param dim dimensions to smooth in. If you are smoothing individual volumes
+ * of an fMRI you would provide dim={0,1,2}
+ * @param stddev standard deviation in physical units index*spacing
+ * @param mask Only smooth (alter) point within the mask, inverted by 'invert'
+ * @param invert only smooth points outside the mask
+ */
+void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, 
+		double stddev, shared_ptr<MRImage> mask, bool invert)
 {
-	std::vector<int64_t> index1(in->ndim(), 0);
-	std::vector<int64_t> index2(in->ndim(), 0);
-	auto prev = in->cloneImage();
-	auto out = in->cloneImage();
-	shared_ptr<MRImage> tmp; 
-	for(size_t rr=0; rr<reps; ++rr) {
-		cerr << "Dilate " << rr << endl;
-
-		tmp = prev;
-		prev = out;
-		out = tmp;
-		
-		KernelIter<int> it(prev);
-		it.setRadius(1);
-		OrderIter<int> oit(out);
-		oit.setOrder(it.getOrder());
-		// for each pixels neighborhood, smooth neightbors
-		for(oit.goBegin(), it.goBegin(); !it.eof(); ++it, ++oit) {
-			oit.index(index1.size(), index1.data());
-			it.center_index(index2.size(), index2.data());
-			for(size_t ii=0; ii<in->ndim(); ++ii) {
-				if(index1[ii] != index2[ii]) {
-					throw std::logic_error("Error differece in iteration!");
-				}
-			}
-
-			// if any of the neighbors are 0, then set to 0
-			bool dilateme = false;
-			int dilval = 0;
-			for(size_t ii=0; ii<it.ksize(); ++ii) {
-				if(it.offset(ii) != 0) {
-					dilval = it.offset(ii);
-					dilateme = true;
-				}
-			}
-
-			if(dilateme) 
-				oit.set(dilval);
-		}
+	//TODO figure out how to scale this properly, including with stddev and 
+	//spacing
+	if(dim >= inout->ndim()) {
+		throw std::out_of_range("Invalid dimension specified for 1D gaussian "
+				"smoothing");
 	}
 
-	return out;
+	NNInterp3DView<int> maskinterp(mask);
+
+	std::vector<int64_t> index(inout->ndim(), 0);
+	std::vector<double> cindex(inout->ndim(), 0);
+	std::vector<double> point(inout->ndim(), 0);
+	stddev /= inout->spacing()[dim];
+	std::vector<double> buff(inout->dim(dim));
+
+	// for reading have the kernel iterator
+	KernelIter<double> kit(inout);
+	std::vector<size_t> radius(inout->ndim(), 0);
+	for(size_t dd=0; dd<inout->ndim(); dd++) {
+		if(dd == dim)
+			radius[dd] = round(2*stddev);
+	}
+	kit.setRadius(radius);
+	kit.goBegin();
+
+	// calculate normalization factor
+	double normalize = 0;
+	int64_t rad = radius[dim];
+	for(int64_t ii=-rad; ii<=rad; ii++)
+		normalize += gaussKern(ii/stddev);
+
+	// for writing, have the regular iterator
+	OrderIter<double> oit(inout);
+	oit.setOrder(kit.getOrder());
+	oit.goBegin();
+	
+	while(!oit.eof()) {
+		// perform kernel math, writing to buffer
+		for(size_t ii=0; ii<inout->dim(dim); ii++, ++kit) {
+			kit.center_index(index.size(), index.data());
+			inout->indexToPoint(index.size(), index.data(), point.data());
+			mask->pointToIndex(point.size(), point.data(), cindex.data());
+
+			int m = maskinterp(cindex[0], cindex[1], cindex[2]);
+			if((m != 0 && !invert) || (m == 0 && invert)) {
+				double tmp = 0;
+				for(size_t kk=0; kk<kit.ksize(); kk++) {
+					double dist = kit.from_center(kk, dim);
+					double nval = kit[kk];
+					double stddist = dist/stddev;
+					double weighted = gaussKern(stddist)*nval/normalize;
+					tmp += weighted;
+				}
+				buff[ii] = tmp;
+			} else {
+				buff[ii] = kit.center();
+			}
+		}
+
+		// write back out
+		for(size_t ii=0; ii<inout->dim(dim); ii++, ++oit) 
+			oit.set(buff[ii]);
+	}
 }
 
 /**
@@ -271,6 +215,7 @@ shared_ptr<MRImage> indexMapToOffsetMap(shared_ptr<const MRImage> defimg,
 shared_ptr<MRImage> invertUnMasked(shared_ptr<MRImage> deform, 
 		shared_ptr<MRImage> atlas, size_t MAXITERS, double CHNORM, double MINDIST)
 {
+	cerr << "Inverting without mask" << endl;
 	// create output the size of atlas, with 3 volumes in the 4th dimension
 	auto atldef = createMRImage({atlas->dim(0), atlas->dim(1), 
 				atlas->dim(2), 3}, FLOAT64);
@@ -413,185 +358,6 @@ shared_ptr<MRImage> invertUnMasked(shared_ptr<MRImage> deform,
 	return atldef;
 }
 
-/**
- * @brief Inverts a deformation, given a mask in the target space.
- *
- * Mathematical basis for this function is that in image S (subject)
- * we have a mapping from S to A (atlas), which we will call u, 
- * and in image A we have a map from A to S (v) that we want to optimize. The
- * goal is to :
- *
- * minimize
- * ||u+v||^2
- *
- * @param mask Mask in target space (where the current deform maps from)
- * @param deform Maps from mask space.
- * @param atldef Maps to mask space, should be same size as mask
- *
- * @return 
- */
-shared_ptr<MRImage> invertMasked(shared_ptr<MRImage> mask, 
-		shared_ptr<MRImage> deform, shared_ptr<MRImage> atlas, size_t MAXITERS,
-		double CHNORM, double MINDIST)
-{
-	// create output the size of atlas, with 3 volumes in the 4th dimension
-	auto atldef = createMRImage({atlas->dim(0), atlas->dim(1), 
-				atlas->dim(2), 3}, FLOAT64);
-	atldef->setDirection(atlas->direction(), true);
-	atldef->setSpacing(atlas->spacing(), true);
-	atldef->setOrigin(atlas->origin(), true);
-
-	const double MINNORM = 0.000001;
-	int64_t index[3];
-	double subpoint[3];
-	double cindex[3];
-	double sub2atl[3];
-	vector<double> atlpoint(3);
-	vector<double> atl2sub(3);
-	NNInterp3DView<double> maskinterp(mask);
-	KDTree<3,3,double, double> tree;
-
-	if(deform->tlen() != 3) {
-		cerr << "Error invalid deform image, needs 3 points in the 4th or "
-			"5th dim" << endl;
-		return NULL;
-	}
-
-	/* 
-	 * Construct KDTree indexed by atlas-space indices, and storing indices
-	 * in subject (mask) space. Only do it if mask value is non-zero however
-	 */
-	Vector3DIter<double> dit(deform);
-	for(dit.goBegin(); !dit.eof(); ++dit) {
-		dit.index(3, index);
-		deform->indexToPoint(3, index, subpoint);
-		mask->pointToIndex(3, subpoint, cindex);
-
-		// skip 0s mask
-		if(maskinterp(cindex[0], cindex[1], cindex[2]) == 0)
-			continue;
-
-		for(int ii=0; ii<3; ++ii) {
-			sub2atl[ii] = dit[ii];
-			atl2sub[ii] = -dit[ii];
-			atlpoint[ii] = subpoint[ii] + sub2atl[ii];
-		}
-
-		// add point to kdtree, use atl2sub since this will be our best guess
-		// of atl2sub when we pull the point out of the tree
-		tree.insert(atlpoint, atl2sub);
-	}
-	tree.build();
-
-	/* 
-	 * In atlas image try to find the correct source in the subject by first
-	 * finding a point from the KDTree then improving on that result 
-	 */
-	// set atlas deform to NANs
-	for(FlatIter<double> ait(atldef); !ait.eof(); ++ait) 
-		ait.set(NAN);
-
-	// at each point in atlas try to find the best mapping in the subject by
-	// going back and forth. Since the mapping from sub to atlas is ground truth
-	// we need to keep checking until we find a point in the subject that maps
-	// to our current atlas location
-	Vector3DIter<double> ait(atldef);
-	assert(ait.tlen() == 3);
-
-	cout << setw(30) << "Inverting: "  << "Median Iterations" << endl; 
-	for(ait.goBegin(); !ait.eof(); ++ait) {
-
-		ait.index(3, index);
-		atldef->indexToPoint(3, index, atlpoint.data());
-
-
-		// that map from outside, then compute the median of the remaining
-		double dist = MINDIST;
-		auto results = tree.withindist(atlpoint, dist);
-
-		// remove elements that map outside the masked region
-		for(auto rit=results.begin(); rit != results.end(); ++rit) {
-			for(size_t ii=0; ii<3; ++ii) 
-				subpoint[ii] = atlpoint[ii] + (*rit)->m_data[ii];
-
-			mask->pointToIndex(3, subpoint, cindex);
-			if(maskinterp(cindex[0], cindex[1], cindex[2]) == 0)
-				rit = results.erase(rit);
-		} 
-
-		// sort 
-		if(results.empty())
-			continue;
-
-		/*****************************
-		 * find the geometric median 
-		 *****************************/
-
-		// intiialize with the mean
-		for(size_t ii=0; ii<3; ++ii)
-			atl2sub[ii] = 0;
-
-		for(auto lit = results.begin(); lit != results.end(); ++lit) {
-			for(size_t ii=0; ii<3; ++ii)
-				atl2sub[ii] += (*lit)->m_data[ii];
-		}
-		for(size_t ii=0; ii<3; ++ii)
-			atl2sub[ii] /= results.size();
-
-		// iteratively reweight least squares solution
-		double norm = CHNORM+1;
-		size_t iter=0;
-		for(iter = 0; iter < MAXITERS && norm > CHNORM; ++iter) {
-			double sumnorm = 0;
-			double prev[3];
-
-			// copy current best into previous
-			for(size_t ii=0; ii<3; ++ii) {
-				prev[ii] = atl2sub[ii];
-				atl2sub[ii] = 0;
-			}
-
-			for(auto lit = results.begin(); lit != results.end(); ++lit) {
-				// compute distance between point and current best
-				norm = 0;
-				for(size_t ii=0; ii<3; ++ii) {
-					norm += (prev[ii]-(*lit)->m_data[ii])*(prev[ii]-
-							(*lit)->m_data[ii]);
-				}
-				norm = sqrt(norm);
-				if(norm == 0) 
-					norm = MINNORM;
-
-				// add up total weights
-				sumnorm += (1./norm);
-
-				for(size_t ii=0; ii<3; ++ii)
-					atl2sub[ii] += (*lit)->m_data[ii]/norm;
-			}
-
-			// divide by total weights
-			for(size_t ii=0; ii<3; ++ii)
-				atl2sub[ii] /= sumnorm;
-
-			// compute difference from previous
-			norm = 0;
-			for(size_t ii=0; ii<3; ++ii)
-				norm += (atl2sub[ii] - prev[ii])*(atl2sub[ii] - prev[ii]);
-			norm = sqrt(norm);
-		}
-
-		// save out final deform
-		for(size_t ii=0; ii<3; ++ii) 
-			ait.set(ii, atl2sub[ii]);
-		cout << setw(10) << index[0] << setw(10) << index[1] << setw(10) 
-					<< index[2] << setw(10) << iter << "\r";
-
-
-	}
-
-	return atldef;
-}
-
 void binarize(shared_ptr<MRImage> in)
 {
 	OrderIter<int> it(in);
@@ -608,13 +374,12 @@ void binarize(shared_ptr<MRImage> in)
  * masked region and 2) are continuous with within-the brain region
  *
  * @param def input deformation
- * @param dmask mask in deform space 
  * @param omask mask in output (space that the points in the deform refer to)
  *
  * @return 
  */
 shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def, 
-		shared_ptr<MRImage> dmask, shared_ptr<MRImage> omask)
+		shared_ptr<MRImage> omask)
 {
 	cerr << "Extrapolating Outside Masked Region" << endl;
 
@@ -626,7 +391,6 @@ shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def,
 	auto outdef = dynamic_pointer_cast<MRImage>(def->copyCast(FLOAT32));
 	Vector3DView<double> odview(outdef);
 	double offset[3];
-	double cindex[3];
 	double point[3];
 	int64_t index[3];
 
@@ -694,28 +458,7 @@ shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def,
 
 			for(size_t jj=0; jj<3; ++jj) 
 				offset[jj] /= count;
-
-			/*
-			 * force the offset to map into unmasked space
-			 */
-
-//			// get the mapped point
-//			dmask->indexToPoint(3, index, point);
-//			for(size_t jj=0; jj<3; ++jj)
-//				point[jj] += offset[jj];
-//
-//			omask->pointToIndex(3, point, cindex);
-//			if(omask_interp(cindex[0], cindex[1], cindex[2]) != 0) {
-//				// find the nearest point outside
-//				double dist = INFINITY;
-//				auto nearby = tree.nearest(3, point, dist);
-//				
-//				// add (point to found) offset
-//				// offset += found - point 
-//				for(size_t ii=0; ii<3; ++ii)
-//					offset[ii] += nearby->m_point[ii]-point[ii];
-//			}
-//
+			
 			// mark this pixel as valid, set value in deform
 			cmit.set(1);
 			for(size_t ii=0; ii<3; ++ii) {
@@ -726,12 +469,17 @@ shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def,
 		assert(pmit.isEnd() && cmit.isEnd());
 	}
 
-	// smooth extrapolated points
-	gaussianSmooth1D(outdef, 0, 3.0, omask, true);
-	gaussianSmooth1D(outdef, 1, 3.0, omask, true);
-	gaussianSmooth1D(outdef, 2, 3.0, omask, true);
+	cerr << "Smoothing Results outside mask" << endl;
+	// smooth extrapolated points, we repeat rather than doing a larger kernel
+	// to improve mask boundaries, since the support is smaller, the oddness
+	// due to internal pointers not being smoothed versus the neighboring 
+	// smoothed points is decreased
+	for(size_t ii=0; ii<3; ii++) {
+		gaussianSmooth1D(outdef, 0, 1.0, omask, true);
+		gaussianSmooth1D(outdef, 1, 1.0, omask, true);
+		gaussianSmooth1D(outdef, 2, 1.0, omask, true);
+	}
 
-	outdef->write("extrap.nii.gz");
 	cerr << "Done with extrapolation" << endl;
 	return dynamic_pointer_cast<MRImage>(outdef);
 }
@@ -782,12 +530,6 @@ int main(int argc, char** argv)
 	TCLAP::SwitchArg a_one_index("1", "one-based-index", "When referring to "
 			"indexes make them one-based.", cmd);
 
-	// TODO IMPELEMENT
-//	TCLAP::SwitchArg a_svreg("O", "offset", "Indicates that the input is "
-//			"already an offset map (rather than a exact position.", cmd);
-//	TCLAP::SwitchArg a_svreg("R", "realspace", "Indicates that the input is "
-//			"already in real space (rather than index space).", cmd);
-
 
 	TCLAP::ValueArg<size_t> a_iters("", "iters", "Number of iterations during "
 			"median-smoothing of input deform during inverse", false, 100, "iters", cmd);
@@ -797,11 +539,6 @@ int main(int argc, char** argv)
 			"for points that may map to a coordinate in the output image. "
 			"We compute the geometric median of the points to give a smoothed "
 			"deformation.", false, 10, "mm", cmd);
-
-//	TCLAP::ValueArg<size_t> a_dilate("D", "dilate", "Number of times to "
-//			"dilate mask.", false, 0, "iters", cmd);
-//	TCLAP::ValueArg<size_t> a_erode("E", "erode", "Number of times to "
-//			"erode mask.", false, 1, "iters", cmd);
 
 
 	cmd.parse(argc, argv);
@@ -848,12 +585,12 @@ int main(int argc, char** argv)
 	}
 
 
-//	if(mask && a_invert.isSet()) {
-//		cerr << "Forcing extrapolation, because the input deform is masked. "
-//			"Note you need to provide an atlas." << endl;
-//		extrapolate = true;
-//	}
-//
+	if(mask && a_invert.isSet()) {
+		cerr << "Forcing extrapolation, because the input deform is masked. "
+			"Note you need to provide an atlas." << endl;
+		extrapolate = true;
+	}
+
 	// extrapolate 
 	if(extrapolate) {
 		if(!atlas || !mask) {
@@ -862,7 +599,7 @@ int main(int argc, char** argv)
 				<< endl;
 			return -1;
 		}
-		indef = extrapolateFromMasked(indef, atlas, mask);
+		indef = extrapolateFromMasked(indef, mask);
 		indef->write("extrapolated.nii.gz");
 		// don't need mask anymore
 		mask.reset();
@@ -875,16 +612,38 @@ int main(int argc, char** argv)
 		}
 
 		cerr << "Inverting" << endl;
-		if(mask) {
-			indef = invertMasked(mask, indef, atlas, a_iters.getValue(), 
-					a_improve.getValue(), a_radius.getValue());
-		} else {
-			indef = invertUnMasked(indef, atlas, a_iters.getValue(), 
-					a_improve.getValue(), a_radius.getValue());
-		}
+		auto outdef = invertUnMasked(indef, atlas, a_iters.getValue(), 
+				a_improve.getValue(), a_radius.getValue());
 		cerr << "Done" << endl;
 
-		indef->write("invert.nii.gz");
+		outdef->write("invert.nii.gz");
+		/* 
+		 * fill any holes with smoothed values
+		 */
+
+		// construct mask in NAN'd regions
+		OrderIter<int> ait(atlas);
+		NNInterp3DView<double> dvw(outdef);
+		int64_t index[3];
+		while(!ait.eof()) {
+			ait.index(3, index);
+			bool nan = false;
+			for(size_t ii=0; ii<3; ii++) {
+				if(std::isnan(dvw(index[0], index[1], index[2], ii)))
+					nan = true;
+			}
+			if(nan)
+				ait.set(0);
+			else
+				ait.set(1);
+
+			++ait;
+		}
+
+		atlas->write("invert_extmask.nii.gz");
+		outdef = extrapolateFromMasked(outdef, atlas);
+		// smooth masked regions
+		outdef->write("invert_ext.nii.gz");
 	}
 
 	// convert to correct output type
@@ -896,187 +655,7 @@ int main(int argc, char** argv)
 	// write
 	indef->write(a_out.getValue());
 	
-//	std::shared_ptr<MRImage> mask(readMRImage(a_mask.getValue()));
-//	if(mask->ndim() != 3) {
-//		cerr << "Expected mask to be 3D Image!" << endl;
-//		return -1;
-//	}
-//	binarize(mask);
-//
-//	// dilate then erode mask
-//	if(a_dilate.isSet()) 
-//		mask = dilate(mask, a_dilate.getValue());
-//	if(a_erode.isSet()) 
-//		mask = erode(mask, a_erode.getValue());
-//
-//	// ensure the the images overlap sufficiently, lack of overlap may indicate
-//	// incorrect orientation
-//	double f = overlapRatio(mask, inimg);
-//	if(f < .5)  {
-//		cerr << "Warning the input and mask images do not overlap very much."
-//			" This could indicate bad orientation, overlap: " << f << endl;
-//		return -1;
-//	}
-//	
-//	std::shared_ptr<MRImage> atlas(readMRImage(a_atlas.getValue()));
-//	if(atlas->ndim() != 3) {
-//		cerr << "Expected mask to be 3D Image!" << endl;
-//		return -1;
-//	}
-//	binarize(atlas);
-//
-//	std::shared_ptr<MRImage> defimg(readMRImage(a_deform.getValue()));
-//
-//	// perform interpolation to estimate outside-the brain deformations that
-//	// are continuous with the within-brain deformations
-//	defimg = extrapolate(defimg, mask, atlas);
-//	defimg->write("extrapolated.nii.gz");
-//
-//	if(a_invert.isSet()) {
-//		// create output the size of atlas, with 3 volumes in the 4th dimension
-//		auto idef = createMRImage({atlas->dim(0), atlas->dim(1), 
-//					atlas->dim(2), 3}, FLOAT64);
-//		idef->setDirection(atlas->direction(), true);
-//		idef->setSpacing(atlas->spacing(), true);
-//		idef->setOrigin(atlas->origin(), true);
-//		invert(mask, defimg, idef, a_iters.getValue(), 
-//				a_improve.getValue(), a_radius.getValue());
-//		idef->write("inversedef.nii.gz");
-//	}
-//
-//	/*********
-//	 * Output
-//	 ********/
-//	// figure out field of view
-//	vector<double> lowerbound(3, INFINITY);
-//	vector<double> upperbound(3, -INFINITY);
-//	getBounds(deform, lowerbound, upperbound);
-//
-//	cerr << "Computed Bound 1: " << lowerbound << endl;
-//	cerr << "Computed Bound 2: " << upperbound << endl;
-//
-//	// convert bounds to indices, so we can figure out image size
-//	std::vector<int64_t> index1;
-//	std::vector<int64_t> index2;
-//	in->pointToIndex(lowerbound, index1);
-//	in->pointToIndex(upperbound, index2);
-//	for(size_t ii=0; ii<3; ++ii) {
-//		int64_t tmp1 = index1[ii];
-//		int64_t tmp2 = index2[ii];
-//		index1[ii] = std::min(tmp1, tmp2);
-//		index2[ii] = std::max(tmp1, tmp2);
-//	}
-//
-//	cerr << "Bounding Index 1: " << index1 << endl;
-//	cerr << "Bounding Index 2: " << index2 << endl;
-//	// create output image that covers FOV
-//	
-//	std::vector<size_t> sz;
-//	if(in->ndim() == 3) {
-//		sz.resize(3);
-//	} else {
-//		sz.resize(4);
-//		sz[3] = in->dim(3);
-//	}
-//	for(size_t ii=0; ii<3; ++ii) 
-//		sz[ii] = index2[ii]-index1[ii];
-//
-//	// force size from input
-//	if(a_xsize.isSet())
-//		sz[0] = a_xsize.getValue();
-//	if(a_ysize.isSet())
-//		sz[1] = a_ysize.getValue();
-//	if(a_zsize.isSet())
-//		sz[2] = a_zsize.getValue();
-//
-//	cerr << "Size: " << sz << endl; 
-//	auto out = createMRImage(sz, FLOAT32);
-//
-//	std::cerr << "Min Index: " << index1 << endl;
-//	
-//	// origin is minimum index in point space:
-//	std::vector<double> point;
-//	in->indexToPoint(index1, point);
-//	for(size_t ii=0; ii<3; ++ii) 
-//		out->origin()[ii] = point[ii];
-//
-//	// force size from input
-//	if(a_xorigin.isSet()) 
-//		out->origin()[0] = a_xorigin.getValue();
-//	if(a_yorigin.isSet()) 
-//		out->origin()[1] = a_yorigin.getValue();
-//	if(a_zorigin.isSet()) 
-//		out->origin()[2] = a_zorigin.getValue();
-//
-//	
-//	std::cerr << "New Origin:\n" << out->origin() << endl;
-//
-//	out->setSpacing(in->spacing());
-//	out->setDirection(in->direction());
-//
-//	applyDeform(in, deform, out, vdim);
-//	
-//	out->write(a_out.getValue());
-
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
 }
-
-//		// SUB <- ATLAS (given)
-//		//    atl2sub
-//		double prevdist = dist+1;
-//		size_t iters = 0;
-//		for(iters = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR && 
-//						iters < MAXITERS; ++iters) {
-//
-//			for(size_t ii=0; ii<3; ++ii) 
-//				subpoint[ii] = atlpoint[ii] + atl2sub[ii];
-//
-//			// ignore points that map outside the mask, just accept this as the
-//			// best approximate deform
-//			mask->pointToIndex(3, subpoint, cindex);
-//			if(maskinterp(cindex[0], cindex[1], cindex[2]) == 0)
-//				break;
-//
-//			// (estimate) SUB <- ATLAS (given)
-//			//              offset
-//			// interpolate new offset at subpoint
-//			deform->pointToIndex(3, subpoint, cindex);
-//
-//			/* 
-//			 * Compute teh Derivative of the Vector Field
-//			 */
-//
-//			/* Update */
-//
-//			// update sub2atl
-//			for(size_t ii=0; ii<3; ++ii) {
-//				sub2atl[ii] = definterp(cindex[0], cindex[1], cindex[2], ii);
-//			}
-//
-//			for(size_t ii=0; ii<3; ++ii) {
-//				for(size_t jj=0; jj<3; ++jj) {
-//					cindex[jj]+=0.00001;
-//					dVdX(ii,jj) = (definterp(cindex[0], cindex[1], cindex[2], ii)-sub2atl[ii])/0.00001;
-//					cindex[jj]-=0.00001;
-//				}
-//			}
-//			for(size_t ii=0; ii<3; ++ii)
-//				dVdX(ii,ii) += 1;
-//
-//			// update image with the error, using the derivative to estimate
-//			// where error crosses 0
-//			prevdist = dist;
-//			dist = 0;
-//			for(size_t ii=0; ii<3; ++ii) {
-//				err[ii] = atl2sub[ii]+sub2atl[ii];
-//			}
-//
-//			err = inverse(dVdX)*err;
-//			for(size_t ii=0; ii<3; ++ii) {
-//				atl2sub[ii] -= LAMBDA*err[ii];
-//				dist += err[ii]*err[ii];
-//			}
-//			dist = sqrt(dist);
-//		}
 

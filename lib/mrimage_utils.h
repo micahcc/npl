@@ -194,8 +194,8 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, double stddev);
  * @param mask Only smooth (alter) point within the mask, inverted by 'invert'
  * @param invert only smooth points outside the mask
  */
-void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, 
-		double stddev, shared_ptr<MRImage> mask, bool invert);
+//void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, 
+//		double stddev, shared_ptr<MRImage> mask, bool invert);
 
 } // npl
 #endif  //IMAGE_PROCESSING_H

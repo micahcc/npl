@@ -24,6 +24,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include "ndarray.h"
 #include "npltypes.h"
 #include "matrix.h"
+#include "iterators.h"
 #include "fftw3.h"
 
 #include <string>
@@ -181,6 +182,98 @@ bool comparable(const NDArray* left, const NDArray* right, bool* elL, bool* elR)
 
 	return ret;
 }
+
+/**
+ * @brief Erode an binary array repeatedly
+ *
+ * @param in Input to erode
+ * @param reps Number of radius-1 kernel erosions to perform
+ *
+ * @return Eroded Image
+ */
+shared_ptr<NDArray> erode(shared_ptr<NDArray> in, size_t reps)
+{
+	std::vector<int64_t> index1(in->ndim(), 0);
+	std::vector<int64_t> index2(in->ndim(), 0);
+	auto prev = in->copy();
+	auto out = in->copy();
+	for(size_t rr=0; rr<reps; ++rr) {
+		std::swap(prev, out);
+		
+		KernelIter<int> it(prev);
+		it.setRadius(1);
+		OrderIter<int> oit(out);
+		oit.setOrder(it.getOrder());
+		// for each pixels neighborhood, smooth neightbors
+		for(oit.goBegin(), it.goBegin(); !it.eof(); ++it, ++oit) {
+			oit.index(index1.size(), index1.data());
+			it.center_index(index2.size(), index2.data());
+
+			// if any of the neighbors are 0, then set to 0
+			bool erodeme = false;
+			for(size_t ii=0; ii<it.ksize(); ++ii) {
+				if(it.offset(ii) == 0) {
+					erodeme = true;
+				}
+			}
+
+			if(erodeme) 
+				oit.set(0);
+		}
+	}
+
+	return out;
+}
+
+/**
+ * @brief Dilate an binary array repeatedly
+ *
+ * @param in Input to dilate
+ * @param reps Number of radius-1 kernel dilations to perform
+ *
+ * @return Dilated Image
+ */
+shared_ptr<NDArray> dilate(shared_ptr<NDArray> in, size_t reps)
+{
+	std::vector<int64_t> index1(in->ndim(), 0);
+	std::vector<int64_t> index2(in->ndim(), 0);
+	auto prev = in->copy();
+	auto out = in->copy();
+	for(size_t rr=0; rr<reps; ++rr) {
+		std::swap(prev, out);
+		
+		KernelIter<int> it(prev);
+		it.setRadius(1);
+		OrderIter<int> oit(out);
+		oit.setOrder(it.getOrder());
+		// for each pixels neighborhood, smooth neightbors
+		for(oit.goBegin(), it.goBegin(); !it.eof(); ++it, ++oit) {
+			oit.index(index1.size(), index1.data());
+			it.center_index(index2.size(), index2.data());
+			for(size_t ii=0; ii<in->ndim(); ++ii) {
+				if(index1[ii] != index2[ii]) {
+					throw std::logic_error("Error differece in iteration!");
+				}
+			}
+
+			// if any of the neighbors are 0, then set to 0
+			bool dilateme = false;
+			int dilval = 0;
+			for(size_t ii=0; ii<it.ksize(); ++ii) {
+				if(it.offset(ii) != 0) {
+					dilval = it.offset(ii);
+					dilateme = true;
+				}
+			}
+
+			if(dilateme) 
+				oit.set(dilval);
+		}
+	}
+
+	return out;
+}
+
 
 } // npl
 #endif  //IMAGE_PROCESSING_H

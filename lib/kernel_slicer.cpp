@@ -416,8 +416,11 @@ void KSlicer::setOrder(std::vector<size_t> order, bool revorder)
 		}
 	}
 	assert(jj < m_order.size());
-	m_order[jj++] = *lit;
-	avail.erase(lit);
+
+	if(lit != avail.end()) {
+		m_order[jj++] = *lit;
+		avail.erase(lit);
+	}
 
 	// just add the remaining dimensions to order in reverse
 	for(auto it=avail.begin(); it != avail.end(); ++it) {
@@ -432,6 +435,17 @@ void KSlicer::setOrder(std::vector<size_t> order, bool revorder)
 			std::swap(m_order[ii],m_order[m_dim-1-ii]);
 	}
 
+	// /these were invalidated, to refigure them
+	m_fradius = 0;
+	m_rradius = 0;
+	for(size_t oo=0; oo<m_offs.size(); oo++) {
+		if(m_offs[oo][m_order[0]] > m_fradius)
+			m_fradius = m_offs[oo][m_order[0]];
+		if(m_offs[oo][m_order[0]] < m_rradius)
+			m_rradius = m_offs[oo][m_order[0]];
+	}
+	// turn offset into radius
+	m_rradius = -m_rradius;
 //	goBegin();
 };
 
