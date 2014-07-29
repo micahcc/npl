@@ -56,53 +56,158 @@ int64_t round2(int64_t in)
 	return (hob(in) << 1);
 }
 
-shared_ptr<NDArray> ifft(shared_ptr<const NDArray> in)
+/**
+ * @brief Performs in-place fft. Note that the input should already be padded
+ * and a complex type
+ *
+ * @param in
+ * @param dim
+ */
+void fft1d(shared_ptr<NDArray> in, size_t dd, bool inverse)
 {
-	// pad 
-	std::vector<int> newsizeI(in->ndim());
-	std::vector<size_t> newsizeZ(in->ndim());
-	size_t npixel = 1;
-	for(size_t ii=0; ii<in->ndim(); ii++) {
-		newsizeI[ii] = round2(in->dim(ii));
-		newsizeZ[ii] = round2(in->dim(ii));
-		npixel *= newsizeZ[ii];
+	// plan and execute 
+	double* indata = fftw_alloc_real(in->dim(dd));
+	fftw_complex *data = fftw_alloc_complex(in->dim(dd));
+	fftw_plan plan;
+	if(inverse) {
+		plan = fftw_plan_dft_1d(in->dim(dd), data, data, FFTW_BACKWARD,
+				FFTW_MEASURE);
+	} else {
+		plan = fftw_plan_dft_1d(in->dim(dd), data, data, FFTW_FORWARD,
+				FFTW_MEASURE);
 	}
-	
-	// create output image
-	auto out = in->copyCast(in->ndim(), newsizeZ.data(), COMPLEX128);
 
-	// plan and execute DFT in place
-	fftw_complex* idata = (fftw_complex*)in->data();
-	fftw_complex* odata = (fftw_complex*)out->data();
-	fftw_plan plan = fftw_plan_dft(in->ndim(), newsizeI.data(), idata, odata, 
-				FFTW_BACKWARD, FFTW_MEASURE);
-	fftw_execute(plan);
+	OrderIter<cdouble_t> oit(in);
+	oit.setOrder({dd}); 
+	OrderConstIter<cdouble_t> iit(in);
+	iit.setOrder(oit.getOrder()); // make dd the fastest
+	while(!iit.eof() && !oit.eof()) {
+
+		// fill array
+		for(size_t ii=0; ii<in->dim(dd); ++iit, ii++) {
+			data[ii][0] = (*iit).real();
+			data[ii][1] = (*iit).imag();
+		}
+		
+		// execute
+		fftw_execute(plan);
+		
+		// write array
+		cdouble_t tmp;
+		for(size_t ii=0; ii<in->dim(dd); ++oit, ii++) {
+			tmp.real(data[ii][0]);
+			tmp.real(data[ii][1]);
+			data[ii][0] = (*iit).real();
+			data[ii][1] = (*iit).imag();
+			oit.set(tmp);
+		}
+	}
+
+	fftw_fr
+}
+
+/**
+ * @brief Perform fourier transform on the dimensions specified. Those
+ * dimensions will be padded out. The output of this will be a complex double
+ *
+ * @param in Input image to fourier trnasform
+ * @param len
+ * @param dim
+ * @param inverse perform backward fourier transform
+ *
+ * @return 
+ */
+shared_ptr fft(shared_ptr<NDArray> in, size_t len, size_t* dim)
+{
+	/*
+	 * pad out the given dimensions
+	 */
+
+	// start with original size and then round up specified dimensions
+	cerr << "Input Dimensions: [" << endl;
+	for(size_t dd=0; dd<in->ndim(); dd++)
+		cerr << in->dim(dd) << ",";
+	cerr << "]";
+	std::vector<size_t> newsize(in->dim(), in->dim()+in->ndim());
+	for(size_t ii=0; ii<len; ii++) {
+		if(dim[ii] >= in->ndim()) {
+			throw std::out_of_bounds("Error, invalid dimension specified "
+					"for fouirer transform");
+		}
+		newsize[dim[ii]] = round2(newsize[dim[ii]]);
+	}
+
+	// create padded image with complex pixel type
+	auto out = in->copyCast(newsize.size(), newsize.data(), COMPLEX128);
+	cerr << "Padded Dimensions: [" << endl;
+	for(size_t dd=0; dd<out->ndim(); dd++)
+		cerr << out->dim(dd) << ",";
+	cerr << "]";
+
+	for(size_t ii=0; ii<len; ii++) {
+		assert(dim[ii] < in->ndim());
+		// perform 1D fourier transform
+
+		// plan and execute 
+		size_t orig_insz = in->dim(dim[ii]);
+		size_t pad_insz = out->dim(dim[ii]);
+		size_t osize = pad_insz/2+1;
+		
+		double* idata = fftw_alloc_real(pad_insz);
+		fftw_complex *odata = fftw_alloc_complex(osize);
+		
+		fftw_plan plan = fftw_plan_dft_r2c_1d(pad_insz, idata, odata, 
+					FFTW_FORWARD, FFTW_MEASURE);
+
+		OrderIter<cdouble_t> oit(in);
+		oit.setOrder({dd}); 
+		OrderConstIter<cdouble_t> iit(in);
+		iit.setOrder(oit.getOrder()); // make dd the fastest
+		while(!iit.eof() && !oit.eof()) {
+
+			// fill array
+			for(size_t ii=0; ii<in->dim(dd); ++iit, ii++) {
+				data[ii][0] = (*iit).real();
+				data[ii][1] = (*iit).imag();
+			}
+
+			// execute
+			fftw_execute(plan);
+
+			// write array
+			cdouble_t tmp;
+			for(size_t ii=0; ii<in->dim(dd); ++oit, ii++) {
+				tmp.real(data[ii][0]);
+				tmp.real(data[ii][1]);
+				data[ii][0] = (*iit).real();
+				data[ii][1] = (*iit).imag();
+				oit.set(tmp);
+			}
+		}
+
+
+
+
+
+
+
+// done with 1D fourier transform
+		fft1d(out, dim[ii], inverse);
+	}
 
 	return out;
 }
 
-shared_ptr<NDArray> fft(shared_ptr<const NDArray> in)
+shared_ptr<NDArray> ppfft(shared_ptr<NDArray> in, size_t len, size_t* dims)
 {
-	// pad 
-	std::vector<int> newsize(in->ndim());
-	std::vector<size_t> newsize2(in->ndim());
-	size_t npixel = 1;
-	for(size_t ii=0; ii<in->ndim(); ii++) {
-		newsize[ii] = round2(in->dim(ii));
-		newsize2[ii] = round2(in->dim(ii));
-		npixel *= newsize[ii];
+	// compute the 3D foureir transform for the entire image (or at least the
+	// dimensions specified)
+	auto fourier = fft(in, len, dims);
+
+	// compute for each fan
+	for(size_t ii=0; ii<len; ii++) {
+
 	}
-	
-	// create output image
-	auto out = in->copyCast(in->ndim(), newsize2.data(), COMPLEX128);
-
-	// plan and execute DFT in place
-	fftw_complex* data = (fftw_complex*)out->data();
-	fftw_plan plan = fftw_plan_dft(newsize.size(), newsize.data(), data, data, 
-				FFTW_FORWARD, FFTW_MEASURE);
-	fftw_execute(plan);
-
-	return out;
 }
 
 
