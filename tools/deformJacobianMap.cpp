@@ -87,7 +87,6 @@ int main(int argc, char** argv)
 	Vector3DView<double> view_dfzdx(dfzdx);
 	Vector3DView<double> view_dfzdy(dfzdy);
 	Vector3DView<double> view_dfzdz(dfzdz);
-	double deriv = 0;
 
 	for(OrderIter<double> it(jacobian); !it.eof(); ++it) {
 		it.index(3, index);

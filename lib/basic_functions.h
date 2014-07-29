@@ -16,6 +16,14 @@ Public License for more details.
 You should have received a copy of the GNU General Public License along with
 the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
+#ifndef BASIC_FUNCTIONS_H
+#define BASIC_FUNCTIONS_H
+
+namespace npl {
+
+/**********************************************************
+ * Functions for dealing with boundaries (wrap and clamp)
+ **********************************************************/
 
 /**
  * @brief Clamps value to range of [inf, sup]. Values outside will be pulled 
@@ -54,3 +62,8 @@ T wrap(T inf, T sup, T v)
 	T out = vtmp < 0 ? sup-((-vtmp-1)%len) : inf+(vtmp%len); 
 	return out;
 }
+
+
+} // npl
+
+#endif //BASIC_FUNCTIONS_H

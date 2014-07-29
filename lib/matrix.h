@@ -640,6 +640,20 @@ double det(const Matrix<2, 2>& trg)
 	return trg(0,0)*trg(1,1) - trg(1,0)*trg(0,1);
 }
 
+double det(const Matrix<3, 3>& trg)
+{
+	double a = trg(0,0);
+	double b = trg(0,1);
+	double c = trg(0,2);
+	double d = trg(1,0);
+	double e = trg(1,1);
+	double f = trg(1,2);
+	double g = trg(2,0);
+	double h = trg(2,1);
+	double i = trg(2,2);
+	return (a*e*i + b*f*g + c*d*h) - (c*e*g + b*d*i + a*f*h);
+}
+
 template <int DIM>
 double det(const Matrix<DIM, DIM>& trg)
 {

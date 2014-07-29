@@ -1,7 +1,12 @@
 
 def build(bld):
     bld(name = 'kdtree', export_includes = ['.'])
+    bld(name = 'basic_functions', export_includes = ['.'])
     
+    bld.shlib(target = 'utility',
+            source = 'utility.cpp',
+            use='EIGEN',
+            export_includes = ['.'])
     bld.shlib(target = 'ndarray',
             source = 'ndarray.cpp', 
             use='npltypes slicer',
@@ -25,7 +30,7 @@ def build(bld):
             export_includes = ['.'],
             use='ZLIB slicer mrimage kslicer') 
     bld.shlib( target = 'npltypes', 
-            source = 'npltypes.cpp', 
+            source = 'npltypes.cpp ', 
             export_includes = ['.'])
     bld.shlib( target = 'iterators', 
             source = 'iterators.cpp', 

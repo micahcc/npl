@@ -51,15 +51,152 @@ ostream& operator<<(ostream& out, const std::vector<T>& v)
 	return out;
 }
 
-shared_ptr<MRImage> optimizeInverse(shared_ptr<MRImage> forward, 
-		shared_ptr<MRImage> inverse)
-{
-	shared_ptr<MRImage> out = dynamic_pointer_cast<MRImage>(inverse->copy());
-	
-	
-	return out;
-}
 
+/**
+ * @brief Inverts a deformation, given a mask in the target space.
+ *
+ * Mathematical basis for this function is that in image S (subject)
+ * we have a mapping from S to A (atlas), which we will call u, 
+ * and in image A we have a map from A to S (v) that we want to optimize. The
+ * goal is to :
+ *
+ * minimize
+ * ||u+v||^2
+ *
+ * @param mask Mask in target space (where the current deform maps from)
+ * @param deform Maps from mask space.
+ * @param atldef Maps to mask space, should be same size as mask
+ *
+ * @return 
+ */
+shared_ptr<MRImage> invertForwardBack(shared_ptr<MRImage> deform, 
+		shared_ptr<MRImage> atlas, size_t MAXITERS, double MINERR)
+{
+	// create output the size of atlas, with 3 volumes in the 4th dimension
+	auto atldef = createMRImage({atlas->dim(0), atlas->dim(1), 
+				atlas->dim(2), 3}, FLOAT64);
+	atldef->setDirection(atlas->direction(), true);
+	atldef->setSpacing(atlas->spacing(), true);
+	atldef->setOrigin(atlas->origin(), true);
+
+	LinInterp3DView<double> definterp(deform);
+	const double LAMBDA = 0.1;
+	int64_t index[3];
+	double err[3];
+	double subpoint[3];
+	double cindex[3];
+	double sub2atl[3];
+	vector<double> atlpoint(3);
+	vector<double> atl2sub(3);
+	KDTree<3,3,double, double> tree;
+
+	if(deform->tlen() != 3) {
+		cerr << "Error invalid deform image, needs 3 points in the 4th or "
+			"5th dim" << endl;
+		return NULL;
+	}
+
+	/* 
+	 * Construct KDTree indexed by atlas-space indices, and storing indices
+	 * in subject (mask) space. Only do it if mask value is non-zero however
+	 */
+	Vector3DIter<double> dit(deform);
+	for(dit.goBegin(); !dit.eof(); ++dit) {
+		dit.index(3, index);
+		deform->indexToPoint(3, index, subpoint);
+
+		for(int ii=0; ii<3; ++ii) {
+			sub2atl[ii] = dit[ii];
+			atl2sub[ii] = -dit[ii];
+			atlpoint[ii] = subpoint[ii] + sub2atl[ii];
+		}
+
+		// add point to kdtree, use atl2sub since this will be our best guess
+		// of atl2sub when we pull the point out of the tree
+		tree.insert(atlpoint, atl2sub);
+	}
+	tree.build();
+
+	/* 
+	 * In atlas image try to find the correct source in the subject by first
+	 * finding a point from the KDTree then improving on that result 
+	 */
+	// set atlas deform to NANs
+	for(FlatIter<double> ait(atldef); !ait.eof(); ++ait) 
+		ait.set(NAN);
+
+	// at each point in atlas try to find the best mapping in the subject by
+	// going back and forth. Since the mapping from sub to atlas is ground truth
+	// we need to keep checking until we find a point in the subject that maps
+	// to our current atlas location
+	Vector3DIter<double> ait(atldef);
+	assert(ait.tlen() == 3);
+
+	for(ait.goBegin(); !ait.eof(); ++ait) {
+
+		ait.index(3, index);
+		atldef->indexToPoint(3, index, atlpoint.data());
+
+
+		// that map from outside, then compute the median of the remaining
+		double dist = INFINITY;
+		auto results = tree.nearest(atlpoint, dist);
+
+		// sort 
+		if(!results)
+			continue;
+
+		for(size_t dd=0; dd<3; dd++)
+			atl2sub[dd] = results->m_data[dd];
+
+		// SUB <- ATLAS (given)
+		//    atl2sub
+		double prevdist = dist+1;
+		size_t iters = 0;
+		for(iters = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR && 
+						iters < MAXITERS; iters++) {
+
+			for(size_t ii=0; ii<3; ii++) 
+				subpoint[ii] = atlpoint[ii] + atl2sub[ii];
+
+			// (estimate) SUB <- ATLAS (given)
+			//              offset
+			// interpolate new offset at subpoint
+			deform->pointToIndex(3, subpoint, cindex);
+
+			/* Update */
+
+			// update sub2atl
+			for(size_t ii=0; ii<3; ii++) {
+				sub2atl[ii] = definterp(cindex[0], cindex[1], cindex[2], ii);
+			}
+
+			// update image with the error, using the derivative to estimate
+			// where error crosses 0
+			prevdist = dist;
+			dist = 0;
+			for(size_t ii=0; ii<3; ii++) {
+				err[ii] = atl2sub[ii]+sub2atl[ii];
+			}
+
+			for(size_t ii=0; ii<3; ii++) {
+				atl2sub[ii] -= LAMBDA*err[ii];
+				dist += err[ii]*err[ii];
+			}
+			dist = sqrt(dist);
+		}
+
+
+		// save out final deform
+		for(size_t ii=0; ii<3; ++ii) 
+			ait.set(ii, atl2sub[ii]);
+		cout << setw(10) << index[0] << setw(10) << index[1] << setw(10) 
+					<< index[2] << setw(10) << "\r";
+
+	}
+
+	return atldef;
+}
 
 /**
  * @brief Smooths an image in 1 dimension, masked version. Only updates pixels
@@ -212,10 +349,9 @@ shared_ptr<MRImage> indexMapToOffsetMap(shared_ptr<const MRImage> defimg,
  *
  * @return 
  */
-shared_ptr<MRImage> invertUnMasked(shared_ptr<MRImage> deform, 
+shared_ptr<MRImage> invertMedianSmooth(shared_ptr<MRImage> deform, 
 		shared_ptr<MRImage> atlas, size_t MAXITERS, double CHNORM, double MINDIST)
 {
-	cerr << "Inverting without mask" << endl;
 	// create output the size of atlas, with 3 volumes in the 4th dimension
 	auto atldef = createMRImage({atlas->dim(0), atlas->dim(1), 
 				atlas->dim(2), 3}, FLOAT64);
@@ -274,7 +410,6 @@ shared_ptr<MRImage> invertUnMasked(shared_ptr<MRImage> deform,
 	Vector3DIter<double> ait(atldef);
 	assert(ait.tlen() == 3);
 
-	cout << setw(30) << "Inverting: "  << "Median Iterations" << endl; 
 	for(ait.goBegin(); !ait.eof(); ++ait) {
 
 		ait.index(3, index);
@@ -474,14 +609,128 @@ shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def,
 	// to improve mask boundaries, since the support is smaller, the oddness
 	// due to internal pointers not being smoothed versus the neighboring 
 	// smoothed points is decreased
-	for(size_t ii=0; ii<3; ii++) {
-		gaussianSmooth1D(outdef, 0, 1.0, omask, true);
-		gaussianSmooth1D(outdef, 1, 1.0, omask, true);
-		gaussianSmooth1D(outdef, 2, 1.0, omask, true);
-	}
+//	for(size_t ii=0; ii<4; ii++) {
+//		gaussianSmooth1D(outdef, 0, 1.0, omask, true);
+//		gaussianSmooth1D(outdef, 1, 1.0, omask, true);
+//		gaussianSmooth1D(outdef, 2, 1.0, omask, true);
+//	}
 
 	cerr << "Done with extrapolation" << endl;
 	return dynamic_pointer_cast<MRImage>(outdef);
+}
+
+shared_ptr<MRImage> medianSmooth(shared_ptr<MRImage> deform, double radius)
+{
+	const double CHNORM = .1;
+	const size_t MAXITERS = 100;
+	const double MINNORM = 0.000001;
+
+	// create output
+	auto out = dynamic_pointer_cast<MRImage>(deform->copy());
+
+	// create KDTree of the grid
+	KDTree<3,3,double, double> tree;
+	double point[3]; 
+	double sub2atl[3]; 
+	int64_t index[3]; 
+
+	/* 
+	 * Construct KDTree indexed by atlas-space indices, and storing indices
+	 * in subject (mask) space. Only do it if mask value is non-zero however
+	 */
+	Vector3DIter<double> dit(deform);
+	for(dit.goBegin(); !dit.eof(); ++dit) {
+		dit.index(3, index);
+		deform->indexToPoint(3, index, point);
+
+		for(int ii=0; ii<3; ++ii) {
+			sub2atl[ii] = dit[ii];
+		}
+
+		// add point to kdtree, use atl2sub since this will be our best guess
+		// of atl2sub when we pull the point out of the tree
+		tree.insert(3, point, 3, sub2atl);
+	}
+	tree.build();
+
+	Vector3DIter<double> oit(out);
+	for(dit.goBegin(), oit.goBegin(); !oit.eof(); ++dit, ++oit) {
+
+		oit.index(3, index);
+		deform->indexToPoint(3, index, point);
+
+		double dist = radius;
+		auto results = tree.withindist(3, point, dist);
+
+		assert(!results.empty());
+
+		/*****************************
+		 * find the geometric median 
+		 *****************************/
+
+		// intiialize with the mean
+		for(size_t ii=0; ii<3; ++ii)
+			sub2atl[ii] = 0;
+
+		for(auto lit = results.begin(); lit != results.end(); ++lit) {
+			for(size_t ii=0; ii<3; ++ii)
+				sub2atl[ii] += (*lit)->m_data[ii];
+		}
+		for(size_t ii=0; ii<3; ++ii)
+			sub2atl[ii] /= results.size();
+
+		// iteratively reweight least squares solution
+		double norm = CHNORM+1;
+		size_t iter=0;
+		for(iter = 0; iter < MAXITERS && norm > CHNORM; ++iter) {
+			double sumnorm = 0;
+			double prev[3];
+
+			// copy current best into previous
+			for(size_t ii=0; ii<3; ++ii) {
+				prev[ii] = sub2atl[ii];
+				sub2atl[ii] = 0;
+			}
+
+			for(auto lit = results.begin(); lit != results.end(); ++lit) {
+				// compute distance between point and current best
+				norm = 0;
+				for(size_t ii=0; ii<3; ++ii) {
+					norm += (prev[ii]-(*lit)->m_data[ii])*(prev[ii]-
+							(*lit)->m_data[ii]);
+				}
+				norm = sqrt(norm);
+				if(norm < MINNORM) 
+					norm = MINNORM;
+
+				// add up total weights
+				sumnorm += (1./norm);
+
+				for(size_t ii=0; ii<3; ++ii)
+					sub2atl[ii] += (*lit)->m_data[ii]/norm;
+			}
+
+			// divide by total weights
+			for(size_t ii=0; ii<3; ++ii)
+				sub2atl[ii] /= sumnorm;
+
+			// compute difference from previous
+			norm = 0;
+			for(size_t ii=0; ii<3; ++ii)
+				norm += (sub2atl[ii] - prev[ii])*(sub2atl[ii] - prev[ii]);
+			norm = sqrt(norm);
+		}
+
+		// save out final deform
+		for(size_t ii=0; ii<3; ++ii) 
+			oit.set(ii, sub2atl[ii]);
+		
+		cout << setw(10) << index[0] << setw(10) << index[1] << setw(10) 
+					<< index[2] << setw(10) << iter << "\r";
+
+	}
+	
+	return out;
 }
 
 
@@ -535,14 +784,19 @@ int main(int argc, char** argv)
 			"median-smoothing of input deform during inverse", false, 100, "iters", cmd);
 	TCLAP::ValueArg<double> a_improve("", "delta", "Amount of improvement in "
 			"estimate before stopping during inverse.", false, 0.1, "DNORM", cmd);
-	TCLAP::ValueArg<double> a_radius("R", "radius", "Radius to search "
-			"for points that may map to a coordinate in the output image. "
-			"We compute the geometric median of the points to give a smoothed "
-			"deformation.", false, 10, "mm", cmd);
+//	TCLAP::ValueArg<double> a_radius("R", "radius", "Radius to search "
+//			"for points that may map to a coordinate in the output image. "
+//			"We compute the geometric median of the points to give a smoothed "
+//			"deformation.", false, 10, "mm", cmd);
+
+	TCLAP::ValueArg<double> a_gaussian_sigma("s", "sigma", "Sigma of gaussian "
+			"smoothing kernel in mm.", false, 5, "mm", cmd);
+	TCLAP::ValueArg<double> a_median_radius("M", "median-radius", "Radius of "
+			"median smoothing.", false, 2, "mm", cmd);
 
 
 	cmd.parse(argc, argv);
-	std::shared_ptr<MRImage> indef;
+	std::shared_ptr<MRImage> deform;
 	std::shared_ptr<MRImage> atlas;
 	std::shared_ptr<MRImage> mask;
 	bool extrapolate = a_extrapolate.isSet();
@@ -550,15 +804,39 @@ int main(int argc, char** argv)
 	/**********
 	 * Input
 	 *********/
-	indef = readMRImage(a_indef.getValue());
-	if(indef->ndim() < 4 || indef->tlen() != 3) {
+	deform = readMRImage(a_indef.getValue());
+	if(deform->ndim() < 4 || deform->tlen() != 3) {
 		cerr << "Expected dform to be 4D/5D Image, with 3 volumes!" << endl;
 		return -1;
 	}
 	if(a_mask.isSet()) {
 		mask = readMRImage(a_mask.getValue());
 		binarize(mask);
+
+		// check if mask has same dimensions as first DIM dimensions of deform
+		bool samedim = true;
+		for(size_t dd=0; dd<mask->ndim() && dd<deform->ndim(); dd++) {
+			if(mask->dim(dd) != deform->dim(dd))
+				samedim = false;
+		}
+
+		double overlap = overlapRatio(mask, deform);
+		if(overlap < 0.5 && samedim) {
+			cerr << "WARNING it looks like you provided a mask with different "
+				"orientation than the deformation. We are going to alter the "
+				"orientation of the mask to match the deform. THIS IS BAD. You "
+				"should fix your input mask." << endl;
+			mask->setOrigin(deform->origin());
+			mask->setSpacing(deform->spacing());
+			mask->setDirection(deform->direction());
+		} else if(overlap < 0.5) {
+			cerr << "Error there is not a large enough overlap between the "
+				"input  deform and the mask. You should provide a mask that "
+				"overlaps!" << endl;
+			return -1;
+		}
 	}
+
 	if(a_atlas.isSet()) {
 		atlas = readMRImage(a_atlas.getValue());
 		binarize(atlas);
@@ -580,8 +858,8 @@ int main(int argc, char** argv)
 			cerr << "Indexes start at 0" << endl;
 		}
 		// convert deform to RAS space offsets
-		indef = indexMapToOffsetMap(indef, atlas, a_one_index.isSet());
-		indef->write("offset.nii.gz");
+		deform = indexMapToOffsetMap(deform, atlas, a_one_index.isSet());
+		deform->write("offset.nii.gz");
 	}
 
 
@@ -599,8 +877,8 @@ int main(int argc, char** argv)
 				<< endl;
 			return -1;
 		}
-		indef = extrapolateFromMasked(indef, mask);
-		indef->write("extrapolated.nii.gz");
+		deform = extrapolateFromMasked(deform, mask);
+		deform->write("extrapolated.nii.gz");
 		// don't need mask anymore
 		mask.reset();
 	}
@@ -611,39 +889,26 @@ int main(int argc, char** argv)
 			cerr << "Must provide atlas for inversion!" << endl;
 		}
 
+		cerr << "Median Smoothing..." << endl;
+		deform = medianSmooth(deform, a_median_radius.getValue());
+		cerr << "Gaussian Smoothing..." << endl;
+		deform->write("median_smoothed.nii.gz");
+		gaussianSmooth1D(deform, 0, a_gaussian_sigma.getValue());
+		gaussianSmooth1D(deform, 1, a_gaussian_sigma.getValue());
+		gaussianSmooth1D(deform, 2, a_gaussian_sigma.getValue());
+		cerr << "Done Smoothing." << endl;
+		deform->write("smoothed.nii.gz");
+
 		cerr << "Inverting" << endl;
-		auto outdef = invertUnMasked(indef, atlas, a_iters.getValue(), 
-				a_improve.getValue(), a_radius.getValue());
+		deform = invertForwardBack(deform, atlas, 15, 0.1); 
 		cerr << "Done" << endl;
 
-		outdef->write("invert.nii.gz");
-		/* 
-		 * fill any holes with smoothed values
-		 */
-
-		// construct mask in NAN'd regions
-		OrderIter<int> ait(atlas);
-		NNInterp3DView<double> dvw(outdef);
-		int64_t index[3];
-		while(!ait.eof()) {
-			ait.index(3, index);
-			bool nan = false;
-			for(size_t ii=0; ii<3; ii++) {
-				if(std::isnan(dvw(index[0], index[1], index[2], ii)))
-					nan = true;
-			}
-			if(nan)
-				ait.set(0);
-			else
-				ait.set(1);
-
-			++ait;
-		}
-
-		atlas->write("invert_extmask.nii.gz");
-		outdef = extrapolateFromMasked(outdef, atlas);
+		deform->write("invert.nii.gz");
+		gaussianSmooth1D(deform, 0, a_gaussian_sigma.getValue());
+		gaussianSmooth1D(deform, 1, a_gaussian_sigma.getValue());
+		gaussianSmooth1D(deform, 2, a_gaussian_sigma.getValue());
 		// smooth masked regions
-		outdef->write("invert_ext.nii.gz");
+		deform->write("invert_smooth.nii.gz");
 	}
 
 	// convert to correct output type
@@ -653,7 +918,7 @@ int main(int argc, char** argv)
 	}
 
 	// write
-	indef->write(a_out.getValue());
+	deform->write(a_out.getValue());
 	
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
