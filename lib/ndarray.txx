@@ -157,7 +157,7 @@ void NDArrayStore<D,T>::resize(const size_t dim[D])
 		for(size_t ii=0; ii<D; ii++) 
 			dsize *= dim[ii];
 		T* newdata = new T[dsize];
-		std::fill(newdata, newdata+dsize, 0);
+		std::fill(newdata, newdata+dsize, (T)0);
 		
 		// copy the old array to the new, by creating slicers with regions of
 		//interest which have the minimum size of the original or new 
@@ -199,7 +199,7 @@ void NDArrayStore<D,T>::resize(const size_t dim[D])
 		_m_data = new T[dsize];
 
 		// zero fill
-		std::fill(_m_data, _m_data+dsize, 0);
+		std::fill(_m_data, _m_data+dsize, (T)0);
 	}
 
 	updateStrides();
@@ -263,21 +263,40 @@ int64_t NDArrayStore<D,T>::getLinIndex(std::initializer_list<int64_t> index) con
 	return out;
 }
 
+//template <size_t D, typename T>
+//inline
+//int64_t NDArrayStore<D,T>::getLinIndex(const int64_t* index) const
+//{
+//	int64_t out = 0;
+//
+//	// copy the dimensions 
+//	for(size_t ii = 0; ii<D; ii++) {
+//		assert(index[ii] >= 0);
+//		assert(index[ii] < _m_dim[ii]);
+//
+//		// set position
+//		out += _m_stride[ii]*index[ii];
+//	}
+//
+//	assert(out < elements());
+//	return out;
+//}
+
 template <size_t D, typename T>
 inline
-int64_t NDArrayStore<D,T>::getLinIndex(const int64_t* index) const
+int64_t NDArrayStore<D,T>::getLinIndex(size_t len, const int64_t* index) const
 {
-	int64_t out = 0;
+	size_t out = 0;
 
 	// copy the dimensions 
-	for(size_t ii = 0; ii<D; ii++) {
+	for(size_t ii = 0; ii < len && ii<D; ii++) {
 		assert(index[ii] >= 0);
 		assert(index[ii] < _m_dim[ii]);
 
 		// set position
 		out += _m_stride[ii]*index[ii];
 	}
-
+	
 	assert(out < elements());
 	return out;
 }
@@ -342,12 +361,12 @@ const T& NDArrayStore<D,T>::operator[](const std::vector<int64_t>& index) const
 {
 	return _m_data[getLinIndex(index)];
 }
-
-template <size_t D, typename T>
-const T& NDArrayStore<D,T>::operator[](const int64_t* index) const
-{
-	return _m_data[getLinIndex(index)];
-}
+//
+//template <size_t D, typename T>
+//const T& NDArrayStore<D,T>::operator[](const int64_t* index) const
+//{
+//	return _m_data[getLinIndex(index)];
+//}
 
 template <size_t D, typename T>
 const T& NDArrayStore<D,T>::operator[](int64_t pixel) const
@@ -367,12 +386,12 @@ T& NDArrayStore<D,T>::operator[](const std::vector<int64_t>& index)
 	return _m_data[getLinIndex(index)];
 }
 
-template <size_t D, typename T>
-T& NDArrayStore<D,T>::operator[](const int64_t* index) 
-{
-	return _m_data[getLinIndex(index)];
-}
-
+//template <size_t D, typename T>
+//T& NDArrayStore<D,T>::operator[](const int64_t* index) 
+//{
+//	return _m_data[getLinIndex(index)];
+//}
+//
 template <size_t D, typename T>
 T& NDArrayStore<D,T>::operator[](int64_t pixel) 
 {

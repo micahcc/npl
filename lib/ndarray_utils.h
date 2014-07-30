@@ -17,6 +17,17 @@ You should have received a copy of the GNU General Public License along with
 the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
+/******************************************************************************
+ * @file ndarray_utils.h
+ * @brief This file contains common functions which are useful for processing
+ * of N-dimensional arrays and their derived counterparts (MRImage for
+ * example). All of these functions return pointers to NDArray types, however
+ * if an image is passed in, then the output will also be an image, you just 
+ * need to cast the output using std::dynamic_pointer_cast<MRImage>(out). 
+ * mrimage_utils.h is for more specific image-processing algorithm, this if for
+ * generally data of any dimension, without regard to orientation.
+ ******************************************************************************/
+
 #ifndef ND_ALGOS_H
 #define ND_ALGOS_H
 
@@ -32,22 +43,31 @@ using std::shared_ptr;
 
 
 /**
- * @brief Computes the N-Dimensional fourier transform on the input image.
+ * @brief Perform fourier transform on the dimensions specified. Those
+ * dimensions will be padded out. The output of this will be a double. 
+ * If len = 0 or dim == NULL, then ALL dimensions will be transformed.
  *
- * @param in Input image
+ * @param in Input image to inverse fourier trnasform
  *
- * @return Output image (complex double)
+ * @return Image with specified dimensions in the real domain. Image will
+ * differ in size from input, and the last dimension will only contain the
+ * positive frequencies
  */
-shared_ptr<NDArray> fft(shared_ptr<NDArray> in);
+shared_ptr<NDArray> ifft_c2r(shared_ptr<const NDArray> in);
 
 /**
- * @brief Computes the N-Dimensional inverse fourier transform on the input image.
+ * @brief Perform fourier transform on the dimensions specified. Those
+ * dimensions will be padded out. The output of this will be a complex double.
+ * If len = 0 or dim == NULL, then ALL dimensions will be transformed.
  *
- * @param in Input image (should be complex)
+ * @param in Input image to fourier trnasform
+ * @param len Length of input dim array
+ * @param dim Array specifying which dimensions to fourier transform
  *
- * @return Output image (complex double)
+ * @return Real image, which is the result of inverse fourier transforming 
+ * the (complex) input image.
  */
-shared_ptr<NDArray> ifft(shared_ptr<NDArray> in);
+shared_ptr<NDArray> fft_r2c(shared_ptr<const NDArray> in);
 
 /**
  * @brief Returns whether two NDArrays have the same dimensions, and therefore

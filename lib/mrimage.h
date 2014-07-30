@@ -17,6 +17,12 @@ You should have received a copy of the GNU General Public License along with
 the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
+/******************************************************************************
+ * @file mrimage.h
+ * @brief This file contains the definition for MRImage and its derived types. 
+ * The derived types are templated over dimensionality and pixel type. 
+ ******************************************************************************/
+
 #ifndef NDIMAGE_H
 #define NDIMAGE_H
 

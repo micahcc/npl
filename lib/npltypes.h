@@ -25,11 +25,12 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 namespace npl {
 
 
-struct cfloat_t;
-struct cdouble_t;
-struct cquad_t;
 struct rgba_t;
 struct rgb_t;
+
+struct cdouble_t;
+struct cfloat_t ;
+struct cquad_t ;
 
 struct cdouble_t: public std::complex<double>
 {
@@ -46,17 +47,26 @@ struct cdouble_t: public std::complex<double>
 	explicit operator uint8_t() const;
 //	explicit operator cfloat_t() const;
 //	explicit operator cquad_t() const;
-	explicit operator std::complex<float>();
-	explicit operator std::complex<long double>();
-
+//	explicit operator std::complex<float>();
+//	explicit operator std::complex<long double>();
+//
 	cdouble_t(double re = 0, double im = 0) : std::complex<double>(re, im) {} ;
-	explicit cdouble_t(cfloat_t);
-	explicit cdouble_t(cquad_t);
-	explicit cdouble_t(std::complex<float>);
-	explicit cdouble_t(std::complex<long double>);
-	explicit cdouble_t(rgba_t);
-	explicit cdouble_t(rgb_t);
+	explicit cdouble_t(const cfloat_t&);
+	explicit cdouble_t(const cquad_t&);
+	explicit cdouble_t(const std::complex<float>& );
+	explicit cdouble_t(const std::complex<long double>&);
+//	explicit cdouble_t(rgba_t);
+//	explicit cdouble_t(rgb_t);
+//	explicit cdouble_t(const unsigned char& c) : std::complex<double>((double)c) {};
+//	explicit cdouble_t(const char& c) : std::complex<double>((double)c) {};
+	
+	cdouble_t& operator=(const std::complex<double>& v);
+	cdouble_t& operator=(const std::complex<float>& v);
+	cdouble_t& operator=(const std::complex<long double>& v);
+	cdouble_t& operator=(const cfloat_t& v);
+	cdouble_t& operator=(const cquad_t& v);
 };
+
 
 struct cfloat_t : public std::complex<float>
 {
@@ -71,16 +81,25 @@ struct cfloat_t : public std::complex<float>
 	explicit operator uint16_t() const;
 	explicit operator int8_t() const;
 	explicit operator uint8_t() const;
-	explicit operator std::complex<double>();
-	explicit operator std::complex<long double>();
-
+//	explicit operator std::complex<double>();
+//	explicit operator std::complex<long double>();
+//
 	cfloat_t(double re = 0, double im = 0) : std::complex<float>(re, im) {} ;
-	explicit cfloat_t(cdouble_t);
-	explicit cfloat_t(cquad_t);
-	explicit cfloat_t(std::complex<double>);
-	explicit cfloat_t(std::complex<long double>);
-	explicit cfloat_t(rgba_t);
-	explicit cfloat_t(rgb_t);
+	explicit cfloat_t(const cdouble_t&);
+	explicit cfloat_t(const cquad_t&);
+	explicit cfloat_t(const std::complex<double>&);
+	explicit cfloat_t(const std::complex<long double>&);
+//	explicit cfloat_t(rgba_t);
+//	explicit cfloat_t(rgb_t);
+//	explicit cfloat_t(const unsigned char& c) : std::complex<float>((float)c) {};
+//	explicit cfloat_t(const char& c) : std::complex<float>((float)c) {};
+
+	cfloat_t& operator=(const std::complex<double>& v);
+	cfloat_t& operator=(const std::complex<float>& v);
+	cfloat_t& operator=(const std::complex<long double>& v);
+	cfloat_t& operator=(const cdouble_t& v);
+	cfloat_t& operator=(const cquad_t& v);
+
 };
 
 struct cquad_t : public std::complex<long double>
@@ -96,16 +115,25 @@ struct cquad_t : public std::complex<long double>
 	explicit operator uint16_t() const;
 	explicit operator int8_t() const;
 	explicit operator uint8_t() const;
-	explicit operator std::complex<float>();
-	explicit operator std::complex<double>();
-	
+//	explicit operator std::complex<float>();
+//	explicit operator std::complex<double>();
+//	
 	cquad_t(double re = 0, double im = 0) : std::complex<long double>(re, im) {} ;
-	explicit cquad_t(cdouble_t);
-	explicit cquad_t(cfloat_t);
-	explicit cquad_t(std::complex<float>);
-	explicit cquad_t(std::complex<double>);
-	explicit cquad_t(rgba_t);
-	explicit cquad_t(rgb_t);
+	explicit cquad_t(const cdouble_t&);
+	explicit cquad_t(const cfloat_t&);
+	explicit cquad_t(const std::complex<float>&);
+	explicit cquad_t(const std::complex<double>&);
+//	explicit cquad_t(rgba_t);
+//	explicit cquad_t(rgb_t);
+//	
+//	explicit cquad_t(const unsigned char& c) : std::complex<long double>((long double)c) {};
+//	explicit cquad_t(const char& c) : std::complex<long double>((long double)c) {};
+	
+	cquad_t& operator=(const std::complex<double>& v);
+	cquad_t& operator=(const std::complex<float>& v);
+	cquad_t& operator=(const std::complex<long double>& v);
+	cquad_t& operator=(const cdouble_t& v);
+	cquad_t& operator=(const cfloat_t& v);
 };
 
 struct rgb_t
@@ -125,6 +153,9 @@ struct rgb_t
 	explicit operator uint16_t() const;
 	explicit operator int8_t() const;
 	explicit operator uint8_t() const;
+	explicit operator cquad_t() const;
+	explicit operator cdouble_t() const;
+	explicit operator cfloat_t() const;
 
 	// math operators
 	rgb_t& operator=(float v);
@@ -177,6 +208,9 @@ struct rgba_t
 	explicit operator uint16_t() const;
 	explicit operator int8_t() const;
 	explicit operator uint8_t() const;
+	explicit operator cquad_t() const;
+	explicit operator cdouble_t() const;
+	explicit operator cfloat_t() const;
 	
 	rgba_t& operator=(float v);
 	rgba_t& operator=(double v);
@@ -216,25 +250,25 @@ std::ostream& operator<< (std::ostream& stream, const rgba_t& v);
 
 // math
 
-// cdouble - double
-cdouble_t operator+(const cdouble_t& lhs, const double& rhs);
-cdouble_t operator+(const double& lhs, const cdouble_t& rhs);
-cdouble_t operator-(const cdouble_t& lhs, const double& rhs);
-cdouble_t operator-(const double& lhs, const cdouble_t& rhs);
-cdouble_t operator*(const cdouble_t& lhs, const double& rhs);
-cdouble_t operator*(const double& lhs, const cdouble_t& rhs);
-cdouble_t operator/(const cdouble_t& lhs, const double& rhs);
-cdouble_t operator/(const double& lhs, const cdouble_t& rhs);
-
-// cfloat - double
-cfloat_t operator+(const cfloat_t& lhs, const double& rhs);
-cfloat_t operator+(const double& lhs, const cfloat_t& rhs);
-cfloat_t operator-(const cfloat_t& lhs, const double& rhs);
-cfloat_t operator-(const double& lhs, const cfloat_t& rhs);
-cfloat_t operator*(const cfloat_t& lhs, const double& rhs);
-cfloat_t operator*(const double& lhs, const cfloat_t& rhs);
-cfloat_t operator/(const cfloat_t& lhs, const double& rhs);
-cfloat_t operator/(const double& lhs, const cfloat_t& rhs);
+//// cdouble - double
+//cdouble_t operator+(const cdouble_t& lhs, const double& rhs);
+//cdouble_t operator+(const double& lhs, const cdouble_t& rhs);
+//cdouble_t operator-(const cdouble_t& lhs, const double& rhs);
+//cdouble_t operator-(const double& lhs, const cdouble_t& rhs);
+//cdouble_t operator*(const cdouble_t& lhs, const double& rhs);
+//cdouble_t operator*(const double& lhs, const cdouble_t& rhs);
+//cdouble_t operator/(const cdouble_t& lhs, const double& rhs);
+//cdouble_t operator/(const double& lhs, const cdouble_t& rhs);
+//
+//// cfloat - double
+//cfloat_t operator+(const cfloat_t& lhs, const double& rhs);
+//cfloat_t operator+(const double& lhs, const cfloat_t& rhs);
+//cfloat_t operator-(const cfloat_t& lhs, const double& rhs);
+//cfloat_t operator-(const double& lhs, const cfloat_t& rhs);
+//cfloat_t operator*(const cfloat_t& lhs, const double& rhs);
+//cfloat_t operator*(const double& lhs, const cfloat_t& rhs);
+//cfloat_t operator/(const cfloat_t& lhs, const double& rhs);
+//cfloat_t operator/(const double& lhs, const cfloat_t& rhs);
 
 // rgb - double
 rgb_t operator+(const rgb_t& lhs, const double& rhs);

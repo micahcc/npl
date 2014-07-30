@@ -17,6 +17,14 @@ You should have received a copy of the GNU General Public License along with
 the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
+/******************************************************************************
+ * @file mrimage_utils.h
+ * @brief This file contains common functions which are useful for image
+ * processing. Note that ndarray_utils.h has utilities which are more general
+ * whereas this file contains functions which are specifically for image
+ * processing.
+ ******************************************************************************/
+
 #ifndef IMAGE_PROCESSING_H
 #define IMAGE_PROCESSING_H
 
@@ -196,6 +204,37 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, double stddev);
  */
 //void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, 
 //		double stddev, shared_ptr<MRImage> mask, bool invert);
+
+/******************************************************
+ * FFT Tools
+ *****************************************************/
+
+/**
+ * @brief Perform fourier transform on the dimensions specified. Those
+ * dimensions will be padded out. The output of this will be a complex double.
+ * If len = 0 or dim == NULL, then ALL dimensions will be transformed.
+ *
+ * @param in Input image to fourier transform
+ *
+ * @return Complex image, which is the result of inverse fourier transforming 
+ * the (Real) input image. Note that the last dimension only contains the real
+ * frequencies, but all other dimensions contain both
+ */
+shared_ptr<MRImage> fft_r2c(shared_ptr<const MRImage> in);
+
+/**
+ * @brief Perform fourier transform on the dimensions specified. Those
+ * dimensions will be padded out. The output of this will be a double. 
+ * If len = 0 or dim == NULL, then ALL dimensions will be transformed.
+ *
+ * @param in Input image to inverse fourier trnasform
+ * @param len length of input dimension array
+ * @param dim dimensions to transform
+ *
+ * @return Image with specified dimensions in the real domain. Image will
+ * differ in size from input.
+ */
+shared_ptr<MRImage> ifft_c2r(shared_ptr<const MRImage> in);
 
 } // npl
 #endif  //IMAGE_PROCESSING_H

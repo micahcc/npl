@@ -75,9 +75,9 @@ std::ostream& operator<< (std::ostream& stream, const rgba_t& v)
 }
 
 
-//////////////////////////////////////////////////////
-// cdouble_t
-//////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
+//// cdouble_t
+////////////////////////////////////////////////////////
 cdouble_t::operator float() const {
 	return norm(*this);
 };
@@ -121,24 +121,55 @@ cdouble_t::operator int8_t() const {
 cdouble_t::operator uint8_t() const {
 	return (uint8_t)norm(*this);
 };
+//
+//cdouble_t::operator std::complex<float>() {
+//	return std::complex<float>(real(), imag());
+//};
 
-cdouble_t::operator std::complex<float>() {
-	return std::complex<float>(real(), imag());
-};
+cdouble_t& cdouble_t::operator=(const std::complex<double>& v)
+{
+	real(v.real());
+	imag(v.imag());
+	return *this;
+}
+cdouble_t& cdouble_t::operator=(const std::complex<float>& v)
+{
+	real(v.real());
+	imag(v.imag());
+	return *this;
+}
+cdouble_t& cdouble_t::operator=(const std::complex<long double>& v)
+{
+	real(v.real());
+	imag(v.imag());
+	return *this;
+}
+cdouble_t& cdouble_t::operator=(const cfloat_t& v)
+{
+	real(v.real());
+	imag(v.imag());
+	return *this;
+}
+cdouble_t& cdouble_t::operator=(const cquad_t& v)
+{
+	real(v.real());
+	imag(v.imag());
+	return *this;
+}
 
-//cdouble_t::cdouble_t(double v) : std::complex<double>(v) {} 
-//cdouble_t::cdouble_t(float v) : std::complex<double>(v) {} 
-//cdouble_t::cdouble_t(int64_t v) : std::complex<double>(v) {} 
-cdouble_t::cdouble_t(cfloat_t v): std::complex<double>(v) {} 
-cdouble_t::cdouble_t(cquad_t v): std::complex<double>(v) {} 
-cdouble_t::cdouble_t(std::complex<float> v): std::complex<double>(v) {} 
-cdouble_t::cdouble_t(std::complex<long double> v): std::complex<double>(v) {} 
-cdouble_t::cdouble_t(rgba_t v): std::complex<double>((double)v) {} 
-cdouble_t::cdouble_t(rgb_t v): std::complex<double>((double)v) {} 
-	
-//////////////////////////////////////////////////////
-// cfloat_t
-//////////////////////////////////////////////////////
+
+////cdouble_t::cdouble_t(double v) : std::complex<double>(v) {} 
+////cdouble_t::cdouble_t(float v) : std::complex<double>(v) {} 
+////cdouble_t::cdouble_t(int64_t v) : std::complex<double>(v) {} 
+cdouble_t::cdouble_t(const cfloat_t& v): std::complex<double>(v) {} 
+cdouble_t::cdouble_t(const cquad_t& v): std::complex<double>(v) {} 
+cdouble_t::cdouble_t(const std::complex<float>& v): std::complex<double>(v) {} 
+cdouble_t::cdouble_t(const std::complex<long double>& v): std::complex<double>(v) {} 
+//cdouble_t::cdouble_t(rgb_t v): std::complex<double>((double)v) {} 
+//	
+////////////////////////////////////////////////////////
+//// cfloat_t
+////////////////////////////////////////////////////////
 cfloat_t::operator float() const {
 	return norm(*this);
 };
@@ -182,21 +213,53 @@ cfloat_t::operator int8_t() const {
 cfloat_t::operator uint8_t() const {
 	return (uint8_t)norm(*this);
 };
+//
+//cfloat_t::operator std::complex<double>() {
+//	return std::complex<double>(real(), imag());
+//};
+//
+cfloat_t::cfloat_t(const cdouble_t& v): std::complex<float>(v) {} 
+cfloat_t::cfloat_t(const cquad_t& v): std::complex<float>(v) {} 
+cfloat_t::cfloat_t(const std::complex<double>& v): std::complex<float>(v) {} 
+cfloat_t::cfloat_t(const std::complex<long double>& v): std::complex<float>(v) {} 
+//cfloat_t::cfloat_t(rgba_t v) : std::complex<float>((float)v) {} 
+//cfloat_t::cfloat_t(rgb_t v) : std::complex<float>((float)v) {} 
 
-cfloat_t::operator std::complex<double>() {
-	return std::complex<double>(real(), imag());
-};
+cfloat_t& cfloat_t::operator=(const std::complex<float>& v)
+{
+	real(v.real());
+	imag(v.imag());
+	return *this;
+}
+cfloat_t& cfloat_t::operator=(const std::complex<double>& v)
+{
+	real(v.real());
+	imag(v.imag());
+	return *this;
+}
+cfloat_t& cfloat_t::operator=(const std::complex<long double>& v)
+{
+	real(v.real());
+	imag(v.imag());
+	return *this;
+}
+cfloat_t& cfloat_t::operator=(const cdouble_t& v)
+{
+	real(v.real());
+	imag(v.imag());
+	return *this;
+}
+cfloat_t& cfloat_t::operator=(const cquad_t& v)
+{
+	real(v.real());
+	imag(v.imag());
+	return *this;
+}
 
-cfloat_t::cfloat_t(cdouble_t v): std::complex<float>(v) {} 
-cfloat_t::cfloat_t(cquad_t v): std::complex<float>(v) {} 
-cfloat_t::cfloat_t(std::complex<double> v): std::complex<float>(v) {} 
-cfloat_t::cfloat_t(std::complex<long double> v): std::complex<float>(v) {} 
-cfloat_t::cfloat_t(rgba_t v) : std::complex<float>((float)v) {} 
-cfloat_t::cfloat_t(rgb_t v) : std::complex<float>((float)v) {} 
-
-//////////////////////////////////////////////////////
-// cquad_t
-//////////////////////////////////////////////////////
+//
+////////////////////////////////////////////////////////
+//// cquad_t
+////////////////////////////////////////////////////////
 cquad_t::operator float() const {
 	return norm(*this);
 };
@@ -240,20 +303,51 @@ cquad_t::operator int8_t() const {
 cquad_t::operator uint8_t() const {
 	return (uint8_t)norm(*this);
 };
-
-cquad_t::operator std::complex<double>() {
-	return std::complex<double>(real(), imag());
-};
-
+//
+//cquad_t::operator std::complex<double>() {
+//	return std::complex<double>(real(), imag());
+//};
+//
 //cquad_t::cquad_t(double v) : std::complex<float>(v) {} 
 //cquad_t::cquad_t(float v) : std::complex<float>(v) {} 
 //cquad_t::cquad_t(int64_t v) : std::complex<float>(v) {} 
-cquad_t::cquad_t(cdouble_t v): std::complex<long double>(v) {} 
-cquad_t::cquad_t(cfloat_t v): std::complex<long double>(v) {} 
-cquad_t::cquad_t(std::complex<double> v): std::complex<long double>(v) {} 
-cquad_t::cquad_t(std::complex<float> v): std::complex<long double>(v) {} 
-cquad_t::cquad_t(rgba_t v) : std::complex<long double>((long double)v) {} 
-cquad_t::cquad_t(rgb_t v) : std::complex<long double>((long double)v) {} 
+cquad_t::cquad_t(const cdouble_t& v): std::complex<long double>(v) {} 
+cquad_t::cquad_t(const cfloat_t& v): std::complex<long double>(v) {} 
+cquad_t::cquad_t(const std::complex<double>& v): std::complex<long double>(v) {} 
+cquad_t::cquad_t(const std::complex<float>& v): std::complex<long double>(v) {} 
+//cquad_t::cquad_t(rgba_t v) : std::complex<long double>((long double)v) {} 
+//cquad_t::cquad_t(rgb_t v) : std::complex<long double>((long double)v) {} 
+
+cquad_t& cquad_t::operator=(const std::complex<double>& v)
+{
+	real(v.real());
+	imag(v.imag());
+	return *this;
+}
+cquad_t& cquad_t::operator=(const std::complex<float>& v)
+{
+	real(v.real());
+	imag(v.imag());
+	return *this;
+}
+cquad_t& cquad_t::operator=(const std::complex<long double>& v)
+{
+	real(v.real());
+	imag(v.imag());
+	return *this;
+}
+cquad_t& cquad_t::operator=(const cdouble_t& v)
+{
+	real(v.real());
+	imag(v.imag());
+	return *this;
+}
+cquad_t& cquad_t::operator=(const cfloat_t& v)
+{
+	real(v.real());
+	imag(v.imag());
+	return *this;
+}
 
 //////////////////////////////////////////////////////
 /// rgb_t
@@ -302,13 +396,18 @@ rgb_t::operator uint8_t() const {
 	return (uint8_t)((fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-//rgb_t::operator cdouble_t() const {
-//	return (fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
-//};
-//
-//rgb_t::operator cfloat_t() const {
-//	return (cfloat_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
-//};
+rgb_t::operator cquad_t() const {
+	return (fabs(red)+fabs(green)+fabs(blue)); 
+};
+
+rgb_t::operator cdouble_t() const {
+	return ((fabs(red)+fabs(green)+fabs(blue))); 
+};
+
+rgb_t::operator cfloat_t() const {
+	return (cfloat_t)((fabs(red)+fabs(green)+fabs(blue))); 
+};
+
 
 rgb_t::rgb_t(long double v) : 
 	red(clamp<double>(0,255, v)), 
@@ -527,13 +626,17 @@ rgba_t::operator uint8_t() const {
 	return (uint8_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
 };
 
-//rgba_t::operator cdouble_t() const {
-//	return (fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
-//};
-//
-//rgba_t::operator cfloat_t() const {
-//	return (cfloat_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
-//};
+rgba_t::operator cquad_t() const {
+	return (fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
+};
+
+rgba_t::operator cdouble_t() const {
+	return (fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
+};
+
+rgba_t::operator cfloat_t() const {
+	return (cfloat_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue))); 
+};
 
 rgba_t::rgba_t(long double v) : 
 	red(clamp<double>(0,255, v)), 

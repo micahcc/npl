@@ -125,6 +125,17 @@ def build(bld):
             target='imgiter_test1', 
             source='imgiter_test1.cpp', 
             use='mrimage_utils iterators') 
+    
+    # Test Fourier Domain
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='fft_test', 
+            source='fft_test.cpp', 
+            use='ndarray_utils mrimage_utils iterators') 
+    
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='fft_shift_test', 
+            source='fft_shift_test.cpp', 
+            use='ndarray_utils mrimage_utils iterators') 
 
     from waflib.Tools import waf_unit_test
     bld.add_post_fun(waf_unit_test.summary)

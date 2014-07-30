@@ -17,6 +17,12 @@ You should have received a copy of the GNU General Public License along with
 the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
+/******************************************************************************
+ * @file ndarray.h
+ * @brief This file contains the definition for NDarray and its derived types. 
+ * The derived types are templated over dimensionality and pixel type. 
+ ******************************************************************************/
+
 #ifndef NDARRAY_H
 #define NDARRAY_H
 
@@ -180,13 +186,13 @@ public:
 //			double(*func)(double,double), bool elevR) = 0;
 
 	virtual void* __getAddr(std::initializer_list<int64_t> index) const = 0;
-	virtual void* __getAddr(const int64_t* index) const = 0;
+	virtual void* __getAddr(size_t len, const int64_t* index) const = 0;
 	virtual void* __getAddr(const std::vector<int64_t>& index) const = 0;
 	virtual void* __getAddr(int64_t i) const = 0;
 	virtual void* __getAddr(int64_t x, int64_t y, int64_t z, int64_t t) const = 0;
 	
 	virtual int64_t getLinIndex(std::initializer_list<int64_t> index) const = 0;
-	virtual int64_t getLinIndex(const int64_t* index) const = 0;
+	virtual int64_t getLinIndex(size_t len, const int64_t* index) const = 0;
 	virtual int64_t getLinIndex(const std::vector<int64_t>& index) const = 0;
 	virtual int64_t getLinIndex(int64_t x, int64_t y, int64_t z, int64_t t) const = 0;
 	
@@ -266,12 +272,10 @@ public:
 	 * get / set functions
 	 */
 	T& operator[](const std::vector<int64_t>& index);
-	T& operator[](const int64_t* index);
 	T& operator[](std::initializer_list<int64_t> index);
 	T& operator[](int64_t pixel);
 	
 	const T& operator[](const std::vector<int64_t>& index) const;
-	const T& operator[](const int64_t* index) const;
 	const T& operator[](std::initializer_list<int64_t> index) const;
 	const T& operator[](int64_t pixel) const;
 
@@ -391,10 +395,10 @@ public:
 	{
 		return &_m_data[getLinIndex(index)];
 	};
-
-	inline virtual void* __getAddr(const int64_t* index) const
+	
+	inline virtual void* __getAddr(size_t len, const int64_t* index) const
 	{
-		return &_m_data[getLinIndex(index)];
+		return &_m_data[getLinIndex(len, index)];
 	};
 
 	inline virtual void* __getAddr(const std::vector<int64_t>& index) const
@@ -412,7 +416,7 @@ public:
 	};
 
 	virtual int64_t getLinIndex(std::initializer_list<int64_t> index) const;
-	virtual int64_t getLinIndex(const int64_t* index) const;
+	virtual int64_t getLinIndex(size_t len, const int64_t* index) const;
 	virtual int64_t getLinIndex(const std::vector<int64_t>& index) const;
 	virtual int64_t getLinIndex(int64_t x, int64_t y, int64_t z, int64_t t) const;
 

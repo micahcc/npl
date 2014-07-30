@@ -20,6 +20,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include "mrimage.h"
 #include "iterators.h"
 #include "accessors.h"
+#include "ndarray_utils.h"
 #include "mrimage_utils.h"
 #include "byteswap.h"
 
@@ -963,7 +964,46 @@ ostream& operator<<(ostream &out, const MRImage& img)
 	return out;
 }
 
+/**
+ * @brief Perform fourier transform on the dimensions specified. Those
+ * dimensions will be padded out. The output of this will be a double. 
+ * If len = 0 or dim == NULL, then ALL dimensions will be transformed.
+ *
+ * @param in Input image to inverse fourier trnasform
+ * @param len length of input dimension array
+ * @param dim dimensions to transform
+ *
+ * @return Image with specified dimensions in the real domain. Image will
+ * differ in size from input.
+ */
+shared_ptr<MRImage> ifft_c2r(shared_ptr<const MRImage> in)
+{
+	auto out = dynamic_pointer_cast<MRImage>(ifft_c2r(
+				dynamic_pointer_cast<const NDArray>(in)));
+	for(size_t dd = 0; dd<in->ndim(); dd++) 
+		out->spacing()[dd] = 1./(in->spacing()[dd]*out->dim(dd));
+	return out;
+}
 
+/**
+ * @brief Perform fourier transform on the dimensions specified. Those
+ * dimensions will be padded out. The output of this will be a complex double.
+ * If len = 0 or dim == NULL, then ALL dimensions will be transformed.
+ *
+ * @param in Input image to fourier transform
+ *
+ * @return Complex image, which is the result of inverse fourier transforming 
+ * the (Real) input image. Note that the last dimension only contains the real
+ * frequencies, but all other dimensions contain both
+ */
+shared_ptr<MRImage> fft_r2c(shared_ptr<const MRImage> in)
+{
+	auto out = dynamic_pointer_cast<MRImage>(fft_r2c(
+				dynamic_pointer_cast<const NDArray>(in)));
+	for(size_t dd = 0; dd<in->ndim(); dd++) 
+		out->spacing()[dd] = 1./(in->spacing()[dd]*out->dim(dd));
+	return out;
+}
 
 
 } // npl

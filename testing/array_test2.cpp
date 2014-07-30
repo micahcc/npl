@@ -115,13 +115,13 @@ int main()
 					return -1;
 				}
 				
-				if(*it != (*testp)[index.data()]) {
+				if(*it != (*testp)[index]) {
 					cerr << "iter, array mismatch" << endl;
 					return -1;
 				}
 			
 
-				if(*it != (*testp)[index.data()]) {
+				if(*it != (*testp)[index]) {
 					cerr << "iter, array mismatch" << endl;
 					return -1;
 				}

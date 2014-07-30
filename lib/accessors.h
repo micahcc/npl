@@ -125,6 +125,8 @@ public:
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
+	 * @param index n-d index to access
+	 *
 	 * @return value
 	 */
 	T get(const std::vector<int64_t>& index)
@@ -134,6 +136,21 @@ public:
 	
 	/**
 	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param len length of index array
+	 * @param index n-d index to access
+	 *
+	 * @return value
+	 */
+	T get(size_t len, int64_t* index)
+	{
+		return castget(this->parent->__getAddr(len, index)); 
+	};
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index n-d index to access
 	 *
 	 * @return value
 	 */
@@ -145,6 +162,9 @@ public:
 	/**
 	 * @brief Casts to the appropriate type then sets array at given index.
 	 *
+	 * @param v value to set at index
+	 * @param index n-d index to access
+	 *
 	 * @return current value
 	 */
 	void set(T v, const std::vector<int64_t>& index)
@@ -154,6 +174,9 @@ public:
 	
 	/**
 	 * @brief Casts to the appropriate type then sets array at given index.
+	 *
+	 * @param v value to set at index
+	 * @param index n-d index to access
 	 *
 	 * @return current value
 	 */
