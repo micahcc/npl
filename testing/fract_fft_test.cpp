@@ -333,14 +333,14 @@ void upsampleShift(const std::vector<complex<double>>& in,
 	fftw_free(inbuff);
 }
 
-fftw_complex* createChirp(int64_t sz, double alpha, double beta, double Dx, bool fft)
+fftw_complex* createChirp(int64_t sz, double alpha, double beta, double rate, bool fft)
 {
 	fftw_complex* out = fftw_alloc_complex(sz);
 	auto fwd_plan = fftw_plan_dft_1d((int)sz, out, out, FFTW_FORWARD,
 				FFTW_MEASURE);
 
 	complex<double> imag(0, 1);
-	complex<double> eterm = imag*PI*(alpha-beta)/(4*Dx*Dx);
+	complex<double> eterm = imag*PI*(alpha-beta)/((double)rate*sz);
 	for(int64_t ii=-sz/2; ii<= sz/2; ii++) {
 		auto tmp = std::exp(eterm*(double)(ii*ii));
 		out[ii+sz/2][0] = tmp.real();
@@ -371,14 +371,13 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 //			sqrt(fabs(sin(phi)));
 	// since phi [.78,2.35], sin(phi) is positive, sgn(sin(phi)) = 1:
 	complex<double> A_phi = std::exp(-imag*PI/4.+imag*phi/2.) / sqrt(sin(phi));
-	double Dx = sqrt((double)input.size());
 	complex<double> tmp1, tmp2;
 
 	// upsample input, and maintain center location
 	size_t upsize = round357(input.size()*2);
 	auto upsampled = fftw_alloc_complex(upsize);
-	auto outchirp = createChirp(upsize, alpha, beta, Dx, false);
-	auto convchirp = createChirp(upsize, beta, 0, Dx, true);
+	auto outchirp = createChirp(upsize, alpha, beta, (double)upsize/input.size(), false);
+	auto convchirp = createChirp(upsize, beta, 0, (double)upsize/input.size(), true);
 	
 	writeComplex("chirp.txt", upsize, outchirp);
 	writeComplex("freq_chirp.txt", upsize, convchirp);
@@ -410,6 +409,9 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 	}
 	assert(count == upsize);
 
+	// pad
+	// TODO
+	
 	fftw_execute(fwd_plan);
 
 	// perform convolution with chirp
@@ -435,7 +437,7 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 		tmp2.real(outchirp[ii][0]);
 		tmp2.imag(outchirp[ii][1]);
 
-		tmp1 = tmp1*tmp2*A_phi/(2*Dx);
+		tmp1 = tmp1*tmp2*A_phi/(2.*upsize);
 
 		out[ii] = tmp1;
 	}
