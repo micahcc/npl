@@ -354,6 +354,79 @@ fftw_complex* createChirp(int64_t sz, double alpha, double beta, double rate, bo
 	return out;
 }
 
+void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
+		vector<complex<double>>& out)
+{
+	assert(a_frac <= 1.5 && a_frac >= 0.5);
+	writeComplex("input.txt", input);
+
+	double space_o = 1./input.size();
+	const double PI = acos(-1);
+	double phi = a_frac*PI/2;
+	complex<double> imag(0,1);
+
+	double alpha = 1./tan(phi);
+	double beta = 1./sin(phi);
+	if(a_frac == 1) {
+		alpha = 0;
+		beta = 1;
+	}
+	std::complex<double> avg(0);
+//	complex<double> A_phi = std::exp(-imag*PI*sgn(sin(phi))/4+imag*phi/2.)/
+//			sqrt(fabs(sin(phi)));
+	// since phi [.78,2.35], sin(phi) is positive, sgn(sin(phi)) = 1:
+	complex<double> A_phi = std::exp(-imag*PI/4.+imag*phi/2.) / sqrt(sin(phi));
+	complex<double> tmp1, tmp2;
+
+	// upsample input, and maintain center location
+	double upratio = 5;
+	int64_t upsize = round357(input.size()*upratio);
+	double space_u = 1./upsize;
+	auto upsampled = fftw_alloc_complex(upsize);
+	out.resize(upsize);
+
+	// upsample input
+	upsampleShift(input, upsize, upsampled);
+	
+	int64_t isize = input.size();
+	vector<double> chirp_real(isize);
+	vector<double> chirp_imag(isize);
+	for(int64_t nn=-isize/2; nn<(1+isize)/2; nn++) {
+		tmp1 = std::exp(imag*PI*(alpha*nn*nn)/(isize/upratio));
+		chirp_real[nn+isize/2] = tmp1.real();
+		chirp_imag[nn+isize/2] = tmp1.imag();
+	}
+	writePlot("chirp_orig_real.tga", chirp_real);
+	writePlot("chirp_orig_imag.tga", chirp_imag);
+		
+	chirp_real.resize(upsize);
+	chirp_imag.resize(upsize);
+	for(int64_t nn=-upsize/2; nn<=upsize/2; nn++) {
+		tmp1 = std::exp(imag*PI*(alpha*nn*nn/(upsize/upratio)));
+		chirp_real[nn+upsize/2] = tmp1.real();
+		chirp_imag[nn+upsize/2] = tmp1.imag();
+	}
+	writePlot("chirp_up_real.tga", chirp_real);
+	writePlot("chirp_up_imag.tga", chirp_imag);
+
+	// pre-multiply with chirp
+	size_t count = 0;
+	for(int64_t mm=-upsize/2; mm<=upsize/2; mm++) {
+		
+		out[mm+upsize/2] = 0;
+		for(int64_t nn=-upsize/2; nn<=upsize/2; nn++) {
+			tmp1.real(upsampled[nn+upsize/2][0]);
+			tmp1.imag(upsampled[nn+upsize/2][1]);
+			tmp1 *= std::exp(imag*PI*(alpha*mm*mm*space_u/upratio -
+					2*beta*mm*nn*space_u/upratio + alpha*nn*nn*space_u/upratio));
+			out[mm+upsize/2] += tmp1;
+		}
+		out[mm+upsize/2] *= A_phi*space_u;
+	}
+
+	fftw_free(upsampled);
+}
+
 void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 		vector<complex<double>>& out)
 {
@@ -871,7 +944,7 @@ int main(int argc, char** argv)
 	vector<std::complex<double>> in(sz);
 	vector<std::complex<double>> out(sz);
 	for(size_t ii=0; ii<in.size(); ii++) {
-		if(ii < in.size()*2/3 && ii > in.size()/3)
+		if(ii < in.size()*3/5 && ii > in.size()*2/5)
 			in[ii] = 1.;
 		else
 			in[ii] = 0.;
@@ -880,26 +953,26 @@ int main(int argc, char** argv)
 //	for(size_t ii=0; ii<in.size(); ii++) {
 //		in[ii] = std::exp(-2.*PI*I*(double)ii/100.);
 //	}
-	std::vector<double> realv(sz);
-	std::vector<double> imagv(sz);
+	std::vector<double> phasev(sz);
+	std::vector<double> absv(sz);
 
 	for(size_t ii=0; ii<sz; ii++) {
-		realv[ii] = in[ii].real();
-		imagv[ii] = in[ii].imag();
+		phasev[ii] = arg(in[ii]);
+		absv[ii] = abs(in[ii]);
 	}
-	writePlot("orig_real.tga", realv);
-	writePlot("orig_imag.tga", imagv);
+	writePlot("orig_phase.tga", phasev);
+	writePlot("orig_abs.tga", absv);
 
-	floatFrFFT(in, alpha, out);
+	floatFrFFTBrute(in, alpha, out);
 
-	realv.resize(out.size());
-	imagv.resize(out.size());
+	phasev.resize(out.size());
+	absv.resize(out.size());
 	for(size_t ii=0; ii<out.size(); ii++) {
-		realv[ii] = abs(out[ii]);
-		imagv[ii] = arg(out[ii]);
+		phasev[ii] = arg(out[ii]);
+		absv[ii] = abs(out[ii]);
 	}
-	writePlot("frft_real.tga", realv);
-	writePlot("frft_imag.tga", imagv);
+	writePlot("frft_phase.tga", phasev);
+	writePlot("frft_abs.tga", absv);
 
 //	for(size_t ii=0; ii<in.size(); ii++) {
 //		if(norm(in[ii]-out[ii]) > 0.01) {
