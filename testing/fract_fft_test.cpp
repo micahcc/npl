@@ -379,8 +379,9 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 	complex<double> tmp1, tmp2;
 
 	// upsample input, and maintain center location
-	double upratio = 5;
-	int64_t upsize = round357(input.size()*upratio);
+	int64_t upsize = round357(input.size()*5);
+	int64_t isize = input.size();
+	double upratio = (double)upsize/(double)isize;
 	double space_u = 1./upsize;
 	auto upsampled = fftw_alloc_complex(upsize);
 	out.resize(upsize);
@@ -388,27 +389,6 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 	// upsample input
 	upsampleShift(input, upsize, upsampled);
 	
-	int64_t isize = input.size();
-	vector<double> chirp_real(isize);
-	vector<double> chirp_imag(isize);
-	for(int64_t nn=-isize/2; nn<(1+isize)/2; nn++) {
-		tmp1 = std::exp(imag*PI*(alpha*nn*nn)/(isize/upratio));
-		chirp_real[nn+isize/2] = tmp1.real();
-		chirp_imag[nn+isize/2] = tmp1.imag();
-	}
-	writePlot("chirp_orig_real.tga", chirp_real);
-	writePlot("chirp_orig_imag.tga", chirp_imag);
-		
-	chirp_real.resize(upsize);
-	chirp_imag.resize(upsize);
-	for(int64_t nn=-upsize/2; nn<=upsize/2; nn++) {
-		tmp1 = std::exp(imag*PI*(alpha*nn*nn/(upsize/upratio)));
-		chirp_real[nn+upsize/2] = tmp1.real();
-		chirp_imag[nn+upsize/2] = tmp1.imag();
-	}
-	writePlot("chirp_up_real.tga", chirp_real);
-	writePlot("chirp_up_imag.tga", chirp_imag);
-
 	// pre-multiply with chirp
 	size_t count = 0;
 	for(int64_t mm=-upsize/2; mm<=upsize/2; mm++) {
@@ -417,8 +397,9 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 		for(int64_t nn=-upsize/2; nn<=upsize/2; nn++) {
 			tmp1.real(upsampled[nn+upsize/2][0]);
 			tmp1.imag(upsampled[nn+upsize/2][1]);
-			tmp1 *= std::exp(imag*PI*(alpha*mm*mm*space_u/upratio -
-					2*beta*mm*nn*space_u/upratio + alpha*nn*nn*space_u/upratio));
+			tmp1 *= std::exp(imag*PI*(alpha*mm*mm/(upratio*upratio*isize)-
+					2*beta*mm*nn/(upratio*upratio*isize) + 
+					alpha*nn*nn/(upratio*upratio*isize)));
 			out[mm+upsize/2] += tmp1;
 		}
 		out[mm+upsize/2] *= A_phi*space_u;
