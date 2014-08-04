@@ -484,7 +484,7 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 	// I am actually still not 100% on why these should be shifted up (-1) in 
 	// sigbuff indexing
 	// copy out, negatives
-	for(int64_t ii=-usize/2; ii<=usize/2; ii++) {
+	for(int64_t ii=-usize/2; ii<=0; ii++) {
 		upsampled[ii+usize/2].real(sigbuff[uppadsize-1+ii][0]);
 		upsampled[ii+usize/2].imag(sigbuff[uppadsize-1+ii][1]);
 	}
@@ -523,10 +523,6 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 
 int main(int argc, char** argv)
 {
-//	for(int64_t ii=1; ii<200; ii++) {
-//		std::cerr << ii << " -> " << round357(ii) << std::endl;
-//	}
-//
 	double alpha;
 	size_t sz;
 	if(argc == 3) {
