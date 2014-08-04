@@ -320,8 +320,6 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 	// since phi [.78,2.35], sin(phi) is positive, sgn(sin(phi)) = 1:
 	complex<double> A_phi = std::exp(-I*PI/4.+I*phi/2.) / (usize*sqrt(sin(phi)));
 	std::vector<complex<double>> upsampled(usize);
-	double upratio = (double)usize/(double)isize;
-	double space_u = 1./usize;
 	
 	assert(uppadsize%2 == 1);
 	assert(usize%2 == 1);
@@ -330,8 +328,10 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 	interp(input, upsampled);
 	
 	// pre-compute chirps
-	auto ab_chirp = createChirp(uppadsize, isize, upratio, alpha, beta, false);
-	auto b_chirp = createChirp(uppadsize, isize, upratio, beta, 0, false);
+	auto ab_chirp = createChirp(uppadsize, isize, (double)usize/(double)isize,
+			alpha, beta, false);
+	auto b_chirp = createChirp(uppadsize, isize, (double)usize/(double)isize,
+			beta, 0, false);
 	
 	// pre-multiply 
 	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
@@ -339,7 +339,6 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 				ab_chirp[nn+uppadsize/2][1]);
 		upsampled[nn+usize/2] *= tmp1;;
 	}
-	
 	
 	// multiply
 	auto sigbuff = fftw_alloc_complex(usize);
@@ -493,6 +492,7 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 				ab_chirp[ii+uppadsize/2][1]);
 
 		upsampled[ii+usize/2] *= tmp1*A_phi;
+		cerr << upsampled[ii+usize/2] << " . " << abs(upsampled[ii+usize/2]) << endl;
 	}
 	
 #ifdef DEBUG
@@ -519,26 +519,28 @@ int main(int argc, char** argv)
 //		std::cerr << ii << " -> " << round357(ii) << std::endl;
 //	}
 //
-	if(argc != 3) {
-		return -1;
+	double alpha;
+	size_t sz;
+	if(argc == 3) {
+		alpha = atof(argv[1]);
+		sz = atoi(argv[2]);
+	} else {
+		alpha = .5;
+		sz = 127;
 	}
-	double alpha = atof(argv[1]);
-	size_t sz = atoi(argv[2]);
+
 	vector<std::complex<double>> in(sz);
-	vector<std::complex<double>> out(sz);
+	vector<std::complex<double>> fftout(sz);
+	vector<std::complex<double>> bruteout(sz);
 	for(size_t ii=0; ii<in.size(); ii++) {
 		if(ii < in.size()*3/5 && ii > in.size()*2/5)
 			in[ii] = 1.;
 		else
 			in[ii] = 0.;
 	}
-	// make nonreal signal sin(x) signal
-//	for(size_t ii=0; ii<in.size(); ii++) {
-//		in[ii] = std::exp(-2.*PI*I*(double)ii/100.);
-//	}
+	
 	std::vector<double> phasev(sz);
 	std::vector<double> absv(sz);
-
 	for(size_t ii=0; ii<sz; ii++) {
 		phasev[ii] = arg(in[ii]);
 		absv[ii] = abs(in[ii]);
@@ -546,26 +548,35 @@ int main(int argc, char** argv)
 	writePlot("orig_phase.tga", phasev);
 	writePlot("orig_abs.tga", absv);
 
-	floatFrFFTBrute(in, alpha, out);
-//	floatFrFFT(in, alpha, out);
+	floatFrFFTBrute(in, alpha, bruteout);
+	floatFrFFT(in, alpha, fftout);
 
-	phasev.resize(out.size());
-	absv.resize(out.size());
-	for(size_t ii=0; ii<out.size(); ii++) {
-		phasev[ii] = arg(out[ii]);
-		absv[ii] = abs(out[ii]);
+	for(size_t ii=0; ii<fftout.size(); ii++) {
+		phasev[ii] = arg(fftout[ii]);
+		absv[ii] = abs(fftout[ii]);
 	}
-	writePlot("frft_phase.tga", phasev);
-	writePlot("frft_abs.tga", absv);
+	writePlot("fft_phase.tga", phasev);
+	writePlot("fft_abs.tga", absv);
+	
+	for(size_t ii=0; ii<bruteout.size(); ii++) {
+		phasev[ii] = arg(bruteout[ii]);
+		absv[ii] = abs(bruteout[ii]);
+	}
+	writePlot("brute_phase.tga", phasev);
+	writePlot("brute_abs.tga", absv);
 
-//	for(size_t ii=0; ii<in.size(); ii++) {
-//		if(norm(in[ii]-out[ii]) > 0.01) {
-//			std::cerr << "Different: " << ii << std::endl;
-//			std::cerr << in[ii] << " vs " << out[ii] << std::endl;
-//			return -1;
-//		}
-//	}
-
+	for(size_t ii=0; ii<sz; ii++) {
+		if(fabs(bruteout[ii].real() - fftout[ii].real()) > 0.01) {
+			cerr << "Brute force and fft versions differ in real!" << endl;
+			cerr << arg(bruteout[ii]) << " vs " << arg(fftout[ii]) << endl;
+			return -1;
+		}
+		if(fabs(bruteout[ii].imag() - fftout[ii].imag()) > 0.01) {
+			cerr << "Brute force and fft versions differ in imag!" << endl;
+			cerr << bruteout[ii] << " vs " << fftout[ii] << endl;
+			return -1;
+		}
+	}
 
 	fftw_cleanup();
 	return 0;
