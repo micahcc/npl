@@ -539,7 +539,7 @@ void writePlot(std::string filename, const std::vector<double>& y, int ysize)
 	}
 
 	for(unsigned int ii = 0 ; ii < XSIZE; ii++) {
-		int ypos = ysize*(y[ii]-yrange[0])/(yrange[1]-yrange[0]+.1);
+		int ypos = ysize*(y[ii]-yrange[0])/(yrange[1]-yrange[0]+.000001);
 		image[ypos*XSIZE + ii] = 1;
 	}
 
@@ -573,7 +573,7 @@ void writePlot(std::string filename, const std::list<std::vector<double>>& y)
 	std::vector<double> image(XSIZE*ysize, 0);
 	for(auto it=y.begin(); it!=y.end(); it++) {
 		for(unsigned int ii = 0 ; ii < it->size(); ii++) {
-			int ypos = ysize*((*it)[ii]-yrange[0])/(yrange[1]-yrange[0]+.1);
+			int ypos = ysize*((*it)[ii]-yrange[0])/(yrange[1]-yrange[0]+.000001);
 			image[ypos*XSIZE + ii] = 1;
 		}
 	}
@@ -602,7 +602,7 @@ void writePlot(std::string filename, const std::vector<double>& y)
 
 	std::vector<double> image(XSIZE*ysize, 0);
 	for(unsigned int ii = 0 ; ii < y.size(); ii++) {
-		int ypos = ysize*(y[ii]-yrange[0])/(yrange[1]-yrange[0]+.1);
+		int ypos = ysize*(y[ii]-yrange[0])/(yrange[1]-yrange[0]+.000001);
 		image[ypos*XSIZE + ii] = 1;
 	}
 
@@ -639,7 +639,7 @@ void writePlot(std::string filename, const std::vector<double>& x,
 	}
 
 	for(unsigned int ii = 0 ; ii < x.size(); ii++) {
-		int ypos = ysize*(y[ii]-yrange[0])/(yrange[1]-yrange[0]+.1);
+		int ypos = ysize*(y[ii]-yrange[0])/(yrange[1]-yrange[0]+.000001);
 		image[ypos*x.size() + ii] = 1;
 	}
 

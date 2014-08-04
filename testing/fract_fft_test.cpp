@@ -269,11 +269,11 @@ fftw_complex* createChirp(int64_t sz, int64_t origsz, double upratio,
 	}
 	
 	if(fft) {
-		double normfactor = 1./sz;
 		fftw_execute(fwd_plan);
+		double norm = sqrt(1./sz);
 		for(size_t ii=0; ii<sz; ii++) {
-			chirp[ii][0] *= normfactor;
-			chirp[ii][1] *= normfactor;
+			chirp[ii][0] *= norm;
+			chirp[ii][1] *= norm;
 		}
 	}
 
@@ -305,6 +305,10 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 		beta = 1;
 	}
 
+	// there are 3 sizes: isize: the origina size of the input array, usize :
+	// the size of the upsampled array, and uppadsize the padded+upsampled
+	// size, we want both uppadsize and usize to be odd, and we want uppadsize
+	// to be the product of small primes (3,5,7)
 	double approxratio = 4;
 	int64_t isize = input.size();
 	int64_t uppadsize = round357(isize*approxratio); 
@@ -319,19 +323,19 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 //			sqrt(fabs(sin(phi)));
 	// since phi [.78,2.35], sin(phi) is positive, sgn(sin(phi)) = 1:
 	complex<double> A_phi = std::exp(-I*PI/4.+I*phi/2.) / (usize*sqrt(sin(phi)));
+	
+	// upsampled version of input
 	std::vector<complex<double>> upsampled(usize);
 	
-	assert(uppadsize%2 == 1);
-	assert(usize%2 == 1);
-
-	// upsample input
-	interp(input, upsampled);
-	
 	// pre-compute chirps
+	auto sigbuff = fftw_alloc_complex(usize);
 	auto ab_chirp = createChirp(uppadsize, isize, (double)usize/(double)isize,
 			alpha, beta, false);
 	auto b_chirp = createChirp(uppadsize, isize, (double)usize/(double)isize,
 			beta, 0, false);
+	
+
+	interp(input, upsampled);
 	
 	// pre-multiply 
 	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
@@ -341,7 +345,6 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 	}
 	
 	// multiply
-	auto sigbuff = fftw_alloc_complex(usize);
 	for(int64_t mm = -usize/2; mm<=usize/2; mm++) {
 		sigbuff[mm+usize/2][0] = 0;
 		sigbuff[mm+usize/2][1] = 0;
@@ -439,9 +442,6 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 	fftw_plan sigbuff_plan_rev = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff, 
 			FFTW_BACKWARD, FFTW_MEASURE);
 
-	assert(uppadsize%2 == 1);
-	assert(usize%2 == 1);
-
 	// upsample input
 	interp(input, upsampled);
 	
@@ -465,7 +465,7 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 
 	// convolve
 	fftw_execute(sigbuff_plan_fwd);
-	double normfactor = 1./uppadsize;
+	double normfactor = 1./(uppadsize);
 	for(size_t ii=0; ii<uppadsize; ii++) {
 		complex<double> tmp1(sigbuff[ii][0], sigbuff[ii][1]);
 		complex<double> tmp2(b_chirp[ii][0], b_chirp[ii][1]);
@@ -492,7 +492,6 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 				ab_chirp[ii+uppadsize/2][1]);
 
 		upsampled[ii+usize/2] *= tmp1*A_phi;
-		cerr << upsampled[ii+usize/2] << " . " << abs(upsampled[ii+usize/2]) << endl;
 	}
 	
 #ifdef DEBUG
@@ -568,12 +567,14 @@ int main(int argc, char** argv)
 	for(size_t ii=0; ii<sz; ii++) {
 		if(fabs(bruteout[ii].real() - fftout[ii].real()) > 0.01) {
 			cerr << "Brute force and fft versions differ in real!" << endl;
-			cerr << arg(bruteout[ii]) << " vs " << arg(fftout[ii]) << endl;
+			cerr << bruteout[ii].real() << " vs " << fftout[ii].real() << endl;
+			cerr << bruteout[ii].real()/fftout[ii].real() << endl;
 			return -1;
 		}
 		if(fabs(bruteout[ii].imag() - fftout[ii].imag()) > 0.01) {
 			cerr << "Brute force and fft versions differ in imag!" << endl;
-			cerr << bruteout[ii] << " vs " << fftout[ii] << endl;
+			cerr << bruteout[ii].imag() << " vs " << fftout[ii].imag() << endl;
+			cerr << bruteout[ii].imag()/fftout[ii].imag() << endl;
 			return -1;
 		}
 	}
