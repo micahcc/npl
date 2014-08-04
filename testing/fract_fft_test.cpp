@@ -32,7 +32,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <complex>
 #include <cassert>
 
-#define DEBUG
+//#define DEBUG
 
 #include "utility.h"
 
@@ -359,6 +359,16 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 		}
 	}
 
+#ifdef DEBUG
+	std::vector<double> mag;
+	mag.resize(usize);
+	for(size_t ii=0; ii<usize; ii++) {
+		mag[ii] = sqrt(sigbuff[ii][0]*sigbuff[ii][0] + 
+					sigbuff[ii][1]*sigbuff[ii][1]);
+	}
+	writePlot("brute_premult.tga", mag);
+#endif //DEBUG
+
 	for(int64_t ii=-usize/2; ii<usize/2; ii++) {
 		complex<double> tmp1(ab_chirp[ii+uppadsize/2][0], 
 				ab_chirp[ii+uppadsize/2][1]);
@@ -367,13 +377,6 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 		upsampled[ii+usize/2] = tmp1*tmp2*A_phi;
 	}
 	
-#ifdef DEBUG
-	std::vector<double> mag;
-	mag.resize(usize);
-	for(size_t ii=0; ii<usize; ii++) 
-		mag[ii] = abs(upsampled[ii]);
-	writePlot("up_outmag.tga", mag);
-#endif //DEBUG
 
 	out.resize(input.size());
 	interp(upsampled, out);
@@ -465,7 +468,10 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 
 	// convolve
 	fftw_execute(sigbuff_plan_fwd);
-	double normfactor = 1./(uppadsize);
+
+	// not 100% clear on why sqrt works here, might be that the sqrt should be 
+	// b_chirp fft
+	double normfactor = sqrt(1./(uppadsize));
 	for(size_t ii=0; ii<uppadsize; ii++) {
 		complex<double> tmp1(sigbuff[ii][0], sigbuff[ii][1]);
 		complex<double> tmp2(b_chirp[ii][0], b_chirp[ii][1]);
@@ -475,16 +481,26 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 	}
 	fftw_execute(sigbuff_plan_rev);
 
+	// I am actually still not 100% on why these should be shifted up (-1) in 
+	// sigbuff indexing
 	// copy out, negatives
-	for(int64_t ii=-usize/2; ii<0; ii++) {
-		upsampled[ii+usize/2].real(sigbuff[uppadsize+ii][0]);
-		upsampled[ii+usize/2].imag(sigbuff[uppadsize+ii][1]);
+	for(int64_t ii=-usize/2; ii<=usize/2; ii++) {
+		upsampled[ii+usize/2].real(sigbuff[uppadsize-1+ii][0]);
+		upsampled[ii+usize/2].imag(sigbuff[uppadsize-1+ii][1]);
 	}
 	// positives
-	for(int64_t ii=0; ii<usize/2; ii++) {
-		upsampled[ii+usize/2].real(sigbuff[ii][0]);
-		upsampled[ii+usize/2].imag(sigbuff[ii][1]);
+	for(int64_t ii=1; ii<=usize/2; ii++) {
+		upsampled[ii+usize/2].real(sigbuff[ii-1][0]);
+		upsampled[ii+usize/2].imag(sigbuff[ii-1][1]);
 	}
+
+#ifdef DEBUG
+	std::vector<double> mag;
+	mag.resize(usize);
+	for(size_t ii=0; ii<usize; ii++) 
+		mag[ii] = abs(upsampled[ii]);
+	writePlot("fft_premult.tga", mag);
+#endif //DEBUG
 
 	// post-multiply
 	for(int64_t ii=-usize/2; ii<=usize/2; ii++) {
@@ -494,13 +510,6 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 		upsampled[ii+usize/2] *= tmp1*A_phi;
 	}
 	
-#ifdef DEBUG
-	std::vector<double> mag;
-	mag.resize(usize);
-	for(size_t ii=0; ii<usize; ii++) 
-		mag[ii] = abs(upsampled[ii]);
-	writePlot("up_outmag.tga", mag);
-#endif //DEBUG
 
 	out.resize(input.size());
 	interp(upsampled, out);
