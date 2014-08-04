@@ -32,6 +32,8 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <complex>
 #include <cassert>
 
+#define DEBUG
+
 #include "utility.h"
 
 #include "fftw3.h"
@@ -248,34 +250,41 @@ void interp(const std::vector<complex<double>>& in,
 	}
 }
 
-fftw_complex* createChirp(int64_t sz, double alpha, double beta, double rate, bool fft)
+fftw_complex* createChirp(int64_t sz, int64_t origsz, double upratio, 
+		double alpha, double beta, bool fft)
 {
+	assert(sz%2 == 1);
 	const double PI = acos(-1);
+	const complex<double> I(0,1);
 	
-	fftw_complex* out = fftw_alloc_complex(sz);
-	auto fwd_plan = fftw_plan_dft_1d((int)sz, out, out, FFTW_FORWARD,
+	auto chirp = fftw_alloc_complex(sz);
+	auto fwd_plan = fftw_plan_dft_1d((int)sz, chirp, chirp, FFTW_FORWARD,
 				FFTW_MEASURE);
 
-	complex<double> imag(0, 1);
-	complex<double> eterm = imag*PI*(alpha-beta)/((double)rate*sz);
-	for(int64_t ii=-sz/2; ii<= sz/2; ii++) {
-		auto tmp = std::exp(eterm*(double)(ii*ii));
-		out[ii+sz/2][0] = tmp.real();
-		out[ii+sz/2][1] = tmp.imag();
+	for(int64_t ii=-sz/2; ii<=sz/2; ii++) {
+		double ff = ((double)ii)/upratio;
+		auto tmp = std::exp(I*PI*(alpha-beta)*ff*ff/(double)origsz);
+		chirp[ii+sz/2][0] = tmp.real();
+		chirp[ii+sz/2][1] = tmp.imag();
+	}
+	
+	if(fft) {
+		double normfactor = 1./sz;
+		fftw_execute(fwd_plan);
+		for(size_t ii=0; ii<sz; ii++) {
+			chirp[ii][0] *= normfactor;
+			chirp[ii][1] *= normfactor;
+		}
 	}
 
-	if(fft)
-		fftw_execute(fwd_plan);
-
 	fftw_destroy_plan(fwd_plan);
-	return out;
+	return chirp;
 }
 
 void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 		vector<complex<double>>& out)
 {
 	assert(a_frac <= 1.5 && a_frac >= 0.5);
-	writeComplex("input.txt", input);
 
 	const std::complex<double> I(0,1);
 	const double PI = acos(-1);
@@ -292,14 +301,13 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 //			sqrt(fabs(sin(phi)));
 	// since phi [.78,2.35], sin(phi) is positive, sgn(sin(phi)) = 1:
 	complex<double> A_phi = std::exp(-I*PI/4.+I*phi/2.) / sqrt(sin(phi));
-	complex<double> tmp1, tmp2;
 
-	double approxratio = 2;
+	double approxratio = 4;
 	int64_t isize = input.size();
 	int64_t uppadsize = round357(isize*approxratio); 
 	int64_t usize;
 	while( (usize = (uppadsize-1)/2) % 2 == 0) {
-		uppadsize += 2;
+		uppadsize = round357(uppadsize+2);
 	}
 	assert(uppadsize%2 != 0);
 	assert(usize%2 != 0);
@@ -313,62 +321,17 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 	// upsample input
 	interp(input, upsampled);
 	
-	// for debug purposes, write the magnitiude
-	std::vector<double> mag(usize);
-	for(size_t ii=0; ii<usize; ii++) {
-		mag[ii] = real(upsampled[ii]);
-	}
-	writePlot("up_abs.tga", mag);
-
-	// copy to padded buffer
-	auto sigbuff = fftw_alloc_complex(uppadsize);
-	for(int64_t ii=-uppadsize/2; ii<=uppadsize/2; ii++) {
-		if(ii <= usize/2 && ii >= -usize/2) {
-			sigbuff[ii+uppadsize/2][0] = upsampled[ii+usize/2].real();
-			sigbuff[ii+uppadsize/2][1] = upsampled[ii+usize/2].imag();
-			assert(!std::isnan(sigbuff[ii+uppadsize/2][0]));
-			assert(!std::isnan(sigbuff[ii+uppadsize/2][1]));
-		} else {
-			sigbuff[ii+uppadsize/2][0] = 0;
-			sigbuff[ii+uppadsize/2][1] = 0;
-		}
+	// pre-compute chirps
+	auto ab_chirp = createChirp(uppadsize, isize, upratio, alpha, beta, false);
+	auto b_chirp = createChirp(uppadsize, isize, upratio, beta, 0, false);
+	
+	// pre-multiply 
+	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
+		complex<double> tmp1(ab_chirp[nn+uppadsize/2][0], 
+				ab_chirp[nn+uppadsize/2][1]);
+		upsampled[nn+usize/2] *= tmp1;;
 	}
 	
-	// debug
-	mag.resize(uppadsize);
-	for(size_t ii=0; ii<uppadsize; ii++) {
-		mag[ii] = sqrt((sigbuff[ii][0]*sigbuff[ii][0])+(sigbuff[ii][1]*sigbuff[ii][1]));
-		assert(!std::isnan(mag[ii]));
-	}
-	writePlot("sigbuff.tga", mag);
-
-	// pre-compute alpha-beta chirp
-	auto ab_chirp = fftw_alloc_complex(uppadsize);
-	for(int64_t ii=-uppadsize/2; ii<=uppadsize/2; ii++) {
-		double ff = ((double)ii)/upratio;
-		auto tmp = std::exp(I*PI*(alpha-beta)*ff*ff/(double)isize);
-		ab_chirp[ii+uppadsize/2][0] = tmp.real();
-		ab_chirp[ii+uppadsize/2][1] = tmp.imag();
-	}
-	for(size_t ii=0; ii<uppadsize; ii++) {
-		mag[ii] = ab_chirp[ii][0];
-		assert(!std::isnan(mag[ii]));
-	}
-	writePlot("ab_chirp.tga", mag);
-	
-	// pre-compute beta chirp
-	auto b_chirp = fftw_alloc_complex(uppadsize);
-	for(int64_t ii=-uppadsize/2; ii<=uppadsize/2; ii++) {
-		double ff = ((double)ii)/upratio;
-		auto tmp = std::exp(I*PI*beta*ff*ff/(double)isize);
-		b_chirp[ii+uppadsize/2][0] = tmp.real();
-		b_chirp[ii+uppadsize/2][1] = tmp.imag();
-	}
-	for(size_t ii=0; ii<uppadsize; ii++) {
-		mag[ii] = b_chirp[ii][0];
-		assert(!std::isnan(mag[ii]));
-	}
-	writePlot("b_chirp.tga", mag);
 	
 	// multiply
 	auto buff = fftw_alloc_complex(usize);
@@ -379,19 +342,12 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 		for(int64_t nn = -usize/2; nn<= usize/2; nn++) {
 			complex<double> tmp1(b_chirp[mm-nn+uppadsize/2][0], 
 					b_chirp[mm-nn+uppadsize/2][1]);
-			complex<double> tmp2(ab_chirp[nn+uppadsize/2][0], 
-					ab_chirp[nn+uppadsize/2][1]);
-			tmp1 = tmp1*tmp2*upsampled[nn+usize/2];
+			tmp1 = tmp1*upsampled[nn+usize/2];
 
 			buff[mm+usize/2][0] += tmp1.real();
 			buff[mm+usize/2][1] += tmp1.imag();
 		}
 	}
-
-	mag.resize(usize);
-	for(size_t ii=0; ii<usize; ii++) 
-		mag[ii] = sqrt(buff[ii][0]*buff[ii][0]+buff[ii][1]*buff[ii][1]);
-	writePlot("buff.tga", mag);
 
 	for(int64_t ii=-usize/2; ii<usize/2; ii++) {
 		complex<double> tmp1(ab_chirp[ii+uppadsize/2][0], 
@@ -401,10 +357,13 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 		upsampled[ii+usize/2] = tmp1*tmp2*A_phi*space_u;
 	}
 	
+#ifdef DEBUG
+	std::vector<double> mag;
 	mag.resize(usize);
 	for(size_t ii=0; ii<usize; ii++) 
 		mag[ii] = abs(upsampled[ii]);
 	writePlot("up_outmag.tga", mag);
+#endif //DEBUG
 
 	out.resize(input.size());
 	interp(upsampled, out);
@@ -414,7 +373,6 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 		vector<complex<double>>& out)
 {
 	assert(a_frac <= 1.5 && a_frac >= 0.5);
-	writeComplex("input.txt", input);
 
 	const std::complex<double> I(0,1);
 	const double PI = acos(-1);
@@ -433,12 +391,12 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 	complex<double> A_phi = std::exp(-I*PI/4.+I*phi/2.) / sqrt(sin(phi));
 	complex<double> tmp1, tmp2;
 
-	double approxratio = 2;
+	double approxratio = 4;
 	int64_t isize = input.size();
 	int64_t uppadsize = round357(isize*approxratio); 
 	int64_t usize;
 	while( (usize = (uppadsize-1)/2) % 2 == 0) {
-		uppadsize += 2;
+		uppadsize = round357(uppadsize+2);
 	}
 	assert(uppadsize%2 != 0);
 	assert(usize%2 != 0);
@@ -448,83 +406,32 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 
 	// create buffers and plans
 	auto sigbuff = fftw_alloc_complex(uppadsize);
-	auto ab_chirp = fftw_alloc_complex(uppadsize);
-	auto b_chirp = fftw_alloc_complex(uppadsize);
+	auto ab_chirp = createChirp(uppadsize, isize, upratio, alpha, beta, false);
+	auto b_chirp = createChirp(uppadsize, isize, upratio, beta, 0, true);
 
 	fftw_plan sigbuff_plan_fwd = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff, 
 			FFTW_FORWARD, FFTW_MEASURE);
 	fftw_plan sigbuff_plan_rev = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff, 
-			FFTW_FORWARD, FFTW_MEASURE);
-	fftw_plan b_chirp_plan_fwd = fftw_plan_dft_1d(uppadsize, b_chirp, b_chirp, 
-			FFTW_FORWARD, FFTW_MEASURE);
+			FFTW_BACKWARD, FFTW_MEASURE);
 
 	assert(uppadsize%2 == 1);
 	assert(usize%2 == 1);
 
 	// upsample input
 	interp(input, upsampled);
-
-#ifdef NDEBUG
-	// for debug purposes, write the magnitiude
-	std::vector<double> mag(usize);
-	for(size_t ii=0; ii<usize; ii++) {
-		mag[ii] = real(upsampled[ii]);
-	}
-	writePlot("up_abs.tga", mag);
-#endif //NDEBUG
-
 	
-#ifdef NDEBUG
-	// debug
-	mag.resize(uppadsize);
-	for(size_t ii=0; ii<uppadsize; ii++) {
-		mag[ii] = sqrt((sigbuff[ii][0]*sigbuff[ii][0])+(sigbuff[ii][1]*sigbuff[ii][1]));
-		assert(!std::isnan(mag[ii]));
-	}
-	writePlot("sigbuff.tga", mag);
-#endif //NDEBUG
-
-	// pre-compute alpha-beta chirp
-	for(int64_t ii=-uppadsize/2; ii<=uppadsize/2; ii++) {
-		double ff = ((double)ii)/upratio;
-		auto tmp = std::exp(I*PI*(alpha-beta)*ff*ff/(double)isize);
-		ab_chirp[ii+uppadsize/2][0] = tmp.real();
-		ab_chirp[ii+uppadsize/2][1] = tmp.imag();
+	// pre-multiply 
+	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
+		complex<double> tmp1(ab_chirp[nn+uppadsize/2][0], 
+				ab_chirp[nn+uppadsize/2][1]);
+		upsampled[nn+usize/2] *= tmp1;;
 	}
 
-#ifdef NDEBUG
-	for(size_t ii=0; ii<uppadsize; ii++) {
-		mag[ii] = ab_chirp[ii][0];
-		assert(!std::isnan(mag[ii]));
-	}
-	writePlot("ab_chirp.tga", mag);
-#endif //NDEBUG
-	
-	// pre-compute beta chirp (only frequency domain is needed)
-	for(int64_t ii=-uppadsize/2; ii<=uppadsize/2; ii++) {
-		double ff = ((double)ii)/upratio;
-		auto tmp = std::exp(I*PI*beta*ff*ff/(double)isize);
-		b_chirp[ii+uppadsize/2][0] = tmp.real();
-		b_chirp[ii+uppadsize/2][1] = tmp.imag();
-	}
-	fftw_execute(b_chirp_plan_fwd);
-
-#ifdef NDEBUG
-	for(size_t ii=0; ii<uppadsize; ii++) {
-		mag[ii] = b_chirp[ii][0];
-		assert(!std::isnan(mag[ii]));
-	}
-	writePlot("b_chirp.tga", mag);
-#endif //NDEBUG
-	
-	// pre-multiply // copy to padded buffer
+	// copy to padded buffer
 	for(int64_t nn = -uppadsize/2; nn<=uppadsize/2; nn++) {
 		if(nn <= usize/2 && nn >= -usize/2) {
-			complex<double> tmp1(ab_chirp[nn+uppadsize/2][0], 
-					ab_chirp[nn+uppadsize/2][1]);
-			tmp1 *= upsampled[nn+usize/2];
-			sigbuff[nn+uppadsize/2][0] = tmp1.real();
-			sigbuff[nn+uppadsize/2][1] = tmp1.imag();
+			sigbuff[nn+uppadsize/2][0] = upsampled[nn+usize/2].real();
+			sigbuff[nn+uppadsize/2][1] = upsampled[nn+usize/2].imag();
 		} else {
 			sigbuff[nn+uppadsize/2][0] = 0;
 			sigbuff[nn+uppadsize/2][1] = 0;
@@ -533,37 +440,42 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 
 	// convolve
 	fftw_execute(sigbuff_plan_fwd);
+	double normfactor = 1./uppadsize;
 	for(size_t ii=0; ii<uppadsize; ii++) {
 		complex<double> tmp1(sigbuff[ii][0], sigbuff[ii][1]);
 		complex<double> tmp2(b_chirp[ii][0], b_chirp[ii][1]);
-		tmp1 *= tmp2;
+		tmp1 *= tmp2*normfactor;
 		sigbuff[ii][0] = tmp1.real();
 		sigbuff[ii][1] = tmp1.imag();
 	}
 	fftw_execute(sigbuff_plan_rev);
 
-#ifdef NDEBUG
-	mag.resize(usize);
-	for(size_t ii=0; ii<usize; ii++) 
-		mag[ii] = sqrt(buff[ii][0]*buff[ii][0]+buff[ii][1]*buff[ii][1]);
-	writePlot("buff.tga", mag);
-#endif //NDEBUG
+	// copy out, negatives
+	for(int64_t ii=-usize/2; ii<0; ii++) {
+		upsampled[ii+usize/2].real(sigbuff[uppadsize+ii][0]);
+		upsampled[ii+usize/2].imag(sigbuff[uppadsize+ii][1]);
+	}
+	// positives
+	for(int64_t ii=0; ii<usize/2; ii++) {
+		upsampled[ii+usize/2].real(sigbuff[ii][0]);
+		upsampled[ii+usize/2].imag(sigbuff[ii][1]);
+	}
 
-	// post-multiply, and copy out valid region
-	for(int64_t ii=-usize/2; ii<usize/2; ii++) {
+	// post-multiply
+	for(int64_t ii=-usize/2; ii<=usize/2; ii++) {
 		complex<double> tmp1(ab_chirp[ii+uppadsize/2][0], 
 				ab_chirp[ii+uppadsize/2][1]);
-		complex<double> tmp2(sigbuff[ii+usize/2][0], sigbuff[ii+usize/2][1]);
 
-		upsampled[ii+usize/2] = tmp1*tmp2*A_phi*space_u;
+		upsampled[ii+usize/2] *= tmp1*A_phi*space_u;
 	}
 	
-#ifdef NDEBUG
+#ifdef DEBUG
+	std::vector<double> mag;
 	mag.resize(usize);
 	for(size_t ii=0; ii<usize; ii++) 
 		mag[ii] = abs(upsampled[ii]);
 	writePlot("up_outmag.tga", mag);
-#endif //NDEBUG
+#endif //DEBUG
 
 	out.resize(input.size());
 	interp(upsampled, out);
@@ -603,6 +515,7 @@ int main(int argc, char** argv)
 	writePlot("orig_abs.tga", absv);
 
 	floatFrFFTBrute(in, alpha, out);
+//	floatFrFFT(in, alpha, out);
 
 	phasev.resize(out.size());
 	absv.resize(out.size());
