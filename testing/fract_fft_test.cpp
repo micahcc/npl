@@ -281,6 +281,14 @@ fftw_complex* createChirp(int64_t sz, int64_t origsz, double upratio,
 	return chirp;
 }
 
+/**
+ * @brief Brute force version of fractional fourier transform. For testing
+ * purposes only. 
+ *
+ * @param input Input vector,
+ * @param a_frac fractional level (repeats every 4).
+ * @param out output vector
+ */
 void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 		vector<complex<double>>& out)
 {
@@ -296,11 +304,6 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 		alpha = 0;
 		beta = 1;
 	}
-	std::complex<double> avg(0);
-//	complex<double> A_phi = std::exp(-imag*PI*sgn(sin(phi))/4+imag*phi/2.)/
-//			sqrt(fabs(sin(phi)));
-	// since phi [.78,2.35], sin(phi) is positive, sgn(sin(phi)) = 1:
-	complex<double> A_phi = std::exp(-I*PI/4.+I*phi/2.) / sqrt(sin(phi));
 
 	double approxratio = 4;
 	int64_t isize = input.size();
@@ -311,6 +314,11 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 	}
 	assert(uppadsize%2 != 0);
 	assert(usize%2 != 0);
+
+//	complex<double> A_phi = std::exp(-imag*PI*sgn(sin(phi))/4+imag*phi/2.)/
+//			sqrt(fabs(sin(phi)));
+	// since phi [.78,2.35], sin(phi) is positive, sgn(sin(phi)) = 1:
+	complex<double> A_phi = std::exp(-I*PI/4.+I*phi/2.) / (usize*sqrt(sin(phi)));
 	std::vector<complex<double>> upsampled(usize);
 	double upratio = (double)usize/(double)isize;
 	double space_u = 1./usize;
@@ -334,27 +342,27 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 	
 	
 	// multiply
-	auto buff = fftw_alloc_complex(usize);
+	auto sigbuff = fftw_alloc_complex(usize);
 	for(int64_t mm = -usize/2; mm<=usize/2; mm++) {
-		buff[mm+usize/2][0] = 0;
-		buff[mm+usize/2][1] = 0;
+		sigbuff[mm+usize/2][0] = 0;
+		sigbuff[mm+usize/2][1] = 0;
 
 		for(int64_t nn = -usize/2; nn<= usize/2; nn++) {
 			complex<double> tmp1(b_chirp[mm-nn+uppadsize/2][0], 
 					b_chirp[mm-nn+uppadsize/2][1]);
 			tmp1 = tmp1*upsampled[nn+usize/2];
 
-			buff[mm+usize/2][0] += tmp1.real();
-			buff[mm+usize/2][1] += tmp1.imag();
+			sigbuff[mm+usize/2][0] += tmp1.real();
+			sigbuff[mm+usize/2][1] += tmp1.imag();
 		}
 	}
 
 	for(int64_t ii=-usize/2; ii<usize/2; ii++) {
 		complex<double> tmp1(ab_chirp[ii+uppadsize/2][0], 
 				ab_chirp[ii+uppadsize/2][1]);
-		complex<double> tmp2(buff[ii+usize/2][0], buff[ii+usize/2][1]);
+		complex<double> tmp2(sigbuff[ii+usize/2][0], sigbuff[ii+usize/2][1]);
 
-		upsampled[ii+usize/2] = tmp1*tmp2*A_phi*space_u;
+		upsampled[ii+usize/2] = tmp1*tmp2*A_phi;
 	}
 	
 #ifdef DEBUG
@@ -367,8 +375,21 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 
 	out.resize(input.size());
 	interp(upsampled, out);
+	
+	fftw_free(sigbuff);
+	fftw_free(b_chirp);
+	fftw_free(ab_chirp);
 }
 	
+/**
+ * @brief Computes the fractional fourier transform of the input vector and 
+ * writes out an equal length array in out. This function is ONLY valid for 
+ * 0.5 <= a <= 1.5, use the more general FrFFT for other values.
+ *
+ * @param input Array to perform frft on
+ * @param a_frac Fractional level of fft. 
+ * @param out output vector, will be the same size as the input
+ */
 void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 		vector<complex<double>>& out)
 {
@@ -384,13 +405,11 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 		alpha = 0;
 		beta = 1;
 	}
-	std::complex<double> avg(0);
-//	complex<double> A_phi = std::exp(-imag*PI*sgn(sin(phi))/4+imag*phi/2.)/
-//			sqrt(fabs(sin(phi)));
-	// since phi [.78,2.35], sin(phi) is positive, sgn(sin(phi)) = 1:
-	complex<double> A_phi = std::exp(-I*PI/4.+I*phi/2.) / sqrt(sin(phi));
-	complex<double> tmp1, tmp2;
 
+	// there are 3 sizes: isize: the origina size of the input array, usize :
+	// the size of the upsampled array, and uppadsize the padded+upsampled
+	// size, we want both uppadsize and usize to be odd, and we want uppadsize
+	// to be the product of small primes (3,5,7)
 	double approxratio = 4;
 	int64_t isize = input.size();
 	int64_t uppadsize = round357(isize*approxratio); 
@@ -400,14 +419,21 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 	}
 	assert(uppadsize%2 != 0);
 	assert(usize%2 != 0);
-	std::vector<complex<double>> upsampled(usize);
-	double upratio = (double)usize/(double)isize;
-	double space_u = 1./usize;
+
+//	complex<double> A_phi = std::exp(-imag*PI*sgn(sin(phi))/4+imag*phi/2.)/
+//			sqrt(fabs(sin(phi)));
+	// since phi [.78,2.35], sin(phi) is positive, sgn(sin(phi)) = 1:
+	complex<double> A_phi = std::exp(-I*PI/4.+I*phi/2.) / (usize*sqrt(sin(phi)));
+
+	// upsampled version of input
+	std::vector<complex<double>> upsampled(usize); // CACHE
 
 	// create buffers and plans
-	auto sigbuff = fftw_alloc_complex(uppadsize);
-	auto ab_chirp = createChirp(uppadsize, isize, upratio, alpha, beta, false);
-	auto b_chirp = createChirp(uppadsize, isize, upratio, beta, 0, true);
+	auto sigbuff = fftw_alloc_complex(uppadsize); // CACHE
+	auto ab_chirp = createChirp(uppadsize, isize, (double)usize/(double)isize,
+			alpha, beta, false); // CACHE
+	auto b_chirp = createChirp(uppadsize, isize, (double)usize/(double)isize, 
+			beta, 0, true); // CACHE
 
 	fftw_plan sigbuff_plan_fwd = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff, 
 			FFTW_FORWARD, FFTW_MEASURE);
@@ -466,7 +492,7 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 		complex<double> tmp1(ab_chirp[ii+uppadsize/2][0], 
 				ab_chirp[ii+uppadsize/2][1]);
 
-		upsampled[ii+usize/2] *= tmp1*A_phi*space_u;
+		upsampled[ii+usize/2] *= tmp1*A_phi;
 	}
 	
 #ifdef DEBUG
@@ -479,6 +505,12 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 
 	out.resize(input.size());
 	interp(upsampled, out);
+
+	fftw_free(sigbuff);
+	fftw_free(b_chirp);
+	fftw_free(ab_chirp);
+	fftw_destroy_plan(sigbuff_plan_rev);
+	fftw_destroy_plan(sigbuff_plan_fwd);
 }
 
 int main(int argc, char** argv)
