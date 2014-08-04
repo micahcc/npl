@@ -275,12 +275,15 @@ void downsample(size_t insz, fftw_complex* in, std::vector<complex<double>>& out
 }
 
 // TODO us lanczos sampling
-double sinc(double v)
+double lanczos(double v, double a)
 {
 	if(v == 0)
 		return 1;
-	else
-		return sin(PI*v)/(PI*v);
+	else if(abs(v) < a) {
+		return a*sin(PI*v)*sin(PI*v/a)/(PI*PI*v*v);
+	} else {
+		return 0;
+	}
 }
 
 void interp(const std::vector<complex<double>>& in, 
@@ -298,7 +301,7 @@ void interp(const std::vector<complex<double>>& in,
 		complex<double> sum = 0;
 		for(int64_t ii=center-radius; ii<=center+radius; ii++) {
 			if(ii>=0 && ii<in.size()) 
-				sum += sinc(ii-cii)*in[ii];
+				sum += lanczos(ii-cii, radius)*in[ii];
 		}
 		out[oo] = sum;
 	}
@@ -348,7 +351,6 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 	complex<double> A_phi = std::exp(-imag*PI/4.+imag*phi/2.) / sqrt(sin(phi));
 	complex<double> tmp1, tmp2;
 
-	// upsample input, and maintain center location
 	double approxratio = 2;
 	int64_t isize = input.size();
 	int64_t uppadsize = round357(isize*approxratio); 
@@ -367,7 +369,7 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 
 	// upsample input
 	interp(input, upsampled);
-
+	
 	// for debug purposes, write the magnitiude
 	std::vector<double> mag(usize);
 	for(size_t ii=0; ii<usize; ii++) {
