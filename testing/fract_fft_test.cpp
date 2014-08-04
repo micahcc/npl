@@ -80,28 +80,22 @@ int64_t round357(int64_t in)
 	if(in %2 == 0)
 		in++;
 
-	// factor number
-	auto factors = factor(in);
-	
-	// increase the largest factors first
-	factors.sort();
-	for(auto rit = factors.rbegin(); rit != factors.rend(); rit++) {
+	bool acceptable = false;
+	while(!acceptable) {
+		acceptable = true;
+		in += 2;
 
-		// once we get to the primes we like, quit
-		if(*rit == 3 || *rit == 5 || *rit == 7) 
-			break;
-
-		// round up to the product of the givne factors
-		(*rit)++;
-		*rit = round357(*rit);
+		// check the factors
+		auto factors = factor(in);
+		for(auto f : factors) {
+			if(f != 3 && f != 5 && f != 7) {
+				acceptable = false;
+				break;
+			}
+		}
 	}
 
-	int64_t out = 1;
-	for(auto f : factors) {
-		out *= f;
-	}
-
-	return out;
+	return in;
 }
 
 using namespace std;
@@ -111,7 +105,7 @@ void writeComplex(string filename, size_t len, const fftw_complex* input)
 {
 	ofstream of(filename.c_str());
 	for(size_t ii=0; ii<len; ii++) {
-		of << input[ii][0] << ", " << input[ii][1] << endl;
+		of << input[ii][0] << ", " << input[ii][1] << std::endl;
 	}
 	of.close();
 }
@@ -120,7 +114,7 @@ void writeComplex(string filename, const std::vector<complex<double>>& input)
 {
 	ofstream of(filename.c_str());
 	for(auto it: input) {
-		of << it.real() << ", " << it.imag() << endl;
+		of << it.real() << ", " << it.imag() << std::endl;
 	}
 	of.close();
 }
@@ -280,57 +274,34 @@ void downsample(size_t insz, fftw_complex* in, std::vector<complex<double>>& out
 	fftw_destroy_plan(out_plan);
 }
 
-void upsampleShift(const std::vector<complex<double>>& in, 
-		size_t outsize, fftw_complex* out)
+// TODO us lanczos sampling
+double sinc(double v)
 {
-	assert(out != NULL);
+	if(v == 0)
+		return 1;
+	else
+		return sin(PI*v)/(PI*v);
+}
 
-	size_t roundin = round357(in.size());
-	auto inbuff = fftw_alloc_complex((int)roundin);
-	fftw_plan in_plan = fftw_plan_dft_1d((int)roundin, inbuff, inbuff,
-				FFTW_FORWARD, FFTW_MEASURE);
-	fftw_plan out_plan = fftw_plan_dft_1d((int)outsize, out, out,
-				FFTW_BACKWARD, FFTW_MEASURE);
-	
+void interp(const std::vector<complex<double>>& in, 
+		std::vector<complex<double>>& out)
+{
 	// fill/average pad
-	complex<double> avg = 0;
-	int64_t shift = (roundin-1)/2 - (in.size()-1)/2;
-	for(size_t ii=0; ii<in.size(); ii++) {
-		avg += in[ii];
-	}
-	avg /= (double)in.size();
-	// fill with average
-	for(size_t ii=0; ii<roundin; ii++) {
-		inbuff[ii][0] = avg.real();
-		inbuff[ii][1] = avg.imag();
-	}
-	// copy/center
-	for(size_t ii=0; ii<in.size(); ii++) {
-		inbuff[ii+shift][0] = in[ii].real();
-		inbuff[ii+shift][1] = in[ii].imag();
-	}
+	int64_t radius = 3;
+	double ratio = (double)(in.size())/(double)out.size();
 	
-	fftw_execute(in_plan);
+	// copy/center
+	for(size_t oo=0; oo<out.size(); oo++) {
+		double cii = ratio*oo;
+		int64_t center = round(cii);
 
-	// fill outbuff with the matching frequencies
-	for(size_t ii=0; ii<outsize; ii++) {
-		out[ii][0] = 0;
-		out[ii][1] = 0;
+		complex<double> sum = 0;
+		for(int64_t ii=center-radius; ii<=center+radius; ii++) {
+			if(ii>=0 && ii<in.size()) 
+				sum += sinc(ii-cii)*in[ii];
+		}
+		out[oo] = sum;
 	}
-	for(int64_t ii=0; ii<(1+roundin)/2; ii++) {
-		out[ii][0] = inbuff[ii][0];
-		out[ii][1] = inbuff[ii][1];
-	}
-	for(int64_t ii=0; ii<roundin/2; ii++) {
-		out[outsize-1-ii][0] = inbuff[roundin-1-ii][0];
-		out[outsize-1-ii][1] = inbuff[roundin-1-ii][1];
-	}
-
-	fftw_execute(out_plan);
-
-	fftw_destroy_plan(in_plan);
-	fftw_destroy_plan(out_plan);
-	fftw_free(inbuff);
 }
 
 fftw_complex* createChirp(int64_t sz, double alpha, double beta, double rate, bool fft)
@@ -360,7 +331,6 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 	assert(a_frac <= 1.5 && a_frac >= 0.5);
 	writeComplex("input.txt", input);
 
-	double space_o = 1./input.size();
 	const double PI = acos(-1);
 	double phi = a_frac*PI/2;
 	complex<double> imag(0,1);
@@ -379,131 +349,218 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 	complex<double> tmp1, tmp2;
 
 	// upsample input, and maintain center location
-	int64_t upsize = round357(input.size()*5);
+	double approxratio = 2;
 	int64_t isize = input.size();
-	double upratio = (double)upsize/(double)isize;
-	double space_u = 1./upsize;
-	auto upsampled = fftw_alloc_complex(upsize);
-	out.resize(upsize);
+	int64_t uppadsize = round357(isize*approxratio); 
+	int64_t usize;
+	while( (usize = (uppadsize-1)/2) % 2 == 0) {
+		uppadsize += 2;
+	}
+	assert(uppadsize%2 != 0);
+	assert(usize%2 != 0);
+	std::vector<complex<double>> upsampled(usize);
+	double upratio = (double)usize/(double)isize;
+	double space_u = 1./usize;
+	
+	assert(uppadsize%2 == 1);
+	assert(usize%2 == 1);
 
 	// upsample input
-	upsampleShift(input, upsize, upsampled);
-	
-	// pre-multiply with chirp
-	size_t count = 0;
-	for(int64_t mm=-upsize/2; mm<=upsize/2; mm++) {
-		
-		out[mm+upsize/2] = 0;
-		for(int64_t nn=-upsize/2; nn<=upsize/2; nn++) {
-			tmp1.real(upsampled[nn+upsize/2][0]);
-			tmp1.imag(upsampled[nn+upsize/2][1]);
-			tmp1 *= std::exp(imag*PI*(alpha*mm*mm/(upratio*upratio*isize)-
-					2*beta*mm*nn/(upratio*upratio*isize) + 
-					alpha*nn*nn/(upratio*upratio*isize)));
-			out[mm+upsize/2] += tmp1;
+	interp(input, upsampled);
+
+	// for debug purposes, write the magnitiude
+	std::vector<double> mag(usize);
+	for(size_t ii=0; ii<usize; ii++) {
+		mag[ii] = real(upsampled[ii]);
+	}
+	writePlot("up_abs.tga", mag);
+
+	// copy to padded buffer
+	auto sigbuff = fftw_alloc_complex(uppadsize);
+	for(int64_t ii=-uppadsize/2; ii<=uppadsize/2; ii++) {
+		if(ii <= usize/2 && ii >= -usize/2) {
+			sigbuff[ii+uppadsize/2][0] = upsampled[ii+usize/2].real();
+			sigbuff[ii+uppadsize/2][1] = upsampled[ii+usize/2].imag();
+			assert(!std::isnan(sigbuff[ii+uppadsize/2][0]));
+			assert(!std::isnan(sigbuff[ii+uppadsize/2][1]));
+		} else {
+			sigbuff[ii+uppadsize/2][0] = 0;
+			sigbuff[ii+uppadsize/2][1] = 0;
 		}
-		out[mm+upsize/2] *= A_phi*space_u;
+	}
+	
+	// debug
+	mag.resize(uppadsize);
+	for(size_t ii=0; ii<uppadsize; ii++) {
+		mag[ii] = sqrt((sigbuff[ii][0]*sigbuff[ii][0])+(sigbuff[ii][1]*sigbuff[ii][1]));
+		assert(!std::isnan(mag[ii]));
+	}
+	writePlot("sigbuff.tga", mag);
+
+	// pre-compute alpha-beta chirp
+	auto ab_chirp = fftw_alloc_complex(uppadsize);
+	for(int64_t ii=-uppadsize/2; ii<=uppadsize/2; ii++) {
+		double ff = ((double)ii)/upratio;
+		auto tmp = std::exp(imag*PI*(alpha-beta)*ff*ff/(double)isize);
+		ab_chirp[ii+uppadsize/2][0] = tmp.real();
+		ab_chirp[ii+uppadsize/2][1] = tmp.imag();
+	}
+	for(size_t ii=0; ii<uppadsize; ii++) {
+		mag[ii] = ab_chirp[ii][0];
+		assert(!std::isnan(mag[ii]));
+	}
+	writePlot("ab_chirp.tga", mag);
+	
+	// pre-compute beta chirp
+	auto b_chirp = fftw_alloc_complex(uppadsize);
+	for(int64_t ii=-uppadsize/2; ii<=uppadsize/2; ii++) {
+		double ff = ((double)ii)/upratio;
+		auto tmp = std::exp(imag*PI*beta*ff*ff/(double)isize);
+		b_chirp[ii+uppadsize/2][0] = tmp.real();
+		b_chirp[ii+uppadsize/2][1] = tmp.imag();
+	}
+	for(size_t ii=0; ii<uppadsize; ii++) {
+		mag[ii] = b_chirp[ii][0];
+		assert(!std::isnan(mag[ii]));
+	}
+	writePlot("b_chirp.tga", mag);
+	
+	// multiply
+	auto buff = fftw_alloc_complex(usize);
+	for(int64_t mm = -usize/2; mm<=usize/2; mm++) {
+		buff[mm+usize/2][0] = 0;
+		buff[mm+usize/2][1] = 0;
+
+		for(int64_t nn = -usize/2; nn<= usize/2; nn++) {
+			complex<double> tmp1(b_chirp[mm-nn+uppadsize/2][0], 
+					b_chirp[mm-nn+uppadsize/2][1]);
+			complex<double> tmp2(ab_chirp[nn+uppadsize/2][0], 
+					ab_chirp[nn+uppadsize/2][1]);
+			tmp1 = tmp1*tmp2*upsampled[nn+usize/2];
+
+			buff[mm+usize/2][0] += tmp1.real();
+			buff[mm+usize/2][1] += tmp1.imag();
+		}
 	}
 
-	fftw_free(upsampled);
+	mag.resize(usize);
+	for(size_t ii=0; ii<usize; ii++) 
+		mag[ii] = sqrt(buff[ii][0]*buff[ii][0]+buff[ii][1]*buff[ii][1]);
+	writePlot("buff.tga", mag);
+
+	for(int64_t ii=-usize/2; ii<usize/2; ii++) {
+		complex<double> tmp1(ab_chirp[ii+uppadsize/2][0], 
+				ab_chirp[ii+uppadsize/2][1]);
+		complex<double> tmp2(buff[ii+usize/2][0], buff[ii+usize/2][1]);
+
+		upsampled[ii+usize/2] = tmp1*tmp2*A_phi*space_u;
+	}
+	
+	mag.resize(usize);
+	for(size_t ii=0; ii<usize; ii++) 
+		mag[ii] = abs(upsampled[ii]);
+	writePlot("up_outmag.tga", mag);
+
+	out.resize(input.size());
+	interp(upsampled, out);
 }
 
-void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
-		vector<complex<double>>& out)
-{
-	assert(a_frac <= 1.5 && a_frac >= 0.5);
-	assert(a_frac != 1);
-	writeComplex("input.txt", input);
-
-	const double PI = acos(-1);
-	double phi = a_frac*PI/2;
-	complex<double> imag(0,1);
-	double alpha = 1./tan(phi);
-	double beta = 1./sin(phi);
-	std::complex<double> avg(0);
-//	complex<double> A_phi = std::exp(-imag*PI*sgn(sin(phi))/4+imag*phi/2.)/
-//			sqrt(fabs(sin(phi)));
-	// since phi [.78,2.35], sin(phi) is positive, sgn(sin(phi)) = 1:
-	complex<double> A_phi = std::exp(-imag*PI/4.+imag*phi/2.) / sqrt(sin(phi));
-	complex<double> tmp1, tmp2;
-
-	// upsample input, and maintain center location
-	size_t upsize = round357(input.size()*2);
-	auto upsampled = fftw_alloc_complex(upsize);
-	auto outchirp = createChirp(upsize, alpha, beta, (double)upsize/input.size(), false);
-	auto convchirp = createChirp(upsize, beta, 0, (double)upsize/input.size(), true);
-	
-	writeComplex("chirp.txt", upsize, outchirp);
-	writeComplex("freq_chirp.txt", upsize, convchirp);
-	
-	// .. but first create plans which would overwrite upsampled...
-	auto fwd_plan = fftw_plan_dft_1d((int)upsize, upsampled, upsampled,
-			FFTW_FORWARD, FFTW_MEASURE);
-	auto back_plan = fftw_plan_dft_1d((int)upsize, upsampled, upsampled,
-			FFTW_BACKWARD, FFTW_MEASURE);
-
-	// now upsample
-	upsampleShift(input, upsize, upsampled);
-
-	writeComplex("upsampled.txt", upsize, upsampled);
-	
-	// pre-multiply with chirp
-	size_t count = 0;
-	for(int64_t ii=0; ii<upsize; ii++) {
-		tmp1.real(upsampled[ii][0]);
-		tmp1.imag(upsampled[ii][1]);
-		tmp2.real(outchirp[ii][0]);
-		tmp2.imag(outchirp[ii][1]);
-
-		tmp1 = tmp1*tmp2;
-
-		upsampled[ii][0] = tmp1.real();
-		upsampled[ii][1] = tmp1.imag();
-		++count;
-	}
-	assert(count == upsize);
-
-	// pad
-	// TODO
-	
-	fftw_execute(fwd_plan);
-
-	// perform convolution with chirp
-	for(int64_t ii=0; ii<upsize; ii++) {
-		tmp1.real(upsampled[ii][0]);
-		tmp1.imag(upsampled[ii][1]);
-		tmp2.real(convchirp[ii][0]);
-		tmp2.imag(convchirp[ii][1]);
-
-		tmp1 = tmp1*tmp2;
-
-		upsampled[ii][0] = tmp1.real();
-		upsampled[ii][1] = tmp1.imag();
-	}
-	
-	fftw_execute(back_plan);
-	
-	// multiply with final chirp
-	out.resize(upsize);
-	for(int64_t ii=0; ii<upsize; ii++) {
-		tmp1.real(upsampled[ii][0]);
-		tmp1.imag(upsampled[ii][1]);
-		tmp2.real(outchirp[ii][0]);
-		tmp2.imag(outchirp[ii][1]);
-
-		tmp1 = tmp1*tmp2*A_phi/(2.*upsize);
-
-		out[ii] = tmp1;
-	}
-
-	writeComplex("full_fract.txt", out);
-
-	fftw_free(upsampled);
-	fftw_free(convchirp);
-	fftw_free(outchirp);
-	fftw_destroy_plan(fwd_plan);
-	fftw_destroy_plan(back_plan);
-}
+//void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
+//		vector<complex<double>>& out)
+//{
+//	assert(a_frac <= 1.5 && a_frac >= 0.5);
+//	assert(a_frac != 1);
+//	writeComplex("input.txt", input);
+//
+//	const double PI = acos(-1);
+//	double phi = a_frac*PI/2;
+//	complex<double> imag(0,1);
+//	double alpha = 1./tan(phi);
+//	double beta = 1./sin(phi);
+//	std::complex<double> avg(0);
+////	complex<double> A_phi = std::exp(-imag*PI*sgn(sin(phi))/4+imag*phi/2.)/
+////			sqrt(fabs(sin(phi)));
+//	// since phi [.78,2.35], sin(phi) is positive, sgn(sin(phi)) = 1:
+//	complex<double> A_phi = std::exp(-imag*PI/4.+imag*phi/2.) / sqrt(sin(phi));
+//	complex<double> tmp1, tmp2;
+//
+//	// upsample input, and maintain center location
+//	size_t upsize = round357(input.size()*2);
+//	auto upsampled = fftw_alloc_complex(upsize);
+//	auto outchirp = createChirp(upsize, alpha, beta, (double)upsize/input.size(), false);
+//	auto convchirp = createChirp(upsize, beta, 0, (double)upsize/input.size(), true);
+//	
+//	writeComplex("chirp.txt", upsize, outchirp);
+//	writeComplex("freq_chirp.txt", upsize, convchirp);
+//	
+//	// .. but first create plans which would overwrite upsampled...
+//	auto fwd_plan = fftw_plan_dft_1d((int)upsize, upsampled, upsampled,
+//			FFTW_FORWARD, FFTW_MEASURE);
+//	auto back_plan = fftw_plan_dft_1d((int)upsize, upsampled, upsampled,
+//			FFTW_BACKWARD, FFTW_MEASURE);
+//
+//	// now upsample
+//	upsampleShift(input, upsize, upsampled);
+//
+//	writeComplex("upsampled.txt", upsize, upsampled);
+//	
+//	// pre-multiply with chirp
+//	size_t count = 0;
+//	for(int64_t ii=0; ii<upsize; ii++) {
+//		tmp1.real(upsampled[ii][0]);
+//		tmp1.imag(upsampled[ii][1]);
+//		tmp2.real(outchirp[ii][0]);
+//		tmp2.imag(outchirp[ii][1]);
+//
+//		tmp1 = tmp1*tmp2;
+//
+//		upsampled[ii][0] = tmp1.real();
+//		upsampled[ii][1] = tmp1.imag();
+//		++count;
+//	}
+//	assert(count == upsize);
+//
+//	// pad
+//	// TODO
+//	
+//	fftw_execute(fwd_plan);
+//
+//	// perform convolution with chirp
+//	for(int64_t ii=0; ii<upsize; ii++) {
+//		tmp1.real(upsampled[ii][0]);
+//		tmp1.imag(upsampled[ii][1]);
+//		tmp2.real(convchirp[ii][0]);
+//		tmp2.imag(convchirp[ii][1]);
+//
+//		tmp1 = tmp1*tmp2;
+//
+//		upsampled[ii][0] = tmp1.real();
+//		upsampled[ii][1] = tmp1.imag();
+//	}
+//	
+//	fftw_execute(back_plan);
+//	
+//	// multiply with final chirp
+//	out.resize(upsize);
+//	for(int64_t ii=0; ii<upsize; ii++) {
+//		tmp1.real(upsampled[ii][0]);
+//		tmp1.imag(upsampled[ii][1]);
+//		tmp2.real(outchirp[ii][0]);
+//		tmp2.imag(outchirp[ii][1]);
+//
+//		tmp1 = tmp1*tmp2*A_phi/(2.*upsize);
+//
+//		out[ii] = tmp1;
+//	}
+//
+//	writeComplex("full_fract.txt", out);
+//
+//	fftw_free(upsampled);
+//	fftw_free(convchirp);
+//	fftw_free(outchirp);
+//	fftw_destroy_plan(fwd_plan);
+//	fftw_destroy_plan(back_plan);
+//}
 
 //// based on Ozaktas 1996
 //void fractionalFFT(const std::vector<complex<double>>& input, double a_frac,
@@ -917,6 +974,10 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 
 int main(int argc, char** argv)
 {
+//	for(int64_t ii=1; ii<200; ii++) {
+//		std::cerr << ii << " -> " << round357(ii) << std::endl;
+//	}
+//
 	if(argc != 3) {
 		return -1;
 	}
@@ -957,8 +1018,8 @@ int main(int argc, char** argv)
 
 //	for(size_t ii=0; ii<in.size(); ii++) {
 //		if(norm(in[ii]-out[ii]) > 0.01) {
-//			cerr << "Different: " << ii << endl;
-//			cerr << in[ii] << " vs " << out[ii] << endl;
+//			std::cerr << "Different: " << ii << std::endl;
+//			std::cerr << in[ii] << " vs " << out[ii] << std::endl;
 //			return -1;
 //		}
 //	}
