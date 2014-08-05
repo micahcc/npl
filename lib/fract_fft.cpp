@@ -495,9 +495,11 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	}
 
 	// check/allocate buffer
+	bool freemem = false;
 	if(bsz < isize+3*uppadsize || !buffer) {
 		bsz = 4*uppadsize;
 		buffer = fftw_alloc_complex(bsz);
+		freemem = true;
 	}
 
 	fftw_complex* current = &buffer[0];
@@ -570,6 +572,14 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		out[ii][0] = current[ii][0];
 		out[ii][1] = current[ii][1];
 	}
+
+	if(freemem)
+		fftw_free(buffer);
+
+	fftw_destroy_plan(curr_to_curr_fwd);
+	fftw_destroy_plan(curr_to_curr_rev);
+	fftw_destroy_plan(curr_to_out_fwd);
+	fftw_destroy_plan(curr_to_out_rev);
 }
 
 }
