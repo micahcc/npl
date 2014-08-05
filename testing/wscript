@@ -141,6 +141,11 @@ def build(bld):
             target='fract_fft_test', 
             source='fract_fft_test.cpp', 
             use='FFTW utility') 
+    
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='fract_fft_test2', 
+            source='fract_fft_test2.cpp', 
+            use='fractfft FFTW utility') 
 
     from waflib.Tools import waf_unit_test
     bld.add_post_fun(waf_unit_test.summary)

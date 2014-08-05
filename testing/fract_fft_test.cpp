@@ -32,7 +32,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <complex>
 #include <cassert>
 
-//#define DEBUG
+#define DEBUG
 
 #include "utility.h"
 
@@ -440,6 +440,15 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 	auto b_chirp = createChirp(uppadsize, isize, (double)usize/(double)isize, 
 			beta, 0, true); // CACHE
 
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(uppadsize);
+		for(size_t ii=0; ii<uppadsize; ii++)
+			tmp[ii] = ab_chirp[ii][0];
+		writePlot("abchirp.tga", tmp);
+	}
+#endif //DEBUG
+
 	fftw_plan sigbuff_plan_fwd = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff, 
 			FFTW_FORWARD, FFTW_MEASURE);
 	fftw_plan sigbuff_plan_rev = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff, 
@@ -448,6 +457,15 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 	// upsample input
 	interp(input, upsampled);
 	
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(usize);
+		for(size_t ii=0; ii<usize; ii++)
+			tmp[ii] = upsampled[ii].real();
+		writePlot("upin.tga", tmp);
+	}
+#endif //DEBUG
+
 	// pre-multiply 
 	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
 		complex<double> tmp1(ab_chirp[nn+uppadsize/2][0], 
@@ -480,6 +498,15 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 		sigbuff[ii][1] = tmp1.imag();
 	}
 	fftw_execute(sigbuff_plan_rev);
+
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(uppadsize);
+		for(size_t ii=0; ii<uppadsize; ii++)
+			tmp[ii] = sigbuff[ii][0];
+		writePlot("postconvolve.tga", tmp);
+	}
+#endif //DEBUG
 
 	// I am actually still not 100% on why these should be shifted up (-1) in 
 	// sigbuff indexing

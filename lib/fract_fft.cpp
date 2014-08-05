@@ -22,6 +22,440 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
  * @brief Fractional fourier transform based on FFT
  ******************************************************************************/
 
+#include "fract_fft.h"
+#include "utility.h"
+
+#include <cstdlib>
+#include <cassert>
+#include <cmath>
+#include <algorithm>
+#include <list>
+#include <complex>
+
+#define DEBUG
+
+using std::complex;
+
+namespace npl {
+
+/**
+ * @brief Provides a list of the prime-fractors of the input number
+ *
+ * @param f input number
+ *
+ * @return list of factors
+ */
+std::list<int64_t> factor(int64_t f)
+{
+	std::list<int64_t> factors;
+	for(int64_t ii = 2; ii<=f; ii++) {
+		while(f % ii == 0) {
+			f = f/ii;
+			factors.push_back(ii);
+		}
+	}
+
+	return factors;
+}
+
+/**
+ * @brief Rounds a number up to the nearest number that can be broken down into
+ * 3,5,7
+ *
+ * @param in Input number
+ *
+ * @return Next number up that matches the requirement
+ */
+int64_t round357(int64_t in)
+{
+	// make it odd
+	if(in %2 == 0)
+		in++;
+
+	bool acceptable = false;
+	while(!acceptable) {
+		acceptable = true;
+		in += 2;
+
+		// check the factors
+		auto factors = factor(in);
+		for(auto f : factors) {
+			if(f != 3 && f != 5 && f != 7) {
+				acceptable = false;
+				break;
+			}
+		}
+	}
+
+	return in;
+}
+
+
+/**
+ * @brief Fills the input array (chirp) with a chirp of the specified type
+ *
+ * @param sz Size of output array
+ * @param chirp Output array
+ * @param origsz Original size, decides maximum frequency reached
+ * @param upratio Ratio of upsampling performed. This may be different than
+ * sz/origsz
+ * @param alpha Positive term in exp
+ * @param beta Negative term in exp
+ * @param fft Whether to fft the output (put it in frequency domain)
+ */
+void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz, 
+		double upratio, double alpha, double beta, bool fft)
+{
+	assert(sz%2==1);
+	const double PI = acos(-1);
+	const complex<double> I(0,1);
+	
+	auto fwd_plan = fftw_plan_dft_1d((int)sz, chirp, chirp, FFTW_FORWARD,
+				FFTW_MEASURE | FFTW_PRESERVE_INPUT);
+
+	for(int64_t ii=-sz/2; ii<=sz/2; ii++) {
+		double ff = ((double)ii)/upratio;
+		auto tmp = std::exp(I*PI*(alpha-beta)*ff*ff/(double)origsz);
+		chirp[ii+sz/2][0] = tmp.real();
+		chirp[ii+sz/2][1] = tmp.imag();
+	}
+	
+	if(fft) {
+		fftw_execute(fwd_plan);
+		double norm = sqrt(1./sz);
+		for(size_t ii=0; ii<sz; ii++) {
+			chirp[ii][0] *= norm;
+			chirp[ii][1] *= norm;
+		}
+	}
+
+	fftw_destroy_plan(fwd_plan);
+}
+
+/**
+ * @brief Lanczos window, used for sampling
+ *
+ * @param v locaiton
+ * @param a radius
+ *
+ * @return weight
+ */
+double lanczos(double v, double a)
+{
+	const double PI = acos(-1);
+	if(v == 0)
+		return 1;
+	else if(abs(v) < a) {
+		return a*sin(PI*v)*sin(PI*v/a)/(PI*PI*v*v);
+	} else {
+		return 0;
+	}
+}
+
+/**
+ * @brief Interpolate the input array, filling the output array
+ *
+ * @param isize Size of in
+ * @param in Values to interpolate
+ * @param osize Size of out
+ * @param out Output array, filled with interpolated values of in
+ */
+void interp(int64_t isize, fftw_complex* in, int64_t osize, fftw_complex* out)
+{
+	// fill/average pad
+	int64_t radius = 3;
+	double ratio = (double)(isize)/(double)osize;
+	
+	// copy/center
+	for(size_t oo=0; oo<osize; oo++) {
+		double cii = ratio*oo;
+		int64_t center = round(cii);
+
+		complex<double> sum = 0;
+		for(int64_t ii=center-radius; ii<=center+radius; ii++) {
+			if(ii>=0 && ii<isize) {
+				complex<double> tmp(in[ii][0], in[ii][1]);
+				sum += lanczos(ii-cii, radius)*tmp;
+			}
+		}
+		out[oo][0] = sum.real();
+		out[oo][1] = sum.imag();
+	}
+}
+
+/**
+ * @brief Does the same thing as fractional_fft (also limited to 0.5 <= a <=
+ * 1.5) but does NOT use the fourier transform.
+ *
+ * @param isize Size of input array 
+ * @param usize Size of upsampled input
+ * @param uppadsize Size of padded and upsampled input
+ * @param inout Array used for input and output
+ * @param buffer Buffer which may be preallocated
+ * @param a Fraction of fourier transform to perform
+ */
+void fractional_brute_ft(int64_t isize, int64_t usize, int64_t uppadsize,
+		fftw_complex* inout, fftw_complex* buffer, double a)
+{
+	assert(a <= 1.5 && a>= 0.5);
+	assert(uppadsize%2 != 0);
+	assert(usize%2 != 0);
+	
+	const double PI = acos(-1);
+	const complex<double> I(0,1);
+	double phi = a*PI/2;
+	complex<double> A_phi = std::exp(-I*PI/4.+I*phi/2.) / (usize*sqrt(sin(phi)));
+	double alpha = 1./tan(phi);
+	double beta = 1./sin(phi);
+	if(a == 1) {
+		alpha = 0;
+		beta = 1;
+	}
+
+	// zero
+	for(size_t ii=0; ii<uppadsize*3; ii++) {
+		buffer[ii][0] = 0;
+		buffer[ii][1] = 0;
+	}
+
+	fftw_complex* upsampled = &buffer[0];
+	fftw_complex* sigbuff = &buffer[usize];
+	fftw_complex* ab_chirp = &buffer[uppadsize];
+	fftw_complex* b_chirp = &buffer[uppadsize*2];
+
+	// pre-compute chirps
+	createChirp(uppadsize, ab_chirp, isize, (double)usize/(double)isize,
+			alpha, beta, false);
+	createChirp(uppadsize, b_chirp, isize, (double)usize/(double)isize,
+			beta, 0, false);
+	
+	interp(isize, inout, usize, upsampled);
+	
+	// pre-multiply 
+	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
+		complex<double> tmp1(ab_chirp[nn+uppadsize/2][0], 
+				ab_chirp[nn+uppadsize/2][1]);
+		complex<double> tmp2(upsampled[nn+usize/2][0], 
+				upsampled[nn+usize/2][1]);
+		tmp1 *= tmp2;
+		upsampled[nn+usize/2][0] = tmp1.real();
+		upsampled[nn+usize/2][1] = tmp1.imag();
+	}
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(usize);
+		for(size_t ii=0; ii<usize; ii++)
+			tmp[ii] = upsampled[ii][0];
+		writePlot("brute_premult.tga", tmp);
+	}
+#endif //DEBUG
+
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(uppadsize);
+		for(size_t ii=0; ii<uppadsize; ii++)
+			tmp[ii] = b_chirp[ii][0];
+		writePlot("brute_b_chirp.tga", tmp);
+	}
+#endif //DEBUG
+//
+	
+	// multiply
+	/*
+	 * convolve
+	 */
+	for(int64_t mm = -usize/2; mm<=usize/2; mm++) {
+		sigbuff[mm+usize/2][0] = 0;
+		sigbuff[mm+usize/2][1] = 0;
+
+		for(int64_t nn = -usize/2; nn<= usize/2; nn++) {
+			complex<double> tmp1(b_chirp[mm-nn+uppadsize/2][0], 
+					b_chirp[mm-nn+uppadsize/2][1]);
+			complex<double> tmp2(upsampled[nn+usize/2][0],
+					upsampled[nn+usize/2][1]);
+			tmp1 = tmp1*tmp2;
+
+			sigbuff[mm+usize/2][0] += tmp1.real();
+			sigbuff[mm+usize/2][1] += tmp1.imag();
+		}
+	}
+
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(usize);
+		for(size_t ii=0; ii<usize; ii++)
+			tmp[ii] = sqrt(sigbuff[ii][0]*sigbuff[ii][0]+
+					sigbuff[ii][1]*sigbuff[ii][1]);
+		writePlot("brute_convolve.tga", tmp);
+	}
+#endif //DEBUG
+	
+	// post-multiply
+	for(int64_t ii=-usize/2; ii<=usize/2; ii++) {
+		complex<double> tmp1(ab_chirp[ii+uppadsize/2][0], 
+				ab_chirp[ii+uppadsize/2][1]);
+		complex<double> tmp2(sigbuff[ii+usize/2][0],
+				sigbuff[ii+usize/2][1]);
+		tmp1 = tmp1*tmp2*A_phi;
+		upsampled[ii+usize/2][0] = tmp1.real();
+		upsampled[ii+usize/2][1] = tmp1.imag();
+	}
+	
+	interp(usize, upsampled, isize, inout);
+}
+
+void fractional_fft(int64_t isize, int64_t usize, int64_t uppadsize,
+		fftw_complex* inout, fftw_complex* buffer, double a)
+{
+	assert(usize%2 == 1);
+	assert(uppadsize%2 == 1);
+
+	const double PI = acos(-1);
+	const complex<double> I(0,1);
+	double phi = a*PI/2;
+	complex<double> A_phi = std::exp(-I*PI/4.+I*phi/2.) / (usize*sqrt(sin(phi)));
+	double alpha = 1./tan(phi);
+	double beta = 1./sin(phi);
+	if(a == 1) {
+		alpha = 0;
+		beta = 1;
+	}
+
+	// zero
+	for(size_t ii=0; ii<uppadsize*3; ii++) {
+		buffer[ii][0] = 0;
+		buffer[ii][1] = 0;
+	}
+
+	fftw_complex* sigbuff = &buffer[0]; // note the overlap with upsampled
+	fftw_complex* upsampled = &buffer[uppadsize/2-usize/2];
+	fftw_complex* ab_chirp = &buffer[uppadsize];
+	fftw_complex* b_chirp = &buffer[uppadsize*2];
+
+	// create buffers and plans
+	createChirp(uppadsize, ab_chirp, isize, (double)usize/(double)isize, alpha,
+			beta, false); 
+	createChirp(uppadsize, b_chirp, isize, (double)usize/(double)isize, 
+			beta, 0, true); 
+
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(uppadsize);
+		for(size_t ii=0; ii<uppadsize; ii++)
+			tmp[ii] = ab_chirp[ii][0];
+		writePlot("fft_abchirp.tga", tmp);
+	}
+#endif //DEBUG
+
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(uppadsize);
+		for(size_t ii=0; ii<uppadsize; ii++)
+			tmp[ii] = b_chirp[ii][0];
+		writePlot("fft_bchirp.tga", tmp);
+	}
+#endif //DEBUG
+
+	fftw_plan sigbuff_plan_fwd = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff, 
+			FFTW_FORWARD, FFTW_MEASURE);
+	fftw_plan sigbuff_plan_rev = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff, 
+			FFTW_BACKWARD, FFTW_MEASURE);
+
+	// upsample input
+	interp(isize, inout, usize, upsampled);
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(usize);
+		for(size_t ii=0; ii<usize; ii++)
+			tmp[ii] = upsampled[ii][0];
+		writePlot("upin.tga", tmp);
+	}
+#endif //DEBUG
+	
+	// pre-multiply 
+	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
+		complex<double> tmp1(ab_chirp[nn+uppadsize/2][0], 
+				ab_chirp[nn+uppadsize/2][1]);
+		complex<double> tmp2(upsampled[nn+usize/2][0], 
+				upsampled[nn+usize/2][1]);
+		tmp1 *= tmp2;
+		upsampled[nn+usize/2][0] = tmp1.real();
+		upsampled[nn+usize/2][1] = tmp1.imag();
+	}
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(usize);
+		for(size_t ii=0; ii<usize; ii++)
+			tmp[ii] = upsampled[ii][0];
+		writePlot("fft_premult.tga", tmp);
+	}
+#endif //DEBUG
+
+	/*
+	 * convolve
+	 */
+	fftw_execute(sigbuff_plan_fwd);
+
+	// not 100% clear on why sqrt works here, might be that the sqrt should be 
+	// b_chirp fft
+	double normfactor = sqrt(1./(uppadsize));
+	for(size_t ii=0; ii<uppadsize; ii++) {
+		complex<double> tmp1(sigbuff[ii][0], sigbuff[ii][1]);
+		complex<double> tmp2(b_chirp[ii][0], b_chirp[ii][1]);
+		tmp1 *= tmp2*normfactor;
+		sigbuff[ii][0] = tmp1.real();
+		sigbuff[ii][1] = tmp1.imag();
+	}
+	fftw_execute(sigbuff_plan_rev);
+
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(uppadsize);
+		for(size_t ii=0; ii<uppadsize; ii++)
+			tmp[ii] = sqrt(sigbuff[ii][0]*sigbuff[ii][0] + 
+					sigbuff[ii][1]*sigbuff[ii][1]);
+		writePlot("fft_convolve.tga", tmp);
+	}
+#endif //DEBUG
+
+	// circular shift
+	std::rotate(&sigbuff[0][0], &sigbuff[(uppadsize-1)/2][0], 
+			&sigbuff[uppadsize][0]);
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(uppadsize);
+		for(size_t ii=0; ii<uppadsize; ii++)
+			tmp[ii] = sqrt(sigbuff[ii][0]*sigbuff[ii][0] + 
+					sigbuff[ii][1]*sigbuff[ii][1]);
+		writePlot("rotated.tga", tmp);
+	}
+#endif //DEBUG
+	
+	// post-multiply
+	for(int64_t ii=-usize/2; ii<=usize/2; ii++) {
+		complex<double> tmp1(ab_chirp[ii+uppadsize/2][0], 
+				ab_chirp[ii+uppadsize/2][1]);
+		complex<double> tmp2(upsampled[ii+usize/2][0],
+				upsampled[ii+usize/2][1]);
+		tmp1 = tmp1*tmp2*A_phi;
+		upsampled[ii+usize/2][0] = tmp1.real();
+		upsampled[ii+usize/2][1] = tmp1.imag();
+	}
+
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(uppadsize);
+		for(size_t ii=0; ii<uppadsize; ii++)
+			tmp[ii] = sigbuff[ii][0];
+		writePlot("mult.tga", tmp);
+	}
+#endif //DEBUG
+	
+	interp(usize, upsampled, isize, inout);
+
+	fftw_destroy_plan(sigbuff_plan_rev);
+	fftw_destroy_plan(sigbuff_plan_fwd);
+}
 
 /**
  * @brief Comptues the Fractional Fourier transform using FFTW for nlogn 
@@ -39,114 +473,8 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
  * and deallocated, and a warning will be produced 
  * @param nonfft
  */
-void fractional_fft(size_t sz, fftw_complex* in, fftw_complex* out, double a,
-		size_t bsz = 0, fftw_complex* buffer = NULL, bool nonfft = false);
-
-void fractional_fft(int64_t isize, int64_t usize, int64_t uppadsize,
-		fftw_complex* inout, fftw_complex* buffer, double a,
-		bool nonfft = false)
-{
-	const double PI = acos(-1);
-	double phi = a*PI/2;
-	complex<double> A_phi = std::exp(-I*PI/4.+I*phi/2.) / (usize*sqrt(sin(phi)));
-
-	fftw_complex* upsampled = &buffer[uppadsize/4][0];
-	fftw_complex* ab_chirp = &buffer[uppadsize][0];
-	fftw_complex* b_chirp = &buffer[uppadsize*2][0];
-
-	// upsampled version of input
-	std::vector<complex<double>> upsampled(usize); // CACHE
-
-	// create buffers and plans
-	auto sigbuff = fftw_alloc_complex(uppadsize); // CACHE
-	auto ab_chirp = createChirp(uppadsize, isize, (double)usize/(double)isize,
-			alpha, beta, false); // CACHE
-	auto b_chirp = createChirp(uppadsize, isize, (double)usize/(double)isize, 
-			beta, 0, true); // CACHE
-
-	fftw_plan sigbuff_plan_fwd = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff, 
-			FFTW_FORWARD, FFTW_MEASURE);
-	fftw_plan sigbuff_plan_rev = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff, 
-			FFTW_BACKWARD, FFTW_MEASURE);
-
-	// upsample input
-	interp(input, upsampled);
-	
-	// pre-multiply 
-	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
-		complex<double> tmp1(ab_chirp[nn+uppadsize/2][0], 
-				ab_chirp[nn+uppadsize/2][1]);
-		upsampled[nn+usize/2] *= tmp1;;
-	}
-
-	// copy to padded buffer
-	for(int64_t nn = -uppadsize/2; nn<=uppadsize/2; nn++) {
-		if(nn <= usize/2 && nn >= -usize/2) {
-			sigbuff[nn+uppadsize/2][0] = upsampled[nn+usize/2].real();
-			sigbuff[nn+uppadsize/2][1] = upsampled[nn+usize/2].imag();
-		} else {
-			sigbuff[nn+uppadsize/2][0] = 0;
-			sigbuff[nn+uppadsize/2][1] = 0;
-		}
-	}
-
-	// convolve
-	fftw_execute(sigbuff_plan_fwd);
-
-	// not 100% clear on why sqrt works here, might be that the sqrt should be 
-	// b_chirp fft
-	double normfactor = sqrt(1./(uppadsize));
-	for(size_t ii=0; ii<uppadsize; ii++) {
-		complex<double> tmp1(sigbuff[ii][0], sigbuff[ii][1]);
-		complex<double> tmp2(b_chirp[ii][0], b_chirp[ii][1]);
-		tmp1 *= tmp2*normfactor;
-		sigbuff[ii][0] = tmp1.real();
-		sigbuff[ii][1] = tmp1.imag();
-	}
-	fftw_execute(sigbuff_plan_rev);
-
-	// I am actually still not 100% on why these should be shifted up (-1) in 
-	// sigbuff indexing
-	// copy out, negatives
-	for(int64_t ii=-usize/2; ii<=0; ii++) {
-		upsampled[ii+usize/2].real(sigbuff[uppadsize-1+ii][0]);
-		upsampled[ii+usize/2].imag(sigbuff[uppadsize-1+ii][1]);
-	}
-	// positives
-	for(int64_t ii=1; ii<=usize/2; ii++) {
-		upsampled[ii+usize/2].real(sigbuff[ii-1][0]);
-		upsampled[ii+usize/2].imag(sigbuff[ii-1][1]);
-	}
-
-#ifdef DEBUG
-	std::vector<double> mag;
-	mag.resize(usize);
-	for(size_t ii=0; ii<usize; ii++) 
-		mag[ii] = abs(upsampled[ii]);
-	writePlot("fft_premult.tga", mag);
-#endif //DEBUG
-
-	// post-multiply
-	for(int64_t ii=-usize/2; ii<=usize/2; ii++) {
-		complex<double> tmp1(ab_chirp[ii+uppadsize/2][0], 
-				ab_chirp[ii+uppadsize/2][1]);
-
-		upsampled[ii+usize/2] *= tmp1*A_phi;
-	}
-	
-
-	out.resize(input.size());
-	interp(upsampled, out);
-
-	fftw_free(sigbuff);
-	fftw_free(b_chirp);
-	fftw_free(ab_chirp);
-	fftw_destroy_plan(sigbuff_plan_rev);
-	fftw_destroy_plan(sigbuff_plan_fwd);
-}
-
 void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
-		size_t bsz = 0, fftw_complex* buffer = NULL, bool nonfft = false)
+		size_t bsz, fftw_complex* buffer, bool nonfft)
 {
 	double MINTHRESH = 0.000000000001;
 
@@ -167,15 +495,12 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	}
 
 	// check/allocate buffer
-	if(bsz < 4*uppadsize || !buffer) {
+	if(bsz < isize+3*uppadsize || !buffer) {
 		bsz = 4*uppadsize;
 		buffer = fftw_alloc_complex(bsz);
 	}
 
-	fftw_complex* current = &buffer[0][0];
-	fftw_complex* padded = &buffer[uppadsize][0];
-	fftw_complex* chirp_ab = &buffer[uppadsize*2][0];
-	fftw_complex* chirp_b = &buffer[uppadsize*3][0];
+	fftw_complex* current = &buffer[0];
 	fftw_plan curr_to_out_fwd = fftw_plan_dft_1d(isize, current, out,
 			FFTW_FORWARD, FFTW_MEASURE);
 	fftw_plan curr_to_out_rev = fftw_plan_dft_1d(isize, current, out,
@@ -213,7 +538,12 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 			a += 1;
 		} else if(a <= 1.5) {
 			// can do the general purpose fractional_fft
-			fractional_fft();
+			if(nonfft)
+				fractional_brute_ft(isize, usize, uppadsize, current,
+						&buffer[isize], a);
+			else
+				fractional_fft(isize, usize, uppadsize, current,
+						&buffer[isize], a);
 			a = 0;
 		} else if(a < 2.5) {
 			// above range, do an rev FFT to bring into range of fractional_fft
@@ -234,9 +564,13 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 			a -= 3;
 		}
 	}
+
+	// copy current to output
+	for(size_t ii=0; ii<isize; ii++) {
+		out[ii][0] = current[ii][0];
+		out[ii][1] = current[ii][1];
+	}
 }
 
-
-void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
-		vector<complex<double>>& out)
+}
 

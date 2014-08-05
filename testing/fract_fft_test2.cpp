@@ -1,0 +1,124 @@
+/*******************************************************************************
+This file is part of Neuro Programs and Libraries (NPL), 
+
+Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
+
+The Neuro Programs and Libraries is free software: you can redistribute it and/or
+modify it under the terms of the GNU General Public License as published by the
+Free Software Foundation, either version 3 of the License, or (at your option)
+any later version.
+
+The Neural Programs and Libraries are distributed in the hope that it will be
+useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
+*******************************************************************************/
+
+/******************************************************************************
+ * @file fft_test.cpp
+ * @brief This file is specifically to test forward, reverse of fft image
+ * procesing functions.
+ ******************************************************************************/
+
+#include <string>
+#include <stdexcept>
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <algorithm>
+#include <complex>
+#include <cassert>
+
+//#define DEBUG
+
+#include "utility.h"
+#include "fract_fft.h"
+
+#include "fftw3.h"
+
+using namespace npl;
+using namespace std;
+
+int main(int argc, char** argv)
+{
+	double alpha;
+	size_t sz;
+	if(argc == 3) {
+		alpha = atof(argv[1]);
+		sz = atoi(argv[2]);
+	} else {
+		alpha = .5;
+		sz = 127;
+	}
+
+	
+	fftw_complex* in = fftw_alloc_complex(sz);
+	fftw_complex* fftout = fftw_alloc_complex(sz);
+	fftw_complex* bruteout = fftw_alloc_complex(sz);
+	
+	// fill with rectangle
+	for(size_t ii=0; ii<sz; ii++) {
+		if(ii < sz*3/5 && ii > sz*2/5) {
+			in[ii][0] = 1.;
+			in[ii][1] = 0.;
+		} else {
+			in[ii][0] = 0.;
+			in[ii][1] = 0.;
+		}
+	}
+
+	std::vector<double> phasev(sz);
+	std::vector<double> absv(sz);
+	for(size_t ii=0; ii<sz; ii++) {
+		phasev[ii] = atan2(in[ii][0], in[ii][1]);
+		absv[ii] = sqrt(pow(in[ii][0],2)+pow(in[ii][1],2));
+	}
+	writePlot("orig_phase.tga", phasev);
+	writePlot("orig_abs.tga", absv);
+
+	fractional_ft(sz, in, bruteout, alpha, 0, NULL, true);
+	fractional_ft(sz, in, fftout, alpha);
+
+	for(size_t ii=0; ii<sz; ii++) {
+		phasev[ii] = atan2(fftout[ii][0], fftout[ii][1]);
+		absv[ii] = sqrt(pow(fftout[ii][0],2)+pow(fftout[ii][1],2));
+	}
+	writePlot("fft_phase.tga", phasev);
+	writePlot("fft_abs.tga", absv);
+	
+	for(size_t ii=0; ii<sz; ii++) {
+		phasev[ii] = atan2(bruteout[ii][0], bruteout[ii][1]);
+		absv[ii] = sqrt(pow(bruteout[ii][0],2)+pow(bruteout[ii][1],2));
+	}
+	writePlot("brute_phase.tga", phasev);
+	writePlot("brute_abs.tga", absv);
+
+	for(size_t ii=0; ii<sz; ii++) {
+		if(fabs(bruteout[ii][0] - fftout[ii][0]) > 0.01) {
+			cerr << "Brute force and fft versions differ in real!" << endl;
+			cerr << bruteout[ii][0] << " vs " << fftout[ii][0] << endl;
+			cerr << bruteout[ii][0]/fftout[ii][0] << endl;
+			return -1;
+		}
+		if(fabs(bruteout[ii][1] - fftout[ii][1]) > 0.01) {
+			cerr << "Brute force and fft versions differ in imag!" << endl;
+			cerr << bruteout[ii][1] << " vs " << fftout[ii][1] << endl;
+			cerr << bruteout[ii][1]/fftout[ii][1] << endl;
+			return -1;
+		}
+	}
+
+	fftw_free(in);
+	fftw_free(fftout);
+	fftw_free(bruteout);
+	fftw_cleanup();
+	return 0;
+}
+
+
+
+
+
