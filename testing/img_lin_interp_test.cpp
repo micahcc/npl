@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neural Program Library (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neural Program Library is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file img_lin_interp_test.cpp
+ *
+ *****************************************************************************/
 
 #include <iostream>
 
@@ -45,7 +45,7 @@ int main()
 			for(index[2] = 0; index[2] < sz[2] ; index[2]++) {
 				for(index[3] = 0; index[3] < sz[3] ; index[3]++) {
 					for(index[4] = 0; index[4] < sz[4] ; index[4]++) {
-						val = index[0]+index[1]*10 + index[2]*100 
+						val = index[0]+index[1]*10 + index[2]*100
 									+ index[3]*1000+index[4]*10000;
 						view.set(val, index);
 					}
@@ -90,10 +90,10 @@ int main()
 				double s = interp(cindex[0], cindex[1], cindex[2]);
 
 				if(fabs(val - s) > 0.00000000001) {
-					std::cerr << "Off-grid point (summed double) value mismatch" 
-								<< endl << "Calcu: " << val 
-								<< " versus Estimate: " << s << endl << " at " 
-								<< cindex[0] << ", " << cindex[1] << ", " 
+					std::cerr << "Off-grid point (summed double) value mismatch"
+								<< endl << "Calcu: " << val
+								<< " versus Estimate: " << s << endl << " at "
+								<< cindex[0] << ", " << cindex[1] << ", "
 								<< cindex[2] << ", " << cindex[3] << endl;
 
 					return -1;
@@ -121,13 +121,13 @@ int main()
 				tt = 0;
 				for(index[3] = 0; index[3] < sz[3] ; index[3]++) {
 					for(index[4] = 0; index[4] < sz[4] ; index[4]++, ++tt) {
-						val = index[0]+index[1]*10 + index[2]*100 
+						val = index[0]+index[1]*10 + index[2]*100
 									+ index[3]*1000+index[4]*10000;
 						double s = tview.get(index[0],index[1],index[2], tt);
 						if(s != val) {
 							std::cerr << "Error in vector view" << std::endl;
-							std::cerr << index[0] << "," << index[1] << "," 
-										<< index[2] << "," << index[3] << "," 
+							std::cerr << index[0] << "," << index[1] << ","
+										<< index[2] << "," << index[3] << ","
 										<< index[4] << ":" << val << endl;
 							std::cerr << tt << ":" << s << endl;
 							return -1;

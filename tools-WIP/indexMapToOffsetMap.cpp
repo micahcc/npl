@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file indexMapToOffsetMap.cpp
+ *
+ *****************************************************************************/
 
 #include <version.h>
 #include <tclap/CmdLine.h>
@@ -42,7 +42,7 @@ ostream& operator<<(ostream& out, const std::vector<T>& v)
 	return out;
 }
 
-void invertDeform(shared_ptr<MRImage> inimg, size_t vdim, 
+void invertDeform(shared_ptr<MRImage> inimg, size_t vdim,
 		shared_ptr<MRImage> outimg)
 {
 	// create KDTree
@@ -63,7 +63,7 @@ void invertDeform(shared_ptr<MRImage> inimg, size_t vdim,
 		for(index[1]=0; index[1]<inimg->dim(1); index[1]++) {
 			for(index[2]=0; index[2]<inimg->dim(2); index[2]++) {
 
-				// get full vector, 
+				// get full vector,
 				for(int64_t ii=0; ii<3; ii++) {
 					index[vdim] = ii;
 					src[ii] = inimg->get_dbl(index);
@@ -82,7 +82,7 @@ void invertDeform(shared_ptr<MRImage> inimg, size_t vdim,
 	cerr << "Done" << endl;
 
 	cerr << "Inverting Map" << endl;
-	// go through output image and find nearby points that map 
+	// go through output image and find nearby points that map
 	for(index[0]=0; index[0] < outimg->dim(0); index[0]++) {
 		std::cerr << index[0] << "/" << outimg->dim(0) << "\r";
 		for(index[1]=0; index[1] < outimg->dim(1); index[1]++) {
@@ -94,7 +94,7 @@ void invertDeform(shared_ptr<MRImage> inimg, size_t vdim,
 				double dist = INFINITY;
 				auto result = tree.nearest(trg, dist);
 
-				if(!result) 
+				if(!result)
 					throw std::logic_error("Deformation too large!");
 
 #ifdef DEBUG
@@ -114,10 +114,10 @@ void invertDeform(shared_ptr<MRImage> inimg, size_t vdim,
 					src[jj] = result->m_data[jj];
 				}
 
-				// use the error in app_target vs target to find a 
+				// use the error in app_target vs target to find a
 				// source that fits
 				prevdist = dist+1;
-				for(size_t ii = 0 ; fabs(prevdist-dist) > 0 && 
+				for(size_t ii = 0 ; fabs(prevdist-dist) > 0 &&
 						dist > MINERR && ii < MAXITERS; ii++) {
 #ifdef DEBUG
 					std::cerr << trg  << " <- ?? " << src << " ?? " << endl;
@@ -204,7 +204,7 @@ void growFromMask(shared_ptr<MRImage> deform, shared_ptr<MRImage> mask, size_t v
 			
 			visitations++;
 			
-			// find minimum non-zero point in kernel 
+			// find minimum non-zero point in kernel
 			minval = SIZE_MAX;
 			std::vector<int64_t> minind(mask->ndim());
 			for(size_t ii=0; ii<kern.ksize(); ii++) {
@@ -239,7 +239,7 @@ void growFromMask(shared_ptr<MRImage> deform, shared_ptr<MRImage> mask, size_t v
 		}
 	
 		// copy changes back to source
-		for(size_t ii=0; ii<mask->elements(); ii++) 
+		for(size_t ii=0; ii<mask->elements(); ii++)
 			mask->set_int(ii, mask_trg->get_int(ii));
 
 		cerr << "Number Changed: " << nchange << endl;
@@ -370,8 +370,8 @@ shared_ptr<MRImage> smoothOutsideMask(shared_ptr<MRImage> deform,
 int main(int argc, char** argv)
 {
 	try {
-	/* 
-	 * Command Line 
+	/*
+	 * Command Line
 	 */
 
 	TCLAP::CmdLine cmd("Often nonlinear registration produces deformation fields"
@@ -383,11 +383,11 @@ int main(int argc, char** argv)
 			"change that to A[a,b,c]^T. Its also possible to invert (-I) .",
 			' ', __version__ );
 
-	TCLAP::ValueArg<string> a_in("i", "input", "Input image.", 
+	TCLAP::ValueArg<string> a_in("i", "input", "Input image.",
 			true, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
 			false, "", "*.nii.gz", cmd);
-//	TCLAP::ValueArg<string> a_offset("O", "offset-map", "Output offset map.", 
+//	TCLAP::ValueArg<string> a_offset("O", "offset-map", "Output offset map.",
 //			false, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_mask("m", "mask", "Input mask image. Values "
 			"outside the masked regions will be recreated by expanding from "
@@ -412,10 +412,10 @@ int main(int argc, char** argv)
 	size_t vdim = 4;
 	if(deform->ndim() == 4 && deform->dim(3) == 3)
 		vdim = 3;
-	else if(deform->ndim() == 5 && deform->dim(4) == 3) 
+	else if(deform->ndim() == 5 && deform->dim(4) == 3)
 		vdim = 4;
 	else {
-		cerr << "Not sure how to handle the dimensionality of this image" 
+		cerr << "Not sure how to handle the dimensionality of this image"
 			<< endl;
 		cerr << deform->ndim() << " [";
 		for(size_t ii=0; ii< deform->ndim(); ii++) {
@@ -502,7 +502,7 @@ int main(int argc, char** argv)
 //			deform = smoothOutsideMask(deform, mask, vdim);
 //		deform = smooth(deform, vdim);
 		
-		// convert offset back to deform, 
+		// convert offset back to deform,
 		for(it.goBegin(); !it.isEnd(); ) {
 			defInd = it.index();
 			for(int ii=0; ii<3; ii++, ++it) {
@@ -522,19 +522,19 @@ int main(int argc, char** argv)
 		shared_ptr<MRImage> atlas;
 		atlas = readMRImage(a_atlas.getValue());
 
-		if(!atlas || atlas->ndim() != 3) 
+		if(!atlas || atlas->ndim() != 3)
 			cerr << "Atlas should be 3D!" << endl;
 
 		// copy size and orientation from atlas
 		std::vector<size_t> sz(deform->ndim());
-		for(size_t ii=0; ii<3; ii++) 
+		for(size_t ii=0; ii<3; ii++)
 			sz[ii] = atlas->dim(ii);
 		for(size_t ii=3; ii<deform->ndim(); ii++)
 			sz[ii] = deform->dim(ii);
 
 		cerr << sz << endl;
 		newdeform = createMRImage(sz, FLOAT32);
-		newdeform->setOrient(atlas->origin(), deform->spacing(), 
+		newdeform->setOrient(atlas->origin(), deform->spacing(),
 				atlas->direction(), true);
 	
 		invertDeform(deform, vdim, newdeform);
@@ -544,7 +544,7 @@ int main(int argc, char** argv)
 	}
 	
 	// convert each coordinate to an offset
-	it.updateDim(newdeform->ndim(), newdeform->dim()); 
+	it.updateDim(newdeform->ndim(), newdeform->dim());
 	it.goBegin();
 	vector<double> pt1, pt2;
 	while(!it.isEnd()) {
@@ -554,14 +554,14 @@ int main(int argc, char** argv)
 		newdeform->indexToPoint(index, pt1);
 
 		// get point at source (value in newdeform, in index space of original)
-		for(size_t ii=0; ii<3; ii++, ++it) 
+		for(size_t ii=0; ii<3; ii++, ++it)
 			index[ii] = newdeform->get_dbl(*it);
 
 		deform->indexToPoint(index, pt2);
 
 		// set deform to the difference in point locations
 		it--; it--; it--;
-		for(size_t ii=0; ii<3; ii++, ++it) 
+		for(size_t ii=0; ii<3; ii++, ++it)
 			newdeform->set_dbl(*it, pt2[ii]-pt1[ii]);
 	}
 

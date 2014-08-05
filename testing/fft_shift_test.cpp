@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file fft_shift_test.cpp
+ *
+ *****************************************************************************/
 
 /******************************************************************************
  * @file fft_test.cpp
@@ -81,7 +81,7 @@ int main()
 		}
 		if(sqrt(dist) < 5)
 			sit.set(1);
-		else 
+		else
 			sit.set(0);
 
 		++sit;
@@ -117,7 +117,7 @@ int main()
 	for(OrderIter<double> it(mshift); !it.eof(); ++it) {
 		it.index(3, index);
 		
-		for(size_t dd = 0 ; dd < in->ndim(); dd++) 
+		for(size_t dd = 0 ; dd < in->ndim(); dd++)
 			index[dd] = clamp<int64_t>(0, in->dim(dd)-1, index[dd]+shift[dd]);
 
 		it.set(acc.get(3, index));
@@ -126,7 +126,7 @@ int main()
 	mshift->write("manual_shift.nii.gz");
 	ifft->write("fourier_shift.nii.gz");
 
-	if(closeCompare(ifft, mshift) != 0) 
+	if(closeCompare(ifft, mshift) != 0)
 		return -1;
 	
 

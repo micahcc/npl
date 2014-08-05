@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries are free software: you can redistribute it
-and/or modify it under the terms of the GNU General Public License as published
-by the Free Software Foundation, either version 3 of the License, or (at your
-option) any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file iterators.h
+ *
+ *****************************************************************************/
 
 #ifndef ITERATOR_H
 #define ITERATOR_H
@@ -30,14 +30,14 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 namespace npl {
 
 /**
- * @brief Flat iterator for NDArray. No information is kept about 
+ * @brief Flat iterator for NDArray. No information is kept about
  * the current ND index. Just goes through all data. This casts the output to the
  * type specified using T.
  *
  * @tparam T
  */
 template <typename T>
-class FlatIter 
+class FlatIter
 {
 public:
 	FlatIter(std::shared_ptr<NDArray> in)
@@ -123,10 +123,10 @@ public:
 	 *
 	 * @return new value
 	 */
-	FlatIter& operator++() 
-	{ 
+	FlatIter& operator++()
+	{
 		++m_linpos;
-		return *this; 
+		return *this;
 	};
 
 	/**
@@ -134,10 +134,10 @@ public:
 	 *
 	 * @return new value
 	 */
-	FlatIter& operator--() 
-	{ 
+	FlatIter& operator--()
+	{
 		--m_linpos;
-		return *this; 
+		return *this;
 	};
 	
 	/**
@@ -146,8 +146,8 @@ public:
 	 * @return current value
 	 */
 	T operator*() const
-	{ 
-		return castget(parent->__getAddr(m_linpos)); 
+	{
+		return castget(parent->__getAddr(m_linpos));
 	};
 	
 	/**
@@ -156,9 +156,9 @@ public:
 	 * @return current value
 	 */
 	T get() const
-	{ 
+	{
 		m_linpos;
-		return *this; 
+		return *this;
 	};
 	
 	/**
@@ -167,8 +167,8 @@ public:
 	 * @return current value
 	 */
 	void set(T v) const
-	{ 
-		castset(parent->__getAddr(m_linpos), v); 
+	{
+		castset(parent->__getAddr(m_linpos), v);
 	};
 	
 	/**
@@ -197,79 +197,79 @@ public:
 	bool isBegin() const { return m_linpos == 0; };
 	
 	/**
-	 * @brief Whether the position and parent are the same as another 
+	 * @brief Whether the position and parent are the same as another
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator==(const FlatIter& other) const
-	{ 
+	{
 		return parent == other.parent && m_linpos == other.m_linpos;
 	};
 
 	/**
-	 * @brief Whether the position and parent are different from another 
+	 * @brief Whether the position and parent are different from another
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator!=(const FlatIter& other) const
-	{ 
+	{
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is before the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is before the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator<(const FlatIter& other) const
-	{ 
+	{
 		return parent == other.parent && m_linpos < other.m_linpos;
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is after the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is after the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator>(const FlatIter& other) const
-	{ 
+	{
 		return parent == other.parent && m_linpos > other.m_linpos;
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is the same or before the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is the same or before the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator<=(const FlatIter& other) const
-	{ 
-		return parent == other.parent && m_linpos <= other.m_linpos; 
+	{
+		return parent == other.parent && m_linpos <= other.m_linpos;
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is the same or after the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is the same or after the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator>=(const FlatIter& other) const
-	{ 
-		return parent == other.parent && m_linpos >= other.m_linpos; 
+	{
+		return parent == other.parent && m_linpos >= other.m_linpos;
 	};
 
 private:
@@ -296,14 +296,14 @@ private:
 };
 
 /**
- * @brief Flat iterator iterator for NDArray. No information is kept about 
+ * @brief Flat iterator iterator for NDArray. No information is kept about
  * the current index. Just goes through all data. This casts the output to the
  * type specified using T.
  *
  * @tparam T
  */
 template <typename T>
-class FlatConstIter 
+class FlatConstIter
 {
 public:
 	FlatConstIter(std::shared_ptr<const NDArray> in)
@@ -372,10 +372,10 @@ public:
 	 *
 	 * @return new value
 	 */
-	FlatConstIter& operator++() 
-	{ 
+	FlatConstIter& operator++()
+	{
 		++m_linpos;
-		return *this; 
+		return *this;
 	};
 
 	/**
@@ -383,10 +383,10 @@ public:
 	 *
 	 * @return new value
 	 */
-	FlatConstIter& operator--() 
-	{ 
+	FlatConstIter& operator--()
+	{
 		--m_linpos;
-		return *this; 
+		return *this;
 	};
 	
 	/**
@@ -395,8 +395,8 @@ public:
 	 * @return current value
 	 */
 	T operator*() const
-	{ 
-		return castget(parent->__getAddr(m_linpos)); 
+	{
+		return castget(parent->__getAddr(m_linpos));
 	};
 	
 	/**
@@ -405,9 +405,9 @@ public:
 	 * @return current value
 	 */
 	T get() const
-	{ 
+	{
 		m_linpos;
-		return *this; 
+		return *this;
 	};
 	
 	/**
@@ -436,79 +436,79 @@ public:
 	bool isBegin() const { return m_linpos == 0; };
 	
 	/**
-	 * @brief Whether the position and parent are the same as another 
+	 * @brief Whether the position and parent are the same as another
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator==(const FlatConstIter& other) const
-	{ 
+	{
 		return parent == other.parent && m_linpos == other.m_linpos;
 	};
 
 	/**
-	 * @brief Whether the position and parent are different from another 
+	 * @brief Whether the position and parent are different from another
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator!=(const FlatConstIter& other) const
-	{ 
+	{
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is before the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is before the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator<(const FlatConstIter& other) const
-	{ 
+	{
 		return parent == other.parent && m_linpos < other.m_linpos;
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is after the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is after the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator>(const FlatConstIter& other) const
-	{ 
+	{
 		return parent == other.parent && m_linpos > other.m_linpos;
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is the same or before the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is the same or before the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator<=(const FlatConstIter& other) const
-	{ 
-		return parent == other.parent && m_linpos <= other.m_linpos; 
+	{
+		return parent == other.parent && m_linpos <= other.m_linpos;
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is the same or after the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is the same or after the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator>=(const FlatConstIter& other) const
-	{ 
-		return parent == other.parent && m_linpos >= other.m_linpos; 
+	{
+		return parent == other.parent && m_linpos >= other.m_linpos;
 	};
 
 private:
@@ -532,10 +532,10 @@ private:
  * @tparam T
  */
 template <typename T>
-class OrderConstIter : public Slicer 
+class OrderConstIter : public Slicer
 {
 public:
-	OrderConstIter(std::shared_ptr<const NDArray> in) : 
+	OrderConstIter(std::shared_ptr<const NDArray> in) :
 		Slicer(in->ndim(), in->dim()), parent(in)
 	{
 		switch(in->type()) {
@@ -600,8 +600,8 @@ public:
 	 *
 	 * @return new value
 	 */
-	OrderConstIter& operator++() 
-	{ 
+	OrderConstIter& operator++()
+	{
 		Slicer::operator++();
 		return *this;
 	};
@@ -611,8 +611,8 @@ public:
 	 *
 	 * @return new value
 	 */
-	OrderConstIter& operator--() 
-	{ 
+	OrderConstIter& operator--()
+	{
 		Slicer::operator--();
 		return *this;
 	};
@@ -623,8 +623,8 @@ public:
 	 * @return current value
 	 */
 	T operator*() const
-	{ 
-		return castget(parent->__getAddr(Slicer::operator*())); 
+	{
+		return castget(parent->__getAddr(Slicer::operator*()));
 	};
 	
 	/**
@@ -633,8 +633,8 @@ public:
 	 * @return current value
 	 */
 	T get() const
-	{ 
-		return castget(parent->__getAddr(Slicer::operator*())); 
+	{
+		return castget(parent->__getAddr(Slicer::operator*()));
 	};
 	
 	/**
@@ -663,39 +663,39 @@ public:
 	bool isBegin() const { return Slicer::isBegin(); };
 	
 	/**
-	 * @brief Whether the position and parent are the same as another 
+	 * @brief Whether the position and parent are the same as another
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator==(const OrderConstIter& other) const
-	{ 
+	{
 		return parent == other.parent && m_linpos == other.m_linpos;
 	};
 
 	/**
-	 * @brief Whether the position and parent are different from another 
+	 * @brief Whether the position and parent are different from another
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator!=(const OrderConstIter& other) const
-	{ 
+	{
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is before the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is before the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator<(const OrderConstIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 
@@ -708,15 +708,15 @@ public:
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is after the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is after the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator>(const OrderConstIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 
@@ -729,15 +729,15 @@ public:
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is the same or before the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is the same or before the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator<=(const OrderConstIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 
@@ -748,15 +748,15 @@ public:
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is the same or after the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is the same or after the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator>=(const OrderConstIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 
@@ -779,12 +779,12 @@ private:
 };
 
 /**
- * @brief This class is used to iterate through an N-Dimensional array. 
+ * @brief This class is used to iterate through an N-Dimensional array.
  *
  * @tparam T
  */
 template <typename T>
-class OrderIter : public Slicer 
+class OrderIter : public Slicer
 {
 public:
 	OrderIter(std::shared_ptr<NDArray> in) : Slicer(in->ndim(), in->dim()), parent(in)
@@ -869,8 +869,8 @@ public:
 	 *
 	 * @return new value
 	 */
-	OrderIter& operator++() 
-	{ 
+	OrderIter& operator++()
+	{
 		Slicer::operator++();
 		return *this;
 	};
@@ -880,8 +880,8 @@ public:
 	 *
 	 * @return new value
 	 */
-	OrderIter& operator--() 
-	{ 
+	OrderIter& operator--()
+	{
 		Slicer::operator--();
 		return *this;
 	};
@@ -892,8 +892,8 @@ public:
 	 * @return current value
 	 */
 	T operator*() const
-	{ 
-		return castget(parent->__getAddr(Slicer::operator*())); 
+	{
+		return castget(parent->__getAddr(Slicer::operator*()));
 	};
 	
 	/**
@@ -902,8 +902,8 @@ public:
 	 * @return current value
 	 */
 	T get() const
-	{ 
-		return castget(parent->__getAddr(Slicer::operator*())); 
+	{
+		return castget(parent->__getAddr(Slicer::operator*()));
 	};
 	
 	/**
@@ -911,9 +911,9 @@ public:
 	 *
 	 * @return current value
 	 */
-	void set(const T& v) 
-	{ 
-		this->castset(parent->__getAddr(Slicer::operator*()), v); 
+	void set(const T& v)
+	{
+		this->castset(parent->__getAddr(Slicer::operator*()), v);
 	};
 
 	/**
@@ -942,39 +942,39 @@ public:
 	bool isBegin() const { return Slicer::isBegin(); };
 	
 	/**
-	 * @brief Whether the position and parent are the same as another 
+	 * @brief Whether the position and parent are the same as another
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator==(const OrderIter& other) const
-	{ 
+	{
 		return parent == other.parent && m_linpos == other.m_linpos;
 	};
 
 	/**
-	 * @brief Whether the position and parent are different from another 
+	 * @brief Whether the position and parent are different from another
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator!=(const OrderIter& other) const
-	{ 
+	{
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is before the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is before the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator<(const OrderIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 
@@ -987,15 +987,15 @@ public:
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is after the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is after the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator>(const OrderIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 
@@ -1008,15 +1008,15 @@ public:
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is the same or before the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is the same or before the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator<=(const OrderIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 
@@ -1027,15 +1027,15 @@ public:
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is the same or after the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is the same or after the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator>=(const OrderIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 
@@ -1071,20 +1071,20 @@ private:
  * of the current element/pixel. Neighbors can be accessed through offset(i)
  * which simply provides the value of the i'th neighbor. To get that neighbors
  * index you can use it.offset_index(i). For the center use
- * it.center()/it.center_index(). [] may also be used in place of offset. To 
+ * it.center()/it.center_index(). [] may also be used in place of offset. To
  * get the number of neighbors in the kernel use ksize(), so
  * it.offset(0), it.offset(1), ..., it.offset(ksize()-1) are valid calls.
  *
  * Note that order is the not the default order. If you use using this iterator
- * with another iterator, be sure to setOrder(it.getOrder()) so that both 
+ * with another iterator, be sure to setOrder(it.getOrder()) so that both
  * iterators have the same directions.
  *
  * There are no 'set' functions so this is const iterator.
- * 
+ *
  * @tparam T
  */
 template <typename T>
-class KernelIter : public KSlicer 
+class KernelIter : public KSlicer
 {
 public:
 	KernelIter(std::shared_ptr<const NDArray> in)
@@ -1152,8 +1152,8 @@ public:
 	 *
 	 * @return new value
 	 */
-	KernelIter& operator++() 
-	{ 
+	KernelIter& operator++()
+	{
 		KSlicer::operator++();
 		return *this;
 	};
@@ -1163,8 +1163,8 @@ public:
 	 *
 	 * @return new value
 	 */
-	KernelIter& operator--() 
-	{ 
+	KernelIter& operator--()
+	{
 		KSlicer::operator--();
 		return *this;
 	};
@@ -1175,8 +1175,8 @@ public:
 	 * @return current value
 	 */
 	T operator*() const
-	{ 
-		return castget(parent->__getAddr(KSlicer::operator*())); 
+	{
+		return castget(parent->__getAddr(KSlicer::operator*()));
 	};
 	
 	/**
@@ -1185,8 +1185,8 @@ public:
 	 * @return current value
 	 */
 	T center() const
-	{ 
-		return castget(parent->__getAddr(KSlicer::center())); 
+	{
+		return castget(parent->__getAddr(KSlicer::center()));
 	};
 	
 	/**
@@ -1195,8 +1195,8 @@ public:
 	 * @return current value at offset k
 	 */
 	T offset(int64_t k) const
-	{ 
-		return castget(parent->__getAddr(KSlicer::offset(k))); 
+	{
+		return castget(parent->__getAddr(KSlicer::offset(k)));
 	};
 	
 	/**
@@ -1205,44 +1205,44 @@ public:
 	 * @return current value at offset k
 	 */
 	T operator[](int64_t k) const
-	{ 
-		return castget(parent->__getAddr(KSlicer::offset(k))); 
+	{
+		return castget(parent->__getAddr(KSlicer::offset(k)));
 	};
 	
 	/**
-	 * @brief Whether the position and parent are the same as another 
+	 * @brief Whether the position and parent are the same as another
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator==(const KernelIter& other) const
-	{ 
+	{
 		return parent == other.parent && m_linpos == other.m_linpos;
 	};
 
 	/**
-	 * @brief Whether the position and parent are different from another 
+	 * @brief Whether the position and parent are different from another
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator!=(const KernelIter& other) const
-	{ 
+	{
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is before the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is before the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator<(const KernelIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 
@@ -1255,15 +1255,15 @@ public:
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is after the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is after the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator>(const KernelIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 
@@ -1276,15 +1276,15 @@ public:
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is the same or before the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is the same or before the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator<=(const KernelIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 
@@ -1295,15 +1295,15 @@ public:
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is the same or after the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is the same or after the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator>=(const KernelIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 
@@ -1327,15 +1327,15 @@ private:
 
 /**
  * @brief This class is used to iterate through an 3D array, where each point
- * then has has multiple higher dimensional variable. This is analogous to 
+ * then has has multiple higher dimensional variable. This is analogous to
  * Vector3DView, where even if there are multiple higher dimensions they are all
- * alligned into a single vector at each 3D point. This makes them easier to 
+ * alligned into a single vector at each 3D point. This makes them easier to
  * than simple iteration in N-dimensions.
  *
  * @tparam T
  */
 template <typename T>
-class Vector3DIter : public Slicer 
+class Vector3DIter : public Slicer
 {
 public:
 	Vector3DIter(std::shared_ptr<NDArray> in) : Slicer(in->ndim(), in->dim()), parent(in)
@@ -1434,8 +1434,8 @@ public:
 	 *
 	 * @return new value in 0th element of vector
 	 */
-	Vector3DIter& operator++() 
-	{ 
+	Vector3DIter& operator++()
+	{
 		Slicer::operator++();
 		return *this;
 	};
@@ -1445,8 +1445,8 @@ public:
 	 *
 	 * @return new value in 0th element of vector
 	 */
-	Vector3DIter& operator--() 
-	{ 
+	Vector3DIter& operator--()
+	{
 		Slicer::operator--();
 		return *this;
 	};
@@ -1457,8 +1457,8 @@ public:
 	 * @return Value in 0th element of vector
 	 */
 	T operator*() const
-	{ 
-		return castget(parent->__getAddr(Slicer::operator*())); 
+	{
+		return castget(parent->__getAddr(Slicer::operator*()));
 	};
 	
 	/**
@@ -1467,8 +1467,8 @@ public:
 	 * @return current value
 	 */
 	T get(int64_t i = 0) const
-	{ 
-		return castget(parent->__getAddr(Slicer::operator*()+i)); 
+	{
+		return castget(parent->__getAddr(Slicer::operator*()+i));
 	};
 	
 	/**
@@ -1477,26 +1477,26 @@ public:
 	 * @return current value
 	 */
 	T operator[](int64_t i) const
-	{ 
-		return castget(parent->__getAddr(Slicer::operator*()+i)); 
+	{
+		return castget(parent->__getAddr(Slicer::operator*()+i));
 	};
 	
 	/**
 	 * @brief Set the value at the ith element of thevector
 	 *
 	 */
-	void set(int64_t i, const T& v) 
-	{ 
-		this->castset(parent->__getAddr(Slicer::operator*()+i), v); 
+	void set(int64_t i, const T& v)
+	{
+		this->castset(parent->__getAddr(Slicer::operator*()+i), v);
 	};
 	
 	/**
 	 * @brief Set the value at the 0th element of the vector
 	 *
 	 */
-	void set(const T& v) 
-	{ 
-		this->castset(parent->__getAddr(Slicer::operator*()), v); 
+	void set(const T& v)
+	{
+		this->castset(parent->__getAddr(Slicer::operator*()), v);
 	};
 
 	/**
@@ -1525,39 +1525,39 @@ public:
 	bool isBegin() const { return Slicer::isBegin(); };
 	
 	/**
-	 * @brief Whether the position and parent are the same as another 
+	 * @brief Whether the position and parent are the same as another
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator==(const Vector3DIter& other) const
-	{ 
+	{
 		return parent == other.parent && m_linpos == other.m_linpos;
 	};
 
 	/**
-	 * @brief Whether the position and parent are different from another 
+	 * @brief Whether the position and parent are different from another
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator!=(const Vector3DIter& other) const
-	{ 
+	{
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is before the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is before the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator<(const Vector3DIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 
@@ -1570,15 +1570,15 @@ public:
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is after the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is after the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator>(const Vector3DIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 
@@ -1591,15 +1591,15 @@ public:
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is the same or before the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is the same or before the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator<=(const Vector3DIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 
@@ -1610,15 +1610,15 @@ public:
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is the same or after the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is the same or after the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator>=(const Vector3DIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 
@@ -1652,15 +1652,15 @@ private:
 
 /**
  * @brief This class is used to iterate through an 3D array, where each point
- * then has has multiple higher dimensional variable. This is analogous to 
+ * then has has multiple higher dimensional variable. This is analogous to
  * Vector3DView, where even if there are multiple higher dimensions they are all
- * alligned into a single vector at each 3D point. This makes them easier to 
+ * alligned into a single vector at each 3D point. This makes them easier to
  * than simple iteration in N-dimensions. This is the constant version
  *
  * @tparam T
  */
 template <typename T>
-class Vector3DConstIter : public Slicer 
+class Vector3DConstIter : public Slicer
 {
 public:
 	Vector3DConstIter(std::shared_ptr<const NDArray> in) : Slicer(in->ndim(), in->dim()),
@@ -1743,8 +1743,8 @@ public:
 	 *
 	 * @return new value in 0th element of vector
 	 */
-	Vector3DConstIter& operator++() 
-	{ 
+	Vector3DConstIter& operator++()
+	{
 		Slicer::operator++();
 		return *this;
 	};
@@ -1754,8 +1754,8 @@ public:
 	 *
 	 * @return new value in 0th element of vector
 	 */
-	Vector3DConstIter& operator--() 
-	{ 
+	Vector3DConstIter& operator--()
+	{
 		Slicer::operator--();
 		return *this;
 	};
@@ -1766,8 +1766,8 @@ public:
 	 * @return Value in 0th element of vector
 	 */
 	T operator*() const
-	{ 
-		return castget(parent->__getAddr(Slicer::operator*())); 
+	{
+		return castget(parent->__getAddr(Slicer::operator*()));
 	};
 	
 	/**
@@ -1776,8 +1776,8 @@ public:
 	 * @return current value
 	 */
 	T get(int64_t i = 0) const
-	{ 
-		return castget(parent->__getAddr(Slicer::operator*()+i)); 
+	{
+		return castget(parent->__getAddr(Slicer::operator*()+i));
 	};
 	
 	/**
@@ -1786,8 +1786,8 @@ public:
 	 * @return current value
 	 */
 	T operator[](int64_t i) const
-	{ 
-		return castget(parent->__getAddr(Slicer::operator*()+i)); 
+	{
+		return castget(parent->__getAddr(Slicer::operator*()+i));
 	};
 	
 	/**
@@ -1816,39 +1816,39 @@ public:
 	bool isBegin() const { return Slicer::isBegin(); };
 	
 	/**
-	 * @brief Whether the position and parent are the same as another 
+	 * @brief Whether the position and parent are the same as another
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator==(const Vector3DConstIter& other) const
-	{ 
+	{
 		return parent == other.parent && m_linpos == other.m_linpos;
 	};
 
 	/**
-	 * @brief Whether the position and parent are different from another 
+	 * @brief Whether the position and parent are different from another
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator!=(const Vector3DConstIter& other) const
-	{ 
+	{
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is before the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is before the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator<(const Vector3DConstIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 
@@ -1861,15 +1861,15 @@ public:
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is after the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is after the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator>(const Vector3DConstIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 
@@ -1882,15 +1882,15 @@ public:
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is the same or before the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is the same or before the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator<=(const Vector3DConstIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 
@@ -1901,15 +1901,15 @@ public:
 	};
 	
 	/**
-	 * @brief If the parents are different then false, if they are the same, 
-	 * returns whether this iterator is the same or after the other. 
+	 * @brief If the parents are different then false, if they are the same,
+	 * returns whether this iterator is the same or after the other.
 	 *
 	 * @param other
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool operator>=(const Vector3DConstIter& other) const
-	{ 
+	{
 		if(parent != other.parent)
 			return false;
 

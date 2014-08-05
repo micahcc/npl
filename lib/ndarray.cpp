@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file ndarray.cpp
+ *
+ *****************************************************************************/
 
 #include "ndarray.h"
 #include "iterators.h"
@@ -25,8 +25,8 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace npl {
 
-/****************************************************************************** 
- * Helper Functions. We put these here because they are internally by NDArray 
+/******************************************************************************
+ * Helper Functions. We put these here because they are internally by NDArray
  * and NDArrayStore; we don't want to call across libraries if we can avoid
  * it.
  ******************************************************************************/
@@ -156,8 +156,8 @@ shared_ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype)
  * the same type to set all the elements of the output array. Only overlapping
  * sections of the arrays are copied.
  *
- * @tparam T Type to cast to 
- * @param in Input array to copy 
+ * @tparam T Type to cast to
+ * @param in Input array to copy
  * @param out Output array to write to
  */
 template <typename T>
@@ -167,7 +167,7 @@ void _copyCast_help(shared_ptr<const NDArray> in, shared_ptr<NDArray> out)
 	// Set up slicers to iterate through the input and output arrays. Only
 	// common dimensions are iterated over, and only the minimum of the two
 	// sizes are used for ROI. so a 10x10x10 array cast to a 20x5 array will
-	// iterator copy ROI 10x5x1 
+	// iterator copy ROI 10x5x1
 	OrderConstIter<T> iit(in);
 	OrderIter<T> oit(out);
 	
@@ -193,7 +193,7 @@ void _copyCast_help(shared_ptr<const NDArray> in, shared_ptr<NDArray> out)
 	}
 
 	// perform copy/cast
-	for(iit.goBegin(), oit.goBegin(); !oit.eof() && !iit.eof(); ++oit, ++iit) 
+	for(iit.goBegin(), oit.goBegin(); !oit.eof() && !iit.eof(); ++oit, ++iit)
 		oit.set(*iit);
 
 }
@@ -208,9 +208,9 @@ void _copyCast_help(shared_ptr<const NDArray> in, shared_ptr<NDArray> out)
  * @param newsize Size of output array
  * @param newtype Type of pixels in output array
  *
- * @return Image with overlapping sections cast and copied from 'in' 
+ * @return Image with overlapping sections cast and copied from 'in'
  */
-shared_ptr<NDArray> _copyCast(shared_ptr<const NDArray> in, size_t newdims, 
+shared_ptr<NDArray> _copyCast(shared_ptr<const NDArray> in, size_t newdims,
 		const size_t* newsize, PixelT newtype)
 {
 	auto out = createNDArray(newdims, newsize, newtype);
@@ -278,7 +278,7 @@ shared_ptr<NDArray> _copyCast(shared_ptr<const NDArray> in, size_t newdims,
  * @param in Input array, anything that can be copied will be
  * @param newtype Type of pixels in output array
  *
- * @return Image with overlapping sections cast and copied from 'in' 
+ * @return Image with overlapping sections cast and copied from 'in'
  */
 shared_ptr<NDArray> _copyCast(shared_ptr<const NDArray> in, PixelT newtype)
 {
@@ -295,9 +295,9 @@ shared_ptr<NDArray> _copyCast(shared_ptr<const NDArray> in, PixelT newtype)
  * @param newdims Number of dimensions in output array
  * @param newsize Size of output array
  *
- * @return Image with overlapping sections cast and copied from 'in' 
+ * @return Image with overlapping sections cast and copied from 'in'
  */
-shared_ptr<NDArray> _copyCast(shared_ptr<const NDArray> in, size_t newdims, 
+shared_ptr<NDArray> _copyCast(shared_ptr<const NDArray> in, size_t newdims,
 		const size_t* newsize)
 {
 	return _copyCast(in, newdims, newsize, in->type());
@@ -308,7 +308,7 @@ shared_ptr<NDArray> _copyCast(shared_ptr<const NDArray> in, size_t newdims,
 #include "ndarray.txx"
 
 namespace npl {
-/****************************************************************************** 
+/******************************************************************************
  * Pre-Compile Array Types
  ******************************************************************************/
 

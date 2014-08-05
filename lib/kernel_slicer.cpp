@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file kernel_slicer.cpp
+ *
+ *****************************************************************************/
 
 #include "kernel_slicer.h"
 
@@ -34,16 +34,16 @@ int64_t clamp(int64_t inf, int64_t sup, int64_t val)
 /**
  * @brief Default Constructor, max a length 1, dimension 1 slicer
  */
-KSlicer::KSlicer() 
-{ 
+KSlicer::KSlicer()
+{
 	size_t tmp = 1;
 	initialize(1, &tmp);
 };
 
 /**
- * @brief Constructs a iterator with the given dimensions 
+ * @brief Constructs a iterator with the given dimensions
  *
- * @param ndim	Number of dimensions 
+ * @param ndim	Number of dimensions
  * @param dim	size of ND array
  */
 KSlicer::KSlicer(size_t ndim, const size_t* dim)
@@ -57,7 +57,7 @@ KSlicer::KSlicer(size_t ndim, const size_t* dim)
  *
  * @return 	new value of linear position
  */
-KSlicer& KSlicer::operator++() 
+KSlicer& KSlicer::operator++()
 {
 	if(isEnd())
 		return *this;
@@ -66,7 +66,7 @@ KSlicer& KSlicer::operator++()
 	int64_t revbound = (int64_t)m_pos[m_center][m_order[0]]-m_rradius;
 	
 	// if the entire kernel is within the line, then just add add 1/stride
-	if(forbound < (int64_t)m_roi[m_order[0]].second && 
+	if(forbound < (int64_t)m_roi[m_order[0]].second &&
 				revbound >= (int64_t)m_roi[m_order[0]].first) {
 		for(size_t oo=0; oo<m_numoffs; oo++) {
 			m_pos[oo][m_order[0]]++;
@@ -89,7 +89,7 @@ KSlicer& KSlicer::operator++()
 				m_linpos[m_center] += m_strides[dd];
 				m_end = true;
 
-				// want to skip clamping, and not really a need to update 
+				// want to skip clamping, and not really a need to update
 				// neighborhood when we are outside the image
 				return *this;
 			}
@@ -106,7 +106,7 @@ KSlicer& KSlicer::operator++()
 		// calculate linear positions from each
 		for(size_t oo = 0; oo < m_numoffs; oo++) {
 			m_linpos[oo] = 0;
-			for(size_t dd=0; dd<m_dim; dd++) 
+			for(size_t dd=0; dd<m_dim; dd++)
 				m_linpos[oo] += m_pos[oo][dd]*m_strides[dd];
 		}
 	}
@@ -120,7 +120,7 @@ KSlicer& KSlicer::operator++()
  *
  * @return 	new value of linear position
  */
-KSlicer& KSlicer::operator--() 
+KSlicer& KSlicer::operator--()
 {
 	if(isBegin())
 		return *this;
@@ -131,7 +131,7 @@ KSlicer& KSlicer::operator--()
 	int64_t revbound = (int64_t)m_pos[m_center][m_order[0]]-m_rradius;
 	
 	// if the entire kernel is within the line, then just add add 1/stride
-	if(forbound <= (int64_t)m_roi[m_order[0]].second && 
+	if(forbound <= (int64_t)m_roi[m_order[0]].second &&
 				revbound > (int64_t)m_roi[m_order[0]].first) {
 		for(size_t oo=0; oo<m_numoffs; oo++) {
 			m_pos[oo][m_order[0]]--;
@@ -162,7 +162,7 @@ KSlicer& KSlicer::operator--()
 		// calculate linear positions from each
 		for(size_t oo = 0; oo < m_numoffs; oo++) {
 			m_linpos[oo] = 0;
-			for(size_t dd=0; dd<m_dim; dd++) 
+			for(size_t dd=0; dd<m_dim; dd++)
 				m_linpos[oo] += m_pos[oo][dd]*m_strides[dd];
 		}
 	}
@@ -171,10 +171,10 @@ KSlicer& KSlicer::operator--()
 }
 	
 /**
- * @brief Set the radius of the kernel window. All directions will 
- * have equal distance, with the radius in each dimension set by the 
- * magntitude of the kradius vector. So if kradius = {2,1,0} then 
- * dimension 0 (x) will have a radius of 2, dimension 1 (y) will have 
+ * @brief Set the radius of the kernel window. All directions will
+ * have equal distance, with the radius in each dimension set by the
+ * magntitude of the kradius vector. So if kradius = {2,1,0} then
+ * dimension 0 (x) will have a radius of 2, dimension 1 (y) will have
  * a readius of 1 and dimension 2 will have a radius of 0 (won't step
  * out from the middle at all).
  *
@@ -201,9 +201,9 @@ void KSlicer::setRadius(std::vector<size_t> kradius)
 }
 
 /**
- * @brief Set the radius of the kernel window. All directions will 
- * have equal distance in all dimensions. So if kradius = 2 then 
- * dimension 0 (x) will have a radius of 2, dimension 2 (y) will have 
+ * @brief Set the radius of the kernel window. All directions will
+ * have equal distance in all dimensions. So if kradius = 2 then
+ * dimension 0 (x) will have a radius of 2, dimension 2 (y) will have
  * a readius of 2 and so on. Warning images may have more dimensions
  * than you know, so if the image has a dimension that is only size 1
  * it will have a radius of 0, but if you didn't know you had a 10D image
@@ -211,7 +211,7 @@ void KSlicer::setRadius(std::vector<size_t> kradius)
  *
  * You should call goBegin() after this
  *
- * @param radii in all directions. 
+ * @param radii in all directions.
  */
 void KSlicer::setRadius(size_t kradius)
 {
@@ -225,11 +225,11 @@ void KSlicer::setRadius(size_t kradius)
 }
 
 /**
- * @brief Set the ROI from the center of the kernel. The first value 
+ * @brief Set the ROI from the center of the kernel. The first value
  * should be <= 0, the second should be >= 0. The ranges are inclusive.
- * So if kradius = {{-1,1},{0,1},{-1,0}}, in the x dimension values will 
- * range from center - 1 to center + 1, y indices will range from center 
- * to center + 1, and z indices will range from center-1 to center. 
+ * So if kradius = {{-1,1},{0,1},{-1,0}}, in the x dimension values will
+ * range from center - 1 to center + 1, y indices will range from center
+ * to center + 1, and z indices will range from center-1 to center.
  * Kernel will range from
  * [kRange[0].first, kRange[0].second]
  * [kRange[1].first, kRange[1].second]
@@ -237,8 +237,8 @@ void KSlicer::setRadius(size_t kradius)
  *
  * You should call goBegin() after this
  *
- * @param Vector of [inf, sup] in each dimension. Unaddressed (missing) 
- * values are assumed to be [0,0]. 
+ * @param Vector of [inf, sup] in each dimension. Unaddressed (missing)
+ * values are assumed to be [0,0].
  */
 void KSlicer::setWindow(const std::vector<std::pair<int64_t, int64_t>>& krange)
 {
@@ -269,14 +269,14 @@ void KSlicer::setWindow(const std::vector<std::pair<int64_t, int64_t>>& krange)
 	fill(m_offs.begin(), m_offs.end(), std::vector<int64_t>(m_dim));
 
 	// initialize first offset then set remaining based on that
-	for(size_t ii=0; ii<m_dim; ii++) 
+	for(size_t ii=0; ii<m_dim; ii++)
 		m_offs[0][ii] = kmin[ii];
 
 	m_center = 0;
 	for(size_t oo=1; oo<m_offs.size(); oo++) {
 		int64_t dd=m_dim-1;
 		// copy from previous
-		for(dd=0; dd<m_dim; dd++) 
+		for(dd=0; dd<m_dim; dd++)
 			m_offs[oo][dd] = m_offs[oo-1][dd];
 
 		// advance 1
@@ -319,7 +319,7 @@ void KSlicer::setWindow(const std::vector<std::pair<int64_t, int64_t>>& krange)
  *
  * You should call goBegin() after this
  *
- * @param roi Range of region of interest. Pairs indicates the range 
+ * @param roi Range of region of interest. Pairs indicates the range
  * 	in i'th dimension, so krange = {{1,5},{0,9},{32,100}}
  * 	would cause the iterator to range from (1,0,32) to (5,9,100)
  */
@@ -333,7 +333,7 @@ void KSlicer::setROI(std::vector<std::pair<int64_t, int64_t>> roi)
 			m_roi[ii].first = clamp(0, m_size[ii]-1, roi[ii].first);
 			m_roi[ii].second = clamp(0, m_size[ii]-1, roi[ii].second);
 		} else {
-			// default to full range 
+			// default to full range
 			m_roi[ii].first = 0;
 			m_roi[ii].second = m_size[ii]-1;
 		}
@@ -377,9 +377,9 @@ void KSlicer::initialize(size_t ndim, const size_t* dim)
  *
  * @param order order of iteration. {0,1,2} would mean that dimension 0 (x)
  * would move the fastest and 2 the slowest. If the image is a 5D image then
- * that unmentioned (3,4) would be the slowest. 
- * @param revorder Reverse the speed of iteration. So the first dimension 
- * in the order vector would in fact be the slowest and un-referenced 
+ * that unmentioned (3,4) would be the slowest.
+ * @param revorder Reverse the speed of iteration. So the first dimension
+ * in the order vector would in fact be the slowest and un-referenced
  * dimensions will be the fastest. (in the example for order this would be
  * 4 and 3).
  */
@@ -390,10 +390,10 @@ void KSlicer::setOrder(std::vector<size_t> order, bool revorder)
 
 	// need to ensure that all dimensions get covered
 	std::list<size_t> avail;
-	for(size_t ii=0 ; ii<m_dim ; ii++) 
+	for(size_t ii=0 ; ii<m_dim ; ii++)
 		avail.push_front(ii);
 
-	// add dimensions to internal order, but make sure there are 
+	// add dimensions to internal order, but make sure there are
 	// no repeats
 	for(size_t ii=0; ii<order.size(); ii++) {
 
@@ -431,7 +431,7 @@ void KSlicer::setOrder(std::vector<size_t> order, bool revorder)
 	if(revorder) {
 		// reverse 6D, {0,5},{1,4},{2,3}
 		// reverse 5D, {0,4},{1,3}
-		for(size_t ii=0; ii<m_dim/2; ii++) 
+		for(size_t ii=0; ii<m_dim/2; ii++)
 			std::swap(m_order[ii],m_order[m_dim-1-ii]);
 	}
 
@@ -492,7 +492,7 @@ void KSlicer::goIndex(const std::vector<int64_t>& newpos)
 	// calculate linear positions from each
 	for(size_t oo = 0; oo < m_numoffs; oo++) {
 		m_linpos[oo] = 0;
-		for(size_t dd=0; dd<m_dim; dd++) 
+		for(size_t dd=0; dd<m_dim; dd++)
 			m_linpos[oo] += m_pos[oo][dd]*m_strides[dd];
 	}
 	
@@ -502,12 +502,12 @@ void KSlicer::goIndex(const std::vector<int64_t>& newpos)
 /**
  * @brief Places the first len dimensions of ND-position in the given
  * array. If the number
- * of dimensions exceed the len then the additional dimensions will be 
+ * of dimensions exceed the len then the additional dimensions will be
  * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
  * In other words index will be completely overwritten in the most sane way
- * possible if the internal dimensions and size index differ. 
+ * possible if the internal dimensions and size index differ.
  *
- * @param ndim size of index 
+ * @param ndim size of index
  * @param index output index variable
  */
 void KSlicer::center_index(size_t len, int64_t* index) const
@@ -518,12 +518,12 @@ void KSlicer::center_index(size_t len, int64_t* index) const
 /**
  * @brief Places the first len dimensions of ND-position in the given
  * array. If the number
- * of dimensions exceed the len then the additional dimensions will be 
+ * of dimensions exceed the len then the additional dimensions will be
  * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
  * In other words index will be completely overwritten in the most sane way
- * possible if the internal dimensions and size index differ. 
+ * possible if the internal dimensions and size index differ.
  *
- * @param ndim size of index 
+ * @param ndim size of index
  * @param index output index variable
  */
 void KSlicer::offset_index(size_t kit, size_t len, int64_t* index, bool bound) const
@@ -534,10 +534,10 @@ void KSlicer::offset_index(size_t kit, size_t len, int64_t* index, bool bound) c
 	
 	if(bound) {
 		// m_pos already has been bound
-		for(size_t ii=0; ii<len && ii<m_dim; ii++) 
+		for(size_t ii=0; ii<len && ii<m_dim; ii++)
 			index[ii] = m_pos[kit][ii];
 	} else {
-		// unbound 
+		// unbound
 		for(size_t ii=0; ii < len && ii < m_dim; ii++)
 			index[ii] = m_pos[m_center][ii]+m_offs[kit][ii];
 	}
@@ -567,9 +567,9 @@ int64_t KSlicer::from_center(size_t kit, size_t dim)
  * @brief Returns offset from center of specified pixel (kit).
  *
  * @param len lenght of dindex array
- * @param dindex output paramter indicating distance of pixel from the 
- * center of the kernel in each dimension. If this array is shorter than 
- * the iteration dimensions, only the first len will be filled. If it is 
+ * @param dindex output paramter indicating distance of pixel from the
+ * center of the kernel in each dimension. If this array is shorter than
+ * the iteration dimensions, only the first len will be filled. If it is
  * longer the additional values won't be touched
  * @param kit Pixel we are referring to
  */
@@ -602,7 +602,7 @@ void KSlicer::goBegin()
 	// calculate linear positions from each
 	for(size_t oo = 0; oo < m_numoffs; oo++) {
 		m_linpos[oo] = 0;
-		for(size_t dd=0; dd<m_dim; dd++) 
+		for(size_t dd=0; dd<m_dim; dd++)
 			m_linpos[oo] += m_pos[oo][dd]*m_strides[dd];
 	}
 	
@@ -632,7 +632,7 @@ void KSlicer::goEnd()
 	// calculate linear positions from each
 	for(size_t oo = 0; oo < m_numoffs; oo++) {
 		m_linpos[oo] = 0;
-		for(size_t dd=0; dd<m_dim; dd++) 
+		for(size_t dd=0; dd<m_dim; dd++)
 			m_linpos[oo] += m_pos[oo][dd]*m_strides[dd];
 	}
 	

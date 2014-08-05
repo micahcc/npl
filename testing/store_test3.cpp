@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neural Program Library (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neural Program Library is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file store_test3.cpp
+ *
+ *****************************************************************************/
 
 #include "ndarray.h"
 #include <iostream>
@@ -62,7 +62,7 @@ int64_t clamp(int64_t ii, int64_t low, int64_t high)
 
 int main()
 {
-	// store 
+	// store
 	map<tuple<int,int,int,int>, float, Less> img1;
 	map<tuple<int,int,int,int>, float, Less> img2;
 
@@ -80,11 +80,11 @@ int main()
 					array1.dbl({ii, jj, kk, tt}, val);
 					img1[make_tuple<int,int,int,int>(ii,jj,kk,tt)] = val;
 
-					if(array1.dbl({ii, jj, kk,tt}) != 
+					if(array1.dbl({ii, jj, kk,tt}) !=
 							img1[make_tuple<int,int,int>(ii,jj,kk,tt)]) {
 						cerr << "Error difference between map and array" << endl;
 						cerr << ii << "," << jj << "," << kk << "," << tt << endl;
-						cerr << array1.dbl({ii, jj, kk,tt}) << " vs. " << 
+						cerr << array1.dbl({ii, jj, kk,tt}) << " vs. " <<
 							img1[make_tuple<int,int,int,int>(ii,jj,kk,tt)]  << endl;
 						return -1;
 					}
@@ -98,11 +98,11 @@ int main()
 		for(size_t jj = 0; jj < array1._m_dim[1]; jj++) {
 			for(size_t kk = 0; kk < array1._m_dim[2]; kk++) {
 				for(size_t tt = 0; tt < array1._m_dim[3]; tt++) {
-					if(array1.dbl({ii, jj, kk,tt}) != 
+					if(array1.dbl({ii, jj, kk,tt}) !=
 							img1[make_tuple<int,int,int>(ii,jj,kk,tt)]) {
 						cerr << "Error difference between map and array" << endl;
 						cerr << ii << "," << jj << "," << kk << "," << tt << endl;
-						cerr << array1.dbl({ii, jj, kk, tt}) << " vs. " << 
+						cerr << array1.dbl({ii, jj, kk, tt}) << " vs. " <<
 							img1[make_tuple<int,int,int>(ii,jj,kk, tt)]  << endl;
 						return -1;
 					}
@@ -171,12 +171,12 @@ int main()
 		for(size_t jj = 0; jj < array1._m_dim[1]; jj++) {
 			for(size_t kk = 0; kk < array1._m_dim[2]; kk++) {
 				for(size_t tt = 0; tt < array1._m_dim[3]; tt++) {
-					if(array2.dbl({ii, jj, kk,tt}) != 
+					if(array2.dbl({ii, jj, kk,tt}) !=
 							img2[make_tuple<int,int,int>(ii,jj,kk,tt)]) {
 						cerr << "Error difference between map and array" << endl;
 						cerr << ii << "," << jj << "," << kk << "," << tt << endl;
 						cerr << ii << "," << jj << "," << kk << "," << tt << endl;
-						cerr << array2.dbl({ii, jj, kk, tt}) << " vs. " << 
+						cerr << array2.dbl({ii, jj, kk, tt}) << " vs. " <<
 							img2[make_tuple<int,int,int>(ii,jj,kk,tt)]  << endl;
 						return -1;
 					}

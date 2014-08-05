@@ -1,3 +1,21 @@
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file img_kernel_test.cpp
+ *
+ *****************************************************************************/
 #include <cassert>
 #include <iostream>
 #include <list>
@@ -14,7 +32,7 @@ using namespace npl;
 std::default_random_engine rangen;
 
 template <typename T>
-void fillRandom(PixelT type, std::vector<size_t>& size, 
+void fillRandom(PixelT type, std::vector<size_t>& size,
 		shared_ptr<MRImage>& testimg,
 		unordered_map<std::vector<int64_t>, T, hash_vector<int64_t>>& mp)
 {
@@ -24,7 +42,7 @@ void fillRandom(PixelT type, std::vector<size_t>& size,
 	assert(it.isBegin());
 	assert(!it.isEnd());
 	std::vector<int64_t> index(size.size());
-	for(it.goBegin(); !it.eof(); ++it) { 
+	for(it.goBegin(); !it.eof(); ++it) {
 		T val = (T)dist(rangen);
 		it.index(index.size(), index.data());
 
@@ -117,7 +135,7 @@ int testRadius2(std::vector<size_t> size)
 			bool oneeq = false;
 			for(auto it = check.begin(); it != check.end(); ) {
 				bool eq = true;
-				if(it->size() != index.size()){ 
+				if(it->size() != index.size()){
 					cerr << "Index Size Mismatch" << endl;
 					return -1;
 				}
@@ -199,7 +217,7 @@ int testWindow(std::vector<size_t> size)
 			bool oneeq = false;
 			for(auto it = check.begin(); it != check.end(); ) {
 				bool eq = true;
-				if(it->size() != index.size()){ 
+				if(it->size() != index.size()){
 					cerr << "Index Size Mismatch" << endl;
 					return -1;
 				}

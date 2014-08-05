@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file applyDeform.cpp
+ *
+ *****************************************************************************/
 
 #include <version.h>
 #include <tclap/CmdLine.h>
@@ -36,7 +36,7 @@ using std::shared_ptr;
 /**
  * @brief Computes the overlap of the two images' in 3-space.
  *
- * @param a Image 
+ * @param a Image
  * @param b Image
  *
  * @return Ratio of b that overlaps with a's grid
@@ -61,7 +61,7 @@ void binarize(shared_ptr<MRImage> in)
 {
 	OrderIter<int> it(in);
 	for(it.goBegin(); !it.eof(); ++it) {
-		if(*it != 0) 
+		if(*it != 0)
 			it.set(1);
 	}
 
@@ -70,8 +70,8 @@ void binarize(shared_ptr<MRImage> in)
 int main(int argc, char** argv)
 {
 	try {
-	/* 
-	 * Command Line 
+	/*
+	 * Command Line
 	 */
 
 	TCLAP::CmdLine cmd("Applies 3D deformation to volume or time-series of "
@@ -81,7 +81,7 @@ int main(int argc, char** argv)
 			"*.cerebrum.mask.nii.gz -o offset.nii.gz' to generate an "
 			"appropriate input (offset.nii.gz).", ' ', __version__ );
 
-	TCLAP::ValueArg<string> a_in("i", "input", "Input image.", 
+	TCLAP::ValueArg<string> a_in("i", "input", "Input image.",
 			true, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_deform("d", "deform", "Deformation field.",
 			true, "", "*.nii.gz", cmd);
@@ -109,9 +109,9 @@ int main(int argc, char** argv)
 	binarize(mask);
 
 	// dilate then erode mask
-	if(a_dilate.isSet()) 
+	if(a_dilate.isSet())
 		mask = dilate(mask, a_dilate.getValue());
-	if(a_erode.isSet()) 
+	if(a_erode.isSet())
 		mask = erode(mask, a_erode.getValue());
 
 	// ensure the the images overlap sufficiently, lack of overlap may indicate
@@ -147,12 +147,12 @@ int main(int argc, char** argv)
 
 	if(a_invert.isSet()) {
 		// create output the size of atlas, with 3 volumes in the 4th dimension
-		auto idef = createMRImage({atlas->dim(0), atlas->dim(1), 
+		auto idef = createMRImage({atlas->dim(0), atlas->dim(1),
 					atlas->dim(2), 3}, FLOAT64);
 		idef->setDirection(atlas->direction(), true);
 		idef->setSpacing(atlas->spacing(), true);
 		idef->setOrigin(atlas->origin(), true);
-		invert(mask, defimg, idef, a_iters.getValue(), 
+		invert(mask, defimg, idef, a_iters.getValue(),
 				a_improve.getValue(), a_radius.getValue());
 		idef->write("inversedef.nii.gz");
 	}

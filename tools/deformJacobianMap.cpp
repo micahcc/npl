@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file deformJacobianMap.cpp
+ *
+ *****************************************************************************/
 
 #include <version.h>
 #include <tclap/CmdLine.h>
@@ -37,14 +37,14 @@ using std::shared_ptr;
 int main(int argc, char** argv)
 {
 	try {
-	/* 
-	 * Command Line 
+	/*
+	 * Command Line
 	 */
 
 	TCLAP::CmdLine cmd("Computes a Jacobian determinant image from a deform",
 			' ', __version__ );
 
-	TCLAP::ValueArg<string> a_indef("i", "input", "Input deformation.", 
+	TCLAP::ValueArg<string> a_indef("i", "input", "Input deformation.",
 			true, "", "*.nii.gz", cmd);
 
 	TCLAP::ValueArg<string> a_out("o", "output", "Output image in "
@@ -123,15 +123,15 @@ int main(int argc, char** argv)
 		it.set(det(jac));
 	}
 	
-	dfxdx->write("dfxdx.nii.gz"); 
-	dfxdy->write("dfxdy.nii.gz"); 
-	dfxdz->write("dfxdz.nii.gz"); 
-	dfydx->write("dfydx.nii.gz"); 
-	dfydy->write("dfydy.nii.gz"); 
-	dfydz->write("dfydz.nii.gz"); 
-	dfzdx->write("dfzdx.nii.gz"); 
-	dfzdy->write("dfzdy.nii.gz"); 
-	dfzdz->write("dfzdz.nii.gz"); 
+	dfxdx->write("dfxdx.nii.gz");
+	dfxdy->write("dfxdy.nii.gz");
+	dfxdz->write("dfxdz.nii.gz");
+	dfydx->write("dfydx.nii.gz");
+	dfydy->write("dfydy.nii.gz");
+	dfydz->write("dfydz.nii.gz");
+	dfzdx->write("dfzdx.nii.gz");
+	dfzdy->write("dfzdy.nii.gz");
+	dfzdz->write("dfzdz.nii.gz");
 
 	// write
 	jacobian->write(a_out.getValue());

@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file applyDeform.cpp
+ *
+ *****************************************************************************/
 
 #include <version.h>
 #include <tclap/CmdLine.h>
@@ -42,7 +42,7 @@ ostream& operator<<(ostream& out, const std::vector<T>& v)
 	return out;
 }
 
-void getBounds(shared_ptr<MRImage> deform, std::vector<double>& lowerbound, 
+void getBounds(shared_ptr<MRImage> deform, std::vector<double>& lowerbound,
 		std::vector<double>& upperbound)
 {
 	lowerbound.resize(3);
@@ -66,9 +66,9 @@ void getBounds(shared_ptr<MRImage> deform, std::vector<double>& lowerbound,
 		deform->indexToPoint(index, point);
 		for(size_t ii=0; ii<3; ii++) {
 			point[ii] -= offset[ii];
-			if(point[ii] < lowerbound[ii]) 
+			if(point[ii] < lowerbound[ii])
 				lowerbound[ii] = point[ii];
-			if(point[ii] > upperbound[ii]) 
+			if(point[ii] > upperbound[ii])
 				upperbound[ii] = point[ii];
 		}
 	}
@@ -121,7 +121,7 @@ void applyDeform(shared_ptr<MRImage> in, shared_ptr<MRImage> deform,
 #endif //DEBUG
 		in->pointToIndex(in_point, in_index);
 #ifdef DEBUG
-		cerr << "In: " << in_point << " | " << in_index << endl; 
+		cerr << "In: " << in_point << " | " << in_index << endl;
 #endif //DEBUG
 
 		if(in->ndim() == 4){
@@ -137,7 +137,7 @@ void applyDeform(shared_ptr<MRImage> in, shared_ptr<MRImage> deform,
 			// just do one
 			assert(in->dim(3) == out->dim(3));
 			out->set_dbl(*fit, in->linSampleInd(in_index, ZEROFLUX, outside));
-			fit++; 
+			fit++;
 		}
 	}
 }
@@ -145,15 +145,15 @@ void applyDeform(shared_ptr<MRImage> in, shared_ptr<MRImage> deform,
 int main(int argc, char** argv)
 {
 	try {
-	/* 
-	 * Command Line 
+	/*
+	 * Command Line
 	 */
 
 	TCLAP::CmdLine cmd("Applies 3D deformation to volume or time-series of "
 			"volumes. Deformation should be a map of offsets. ",
 			' ', __version__ );
 
-	TCLAP::ValueArg<string> a_in("i", "input", "Input image.", 
+	TCLAP::ValueArg<string> a_in("i", "input", "Input image.",
 			true, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
 			true, "", "*.nii.gz", cmd);
@@ -191,10 +191,10 @@ int main(int argc, char** argv)
 	size_t vdim = 4;
 	if(deform->ndim() == 4 && deform->dim(3) == 3)
 		vdim = 3;
-	else if(deform->ndim() == 5 && deform->dim(4) == 3) 
+	else if(deform->ndim() == 5 && deform->dim(4) == 3)
 		vdim = 4;
 	else {
-		cerr << "Not sure how to handle the dimensionality of this image" 
+		cerr << "Not sure how to handle the dimensionality of this image"
 			<< endl;
 		cerr << deform->ndim() << " [";
 		for(size_t ii=0; ii< deform->ndim(); ii++) {
@@ -238,7 +238,7 @@ int main(int argc, char** argv)
 		sz.resize(4);
 		sz[3] = in->dim(3);
 	}
-	for(size_t ii=0; ii<3; ii++) 
+	for(size_t ii=0; ii<3; ii++)
 		sz[ii] = index2[ii]-index1[ii];
 
 	// force size from input
@@ -249,7 +249,7 @@ int main(int argc, char** argv)
 	if(a_zsize.isSet())
 		sz[2] = a_zsize.getValue();
 
-	cerr << "Size: " << sz << endl; 
+	cerr << "Size: " << sz << endl;
 	auto out = createMRImage(sz, FLOAT32);
 
 	std::cerr << "Min Index: " << index1 << endl;
@@ -257,15 +257,15 @@ int main(int argc, char** argv)
 	// origin is minimum index in point space:
 	std::vector<double> point;
 	in->indexToPoint(index1, point);
-	for(size_t ii=0; ii<3; ii++) 
+	for(size_t ii=0; ii<3; ii++)
 		out->origin()[ii] = point[ii];
 
 	// force size from input
-	if(a_xorigin.isSet()) 
+	if(a_xorigin.isSet())
 		out->origin()[0] = a_xorigin.getValue();
-	if(a_yorigin.isSet()) 
+	if(a_yorigin.isSet())
 		out->origin()[1] = a_yorigin.getValue();
-	if(a_zorigin.isSet()) 
+	if(a_zorigin.isSet())
 		out->origin()[2] = a_zorigin.getValue();
 
 	

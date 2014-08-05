@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file mrimage.txx
+ *
+ *****************************************************************************/
 
 #include <algorithm>
 #include <cstring>
@@ -44,14 +44,14 @@ MRImageStore<D,T>::MRImageStore(std::initializer_list<size_t> a_args) :
 }
 
 /**
- * @brief Constructor with vector 
+ * @brief Constructor with vector
  *
  * @param a_args dimensions of input, the length of this initializer list
  * may not be fully used if a_args is longer than D. If it is shorter
  * then D then additional dimensions are left as size 1.
  */
 template <size_t D,typename T>
-MRImageStore<D,T>::MRImageStore(const std::vector<size_t>& dim) : 
+MRImageStore<D,T>::MRImageStore(const std::vector<size_t>& dim) :
 	NDArrayStore<D,T>(dim), MRImage()
 {
 	orientDefault();
@@ -104,11 +104,11 @@ void MRImageStore<D,T>::updateAffine()
 	}
 		
 	// bottom row
-	for(size_t jj=0; jj<D; jj++) 
+	for(size_t jj=0; jj<D; jj++)
 		m_affine(D,jj) = 0;
 	
 	// last column
-	for(size_t ii=0; ii<D; ii++) 
+	for(size_t ii=0; ii<D; ii++)
 		m_affine(ii,D) = m_origin[ii];
 
 	// bottom right
@@ -122,9 +122,9 @@ void MRImageStore<D,T>::updateAffine()
 * @brief Updates orientation information. If reinit is given then it will first
 * set spacing to 1,1,1,1.... origin to 0,0,0,0... and direction to the identity.
 * otherwise old values will be left. After this the first min(DIMENSION,dir.rows())
-* columns and min(DIMENSION,dir.cols()) columns will be copies into the image 
+* columns and min(DIMENSION,dir.cols()) columns will be copies into the image
 * direction matrix. The first min(DIM,orig.rows()) and min(DIM,space.rows()) will
-* be likewise copied. 
+* be likewise copied.
 *
 * @tparam D Image dimensionality
 * @tparam T Pixeltype
@@ -134,15 +134,15 @@ void MRImageStore<D,T>::updateAffine()
 * @param reinit Whether to reinitialize prior to copying
 */
 template <size_t D,typename T>
-void MRImageStore<D,T>::setOrient(const MatrixP& orig, const MatrixP& space, 
-			const MatrixP& dir, bool reinit) 
+void MRImageStore<D,T>::setOrient(const MatrixP& orig, const MatrixP& space,
+			const MatrixP& dir, bool reinit)
 {
 	if(reinit) {
 		orientDefault();
 	}
 
 	for(size_t ii=0; ii<dir.rows() && ii < D; ii++) {
-		for(size_t jj=0; jj<dir.cols() && jj< D; jj++) 
+		for(size_t jj=0; jj<dir.cols() && jj< D; jj++)
 			m_dir(ii,jj) = dir(ii,jj);
 		m_origin[ii] = orig[ii];
 		m_space[ii] = space[ii];
@@ -154,7 +154,7 @@ void MRImageStore<D,T>::setOrient(const MatrixP& orig, const MatrixP& space,
 /**
 * @brief Updates spacing information. If reinit is given then it will first
 * set spacing to 1,1,1,1.... otherwise old values will be left. The first
-* min(DIM,space.rows()) will be copied. 
+* min(DIM,space.rows()) will be copied.
 *
 * @tparam D Image dimensionality
 * @tparam T Pixeltype
@@ -162,7 +162,7 @@ void MRImageStore<D,T>::setOrient(const MatrixP& orig, const MatrixP& space,
 * @param reinit Whether to reinitialize prior to copying
 */
 template <size_t D,typename T>
-void MRImageStore<D,T>::setSpacing(const MatrixP& space, bool reinit) 
+void MRImageStore<D,T>::setSpacing(const MatrixP& space, bool reinit)
 {
 	if(reinit) {
 		for(size_t ii=0; ii<D; ii++)
@@ -179,7 +179,7 @@ void MRImageStore<D,T>::setSpacing(const MatrixP& space, bool reinit)
 /**
 * @brief Updates origin information. If reinit is given then it will first
 * set origin to 0,0,0,0.... otherwise old values will be left. The first
-* min(DIM,origin.rows()) will be copied. 
+* min(DIM,origin.rows()) will be copied.
 *
 * @tparam D Image dimensionality
 * @tparam T Pixeltype
@@ -187,7 +187,7 @@ void MRImageStore<D,T>::setSpacing(const MatrixP& space, bool reinit)
 * @param reinit Whether to reinitialize prior to copying
 */
 template <size_t D,typename T>
-void MRImageStore<D,T>::setOrigin(const MatrixP& origin, bool reinit) 
+void MRImageStore<D,T>::setOrigin(const MatrixP& origin, bool reinit)
 {
 	if(reinit) {
 		for(size_t ii=0; ii<D; ii++)
@@ -205,7 +205,7 @@ void MRImageStore<D,T>::setOrigin(const MatrixP& origin, bool reinit)
 * @brief Updates orientation information. If reinit is given then it will first
 * set direction to the identity. otherwise old values will be left. After this
 * the first min(DIMENSION,dir.rows()) columns and min(DIMENSION,dir.cols())
-* columns will be copies into the image direction matrix. 
+* columns will be copies into the image direction matrix.
 *
 * @tparam D Image dimensionality
 * @tparam T Pixeltype
@@ -213,7 +213,7 @@ void MRImageStore<D,T>::setOrigin(const MatrixP& origin, bool reinit)
 * @param reinit Whether to reinitialize prior to copying
 */
 template <size_t D,typename T>
-void MRImageStore<D,T>::setDirection(const MatrixP& dir, bool reinit) 
+void MRImageStore<D,T>::setDirection(const MatrixP& dir, bool reinit)
 {
 	if(reinit) {
 		for(size_t ii=0; ii < D; ii++) {
@@ -224,7 +224,7 @@ void MRImageStore<D,T>::setDirection(const MatrixP& dir, bool reinit)
 	}
 
 	for(size_t ii=0; ii<dir.rows() && ii < D; ii++) {
-		for(size_t jj=0; jj<dir.cols() && jj< D; jj++) 
+		for(size_t jj=0; jj<dir.cols() && jj< D; jj++)
 			m_dir(ii,jj) = dir(ii,jj);
 	}
 
@@ -244,22 +244,22 @@ void MRImageStore<D,T>::printSelf()
 	std::cerr << "]\n";
 
 	std::cerr << "Orientation:\nOrigin: [";
-	for(size_t ii=0; ii<D; ii++) 
+	for(size_t ii=0; ii<D; ii++)
 		std::cerr << m_origin[ii] << ", ";
 	std::cerr << "\nSpacing: [";
-	for(size_t ii=0; ii<D; ii++) 
+	for(size_t ii=0; ii<D; ii++)
 		std::cerr << m_space[ii] << ", ";
 	std::cerr << "\nDirection:\n";
 	for(size_t ii=0; ii<D; ii++) {
 		std::cerr << "[";
-		for(size_t jj=0; jj<D; jj++) 
+		for(size_t jj=0; jj<D; jj++)
 			std::cerr << m_dir(ii,jj) << ", ";
 		std::cerr << "]\n";
 	}
 	std::cerr << "\nAffine:\n";
 	for(size_t ii=0; ii<D+1; ii++) {
 		std::cerr << "[";
-		for(size_t jj=0; jj<D+1; jj++) 
+		for(size_t jj=0; jj<D+1; jj++)
 			std::cerr << m_affine(ii,jj) << ", ";
 		std::cerr << "]\n";
 	}
@@ -268,7 +268,7 @@ void MRImageStore<D,T>::printSelf()
 #undef TYPEFUNC
 
 /*******************************************************************************
- * Image Writers 
+ * Image Writers
  ******************************************************************************/
 
 template <size_t D, typename T>
@@ -278,7 +278,7 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 	const size_t BSIZE = 1024*1024; //1M
 	gzFile gz;
 
-	// remove .gz to find the "real" format, 
+	// remove .gz to find the "real" format,
 	std::string nogz;
 	if(filename.substr(filename.size()-3, 3) == ".gz") {
 		nogz = filename.substr(0, filename.size()-3);
@@ -312,7 +312,7 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 			}
 		}
 	} else {
-		std::cerr << "Unknown filetype: " << nogz.substr(nogz.rfind('.')) 
+		std::cerr << "Unknown filetype: " << nogz.substr(nogz.rfind('.'))
 			<< std::endl;
 		gzclose(gz);
 		return -1;
@@ -326,7 +326,7 @@ template <size_t D, typename T>
 int MRImageStore<D,T>::writeNifti1Image(gzFile file) const
 {
 	int ret = writeNifti1Header(file);
-	if(ret != 0) 
+	if(ret != 0)
 		return ret;
 	ret = writePixels(file);
 	return ret;
@@ -336,7 +336,7 @@ template <size_t D, typename T>
 int MRImageStore<D,T>::writeNifti2Image(gzFile file) const
 {
 	int ret = writeNifti2Header(file);
-	if(ret != 0) 
+	if(ret != 0)
 		return ret;
 	ret = writePixels(file);
 	return ret;
@@ -351,12 +351,12 @@ int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 
 	header.sizeof_hdr = 348;
 
-	if(m_freqdim >= 0 && m_freqdim <= 2) 
-		header.dim_info.bits.freqdim = m_freqdim+1; 
-	if(m_phasedim>= 0 && m_phasedim<= 2) 
-		header.dim_info.bits.phasedim = m_phasedim+1; 
-	if(m_slicedim >= 0 && m_slicedim <= 2) 
-		header.dim_info.bits.slicedim = m_slicedim+1; 
+	if(m_freqdim >= 0 && m_freqdim <= 2)
+		header.dim_info.bits.freqdim = m_freqdim+1;
+	if(m_phasedim>= 0 && m_phasedim<= 2)
+		header.dim_info.bits.phasedim = m_phasedim+1;
+	if(m_slicedim >= 0 && m_slicedim <= 2)
+		header.dim_info.bits.slicedim = m_slicedim+1;
 
 	// dimensions
 	header.ndim = (short)ndim();
@@ -383,13 +383,13 @@ int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 	// orientation
 	if(D > 3)
 		header.toffset = m_origin[3];
-	for(size_t ii=0; ii<3 && ii<D; ii++) 
+	for(size_t ii=0; ii<3 && ii<D; ii++)
 		header.qoffset[ii] = m_origin[ii];
 
-	for(size_t ii=0; ii<7 && ii<D; ii++) 
+	for(size_t ii=0; ii<7 && ii<D; ii++)
 		header.pixdim[ii] = m_space[ii];
 	
-	Matrix<3,3> rotate; 
+	Matrix<3,3> rotate;
 	for(size_t rr=0; rr<3 && rr<D; rr++) {
 		for(size_t cc=0; cc<3 && cc<D; cc++) {
 			rotate(rr,cc) = m_dir(rr,cc);
@@ -401,7 +401,7 @@ int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 		std::cerr << "Non-orthogonal direction set! This may not end well" << std::endl;
 	}
 
-	if(det > 0) 
+	if(det > 0)
 		header.qfac = 1;
 	 else {
 		header.qfac = -1;
@@ -438,7 +438,7 @@ int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 		 b=-b;
 		 c=-c;
 		 d=-d;
-//		 a=-a; 
+//		 a=-a;
 	 }
 
 	header.quatern[0] = b;
@@ -468,11 +468,11 @@ int MRImageStore<D,T>::writeNifti2Header(gzFile file) const
 
 	header.sizeof_hdr = 540;
 
-	if(m_freqdim >= 0 && m_freqdim <= 2) 
-		header.dim_info.bits.freqdim = m_freqdim+1; 
-	if(m_phasedim>= 0 && m_phasedim<= 2) 
-		header.dim_info.bits.phasedim = m_phasedim+1; 
-	if(m_slicedim >= 0 && m_slicedim <= 2) 
+	if(m_freqdim >= 0 && m_freqdim <= 2)
+		header.dim_info.bits.freqdim = m_freqdim+1;
+	if(m_phasedim>= 0 && m_phasedim<= 2)
+		header.dim_info.bits.phasedim = m_phasedim+1;
+	if(m_slicedim >= 0 && m_slicedim <= 2)
 		header.dim_info.bits.slicedim = m_slicedim+1;
 
 	// dimensions
@@ -499,13 +499,13 @@ int MRImageStore<D,T>::writeNifti2Header(gzFile file) const
 	// orientation
 	if(D > 3)
 		header.toffset = m_origin[3];
-	for(size_t ii=0; ii<3 && ii<D; ii++) 
+	for(size_t ii=0; ii<3 && ii<D; ii++)
 		header.qoffset[ii] = m_origin[ii];
 
-	for(size_t ii=0; ii<7 && ii<D; ii++) 
+	for(size_t ii=0; ii<7 && ii<D; ii++)
 		header.pixdim[ii] = m_space[ii];
 	
-	Matrix<3,3> rotate; 
+	Matrix<3,3> rotate;
 	for(size_t rr=0; rr<3 && rr<D; rr++) {
 		for(size_t cc=0; cc<3 && cc<D; cc++) {
 			rotate(rr,cc) = m_dir(rr,cc);
@@ -516,7 +516,7 @@ int MRImageStore<D,T>::writeNifti2Header(gzFile file) const
 	if(fabs(det)-1 > 0.0001) {
 		std::cerr << "Non-orthogonal direction set! This may not end well" << std::endl;
 	}
-	if(det > 0) 
+	if(det > 0)
 		header.qfac = 1;
 	 else {
 		header.qfac = -1;
@@ -553,7 +553,7 @@ int MRImageStore<D,T>::writeNifti2Header(gzFile file) const
 		 b=-b;
 		 c=-c;
 		 d=-d;
-//		 a=-a; 
+//		 a=-a;
 	 }
 
 	header.quatern[0] = b;
@@ -691,7 +691,7 @@ std::shared_ptr<MRImage> MRImageStore<D,T>::cloneImage() const
  * @param index Index (may be out of bounds)
  * @param rast point in Right handed increasing RAS coordinate system
  *
- * @return 
+ * @return
  */
 template <size_t D, typename T>
 int MRImageStore<D,T>::indexToPoint(size_t len, const int64_t* index,
@@ -718,7 +718,7 @@ int MRImageStore<D,T>::indexToPoint(size_t len, const int64_t* index,
  * @param index Index (may be out of bounds)
  * @param rast point in Right handed increasing RAS coordinate system
  *
- * @return 
+ * @return
  */
 template <size_t D, typename T>
 int MRImageStore<D,T>::indexToPoint(size_t len, const double* index,
@@ -745,7 +745,7 @@ int MRImageStore<D,T>::indexToPoint(size_t len, const double* index,
  * @param rast input in Right handed increasing RAS coordinate system
  * @param index Index (may be out of bounds)
  *
- * @return 
+ * @return
  */
 template <size_t D, typename T>
 int MRImageStore<D,T>::pointToIndex(size_t len, const double* rast,
@@ -764,7 +764,7 @@ int MRImageStore<D,T>::pointToIndex(size_t len, const double* rast,
 
 /**
  * @brief Converts a point to an int64 index. Could result in negative values.
- * Input vector may be difference size that dimension. Excess dimensions are 
+ * Input vector may be difference size that dimension. Excess dimensions are
  * ignored, missing dimensions are treated as zeros.
  *
  * @tparam D Dimension of image
@@ -772,7 +772,7 @@ int MRImageStore<D,T>::pointToIndex(size_t len, const double* rast,
  * @param rast input in Right handed increasing RAS coordinate system
  * @param index Index (may be out of bounds)
  *
- * @return 
+ * @return
  */
 template <size_t D, typename T>
 int MRImageStore<D,T>::pointToIndex(size_t len, const double* rast,
@@ -782,15 +782,15 @@ int MRImageStore<D,T>::pointToIndex(size_t len, const double* rast,
 	in[D] = 1;
 	Matrix<D+1,1> out;
 	iaffine().mvproduct(in, out);
-	for(size_t ii=0; ii<D && ii<len; ii++) 
+	for(size_t ii=0; ii<D && ii<len; ii++)
 		index[ii] = round(out[ii]);
-	for(size_t ii=D; ii<len; ii++) 
+	for(size_t ii=D; ii<len; ii++)
 		index[ii] = round(out[ii]);
 	return 0;
 }
 
 /**
- * @brief Returns true if the point is within the field of view of the 
+ * @brief Returns true if the point is within the field of view of the
  * image. Note, like all coordinates pass to MRImage, if the array given
  * differs from the dimensions of the image, then the result will either
  * pad out zeros and ignore extra values in the input array.
@@ -816,14 +816,14 @@ bool MRImageStore<D,T>::pointInsideFOV(size_t len, const double* ras) const
 }
 
 /**
- * @brief Returns true if the constinuous index is within the field of 
+ * @brief Returns true if the constinuous index is within the field of
  * view of the image. Note, like all coordinates pass to MRImage, if the
  * array given differs from the dimensions of the image, then the result
  * will either pad out zeros and ignore extra values in the input array.
 
  *
  * @param len Length of xyz array
- * @param xyz Array of continouos indices 
+ * @param xyz Array of continouos indices
  *
  * @return Whether the index would round to a voxel inside the image.
  */
@@ -839,13 +839,13 @@ bool MRImageStore<D,T>::indexInsideFOV(size_t len, const double* xyz) const
 }
 
 /**
- * @brief Returns true if the constinuous index is within the field of 
+ * @brief Returns true if the constinuous index is within the field of
  * view of the image. Note, like all coordinates pass to MRImage, if the
  * array given differs from the dimensions of the image, then the result
  * will either pad out zeros and ignore extra values in the input array.
  *
  * @param len Length of xyz array
- * @param xyz Array of indices 
+ * @param xyz Array of indices
  *
  * @return Whether the index is inside the image
  */
@@ -876,9 +876,9 @@ shared_ptr<NDArray> MRImageStore<D,T>::copy() const
  * dimensions and pixeltype. The new image will have all overlapping pixels
  * copied from the old image.
  *
- * This function just calls the outside copyCast, the reason for this 
- * craziness is that making a template function nested in the already 
- * huge number of templates I have kills the compiler, so we call an 
+ * This function just calls the outside copyCast, the reason for this
+ * craziness is that making a template function nested in the already
+ * huge number of templates I have kills the compiler, so we call an
  * outside function that calls templates that has all combinations of D,T.
  *
  * @param in Input image, anything that can be copied will be
@@ -886,10 +886,10 @@ shared_ptr<NDArray> MRImageStore<D,T>::copy() const
  * @param newsize Size of output image
  * @param newtype Type of pixels in output image
  *
- * @return Image with overlapping sections cast and copied from 'in' 
+ * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> MRImageStore<D,T>::copyCast(size_t newdims, 
+shared_ptr<NDArray> MRImageStore<D,T>::copyCast(size_t newdims,
 		const size_t* newsize, PixelT newtype) const
 {
 	return _copyCast(getConstPtr(), newdims, newsize, newtype);
@@ -900,15 +900,15 @@ shared_ptr<NDArray> MRImageStore<D,T>::copyCast(size_t newdims,
  * but pxiels cast to newtype. The new image will have all overlapping pixels
  * copied from the old image.
  *
- * This function just calls the outside copyCast, the reason for this 
- * craziness is that making a template function nested in the already 
- * huge number of templates I have kills the compiler, so we call an 
+ * This function just calls the outside copyCast, the reason for this
+ * craziness is that making a template function nested in the already
+ * huge number of templates I have kills the compiler, so we call an
  * outside function that calls templates that has all combinations of D,T.
  *
  * @param in Input image, anything that can be copied will be
  * @param newtype Type of pixels in output image
  *
- * @return Image with overlapping sections cast and copied from 'in' 
+ * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
 shared_ptr<NDArray> MRImageStore<D,T>::copyCast(PixelT newtype) const
@@ -922,19 +922,19 @@ shared_ptr<NDArray> MRImageStore<D,T>::copyCast(PixelT newtype) const
  * copied from the old image. The new image will have the same pixel type as
  * the input image
  *
- * This function just calls the outside copyCast, the reason for this 
- * craziness is that making a template function nested in the already 
- * huge number of templates I have kills the compiler, so we call an 
+ * This function just calls the outside copyCast, the reason for this
+ * craziness is that making a template function nested in the already
+ * huge number of templates I have kills the compiler, so we call an
  * outside function that calls templates that has all combinations of D,T.
  *
  * @param in Input image, anything that can be copied will be
  * @param newdims Number of dimensions in output image
  * @param newsize Size of output image
  *
- * @return Image with overlapping sections cast and copied from 'in' 
+ * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> MRImageStore<D,T>::copyCast(size_t newdims, 
+shared_ptr<NDArray> MRImageStore<D,T>::copyCast(size_t newdims,
 		const size_t* newsize) const
 {
 	return _copyCast(getConstPtr(), newdims, newsize);

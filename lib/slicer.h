@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file slicer.h
+ *
+ *****************************************************************************/
 
 #ifndef SLICER_H
 #define SLICER_H
@@ -29,13 +29,13 @@ using namespace std;
 namespace npl {
 
 /**
- * @brief This class is used to slice an image in along a dimension, and to 
+ * @brief This class is used to slice an image in along a dimension, and to
  * step an arbitrary direction in an image. Order may be any size from 0 to the
  * number of dimensions. The first member of order will be the fastest moving,
  * and the last will be the slowest. Any not dimensions not included in the order
  * vector will be slower than the last member of order
  */
-class Slicer 
+class Slicer
 {
 public:
 	
@@ -55,7 +55,7 @@ public:
 	 * image.
 	 *
 	 * @param ndim	size of ND array
-	 * @param dim	array providing the size in each dimension 
+	 * @param dim	array providing the size in each dimension
 	 */
 	Slicer(size_t ndim, const size_t* dim);
 	
@@ -143,22 +143,22 @@ public:
 	 ***************************************/
 
 	/**
-	 * @brief dereference operator. Returns the linear position in the array 
+	 * @brief dereference operator. Returns the linear position in the array
 	 * given the n-dimensional position.
 	 *
-	 * @return 
+	 * @return
 	 */
 	inline
 	int64_t operator*() const { return m_linpos; };
 	
 	/**
 	 * @brief Places the first len dimension in the given array. If the number
-	 * of dimensions exceed the len then the additional dimensions will be 
+	 * of dimensions exceed the len then the additional dimensions will be
 	 * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
 	 * In other words index will be completely overwritten in the most sane way
-	 * possible if the internal dimensions and size index differ. 
+	 * possible if the internal dimensions and size index differ.
 	 *
-	 * @param ndim size of index 
+	 * @param ndim size of index
 	 * @param index output index variable
 	 */
 	void index(size_t len, int64_t* index) const;
@@ -171,7 +171,7 @@ public:
 
 	/**
 	 * @brief Sets the region of interest. During iteration or any motion the
-	 * position will not move outside the specified range. Extra elements in 
+	 * position will not move outside the specified range. Extra elements in
 	 * roi beyond the number of dimensions, are ignored
 	 *
 	 * @param roi	pair of [min,max] values in the desired hypercube
@@ -183,8 +183,8 @@ public:
 	 * position will not move outside the specified range
 	 *
 	 * @param len	Length of both lower and upper arrays.
-	 * @param lower	Coordinate at lower bound of bounding box. 
-	 * @param upper	Coordinate at upper bound of bounding box. 
+	 * @param lower	Coordinate at lower bound of bounding box.
+	 * @param upper	Coordinate at upper bound of bounding box.
 	 * @param roi	pair of [min,max] values in the desired hypercube
 	 */
 	void setROI(size_t len, const int64_t* lower, const int64_t* upper);
@@ -193,7 +193,7 @@ public:
 	 * @brief Sets the order of iteration from ++/-- operators
 	 *
 	 * @param order	vector of priorities, with first element being the fastest
-	 * iteration and last the slowest. All other dimensions not used will be 
+	 * iteration and last the slowest. All other dimensions not used will be
 	 * slower than the last
 	 * @param revorder	Reverse order, in which case the first element of order
 	 * 					will have the slowest iteration, and dimensions not
@@ -205,7 +205,7 @@ public:
 	 * @brief Returns the array giving the order of dimension being traversed.
 	 * So 3,2,1,0 would mean that the next point in dimension 3 will be next,
 	 * when wrapping the next point in 2 is visited, when that wraps the next
-	 * in one and so on. 
+	 * in one and so on.
 	 *
 	 * @return Order of dimensions
 	 */

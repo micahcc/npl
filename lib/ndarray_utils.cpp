@@ -1,29 +1,29 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries are free software: you can redistribute it
-and/or modify it under the terms of the GNU General Public License as published
-by the Free Software Foundation, either version 3 of the License, or (at your
-option) any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file ndarray_utils.cpp
+ *
+ *****************************************************************************/
 
 /******************************************************************************
  * @file ndarray_utils.cpp
  * @brief This file contains common functions which are useful for processing
  * of N-dimensional arrays and their derived counterparts (MRImage for
  * example). All of these functions return pointers to NDArray types, however
- * if an image is passed in, then the output will also be an image, you just 
- * need to cast the output using std::dynamic_pointer_cast<MRImage>(out). 
+ * if an image is passed in, then the output will also be an image, you just
+ * need to cast the output using std::dynamic_pointer_cast<MRImage>(out).
  * mrimage_utils.h is for more specific image-processing algorithm, this if for
  * generally data of any dimension, without regard to orientation.
  ******************************************************************************/
@@ -81,7 +81,7 @@ int64_t round2(int64_t in)
  */
 //void fft1d(shared_ptr<NDArray> in, size_t dd, bool inverse)
 //{
-//	// plan and execute 
+//	// plan and execute
 //	double* indata = fftw_alloc_real(in->dim(dd));
 //	fftw_complex *data = fftw_alloc_complex(in->dim(dd));
 //	fftw_plan plan;
@@ -94,7 +94,7 @@ int64_t round2(int64_t in)
 //	}
 //
 //	OrderIter<cdouble_t> oit(in);
-//	oit.setOrder({dd}); 
+//	oit.setOrder({dd});
 //	OrderConstIter<cdouble_t> iit(in);
 //	iit.setOrder(oit.getOrder()); // make dd the fastest
 //	while(!iit.eof() && !oit.eof()) {
@@ -124,7 +124,7 @@ int64_t round2(int64_t in)
 
 /**
  * @brief Perform fourier transform on the dimensions specified. Those
- * dimensions will be padded out. The output of this will be a double. 
+ * dimensions will be padded out. The output of this will be a double.
  * If len = 0 or dim == NULL, then ALL dimensions will be transformed.
  *
  * @param in Input image to inverse fourier trnasform
@@ -208,7 +208,7 @@ shared_ptr<NDArray> ifft_c2r(shared_ptr<const NDArray> in)
  *
  * @param in Input image to fourier transform
  *
- * @return Complex image, which is the result of inverse fourier transforming 
+ * @return Complex image, which is the result of inverse fourier transforming
  * the (Real) input image. Note that the last dimension only contains the real
  * frequencies, but all other dimensions contain both
  */
@@ -296,7 +296,7 @@ shared_ptr<NDArray> fft_r2c(shared_ptr<const NDArray> in)
  * @brief Returns whether two NDArrays have the same dimensions, and therefore
  * can be element-by-element compared/operated on. elL is set to true if left
  * is elevatable to right (ie all dimensions match or are missing or are unary).
- * elR is the same but for the right. 
+ * elR is the same but for the right.
  *
  * Strictly R is elevatable if all dimensions that don't match are missing or 1
  * Strictly L is elevatable if all dimensions that don't match are missing or 1
@@ -327,7 +327,7 @@ shared_ptr<NDArray> fft_r2c(shared_ptr<const NDArray> in)
  * @param elL Whether left is elevatable to right (see description of function)
  * @param elR Whether right is elevatable to left (see description of function)
  *
- * @return 
+ * @return
  */
 bool comparable(const NDArray* left, const NDArray* right, bool* elL, bool* elR)
 {
@@ -403,7 +403,7 @@ shared_ptr<NDArray> erode(shared_ptr<NDArray> in, size_t reps)
 				}
 			}
 
-			if(erodeme) 
+			if(erodeme)
 				oit.set(0);
 		}
 	}
@@ -452,7 +452,7 @@ shared_ptr<NDArray> dilate(shared_ptr<NDArray> in, size_t reps)
 				}
 			}
 
-			if(dilateme) 
+			if(dilateme)
 				oit.set(dilval);
 		}
 	}

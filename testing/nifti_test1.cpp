@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neural Program Library (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neural Program Library is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file nifti_test1.cpp
+ *
+ *****************************************************************************/
 
 #include <iostream>
 #include <memory>
@@ -59,7 +59,7 @@ int main()
 	dblversion->write("test1a.nii.gz", false);
 
 	/* Create a Cast Copy and write */
-	auto intversion = dblversion->copyCast(dblversion->ndim(), 
+	auto intversion = dblversion->copyCast(dblversion->ndim(),
 			dblversion->dim(), INT64);
 	dynamic_pointer_cast<MRImage>(intversion)->write("test1b.nii.gz");
 	
@@ -78,7 +78,7 @@ int main()
 	// check int version vs dbl version
 	if(intversion->ndim() != dblversion->ndim())
 		return -1;
-	if(intversion->dim(0) != dblversion->dim(0) || intversion->dim(1) != 
+	if(intversion->dim(0) != dblversion->dim(0) || intversion->dim(1) !=
 			dblversion->dim(1) || intversion->dim(2) != dblversion->dim(2)) {
 		std::cerr << "Mismatch between dimension of written images!" << std::endl;
 		return -1;
@@ -87,7 +87,7 @@ int main()
 	// check int version versus floatversion
 	if(intversion->ndim() != floatversion->ndim())
 		return -1;
-	if(intversion->dim(0) != floatversion->dim(0) || intversion->dim(1) != 
+	if(intversion->dim(0) != floatversion->dim(0) || intversion->dim(1) !=
 			floatversion->dim(1) || intversion->dim(2) != floatversion->dim(2)) {
 		std::cerr << "Mismatch between dimension of written images!" << std::endl;
 		return -1;
@@ -142,28 +142,28 @@ int main()
 	}
 	
 	// be more course now
-	if(dblversion->m_freqdim != 1 ||  dblversion->m_phasedim != 0 ||  
-			dblversion->m_slicedim != 2 ||  
+	if(dblversion->m_freqdim != 1 ||  dblversion->m_phasedim != 0 ||
+			dblversion->m_slicedim != 2 ||
 			fabs(dblversion->m_slice_duration-0.01) > 1e-5 ||
-			dblversion->m_slice_start != 0 ||  dblversion->m_slice_end != 38 ||  
+			dblversion->m_slice_start != 0 ||  dblversion->m_slice_end != 38 ||
 			dblversion->m_slice_order != SEQ) {
 		cerr << "Difference in double image metadata!" << endl;
 		return -1;
 	}
 	
-	if(floatversion->m_freqdim != 1 ||  floatversion->m_phasedim != 0 ||  
-			floatversion->m_slicedim != 2 ||  
+	if(floatversion->m_freqdim != 1 ||  floatversion->m_phasedim != 0 ||
+			floatversion->m_slicedim != 2 ||
 			fabs(floatversion->m_slice_duration-0.01) > 1e-5 ||
-			floatversion->m_slice_start != 0 ||  floatversion->m_slice_end != 38 ||  
+			floatversion->m_slice_start != 0 ||  floatversion->m_slice_end != 38 ||
 			floatversion->m_slice_order != SEQ) {
 		cerr << "Difference in float image metadata!" << endl;
 		return -1;
 	}
 	
-	if(intversion->m_freqdim != 1 ||  intversion->m_phasedim != 0 ||  
-			intversion->m_slicedim != 2 ||  
+	if(intversion->m_freqdim != 1 ||  intversion->m_phasedim != 0 ||
+			intversion->m_slicedim != 2 ||
 			fabs(intversion->m_slice_duration-0.01) > 1e-5 ||
-			intversion->m_slice_start != 0 ||  intversion->m_slice_end != 38 ||  
+			intversion->m_slice_start != 0 ||  intversion->m_slice_end != 38 ||
 			intversion->m_slice_order != SEQ) {
 		cerr << "Difference in int image metadata!" << endl;
 		return -1;

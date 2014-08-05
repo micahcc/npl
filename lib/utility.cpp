@@ -1,22 +1,21 @@
-/** 
-This file is part of Neural Programs Library (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neural Programs Library is free software: you can redistribute it and/or 
-modify it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-The Neural Programs Library is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with the Neural Programs Library.  If not, see 
-<http://www.gnu.org/licenses/>.
-*/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file utility.cpp
+ *
+ *****************************************************************************/
 
 #include <iostream>
 #include <fstream>
@@ -81,7 +80,7 @@ bool fileExists(std::string filename)
 	} else {
 		f.close();
 		return false;
-	}   
+	}
 }
 
 /**
@@ -100,7 +99,7 @@ string chomp(string str)
 	if(begin == (int)str.size())
 		return string("");
 	
-	for(end = str.size()-1; end >= 0 && isspace(str[end]); end--) 
+	for(end = str.size()-1; end >= 0 && isspace(str[end]); end--)
 		continue;
 
 	if(end < 0) //this can't happen
@@ -135,11 +134,11 @@ vector<string> parseLine(std::string line, string delim)
 		if(pos == string::npos) {
 			pos = line.length();
 			string tmp = chomp(line.substr(prev));
-			if(tmp.length() != 0) 
+			if(tmp.length() != 0)
 				out.push_back(tmp);
 		} else {
 			string tmp = chomp(line.substr(prev, pos-prev));
-			if(tmp.length() != 0) 
+			if(tmp.length() != 0)
 				out.push_back(tmp);
 			
 			//move past delimiter
@@ -161,13 +160,13 @@ vector<string> parseLine(std::string line, string delim)
  * by deciding whether white space or commas or semi-colons is
  * the delimiter and then proceeding to read each line. It does
  * this by looking at the first 10 lines and comparing the line
- * based on each possible deliminter. 
- * out 
+ * based on each possible deliminter.
+ * out
  *
  * @param filename file to read
  * @param comment lines with this first non-white space character will be ignored
  *
- * @return Vector of vectors, where outer vectors are rows, inner are columns 
+ * @return Vector of vectors, where outer vectors are rows, inner are columns
  */
 vector<vector<string>> readStrCSV(string filename, char comment)
 {
@@ -180,7 +179,7 @@ vector<vector<string>> readStrCSV(string filename, char comment)
 
     std::string line;
 	vector<string> tmparr;
-    
+
 	list<vector<string> > outstore;
 
 	int linenum = 0;
@@ -191,11 +190,11 @@ vector<vector<string>> readStrCSV(string filename, char comment)
 	string delims[3] = {";", "\t ", ","};
 
 	/* Start trying delimiters. Priority is in reverse order so the last that
-	 * grants the same number of outputs on a line and isn't 1 is given the 
-	 * highest priority 
+	 * grants the same number of outputs on a line and isn't 1 is given the
+	 * highest priority
 	 */
 	
-	//grab the first few lines 
+	//grab the first few lines
 	list<string> firstlines;
 	for(int ii = 0 ; !fin.eof(); ii++ ) {
 		getline(fin, line);
@@ -210,11 +209,11 @@ vector<vector<string>> readStrCSV(string filename, char comment)
 		for(;it != firstlines.end(); it++) {
 			line = *it;
 			string tmp = chomp(line);
-			if(line[0] == comment || tmp[0] == comment || tmp.size() == 0) 
+			if(line[0] == comment || tmp[0] == comment || tmp.size() == 0)
 				continue;
 
 			// parse the line, and compute width
-			tmparr = parseLine(line, delims[ii]); 
+			tmparr = parseLine(line, delims[ii]);
 
 			if((int)tmparr.size() < minwidth) {
 				minwidth = tmparr.size();
@@ -240,10 +239,10 @@ vector<vector<string>> readStrCSV(string filename, char comment)
 			continue;
 		}
 
-		tmparr = parseLine(line, delims[priority]); 
-		if((int)tmparr.size() < minwidth) 
+		tmparr = parseLine(line, delims[priority]);
+		if((int)tmparr.size() < minwidth)
 			minwidth = tmparr.size();
-		if((int)tmparr.size() > maxwidth) 
+		if((int)tmparr.size() > maxwidth)
 			maxwidth = tmparr.size();
 
 		outstore.push_back(tmparr);
@@ -258,7 +257,7 @@ vector<vector<string>> readStrCSV(string filename, char comment)
 			continue;
 		}
 		
-		tmparr = parseLine(line, delims[priority]); 
+		tmparr = parseLine(line, delims[priority]);
 		if((int)tmparr.size() < minwidth) {
 			minwidth = tmparr.size();
 		}
@@ -278,7 +277,7 @@ vector<vector<string>> readStrCSV(string filename, char comment)
 	}
 
 	if(minwidth != maxwidth || minwidth == 0) {
-		cerr << "Warning you may want to be concerned that there are " 
+		cerr << "Warning you may want to be concerned that there are "
 			<< "differences in the number of fields per line" << endl;
 	}
 
@@ -293,8 +292,8 @@ vector<vector<string>> readStrCSV(string filename, char comment)
  * by deciding whether white space or commas or semi-colons is
  * the delimiter and then proceeding to read each line. It does
  * this by looking at the first 10 lines and comparing the line
- * based on each possible deliminter. 
- * out 
+ * based on each possible deliminter.
+ * out
  *
  * @param filename file to read
  * @param out vector of rows (stored in vectors)
@@ -337,18 +336,18 @@ double sample_var(int count, double sum, double sumsqr)
 
 
 /**
- * @brief Creates a TGA file with the data from the input vector. 
+ * @brief Creates a TGA file with the data from the input vector.
  *
- * Data in the input vector should be row-major (ie rows should be 
+ * Data in the input vector should be row-major (ie rows should be
  * contiguous in memory). Number of rows = height, number of columns = width.
  *
  * @param filename	output file name *.tga
- * @param in		input vector, should be 2 dimensional, row major 
+ * @param in		input vector, should be 2 dimensional, row major
  * @param height	number of rows
  * @param width		number of columns
  * @param log		Perform log transform on data
  */
-void writeTGA(std::string filename, const std::vector<double>& in, int height, 
+void writeTGA(std::string filename, const std::vector<double>& in, int height,
 			int width, bool log)
 {
 	assert(in.size() == (size_t)width*height);
@@ -356,28 +355,28 @@ void writeTGA(std::string filename, const std::vector<double>& in, int height,
 	std::ofstream o(filename.c_str(), std::ios::out | std::ios::binary);
 
 	//Write the header
-	o.put(0); //ID 
+	o.put(0); //ID
 	o.put(0); //Color Map Type
 	o.put(3); //uncompressed grayscale
 	
 	// color map
-	o.put(0); 
 	o.put(0);
-	o.put(0); 
+	o.put(0);
+	o.put(0);
 	o.put(0);
 	o.put(0);
 	
 	//X origin
-	o.put(0); 
-	o.put(0); 
+	o.put(0);
+	o.put(0);
 
 	//Y origin
-	o.put(0); 
-	o.put(0); 
+	o.put(0);
+	o.put(0);
 
 	//width
-	o.put((width & 0x00FF)); 
-	o.put((width & 0xFF00) / 256); 
+	o.put((width & 0x00FF));
+	o.put((width & 0xFF00) / 256);
 	
 	//height
 	o.put((height & 0x00FF));
@@ -390,17 +389,17 @@ void writeTGA(std::string filename, const std::vector<double>& in, int height,
 	o.put(0);
 
 	//get min and max
-	double min = INFINITY; 
-	for(uint32_t ii = 0 ; ii < in.size() ; ii++) 
+	double min = INFINITY;
+	for(uint32_t ii = 0 ; ii < in.size() ; ii++)
 		min = std::min(min, in[ii]);
 
 	double max = -INFINITY;
 	if(log) {
-		for(uint32_t ii = 0 ; ii < in.size() ; ii++) 
+		for(uint32_t ii = 0 ; ii < in.size() ; ii++)
 			max = std::max(max, std::log(in[ii]-min+1));
 		min = 0;
 	} else {
-		for(uint32_t ii = 0 ; ii < in.size() ; ii++) 
+		for(uint32_t ii = 0 ; ii < in.size() ; ii++)
 			max = std::max(max, in[ii]);
 	}
 
@@ -415,11 +414,11 @@ void writeTGA(std::string filename, const std::vector<double>& in, int height,
 			for(uint32_t ii=0; ii < in.size(); ii++)
 				o.put((unsigned char)(255*std::log(in[ii]-min+1)/range));
 		} else {
-			for(uint32_t ii=0; ii < in.size(); ii++) 
+			for(uint32_t ii=0; ii < in.size(); ii++)
 				o.put((unsigned char)(255*(in[ii]-min)/range));
 		}
 	} else {
-		for(uint32_t ii=0; ii < in.size(); ii++) 
+		for(uint32_t ii=0; ii < in.size(); ii++)
 			o.put(0);
 	}
 
@@ -436,7 +435,7 @@ void writeTGA(std::string filename, const std::vector<double>& in, int height,
  * @param width width of output image
  * @param log whether to log-transform the data
  */
-void writeTGA(std::string filename, const std::vector<float>& in, int height, 
+void writeTGA(std::string filename, const std::vector<float>& in, int height,
 			int width, bool log)
 {
 	assert(in.size() == (size_t)width*height);
@@ -444,28 +443,28 @@ void writeTGA(std::string filename, const std::vector<float>& in, int height,
 	std::ofstream o(filename.c_str(), std::ios::out | std::ios::binary);
 
 	//Write the header
-	o.put(0); //ID 
+	o.put(0); //ID
 	o.put(0); //Color Map Type
 	o.put(3); //uncompressed grayscale
 	
 	// color map
-	o.put(0); 
 	o.put(0);
-	o.put(0); 
+	o.put(0);
+	o.put(0);
 	o.put(0);
 	o.put(0);
 	
 	//X origin
-	o.put(0); 
-	o.put(0); 
+	o.put(0);
+	o.put(0);
 
 	//Y origin
-	o.put(0); 
-	o.put(0); 
+	o.put(0);
+	o.put(0);
 
 	//width
-	o.put((width & 0x00FF)); 
-	o.put((width & 0xFF00) / 256); 
+	o.put((width & 0x00FF));
+	o.put((width & 0xFF00) / 256);
 	
 	//height
 	o.put((height & 0x00FF));
@@ -478,17 +477,17 @@ void writeTGA(std::string filename, const std::vector<float>& in, int height,
 	o.put(0);
 
 	//get min and max
-	float min = INFINITY; 
-	for(uint32_t ii = 0 ; ii < in.size() ; ii++) 
+	float min = INFINITY;
+	for(uint32_t ii = 0 ; ii < in.size() ; ii++)
 		min = std::min(min, in[ii]);
 
 	float max = -INFINITY;
 	if(log) {
-		for(uint32_t ii = 0 ; ii < in.size() ; ii++) 
+		for(uint32_t ii = 0 ; ii < in.size() ; ii++)
 			max = std::max(max, std::log(in[ii]-min+1));
 		min = 0;
 	} else {
-		for(uint32_t ii = 0 ; ii < in.size() ; ii++) 
+		for(uint32_t ii = 0 ; ii < in.size() ; ii++)
 			max = std::max(max, in[ii]);
 	}
 
@@ -503,11 +502,11 @@ void writeTGA(std::string filename, const std::vector<float>& in, int height,
 			for(uint32_t ii=0; ii < in.size(); ii++)
 				o.put((unsigned char)(255*std::log(in[ii]-min+1)/range));
 		} else {
-			for(uint32_t ii=0; ii < in.size(); ii++) 
+			for(uint32_t ii=0; ii < in.size(); ii++)
 				o.put((unsigned char)(255*(in[ii]-min)/range));
 		}
 	} else {
-		for(uint32_t ii=0; ii < in.size(); ii++) 
+		for(uint32_t ii=0; ii < in.size(); ii++)
 			o.put(0);
 	}
 
@@ -543,7 +542,7 @@ void writePlot(std::string filename, const std::vector<double>& y, int ysize)
 		image[ypos*XSIZE + ii] = 1;
 	}
 
-	writeTGA(filename, image, ysize, XSIZE); 
+	writeTGA(filename, image, ysize, XSIZE);
 }
 
 /**
@@ -578,7 +577,7 @@ void writePlot(std::string filename, const std::list<std::vector<double>>& y)
 		}
 	}
 
-	writeTGA(filename, image, ysize, XSIZE); 
+	writeTGA(filename, image, ysize, XSIZE);
 }
 
 /**
@@ -606,7 +605,7 @@ void writePlot(std::string filename, const std::vector<double>& y)
 		image[ypos*XSIZE + ii] = 1;
 	}
 
-	writeTGA(filename, image, ysize, XSIZE); 
+	writeTGA(filename, image, ysize, XSIZE);
 }
 
 
@@ -618,7 +617,7 @@ void writePlot(std::string filename, const std::vector<double>& y)
  * @param y			y values of each point
  * TODO actually use x values, rather than just plotting with continuous ii
  */
-void writePlot(std::string filename, const std::vector<double>& x, 
+void writePlot(std::string filename, const std::vector<double>& x,
 		const std::vector<double>& y, int ysize)
 {
 	if(ysize < 0)
@@ -643,7 +642,7 @@ void writePlot(std::string filename, const std::vector<double>& x,
 		image[ypos*x.size() + ii] = 1;
 	}
 
-	writeTGA(filename, image, ysize, XSIZE); 
+	writeTGA(filename, image, ysize, XSIZE);
 }
 
 /**
@@ -654,7 +653,7 @@ void writePlot(std::string filename, const std::vector<double>& x,
  * @param xrange	min and max x values (start and stop points)
  * @param xres		resolution (density) of xpoints. Ouptut size is range/res
  */
-void writePlot(std::string filename, double(*f)(double), 
+void writePlot(std::string filename, double(*f)(double),
 		double xrange[2], double xres, int ysize)
 {
 	

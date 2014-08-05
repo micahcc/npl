@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file utility.h
+ *
+ *****************************************************************************/
 #ifndef UTILITY_FUNCTIONS_H
 #define UTILITY_FUNCTIONS_H
 
@@ -62,7 +62,7 @@ std::string chomp(std::string str);
  * Note that repeated white space characters will be removed but other delimiters
  * wont be
  *
- * TODO handle ", " which should technically be ignored and maybe \, but not \\, 
+ * TODO handle ", " which should technically be ignored and maybe \, but not \\,
  * etc
  *
  * @param line string holding the line
@@ -80,15 +80,15 @@ std::vector<std::string> parseLine(std::string line, std::string delim);
  * by deciding whether white space or commas or semi-colons is
  * the delimiter and then proceeding to read each line. It does
  * this by looking at the first 10 lines and comparing the line
- * based on each possible deliminter. 
- * out 
+ * based on each possible deliminter.
+ * out
  *
  * @param filename file to read
  * @param comment lines with this first non-white space character will be ignored
  *
  * @return out vector of rows (stored in vectors)
  */
-std::vector<std::vector<std::string>> readStrCSV(std::string filename, 
+std::vector<std::vector<std::string>> readStrCSV(std::string filename,
 			char comment = '#');
 
 /**
@@ -99,15 +99,15 @@ std::vector<std::vector<std::string>> readStrCSV(std::string filename,
  * by deciding whether white space or commas or semi-colons is
  * the delimiter and then proceeding to read each line. It does
  * this by looking at the first 10 lines and comparing the line
- * based on each possible deliminter. 
- * out 
+ * based on each possible deliminter.
+ * out
  *
  * @param filename file to read
  * @param comment lines with this first non-white space character will be ignored
  *
  * @return out vector of rows (stored in vectors)
  */
-std::vector<std::vector<double>> readNumericCSV(std::string filename, 
+std::vector<std::vector<double>> readNumericCSV(std::string filename,
 			char comment = '#');
 
 /**
@@ -137,7 +137,7 @@ double sample_var(int count, double sum, double sumsqr);
  * @param width width of output image
  * @param log whether to log-transform the data
  */
-void writeTGA(std::string filename, const std::vector<double>& in, int height, 
+void writeTGA(std::string filename, const std::vector<double>& in, int height,
 			int width, bool log = false);
 
 
@@ -150,7 +150,7 @@ void writeTGA(std::string filename, const std::vector<double>& in, int height,
  * @param width width of output image
  * @param log whether to log-transform the data
  */
-void writeTGA(std::string filename, const std::vector<float>& in, int height, 
+void writeTGA(std::string filename, const std::vector<float>& in, int height,
 			int width, bool log = false);
 
 /**
@@ -188,7 +188,7 @@ void writePlot(std::string filename, const std::vector<double>& y);
  * @param y			y values of each point
  * TODO actually use x values, rather than just plotting with continuous ii
  */
-void writePlot(std::string filename, const std::vector<double>& x, 
+void writePlot(std::string filename, const std::vector<double>& x,
 		const std::vector<double>& y, int ysize);
 
 /**
@@ -199,7 +199,7 @@ void writePlot(std::string filename, const std::vector<double>& x,
  * @param xrange	min and max x values (start and stop points)
  * @param xres		resolution (density) of xpoints. Ouptut size is range/res
  */
-void writePlot(std::string filename, double(*f)(double), 
+void writePlot(std::string filename, double(*f)(double),
 		double xrange[2], double xres, int ysize);
 
 #endif // UTILITY_FUNCTIONS_H

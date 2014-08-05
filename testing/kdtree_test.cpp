@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neural Program Library (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neural Program Library is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file kdtree_test.cpp
+ *
+ *****************************************************************************/
 
 #include <iostream>
 #include <random>
@@ -45,11 +45,11 @@ int main()
 	for(size_t ii=0; ii<NUMSAMPLE; ii++) {
 		points[ii].resize(DIM);
 		datas[ii].resize(DSIZE);
-		for(size_t jj=0; jj<DIM; jj++) 
+		for(size_t jj=0; jj<DIM; jj++)
 			points[ii][jj] = (dist3(gen) < 0 ? dist1(gen) : dist2(gen));
 		
 
-		for(size_t jj=0; jj<DSIZE; jj++) 
+		for(size_t jj=0; jj<DSIZE; jj++)
 			datas[ii][jj] = (dist3(gen) < 0 ? dist1(gen) : dist2(gen));
 	}
 	std::cerr << "Done!" << std::endl;
@@ -57,7 +57,7 @@ int main()
 	// add point to tree and build
 	std::cerr << "Inserting Points!" << std::endl;
 	KDTree<DIM, DSIZE, double, double> tree;
-	for(size_t ii=0; ii<NUMSAMPLE; ii++) 
+	for(size_t ii=0; ii<NUMSAMPLE; ii++)
 		tree.insert(points[ii], datas[ii]);
 	std::cerr << "Done!" << std::endl;
 
@@ -90,7 +90,7 @@ int main()
 		size_t mini = 0;
 		for(size_t kk=0; kk<NUMSAMPLE; kk++) {
 			dist = 0;
-			for(size_t jj=0; jj<DIM; jj++) 
+			for(size_t jj=0; jj<DIM; jj++)
 				dist += (points[kk][jj]-point[jj])*(points[kk][jj]-point[jj]);
 
 			if(dist < mind) {
@@ -112,9 +112,9 @@ int main()
 		// compare points
 		perror = 0;
 		derror = 0;
-		for(size_t jj=0; jj<DIM; jj++) 
+		for(size_t jj=0; jj<DIM; jj++)
 			perror += pow(points[mini][jj]-result->m_point[jj],2);
-		for(size_t jj=0; jj<DSIZE; jj++) 
+		for(size_t jj=0; jj<DSIZE; jj++)
 			derror += pow(datas[mini][jj]-result->m_data[jj],2);
 		
 		if(derror > 0 && perror > 0) {

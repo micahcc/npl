@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neural Program Library (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neural Program Library is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file ndarray_accessor_test1.cpp
+ *
+ *****************************************************************************/
 
 #include "accessors.h"
 #include "ndarray.h"
@@ -37,10 +37,10 @@ int test1d(std::vector<size_t>& size, size_t bytes, size_t elements)
 	std::uniform_real_distribution<T> dist(0, 100000);
 	auto arr = std::make_shared<NDArrayStore<1,T>>(size);
 
-	if(bytes != arr->bytes()) 
+	if(bytes != arr->bytes())
 		return -1;
 	
-	if(elements != arr->elements()) 
+	if(elements != arr->elements())
 		return -2;
 
 	std::vector<int64_t> index(1);
@@ -82,10 +82,10 @@ int test2d(std::vector<size_t>& size, size_t bytes, size_t elements)
 	auto arr = std::make_shared<NDArrayStore<2,T>>(size);
 	NDAccess<double> arrA(arr);
 
-	if(bytes != arr->bytes()) 
+	if(bytes != arr->bytes())
 		return -1;
 	
-	if(elements != arr->elements()) 
+	if(elements != arr->elements())
 		return -2;
 
 	std::vector<int64_t> index(2);
@@ -131,10 +131,10 @@ int test3d(std::vector<size_t>& size, size_t bytes, size_t elements)
 	auto arr = std::make_shared<NDArrayStore<3,T>>(size);
 	NDAccess<double> arrA(arr);
 
-	if(bytes != arr->bytes()) 
+	if(bytes != arr->bytes())
 		return -1;
 	
-	if(elements != arr->elements()) 
+	if(elements != arr->elements())
 		return -2;
 
 	std::vector<int64_t> index(3);
@@ -184,10 +184,10 @@ int test5d(std::vector<size_t>& size, size_t bytes, size_t elements)
 	auto arr = std::make_shared<NDArrayStore<5,T>>(size);
 	NDAccess<double> arrA(arr);
 
-	if(bytes != arr->bytes()) 
+	if(bytes != arr->bytes())
 		return -1;
 	
-	if(elements != arr->elements()) 
+	if(elements != arr->elements())
 		return -2;
 
 	std::vector<int64_t> index(5);

@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file convertDeform.cpp
+ *
+ *****************************************************************************/
 
 #include <version.h>
 #include <tclap/CmdLine.h>
@@ -56,7 +56,7 @@ ostream& operator<<(ostream& out, const std::vector<T>& v)
  * @brief Inverts a deformation, given a mask in the target space.
  *
  * Mathematical basis for this function is that in image S (subject)
- * we have a mapping from S to A (atlas), which we will call u, 
+ * we have a mapping from S to A (atlas), which we will call u,
  * and in image A we have a map from A to S (v) that we want to optimize. The
  * goal is to :
  *
@@ -67,13 +67,13 @@ ostream& operator<<(ostream& out, const std::vector<T>& v)
  * @param deform Maps from mask space.
  * @param atldef Maps to mask space, should be same size as mask
  *
- * @return 
+ * @return
  */
-shared_ptr<MRImage> invertForwardBack(shared_ptr<MRImage> deform, 
+shared_ptr<MRImage> invertForwardBack(shared_ptr<MRImage> deform,
 		shared_ptr<MRImage> atlas, size_t MAXITERS, double MINERR)
 {
 	// create output the size of atlas, with 3 volumes in the 4th dimension
-	auto atldef = createMRImage({atlas->dim(0), atlas->dim(1), 
+	auto atldef = createMRImage({atlas->dim(0), atlas->dim(1),
 				atlas->dim(2), 3}, FLOAT64);
 	atldef->setDirection(atlas->direction(), true);
 	atldef->setSpacing(atlas->spacing(), true);
@@ -96,7 +96,7 @@ shared_ptr<MRImage> invertForwardBack(shared_ptr<MRImage> deform,
 		return NULL;
 	}
 
-	/* 
+	/*
 	 * Construct KDTree indexed by atlas-space indices, and storing indices
 	 * in subject (mask) space. Only do it if mask value is non-zero however
 	 */
@@ -117,12 +117,12 @@ shared_ptr<MRImage> invertForwardBack(shared_ptr<MRImage> deform,
 	}
 	tree.build();
 
-	/* 
+	/*
 	 * In atlas image try to find the correct source in the subject by first
-	 * finding a point from the KDTree then improving on that result 
+	 * finding a point from the KDTree then improving on that result
 	 */
 	// set atlas deform to NANs
-	for(FlatIter<double> ait(atldef); !ait.eof(); ++ait) 
+	for(FlatIter<double> ait(atldef); !ait.eof(); ++ait)
 		ait.set(NAN);
 
 	// at each point in atlas try to find the best mapping in the subject by
@@ -142,7 +142,7 @@ shared_ptr<MRImage> invertForwardBack(shared_ptr<MRImage> deform,
 		double dist = INFINITY;
 		auto results = tree.nearest(atlpoint, dist);
 
-		// sort 
+		// sort
 		if(!results)
 			continue;
 
@@ -153,10 +153,10 @@ shared_ptr<MRImage> invertForwardBack(shared_ptr<MRImage> deform,
 		//    atl2sub
 		double prevdist = dist+1;
 		size_t iters = 0;
-		for(iters = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR && 
+		for(iters = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR &&
 						iters < MAXITERS; iters++) {
 
-			for(size_t ii=0; ii<3; ii++) 
+			for(size_t ii=0; ii<3; ii++)
 				subpoint[ii] = atlpoint[ii] + atl2sub[ii];
 
 			// (estimate) SUB <- ATLAS (given)
@@ -188,9 +188,9 @@ shared_ptr<MRImage> invertForwardBack(shared_ptr<MRImage> deform,
 
 
 		// save out final deform
-		for(size_t ii=0; ii<3; ++ii) 
+		for(size_t ii=0; ii<3; ++ii)
 			ait.set(ii, atl2sub[ii]);
-		cout << setw(10) << index[0] << setw(10) << index[1] << setw(10) 
+		cout << setw(10) << index[0] << setw(10) << index[1] << setw(10)
 					<< index[2] << setw(10) << "\r";
 
 	}
@@ -209,10 +209,10 @@ shared_ptr<MRImage> invertForwardBack(shared_ptr<MRImage> deform,
  * @param mask Only smooth (alter) point within the mask, inverted by 'invert'
  * @param invert only smooth points outside the mask
  */
-void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, 
+void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
 		double stddev, shared_ptr<MRImage> mask, bool invert)
 {
-	//TODO figure out how to scale this properly, including with stddev and 
+	//TODO figure out how to scale this properly, including with stddev and
 	//spacing
 	if(dim >= inout->ndim()) {
 		throw std::out_of_range("Invalid dimension specified for 1D gaussian "
@@ -272,7 +272,7 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
 		}
 
 		// write back out
-		for(size_t ii=0; ii<inout->dim(dim); ii++, ++oit) 
+		for(size_t ii=0; ii<inout->dim(dim); ii++, ++oit)
 			oit.set(buff[ii]);
 	}
 }
@@ -280,7 +280,7 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
 /**
  * @brief Computes the overlap of the two images' in 3-space.
  *
- * @param a Image 
+ * @param a Image
  * @param b Image
  *
  * @return Ratio of b that overlaps with a's grid
@@ -306,7 +306,7 @@ shared_ptr<MRImage> indexMapToOffsetMap(shared_ptr<const MRImage> defimg,
 	shared_ptr<MRImage> out = dynamic_pointer_cast<MRImage>(defimg->copy());
 
 	Vector3DIter<double> it(out);
-	if(it.tlen() != 3) 
+	if(it.tlen() != 3)
 		cerr << "Error expected 3 volumes!" << endl;
 	int64_t index[3];
 	double cindex[3];
@@ -325,7 +325,7 @@ shared_ptr<MRImage> indexMapToOffsetMap(shared_ptr<const MRImage> defimg,
 		atlas->indexToPoint(3, cindex, pointA);
 		// set value to offset
 		// store sub2atl (vector going from subject to atlas space)
-		for(int64_t ii=0; ii < 3; ++ii) 
+		for(int64_t ii=0; ii < 3; ++ii)
 			it.set(ii, pointA[ii] - pointS[ii]);
 	}
 
@@ -336,7 +336,7 @@ shared_ptr<MRImage> indexMapToOffsetMap(shared_ptr<const MRImage> defimg,
  * @brief Inverts a deformation, given a mask in the target space.
  *
  * Mathematical basis for this function is that in image S (subject)
- * we have a mapping from S to A (atlas), which we will call u, 
+ * we have a mapping from S to A (atlas), which we will call u,
  * and in image A we have a map from A to S (v) that we want to optimize. The
  * goal is to :
  *
@@ -347,13 +347,13 @@ shared_ptr<MRImage> indexMapToOffsetMap(shared_ptr<const MRImage> defimg,
  * @param deform Maps from mask space.
  * @param atldef Maps to mask space, should be same size as mask
  *
- * @return 
+ * @return
  */
-shared_ptr<MRImage> invertMedianSmooth(shared_ptr<MRImage> deform, 
+shared_ptr<MRImage> invertMedianSmooth(shared_ptr<MRImage> deform,
 		shared_ptr<MRImage> atlas, size_t MAXITERS, double CHNORM, double MINDIST)
 {
 	// create output the size of atlas, with 3 volumes in the 4th dimension
-	auto atldef = createMRImage({atlas->dim(0), atlas->dim(1), 
+	auto atldef = createMRImage({atlas->dim(0), atlas->dim(1),
 				atlas->dim(2), 3}, FLOAT64);
 	atldef->setDirection(atlas->direction(), true);
 	atldef->setSpacing(atlas->spacing(), true);
@@ -374,7 +374,7 @@ shared_ptr<MRImage> invertMedianSmooth(shared_ptr<MRImage> deform,
 		return NULL;
 	}
 
-	/* 
+	/*
 	 * Construct KDTree indexed by atlas-space indices, and storing indices
 	 * in subject (mask) space. Only do it if mask value is non-zero however
 	 */
@@ -395,12 +395,12 @@ shared_ptr<MRImage> invertMedianSmooth(shared_ptr<MRImage> deform,
 	}
 	tree.build();
 
-	/* 
+	/*
 	 * In atlas image try to find the correct source in the subject by first
-	 * finding a point from the KDTree then improving on that result 
+	 * finding a point from the KDTree then improving on that result
 	 */
 	// set atlas deform to NANs
-	for(FlatIter<double> ait(atldef); !ait.eof(); ++ait) 
+	for(FlatIter<double> ait(atldef); !ait.eof(); ++ait)
 		ait.set(NAN);
 
 	// at each point in atlas try to find the best mapping in the subject by
@@ -420,12 +420,12 @@ shared_ptr<MRImage> invertMedianSmooth(shared_ptr<MRImage> deform,
 		double dist = MINDIST;
 		auto results = tree.withindist(atlpoint, dist);
 
-		// sort 
+		// sort
 		if(results.empty())
 			continue;
 
 		/*****************************
-		 * find the geometric median 
+		 * find the geometric median
 		 *****************************/
 
 		// intiialize with the mean
@@ -460,7 +460,7 @@ shared_ptr<MRImage> invertMedianSmooth(shared_ptr<MRImage> deform,
 							(*lit)->m_data[ii]);
 				}
 				norm = sqrt(norm);
-				if(norm == 0) 
+				if(norm == 0)
 					norm = MINNORM;
 
 				// add up total weights
@@ -482,9 +482,9 @@ shared_ptr<MRImage> invertMedianSmooth(shared_ptr<MRImage> deform,
 		}
 
 		// save out final deform
-		for(size_t ii=0; ii<3; ++ii) 
+		for(size_t ii=0; ii<3; ++ii)
 			ait.set(ii, atl2sub[ii]);
-		cout << setw(10) << index[0] << setw(10) << index[1] << setw(10) 
+		cout << setw(10) << index[0] << setw(10) << index[1] << setw(10)
 					<< index[2] << setw(10) << iter << "\r";
 
 
@@ -497,7 +497,7 @@ void binarize(shared_ptr<MRImage> in)
 {
 	OrderIter<int> it(in);
 	for(it.goBegin(); !it.eof(); ++it) {
-		if(*it != 0) 
+		if(*it != 0)
 			it.set(1);
 	}
 
@@ -511,9 +511,9 @@ void binarize(shared_ptr<MRImage> in)
  * @param def input deformation
  * @param omask mask in output (space that the points in the deform refer to)
  *
- * @return 
+ * @return
  */
-shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def, 
+shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def,
 		shared_ptr<MRImage> omask)
 {
 	cerr << "Extrapolating Outside Masked Region" << endl;
@@ -553,7 +553,7 @@ shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def,
 		changed = 0;
 
 		// copy cur into previous
-		for(FlatIter<int> pit(maskprev), cit(maskcur); !cit.eof(); ++cit, ++pit) 
+		for(FlatIter<int> pit(maskprev), cit(maskcur); !cit.eof(); ++cit, ++pit)
 			pit.set(*cit);
 
 		for(pmit.goBegin(), cmit.goBegin(); !cmit.eof(); ++pmit, ++cmit) {
@@ -577,7 +577,7 @@ shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def,
 				}
 			}
 
-			// skip if there were no neighbors inside the mask (we'll get 
+			// skip if there were no neighbors inside the mask (we'll get
 			// back to it later)
 			if(count == 0)
 				continue;
@@ -586,12 +586,12 @@ shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def,
 				int64_t tmp[3];
 				if(pmit[ii] != 0) {
 					pmit.offset_index(ii, 3, tmp);
-					for(size_t jj=0; jj<3; ++jj) 
+					for(size_t jj=0; jj<3; ++jj)
 						offset[jj] += odview(tmp[0], tmp[1], tmp[2], jj);
 				}
 			}
 
-			for(size_t jj=0; jj<3; ++jj) 
+			for(size_t jj=0; jj<3; ++jj)
 				offset[jj] /= count;
 			
 			// mark this pixel as valid, set value in deform
@@ -607,7 +607,7 @@ shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def,
 	cerr << "Smoothing Results outside mask" << endl;
 	// smooth extrapolated points, we repeat rather than doing a larger kernel
 	// to improve mask boundaries, since the support is smaller, the oddness
-	// due to internal pointers not being smoothed versus the neighboring 
+	// due to internal pointers not being smoothed versus the neighboring
 	// smoothed points is decreased
 //	for(size_t ii=0; ii<4; ii++) {
 //		gaussianSmooth1D(outdef, 0, 1.0, omask, true);
@@ -630,11 +630,11 @@ shared_ptr<MRImage> medianSmooth(shared_ptr<MRImage> deform, double radius)
 
 	// create KDTree of the grid
 	KDTree<3,3,double, double> tree;
-	double point[3]; 
-	double sub2atl[3]; 
-	int64_t index[3]; 
+	double point[3];
+	double sub2atl[3];
+	int64_t index[3];
 
-	/* 
+	/*
 	 * Construct KDTree indexed by atlas-space indices, and storing indices
 	 * in subject (mask) space. Only do it if mask value is non-zero however
 	 */
@@ -665,7 +665,7 @@ shared_ptr<MRImage> medianSmooth(shared_ptr<MRImage> deform, double radius)
 		assert(!results.empty());
 
 		/*****************************
-		 * find the geometric median 
+		 * find the geometric median
 		 *****************************/
 
 		// intiialize with the mean
@@ -700,7 +700,7 @@ shared_ptr<MRImage> medianSmooth(shared_ptr<MRImage> deform, double radius)
 							(*lit)->m_data[ii]);
 				}
 				norm = sqrt(norm);
-				if(norm < MINNORM) 
+				if(norm < MINNORM)
 					norm = MINNORM;
 
 				// add up total weights
@@ -722,10 +722,10 @@ shared_ptr<MRImage> medianSmooth(shared_ptr<MRImage> deform, double radius)
 		}
 
 		// save out final deform
-		for(size_t ii=0; ii<3; ++ii) 
+		for(size_t ii=0; ii<3; ++ii)
 			oit.set(ii, sub2atl[ii]);
 		
-		cout << setw(10) << index[0] << setw(10) << index[1] << setw(10) 
+		cout << setw(10) << index[0] << setw(10) << index[1] << setw(10)
 					<< index[2] << setw(10) << iter << "\r";
 
 	}
@@ -737,15 +737,15 @@ shared_ptr<MRImage> medianSmooth(shared_ptr<MRImage> deform, double radius)
 int main(int argc, char** argv)
 {
 	try {
-	/* 
-	 * Command Line 
+	/*
+	 * Command Line
 	 */
 
 	TCLAP::CmdLine cmd("Applies 3D deformation to volume or time-series of "
 			"volumes. Deformation should be a map of offsets. ",
 			' ', __version__ );
 
-	TCLAP::ValueArg<string> a_indef("i", "input", "Input deformation.", 
+	TCLAP::ValueArg<string> a_indef("i", "input", "Input deformation.",
 			true, "", "*.nii.gz", cmd);
 
 	TCLAP::ValueArg<string> a_mask("m", "mask", "Mask image in "
@@ -755,7 +755,7 @@ int main(int argc, char** argv)
 			"if you provide an index-based deformation or if you intend to "
 			"extrapolate '-E'. Note that if you already have a valid "
 			"deformation for the entire FOV, and the input is a offset type "
-			"deform, then neither this nor mask '-m' are needed", false, "", 
+			"deform, then neither this nor mask '-m' are needed", false, "",
 			"*.nii.gz", cmd);
 
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
@@ -842,7 +842,7 @@ int main(int argc, char** argv)
 		binarize(atlas);
 	}
 
-	// convert to offset 
+	// convert to offset
 	if(a_in_index.isSet()) {
 		if(!atlas) {
 			cerr << "Must provide an atlas for index-based deformations, "
@@ -869,11 +869,11 @@ int main(int argc, char** argv)
 		extrapolate = true;
 	}
 
-	// extrapolate 
+	// extrapolate
 	if(extrapolate) {
 		if(!atlas || !mask) {
 			cerr << "Must provide an atlas mask and deform mask together, for "
-				"extrapolation!" 
+				"extrapolation!"
 				<< endl;
 			return -1;
 		}
@@ -900,7 +900,7 @@ int main(int argc, char** argv)
 		deform->write("smoothed.nii.gz");
 
 		cerr << "Inverting" << endl;
-		deform = invertForwardBack(deform, atlas, 15, 0.1); 
+		deform = invertForwardBack(deform, atlas, 15, 0.1);
 		cerr << "Done" << endl;
 
 		deform->write("invert.nii.gz");

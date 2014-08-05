@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL),
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file kernel_slicer.h
+ *
+ *****************************************************************************/
 
 #ifndef KERNEL_SLICER_H
 #define KERNEL_SLICER_H
@@ -65,9 +65,9 @@ public:
 	KSlicer();
 
 	/**
-	 * @brief Constructs a iterator with the given dimensions 
+	 * @brief Constructs a iterator with the given dimensions
 	 *
-	 * @param ndim	Number of dimensions 
+	 * @param ndim	Number of dimensions
 	 * @param dim	size of ND array
 	 */
 	KSlicer(size_t ndim, const size_t* dim);
@@ -92,9 +92,9 @@ public:
 	 *
 	 * @param order order of iteration. {0,1,2} would mean that dimension 0 (x)
 	 * would move the fastest and 2 the slowest. If the image is a 5D image then
-	 * that unmentioned (3,4) would be the slowest. 
-	 * @param revorder Reverse the speed of iteration. So the first dimension 
-	 * in the order vector would in fact be the slowest and un-referenced 
+	 * that unmentioned (3,4) would be the slowest.
+	 * @param revorder Reverse the speed of iteration. So the first dimension
+	 * in the order vector would in fact be the slowest and un-referenced
 	 * dimensions will be the fastest. (in the example for order this would be
 	 * 4 and 3).
 	 */
@@ -104,17 +104,17 @@ public:
 	 * @brief Returns the array giving the order of dimension being traversed.
 	 * So 3,2,1,0 would mean that the next point in dimension 3 will be next,
 	 * when wrapping the next point in 2 is visited, when that wraps the next
-	 * in one and so on. 
+	 * in one and so on.
 	 *
 	 * @return Order of dimensions
 	 */
 	const std::vector<size_t>& getOrder() const { return m_order; } ;
 	
 	/**
-	 * @brief Set the radius of the kernel window. All directions will 
-	 * have equal distance, with the radius in each dimension set by the 
-	 * magntitude of the kradius vector. So if kradius = {2,1,0} then 
-	 * dimension 0 (x) will have a radius of 2, dimension 1 (y) will have 
+	 * @brief Set the radius of the kernel window. All directions will
+	 * have equal distance, with the radius in each dimension set by the
+	 * magntitude of the kradius vector. So if kradius = {2,1,0} then
+	 * dimension 0 (x) will have a radius of 2, dimension 1 (y) will have
 	 * a readius of 1 and dimension 2 will have a radius of 0 (won't step
 	 * out from the middle at all).
 	 *
@@ -125,31 +125,31 @@ public:
 	void setRadius(std::vector<size_t> kradius = {});
 	
 	/**
-	 * @brief Set the radius of the kernel window. All directions will 
-	 * have equal distance in all dimensions. So if kradius = 2 then 
-	 * dimension 0 (x) will have a radius of 2, dimension 2 (y) will have 
+	 * @brief Set the radius of the kernel window. All directions will
+	 * have equal distance in all dimensions. So if kradius = 2 then
+	 * dimension 0 (x) will have a radius of 2, dimension 2 (y) will have
 	 * a readius of 2 and so on. Warning images may have more dimensions
 	 * than you know, so if the image has a dimension that is only size 1
 	 * it will have a radius of 0, but if you didn't know you had a 10D image
 	 * all the dimensions about to support the radius will.
 	 *
-	 * @param radii in all directions. 
+	 * @param radii in all directions.
 	 */
 	void setRadius(size_t kradius);
 	
 	/**
-	 * @brief Set the ROI from the center of the kernel. The first value 
+	 * @brief Set the ROI from the center of the kernel. The first value
 	 * should be <= 0, the second should be >= 0. The ranges are inclusive.
-	 * So if kradius = {{-1,1},{0,1},{-1,0}}, in the x dimension values will 
-	 * range from center - 1 to center + 1, y indices will range from center 
-	 * to center + 1, and z indices will range from center-1 to center. 
+	 * So if kradius = {{-1,1},{0,1},{-1,0}}, in the x dimension values will
+	 * range from center - 1 to center + 1, y indices will range from center
+	 * to center + 1, and z indices will range from center-1 to center.
 	 * Kernel will range from
 	 * [kRange[0].first, kRange[0].second]
 	 * [kRange[1].first, kRange[1].second]
 	 * ...
 	 *
-	 * @param Vector of [inf, sup] in each dimension. Unaddressed (missing) 
-	 * values are assumed to be [0,0]. 
+	 * @param Vector of [inf, sup] in each dimension. Unaddressed (missing)
+	 * values are assumed to be [0,0].
 	 */
 	void setWindow(const std::vector<std::pair<int64_t, int64_t>>& krange);
 
@@ -257,12 +257,12 @@ public:
 	/**
 	 * @brief Places the first len dimensions of ND-position in the given
 	 * array. If the number
-	 * of dimensions exceed the len then the additional dimensions will be 
+	 * of dimensions exceed the len then the additional dimensions will be
 	 * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
 	 * In other words index will be completely overwritten in the most sane way
-	 * possible if the internal dimensions and size index differ. 
+	 * possible if the internal dimensions and size index differ.
 	 *
-	 * @param ndim size of index 
+	 * @param ndim size of index
 	 * @param index output index variable
 	 */
 	void center_index(size_t len, int64_t* index) const;
@@ -295,12 +295,12 @@ public:
 	 * @brief Get the ND position of the specified offset (kernel) element.
 	 *
 	 * @param kit Kernel index
-	 * @param len size of index 
+	 * @param len size of index
 	 * @param index output index variable
-	 * @param bound report the actual sampled point (ie point after clamping 
+	 * @param bound report the actual sampled point (ie point after clamping
 	 * position to be in the image. Interior points will be the same, but on
-	 * the boundary if you set bound you will only get indices inside the image 
-	 * ROI, otherwise you would get values like -1, -1 -1 for radius 1 pos 
+	 * the boundary if you set bound you will only get indices inside the image
+	 * ROI, otherwise you would get values like -1, -1 -1 for radius 1 pos
 	 * 0,0,0
 	 *
 	 * @return ND position
@@ -324,9 +324,9 @@ public:
 	 *
 	 * @param kit Pixel we are referring to
 	 * @param len lenght of dindex array
-	 * @param dindex output paramter indicating distance of pixel from the 
-	 * center of the kernel in each dimension. If this array is shorter than 
-	 * the iteration dimensions, only the first len will be filled. If it is 
+	 * @param dindex output paramter indicating distance of pixel from the
+	 * center of the kernel in each dimension. If this array is shorter than
+	 * the iteration dimensions, only the first len will be filled. If it is
 	 * longer the additional values won't be touched
 	 */
 	void from_center(size_t kit, size_t len, int64_t* dindex) const;
@@ -362,7 +362,7 @@ protected:
 	std::vector<size_t> m_strides; //constructor
 	
 	// setOrder
-	std::vector<size_t> m_order; 
+	std::vector<size_t> m_order;
 
 	// setRadius/setWindow
 	// for each of the neighbors we need to know

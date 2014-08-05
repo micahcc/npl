@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file matrix.h
+ *
+ *****************************************************************************/
 
 #ifndef MATRIX_H
 #define MATRIX_H
@@ -28,7 +28,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <cmath>
 #include <memory>
 
-namespace npl { 
+namespace npl {
 
 class MatrixP
 {
@@ -43,7 +43,7 @@ public:
 	virtual double& operator[](size_t row) = 0;
 	
 	/**
-	 * @brief Returns value at given row/column. 
+	 * @brief Returns value at given row/column.
 	 *
 	 * @param row Row to lookup
 	 * @param col Col to lookup
@@ -62,7 +62,7 @@ public:
 	virtual const double& operator[](size_t row) const = 0;
 	
 	/**
-	 * @brief Returns value at given row/column. 
+	 * @brief Returns value at given row/column.
 	 *
 	 * @param row Row to lookup
 	 * @param col Col to lookup
@@ -72,8 +72,8 @@ public:
 	virtual const double& operator()(size_t row, size_t col = 0) const = 0;
 
 	/**
-	 * @brief Performs matrix-vector product of right hand side (rhs) and 
-	 * the current matrix, writing the result in out. RHS and OUT are 
+	 * @brief Performs matrix-vector product of right hand side (rhs) and
+	 * the current matrix, writing the result in out. RHS and OUT are
 	 * cast to the appropriate types (dimensions). Will throw if the dimension
 	 * requirements are not met.
 	 *
@@ -83,8 +83,8 @@ public:
 	virtual void mvproduct(const MatrixP* rhs, MatrixP* out) const = 0;
 	
 	/**
-	 * @brief Performs matrix-vector product of right hand side (rhs) and 
-	 * the current matrix, writing the result in out. RHS and OUT are 
+	 * @brief Performs matrix-vector product of right hand side (rhs) and
+	 * the current matrix, writing the result in out. RHS and OUT are
 	 * cast to the appropriate types (dimensions). Will throw if the dimension
 	 * requirements are not met.
 	 *
@@ -92,9 +92,9 @@ public:
 	 * @param out Output of matrix-vector product
 	 */
 	virtual void mvproduct(const MatrixP& rhs, MatrixP& out) const = 0;
-//	virtual void mvproduct(const std::vector<double>& rhs, 
+//	virtual void mvproduct(const std::vector<double>& rhs,
 //			std::vector<double>& out) const = 0;
-//	virtual void mvproduct(const std::vector<size_t>& rhs, 
+//	virtual void mvproduct(const std::vector<size_t>& rhs,
 //			std::vector<double>& out) const = 0;
 
 	virtual double det() const = 0;
@@ -143,7 +143,7 @@ public:
 	/**
 	 * @brief Constructor, sets the entire matrix to the given constant
 	 *
-	 * @param v constant to set all elements to 
+	 * @param v constant to set all elements to
 	 */
 	Matrix(double v) {
 		for(size_t ii=0; ii<D1; ii++) {
@@ -286,24 +286,24 @@ public:
 	 *
 	 * @return Value at (row,0)
 	 */
-	double& operator[](size_t row) 
-	{ 
+	double& operator[](size_t row)
+	{
 		assert(row < D1);
-		return data[row][0]; 
+		return data[row][0];
 	};
 
 	/**
-	 * @brief Returns value at given row/column. 
+	 * @brief Returns value at given row/column.
 	 *
 	 * @param row Row to lookup
 	 * @param col Col to lookup
 	 *
 	 * @return Value at (row,col)
 	 */
-	double& operator()(size_t row, size_t col = 0) 
+	double& operator()(size_t row, size_t col = 0)
 	{
 		assert(row < D1 && col < D2);
-		return data[row][col]; 
+		return data[row][col];
 	};
 
 	/**
@@ -314,13 +314,13 @@ public:
 	 * @return Value at (row,0)
 	 */
 	const double& operator[](size_t row) const
-	{ 
+	{
 		assert(row < D1);
-		return data[row][0]; 
+		return data[row][0];
 	};
 
 	/**
-	 * @brief Returns value at given row/column. 
+	 * @brief Returns value at given row/column.
 	 *
 	 * @param row Row to lookup
 	 * @param col Col to lookup
@@ -330,13 +330,13 @@ public:
 	const double& operator()(size_t row, size_t col = 0) const
 	{
 		assert(row < D1 && col < D2);
-		return data[row][col]; 
+		return data[row][col];
 	};
 
 
 	/**
-	 * @brief Performs matrix-vector product of right hand side (rhs) and 
-	 * the current matrix, writing the result in out. RHS and OUT are 
+	 * @brief Performs matrix-vector product of right hand side (rhs) and
+	 * the current matrix, writing the result in out. RHS and OUT are
 	 * cast to the appropriate types (dimensions). Will throw if the dimension
 	 * requirements are not met.
 	 *
@@ -346,8 +346,8 @@ public:
 	void mvproduct(const MatrixP* rhs, MatrixP* out) const;
 	
 	/**
-	 * @brief Performs matrix-vector product of right hand side (rhs) and 
-	 * the current matrix, writing the result in out. RHS and OUT are 
+	 * @brief Performs matrix-vector product of right hand side (rhs) and
+	 * the current matrix, writing the result in out. RHS and OUT are
 	 * cast to the appropriate types (dimensions). Will throw if the dimension
 	 * requirements are not met.
 	 *
@@ -356,9 +356,9 @@ public:
 	 */
 	void mvproduct(const MatrixP& rhs, MatrixP& out) const;
 	
-//	void mvproduct(const std::vector<double>& rhs, 
+//	void mvproduct(const std::vector<double>& rhs,
 //			std::vector<double>& out) const;
-//	void mvproduct(const std::vector<size_t>& rhs, 
+//	void mvproduct(const std::vector<size_t>& rhs,
 //			std::vector<double>& out) const;
 
 	virtual double det() const;
@@ -424,7 +424,7 @@ void Matrix<D1,D2>::mvproduct(const MatrixP& rhs, MatrixP& out) const
 }
 //
 //template <int D1, int D2>
-//void Matrix<D1,D2>::mvproduct(const std::vector<double>& iv, 
+//void Matrix<D1,D2>::mvproduct(const std::vector<double>& iv,
 //		std::vector<double>& ov) const
 //{
 //	assert(&iv != &ov);
@@ -441,7 +441,7 @@ void Matrix<D1,D2>::mvproduct(const MatrixP& rhs, MatrixP& out) const
 //}
 //
 //template <int D1, int D2>
-//void Matrix<D1,D2>::mvproduct(const std::vector<size_t>& iv, 
+//void Matrix<D1,D2>::mvproduct(const std::vector<size_t>& iv,
 //		std::vector<double>& ov) const
 //{
 //	assert(iv.size() == D2);
@@ -556,10 +556,10 @@ Matrix<D1, D3> operator*(const Matrix<D1, D2>& lhs, const Matrix<D2, D3>& rhs)
  * @param bl
  * @param br
  *
- * @return 
+ * @return
  */
 template <int D1, int D2>
-Matrix<D1+D2,D1+D2> join(const Matrix<D1,D1>& tl, const Matrix<D1, D2>& tr, 
+Matrix<D1+D2,D1+D2> join(const Matrix<D1,D1>& tl, const Matrix<D1, D2>& tr,
 		const Matrix<D2, D1>& bl, const Matrix<D2,D2>& br)
 {
 	Matrix<D1+D2, D1+D2> out;
@@ -578,14 +578,14 @@ Matrix<D1+D2,D1+D2> join(const Matrix<D1,D1>& tl, const Matrix<D1, D2>& tr,
 		}
 	}
 	
-	// bottom left 
+	// bottom left
 	for(size_t rr=0; rr<D2; rr++) {
 		for(size_t cc=0; cc<D1; cc++) {
 			out(rr+D1,cc) = bl(rr,cc);
 		}
 	}
 	
-	// bottom right 
+	// bottom right
 	for(size_t rr=0; rr<D2; rr++) {
 		for(size_t cc=0; cc<D2; cc++) {
 			out(rr+D1,cc+D1) = br(rr,cc);
@@ -597,7 +597,7 @@ Matrix<D1+D2,D1+D2> join(const Matrix<D1,D1>& tl, const Matrix<D1, D2>& tr,
 
 template <int D1, int D2>
 void split(const Matrix<D1+D2, D1+D2>& input,
-		Matrix<D1,D1>& tl, Matrix<D1, D2>& tr, 
+		Matrix<D1,D1>& tl, Matrix<D1, D2>& tr,
 		Matrix<D2, D1>& bl, Matrix<D2,D2>& br)
 {
 	// top left
@@ -614,14 +614,14 @@ void split(const Matrix<D1+D2, D1+D2>& input,
 		}
 	}
 	
-	// bottom left 
+	// bottom left
 	for(size_t rr=0; rr<D2; rr++) {
 		for(size_t cc=0; cc<D1; cc++) {
 			bl(rr,cc) = input(rr+D1,cc);
 		}
 	}
 	
-	// bottom right 
+	// bottom right
 	for(size_t rr=0; rr<D2; rr++) {
 		for(size_t cc=0; cc<D2; cc++) {
 			br(rr,cc) = input(rr+D1,cc+D1);
@@ -672,11 +672,11 @@ double det(const Matrix<DIM, DIM>& trg)
 		auto DI = inverse(D);
 		double b = det(D)*det(A-B*DI*C);
 		if(std::isnan(b)) {
-			std::cerr << "Determinant failed " << std::endl; 
+			std::cerr << "Determinant failed " << std::endl;
 			return NAN;
 		} else
 			return b;
-	} else 
+	} else
 		return a;
 }
 

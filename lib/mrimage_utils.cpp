@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries are free software: you can redistribute it
-and/or modify it under the terms of the GNU General Public License as published
-by the Free Software Foundation, either version 3 of the License, or (at your
-option) any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file mrimage_utils.cpp
+ *
+ *****************************************************************************/
 
 #include "mrimage.h"
 #include "iterators.h"
@@ -52,10 +52,10 @@ double gaussKern(double x)
  * @param stddev standard deviation in physical units index*spacing
  *
  */
-void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, 
+void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
 		double stddev)
 {
-	//TODO figure out how to scale this properly, including with stddev and 
+	//TODO figure out how to scale this properly, including with stddev and
 	//spacing
 	if(dim >= inout->ndim()) {
 		throw std::out_of_range("Invalid dimension specified for 1D gaussian "
@@ -102,7 +102,7 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
 		}
 		
 		// write back out
-		for(size_t ii=0; ii<inout->dim(dim); ii++, ++it) 
+		for(size_t ii=0; ii<inout->dim(dim); ii++, ++it)
 			it.set(buff[ii]);
 
 	}
@@ -110,7 +110,7 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
 
 /**
  * @brief Reads an MRI image. Right now only nift images are supported. later
- * on, it will try to load image using different reader functions until one 
+ * on, it will try to load image using different reader functions until one
  * suceeds.
  *
  * @param filename Name of input file to read
@@ -170,16 +170,16 @@ int writeMRImage(MRImage* img, std::string fn, bool nifti2)
  * @param pixsize Size, in bytes, of each pixel
  * @param doswap Whether to perform byte swapping on the pixels
  *
- * @return New MRImage with loaded pixels 
+ * @return New MRImage with loaded pixels
  */
 template <typename T>
-shared_ptr<MRImage> readPixels(gzFile file, size_t vox_offset, 
+shared_ptr<MRImage> readPixels(gzFile file, size_t vox_offset,
 		const std::vector<size_t>& dim, size_t pixsize, bool doswap)
 {
 	// jump to voxel offset
 	gzseek(file, vox_offset, SEEK_SET);
 
-	/* 
+	/*
 	 * Create Slicer Object to iterate through image slices
 	 */
 
@@ -190,7 +190,7 @@ shared_ptr<MRImage> readPixels(gzFile file, size_t vox_offset,
 	T tmp(0);
 	shared_ptr<MRImage> out;
 
-	// someday this all might be simplify by using MRImage* and the 
+	// someday this all might be simplify by using MRImage* and the
 	// dbl or int64 functions, as long as we trust that the type is
 	// going to be good enough to caputre the underlying pixle type
 	switch(dim.size()) {
@@ -281,7 +281,7 @@ shared_ptr<MRImage> readPixels(gzFile file, size_t vox_offset,
  *
  * @return 0 if successful
  */
-int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap, 
+int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap,
 		bool verbose)
 {
 	// seek to 0
@@ -379,16 +379,16 @@ int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap,
 		std::cerr << "qform_code =" << header->qform_code  << std::endl;
 		std::cerr << "sform_code =" << header->sform_code  << std::endl;
 		for(size_t ii=0; ii < 3; ii++){
-			std::cerr << "quatern["<<ii<<"]=" 
+			std::cerr << "quatern["<<ii<<"]="
 				<< header->quatern[ii] << std::endl;
 		}
 		for(size_t ii=0; ii < 3; ii++){
-			std::cerr << "qoffset["<<ii<<"]=" 
+			std::cerr << "qoffset["<<ii<<"]="
 				<< header->qoffset[ii] << std::endl;
 		}
 		for(size_t ii=0; ii < 3; ii++) {
 			for(size_t jj=0; jj < 4; jj++) {
-				std::cerr << "saffine["<<ii<<"*4+"<<jj<<"]=" 
+				std::cerr << "saffine["<<ii<<"*4+"<<jj<<"]="
 					<< header->saffine[ii*4+jj] << std::endl;
 			}
 		}
@@ -532,7 +532,7 @@ shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose)
 		case NIFTI_TYPE_UINT32:
 			out = readPixels<uint32_t>(file, start, dim, psize, doswap);
 		break;
-		// 64 bit int 
+		// 64 bit int
 		case NIFTI_TYPE_INT64:
 			out = readPixels<int64_t>(file, start, dim, psize, doswap);
 		break;
@@ -570,21 +570,21 @@ shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose)
 	if(!out)
 		return NULL;
 
-	/* 
-	 * Now that we have an Image*, we can fill in the remaining values from 
+	/*
+	 * Now that we have an Image*, we can fill in the remaining values from
 	 * the header
 	 */
 
 	// figure out orientation
 	if(qform_code > 0) {
 		/*
-		 * set spacing 
+		 * set spacing
 		 */
 		for(size_t ii=0; ii<out->ndim(); ii++)
 			out->spacing()[ii] = pixdim[ii];
 		
-		/* 
-		 * set origin 
+		/*
+		 * set origin
 		 */
 		// x,y,z
 		for(size_t ii=0; ii<out->ndim(); ii++) {
@@ -668,8 +668,8 @@ shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose)
 		out->updateAffine();
 	}
 
-	/************************************************************************** 
-	 * Medical Imaging Varaibles Variables 
+	/**************************************************************************
+	 * Medical Imaging Varaibles Variables
 	 **************************************************************************/
 	
 	// direct copies
@@ -678,14 +678,14 @@ shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose)
 	out->m_slicedim = slicedim;
 	
 	// slice timing
-	out->updateSliceTiming(slice_duration,  slice_start, slice_end, 
+	out->updateSliceTiming(slice_duration,  slice_start, slice_end,
 			(SliceOrderT)slice_code);
 
 	return out;
 }
 
 /**
- * @brief Reads a nifti2 header from an already-open gzFile. End users should 
+ * @brief Reads a nifti2 header from an already-open gzFile. End users should
  * use readMRImage instead.
  *
  * @param file Already opened gzFile, will seek to 0
@@ -695,7 +695,7 @@ shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose)
  *
  * @return 0 if successful
  */
-int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap, 
+int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap,
 		bool verbose)
 {
 	// seek to 0
@@ -788,16 +788,16 @@ int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap,
 		std::cerr << "qform_code =" << header->qform_code  << std::endl;
 		std::cerr << "sform_code =" << header->sform_code  << std::endl;
 		for(size_t ii=0; ii < 3; ii++){
-			std::cerr << "quatern["<<ii<<"]=" 
+			std::cerr << "quatern["<<ii<<"]="
 				<< header->quatern[ii] << std::endl;
 		}
 		for(size_t ii=0; ii < 3; ii++){
-			std::cerr << "qoffset["<<ii<<"]=" 
+			std::cerr << "qoffset["<<ii<<"]="
 				<< header->qoffset[ii] << std::endl;
 		}
 		for(size_t ii=0; ii < 3; ii++) {
 			for(size_t jj=0; jj < 4; jj++) {
-				std::cerr << "saffine["<<ii<<"*4+"<<jj<<"]=" 
+				std::cerr << "saffine["<<ii<<"*4+"<<jj<<"]="
 					<< header->saffine[ii*4+jj] << std::endl;
 			}
 		}
@@ -828,11 +828,11 @@ ostream& operator<<(ostream &out, const MRImage& img)
 	out << img.ndim() << "D Image" << endl;
 	for(int64_t ii=0; ii<(int64_t)img.ndim(); ii++) {
 		out << "dim[" << ii << "]=" << img.dim(ii);
-		if(img.m_freqdim == ii) 
+		if(img.m_freqdim == ii)
 			out << " (frequency-encode)";
-		if(img.m_phasedim == ii) 
+		if(img.m_phasedim == ii)
 			out << " (phase-encode)";
-		if(img.m_slicedim == ii) 
+		if(img.m_slicedim == ii)
 			out << " (slice-encode)";
 		out << endl;
 	}
@@ -848,14 +848,14 @@ ostream& operator<<(ostream &out, const MRImage& img)
 	
 	out << "Spacing: " << endl;
 	for(size_t ii=0; ii<img.ndim(); ii++) {
-		out << "[ " << std::setw(10) << std::setprecision(3) 
+		out << "[ " << std::setw(10) << std::setprecision(3)
 			<< img.spacing()[ii] << "] ";
 	}
 	out << endl;
 
 	out << "Origin: " << endl;
 	for(size_t ii=0; ii<img.ndim(); ii++) {
-		out << "[ " << std::setw(10) << std::setprecision(3) 
+		out << "[ " << std::setw(10) << std::setprecision(3)
 			<< img.origin()[ii] << "] ";
 	}
 	out << endl;
@@ -934,19 +934,19 @@ ostream& operator<<(ostream &out, const MRImage& img)
 		case RSEQ:
 			out << "Slice Order: Decreasing Sequential" << endl;
 			break;
-		case ALT: 
+		case ALT:
 			out << "Slice Order: Increasing Alternating" << endl;
 			break;
 		case RALT:
 			out << "Slice Order: Decreasing Alternating" << endl;
 			break;
-		case ALT_SHFT: 
-			out << "Slice Order: Alternating Starting at " 
-				<< img.m_slice_start+1 << " (not " 
+		case ALT_SHFT:
+			out << "Slice Order: Alternating Starting at "
+				<< img.m_slice_start+1 << " (not "
 				<< img.m_slice_start << ")" << endl;
 			break;
 		case RALT_SHFT:
-			out << "Slice Order: Decreasing Alternating Starting at " 
+			out << "Slice Order: Decreasing Alternating Starting at "
 				<< img.m_slice_end-1 << " not ( " << img.m_slice_end << endl;
 			break;
 		case UNKNOWN_SLICE:
@@ -956,7 +956,7 @@ ostream& operator<<(ostream &out, const MRImage& img)
 	}
 	out << "Slice Timing: " << endl;
 	for(auto it=img.m_slice_timing.begin(); it != img.m_slice_timing.end(); ++it) {
-		out << std::setw(10) << it->first << std::setw(10) << std::setprecision(3) 
+		out << std::setw(10) << it->first << std::setw(10) << std::setprecision(3)
 			<< it->second << ",";
 	}
 	out << endl;
@@ -966,7 +966,7 @@ ostream& operator<<(ostream &out, const MRImage& img)
 
 /**
  * @brief Perform fourier transform on the dimensions specified. Those
- * dimensions will be padded out. The output of this will be a double. 
+ * dimensions will be padded out. The output of this will be a double.
  * If len = 0 or dim == NULL, then ALL dimensions will be transformed.
  *
  * @param in Input image to inverse fourier trnasform
@@ -980,7 +980,7 @@ shared_ptr<MRImage> ifft_c2r(shared_ptr<const MRImage> in)
 {
 	auto out = dynamic_pointer_cast<MRImage>(ifft_c2r(
 				dynamic_pointer_cast<const NDArray>(in)));
-	for(size_t dd = 0; dd<in->ndim(); dd++) 
+	for(size_t dd = 0; dd<in->ndim(); dd++)
 		out->spacing()[dd] = 1./(in->spacing()[dd]*out->dim(dd));
 	return out;
 }
@@ -992,7 +992,7 @@ shared_ptr<MRImage> ifft_c2r(shared_ptr<const MRImage> in)
  *
  * @param in Input image to fourier transform
  *
- * @return Complex image, which is the result of inverse fourier transforming 
+ * @return Complex image, which is the result of inverse fourier transforming
  * the (Real) input image. Note that the last dimension only contains the real
  * frequencies, but all other dimensions contain both
  */
@@ -1000,7 +1000,7 @@ shared_ptr<MRImage> fft_r2c(shared_ptr<const MRImage> in)
 {
 	auto out = dynamic_pointer_cast<MRImage>(fft_r2c(
 				dynamic_pointer_cast<const NDArray>(in)));
-	for(size_t dd = 0; dd<in->ndim(); dd++) 
+	for(size_t dd = 0; dd<in->ndim(); dd++)
 		out->spacing()[dd] = 1./(in->spacing()[dd]*out->dim(dd));
 	return out;
 }

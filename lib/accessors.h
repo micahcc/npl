@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries are free software: you can redistribute it
-and/or modify it under the terms of the GNU General Public License as published
-by the Free Software Foundation, either version 3 of the License, or (at your
-option) any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file accessors.h
+ *
+ *****************************************************************************/
 
 #ifndef ACCESSORS_H
 #define ACCESSORS_H
@@ -119,7 +119,7 @@ public:
 	 */
 	T operator[](int64_t index)
 	{
-		return castget(this->parent->__getAddr(index)); 
+		return castget(this->parent->__getAddr(index));
 	};
 	
 	/**
@@ -131,7 +131,7 @@ public:
 	 */
 	T get(const std::vector<int64_t>& index)
 	{
-		return castget(this->parent->__getAddr(index)); 
+		return castget(this->parent->__getAddr(index));
 	};
 	
 	/**
@@ -144,7 +144,7 @@ public:
 	 */
 	T get(size_t len, int64_t* index)
 	{
-		return castget(this->parent->__getAddr(len, index)); 
+		return castget(this->parent->__getAddr(len, index));
 	};
 	
 	/**
@@ -156,7 +156,7 @@ public:
 	 */
 	T operator[](const std::vector<int64_t>& index)
 	{
-		return castget(this->parent->__getAddr(index)); 
+		return castget(this->parent->__getAddr(index));
 	};
 	
 	/**
@@ -169,7 +169,7 @@ public:
 	 */
 	void set(T v, const std::vector<int64_t>& index)
 	{
-		return castset(this->parent->__getAddr(index), v); 
+		return castset(this->parent->__getAddr(index), v);
 	};
 	
 	/**
@@ -182,7 +182,7 @@ public:
 	 */
 	void set(T v, int64_t index)
 	{
-		return castset(this->parent->__getAddr(index), v); 
+		return castset(this->parent->__getAddr(index), v);
 	};
 	
 	int64_t tlen() { return this->parent->tlen(); };
@@ -191,7 +191,7 @@ protected:
 	
 
 	/**
-	 * @brief This is a wrapper function that will be called to safely cast 
+	 * @brief This is a wrapper function that will be called to safely cast
 	 * from the underlying type.
 	 *
 	 * @tparam U Underlying type of pixel, figured out in the constructor
@@ -206,7 +206,7 @@ protected:
 	};
 	
 	/**
-	 * @brief This is a wrapper function that will be called to safely cast 
+	 * @brief This is a wrapper function that will be called to safely cast
 	 * to the underlying type.
 	 *
 	 * @tparam U Underlying type of pixel, figured out in the constructor
@@ -226,7 +226,7 @@ protected:
 	std::shared_ptr<NDArray> parent;
 
 	/**
-	 * @brief Function pointer to the correct function for casting from the 
+	 * @brief Function pointer to the correct function for casting from the
 	 * underlying type
 	 *
 	 * @param ptr location in memory where the pixel is stored
@@ -234,11 +234,11 @@ protected:
 	T (*castget)(void* ptr);
 
 	/**
-	 * @brief Function pointer to the correct function for casting to the 
+	 * @brief Function pointer to the correct function for casting to the
 	 * underlying type. This should be set during construction.
 	 *
 	 *
-	 * @param ptr pointer to memory 
+	 * @param ptr pointer to memory
 	 * @param v value to cast and write
 	 */
 	void (*castset)(void* ptr, const T& v);
@@ -246,9 +246,9 @@ protected:
 };
 
 /**
- * @brief The purpose of this class is to view an image as a 3D 
+ * @brief The purpose of this class is to view an image as a 3D
  * image rather than a ND image. Therefore all dimensions above the third will
- * be ignored and index 0 will be used. 
+ * be ignored and index 0 will be used.
  *
  * @tparam T Type of value to cast and return
  */
@@ -256,7 +256,7 @@ template<typename T>
 class Pixel3DView : public NDAccess<T>
 {
 public:
-	Pixel3DView(std::shared_ptr<NDArray> in) : NDAccess<T>(in) 
+	Pixel3DView(std::shared_ptr<NDArray> in) : NDAccess<T>(in)
 	{ };
 
 	/**
@@ -266,7 +266,7 @@ public:
 	 */
 	T operator()(int64_t x=0, int64_t y=0, int64_t z=0)
 	{
-		return this->castget(this->parent->__getAddr(x,y,z,0)); 
+		return this->castget(this->parent->__getAddr(x,y,z,0));
 	};
 	
 	/**
@@ -276,7 +276,7 @@ public:
 	 */
 	T get(int64_t x=0, int64_t y=0, int64_t z=0)
 	{
-		return this->castget(this->parent->__getAddr(x,y,z,0)); 
+		return this->castget(this->parent->__getAddr(x,y,z,0));
 	};
 	
 	/**
@@ -286,7 +286,7 @@ public:
 	 */
 	void set(T v, int64_t x=0, int64_t y=0, int64_t z=0)
 	{
-		this->castset(this->parent->__getAddr(x,y,z,0), v); 
+		this->castset(this->parent->__getAddr(x,y,z,0), v);
 	};
 	
 protected:
@@ -300,7 +300,7 @@ protected:
 
 /**
  * @brief The purpose of this class is to view an image as a 3D+vector dimension
- * image rather than a 4+D image. Therefore all dimensions above the third are 
+ * image rather than a 4+D image. Therefore all dimensions above the third are
  * cast as a vector. If there is demand I may create a matrixx verion as well
  *
  * @tparam T Type of value to cast and return
@@ -309,7 +309,7 @@ template<typename T>
 class Vector3DView : public NDAccess<T>
 {
 public:
-	Vector3DView(std::shared_ptr<NDArray> in) : NDAccess<T>(in) 
+	Vector3DView(std::shared_ptr<NDArray> in) : NDAccess<T>(in)
 	{ };
 
 	/**
@@ -319,7 +319,7 @@ public:
 	 */
 	T operator()(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
-		return this->castget(this->parent->__getAddr(x,y,z,t)); 
+		return this->castget(this->parent->__getAddr(x,y,z,t));
 	};
 	
 	/**
@@ -329,7 +329,7 @@ public:
 	 */
 	T get(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
-		return this->castget(this->parent->__getAddr(x,y,z,t)); 
+		return this->castget(this->parent->__getAddr(x,y,z,t));
 	};
 	
 	/**
@@ -339,7 +339,7 @@ public:
 	 */
 	void set(T v, int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
-		this->castset(this->parent->__getAddr(x,y,z,t), v); 
+		this->castset(this->parent->__getAddr(x,y,z,t), v);
 	};
 	
 protected:
@@ -357,12 +357,12 @@ double linKern(double x)
 }
 
 /**
- * @brief The purpose of this class is to view an image as a continuous 
- * 3D+vector dimension image rather than a 4+D image. Therefore all dimensions 
+ * @brief The purpose of this class is to view an image as a continuous
+ * 3D+vector dimension image rather than a 4+D image. Therefore all dimensions
  * above the third are cast as a vector and interpolation is only performed
  * between 3D points, with the 4th dimension assumed to be non-spatial. The
- * would be applicable if the upper dimensions are of a different type 
- * than the first 3. 
+ * would be applicable if the upper dimensions are of a different type
+ * than the first 3.
  *
  * @tparam T Type of value to cast and return
  */
@@ -370,8 +370,8 @@ template<typename T>
 class LinInterp3DView : public Vector3DView<T>
 {
 public:
-	LinInterp3DView(std::shared_ptr<NDArray> in, 
-				BoundaryConditionT bound = ZEROFLUX) 
+	LinInterp3DView(std::shared_ptr<NDArray> in,
+				BoundaryConditionT bound = ZEROFLUX)
 				: Vector3DView<T>(in), m_boundmethod(bound)
 	{ };
 
@@ -432,7 +432,7 @@ public:
 		bool iioutside = false;
 //		outside = false;
 
-		// compute weighted pixval by iterating over neighbors, which are 
+		// compute weighted pixval by iterating over neighbors, which are
 		// combinations of KPOINTS
 		T pixval = 0;
 		double weight = 0;
@@ -463,7 +463,7 @@ public:
 						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
 				} else if(m_boundmethod == WRAP) {
 					// wrap
-					for(size_t dd=0; dd<DIM; dd++) 
+					for(size_t dd=0; dd<DIM; dd++)
 						wrap<int64_t>(0, dim[dd]-1, index[dd]);
 				} else {
 					// set wieght to zero, then just clamp
@@ -471,10 +471,10 @@ public:
 					for(size_t dd=0; dd<DIM; dd++)
 						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
 				}
-			} 
+			}
 
 			T v = this->castget(this->parent->__getAddr(index[0], index[1],index[2],t));
-			pixval += weight*v; 
+			pixval += weight*v;
 		}
 
 		return pixval;
@@ -489,7 +489,7 @@ protected:
 	 * @return value
 	 */
 	// Remove functions that aren't relevent from Base
-	void set(T v, int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0) 
+	void set(T v, int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
 		(void)(v); (void)(x); (void)(y); (void)(z); (void)(t);
 	};
@@ -499,12 +499,12 @@ protected:
 };
 
 /**
- * @brief The purpose of this class is to view an image as a continuous 
- * 3D+vector dimension image rather than a 4+D image. Therefore all dimensions 
+ * @brief The purpose of this class is to view an image as a continuous
+ * 3D+vector dimension image rather than a 4+D image. Therefore all dimensions
  * above the third are cast as a vector and interpolation is only performed
  * between 3D points, with the 4th dimension assumed to be non-spatial. The
- * would be applicable if the upper dimensions are of a different type 
- * than the first 3. 
+ * would be applicable if the upper dimensions are of a different type
+ * than the first 3.
  *
  * @tparam T Type of value to cast and return
  */
@@ -512,8 +512,8 @@ template<typename T>
 class NNInterp3DView : public Vector3DView<T>
 {
 public:
-	NNInterp3DView(std::shared_ptr<NDArray> in, 
-				BoundaryConditionT bound = ZEROFLUX) 
+	NNInterp3DView(std::shared_ptr<NDArray> in,
+				BoundaryConditionT bound = ZEROFLUX)
 				: Vector3DView<T>(in), m_boundmethod(bound)
 	{ };
 
@@ -524,7 +524,7 @@ public:
 	 */
 	T operator()(double x=0, double y=0, double z=0, int64_t t=0)
 	{
-		return get(x,y,z,t); 
+		return get(x,y,z,t);
 	};
 	
 	/**
@@ -541,7 +541,7 @@ public:
 		size_t xdim = this->parent->dim(0);
 		size_t ydim = this->parent->ndim() > 1 ? this->parent->dim(1) : 1;
 		size_t zdim = this->parent->ndim() > 2 ? this->parent->dim(2) : 1;
-		size_t tdim = this->parent->tlen(); 
+		size_t tdim = this->parent->tlen();
 
 		bool xout = (i < 0 || i >= xdim);
 		bool yout = (j < 0 || j >= ydim);
@@ -570,7 +570,7 @@ public:
 			}
 		}
 
-		return this->castget(this->parent->__getAddr(i,j,k,t)); 
+		return this->castget(this->parent->__getAddr(i,j,k,t));
 	};
 	
 	BoundaryConditionT m_boundmethod;;
@@ -584,7 +584,7 @@ private:
 	 * @return value
 	 */
 	// Remove functions that aren't relevent from Base
-	void set(T v, int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0) 
+	void set(T v, int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
 		(void)(v); (void)(x); (void)(y); (void)(z); (void)(t);
 	};

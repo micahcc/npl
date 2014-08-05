@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file fract_fft.cpp
+ *
+ *****************************************************************************/
 
 /******************************************************************************
  * @file fract_fft.cpp
@@ -103,7 +103,7 @@ int64_t round357(int64_t in)
  * @param beta Negative term in exp
  * @param fft Whether to fft the output (put it in frequency domain)
  */
-void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz, 
+void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
 		double upratio, double alpha, double beta, bool fft)
 {
 	assert(sz%2==1);
@@ -187,7 +187,7 @@ void interp(int64_t isize, fftw_complex* in, int64_t osize, fftw_complex* out)
  * @brief Does the same thing as fractional_fft (also limited to 0.5 <= a <=
  * 1.5) but does NOT use the fourier transform.
  *
- * @param isize Size of input array 
+ * @param isize Size of input array
  * @param usize Size of upsampled input
  * @param uppadsize Size of padded and upsampled input
  * @param inout Array used for input and output
@@ -231,11 +231,11 @@ void fractional_brute_ft(int64_t isize, int64_t usize, int64_t uppadsize,
 	
 	interp(isize, inout, usize, upsampled);
 	
-	// pre-multiply 
+	// pre-multiply
 	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
-		complex<double> tmp1(ab_chirp[nn+uppadsize/2][0], 
+		complex<double> tmp1(ab_chirp[nn+uppadsize/2][0],
 				ab_chirp[nn+uppadsize/2][1]);
-		complex<double> tmp2(upsampled[nn+usize/2][0], 
+		complex<double> tmp2(upsampled[nn+usize/2][0],
 				upsampled[nn+usize/2][1]);
 		tmp1 *= tmp2;
 		upsampled[nn+usize/2][0] = tmp1.real();
@@ -269,7 +269,7 @@ void fractional_brute_ft(int64_t isize, int64_t usize, int64_t uppadsize,
 		sigbuff[mm+usize/2][1] = 0;
 
 		for(int64_t nn = -usize/2; nn<= usize/2; nn++) {
-			complex<double> tmp1(b_chirp[mm-nn+uppadsize/2][0], 
+			complex<double> tmp1(b_chirp[mm-nn+uppadsize/2][0],
 					b_chirp[mm-nn+uppadsize/2][1]);
 			complex<double> tmp2(upsampled[nn+usize/2][0],
 					upsampled[nn+usize/2][1]);
@@ -292,7 +292,7 @@ void fractional_brute_ft(int64_t isize, int64_t usize, int64_t uppadsize,
 	
 	// post-multiply
 	for(int64_t ii=-usize/2; ii<=usize/2; ii++) {
-		complex<double> tmp1(ab_chirp[ii+uppadsize/2][0], 
+		complex<double> tmp1(ab_chirp[ii+uppadsize/2][0],
 				ab_chirp[ii+uppadsize/2][1]);
 		complex<double> tmp2(sigbuff[ii+usize/2][0],
 				sigbuff[ii+usize/2][1]);
@@ -334,9 +334,9 @@ void fractional_fft(int64_t isize, int64_t usize, int64_t uppadsize,
 
 	// create buffers and plans
 	createChirp(uppadsize, ab_chirp, isize, (double)usize/(double)isize, alpha,
-			beta, false); 
-	createChirp(uppadsize, b_chirp, isize, (double)usize/(double)isize, 
-			beta, 0, true); 
+			beta, false);
+	createChirp(uppadsize, b_chirp, isize, (double)usize/(double)isize,
+			beta, 0, true);
 
 #ifdef DEBUG
 	{
@@ -356,9 +356,9 @@ void fractional_fft(int64_t isize, int64_t usize, int64_t uppadsize,
 	}
 #endif //DEBUG
 
-	fftw_plan sigbuff_plan_fwd = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff, 
+	fftw_plan sigbuff_plan_fwd = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff,
 			FFTW_FORWARD, FFTW_MEASURE);
-	fftw_plan sigbuff_plan_rev = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff, 
+	fftw_plan sigbuff_plan_rev = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff,
 			FFTW_BACKWARD, FFTW_MEASURE);
 
 	// upsample input
@@ -372,11 +372,11 @@ void fractional_fft(int64_t isize, int64_t usize, int64_t uppadsize,
 	}
 #endif //DEBUG
 	
-	// pre-multiply 
+	// pre-multiply
 	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
-		complex<double> tmp1(ab_chirp[nn+uppadsize/2][0], 
+		complex<double> tmp1(ab_chirp[nn+uppadsize/2][0],
 				ab_chirp[nn+uppadsize/2][1]);
-		complex<double> tmp2(upsampled[nn+usize/2][0], 
+		complex<double> tmp2(upsampled[nn+usize/2][0],
 				upsampled[nn+usize/2][1]);
 		tmp1 *= tmp2;
 		upsampled[nn+usize/2][0] = tmp1.real();
@@ -396,7 +396,7 @@ void fractional_fft(int64_t isize, int64_t usize, int64_t uppadsize,
 	 */
 	fftw_execute(sigbuff_plan_fwd);
 
-	// not 100% clear on why sqrt works here, might be that the sqrt should be 
+	// not 100% clear on why sqrt works here, might be that the sqrt should be
 	// b_chirp fft
 	double normfactor = sqrt(1./(uppadsize));
 	for(size_t ii=0; ii<uppadsize; ii++) {
@@ -412,20 +412,20 @@ void fractional_fft(int64_t isize, int64_t usize, int64_t uppadsize,
 	{
 		std::vector<double> tmp(uppadsize);
 		for(size_t ii=0; ii<uppadsize; ii++)
-			tmp[ii] = sqrt(sigbuff[ii][0]*sigbuff[ii][0] + 
+			tmp[ii] = sqrt(sigbuff[ii][0]*sigbuff[ii][0] +
 					sigbuff[ii][1]*sigbuff[ii][1]);
 		writePlot("fft_convolve.tga", tmp);
 	}
 #endif //DEBUG
 
 	// circular shift
-	std::rotate(&sigbuff[0][0], &sigbuff[(uppadsize-1)/2][0], 
+	std::rotate(&sigbuff[0][0], &sigbuff[(uppadsize-1)/2][0],
 			&sigbuff[uppadsize][0]);
 #ifdef DEBUG
 	{
 		std::vector<double> tmp(uppadsize);
 		for(size_t ii=0; ii<uppadsize; ii++)
-			tmp[ii] = sqrt(sigbuff[ii][0]*sigbuff[ii][0] + 
+			tmp[ii] = sqrt(sigbuff[ii][0]*sigbuff[ii][0] +
 					sigbuff[ii][1]*sigbuff[ii][1]);
 		writePlot("rotated.tga", tmp);
 	}
@@ -433,7 +433,7 @@ void fractional_fft(int64_t isize, int64_t usize, int64_t uppadsize,
 	
 	// post-multiply
 	for(int64_t ii=-usize/2; ii<=usize/2; ii++) {
-		complex<double> tmp1(ab_chirp[ii+uppadsize/2][0], 
+		complex<double> tmp1(ab_chirp[ii+uppadsize/2][0],
 				ab_chirp[ii+uppadsize/2][1]);
 		complex<double> tmp2(upsampled[ii+usize/2][0],
 				upsampled[ii+usize/2][1]);
@@ -458,8 +458,8 @@ void fractional_fft(int64_t isize, int64_t usize, int64_t uppadsize,
 }
 
 /**
- * @brief Comptues the Fractional Fourier transform using FFTW for nlogn 
- * performance. 
+ * @brief Comptues the Fractional Fourier transform using FFTW for nlogn
+ * performance.
  *
  * @param isize size of input/output
  * @param in Input array, may be the same as output, length sz
@@ -470,7 +470,7 @@ void fractional_fft(int64_t isize, int64_t usize, int64_t uppadsize,
  * @param buffer Buffer to do computations in, may be null, in which case new
  * memory will be allocated and deallocated during processing. Note that if
  * the provided buffer is not sufficient size a new buffer will be allocated
- * and deallocated, and a warning will be produced 
+ * and deallocated, and a warning will be produced
  * @param nonfft
  */
 void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
@@ -488,7 +488,7 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	// size, we want both uppadsize and usize to be odd, and we want uppadsize
 	// to be the product of small primes (3,5,7)
 	double approxratio = 4;
-	int64_t uppadsize = round357(isize*approxratio); 
+	int64_t uppadsize = round357(isize*approxratio);
 	int64_t usize;
 	while( (usize = (uppadsize-1)/2) % 2 == 0) {
 		uppadsize = round357(uppadsize+2);

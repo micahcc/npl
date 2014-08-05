@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file fract_fft_test.cpp
+ *
+ *****************************************************************************/
 
 /******************************************************************************
  * @file fft_test.cpp
@@ -108,7 +108,7 @@ double lanczos(double v, double a)
 	}
 }
 
-void interp(const std::vector<complex<double>>& in, 
+void interp(const std::vector<complex<double>>& in,
 		std::vector<complex<double>>& out)
 {
 	// fill/average pad
@@ -122,14 +122,14 @@ void interp(const std::vector<complex<double>>& in,
 
 		complex<double> sum = 0;
 		for(int64_t ii=center-radius; ii<=center+radius; ii++) {
-			if(ii>=0 && ii<in.size()) 
+			if(ii>=0 && ii<in.size())
 				sum += lanczos(ii-cii, radius)*in[ii];
 		}
 		out[oo] = sum;
 	}
 }
 
-fftw_complex* createChirp(int64_t sz, int64_t origsz, double upratio, 
+fftw_complex* createChirp(int64_t sz, int64_t origsz, double upratio,
 		double alpha, double beta, bool fft)
 {
 	assert(sz%2 == 1);
@@ -162,7 +162,7 @@ fftw_complex* createChirp(int64_t sz, int64_t origsz, double upratio,
 
 /**
  * @brief Brute force version of fractional fourier transform. For testing
- * purposes only. 
+ * purposes only.
  *
  * @param input Input vector,
  * @param a_frac fractional level (repeats every 4).
@@ -190,7 +190,7 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 	// to be the product of small primes (3,5,7)
 	double approxratio = 4;
 	int64_t isize = input.size();
-	int64_t uppadsize = round357(isize*approxratio); 
+	int64_t uppadsize = round357(isize*approxratio);
 	int64_t usize;
 	while( (usize = (uppadsize-1)/2) % 2 == 0) {
 		uppadsize = round357(uppadsize+2);
@@ -213,9 +213,9 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 
 	interp(input, upsampled);
 	
-	// pre-multiply 
+	// pre-multiply
 	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
-		complex<double> tmp1(ab_chirp[nn+uppadsize/2][0], 
+		complex<double> tmp1(ab_chirp[nn+uppadsize/2][0],
 				ab_chirp[nn+uppadsize/2][1]);
 		upsampled[nn+usize/2] *= tmp1;;
 	}
@@ -226,7 +226,7 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 		sigbuff[mm+usize/2][1] = 0;
 
 		for(int64_t nn = -usize/2; nn<= usize/2; nn++) {
-			complex<double> tmp1(b_chirp[mm-nn+uppadsize/2][0], 
+			complex<double> tmp1(b_chirp[mm-nn+uppadsize/2][0],
 					b_chirp[mm-nn+uppadsize/2][1]);
 			tmp1 = tmp1*upsampled[nn+usize/2];
 
@@ -239,14 +239,14 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 	std::vector<double> mag;
 	mag.resize(usize);
 	for(size_t ii=0; ii<usize; ii++) {
-		mag[ii] = sqrt(sigbuff[ii][0]*sigbuff[ii][0] + 
+		mag[ii] = sqrt(sigbuff[ii][0]*sigbuff[ii][0] +
 					sigbuff[ii][1]*sigbuff[ii][1]);
 	}
 	writePlot("brute_premult.tga", mag);
 #endif //DEBUG
 
 	for(int64_t ii=-usize/2; ii<usize/2; ii++) {
-		complex<double> tmp1(ab_chirp[ii+uppadsize/2][0], 
+		complex<double> tmp1(ab_chirp[ii+uppadsize/2][0],
 				ab_chirp[ii+uppadsize/2][1]);
 		complex<double> tmp2(sigbuff[ii+usize/2][0], sigbuff[ii+usize/2][1]);
 
@@ -263,12 +263,12 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 }
 	
 /**
- * @brief Computes the fractional fourier transform of the input vector and 
- * writes out an equal length array in out. This function is ONLY valid for 
+ * @brief Computes the fractional fourier transform of the input vector and
+ * writes out an equal length array in out. This function is ONLY valid for
  * 0.5 <= a <= 1.5, use the more general FrFFT for other values.
  *
  * @param input Array to perform frft on
- * @param a_frac Fractional level of fft. 
+ * @param a_frac Fractional level of fft.
  * @param out output vector, will be the same size as the input
  */
 void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
@@ -293,7 +293,7 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 	// to be the product of small primes (3,5,7)
 	double approxratio = 4;
 	int64_t isize = input.size();
-	int64_t uppadsize = round357(isize*approxratio); 
+	int64_t uppadsize = round357(isize*approxratio);
 	int64_t usize;
 	while( (usize = (uppadsize-1)/2) % 2 == 0) {
 		uppadsize = round357(uppadsize+2);
@@ -310,7 +310,7 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 	auto sigbuff = fftw_alloc_complex(uppadsize); // CACHE
 	auto ab_chirp = createChirp(uppadsize, isize, (double)usize/(double)isize,
 			alpha, beta, false); // CACHE
-	auto b_chirp = createChirp(uppadsize, isize, (double)usize/(double)isize, 
+	auto b_chirp = createChirp(uppadsize, isize, (double)usize/(double)isize,
 			beta, 0, true); // CACHE
 
 #ifdef DEBUG
@@ -322,9 +322,9 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 	}
 #endif //DEBUG
 
-	fftw_plan sigbuff_plan_fwd = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff, 
+	fftw_plan sigbuff_plan_fwd = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff,
 			FFTW_FORWARD, FFTW_MEASURE);
-	fftw_plan sigbuff_plan_rev = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff, 
+	fftw_plan sigbuff_plan_rev = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff,
 			FFTW_BACKWARD, FFTW_MEASURE);
 
 	// upsample input
@@ -339,9 +339,9 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 	}
 #endif //DEBUG
 
-	// pre-multiply 
+	// pre-multiply
 	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
-		complex<double> tmp1(ab_chirp[nn+uppadsize/2][0], 
+		complex<double> tmp1(ab_chirp[nn+uppadsize/2][0],
 				ab_chirp[nn+uppadsize/2][1]);
 		upsampled[nn+usize/2] *= tmp1;;
 	}
@@ -360,7 +360,7 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 	// convolve
 	fftw_execute(sigbuff_plan_fwd);
 
-	// not 100% clear on why sqrt works here, might be that the sqrt should be 
+	// not 100% clear on why sqrt works here, might be that the sqrt should be
 	// b_chirp fft
 	double normfactor = sqrt(1./(uppadsize));
 	for(size_t ii=0; ii<uppadsize; ii++) {
@@ -381,7 +381,7 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 	}
 #endif //DEBUG
 
-	// I am actually still not 100% on why these should be shifted up (-1) in 
+	// I am actually still not 100% on why these should be shifted up (-1) in
 	// sigbuff indexing
 	// copy out, negatives
 	for(int64_t ii=-usize/2; ii<=0; ii++) {
@@ -397,14 +397,14 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 #ifdef DEBUG
 	std::vector<double> mag;
 	mag.resize(usize);
-	for(size_t ii=0; ii<usize; ii++) 
+	for(size_t ii=0; ii<usize; ii++)
 		mag[ii] = abs(upsampled[ii]);
 	writePlot("fft_premult.tga", mag);
 #endif //DEBUG
 
 	// post-multiply
 	for(int64_t ii=-usize/2; ii<=usize/2; ii++) {
-		complex<double> tmp1(ab_chirp[ii+uppadsize/2][0], 
+		complex<double> tmp1(ab_chirp[ii+uppadsize/2][0],
 				ab_chirp[ii+uppadsize/2][1]);
 
 		upsampled[ii+usize/2] *= tmp1*A_phi;

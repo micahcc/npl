@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file kdtree.txx
+ *
+ *****************************************************************************/
 
 #ifndef KDTREE_TXX
 #define KDTREE_TXX
@@ -54,7 +54,7 @@ void KDTree<K,E,T,D>::insert(const std::vector<T>& pt, const std::vector<D>& dat
  * @param end	End of range to be inserted / sorted
  * @param depth	Current Depth
  *
- * @return 
+ * @return
  */
 template <size_t K, size_t E, typename T, typename D>
 KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::build_helper(
@@ -72,8 +72,8 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::build_helper(
 	size_t axis = depth % K;
 	
 	// sort based on the given axis
-	std::sort(begin, end, 
-		[&](KDTreeNode<K,E,T,D>* left, KDTreeNode<K,E,T,D>* right) 
+	std::sort(begin, end,
+		[&](KDTreeNode<K,E,T,D>* left, KDTreeNode<K,E,T,D>* right)
 		{
 			return left->m_point[axis] < right->m_point[axis];
 		});
@@ -139,10 +139,10 @@ void KDTree<K,E,T,D>::build()
  * @param pt
  * @param distsq
  *
- * @return 
+ * @return
  */
 template <size_t K, size_t E, typename T, typename D>
-KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth, 
+KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 		KDTreeNode<K,E,T,D>* pos, const T* pt, double& distsq)
 {
 	size_t axis = depth%K;
@@ -162,7 +162,7 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 	}
 
 	if(pos->left && pt[axis] <= pos->m_point[axis]) {
-		// if it falls below the current coordinate, and there are nodes to 
+		// if it falls below the current coordinate, and there are nodes to
 		// be inspected, recurse
 		auto tmp = nearest_help(depth+1, pos->left, pt, distsq);
 
@@ -171,7 +171,7 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 			out = tmp;
 	
 	} else if(pos->right && pt[axis] > pos->m_point[axis]) {
-		// if it falls above the current coordinate, and there are nodes to 
+		// if it falls above the current coordinate, and there are nodes to
 		// be inspected, recurse
 		auto tmp = nearest_help(depth+1, pos->right, pt, distsq);
 		
@@ -195,7 +195,7 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 		// go to the opposite side as before
 		/////////////////////////////////////
 		if(pos->right && pt[axis] <= pos->m_point[axis]) {
-			// if it falls below the current coordinate, and there are nodes to 
+			// if it falls below the current coordinate, and there are nodes to
 			// be inspected, recurse
 			
 			auto tmp = nearest_help(depth+1, pos->right, pt, distsq);
@@ -203,7 +203,7 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 				out = tmp;
 
 		} else if(pos->left && pt[axis] > pos->m_point[axis]) {
-			// if it falls above the current coordinate, and there are nodes to 
+			// if it falls above the current coordinate, and there are nodes to
 			// be inspected, recurse
 			auto tmp = nearest_help(depth+1, pos->left, pt, distsq);
 			
@@ -216,7 +216,7 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 }
 
 /**
- * @brief Reeturns a pointer to a single KDTreeNode that is within distance and 
+ * @brief Reeturns a pointer to a single KDTreeNode that is within distance and
  * is nearest to the center point.
  *
  * @tparam K	Number of dimensions
@@ -226,7 +226,7 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
  * @param pt	Point to search for (must be length K)
  * @param dist	Distance away from pt to search
  *
- * @return 		Pointer to KDTree node that is closest, may be null if none is 
+ * @return 		Pointer to KDTree node that is closest, may be null if none is
  * 				found
  */
 template <size_t K, size_t E, typename T, typename D>
@@ -236,7 +236,7 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest(const std::vector<T>& pt, double& 
 }
 
 /**
- * @brief Reeturns a pointer to a single KDTreeNode that is within distance and 
+ * @brief Reeturns a pointer to a single KDTreeNode that is within distance and
  * is nearest to the center point.
  *
  * @tparam K	Number of dimensions
@@ -247,14 +247,14 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest(const std::vector<T>& pt, double& 
  * @param pt	Point to search for (must be length K)
  * @param dist	Distance away from pt to search
  *
- * @return 		Pointer to KDTree node that is closest, may be null if none is 
+ * @return 		Pointer to KDTree node that is closest, may be null if none is
  * 				found
  */
 template <size_t K, size_t E, typename T, typename D>
 KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest(size_t len, const T* pt, double& dist)
 {
 	if(!m_built) {
-		std::cerr << "Error! Must build tree before performing search!" 
+		std::cerr << "Error! Must build tree before performing search!"
 			<< std::endl;
 		return NULL;
 	}
@@ -279,7 +279,7 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest(size_t len, const T* pt, double& d
 
 
 template <size_t K, size_t E, typename T, typename D>
-std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist_help(size_t depth, 
+std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist_help(size_t depth,
 		KDTreeNode<K,E,T,D>* pos, const T* pt, double distsq)
 {
 	size_t axis = depth%K;
@@ -290,7 +290,7 @@ std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist_help(size_t de
 	for(size_t ii=0; ii<K; ii++)
 		curdist += pow(pos->m_point[ii]-pt[ii],2);
 
-	if(curdist < distsq) 
+	if(curdist < distsq)
 		out.push_back(pos);
 
 	// distance^2 to hyperplane
@@ -298,7 +298,7 @@ std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist_help(size_t de
 	
 	// recurse to the side that pt is on, or to the opposite side if
 	// a point could be on the other side and still be under sqrt(distsq)
-	// away 
+	// away
 	if(pos->left && (pt[axis] <= pos->m_point[axis] || hypdistsq < distsq)) {
 		auto tmplist = withindist_help(depth+1, pos->left, pt, distsq);
 		out.insert(out.begin(), tmplist.begin(), tmplist.end());
@@ -338,7 +338,7 @@ std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist(
  * @tparam E	Number of data elements
  * @tparam T	Type of coordinates
  * @tparam D	Type data stored
- * @param len	Length/rank/dim of the input point. 
+ * @param len	Length/rank/dim of the input point.
  * @param pt	Point to search for (must be length K)
  * @param dist	Distance away from pt to search
  *

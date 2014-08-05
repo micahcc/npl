@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries are free software: you can redistribute it
-and/or modify it under the terms of the GNU General Public License as published
-by the Free Software Foundation, either version 3 of the License, or (at your
-option) any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file mrimage_utils.h
+ *
+ *****************************************************************************/
 
 /******************************************************************************
  * @file mrimage_utils.h
@@ -78,9 +78,9 @@ shared_ptr<MRImage> createMRImage(const std::vector<size_t>& size, PixelT);
  * @param newsize Size of output image
  * @param newtype Type of pixels in output image
  *
- * @return Image with overlapping sections cast and copied from 'in' 
+ * @return Image with overlapping sections cast and copied from 'in'
  */
-shared_ptr<MRImage> copyCast(shared_ptr<MRImage> in, size_t newdims, 
+shared_ptr<MRImage> copyCast(shared_ptr<MRImage> in, size_t newdims,
 		const size_t* newsize, PixelT newtype);
 
 /**
@@ -93,9 +93,9 @@ shared_ptr<MRImage> copyCast(shared_ptr<MRImage> in, size_t newdims,
  * @param newdims Number of dimensions in output image
  * @param newsize Size of output image
  *
- * @return Image with overlapping sections cast and copied from 'in' 
+ * @return Image with overlapping sections cast and copied from 'in'
  */
-shared_ptr<MRImage> copyCast(shared_ptr<MRImage> in, size_t newdims, 
+shared_ptr<MRImage> copyCast(shared_ptr<MRImage> in, size_t newdims,
 		const size_t* newsize);
 
 /**
@@ -106,7 +106,7 @@ shared_ptr<MRImage> copyCast(shared_ptr<MRImage> in, size_t newdims,
  * @param in Input image, anything that can be copied will be
  * @param newtype Type of pixels in output image
  *
- * @return Image with overlapping sections cast and copied from 'in' 
+ * @return Image with overlapping sections cast and copied from 'in'
  */
 shared_ptr<MRImage> copyCast(shared_ptr<MRImage> in, PixelT newtype);
 
@@ -121,7 +121,7 @@ shared_ptr<MRImage> copyCast(shared_ptr<MRImage> in, PixelT newtype);
 shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose);
 
 /**
- * @brief Reads a nifti2 header from an already-open gzFile. End users should 
+ * @brief Reads a nifti2 header from an already-open gzFile. End users should
  * use readMRImage instead.
  *
  * @param file Already opened gzFile, will seek to 0
@@ -148,7 +148,7 @@ int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap, bool verb
 
 /**
  * @brief Reads an MRI image. Right now only nift images are supported. later
- * on, it will try to load image using different reader functions until one 
+ * on, it will try to load image using different reader functions until one
  * suceeds.
  *
  * @param filename Name of input file to read
@@ -160,7 +160,7 @@ shared_ptr<MRImage> readMRImage(std::string filename, bool verbose = false);
 
 
 /**
- * @brief Writes out a MRImage to the given file. If specified it will be a 
+ * @brief Writes out a MRImage to the given file. If specified it will be a
  * nifti version 2 file, rather than version 1.
  *
  * @param img MRImage to write to disk
@@ -202,7 +202,7 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, double stddev);
  * @param mask Only smooth (alter) point within the mask, inverted by 'invert'
  * @param invert only smooth points outside the mask
  */
-//void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, 
+//void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
 //		double stddev, shared_ptr<MRImage> mask, bool invert);
 
 /******************************************************
@@ -216,7 +216,7 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, double stddev);
  *
  * @param in Input image to fourier transform
  *
- * @return Complex image, which is the result of inverse fourier transforming 
+ * @return Complex image, which is the result of inverse fourier transforming
  * the (Real) input image. Note that the last dimension only contains the real
  * frequencies, but all other dimensions contain both
  */
@@ -224,7 +224,7 @@ shared_ptr<MRImage> fft_r2c(shared_ptr<const MRImage> in);
 
 /**
  * @brief Perform fourier transform on the dimensions specified. Those
- * dimensions will be padded out. The output of this will be a double. 
+ * dimensions will be padded out. The output of this will be a double.
  * If len = 0 or dim == NULL, then ALL dimensions will be transformed.
  *
  * @param in Input image to inverse fourier trnasform

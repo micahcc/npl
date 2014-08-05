@@ -1,26 +1,26 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries are free software: you can redistribute it
-and/or modify it under the terms of the GNU General Public License as published
-by the Free Software Foundation, either version 3 of the License, or (at your
-option) any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file ndarray.h
+ *
+ *****************************************************************************/
 
 /******************************************************************************
  * @file ndarray.h
- * @brief This file contains the definition for NDarray and its derived types. 
- * The derived types are templated over dimensionality and pixel type. 
+ * @brief This file contains the definition for NDarray and its derived types.
+ * The derived types are templated over dimensionality and pixel type.
  ******************************************************************************/
 
 #ifndef NDARRAY_H
@@ -52,8 +52,8 @@ enum PixelT {UNKNOWN_TYPE=0, UINT8=2, INT16=4, INT32=8, FLOAT32=16,
 
 class NDArray;
 
-/****************************************************************************** 
- * Basic Functions. 
+/******************************************************************************
+ * Basic Functions.
  ******************************************************************************/
 
 /**
@@ -80,8 +80,8 @@ shared_ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype)
  */
 shared_ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype);
 
-/****************************************************************************** 
- * Classes. 
+/******************************************************************************
+ * Classes.
  ******************************************************************************/
 
 /**
@@ -127,9 +127,9 @@ public:
 	 * dimensions and pixeltype. The new array will have all overlapping pixels
 	 * copied from the old array.
 	 *
-	 * This function just calls the outside copyCast, the reason for this 
-	 * craziness is that making a template function nested in the already 
-	 * huge number of templates I have kills the compiler, so we call an 
+	 * This function just calls the outside copyCast, the reason for this
+	 * craziness is that making a template function nested in the already
+	 * huge number of templates I have kills the compiler, so we call an
 	 * outside function that calls templates that has all combinations of D,T.
 	 *
 	 * @param in Input array, anything that can be copied will be
@@ -137,9 +137,9 @@ public:
 	 * @param newsize Size of output array
 	 * @param newtype Type of pixels in output array
 	 *
-	 * @return Image with overlapping sections cast and copied from 'in' 
+	 * @return Image with overlapping sections cast and copied from 'in'
 	 */
-	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize, 
+	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize,
 			PixelT newtype) const = 0;
 
 	/**
@@ -147,15 +147,15 @@ public:
 	 * but pxiels cast to newtype. The new array will have all overlapping pixels
 	 * copied from the old array.
 	 *
-	 * This function just calls the outside copyCast, the reason for this 
-	 * craziness is that making a template function nested in the already 
-	 * huge number of templates I have kills the compiler, so we call an 
+	 * This function just calls the outside copyCast, the reason for this
+	 * craziness is that making a template function nested in the already
+	 * huge number of templates I have kills the compiler, so we call an
 	 * outside function that calls templates that has all combinations of D,T.
 	 *
 	 * @param in Input array, anything that can be copied will be
 	 * @param newtype Type of pixels in output array
 	 *
-	 * @return Image with overlapping sections cast and copied from 'in' 
+	 * @return Image with overlapping sections cast and copied from 'in'
 	 */
 	virtual shared_ptr<NDArray> copyCast(PixelT newtype) const = 0;
 
@@ -165,24 +165,24 @@ public:
 	 * copied from the old array. The new array will have the same pixel type as
 	 * the input array
 	 *
-	 * This function just calls the outside copyCast, the reason for this 
-	 * craziness is that making a template function nested in the already 
-	 * huge number of templates I have kills the compiler, so we call an 
+	 * This function just calls the outside copyCast, the reason for this
+	 * craziness is that making a template function nested in the already
+	 * huge number of templates I have kills the compiler, so we call an
 	 * outside function that calls templates that has all combinations of D,T.
 	 *
 	 * @param in Input array, anything that can be copied will be
 	 * @param newdims Number of dimensions in output array
 	 * @param newsize Size of output array
 	 *
-	 * @return Image with overlapping sections cast and copied from 'in' 
+	 * @return Image with overlapping sections cast and copied from 'in'
 	 */
-	virtual shared_ptr<NDArray> copyCast(size_t newdims, 
+	virtual shared_ptr<NDArray> copyCast(size_t newdims,
 				const size_t* newsize) const = 0;
 
 	
-//	virtual int opself(const NDArray* right, double(*func)(double,double), 
+//	virtual int opself(const NDArray* right, double(*func)(double,double),
 //			bool elevR) = 0;
-//	virtual std::shared_ptr<NDArray> opnew(const NDArray* right, 
+//	virtual std::shared_ptr<NDArray> opnew(const NDArray* right,
 //			double(*func)(double,double), bool elevR) = 0;
 
 	virtual void* __getAddr(std::initializer_list<int64_t> index) const = 0;
@@ -222,7 +222,7 @@ class NDArrayStore : public virtual NDArray
 public:
 	/**
 	 * @brief Constructor with initializer list. Orientation will be default
-	 * (direction = identity, spacing = 1, origin = 0). 
+	 * (direction = identity, spacing = 1, origin = 0).
 	 *
 	 * @param a_args dimensions of input, the length of this initializer list
 	 * may not be fully used if a_args is longer than D. If it is shorter
@@ -232,7 +232,7 @@ public:
 
 	/**
 	 * @brief Constructor with vector. Orientation will be default
-	 * (direction = identity, spacing = 1, origin = 0). 
+	 * (direction = identity, spacing = 1, origin = 0).
 	 *
 	 * @param a_args dimensions of input, the length of this initializer list
 	 * may not be fully used if a_args is longer than D. If it is shorter
@@ -242,7 +242,7 @@ public:
 	
 	/**
 	 * @brief Constructor with array of length len, Orientation will be default
-	 * (direction = identity, spacing = 1, origin = 0). 
+	 * (direction = identity, spacing = 1, origin = 0).
 	 *
 	 * @param len Length of array 'size'
 	 * @param size dimensions of input, the length of this initializer list
@@ -254,21 +254,21 @@ public:
 	/**
 	 * @brief Constructor which uses a preexsting array, to graft into the
 	 * array. No new allocation will be performed, however ownership of the
-	 * array will be taken, meaning it could be deleted anytime after this 
+	 * array will be taken, meaning it could be deleted anytime after this
 	 * constructor completes.
 	 *
 	 * @param len Length of array 'size'
 	 * @param size dimensions of input, the length of this initializer list
 	 * may not be fully used if a_args is longer than D. If it is shorter
 	 * then D then additional dimensions are left as size 1.
-	 * @param ptr Pointer to data array, should be allocated with new, and 
+	 * @param ptr Pointer to data array, should be allocated with new, and
 	 * size should be exactly sizeof(T)*size[0]*size[1]*...*size[len-1]
 	 */
 	NDArrayStore(size_t len, const size_t* dim, T* ptr);
 	
 	~NDArrayStore() { delete[] _m_data; };
 
-	/* 
+	/*
 	 * get / set functions
 	 */
 	T& operator[](const std::vector<int64_t>& index);
@@ -279,8 +279,8 @@ public:
 	const T& operator[](std::initializer_list<int64_t> index) const;
 	const T& operator[](int64_t pixel) const;
 
-	/* 
-	 * General Information 
+	/*
+	 * General Information
 	 */
 	virtual size_t ndim() const;
 	virtual size_t bytes() const;
@@ -332,9 +332,9 @@ public:
 	 * dimensions and pixeltype. The new array will have all overlapping pixels
 	 * copied from the old array.
 	 *
-	 * This function just calls the outside copyCast, the reason for this 
-	 * craziness is that making a template function nested in the already 
-	 * huge number of templates I have kills the compiler, so we call an 
+	 * This function just calls the outside copyCast, the reason for this
+	 * craziness is that making a template function nested in the already
+	 * huge number of templates I have kills the compiler, so we call an
 	 * outside function that calls templates that has all combinations of D,T.
 	 *
 	 * @param in Input array, anything that can be copied will be
@@ -342,9 +342,9 @@ public:
 	 * @param newsize Size of output array
 	 * @param newtype Type of pixels in output array
 	 *
-	 * @return Image with overlapping sections cast and copied from 'in' 
+	 * @return Image with overlapping sections cast and copied from 'in'
 	 */
-	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize, 
+	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize,
 			PixelT newtype) const;
 
 	/**
@@ -352,15 +352,15 @@ public:
 	 * but pxiels cast to newtype. The new array will have all overlapping pixels
 	 * copied from the old array.
 	 *
-	 * This function just calls the outside copyCast, the reason for this 
-	 * craziness is that making a template function nested in the already 
-	 * huge number of templates I have kills the compiler, so we call an 
+	 * This function just calls the outside copyCast, the reason for this
+	 * craziness is that making a template function nested in the already
+	 * huge number of templates I have kills the compiler, so we call an
 	 * outside function that calls templates that has all combinations of D,T.
 	 *
 	 * @param in Input array, anything that can be copied will be
 	 * @param newtype Type of pixels in output array
 	 *
-	 * @return Image with overlapping sections cast and copied from 'in' 
+	 * @return Image with overlapping sections cast and copied from 'in'
 	 */
 	virtual shared_ptr<NDArray> copyCast(PixelT newtype) const;
 
@@ -370,28 +370,28 @@ public:
 	 * copied from the old array. The new array will have the same pixel type as
 	 * the input array
 	 *
-	 * This function just calls the outside copyCast, the reason for this 
-	 * craziness is that making a template function nested in the already 
-	 * huge number of templates I have kills the compiler, so we call an 
+	 * This function just calls the outside copyCast, the reason for this
+	 * craziness is that making a template function nested in the already
+	 * huge number of templates I have kills the compiler, so we call an
 	 * outside function that calls templates that has all combinations of D,T.
 	 *
 	 * @param in Input array, anything that can be copied will be
 	 * @param newdims Number of dimensions in output array
 	 * @param newsize Size of output array
 	 *
-	 * @return Image with overlapping sections cast and copied from 'in' 
+	 * @return Image with overlapping sections cast and copied from 'in'
 	 */
 	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize) const;
 
-	/* 
+	/*
 	 * Higher Level Operations
 	 */
-//	virtual int opself(const NDArray* right, double(*func)(double,double), 
+//	virtual int opself(const NDArray* right, double(*func)(double,double),
 //			bool elevR);
-//	virtual std::shared_ptr<NDArray> opnew(const NDArray* right, 
+//	virtual std::shared_ptr<NDArray> opnew(const NDArray* right,
 //			double(*func)(double,double), bool elevR);
 	
-	inline virtual void* __getAddr(std::initializer_list<int64_t> index) const 
+	inline virtual void* __getAddr(std::initializer_list<int64_t> index) const
 	{
 		return &_m_data[getLinIndex(index)];
 	};
@@ -406,13 +406,13 @@ public:
 		return &_m_data[getLinIndex(index)];
 	};
 
-	inline virtual void* __getAddr(int64_t i) const 
+	inline virtual void* __getAddr(int64_t i) const
 	{
-		return &_m_data[i]; 
+		return &_m_data[i];
 	};
 	inline virtual void* __getAddr(int64_t x, int64_t y, int64_t z, int64_t t) const
 	{
-		return &_m_data[getLinIndex(x,y,z,t)]; 
+		return &_m_data[getLinIndex(x,y,z,t)];
 	};
 
 	virtual int64_t getLinIndex(std::initializer_list<int64_t> index) const;
@@ -429,7 +429,7 @@ public:
 	virtual int64_t tlen() {
 		if(D >= 3)
 			return _m_stride[2];
-		else 
+		else
 			return 1;
 	};
 	

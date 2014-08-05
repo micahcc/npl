@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file mrimage.cpp
+ *
+ *****************************************************************************/
 
 #include "mrimage.h"
 #include "iterators.h"
@@ -32,8 +32,8 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace npl {
 
-/****************************************************************************** 
- * Helper Functions. We put these here because they are internally by MRImage 
+/******************************************************************************
+ * Helper Functions. We put these here because they are internally by MRImage
  * and MRImageStore; we don't want to call across libraries if we can avoid
  * it.
  ******************************************************************************/
@@ -216,8 +216,8 @@ shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT ptype)
  * the same type to set all the elements of the output image. Only overlapping
  * sections of the images are copied.
  *
- * @tparam T Type to cast to 
- * @param in Input image to copy 
+ * @tparam T Type to cast to
+ * @param in Input image to copy
  * @param out Output image to write to
  */
 template <typename T>
@@ -227,7 +227,7 @@ void _copyCast_help(shared_ptr<const MRImage> in, shared_ptr<MRImage> out)
 	// Set up slicers to iterate through the input and output images. Only
 	// common dimensions are iterated over, and only the minimum of the two
 	// sizes are used for ROI. so a 10x10x10 image cast to a 20x5 image will
-	// iterator copy ROI 10x5x1 
+	// iterator copy ROI 10x5x1
 	OrderConstIter<T> iit(in);
 	OrderIter<T> oit(out);
 	
@@ -253,7 +253,7 @@ void _copyCast_help(shared_ptr<const MRImage> in, shared_ptr<MRImage> out)
 	}
 
 	// perform copy/cast
-	for(iit.goBegin(), oit.goBegin(); !oit.eof() && !iit.eof(); ++oit, ++iit) 
+	for(iit.goBegin(), oit.goBegin(); !oit.eof() && !iit.eof(); ++oit, ++iit)
 		oit.set(*iit);
 
 }
@@ -268,9 +268,9 @@ void _copyCast_help(shared_ptr<const MRImage> in, shared_ptr<MRImage> out)
  * @param newsize Size of output image
  * @param newtype Type of pixels in output image
  *
- * @return Image with overlapping sections cast and copied from 'in' 
+ * @return Image with overlapping sections cast and copied from 'in'
  */
-shared_ptr<MRImage> _copyCast(shared_ptr<const MRImage> in, size_t newdims, 
+shared_ptr<MRImage> _copyCast(shared_ptr<const MRImage> in, size_t newdims,
 		const size_t* newsize, PixelT newtype)
 {
 	auto out = createMRImage(newdims, newsize, newtype);
@@ -350,7 +350,7 @@ shared_ptr<MRImage> _copyCast(shared_ptr<const MRImage> in, size_t newdims,
  * @param in Input image, anything that can be copied will be
  * @param newtype Type of pixels in output image
  *
- * @return Image with overlapping sections cast and copied from 'in' 
+ * @return Image with overlapping sections cast and copied from 'in'
  */
 shared_ptr<MRImage> _copyCast(shared_ptr<const MRImage> in, PixelT newtype)
 {
@@ -367,16 +367,16 @@ shared_ptr<MRImage> _copyCast(shared_ptr<const MRImage> in, PixelT newtype)
  * @param newdims Number of dimensions in output image
  * @param newsize Size of output image
  *
- * @return Image with overlapping sections cast and copied from 'in' 
+ * @return Image with overlapping sections cast and copied from 'in'
  */
-shared_ptr<MRImage> _copyCast(shared_ptr<const MRImage> in, size_t newdims, 
+shared_ptr<MRImage> _copyCast(shared_ptr<const MRImage> in, size_t newdims,
 		const size_t* newsize)
 {
 	return _copyCast(in, newdims, newsize, in->type());
 }
 
 
-/****************************************************************************** 
+/******************************************************************************
  * Pre-Compile Image Types
  ******************************************************************************/
 template class MRImageStore<1, double>;

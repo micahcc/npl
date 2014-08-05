@@ -1,21 +1,21 @@
-/*******************************************************************************
-This file is part of Neuro Programs and Libraries (NPL), 
-
-Written and Copyrighted by by Micah C. Chambers (micahc.vt@gmail.com)
-
-The Neuro Programs and Libraries is free software: you can redistribute it and/or
-modify it under the terms of the GNU General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
-
-The Neural Programs and Libraries are distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
-*******************************************************************************/
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * @file kdtree.h
+ *
+ *****************************************************************************/
 
 #ifndef KDTREE_H
 #define KDTREE_H
@@ -32,7 +32,7 @@ template <size_t K, size_t E, typename T = double, typename D = double>
 class KDTreeNode
 {
 	public:
-		KDTreeNode(const std::vector<T>& pt, const std::vector<D>& data) : 
+		KDTreeNode(const std::vector<T>& pt, const std::vector<D>& data) :
 			left(NULL), right(NULL)
 		{
 			size_t ii;
@@ -47,7 +47,7 @@ class KDTreeNode
 				m_data[ii] = 0;
 		};
 		
-		KDTreeNode(size_t plen, const T* pt, size_t dlen, const D* data) : 
+		KDTreeNode(size_t plen, const T* pt, size_t dlen, const D* data) :
 			left(NULL), right(NULL)
 		{
 			size_t ii;
@@ -101,7 +101,7 @@ public:
 	};
 
 	/**
-	 * @brief Insert a node (not that this is not dynamic, new nodes won't be 
+	 * @brief Insert a node (not that this is not dynamic, new nodes won't be
 	 * found by search until build() is called)
 	 *
 	 * @param pt	Point
@@ -110,7 +110,7 @@ public:
 	void insert(const std::vector<T>& pt, const std::vector<D>& data);
 
 	/**
-	 * @brief Insert a node (not that this is not dynamic, new nodes won't be 
+	 * @brief Insert a node (not that this is not dynamic, new nodes won't be
 	 * found by search until build() is called)
 	 *
 	 * @param plen	Length of point array
@@ -142,14 +142,14 @@ private:
 	// whether we have constructed the tree yet
 	bool m_built;
 
-	KDTreeNode<K,E,T,D>* m_treehead; 
-	std::vector<KDTreeNode<K,E,T,D>*> m_allnodes; 
+	KDTreeNode<K,E,T,D>* m_treehead;
+	std::vector<KDTreeNode<K,E,T,D>*> m_allnodes;
 
 	// helper functions
 	KDTreeNode<K,E,T,D>* nearest_help(size_t depth, KDTreeNode<K,E,T,D>* pos,
 		const T* pt, double& distsq);
 
-	std::list<const KDTreeNode<K,E,T,D>*> withindist_help(size_t depth, 
+	std::list<const KDTreeNode<K,E,T,D>*> withindist_help(size_t depth,
 		KDTreeNode<K,E,T,D>* pos, const T* pt, double distsq);
 
 	KDTreeNode<K,E,T,D>* build_helper(

@@ -29,7 +29,7 @@
       - float quatern_b,c,d  -> double quatern_b,c,d    (3 fields)
       - float srow_x,y,z[4]  -> double srow_x,y,z[4]    (3 fields)
       - char magic[4]        -> char magic[8]
-      - char unused_str[15]  -> padding added at the end of the header   
+      - char unused_str[15]  -> padding added at the end of the header
 
       - previously unused fields have been removed:
            data_type, db_name, extents, session_error, regular, glmax, glmin
