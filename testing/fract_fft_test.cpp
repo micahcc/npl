@@ -32,33 +32,11 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <complex>
 #include <cassert>
 
-#define DEBUG
+// #define DEBUG
 
 #include "utility.h"
 
 #include "fftw3.h"
-
-int hob (int num)
-{
-	if (!num)
-		return 0;
-
-	int ret = 1;
-
-	while (num >>= 1)
-		ret <<= 1;
-
-	return ret;
-}
-
-int64_t round2(int64_t in)
-{
-	int64_t just_hob = hob(in);
-	if(just_hob == in)
-		return in;
-	else
-		return (in<<1);
-}
 
 std::list<int64_t> factor(int64_t f)
 {
@@ -116,105 +94,6 @@ void writeComplex(string filename, const std::vector<complex<double>>& input)
 		of << it.real() << ", " << it.imag() << std::endl;
 	}
 	of.close();
-}
-
-void IFFT(const std::vector<complex<double>>& input, 
-		vector<complex<double>>& out)
-{
-	size_t sz = round2(input.size());
-	auto buffer = fftw_alloc_complex(sz); 
-	fftw_plan buffer_plan = fftw_plan_dft_1d((int)sz, buffer, buffer,
-				FFTW_BACKWARD, FFTW_MEASURE);
-
-	// pad the (middle) upper frequencies
-	for(size_t ii=0; ii < sz; ii++) {
-		buffer[ii][0] = 0;
-		buffer[ii][1] = 0;
-	}
-
-	// positive frequencies
-	for(size_t ii=0; ii<(1+input.size())/2; ii++) {
-		 buffer[ii][0] = input[ii].real();
-		 buffer[ii][1] = input[ii].imag();
-	}
-	//negative
-	for(int64_t ii=0; ii<(int64_t)input.size()/2; ii--) {
-		 buffer[sz-1-ii][0] = input[input.size()-1-ii].real();
-		 buffer[sz-1-ii][1] = input[input.size()-1-ii].imag();
-	}
-
-	fftw_execute(buffer_plan);
-
-	// just take the end
-	out.resize(input.size());
-	for(size_t ii=0; ii<input.size(); ii++) {
-		out[ii].real(buffer[ii][0]);
-		out[ii].imag(buffer[ii][1]);
-	}
-}
-
-void FFT(const std::vector<complex<double>>& input, 
-		vector<complex<double>>& out)
-{
-	size_t sz = round2(input.size());
-	auto buffer = fftw_alloc_complex(sz); 
-	fftw_plan buffer_plan = fftw_plan_dft_1d((int)sz, buffer, buffer,
-				FFTW_FORWARD, FFTW_MEASURE);
-	for(size_t ii=0; ii<sz; ii++) {
-		if(ii<input.size()) {
-			buffer[ii][0] = input[ii].real();
-			buffer[ii][1] = input[ii].imag();
-		} else {
-			buffer[ii][0] = 0;
-			buffer[ii][1] = 0;
-		}
-	}
-
-	fftw_execute(buffer_plan);
-
-	// positive frequencies
-	out.resize(input.size());
-	for(size_t ii=0; ii<(1+input.size())/2; ii++) {
-		 out[ii].real(buffer[ii][0]);
-		 out[ii].imag(buffer[ii][1]);
-	}
-	//negative
-	for(int64_t ii=0; ii<(int64_t)input.size()/2; ii--) {
-		 out[input.size()-1-ii].real(buffer[sz-1-ii][0]);
-		 out[input.size()-1-ii].imag(buffer[sz-1-ii][1]);
-	}
-}
-
-//void integralFrFFT(const std::vector<complex<double>>& input, int a_frac,
-//		vector<complex<double>>& out)
-//{
-//	while(a_frac < 0)
-//		a_frac+= 4;
-//	a_frac = a_frac%4;
-//
-//	switch(a_frac) {
-//		case 0:
-//			// identity
-//			out.assign(input.begin(), input.end());
-//			break;
-//		case 1:
-//			// FFT
-//			FFT(input, out);
-//			break;
-//		case 2:
-//			// reverse
-//			out.resize(input.size());
-//			std::reverse_copy(input.begin(), input.end(), out.begin());
-//			break;
-//		case 3:
-//			// inverse fft
-//			IFFT(input, out);
-//			break;
-//	}
-//}
-
-template <typename T> int sgn(T val) {
-	return (T(0) < val) - (val < T(0));
 }
 
 double lanczos(double v, double a)
@@ -319,9 +198,6 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 	assert(uppadsize%2 != 0);
 	assert(usize%2 != 0);
 
-//	complex<double> A_phi = std::exp(-imag*PI*sgn(sin(phi))/4+imag*phi/2.)/
-//			sqrt(fabs(sin(phi)));
-	// since phi [.78,2.35], sin(phi) is positive, sgn(sin(phi)) = 1:
 	complex<double> A_phi = std::exp(-I*PI/4.+I*phi/2.) / (usize*sqrt(sin(phi)));
 	
 	// upsampled version of input
@@ -425,9 +301,6 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 	assert(uppadsize%2 != 0);
 	assert(usize%2 != 0);
 
-//	complex<double> A_phi = std::exp(-imag*PI*sgn(sin(phi))/4+imag*phi/2.)/
-//			sqrt(fabs(sin(phi)));
-	// since phi [.78,2.35], sin(phi) is positive, sgn(sin(phi)) = 1:
 	complex<double> A_phi = std::exp(-I*PI/4.+I*phi/2.) / (usize*sqrt(sin(phi)));
 
 	// upsampled version of input

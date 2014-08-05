@@ -32,7 +32,7 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 #include <list>
 #include <complex>
 
-#define DEBUG
+//#define DEBUG
 
 using std::complex;
 
