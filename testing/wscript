@@ -141,6 +141,11 @@ def build(bld):
             source='imgiter_test1.cpp', 
             use='mrimage_utils iterators') 
     
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='chunkiter_test', 
+            source='chunkiter_test.cpp', 
+            use='iterators mrimage')
+
     # Test Fourier Domain
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='fft_test', 
