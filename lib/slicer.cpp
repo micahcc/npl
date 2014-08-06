@@ -515,12 +515,12 @@ ChunkSlicer& ChunkSlicer::nextChunk()
 	
 	// try to move in whatever dimension can be stepped
 	m_end = true;
+	m_chunkend = false;
 	for(size_t ii=0; ii < m_ndim; ii++){
 		size_t dd = m_order[ii];
 		if(m_chunk[dd].second < m_roi[dd].second) {
 			// increment beginning chunk 
 			m_chunk[dd].first = m_chunk[dd].second+1;
-
 
 			// update second
 			if(m_chunksizes[dd]-1 + m_chunk[dd].first >= m_roi[dd].second || 
@@ -537,7 +537,7 @@ ChunkSlicer& ChunkSlicer::nextChunk()
 			
 			// update second
 			if(m_chunksizes[dd]-1 + m_chunk[dd].first >= m_roi[dd].second || 
-						m_chunksizes[dd]-1 == 0) 
+						m_chunksizes[dd] == 0) 
 				m_chunk[dd].second = m_roi[dd].second;
 			else 
 				m_chunk[dd].second = m_chunksizes[dd]-1 + m_chunk[dd].first;
@@ -566,6 +566,7 @@ ChunkSlicer& ChunkSlicer::prevChunk()
 	if(isBegin()) 
 		return *this;
 	m_end = false;
+	m_chunkend = false;
 
 	// try to move in whatever dimension can be stepped
 	for(size_t ii=0; ii < m_ndim; ii++){
@@ -590,7 +591,7 @@ ChunkSlicer& ChunkSlicer::prevChunk()
 				throw std::logic_error("Failed chunk stepping call the programmer");
 			}
 
-			m_end = false;
+			m_chunkend = false;
 			break;
 		} else {
 			// roll over beginning of chunk, need to be careful that we don't
@@ -599,16 +600,14 @@ ChunkSlicer& ChunkSlicer::prevChunk()
 			m_chunk[dd].second = m_roi[dd].second;
 			
 			// update second
-			if(m_chunksizes[dd] == 0 || m_chunksizes[dd] > (m_roi[dd].second -
-							m_roi[dd].first+1)) {
+			if(m_chunksizes[dd] == 0 || m_chunksizes[dd] > (m_roi[dd].second - m_roi[dd].first+1)) {
 				// just use the entire region
 				m_chunk[dd].first = m_roi[dd].first;
 			} else if(m_chunk[dd].second - (m_chunksizes[dd]-1)> m_roi[dd].first) {
 				// calculate reduced size, if things are going to be broken
 				// up due to modulus != 0, go ahead and reduce the size during
 				// the roll over
-				size_t rsize = m_chunksizes[dd]%(m_roi[dd].second - 
-						m_roi[dd].first + 1);
+				size_t rsize = (m_roi[dd].second - m_roi[dd].first + 1)%m_chunksizes[dd];
 				if(rsize == 0)
 					m_chunk[dd].first = m_chunk[dd].second - (m_chunksizes[dd]-1);
 				else
@@ -635,11 +634,20 @@ ChunkSlicer& ChunkSlicer::prevChunk()
 };
 
 /**
- * @brief Go to the beginning for the current chunk
+ * @brief Go to the end of the current chunk, if you are at the 
+ * end of iteration, then it does nothing. You need to prevChunk() first
+ *
+ */
+/**
+ * @brief Go to the beginning for the current chunk, if you are at the 
+ * end of iteration, then it does nothing. You need to prevChunk() first
  *
  */
 void ChunkSlicer::goChunkBegin()
 {
+	if(isEnd())
+		return;
+
 	m_chunkend = false;
 	m_end = false;
 	m_linpos = 0;
@@ -658,10 +666,11 @@ void ChunkSlicer::goChunkBegin()
  */
 void ChunkSlicer::goChunkEnd()
 {
-	bool wasend = m_end;
+	if(isEnd())
+		return;
+
 	goChunkBegin();
 	m_chunkend = true;
-	m_end = wasend;
 };
 
 /**

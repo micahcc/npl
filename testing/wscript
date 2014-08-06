@@ -17,6 +17,11 @@ def build(bld):
             use='slicer')
 
     bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='chunkslicer_test', 
+            source='chunkslicer_test.cpp', 
+            use='slicer')
+
+    bld.program(install_path='${PREFIX}/tests', features='test', 
             target='chunkslicer_test_roi', 
             source='chunkslicer_test_roi.cpp', 
             use='slicer')
