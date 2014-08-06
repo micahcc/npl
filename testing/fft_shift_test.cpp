@@ -28,7 +28,9 @@
 #include <stdexcept>
 
 #include "mrimage.h"
+#include "fftshift.h"
 #include "mrimage_utils.h"
+#include "ndarray_utils.h"
 #include "iterators.h"
 #include "accessors.h"
 
@@ -87,29 +89,11 @@ int main()
 		++sit;
 	}
 	
-	// fourier transform image in xyz direction
-	auto fft = fft_r2c(in);
-	
 	// perform fourier shift, +a
 	// strictly the frequency for component k (where k = k-N/2,N/2]
 	// double T = fft->dim(d)*in->spacing()[d];
 	// double f = k/T; // where T is the total sampling period
 	double shift[3] = {1, 5, 10};
-
-	OrderIter<cdouble_t> fit(fft);
-	std::complex<double> i(0, 1);
-	const double PI = acos(-1);
-	for(fit.goBegin(); !fit.isEnd(); ++fit) {
-		fit.index(3, index);
-		cdouble_t orig = *fit;;
-		cdouble_t term = 0;
-		for(size_t dd=0; dd<fft->ndim(); dd++)
-			term += -2.0*PI*i*shift[dd]*(double)index[dd]/(double)fft->dim(dd);
-		orig = orig*std::exp(term);
-		fit.set(orig);
-	}
-
-	auto ifft = dynamic_pointer_cast<MRImage>(ifft_c2r(fft));
 
 	// manual shift
 	auto mshift = dynamic_pointer_cast<MRImage>(in->copy());
@@ -118,21 +102,23 @@ int main()
 		it.index(3, index);
 		
 		for(size_t dd = 0 ; dd < in->ndim(); dd++)
-			index[dd] = clamp<int64_t>(0, in->dim(dd)-1, index[dd]+shift[dd]);
+			index[dd] = clamp<int64_t>(0, in->dim(dd)-1, index[dd]-shift[dd]);
 
 		it.set(acc.get(3, index));
 
 	}
 	mshift->write("manual_shift.nii.gz");
-	ifft->write("fourier_shift.nii.gz");
+	
+	
+	for(size_t ii=0; ii<sizeof(shift)/sizeof(double); ii++)
+		shiftImage(in, ii, shift[ii]);
+	
+	in->write("fourier_shift.nii.gz");
 
-	if(closeCompare(ifft, mshift) != 0)
+	if(closeCompare(in, mshift) != 0)
 		return -1;
 	
 
 	return 0;
 }
-
-
-
 

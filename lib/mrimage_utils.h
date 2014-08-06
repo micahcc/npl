@@ -236,5 +236,17 @@ shared_ptr<MRImage> fft_r2c(shared_ptr<const MRImage> in);
  */
 shared_ptr<MRImage> ifft_c2r(shared_ptr<const MRImage> in);
 
+/**
+ * @brief Uses fourier shift theorem to shift an image
+ *
+ * @param in Input image to shift
+ * @param len length of dx array
+ * @param vect movement in physical coordinates, will be rotated using image
+ * orientation prior to shifting
+ *
+ * @return shifted image
+ */
+shared_ptr<MRImage> shiftImage(shared_ptr<MRImage> in, size_t len, double* vect);
+
 } // npl
 #endif  //IMAGE_PROCESSING_H

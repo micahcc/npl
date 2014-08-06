@@ -460,6 +460,72 @@ shared_ptr<NDArray> dilate(shared_ptr<NDArray> in, size_t reps)
 	return out;
 }
 
+/**
+ * @brief Uses fourier shift theorem to rotate an image, using shears
+ *
+ * @param inout Input/output image to shift
+ * @param dd dimension of image to shift
+ * @param dist Distance (index's) to shift
+ *
+ * @return rotated image
+ */
+void shiftImage(shared_ptr<NDArray> inout, size_t dd, double dist)
+{
+	assert(dd < inout->ndim());
+
+	const std::complex<double> I(0, 1);
+	const double PI = acos(-1);
+	size_t padsize = round2(inout->dim(dd));
+	size_t paddiff = padsize-inout->dim(dd);
+	auto buffer = fftw_alloc_complex(padsize);
+	fftw_plan fwd = fftw_plan_dft_1d((int)padsize, buffer, buffer, 
+			FFTW_FORWARD, FFTW_MEASURE);
+	fftw_plan rev = fftw_plan_dft_1d((int)padsize, buffer, buffer, 
+			FFTW_BACKWARD, FFTW_MEASURE);
+
+	// need copy data into center of buffer, create iterator that moves
+	// in the specified dimension fastest
+	OrderConstIter<cdouble_t> iit(inout);
+	OrderIter<cdouble_t> oit(inout);
+	iit.setOrder({dd});
+	oit.setOrder({dd});
+
+	for(iit.goBegin(), oit.goBegin(); !iit.isEnd() ; ++iit, ++oit) {
+		// zero buffer 
+		for(size_t tt=0; tt<padsize; tt++) {
+			buffer[tt][0] = 0;
+			buffer[tt][1] = 0;
+		}
+
+		// fill from line
+		for(size_t tt=0; tt<inout->dim(dd); ++iit, tt++) {
+			buffer[tt+paddiff/2][0] = (*iit).real();
+			buffer[tt+paddiff/2][1] = (*iit).imag();
+		}
+
+		// fourier transform
+		fftw_execute(fwd);
+
+		// fourier shift
+		for(size_t tt=0; tt<padsize; tt++) {
+			cdouble_t tmp(buffer[tt][0], buffer[tt][1]);
+			tmp *= std::exp(-2.*PI*I*dist*(double)tt/(double)padsize);
+			buffer[tt][0] = tmp.real()/padsize;
+			buffer[tt][1] = tmp.imag()/padsize;
+		}
+
+		// inverse fourier transform
+		fftw_execute(rev);
+
+		// fill line from buffer
+		for(size_t tt=0; tt<inout->dim(dd); ++oit, tt++) {
+			cdouble_t tmp(buffer[tt+paddiff/2][0], buffer[tt+paddiff/2][1]);
+			oit.set(tmp); 
+		}
+	}
+}
+
+
 
 } // npl
 #endif  //IMAGE_PROCESSING_H

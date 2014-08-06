@@ -876,14 +876,18 @@ void ChunkSlicer::setROI(size_t len, const int64_t* lower, const int64_t* upper)
  * cause chunks to after {XLEN-1, 1, 1}. {0,0,0} (the default) indicate
  * that the entire image will be iterated and only one chunk will be used. 
  *
- * Invalidates position
- *
  * @param len Length of sizes array
  * @param sizes Size of chunk in each dimension. If you multiply together
  * the elements of sizes that is the MAXIMUM number of iterations between 
  * chunks. Note however that there could be less if we are at the edge.
+ * @param defunity Sets the default to unity rather than 0. Thus 
+ * unreferenced dimensions will be broken up at each step; so {0,1} for a
+ * 4D image will be effectively {0,1,1,1} instead of {0,1,0,0}. This is
+ * convenient, for instance, if you want to split up based on volumes,
+ * {0,0,0} would stop at the end of each volume, whereas the default would
+ * be to treat the entire ND-image as a chunk.
  */
-void ChunkSlicer::setChunkSize(size_t len, const int64_t* sizes)
+void ChunkSlicer::setChunkSize(size_t len, const int64_t* sizes, bool defunity)
 {
 	assert(m_roi.size() == m_ndim);
 	m_chunk.resize(m_ndim);
@@ -891,31 +895,11 @@ void ChunkSlicer::setChunkSize(size_t len, const int64_t* sizes)
 
 	// missing values are assumed to be full (0)
 	for(size_t ii=0; ii<m_ndim; ii++) {
-		if(ii<len && sizes[ii] > 0) {
+		if(ii<len && sizes[ii] > 0)
 			m_chunksizes[ii] = sizes[ii];
-		} else { 
-			m_chunksizes[ii] = 0;
-		}
+		else 
+			m_chunksizes[ii] = (int)defunity;
 	}
-}
-
-/**
- * @brief Set the sizes of chunks for each dimension. Chunks will end every
- * N steps in each of the provided dimension, with the caveout that 0
- * indicates no breaks in the given dimension. So size = {0, 2, 2} will
- * cause chunks to after {XLEN-1, 1, 1}. {0,0,0} (the default) indicate
- * that the entire image will be iterated and only one chunk will be used. 
- *
- * Invalidates position
- *
- * @param len Length of sizes array
- * @param sizes Size of chunk in each dimension. If you multiply together
- * the elements of sizes that is the MAXIMUM number of iterations between 
- * chunks. Note however that there could be less if we are at the edge.
- */
-void ChunkSlicer::setBreaks(size_t len, const int64_t* sizes)
-{
-	setChunkSize(len, sizes);
 }
 
 /**

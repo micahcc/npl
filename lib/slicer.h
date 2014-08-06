@@ -491,22 +491,14 @@ public:
 	 * @param sizes Size of chunk in each dimension. If you multiply together
 	 * the elements of sizes that is the MAXIMUM number of iterations between 
 	 * chunks. Note however that there could be less if we are at the edge.
+	 * @param defunity Sets the default to unity rather than 0. Thus 
+	 * unreferenced dimensions will be broken up at each step; so {0,1} for a
+	 * 4D image will be effectively {0,1,1,1} instead of {0,1,0,0}. This is
+	 * convenient, for instance, if you want to split up based on volumes,
+	 * {0,0,0} would stop at the end of each volume, whereas the default would
+	 * be to treat the entire ND-image as a chunk.
 	 */
-	void setChunkSize(size_t len, const int64_t* sizes);
-
-	/**
-	 * @brief Set the sizes of chunks for each dimension. Chunks will end every
-	 * N steps in each of the provided dimension, with the caveout that 0
-	 * indicates no breaks in the given dimension. So size = {0, 2, 2} will
-	 * cause chunks to after {XLEN-1, 1, 1}. {0,0,0} (the default) indicate
-	 * that the entire image will be iterated and only one chunk will be used. 
-	 *
-	 * @param len Length of sizes array
-	 * @param sizes Size of chunk in each dimension. If you multiply together
-	 * the elements of sizes that is the MAXIMUM number of iterations between 
-	 * chunks. Note however that there could be less if we are at the edge.
-	 */
-	void setBreaks(size_t len, const int64_t* sizes);
+	void setChunkSize(size_t len, const int64_t* sizes, bool defunity = false);
 
 	/**
 	 * @brief Sets the order of iteration from ++/-- operators

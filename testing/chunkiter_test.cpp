@@ -36,7 +36,7 @@ int test1(shared_ptr<MRImage> img)
 
 	ChunkIter<int> slicer(img);
 	slicer.setROI(3, roi1, roi2);
-	slicer.setBreaks(3, breaks);
+	slicer.setChunkSize(3, breaks);
 	slicer.goBegin();
 	for(int64_t xx=3; xx<=7; xx++) {
 		for(int64_t yy=5; yy<=8; yy++) {
@@ -67,7 +67,7 @@ int test2(shared_ptr<MRImage> img)
 	int64_t roi2[3] = {7, 8, 6};
 	slicer.setROI(3, roi1, roi2);
 	int64_t breaks[] = {1, 0, 0};
-	slicer.setBreaks(3, breaks);
+	slicer.setChunkSize(3, breaks);
 	slicer.goBegin();
 	for(int64_t xx=3; xx<=7; xx++) {
 		for(int64_t yy=5; yy<=8; yy++) {
@@ -97,7 +97,7 @@ int test3(shared_ptr<MRImage> img)
 	int64_t roi1[3] = {3, 5, 4};
 	int64_t roi2[3] = {7, 8, 6};
 	int64_t breaks[] = {1, 0, 0};
-	slicer.setBreaks(3, breaks);
+	slicer.setChunkSize(3, breaks);
 	slicer.setROI(3, roi1, roi2);
 	slicer.goBegin();
 	for(int64_t xx=3; xx<=7; xx++) {
@@ -126,7 +126,7 @@ int test4(shared_ptr<MRImage> img)
 	ChunkIter<int> slicer(img);
 
 	int64_t breaks[] = {1, 0, 0};
-	slicer.setBreaks(3, breaks);
+	slicer.setChunkSize(3, breaks);
 	slicer.goBegin();
 	for(int64_t xx=0; xx<=9; xx++) {
 		for(int64_t yy=0; yy<=9; yy++) {
@@ -158,7 +158,7 @@ int test5(shared_ptr<MRImage> img)
 	slicer.setROI(3, roi1, roi2);
 
 	int64_t breaks[] = {2, 3, 7};
-	slicer.setBreaks(3, breaks);
+	slicer.setChunkSize(3, breaks);
 	slicer.goBegin();
 	
 	// y steps
@@ -330,7 +330,7 @@ int test6(shared_ptr<MRImage> img)
 	slicer.setROI(3, roi1, roi2);
 
 	int64_t breaks[] = {2, 3, 7};
-	slicer.setBreaks(3, breaks);
+	slicer.setChunkSize(3, breaks);
 	slicer.goBegin();
 	
 	// y steps
@@ -558,7 +558,7 @@ int test7(shared_ptr<MRImage> img)
 	slicer.setROI(3, roi1, roi2);
 
 	int64_t breaks[] = {2, 3, 7};
-	slicer.setBreaks(3, breaks);
+	slicer.setChunkSize(3, breaks);
 	slicer.goBegin();
 	
 	// y steps

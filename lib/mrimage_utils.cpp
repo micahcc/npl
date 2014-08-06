@@ -1005,6 +1005,30 @@ shared_ptr<MRImage> fft_r2c(shared_ptr<const MRImage> in)
 	return out;
 }
 
+/**
+ * @brief Uses fourier shift theorem to shift an image
+ *
+ * @param in Input image to shift
+ * @param len length of dx array
+ * @param dx movement in physical coordinates
+ *
+ * @return shifted image
+ */
+shared_ptr<MRImage> shiftImage(shared_ptr<MRImage> in, size_t len, double* dx)
+{
+
+	auto out = dynamic_pointer_cast<MRImage>(in->copy());
+	std::vector<double> shift(len);
+	in->disOrientVector(len, dx, shift.data());
+
+	// for each dimension
+	for(size_t ii=0; ii<len && ii<in->ndim(); ii++) {
+		shiftImage(out, ii, dx[ii]);
+	}
+
+	return out;
+}
+
 
 } // npl
 

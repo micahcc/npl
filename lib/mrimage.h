@@ -248,6 +248,37 @@ public:
 	virtual int pointToIndex(size_t len, const double* ras, int64_t* index) const=0;
 	
 	/**
+	 * @brief Convert a vector in index coordinates to a vector in ras
+	 * coordinates. Vector is simply multiplied by the internal rotation
+	 * matrix.
+	 *
+	 * @param len Length of input vector (may be different than dimension -
+	 * extra values will be ignored, missing values will be assumed zero)
+	 * @param xyz Input vector in index space ijk.... 
+	 * @param ras Output vector in physical space. This is the product of the
+	 * input vector and rotation matrix 
+	 *
+	 * @return Success
+	 */
+	virtual int orientVector(size_t len, const double* xyz, double* ras) const=0;
+
+	/**
+	 * @brief Convert a vector in index coordinates to a vector in ras
+	 * coordinates. Vector is simply multiplied by the internal rotation
+	 * matrix.
+	 *
+	 * @param len Length of input vector (may be different than dimension -
+	 * extra values will be ignored, missing values will be assumed zero)
+	 * @param ras Input vector in physical space. 
+	 * @param xyz Output vector in index space ijk. This is the product of the
+	 * input vector and inverse rotation matrix 
+
+	 *
+	 * @return Success
+	 */
+	virtual int disOrientVector(size_t len, const double* ras, double* xyz) const=0;
+	
+	/**
 	 * @brief Returns true if the point is within the field of view of the
 	 * image. Note, like all coordinates pass to MRImage, if the array given
 	 * differs from the dimensions of the image, then the result will either
@@ -532,6 +563,37 @@ public:
 	 * @return 0
 	 */
 	virtual int pointToIndex(size_t len, const double* ras, int64_t* index) const;
+	
+	/**
+	 * @brief Convert a vector in index coordinates to a vector in ras
+	 * coordinates. Vector is simply multiplied by the internal rotation
+	 * matrix.
+	 *
+	 * @param len Length of input vector (may be different than dimension -
+	 * extra values will be ignored, missing values will be assumed zero)
+	 * @param xyz Input vector in index space ijk.... 
+	 * @param ras Output vector in physical space. This is the product of the
+	 * input vector and rotation matrix 
+	 *
+	 * @return Success
+	 */
+	virtual int orientVector(size_t len, const double* xyz, double* ras) const;
+
+	/**
+	 * @brief Convert a vector in index coordinates to a vector in ras
+	 * coordinates. Vector is simply multiplied by the internal rotation
+	 * matrix.
+	 *
+	 * @param len Length of input vector (may be different than dimension -
+	 * extra values will be ignored, missing values will be assumed zero)
+	 * @param ras Input vector in physical space. 
+	 * @param xyz Output vector in index space ijk. This is the product of the
+	 * input vector and inverse rotation matrix 
+
+	 *
+	 * @return Success
+	 */
+	virtual int disOrientVector(size_t len, const double* ras, double* xyz) const;
 	
 	/**
 	 * @brief Returns true if the point is within the field of view of the

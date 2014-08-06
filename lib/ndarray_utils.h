@@ -129,6 +129,26 @@ shared_ptr<NDArray> dilate(shared_ptr<NDArray> in, size_t reps);
  */
 shared_ptr<NDArray> erode(shared_ptr<NDArray> in, size_t reps);
 
+/**
+ * @brief Performs unidirectional shift in the direction of +dd, of distance 
+ * (in units of pixels).
+ *
+ * @param inout Input/output image
+ * @param dd Dimension to shift, will be positive 
+ * @param dist
+ */
+void shiftImage(shared_ptr<NDArray> inout, size_t dd, double dist);
+
+/**
+ * @brief Performs a rotation using fourier shift and shears. 
+ *
+ * @param inout Input/output image
+ * @param rx Rotation about x axis
+ * @param ry Rotation about y axis
+ * @param rz Rotation about z axis
+ */
+void rotateImage(shared_ptr<NDArray> inout, double rx, double ry, double rz);
+
 } // npl
 #endif  //ND_ALGOS_H
 

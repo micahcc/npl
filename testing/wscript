@@ -158,6 +158,11 @@ def build(bld):
             use='ndarray_utils mrimage_utils iterators') 
 
     bld.program(install_path='${PREFIX}/tests', features='test',
+            target='fft_rotate_test', 
+            source='fft_rotate_test.cpp', 
+            use='ndarray_utils mrimage_utils iterators') 
+
+    bld.program(install_path='${PREFIX}/tests', features='test',
             target='fract_fft_test', 
             source='fract_fft_test.cpp', 
             use='FFTW utility') 

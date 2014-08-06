@@ -31,28 +31,6 @@ the Neural Programs Library.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace npl{
 
-/**
- * @brief Performs unidirectional shift in the direction of +dd, of distance 
- * (in units of pixels).
- *
- * @param inout Input/output image
- * @param dd Dimension to shift, will be positive 
- * @param dist
- */
-void shiftImage(shared_ptr<MRImage> inout, size_t dd, double dist);
-
-/**
- * @brief Uses fourier shift theorem to shift an image
- *
- * @param in Input image to shift
- * @param len length of dx array
- * @param dx movement in physical coordinates, will be rotated using image
- * orientation prior to shifting
- *
- * @return shifted image
- */
-shared_ptr<MRImage> shiftImage(shared_ptr<MRImage> in, size_t len, double* dx);
-
 }
 
 #endif //FFTSHIFT_H
