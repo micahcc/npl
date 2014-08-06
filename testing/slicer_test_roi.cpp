@@ -18,7 +18,12 @@
  *
  *****************************************************************************/
 
+#include <iostream>
+
 #include "slicer.h"
+
+using namespace std;
+using namespace npl;
 
 int main()
 {

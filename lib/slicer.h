@@ -58,6 +58,13 @@ public:
 	 * @param dim	array providing the size in each dimension
 	 */
 	Slicer(size_t ndim, const size_t* dim);
+
+	/**
+	 * @brief Updates dimensions of target nd array
+	 *
+	 * @param dim	size of nd array, number of dimesions given by dim.size()
+	 */
+	void setDim(size_t ndim, const size_t* dim);
 	
 	/****************************************
 	 *
@@ -70,7 +77,7 @@ public:
 	 *
 	 * @return true if we are at the begining
 	 */
-	bool isBegin() const { return m_linpos==m_linfirst; };
+	bool isBegin() const { return !isEnd() && m_linpos==m_linfirst; };
 
 	/**
 	 * @brief Are we at the end of iteration? Note that this will be 1 past the
@@ -187,7 +194,8 @@ public:
 	 * @param upper	Coordinate at upper bound of bounding box.
 	 * @param roi	pair of [min,max] values in the desired hypercube
 	 */
-	void setROI(size_t len, const int64_t* lower, const int64_t* upper);
+	void setROI(size_t len = 0, const int64_t* lower = NULL, 
+			const int64_t* upper = NULL);
 
 	/**
 	 * @brief Sets the order of iteration from ++/-- operators
@@ -200,6 +208,13 @@ public:
 	 * 					specified in order will be faster than those included.
 	 */
 	void setOrder(const std::vector<size_t>& order, bool revorder = false);
+	
+	/**
+	 * @brief Sets the order of iteration from ++/-- operators. Order will be
+	 * the default (highest to lowest)
+	 *
+	 */
+	void setOrder();
 
 	/**
 	 * @brief Returns the array giving the order of dimension being traversed.
@@ -221,25 +236,14 @@ protected:
 	
 	size_t m_linpos;
 	size_t m_linfirst;
-	size_t m_linlast;
-	bool m_end;
-	std::vector<size_t> m_order;
 	std::vector<int64_t> m_pos;
+	bool m_end;
+
+	size_t m_ndim;
+	std::vector<size_t> m_order;
 	std::vector<std::pair<int64_t,int64_t>> m_roi;
-
-	// these might benefit from being constant
-	std::vector<size_t> m_sizes;
+	std::vector<size_t> m_dim;
 	std::vector<size_t> m_strides;
-	size_t m_total;
-
-	void updateLinRange();
-
-	/**
-	 * @brief Updates dimensions of target nd array
-	 *
-	 * @param dim	size of nd array, number of dimesions given by dim.size()
-	 */
-	void updateDim(size_t ndim, const size_t* dim);
 };
 
 /**
@@ -287,6 +291,16 @@ public:
 	 * @param dim	array providing the size in each dimension
 	 */
 	ChunkSlicer(size_t ndim, const size_t* dim);
+
+	/**
+	 * @brief Sets the dimensionality of iteration, and the dimensions of the image
+	 *
+	 * Invalidates position and ROI.
+	 *
+	 * @param ndim Number of dimension
+	 * @param dim Dimensions (size)
+	 */
+	void setDim(size_t ndim, const size_t* dim);
 	
 	/****************************************
 	 *
@@ -299,7 +313,7 @@ public:
 	 *
 	 * @return true if we are at the begining
 	 */
-	bool isBegin() const { return m_linpos==m_linfirst; };
+	bool isBegin() const { return !isEnd() && m_linpos==m_linfirst; };
 
 	/**
 	 * @brief Are we at the end of iteration? Note that this will be 1 past the
@@ -532,11 +546,11 @@ protected:
 	
 	// position
 	size_t m_linpos;
-	std::vector<size_t> m_pos;
+	std::vector<int64_t> m_pos;
 	std::vector<std::pair<int64_t,int64_t>> m_chunk;
 	
 	// relatively static
-	std::vector<size_t>  m_order;
+	std::vector<size_t> m_order;
 	std::vector<std::pair<int64_t,int64_t>> m_roi;
 	std::vector<int64_t> m_chunksizes;
 

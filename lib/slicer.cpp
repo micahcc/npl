@@ -25,6 +25,7 @@
 #include <list>
 #include <algorithm>
 #include <cassert>
+#include <stdexcept>
 
 namespace npl {
 
@@ -34,7 +35,7 @@ namespace npl {
 Slicer::Slicer()
 {
 	size_t tmp = 1;
-	updateDim(1, &tmp);
+	setDim(1, &tmp);
 	goBegin();
 };
 
@@ -45,7 +46,7 @@ Slicer::Slicer()
  */
 Slicer::Slicer(size_t ndim, const size_t* dim)
 {
-	updateDim(ndim, dim);
+	setDim(ndim, dim);
 	goBegin();
 };
 
@@ -60,21 +61,17 @@ Slicer& Slicer::operator++()
 	if(isEnd())
 		return *this;
 
-	for(size_t ii=0; ii<m_order.size(); ii++){
+	m_end = true; // m_end set to false indicates we have found a non-end incr
+	for(size_t ii=0; m_end && ii < m_ndim; ii++){
 		size_t dd = m_order[ii];
 		if(m_pos[dd] < m_roi[dd].second) {
 			m_pos[dd]++;
 			m_linpos += m_strides[dd];
-			break;
-		} else if(ii != m_order.size()-1){
-			// rool over (unles we are the last dimension)
+			m_end = false; 
+		} else {
+			// roll over 
 			m_linpos -= (m_pos[dd]-m_roi[dd].first)*m_strides[dd];
 			m_pos[dd] = m_roi[dd].first;
-		} else {
-			// we are willing to go 1 past the last
-			m_pos[dd]++;
-			m_linpos += m_strides[dd];
-			m_end = true;
 		}
 	}
 
@@ -91,16 +88,16 @@ Slicer& Slicer::operator--()
 {
 	if(isBegin())
 		return *this;
-
 	m_end = false;
-	for(size_t ii=0; ii<m_order.size(); ii++){
+
+	for(size_t ii=0; ii<m_ndim; ii++){
 		size_t dd = m_order[ii];
-		if(m_pos[dd] != m_roi[dd].first) {
+		if(m_pos[dd] > m_roi[dd].first) {
 			m_pos[dd]--;
 			m_linpos -= m_strides[dd];
 			break;
-		} else if(ii != m_order.size()-1) {
-			// jump forward in dd, (will pull back in next)
+		} else {
+			// roll over
 			m_linpos += (m_roi[dd].second-m_pos[dd])*m_strides[dd];
 			m_pos[dd] = m_roi[dd].second;
 		}
@@ -109,62 +106,42 @@ Slicer& Slicer::operator--()
 	return *this;
 };
 
-void Slicer::updateLinRange()
-{
-	m_total = 1;
-	for(size_t ii=0; ii<m_sizes.size(); ii++)
-		m_total *= m_sizes[ii];
-	
-	// all the dimensions should be at lower bound except lowest priority
-	m_linfirst = 0;
-	m_linlast = 0;
-	for(size_t ii=0; ii<m_order.size(); ii++) {
-		m_linfirst += m_strides[ii]*m_roi[ii].first;
-
-		if(ii == m_order.size()-1) {
-			m_linlast += m_strides[ii]*m_roi[ii].second;
-		} else {
-			m_linlast += m_strides[ii]*m_roi[ii].first;
-		}
-	}
-};
-
 /**
  * @brief Updates dimensions of target nd array
  *
+ * Invalidates position, Order, ROI gets reset, 
+ *
  * @param dim	size of nd array, number of dimesions given by dim.size()
  */
-void Slicer::updateDim(size_t ndim, const size_t* dim)
+void Slicer::setDim(size_t ndim, const size_t* dim)
 {
-	assert(ndim > 0);
-
-	m_roi.resize(ndim);
-	m_sizes.assign(dim, dim+ndim);
-	m_order.resize(ndim);
-	m_pos.resize(ndim);
-	m_strides.resize(ndim);
-
-	// reset position
-	std::fill(m_pos.begin(), m_pos.end(), 0);
 	m_linpos = 0;
+	m_linfirst = 0;
+	m_pos.resize(ndim);
+	std::fill(m_pos.begin(), m_pos.end(), 0);
+	m_dim.assign(dim, dim+ndim);
+	
+	m_end = false;
+	m_ndim = ndim;
 
-	// reset ROI
-	for(size_t ii=0; ii<ndim; ii++) {
-		m_roi[ii].first = 0;
-		m_roi[ii].second = m_sizes[ii]-1;
-	};
+	// reset order
+	m_order.resize(ndim);
+	for(int64_t ii=0; ii<ndim; ii++)
+		m_order[ii] = ((int64_t)ndim)-1-ii;
 
-	// reset default order
-	for(size_t ii=0 ; ii<ndim ; ii++)
-		m_order[ii] = ndim-1-ii;
-
+	// set ROI to max
+	m_roi.resize(ndim);
+	for(size_t ii = 0; ii<ndim; ii++) {
+		m_roi[ii].first = 0; 
+		m_roi[ii].second = dim[ii]-1;
+	}
+	
 	// set up strides
+	m_strides.resize(ndim);
 	m_strides[ndim-1] = 1;
-	for(int64_t ii=(int64_t)ndim-2; ii>=0; ii--) {
+	for(int64_t ii=((int64_t)ndim)-2; ii>=0; ii--) {
 		m_strides[ii] = m_strides[ii+1]*dim[ii+1];
 	}
-
-	updateLinRange();
 };
 
 /**
@@ -179,35 +156,42 @@ void Slicer::updateDim(size_t ndim, const size_t* dim)
  */
 void Slicer::index(size_t len, int64_t* index) const
 {
-	for(size_t ii=0; ii< len && ii<m_pos.size(); ii++) {
-		index[ii] = m_pos[ii];
+	for(size_t ii=0; ii<len; ii++) {
+		if(ii<m_ndim) {
+			index[ii] = m_pos[ii];
+		} else {
+			index[ii] = 0;
+		}
 	}
-
-	for(size_t ii=m_pos.size(); ii<len; ii++)
-		index[ii] = 0;
 }
 
 /**
  * @brief Sets the region of interest. During iteration or any motion the
  * position will not move outside the specified range. Invalidates position.
  *
+ * Invalidates position
+ *
  * @param roi	pair of [min,max] values in the desired hypercube
  */
 void Slicer::setROI(const std::vector<std::pair<int64_t, int64_t>>& roi)
 {
-	for(size_t ii=0; ii<m_sizes.size(); ii++) {
+	m_linfirst = 0;
+	for(size_t ii=0; ii<m_ndim ; ii++) {
 		if(ii < roi.size()) {
 			// clamp, to be <= 0...sizes[ii]-1
-			m_roi[ii].first = clamp<int64_t>(0, m_sizes[ii]-1, roi[ii].first);
-			m_roi[ii].second = clamp<int64_t>(0, m_sizes[ii]-1, roi[ii].second);
+			m_roi[ii].first = clamp<int64_t>(0, m_dim[ii]-1, roi[ii].first);
+			m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, roi[ii].second);
 		} else {
 			// no specification, just make it all
 			m_roi[ii].first = 0;
-			m_roi[ii].second= m_sizes[ii]-1;
+			m_roi[ii].second = m_dim[ii]-1;
 		}
+		m_linfirst += m_strides[ii]*m_roi[ii].first;
 	}
 
-	updateLinRange();
+	for(size_t ii=0; ii<m_ndim; ii++)
+		m_pos[ii] = m_roi[ii].first;
+	m_linpos = m_linfirst;
 }
 
 /**
@@ -216,25 +200,45 @@ void Slicer::setROI(const std::vector<std::pair<int64_t, int64_t>>& roi)
  * Any missing dimensions will be set to the largest possible region. IE a
  * length=2 lower and upper for a 3D space will have [0, dim[2]] as the range
  *
+ * Invalidates position
+ *
  * @param len	Length of lower/upper arrays
  * @param lower	Lower bound of ROI (ND-index)
  * @param upper Upper bound of ROI (ND-index)
  */
 void Slicer::setROI(size_t len, const int64_t* lower, const int64_t* upper)
 {
-	for(size_t ii=0; ii<m_sizes.size(); ii++) {
+	m_linfirst = 0;
+	for(size_t ii=0; ii<m_ndim ; ii++) {
 		if(ii < len) {
 			// clamp, to be <= 0...sizes[ii]-1
-			m_roi[ii].first = clamp<int64_t>(0, m_sizes[ii]-1, lower[ii]);
-			m_roi[ii].second = clamp<int64_t>(0, m_sizes[ii]-1, upper[ii]);
+			m_roi[ii].first = clamp<int64_t>(0, m_dim[ii]-1, lower[ii]);
+			m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, upper[ii]);
 		} else {
 			// no specification, just make it all
 			m_roi[ii].first = 0;
-			m_roi[ii].second= m_sizes[ii]-1;
+			m_roi[ii].second = m_dim[ii]-1;
 		}
+		m_linfirst += m_strides[ii]*m_roi[ii].first;
 	}
 
-	updateLinRange();
+	for(size_t ii=0; ii<m_ndim; ii++)
+		m_pos[ii] = m_roi[ii].first;
+	m_linpos = m_linfirst;
+}
+	
+/**
+ * @brief Sets the order of iteration from ++/-- operators. Order will be
+ * the default (highest to lowest)
+ *
+ * Invalidates position
+ *
+ */
+void Slicer::setOrder()
+{
+	m_order.resize(m_ndim);
+	for(int64_t ii=0; ii<(int64_t)m_ndim; ii++) 
+		m_order[ii] = m_ndim-ii-1;
 }
 
 /**
@@ -250,12 +254,11 @@ void Slicer::setROI(size_t len, const int64_t* lower, const int64_t* upper)
  */
 void Slicer::setOrder(const std::vector<size_t>& order, bool revorder)
 {
-	size_t ndim = m_sizes.size();
 	m_order.clear();
 
 	// need to ensure that all dimensions get covered
 	std::list<size_t> avail;
-	for(size_t ii=0 ; ii<ndim ; ii++) {
+	for(size_t ii=0 ; ii<m_ndim ; ii++) {
 		if(revorder)
 			avail.push_front(ii);
 		else
@@ -287,14 +290,12 @@ void Slicer::setOrder(const std::vector<size_t>& order, bool revorder)
 			m_order.push_back(*it);
 		// reverse 6D, {0,5},{1,4},{2,3}
 		// reverse 5D, {0,4},{1,3}
-		for(size_t ii=0; ii<ndim/2; ii++)
-			std::swap(m_order[ii],m_order[ndim-1-ii]);
+		for(size_t ii=0; ii<m_ndim/2; ii++)
+			std::swap(m_order[ii],m_order[m_ndim-1-ii]);
 	} else {
 		for(auto it=avail.rbegin(); it != avail.rend(); ++it)
 			m_order.push_back(*it);
 	}
-
-	updateLinRange();
 };
 
 /**
@@ -310,17 +311,16 @@ void Slicer::goIndex(size_t len, int64_t* newpos)
 	size_t ii=0;
 
 	// copy the dimensions
-	for(ii = 0;  ii<len && ii<m_pos.size(); ii++) {
+	for(ii = 0;  ii<m_pos.size(); ii++) {
 		assert(newpos[ii] >= m_roi[ii].first && newpos[ii] <= m_roi[ii].second);
 
 		// set position
-		m_pos[ii] = newpos[ii];
+		if(ii < len) 
+			m_pos[ii] = newpos[ii];
+		else 
+			m_pos[ii] = 0;
 		m_linpos += m_strides[ii]*m_pos[ii];
 	}
-
-	// set the unreferenced dimensions to 0
-	for(;  ii<m_pos.size(); ii++)
-		m_pos[ii] = 0;
 
 	m_end = false;
 };
@@ -335,19 +335,16 @@ void Slicer::goIndex(std::vector<int64_t> newpos)
 	m_linpos = 0;
 
 	// copy the dimensions
-	size_t ii=0;
-	for(auto it=newpos.begin(); it != newpos.end() && ii<m_pos.size(); ii++) {
-		// clamp value
+	for(size_t ii=0; ii < m_ndim; ii++) {
 		assert(newpos[ii] >= m_roi[ii].first && newpos[ii] <= m_roi[ii].second);
 
 		// set position
-		m_pos[ii] = newpos[ii];
+		if(ii < newpos.size()) 
+			m_pos[ii] = newpos[ii];
+		else
+			m_pos[ii] = 0;
 		m_linpos += m_strides[ii]*m_pos[ii];
 	}
-
-	// set the unreferenced dimensions to 0
-	for(;  ii<m_pos.size(); ii++)
-		m_pos[ii] = 0;
 
 	m_end = false;
 };
@@ -360,7 +357,7 @@ void Slicer::goIndex(std::vector<int64_t> newpos)
  */
 void Slicer::goBegin()
 {
-	for(size_t ii=0; ii<m_sizes.size(); ii++)
+	for(size_t ii=0; ii<m_ndim ; ii++)
 		m_pos[ii] = m_roi[ii].first;
 	m_linpos = m_linfirst;
 	m_end = false;
@@ -368,17 +365,14 @@ void Slicer::goBegin()
 	
 void Slicer::goEnd()
 {
-	for(size_t ii=0; ii<m_sizes.size(); ii++)
-		m_pos[ii] = m_roi[ii].second;
-	m_linpos = m_linlast;
+	goBegin();
 	m_end = true;
 }
 
 /**
  * @brief Default Constructor, max a length 1, dimension 1 slicer
  */
-ChunkSlicer() : m_order(NULL), m_pos(NULL), m_roi(NULL), m_chunk(NULL),
-	m_dim(NULL), m_strides(NULL)
+ChunkSlicer::ChunkSlicer() 
 {
 	size_t i=1;
 	setDim(1, &i);
@@ -391,36 +385,61 @@ ChunkSlicer() : m_order(NULL), m_pos(NULL), m_roi(NULL), m_chunk(NULL),
  * @param ndim	size of ND array
  * @param dim	array providing the size in each dimension
  */
-ChunkSlicer(size_t ndim, const size_t* dim) : m_order(NULL), m_pos(NULL),
-	m_roi(NULL), m_chunk(NULL), m_dim(NULL), m_strides(NULL)
-
+ChunkSlicer::ChunkSlicer(size_t ndim, const size_t* dim) 
 {
 	setDim(ndim, dim);
 }
 
-
 /**
  * @brief Sets the dimensionality of iteration, and the dimensions of the image
  *
- * Invalidates position and ROI.
+ * Position, ROI, Order, ChunkSize will all be set to their defaults.
  *
  * @param ndim Number of dimension
  * @param dim Dimensions (size)
  */
-ChunkSlicer::setDim(size_t ndim, const size_t* dim)
+void ChunkSlicer::setDim(size_t ndim, const size_t* dim)
 {
+	m_linpos = 0;
+	m_linfirst = 0;
+	m_pos.resize(ndim);
+	std::fill(m_pos.begin(), m_pos.end(), 0);
+	
+	m_end = false;
 	m_ndim = ndim;
-	for(size_t ii=0; ii<ndim; ii++) {
-		if(ii < ndim) {
-			m_dim[ii] = dim[ii];
-		} else {
-			m_dim[ii] = 1;
-		}
+	
+	m_dim.assign(dim, dim+ndim);
+
+	// reset order
+	m_order.resize(ndim);
+	for(int64_t ii=0; ii<ndim; ii++)
+		m_order[ii] = ((int64_t)ndim)-1-ii;
+
+	// set ROI to max
+	m_roi.resize(ndim);
+	for(size_t ii = 0; ii<ndim; ii++) {
+		m_roi[ii].first = 0; 
+		m_roi[ii].second = dim[ii]-1;
 	}
 
-	// resetROI
-	setROI();
-	goBegin();
+	// set up strides
+	m_strides.resize(ndim);
+	m_strides[ndim-1] = 1;
+	for(int64_t ii=((int64_t)ndim)-2; ii>=0; ii--) {
+		m_strides[ii] = m_strides[ii+1]*dim[ii+1];
+	}
+	
+	m_chunksizes.resize(m_ndim);
+	std::fill(m_chunksizes.begin(), m_chunksizes.end(), 0);
+	
+	m_chunk.resize(m_ndim);
+	for(size_t ii=0; ii<ndim; ii++) {
+		m_chunk[ii].first = m_roi[ii].first;
+		m_chunk[ii].second = m_chunksizes[ii]-1 + m_chunk[ii].first;
+		if(m_chunk[ii].second > m_roi[ii].second)
+			m_chunk[ii].second = m_roi[ii].second;
+	}
+	
 }
 
 /*************************************
@@ -439,7 +458,7 @@ ChunkSlicer& ChunkSlicer::operator++()
 		return *this;
 	
 	m_chunkend = true;
-	for(size_t ii=0; ii < m_dim; ii++){
+	for(size_t ii=0; ii < m_ndim; ii++){
 		size_t dd = m_order[ii];
 		if(m_pos[dd] < m_chunk[dd].second) {
 			m_pos[dd]++;
@@ -452,6 +471,8 @@ ChunkSlicer& ChunkSlicer::operator++()
 			m_pos[dd] = m_chunk[dd].first;
 		}
 	}
+
+	return *this;
 };
 
 /**
@@ -466,7 +487,7 @@ ChunkSlicer& ChunkSlicer::operator--()
 		return *this;
 
 	m_chunkend = false;
-	for(size_t ii=0; ii < m_dim; ii++){
+	for(size_t ii=0; ii < m_ndim; ii++){
 		size_t dd = m_order[ii];
 		if(m_pos[dd] > m_chunk[dd].first) {
 			m_pos[dd]--;
@@ -478,6 +499,8 @@ ChunkSlicer& ChunkSlicer::operator--()
 			m_pos[dd] = m_chunk[dd].second;
 		}
 	}
+	
+	return *this;
 };
 
 /**
@@ -492,7 +515,7 @@ ChunkSlicer& ChunkSlicer::nextChunk()
 	
 	// try to move in whatever dimension can be stepped
 	m_end = true;
-	for(size_t ii=0; ii < m_dim; ii++){
+	for(size_t ii=0; ii < m_ndim; ii++){
 		size_t dd = m_order[ii];
 		if(m_chunk[dd].second < m_roi[dd].second) {
 			// increment beginning chunk 
@@ -500,11 +523,11 @@ ChunkSlicer& ChunkSlicer::nextChunk()
 
 
 			// update second
-			if(m_chunksizes[dd] + m_chunk[dd].first - 1 > m_roi[dd].second || 
+			if(m_chunksizes[dd]-1 + m_chunk[dd].first >= m_roi[dd].second || 
 						m_chunksizes[dd] == 0) 
 				m_chunk[dd].second = m_roi[dd].second;
 			else 
-				m_chunk[dd].second = m_chunksizes[dd] + m_chunk[dd].first - 1;
+				m_chunk[dd].second = m_chunksizes[dd]-1 + m_chunk[dd].first;
 				
 			m_end = false;
 			break;
@@ -513,22 +536,24 @@ ChunkSlicer& ChunkSlicer::nextChunk()
 			m_chunk[dd].first = m_roi[dd].first;
 			
 			// update second
-			if(m_chunksizes[dd] + m_chunk[dd].first - 1 > m_roi[dd].second || 
-						m_chunksizes[dd] == 0) 
+			if(m_chunksizes[dd]-1 + m_chunk[dd].first >= m_roi[dd].second || 
+						m_chunksizes[dd]-1 == 0) 
 				m_chunk[dd].second = m_roi[dd].second;
 			else 
-				m_chunk[dd].second = m_chunksizes[dd] + m_chunk[dd].first - 1;
+				m_chunk[dd].second = m_chunksizes[dd]-1 + m_chunk[dd].first;
 		}
 	}
 
 	// reset position
 	m_linpos = 0;
 	m_chunkfirst = 0;
-	for(size_t ii=0; ii<m_dim; ii++) {
+	for(size_t ii=0; ii<m_ndim; ii++) {
 		m_pos[ii] = m_chunk[ii].first;
 		m_chunkfirst += m_pos[ii]*m_strides[ii];
 		m_linpos += m_pos[ii]*m_strides[ii];
 	}
+
+	return *this;
 }
 
 /**
@@ -538,8 +563,75 @@ ChunkSlicer& ChunkSlicer::nextChunk()
  */
 ChunkSlicer& ChunkSlicer::prevChunk()
 {
-	m_chunkend = false;
+	if(isBegin()) 
+		return *this;
 	m_end = false;
+
+	// try to move in whatever dimension can be stepped
+	for(size_t ii=0; ii < m_ndim; ii++){
+		size_t dd = m_order[ii];
+		if(m_chunk[dd].first > m_roi[dd].first) {
+			// there is a gap between beginning of ROI and beginning of the
+			// current chunk, so we will move into that gap
+
+			// decrement beginning of chunk 
+			m_chunk[dd].second = m_chunk[dd].first-1;
+			
+			// if this is not the case, then we have broken up a chunk at the
+			// front, while we really want to break up the ones at the back
+			assert(m_chunk[dd].second - (m_chunksizes[dd]-1) >= m_roi[dd].first);
+
+			// update first 
+			if(m_chunk[dd].second - (m_chunksizes[dd]-1) > m_roi[dd].first) {
+				m_chunk[dd].first = m_chunk[dd].second - (m_chunksizes[dd]-1);
+			} else if(m_chunk[dd].second - (m_chunksizes[dd]-1) == m_roi[dd].first) {
+				m_chunk[dd].first = m_roi[dd].first;
+			} else {
+				throw std::logic_error("Failed chunk stepping call the programmer");
+			}
+
+			m_end = false;
+			break;
+		} else {
+			// roll over beginning of chunk, need to be careful that we don't
+			// have slack at the front of iteration, so we decrease the size 
+			// at the end when the image is not divisable by the chunk size
+			m_chunk[dd].second = m_roi[dd].second;
+			
+			// update second
+			if(m_chunksizes[dd] == 0 || m_chunksizes[dd] > (m_roi[dd].second -
+							m_roi[dd].first+1)) {
+				// just use the entire region
+				m_chunk[dd].first = m_roi[dd].first;
+			} else if(m_chunk[dd].second - (m_chunksizes[dd]-1)> m_roi[dd].first) {
+				// calculate reduced size, if things are going to be broken
+				// up due to modulus != 0, go ahead and reduce the size during
+				// the roll over
+				size_t rsize = m_chunksizes[dd]%(m_roi[dd].second - 
+						m_roi[dd].first + 1);
+				if(rsize == 0)
+					m_chunk[dd].first = m_chunk[dd].second - (m_chunksizes[dd]-1);
+				else
+					m_chunk[dd].first = m_chunk[dd].second - rsize + 1;
+
+			} else if(m_chunk[dd].second - (m_chunksizes[dd]-1) == m_roi[dd].first) {
+				m_chunk[dd].first = m_roi[dd].first;
+			} else {
+				throw std::logic_error("Failed chunk stepping call the programmer");
+			}
+		}
+	}
+
+	// reset position
+	m_linpos = 0;
+	m_chunkfirst = 0;
+	for(size_t ii=0; ii<m_ndim; ii++) {
+		m_pos[ii] = m_chunk[ii].first;
+		m_chunkfirst += m_pos[ii]*m_strides[ii];
+		m_linpos += m_pos[ii]*m_strides[ii];
+	}
+	
+	return *this;
 };
 
 /**
@@ -550,19 +642,28 @@ void ChunkSlicer::goChunkBegin()
 {
 	m_chunkend = false;
 	m_end = false;
+	m_linpos = 0;
+	for(size_t ii=0; ii<m_ndim; ii++) {
+		m_pos[ii] = m_chunk[ii].first;
+		m_linpos += m_strides[ii]*m_pos[ii];
+	}
 }
 
-///**
-// * @brief Jump to the end of current chunk.
-// *
-// */
-//void ChunkSlicer::goChunkEnd()
-//{
-//	if
-//	m_end = false;
-//	m_chunkend = false;
-//};
-//
+/**
+ * @brief Jump to the end of current chunk.
+ *
+ * End of each chunk is represented as a wrapped around beginning, but with 
+ * m_chunkend set. 
+ *
+ */
+void ChunkSlicer::goChunkEnd()
+{
+	bool wasend = m_end;
+	goChunkBegin();
+	m_chunkend = true;
+	m_end = wasend;
+};
+
 /**
  * @brief Go to the very beginning for the first chunk.
  *
@@ -576,37 +677,29 @@ void ChunkSlicer::goBegin()
 	m_end = false;
 	m_chunkend = false;
 	
-	m_pos.resize(m_dim);
-	m_chunk.resize(m_dim);
-
-	m_linpos = 0;
-	m_linfirst = 0;
-	m_chunkfirst = 0;
-	for(size_t ii=0; ii<m_dim; ii++) {
+	m_linpos = m_linfirst;
+	for(size_t ii=0; ii<m_ndim; ii++) {
 		m_pos[ii] = m_roi[ii].first;
-		m_linpos += m_pos[ii]*m_strides[ii];
-		m_linfirst += m_pos[ii]*m_strides[ii];
-		m_chunkfirst += m_pos[ii]*m_strides[ii];
 		m_chunk[ii].first = m_roi[ii].first;
-		if(m_chunksizes[ii] == 0) 
+		if(m_chunksizes[ii] == 0 || m_chunksizes[ii] > 
+					(m_roi[ii].second-m_roi[ii].first+1)) 
 			m_chunk[ii].second = m_roi[ii].second; 
 		else 
-			m_chunk[ii].second = m_chunk[ii].first + m_chunksizes[ii] - 1;
+			m_chunk[ii].second = m_chunk[ii].first + m_chunksizes[ii]-1;
 	}
 }
-//
-///**
-// * @brief Jump to the end of the last chunk.
-// *
-// */
-//void ChunkSlicer::goEnd()
-//{
-//	// end is a special state, we go to end and leave end specially since its
-//	// actual location would depened on ROI, order etc.
-//	m_end = true;
-//	m_chunkend = true;
-//};
-//
+
+/**
+ * @brief Jump to the end of the last chunk.
+ *
+ */
+void ChunkSlicer::goEnd()
+{
+	goBegin();
+	m_end = true;
+	m_chunkend = true;
+};
+
 /**
  * @brief Jump to the given position, additional values in newpos beyond dim
  * will be ignored. Any values missing due to ndim > len will be treated as
@@ -616,8 +709,31 @@ void ChunkSlicer::goBegin()
  */
 void ChunkSlicer::goIndex(size_t len, int64_t* newpos)
 {
-	m_end = false;
-	m_chunkend = false;
+	m_linpos = 0;
+	for(size_t ii=0; ii<m_ndim; ii++) {
+		if(ii < len) 
+			m_pos[ii] = newpos[ii];
+		else 
+			m_pos[ii] = 0;
+		m_linpos += m_strides[ii]*m_pos[ii];
+
+		// if chunksizes is 0, or exceeds the ROI size, just set to the max
+		if(m_chunksizes[ii] == 0 || m_chunksizes[ii] >= 
+						(m_roi[ii].second - m_roi[ii].first + 1)) {
+			m_chunk[ii].first = m_roi[ii].first;
+			m_chunk[ii].second = m_roi[ii].second;
+		} else {
+			// otherwise determine with chunk we are in (int division) multiply
+			int64_t tmp1 = m_pos[ii]/m_chunksizes[ii];
+			m_chunk[ii].first = tmp1*m_chunksizes[ii]+m_roi[ii].first;
+
+			// then set the second part m_chunksizes away
+			if(m_chunk[ii].first + m_chunksizes[ii]-1 >= m_roi[ii].second)
+				m_chunk[ii].second = m_roi[ii].second;
+			else
+				m_chunk[ii].second = m_chunk[ii].first + m_chunksizes[ii]-1;
+		}
+	}
 };
 
 /**
@@ -625,7 +741,34 @@ void ChunkSlicer::goIndex(size_t len, int64_t* newpos)
  *
  * @param newpos	location to move to
  */
-void ChunkSlicer::goIndex(std::vector<int64_t> newpos);
+void ChunkSlicer::goIndex(std::vector<int64_t> newpos)
+{
+	m_linpos = 0;
+	for(size_t ii=0; ii<m_ndim; ii++) {
+		if(ii < newpos.size()) 
+			m_pos[ii] = newpos[ii];
+		else 
+			m_pos[ii] = 0;
+		m_linpos += m_strides[ii]*m_pos[ii];
+
+		// if chunksizes is 0, or exceeds the ROI size, just set to the max
+		if(m_chunksizes[ii] == 0 || m_chunksizes[ii] >= 
+						(m_roi[ii].second - m_roi[ii].first + 1)) {
+			m_chunk[ii].first = m_roi[ii].first;
+			m_chunk[ii].second = m_roi[ii].second;
+		} else {
+			// otherwise determine with chunk we are in (int division) multiply
+			int64_t tmp1 = m_pos[ii]/m_chunksizes[ii];
+			m_chunk[ii].first = tmp1*m_chunksizes[ii]+m_roi[ii].first;
+
+			// then set the second part m_chunksizes away
+			if(m_chunk[ii].first + m_chunksizes[ii]-1 >= m_roi[ii].second)
+				m_chunk[ii].second = m_roi[ii].second;
+			else
+				m_chunk[ii].second = m_chunk[ii].first + m_chunksizes[ii]-1;
+		}
+	}
+}
 
 /****************************************
  *
@@ -643,7 +786,12 @@ void ChunkSlicer::goIndex(std::vector<int64_t> newpos);
  * @param ndim size of index
  * @param index output index variable
  */
-void ChunkSlicer::index(size_t len, int64_t* index) const;
+void ChunkSlicer::index(size_t len, int64_t* index) const
+{
+	for(size_t ii=0; ii<len && ii<m_ndim; ii++) {
+		index[ii] = m_pos[ii];
+	}
+}
 
 /***********************************************
  *
@@ -662,8 +810,8 @@ void ChunkSlicer::index(size_t len, int64_t* index) const;
  */
 void ChunkSlicer::setROI(const std::vector<std::pair<int64_t, int64_t>>& roi)
 {
-	m_roi.resize(m_dim);
-	for(size_t ii=0; ii<m_dim; ii++) {
+	m_linfirst = 0;
+	for(size_t ii=0; ii<m_ndim; ii++) {
 		if(ii < roi.size()) {
 			m_roi[ii].first = roi[ii].first;
 			m_roi[ii].second = roi[ii].second;
@@ -671,7 +819,12 @@ void ChunkSlicer::setROI(const std::vector<std::pair<int64_t, int64_t>>& roi)
 			m_roi[ii].first = 0;
 			m_roi[ii].second = m_dim[ii]-1;
 		}
+		m_linfirst += m_roi[ii].first*m_strides[ii];
 	}
+	
+	for(size_t ii=0; ii<m_ndim; ii++)
+		m_pos[ii] = m_roi[ii].first;
+	m_linpos = m_linfirst;
 }
 
 /**
@@ -690,16 +843,21 @@ void ChunkSlicer::setROI(size_t len, const int64_t* lower, const int64_t* upper)
 	if(lower == NULL || upper == NULL)
 		len = 0;
 
-	m_roi.resize(m_dim);
-	for(size_t ii=0; ii<m_dim; ii++) {
+	m_linfirst = 0;
+	for(size_t ii=0; ii<m_ndim; ii++) {
 		if(ii < len) {
-			m_roi[ii].first = lower[ii]);
-			m_roi[ii].second = upper[ii]);
+			m_roi[ii].first = lower[ii];
+			m_roi[ii].second = upper[ii];
 		} else {
 			m_roi[ii].first = 0;
 			m_roi[ii].second = m_dim[ii]-1;
 		}
+		m_linfirst += m_roi[ii].first*m_strides[ii];
 	}
+	
+	for(size_t ii=0; ii<m_ndim; ii++)
+		m_pos[ii] = m_roi[ii].first;
+	m_linpos = m_linfirst;
 }
 
 /**
@@ -746,7 +904,10 @@ void ChunkSlicer::setChunkSize(size_t len, const int64_t* sizes)
  * the elements of sizes that is the MAXIMUM number of iterations between 
  * chunks. Note however that there could be less if we are at the edge.
  */
-void ChunkSlicer::setBreaks(size_t len, const int64_t* sizes);
+void ChunkSlicer::setBreaks(size_t len, const int64_t* sizes)
+{
+	setChunkSize(len, sizes);
+}
 
 /**
  * @brief Sets the order of iteration from ++/-- operators
@@ -760,9 +921,50 @@ void ChunkSlicer::setBreaks(size_t len, const int64_t* sizes);
  * 					will have the slowest iteration, and dimensions not
  * 					specified in order will be faster than those included.
  */
-void ChunkSlicer::setOrder(const std::vector<size_t>& order, bool revorder);
+void ChunkSlicer::setOrder(const std::vector<size_t>& order, bool revorder)
+{
+	m_order.clear();
 
+	// need to ensure that all dimensions get covered
+	std::list<size_t> avail;
+	for(size_t ii=0 ; ii<m_ndim ; ii++) {
+		if(revorder)
+			avail.push_front(ii);
+		else
+			avail.push_back(ii);
+	}
 
-};
-	
+	// add dimensions to internal order, but make sure there are
+	// no repeats
+	for(auto ito=order.begin(); ito != order.end(); ito++) {
+
+		// determine whether the given is available still
+		auto it = std::find(avail.begin(), avail.end(), *ito);
+
+		if(it != avail.end()) {
+			m_order.push_back(*it);
+			avail.erase(it);
+		}
+	}
+
+	// we would like the dimensions to be added so that steps are small,
+	// so in revorder case, add dimensions in increasing order (since they will
+	// be flipped), in normal case add in increasing order.
+	// so dimensions 0 3, 5 might be remaining, with order currently:
+	// m_order = {1,4,2},
+	// in the case of revorder we will add the remaining dimensions as
+	// m_order = {1,4,2,0,3,5}, because once we flip it will be {5,3,0,2,4,1}
+	if(revorder) {
+		for(auto it=avail.begin(); it != avail.end(); ++it)
+			m_order.push_back(*it);
+		// reverse 6D, {0,5},{1,4},{2,3}
+		// reverse 5D, {0,4},{1,3}
+		for(size_t ii=0; ii<m_ndim/2; ii++)
+			std::swap(m_order[ii],m_order[m_ndim-1-ii]);
+	} else {
+		for(auto it=avail.rbegin(); it != avail.rend(); ++it)
+			m_order.push_back(*it);
+	}
+}
+
 } //npl

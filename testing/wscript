@@ -11,6 +11,16 @@ def build(bld):
             source='slicer_test_lineend.cpp', 
             use='slicer')
 
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='slicer_test_roi', 
+            source='slicer_test_roi.cpp', 
+            use='slicer')
+
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='chunkslicer_test_roi', 
+            source='chunkslicer_test_roi.cpp', 
+            use='slicer')
+
     # test basic arrays
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='array_test1', 
