@@ -36,7 +36,7 @@ namespace npl {
  *
  * @tparam T
  */
-template <typename T>
+template <typename T = double>
 class FlatIter
 {
 public:
@@ -302,7 +302,7 @@ private:
  *
  * @tparam T
  */
-template <typename T>
+template <typename T = double>
 class FlatConstIter
 {
 public:
@@ -531,7 +531,7 @@ private:
  *
  * @tparam T
  */
-template <typename T>
+template <typename T = double>
 class OrderConstIter : public Slicer
 {
 public:
@@ -783,7 +783,7 @@ private:
  *
  * @tparam T
  */
-template <typename T>
+template <typename T = double>
 class OrderIter : public Slicer
 {
 public:
@@ -1091,7 +1091,7 @@ private:
  *
  * @tparam T
  */
-template <typename T>
+template <typename T = double>
 class ChunkConstIter : public ChunkSlicer 
 {
 public:
@@ -1365,7 +1365,7 @@ private:
  *
  * @tparam T
  */
-template <typename T>
+template <typename T = double>
 class ChunkIter : public ChunkSlicer
 {
 public:
@@ -1689,7 +1689,7 @@ private:
  *
  * @tparam T
  */
-template <typename T>
+template <typename T = double>
 class KernelIter : public KSlicer
 {
 public:
@@ -1940,7 +1940,7 @@ private:
  *
  * @tparam T
  */
-template <typename T>
+template <typename T = double>
 class Vector3DIter : public Slicer
 {
 public:
@@ -2265,7 +2265,7 @@ private:
  *
  * @tparam T
  */
-template <typename T>
+template <typename T = double>
 class Vector3DConstIter : public Slicer
 {
 public:

@@ -2,8 +2,9 @@ NPL: Neuro Programs and Libraries
 =======
 
 Need to:
-Test kernel slicer when setOrder/setWindow/setROI are set in different orders
-Test slicer when setOrder/setROI are set in different orders
+Clean up accessors interface. Decide on parsimonius set that is also general
+enough to get the job done. Allow Interpolates to take constant input (since
+they don't have a set function anyway)
 
 Next Features:
 Improve interface for iterators/slicers? I don't realy like some of the

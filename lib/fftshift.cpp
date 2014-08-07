@@ -40,35 +40,5 @@ using namespace npl;
 
 namespace npl {
 
-//shared_ptr<MRImage> shearRotateImage(shared_ptr<MRImage> in, size_t len, double* Rx)
-//{
-//	const std::complex<double> i(0, 1);
-//	const const double PI = acos(-1);
-//
-//	// fourier transform image in xyz direction
-//	auto fft = fft_r2c(in);
-//	
-//	std::vector<double> shift(in->ndim(), 0);
-//
-//	for(size_t dd=0; dd<len && dd < in->ndim()) 
-//		shift[dd] = dx[dd]/in->spacing()[dd];
-//
-//	OrderIter<cdouble_t> fit(fft);
-//	for(fit.goBegin(); !fit.isEnd(); ++fit) {
-//		fit.index(3, index);
-//		cdouble_t orig = *fit;;
-//		cdouble_t term = 0;
-//		for(size_t dd=0; dd<in->ndim(); dd++)
-//			term += -2.0*PI*i*shift[dd]*(double)index[dd]/(double)fft->dim(dd);
-//		orig = orig*std::exp(term);
-//		fit.set(orig);
-//	}
-//
-//	auto ifft = dynamic_pointer_cast<MRImage>(ifft_c2r(fft));
-//	
-//	// may want to un-pad the output
-//	
-//	return ifft;
-//}
 
 }

@@ -87,18 +87,25 @@ int main()
 		++sit;
 	}
 	
-	// perform fourier rotation, +a
-	// strictly the frequency for component k (where k = k-N/2,N/2]
-	// double T = fft->dim(d)*in->spacing()[d];
-	// double f = k/T; // where T is the total sampling period
-	double rotate[3] = {1, 5, 10};
-
-	// manual shift
-	auto mrotate = dynamic_pointer_cast<MRImage>(in->copy());
-	NDAccess<double> acc(in);
-//	for(OrderIter<double> it(mshift); !it.eof(); ++it) {
+//	// perform fourier rotation, +a
+//	// strictly the frequency for component k (where k = k-N/2,N/2]
+//	// double T = fft->dim(d)*in->spacing()[d];
+//	// double f = k/T; // where T is the total sampling period
+//	double rotate[3] = {1, 5, 10};
+//
+//	// algorithm (registration) will produce axis, we will rotate that axis to
+//	// make it align with +Z. 
+//
+//	// need euler angles for shearing, use mathematica to solve shearing for
+//	// angle-axis version?
+//	
+//	// manual shift
+//	auto mrotate = dynamic_pointer_cast<MRImage>(in->copy());
+//	NDAccess<double> acc(in);
+//	for(OrderIter<double> it(mrotate); !it.eof(); ++it) {
 //		it.index(3, index);
 //		
+//
 //		// rotate point
 //		for(size_t dd = 0 ; dd < in->ndim(); dd++)
 //			index[dd] = clamp<int64_t>(0, in->dim(dd)-1, index[dd]-shift[dd]);
@@ -106,17 +113,17 @@ int main()
 //		it.set(acc.get(3, index));
 //
 //	}
-//	mshift->write("manual_shift.nii.gz");
+//	mrotate->write("manual_rotate.nii.gz");
+////	
+////	
+////	for(size_t ii=0; ii<sizeof(shift)/sizeof(double); ii++)
+////		shiftImage(in, ii, shift[ii]);
+////	
+////	in->write("fourier_shift.nii.gz");
+////
+//	if(closeCompare(in, mrotate) != 0)
+//		return -1;
 //	
-//	
-//	for(size_t ii=0; ii<sizeof(shift)/sizeof(double); ii++)
-//		shiftImage(in, ii, shift[ii]);
-//	
-//	in->write("fourier_shift.nii.gz");
-//
-	if(closeCompare(in, mrotate) != 0)
-		return -1;
-	
 
 	return 0;
 }

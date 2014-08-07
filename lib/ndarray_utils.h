@@ -140,6 +140,18 @@ shared_ptr<NDArray> erode(shared_ptr<NDArray> in, size_t reps);
 void shiftImage(shared_ptr<NDArray> inout, size_t dd, double dist);
 
 /**
+ * @brief Performs a shear on the image where the sheared dimension (dim) will
+ * be shifted depending on the index in other dimensions (dist). 
+ * (in units of pixels).
+ *
+ * @param inout Input/output image
+ * @param dim Dimension to shift/shear
+ * @param len Length of dist array
+ * @param dist Distance terms to travel. Shift[dim] = x0*dist[0]+x1*dist[1] ...
+ */
+void shearImage(shared_ptr<NDArray> inout, size_t dim, size_t len, double* dist);
+
+/**
  * @brief Performs a rotation using fourier shift and shears. 
  *
  * @param inout Input/output image
