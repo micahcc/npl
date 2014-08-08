@@ -551,7 +551,7 @@ void shearImage(shared_ptr<NDArray> inout, size_t dir, size_t len, double* dist)
 	oit.setOrder({dir});
 	std::vector<int64_t> index(inout->ndim());
 
-	for(iit.goBegin(), oit.goBegin(); !iit.isEnd() ; ++iit, ++oit) {
+	for(iit.goBegin(), oit.goBegin(); !iit.isEnd() ; ) {
 		iit.index(index.size(), index.data());
 
 		double lineshift = 0;
