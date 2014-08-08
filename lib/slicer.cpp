@@ -949,8 +949,6 @@ void ChunkSlicer::setROI(size_t len, const int64_t* lower, const int64_t* upper)
 void ChunkSlicer::setChunkSize(size_t len, const int64_t* sizes, bool defunity)
 {
 	assert(m_roi.size() == m_ndim);
-	m_chunk.resize(m_ndim);
-	m_chunksizes.resize(m_ndim);
 
 	// missing values are assumed to be full (0)
 	for(size_t ii=0; ii<m_ndim; ii++) {
@@ -959,6 +957,32 @@ void ChunkSlicer::setChunkSize(size_t len, const int64_t* sizes, bool defunity)
 		else 
 			m_chunksizes[ii] = (int)defunity;
 	}
+}
+
+/**
+ * @brief Sets the chunk sizes so that each chunk is a line in the given 
+ * dimension. This would be analogous to itk's linear iterator. 
+ * Usage:
+ *
+ * it.setLineChunk(0);
+ * while(!it.isEnd()) {
+ *	while(!it.isChunkEnd()) {
+ *	
+ *		++it;
+ *	}
+ *	it.nextChunk();
+ * }
+ *
+ * @param dim Dimension to travel linearly along
+ */
+void ChunkSlicer::setLineChunk(size_t dir)
+{
+	assert(m_roi.size() == m_ndim);
+
+	for(size_t ii=0; ii<m_ndim; ii++) {
+		m_chunksizes[ii] = 1;
+	}
+	m_chunksizes[dir] = 0;
 }
 
 /**

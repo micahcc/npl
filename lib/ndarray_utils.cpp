@@ -545,14 +545,11 @@ void shearImage(shared_ptr<NDArray> inout, size_t dir, size_t len, double* dist)
 
 	// need copy data into center of buffer, create iterator that moves
 	// in the specified dimension fastest
-	OrderConstIter<cdouble_t> iit(inout);
-	OrderIter<cdouble_t> oit(inout);
-	iit.setOrder({dir});
-	oit.setOrder({dir});
+	ChunkIter<cdouble_t> it(inout);
+	it.setLineChunk(dir);
 	std::vector<int64_t> index(inout->ndim());
-
-	for(iit.goBegin(), oit.goBegin(); !iit.isEnd() ; ) {
-		iit.index(index.size(), index.data());
+	for(it.goBegin(); !it.isEnd() ; it.nextChunk()) {
+		it.index(index.size(), index.data());
 
 		double lineshift = 0;
 		for(size_t ii=0; ii<len; ii++) {
@@ -567,9 +564,9 @@ void shearImage(shared_ptr<NDArray> inout, size_t dir, size_t len, double* dist)
 		}
 
 		// fill from line
-		for(size_t tt=0; tt<inout->dim(dir); ++iit, tt++) {
-			buffer[tt+paddiff/2][0] = (*iit).real();
-			buffer[tt+paddiff/2][1] = (*iit).imag();
+		for(size_t tt=0; !it.isChunkEnd(); ++it, tt++) {
+			buffer[tt+paddiff/2][0] = (*it).real();
+			buffer[tt+paddiff/2][1] = (*it).imag();
 		}
 
 		// fourier transform
@@ -587,9 +584,10 @@ void shearImage(shared_ptr<NDArray> inout, size_t dir, size_t len, double* dist)
 		fftw_execute(rev);
 
 		// fill line from buffer
-		for(size_t tt=0; tt<inout->dim(dir); ++oit, tt++) {
+		it.goChunkBegin();
+		for(size_t tt=0; !it.isChunkEnd(); ++it, tt++) {
 			cdouble_t tmp(buffer[tt+paddiff/2][0], buffer[tt+paddiff/2][1]);
-			oit.set(tmp); 
+			it.set(tmp); 
 		}
 	}
 }

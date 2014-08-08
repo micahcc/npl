@@ -78,16 +78,6 @@ shared_ptr<MRImage> manualShearImage(shared_ptr<MRImage> in, size_t dir,
 	auto mshear = dynamic_pointer_cast<MRImage>(in->copy());
 	LinInterp3DView<double> lininterp(in);
 
-	std::vector<double> shear(in->ndim(), 0);
-	for(size_t ii=0; ii<in->ndim() && ii<len; ii++) {
-		if(ii==dir)
-			shear[ii] = 0;
-		else if(ii<len) 
-			shear[ii] = -dist[ii];
-		else 
-			shear[ii] = 0;
-	}
-
 	// stop at the end of x lines
 	ChunkIter<double> it(mshear);
 	std::vector<int64_t> csize(in->ndim(), 1);
@@ -99,7 +89,7 @@ shared_ptr<MRImage> manualShearImage(shared_ptr<MRImage> in, size_t dir,
 		double lineshift = 0;
 		for(size_t ii=0; ii<len; ii++) {
 			if(ii != dir)
-				lineshift += dist[ii]*(index[ii]-center[ii]);
+				lineshift += -dist[ii]*(index[ii]-center[ii]);
 		}
 		
 		for(; !it.isChunkEnd(); ++it) {
@@ -143,7 +133,7 @@ int main()
 	}
 	in->write("original.nii.gz");
 	
-	double shear[3] = {1, 1, 5};
+	double shear[3] = {1, .5, 1};
 
 	// manual shear
 	auto mshear = manualShearImage(in, 0, 3, shear);

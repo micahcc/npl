@@ -513,6 +513,24 @@ public:
 	void setChunkSize(size_t len, const int64_t* sizes, bool defunity = false);
 
 	/**
+	 * @brief Sets the chunk sizes so that each chunk is a line in the given 
+	 * dimension. This would be analogous to itk's linear iterator. 
+	 * Usage:
+	 *
+	 * it.setLineChunk(0);
+	 * while(!it.isEnd()) {
+	 *	while(!it.isChunkEnd()) {
+	 *	
+	 *		++it;
+	 *	}
+	 *	it.nextChunk();
+	 * }
+	 *
+	 * @param dim Dimension to travel linearly along
+	 */
+	void setLineChunk(size_t dir);
+
+	/**
 	 * @brief Sets the order of iteration from ++/-- operators
 	 *
 	 * @param order	vector of priorities, with first element being the fastest
