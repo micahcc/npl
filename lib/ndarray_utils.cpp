@@ -168,7 +168,7 @@ shared_ptr<NDArray> ifft_c2r(shared_ptr<const NDArray> in)
 
 	// plan
 	fftw_plan plan = fftw_plan_dft((int)insize.size(), insize.data(), idata,
-				odata, FFTW_FORWARD, FFTW_MEASURE);
+				odata, FFTW_BACKWARD, FFTW_MEASURE);
 
 	// copy data into idata
 	OrderConstIter<cdouble_t> iit(in);
@@ -246,7 +246,7 @@ shared_ptr<NDArray> fft_r2c(shared_ptr<const NDArray> in)
 
 	// plan
 	fftw_plan plan = fftw_plan_dft((int)padsize.size(), padsize.data(),
-				idata, odata, FFTW_BACKWARD, FFTW_MEASURE);
+				idata, odata, FFTW_FORWARD, FFTW_MEASURE);
 
 	// copy data into idata
 	OrderConstIter<cdouble_t> iit(in);
@@ -574,14 +574,14 @@ void shearImage(shared_ptr<NDArray> inout, size_t dir, size_t len, double* dist)
 
 		// fourier shift
 		double normf = pow(padsize,-1);
-		for(size_t tt=0; tt<(1+padsize)/2; tt++) {
+		for(size_t tt=0; tt<padsize/2; tt++) {
 			double ff = (double)tt/(double)padsize;
 			cdouble_t tmp(buffer[tt][0]*normf, buffer[tt][1]*normf);
 			tmp *= std::exp(-2.*PI*I*lineshift*ff);
 			buffer[tt][0] = tmp.real();
 			buffer[tt][1] = tmp.imag();
 		}
-		for(size_t tt=(1+padsize)/2; tt<padsize; tt++) {
+		for(size_t tt=padsize/2; tt<padsize; tt++) {
 			double ff = -(double)(padsize-tt)/(double)padsize;
 			cdouble_t tmp(buffer[tt][0]*normf, buffer[tt][1]*normf);
 			tmp *= std::exp(-2.*PI*I*lineshift*ff);

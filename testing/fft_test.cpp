@@ -53,7 +53,7 @@ int closeCompare(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b)
 	itb.setOrder(ita.getOrder());
 	for(ita.goBegin(), itb.goBegin(); !ita.eof() && !itb.eof(); ++ita, ++itb) {
 		double diff = fabs(*ita - *itb);
-		if(diff > 1E-20) {
+		if(diff > 1E-10) {
 			cerr << "Images differ!" << endl;
 			return -1;
 		}
@@ -79,7 +79,7 @@ int main()
 			dist += (index[ii]-sz[ii]/2.)*(index[ii]-sz[ii]/2.);
 		}
 		if(sqrt(dist) < 5)
-			it.set(1);
+			it.set(dist);
 		else it.set(0);
 
 		++it;
@@ -89,9 +89,9 @@ int main()
 	in->write("pre-fft.nii.gz");
 	auto fft = dynamic_pointer_cast<MRImage>(fft_r2c(in));
 	auto ifft = dynamic_pointer_cast<MRImage>(ifft_c2r(fft));
+	ifft->write("post-ifft.nii.gz");
 	if(closeCompare(ifft, in) != 0)
 		return -1;
-	ifft->write("post-ifft.nii.gz");
 	
 
 	return 0;

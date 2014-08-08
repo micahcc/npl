@@ -113,10 +113,10 @@ int main()
 	int64_t index[3];
 	// create an image
 	size_t sz[] = {128, 128, 128};
-	cerr << sizeof(sz) << endl;
 	auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, FLOAT64);
 
 	// fill with sphere
+	cerr << "Creating Sphere...";
 	OrderIter<double> sit(in);
 	while(!sit.eof()) {
 		sit.index(3, index);
@@ -131,19 +131,25 @@ int main()
 
 		++sit;
 	}
+	cerr << "Done.\nWriting...";
 	in->write("original.nii.gz");
 	
-	double shear[3] = {1, 0, 0};
+	double shear[3] = {1, 0.2, .4};
 
 	// manual shear
+	cerr << "Done.\nShearing Manually...";
 	auto mshear = manualShearImage(in, 0, 3, shear);
+	cerr << "Done.\nWriting Manual Shear...";
 	mshear->write("manual_shear.nii.gz");
 	
+	cerr << "Done.\nShearing with FFT...";
 	shearImage(in, 0, 3, shear);
+	cerr << "Done.\nWriting FFT-Sheared Image...";
 	in->write("fourier_shear.nii.gz");
-
+	cerr << "Done.\nComparing...";
 	if(closeCompare(in, mshear) != 0)
 		return -1;
+	cerr << "Done.\n";
 	
 
 	return 0;
