@@ -299,6 +299,63 @@ void Slicer::setOrder(const std::vector<size_t>& order, bool revorder)
 };
 
 /**
+ * @brief Sets the order of iteration from ++/-- operators. Invalidates
+ * position
+ *
+ * @param order	vector of priorities, with first element being the fastest
+ * iteration and last the slowest. All other dimensions not used will be
+ * slower than the last
+ * @param revorder	Reverse order, in which case the first element of order
+ * 					will have the slowest iteration, and dimensions not
+ * 					specified in order will be faster than those included.
+ */
+void Slicer::setOrder(std::initializer_list<size_t> order, bool revorder)
+{
+	m_order.clear();
+
+	// need to ensure that all dimensions get covered
+	std::list<size_t> avail;
+	for(size_t ii=0 ; ii<m_ndim ; ii++) {
+		if(revorder)
+			avail.push_front(ii);
+		else
+			avail.push_back(ii);
+	}
+
+	// add dimensions to internal order, but make sure there are
+	// no repeats
+	for(auto ito=order.begin(); ito != order.end(); ito++) {
+
+		// determine whether the given is available still
+		auto it = std::find(avail.begin(), avail.end(), *ito);
+
+		if(it != avail.end()) {
+			m_order.push_back(*it);
+			avail.erase(it);
+		}
+	}
+
+	// we would like the dimensions to be added so that steps are small,
+	// so in revorder case, add dimensions in increasing order (since they will
+	// be flipped), in normal case add in increasing order.
+	// so dimensions 0 3, 5 might be remaining, with order currently:
+	// m_order = {1,4,2},
+	// in the case of revorder we will add the remaining dimensions as
+	// m_order = {1,4,2,0,3,5}, because once we flip it will be {5,3,0,2,4,1}
+	if(revorder) {
+		for(auto it=avail.begin(); it != avail.end(); ++it)
+			m_order.push_back(*it);
+		// reverse 6D, {0,5},{1,4},{2,3}
+		// reverse 5D, {0,4},{1,3}
+		for(size_t ii=0; ii<m_ndim/2; ii++)
+			std::swap(m_order[ii],m_order[m_ndim-1-ii]);
+	} else {
+		for(auto it=avail.rbegin(); it != avail.rend(); ++it)
+			m_order.push_back(*it);
+	}
+};
+
+/**
  * @brief Jump to the given position, additional values in newpos beyond dim
  * will be ignored. Any values missing due to ndim > len will be treated as
  * zeros.
@@ -429,6 +486,7 @@ void ChunkSlicer::setDim(size_t ndim, const size_t* dim)
 		m_strides[ii] = m_strides[ii+1]*dim[ii+1];
 	}
 	
+	m_chunkfirst = m_linfirst;
 	m_chunksizes.resize(m_ndim);
 	std::fill(m_chunksizes.begin(), m_chunksizes.end(), 0);
 	
@@ -834,6 +892,7 @@ void ChunkSlicer::setROI(const std::vector<std::pair<int64_t, int64_t>>& roi)
 	for(size_t ii=0; ii<m_ndim; ii++)
 		m_pos[ii] = m_roi[ii].first;
 	m_linpos = m_linfirst;
+	m_chunkfirst = m_linfirst;
 }
 
 /**
@@ -899,6 +958,64 @@ void ChunkSlicer::setChunkSize(size_t len, const int64_t* sizes, bool defunity)
 			m_chunksizes[ii] = sizes[ii];
 		else 
 			m_chunksizes[ii] = (int)defunity;
+	}
+}
+
+/**
+ * @brief Sets the order of iteration from ++/-- operators
+ *
+ * Invalidates position
+ *
+ * @param order	vector of priorities, with first element being the fastest
+ * iteration and last the slowest. All other dimensions not used will be
+ * slower than the last
+ * @param revorder	Reverse order, in which case the first element of order
+ * 					will have the slowest iteration, and dimensions not
+ * 					specified in order will be faster than those included.
+ */
+void ChunkSlicer::setOrder(std::initializer_list<size_t> order, bool revorder)
+{
+	m_order.clear();
+
+	// need to ensure that all dimensions get covered
+	std::list<size_t> avail;
+	for(size_t ii=0 ; ii<m_ndim ; ii++) {
+		if(revorder)
+			avail.push_front(ii);
+		else
+			avail.push_back(ii);
+	}
+
+	// add dimensions to internal order, but make sure there are
+	// no repeats
+	for(auto ito=order.begin(); ito != order.end(); ito++) {
+
+		// determine whether the given is available still
+		auto it = std::find(avail.begin(), avail.end(), *ito);
+
+		if(it != avail.end()) {
+			m_order.push_back(*it);
+			avail.erase(it);
+		}
+	}
+
+	// we would like the dimensions to be added so that steps are small,
+	// so in revorder case, add dimensions in increasing order (since they will
+	// be flipped), in normal case add in increasing order.
+	// so dimensions 0 3, 5 might be remaining, with order currently:
+	// m_order = {1,4,2},
+	// in the case of revorder we will add the remaining dimensions as
+	// m_order = {1,4,2,0,3,5}, because once we flip it will be {5,3,0,2,4,1}
+	if(revorder) {
+		for(auto it=avail.begin(); it != avail.end(); ++it)
+			m_order.push_back(*it);
+		// reverse 6D, {0,5},{1,4},{2,3}
+		// reverse 5D, {0,4},{1,3}
+		for(size_t ii=0; ii<m_ndim/2; ii++)
+			std::swap(m_order[ii],m_order[m_ndim-1-ii]);
+	} else {
+		for(auto it=avail.rbegin(); it != avail.rend(); ++it)
+			m_order.push_back(*it);
 	}
 }
 

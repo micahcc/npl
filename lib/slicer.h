@@ -210,6 +210,18 @@ public:
 	void setOrder(const std::vector<size_t>& order, bool revorder = false);
 	
 	/**
+	 * @brief Sets the order of iteration from ++/-- operators
+	 *
+	 * @param order	vector of priorities, with first element being the fastest
+	 * iteration and last the slowest. All other dimensions not used will be
+	 * slower than the last
+	 * @param revorder	Reverse order, in which case the first element of order
+	 * 					will have the slowest iteration, and dimensions not
+	 * 					specified in order will be faster than those included.
+	 */
+	void setOrder(std::initializer_list<size_t> order, bool revorder = false);
+	
+	/**
 	 * @brief Sets the order of iteration from ++/-- operators. Order will be
 	 * the default (highest to lowest)
 	 *
@@ -511,6 +523,18 @@ public:
 	 * 					specified in order will be faster than those included.
 	 */
 	void setOrder(const std::vector<size_t>& order, bool revorder = false);
+	
+	/**
+	 * @brief Sets the order of iteration from ++/-- operators
+	 *
+	 * @param order	vector of priorities, with first element being the fastest
+	 * iteration and last the slowest. All other dimensions not used will be
+	 * slower than the last
+	 * @param revorder	Reverse order, in which case the first element of order
+	 * 					will have the slowest iteration, and dimensions not
+	 * 					specified in order will be faster than those included.
+	 */
+	void setOrder(std::initializer_list<size_t> order, bool revorder = false);
 
 	/**
 	 * @brief Returns the array giving the order of dimension being traversed.

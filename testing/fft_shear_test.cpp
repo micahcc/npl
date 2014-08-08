@@ -65,33 +65,54 @@ int closeCompare(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b)
 	return 0;
 }
 
-shared_ptr<MRImage> manualShearImage(shared_ptr<MRImage> in, size_t dim,
+shared_ptr<MRImage> manualShearImage(shared_ptr<MRImage> in, size_t dir,
 		size_t len, double* dist)
 {
 	int64_t index[3];
 	double cindex[3];
-	std::vector<double> inv(in->ndim(), 1);
-	for(size_t ii=0; ii<inv.size() && ii<len; ii++) 
-		inv[ii] = 1./dist[ii];
+	std::vector<double> center(in->ndim());
+	for(size_t ii=0; ii<center.size(); ii++) {
+		center[ii] = in->dim(ii)/2.;
+	}
 
 	auto mshear = dynamic_pointer_cast<MRImage>(in->copy());
 	LinInterp3DView<double> lininterp(in);
 
+	std::vector<double> shear(in->ndim(), 0);
+	for(size_t ii=0; ii<in->ndim() && ii<len; ii++) {
+		if(ii==dir)
+			shear[ii] = 0;
+		else if(ii<len) 
+			shear[ii] = -dist[ii];
+		else 
+			shear[ii] = 0;
+	}
+
 	// stop at the end of x lines
 	ChunkIter<double> it(mshear);
 	std::vector<int64_t> csize(in->ndim(), 1);
-	csize[dim] = 0;
-	it.setChunkSize(dim, csize.data()); 
+	csize[dir] = 0;
+	it.setChunkSize(csize.size(), csize.data()); 
 	for(it.goBegin(); !it.eof(); it.nextChunk()) {
+		it.index(3, index);
+		
+		double lineshift = 0;
+		for(size_t ii=0; ii<len; ii++) {
+			if(ii != dir)
+				lineshift += dist[ii]*(index[ii]-center[ii]);
+		}
+		
 		for(; !it.isChunkEnd(); ++it) {
 			it.index(3, index);
 
 			for(size_t ii=0; ii<3; ii++) {
-				cindex[ii] = inv[ii]*index[ii];
+				cindex[ii] = index[ii];
 			}
 
 			// grab value
-			it.set(lininterp(cindex[0], cindex[1], cindex[2]));
+			cindex[dir] += lineshift;
+			double v = lininterp(cindex[0], cindex[1], cindex[2]);
+			it.set(v);
 		}
 	}
 	return mshear;
@@ -113,25 +134,26 @@ int main()
 		for(size_t ii=0; ii<3 ; ii++) {
 			dist += (index[ii]-sz[ii]/2.)*(index[ii]-sz[ii]/2.);
 		}
-		if(sqrt(dist) < 5)
-			sit.set(1);
+		if(sqrt(dist) < 10)
+			sit.set(sqrt(dist));
 		else
 			sit.set(0);
 
 		++sit;
 	}
+	in->write("original.nii.gz");
 	
-	double shear[3] = {1, 5, 10};
+	double shear[3] = {1, 1, 5};
 
 	// manual shear
 	auto mshear = manualShearImage(in, 0, 3, shear);
 	mshear->write("manual_shear.nii.gz");
 	
-//	shearImage(in, 0, shear);
-//	in->write("fourier_shear.nii.gz");
-//
-//	if(closeCompare(in, mshift) != 0)
-//		return -1;
+	shearImage(in, 0, 3, shear);
+	in->write("fourier_shear.nii.gz");
+
+	if(closeCompare(in, mshear) != 0)
+		return -1;
 	
 
 	return 0;

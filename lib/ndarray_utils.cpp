@@ -525,28 +525,41 @@ void shiftImage(shared_ptr<NDArray> inout, size_t dd, double dist)
 	}
 }
 
-void shearImage(shared_ptr<NDArray> inout, size_t dim, size_t len, double* dist)
+void shearImage(shared_ptr<NDArray> inout, size_t dir, size_t len, double* dist)
 {
-	assert(dd < inout->ndim());
+	assert(dir < inout->ndim());
 
 	const std::complex<double> I(0, 1);
 	const double PI = acos(-1);
-	size_t padsize = round2(inout->dim(dd));
-	size_t paddiff = padsize-inout->dim(dd);
+	size_t padsize = round2(2*inout->dim(dir));
+	size_t paddiff = padsize-inout->dim(dir);
 	auto buffer = fftw_alloc_complex(padsize);
 	fftw_plan fwd = fftw_plan_dft_1d((int)padsize, buffer, buffer, 
 			FFTW_FORWARD, FFTW_MEASURE);
 	fftw_plan rev = fftw_plan_dft_1d((int)padsize, buffer, buffer, 
 			FFTW_BACKWARD, FFTW_MEASURE);
+	std::vector<double> center(inout->ndim());
+	for(size_t ii=0; ii<center.size(); ii++) {
+		center[ii] = inout->dim(ii)/2.;
+	}
 
 	// need copy data into center of buffer, create iterator that moves
 	// in the specified dimension fastest
 	OrderConstIter<cdouble_t> iit(inout);
 	OrderIter<cdouble_t> oit(inout);
-	iit.setOrder({dd});
-	oit.setOrder({dd});
+	iit.setOrder({dir});
+	oit.setOrder({dir});
+	std::vector<int64_t> index(inout->ndim());
 
 	for(iit.goBegin(), oit.goBegin(); !iit.isEnd() ; ++iit, ++oit) {
+		iit.index(index.size(), index.data());
+
+		double lineshift = 0;
+		for(size_t ii=0; ii<len; ii++) {
+			if(ii != dir)
+				lineshift += dist[ii]*(index[ii]-center[ii]);
+		}
+
 		// zero buffer 
 		for(size_t tt=0; tt<padsize; tt++) {
 			buffer[tt][0] = 0;
@@ -554,7 +567,7 @@ void shearImage(shared_ptr<NDArray> inout, size_t dim, size_t len, double* dist)
 		}
 
 		// fill from line
-		for(size_t tt=0; tt<inout->dim(dd); ++iit, tt++) {
+		for(size_t tt=0; tt<inout->dim(dir); ++iit, tt++) {
 			buffer[tt+paddiff/2][0] = (*iit).real();
 			buffer[tt+paddiff/2][1] = (*iit).imag();
 		}
@@ -565,7 +578,7 @@ void shearImage(shared_ptr<NDArray> inout, size_t dim, size_t len, double* dist)
 		// fourier shift
 		for(size_t tt=0; tt<padsize; tt++) {
 			cdouble_t tmp(buffer[tt][0], buffer[tt][1]);
-			tmp *= std::exp(-2.*PI*I*dist*(double)tt/(double)padsize);
+			tmp *= std::exp(-2.*PI*I*lineshift*(double)tt/(double)padsize);
 			buffer[tt][0] = tmp.real()/padsize;
 			buffer[tt][1] = tmp.imag()/padsize;
 		}
@@ -574,7 +587,7 @@ void shearImage(shared_ptr<NDArray> inout, size_t dim, size_t len, double* dist)
 		fftw_execute(rev);
 
 		// fill line from buffer
-		for(size_t tt=0; tt<inout->dim(dd); ++oit, tt++) {
+		for(size_t tt=0; tt<inout->dim(dir); ++oit, tt++) {
 			cdouble_t tmp(buffer[tt+paddiff/2][0], buffer[tt+paddiff/2][1]);
 			oit.set(tmp); 
 		}
