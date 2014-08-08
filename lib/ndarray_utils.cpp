@@ -573,11 +573,20 @@ void shearImage(shared_ptr<NDArray> inout, size_t dir, size_t len, double* dist)
 		fftw_execute(fwd);
 
 		// fourier shift
-		for(size_t tt=0; tt<padsize; tt++) {
-			cdouble_t tmp(buffer[tt][0], buffer[tt][1]);
-			tmp *= std::exp(-2.*PI*I*lineshift*(double)tt/(double)padsize);
-			buffer[tt][0] = tmp.real()/padsize;
-			buffer[tt][1] = tmp.imag()/padsize;
+		double normf = pow(padsize,-1);
+		for(size_t tt=0; tt<(1+padsize)/2; tt++) {
+			double ff = (double)tt/(double)padsize;
+			cdouble_t tmp(buffer[tt][0]*normf, buffer[tt][1]*normf);
+			tmp *= std::exp(-2.*PI*I*lineshift*ff);
+			buffer[tt][0] = tmp.real();
+			buffer[tt][1] = tmp.imag();
+		}
+		for(size_t tt=(1+padsize)/2; tt<padsize; tt++) {
+			double ff = -(double)(padsize-tt)/(double)padsize;
+			cdouble_t tmp(buffer[tt][0]*normf, buffer[tt][1]*normf);
+			tmp *= std::exp(-2.*PI*I*lineshift*ff);
+			buffer[tt][0] = tmp.real();
+			buffer[tt][1] = tmp.imag();
 		}
 
 		// inverse fourier transform

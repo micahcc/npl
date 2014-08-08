@@ -79,47 +79,47 @@ std::ostream& operator<< (std::ostream& stream, const rgba_t& v)
 //// cdouble_t
 ////////////////////////////////////////////////////////
 cdouble_t::operator float() const {
-	return norm(*this);
+	return abs(*this);
 };
 
 cdouble_t::operator double() const {
-	return norm(*this);
+	return abs(*this);
 };
 
 cdouble_t::operator long double() const {
-	return norm(*this);
+	return abs(*this);
 };
 
 cdouble_t::operator int64_t() const {
-	return (int64_t)norm(*this);
+	return (int64_t)abs(*this);
 };
 
 cdouble_t::operator uint64_t() const {
-	return (uint64_t)norm(*this);
+	return (uint64_t)abs(*this);
 };
 
 cdouble_t::operator int32_t() const {
-	return (int32_t)norm(*this);
+	return (int32_t)abs(*this);
 };
 
 cdouble_t::operator uint32_t() const {
-	return (uint32_t)norm(*this);
+	return (uint32_t)abs(*this);
 };
 
 cdouble_t::operator int16_t() const {
-	return (int16_t)norm(*this);
+	return (int16_t)abs(*this);
 };
 
 cdouble_t::operator uint16_t() const {
-	return (uint16_t)norm(*this);
+	return (uint16_t)abs(*this);
 };
 
 cdouble_t::operator int8_t() const {
-	return (int8_t)norm(*this);
+	return (int8_t)abs(*this);
 };
 
 cdouble_t::operator uint8_t() const {
-	return (uint8_t)norm(*this);
+	return (uint8_t)abs(*this);
 };
 //
 //cdouble_t::operator std::complex<float>() {
@@ -171,47 +171,47 @@ cdouble_t::cdouble_t(const std::complex<long double>& v): std::complex<double>(v
 //// cfloat_t
 ////////////////////////////////////////////////////////
 cfloat_t::operator float() const {
-	return norm(*this);
+	return abs(*this);
 };
 
 cfloat_t::operator double() const {
-	return norm(*this);
+	return abs(*this);
 };
 
 cfloat_t::operator long double() const {
-	return norm(*this);
+	return abs(*this);
 };
 
 cfloat_t::operator int64_t() const {
-	return (int64_t)norm(*this);
+	return (int64_t)abs(*this);
 };
 
 cfloat_t::operator uint64_t() const {
-	return (uint64_t)norm(*this);
+	return (uint64_t)abs(*this);
 };
 
 cfloat_t::operator int32_t() const {
-	return (int32_t)norm(*this);
+	return (int32_t)abs(*this);
 };
 
 cfloat_t::operator uint32_t() const {
-	return (uint32_t)norm(*this);
+	return (uint32_t)abs(*this);
 };
 
 cfloat_t::operator int16_t() const {
-	return (int16_t)norm(*this);
+	return (int16_t)abs(*this);
 };
 
 cfloat_t::operator uint16_t() const {
-	return (uint16_t)norm(*this);
+	return (uint16_t)abs(*this);
 };
 
 cfloat_t::operator int8_t() const {
-	return (int8_t)norm(*this);
+	return (int8_t)abs(*this);
 };
 
 cfloat_t::operator uint8_t() const {
-	return (uint8_t)norm(*this);
+	return (uint8_t)abs(*this);
 };
 //
 //cfloat_t::operator std::complex<double>() {
@@ -261,47 +261,47 @@ cfloat_t& cfloat_t::operator=(const cquad_t& v)
 //// cquad_t
 ////////////////////////////////////////////////////////
 cquad_t::operator float() const {
-	return norm(*this);
+	return abs(*this);
 };
 
 cquad_t::operator double() const {
-	return norm(*this);
+	return abs(*this);
 };
 
 cquad_t::operator long double() const {
-	return norm(*this);
+	return abs(*this);
 };
 
 cquad_t::operator int64_t() const {
-	return (int64_t)norm(*this);
+	return (int64_t)abs(*this);
 };
 
 cquad_t::operator uint64_t() const {
-	return (uint64_t)norm(*this);
+	return (uint64_t)abs(*this);
 };
 
 cquad_t::operator int32_t() const {
-	return (int32_t)norm(*this);
+	return (int32_t)abs(*this);
 };
 
 cquad_t::operator uint32_t() const {
-	return (uint32_t)norm(*this);
+	return (uint32_t)abs(*this);
 };
 
 cquad_t::operator int16_t() const {
-	return (int16_t)norm(*this);
+	return (int16_t)abs(*this);
 };
 
 cquad_t::operator uint16_t() const {
-	return (uint16_t)norm(*this);
+	return (uint16_t)abs(*this);
 };
 
 cquad_t::operator int8_t() const {
-	return (int8_t)norm(*this);
+	return (int8_t)abs(*this);
 };
 
 cquad_t::operator uint8_t() const {
-	return (uint8_t)norm(*this);
+	return (uint8_t)abs(*this);
 };
 //
 //cquad_t::operator std::complex<double>() {

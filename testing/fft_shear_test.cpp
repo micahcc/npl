@@ -133,7 +133,7 @@ int main()
 	}
 	in->write("original.nii.gz");
 	
-	double shear[3] = {1, .5, 1};
+	double shear[3] = {1, 0, 0};
 
 	// manual shear
 	auto mshear = manualShearImage(in, 0, 3, shear);
