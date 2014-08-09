@@ -51,13 +51,18 @@ int closeCompare(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b)
 		}
 	}
 
+	std::vector<int64_t> index(3);
 	OrderConstIter<double> ita(a);
 	OrderConstIter<double> itb(b);
 	itb.setOrder(ita.getOrder());
 	for(ita.goBegin(), itb.goBegin(); !ita.eof() && !itb.eof(); ++ita, ++itb) {
 		double diff = fabs(*ita - *itb);
-		if(diff > 1E-10) {
+		if(diff > 3) {
+			ita.index(3, index.data());
 			cerr << "Images differ!" << endl;
+			for(size_t ii=0; ii<3; ii++)
+				cerr << index[ii] << ",";
+			cerr << endl;
 			return -1;
 		}
 	}
@@ -138,16 +143,22 @@ int main()
 
 	// manual shear
 	cerr << "Done.\nShearing Manually...";
-	auto mshear = manualShearImage(in, 0, 3, shear);
-	cerr << "Done.\nWriting Manual Shear...";
-	mshear->write("manual_shear.nii.gz");
+	auto kshear = dynamic_pointer_cast<MRImage>(in->copy());
+	clock_t cl = clock();
+	shearImageKern(kshear, 0, 3, shear);
+	cl = clock() - cl;
+	cerr << cl << " Ticks, Done.\nWriting Manual Shear...";
+	kshear->write("kern_shear.nii.gz");
 	
 	cerr << "Done.\nShearing with FFT...";
-	shearImage(in, 0, 3, shear);
-	cerr << "Done.\nWriting FFT-Sheared Image...";
-	in->write("fourier_shear.nii.gz");
+	auto fshear = dynamic_pointer_cast<MRImage>(in->copy());
+	cl = clock();
+	shearImageFFT(fshear, 0, 3, shear);
+	cl = clock() - cl;
+	cerr << cl << " Ticks, Done.\nWriting FFT-Shear...";
+	fshear->write("fourier_shear.nii.gz");
 	cerr << "Done.\nComparing...";
-	if(closeCompare(in, mshear) != 0)
+	if(closeCompare(fshear, kshear) != 0)
 		return -1;
 	cerr << "Done.\n";
 	

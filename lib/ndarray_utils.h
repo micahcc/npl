@@ -131,35 +131,69 @@ shared_ptr<NDArray> erode(shared_ptr<NDArray> in, size_t reps);
 
 /**
  * @brief Performs unidirectional shift in the direction of +dd, of distance 
- * (in units of pixels).
+ * (in units of pixels). Uses Lanczos interpolation.
  *
  * @param inout Input/output image
  * @param dd Dimension to shift, will be positive 
  * @param dist
  */
-void shiftImage(shared_ptr<NDArray> inout, size_t dd, double dist);
+void shiftImageKern(shared_ptr<NDArray> inout, size_t dd, double dist);
 
 /**
  * @brief Performs a shear on the image where the sheared dimension (dim) will
  * be shifted depending on the index in other dimensions (dist). 
- * (in units of pixels).
+ * (in units of pixels). Uses Lanczos interpolation.
  *
  * @param inout Input/output image
  * @param dim Dimension to shift/shear
  * @param len Length of dist array
  * @param dist Distance terms to travel. Shift[dim] = x0*dist[0]+x1*dist[1] ...
  */
-void shearImage(shared_ptr<NDArray> inout, size_t dim, size_t len, double* dist);
+void shearImageKern(shared_ptr<NDArray> inout, size_t dim, size_t len, double* dist);
 
 /**
  * @brief Performs a rotation using fourier shift and shears. 
+ * Uses Lanczos interpolation.
  *
  * @param inout Input/output image
  * @param rx Rotation about x axis
  * @param ry Rotation about y axis
  * @param rz Rotation about z axis
  */
-void rotateImage(shared_ptr<NDArray> inout, double rx, double ry, double rz);
+void rotateImageKern(shared_ptr<NDArray> inout, double rx, double ry, double rz);
+
+/**
+ * @brief Performs unidirectional shift in the direction of +dd, of distance 
+ * (in units of pixels), using FFT.
+ *
+ * @param inout Input/output image
+ * @param dd Dimension to shift, will be positive 
+ * @param dist
+ */
+void shiftImageFFT(shared_ptr<NDArray> inout, size_t dd, double dist);
+
+/**
+ * @brief Performs a shear on the image where the sheared dimension (dim) will
+ * be shifted depending on the index in other dimensions (dist). 
+ * (in units of pixels), using FFT.
+ *
+ * @param inout Input/output image
+ * @param dim Dimension to shift/shear
+ * @param len Length of dist array
+ * @param dist Distance terms to travel. Shift[dim] = x0*dist[0]+x1*dist[1] ...
+ */
+void shearImageFFT(shared_ptr<NDArray> inout, size_t dim, size_t len, double* dist);
+
+/**
+ * @brief Performs a rotation using fourier shift and shears, using FFT for 
+ * unidirectional shifts, using FFT.
+ *
+ * @param inout Input/output image
+ * @param rx Rotation about x axis
+ * @param ry Rotation about y axis
+ * @param rz Rotation about z axis
+ */
+void rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz);
 
 } // npl
 #endif  //ND_ALGOS_H

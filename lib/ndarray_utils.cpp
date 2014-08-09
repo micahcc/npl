@@ -36,6 +36,8 @@
 #include "npltypes.h"
 #include "matrix.h"
 #include "iterators.h"
+#include "basic_functions.h"
+
 #include "fftw3.h"
 
 #include <string>
@@ -461,6 +463,38 @@ shared_ptr<NDArray> dilate(shared_ptr<NDArray> in, size_t reps)
 }
 
 /**
+ * @brief Sinc function centered at 0, with radius a, range should be = 2a
+ *
+ * @param x
+ * @param double
+ *
+ * @return 
+ */
+double sincWindow(double x, double a)
+{
+	const double PI = acos(-1);
+
+	if(x == 0)
+		return 1;
+	else if(fabs(x) < a)
+		return sin(PI*x/a)/(PI*x/a);
+	else
+		return 0;
+}
+
+double lanczosKernel(double x, double a)
+{
+	const double PI = acos(-1);
+
+	if(x == 0)
+		return 1;
+	else if(fabs(x) < a)
+		return a*sin(PI*x)*sin(PI*x/a)/(PI*PI*x*x);
+	else
+		return 0;
+}
+
+/**
  * @brief Uses fourier shift theorem to rotate an image, using shears
  *
  * @param inout Input/output image to shift
@@ -469,7 +503,52 @@ shared_ptr<NDArray> dilate(shared_ptr<NDArray> in, size_t reps)
  *
  * @return rotated image
  */
-void shiftImage(shared_ptr<NDArray> inout, size_t dd, double dist)
+void shiftImageKern(shared_ptr<NDArray> inout, size_t dd, double dist)
+{
+	assert(dd < inout->ndim());
+
+	const int64_t RADIUS = 3;
+	const std::complex<double> I(0, 1);
+	std::vector<double> buf(inout->dim(dd), 0);
+
+	// need copy data into center of buffer, create iterator that moves
+	// in the specified dimension fastest
+	OrderIter<double> oit(inout);
+	OrderIter<double> iit(inout);
+	iit.setOrder({dd});
+	oit.setOrder({dd});
+
+	for(iit.goBegin(), oit.goBegin(); !iit.isEnd() ; ){
+
+		// fill buffer 
+		for(size_t tt=0; tt<inout->dim(dd); ++iit, tt++) 
+			buf[tt] = *iit;
+
+		// fill from line
+		for(size_t tt=0; tt<inout->dim(dd); ++oit, tt++) {
+			double tmp = 0;
+			double source = (double)tt-dist;
+			int64_t isource = round(source);
+			for(int64_t oo = -RADIUS; oo <= RADIUS; oo++) {
+				int64_t ind = clamp<int64_t>(0, inout->dim(dd)-1, isource+oo);
+				tmp += lanczosKernel(oo+isource-source, RADIUS)*buf[ind];
+			}
+
+			oit.set(tmp);
+		}
+	}
+}
+
+/**
+ * @brief Uses fourier shift theorem to rotate an image, using shears
+ *
+ * @param inout Input/output image to shift
+ * @param dd dimension of image to shift
+ * @param dist Distance (index's) to shift
+ *
+ * @return rotated image
+ */
+void shiftImageFFT(shared_ptr<NDArray> inout, size_t dd, double dist)
 {
 	assert(dd < inout->ndim());
 
@@ -490,7 +569,7 @@ void shiftImage(shared_ptr<NDArray> inout, size_t dd, double dist)
 	iit.setOrder({dd});
 	oit.setOrder({dd});
 
-	for(iit.goBegin(), oit.goBegin(); !iit.isEnd() ; ++iit, ++oit) {
+	for(iit.goBegin(), oit.goBegin(); !iit.isEnd() ;) {
 		// zero buffer 
 		for(size_t tt=0; tt<padsize; tt++) {
 			buffer[tt][0] = 0;
@@ -507,11 +586,20 @@ void shiftImage(shared_ptr<NDArray> inout, size_t dd, double dist)
 		fftw_execute(fwd);
 
 		// fourier shift
-		for(size_t tt=0; tt<padsize; tt++) {
-			cdouble_t tmp(buffer[tt][0], buffer[tt][1]);
-			tmp *= std::exp(-2.*PI*I*dist*(double)tt/(double)padsize);
-			buffer[tt][0] = tmp.real()/padsize;
-			buffer[tt][1] = tmp.imag()/padsize;
+		double normf = pow(padsize,-1);
+		for(size_t tt=0; tt<padsize/2; tt++) {
+			double ff = (double)tt/(double)padsize;
+			cdouble_t tmp(buffer[tt][0]*normf, buffer[tt][1]*normf);
+			tmp *= sincWindow(ff, .5)*std::exp(-2.*PI*I*dist*ff);
+			buffer[tt][0] = tmp.real();
+			buffer[tt][1] = tmp.imag();
+		}
+		for(size_t tt=padsize/2; tt<padsize; tt++) {
+			double ff = -(double)(padsize-tt)/(double)padsize;
+			cdouble_t tmp(buffer[tt][0]*normf, buffer[tt][1]*normf);
+			tmp *= sincWindow(ff, .5)*std::exp(-2.*PI*I*dist*ff);
+			buffer[tt][0] = tmp.real();
+			buffer[tt][1] = tmp.imag();
 		}
 
 		// inverse fourier transform
@@ -525,14 +613,62 @@ void shiftImage(shared_ptr<NDArray> inout, size_t dd, double dist)
 	}
 }
 
-void shearImage(shared_ptr<NDArray> inout, size_t dir, size_t len, double* dist)
+void shearImageKern(shared_ptr<NDArray> inout, size_t dd, size_t len, double* dist)
 {
-	assert(dir < inout->ndim());
+	assert(dd < inout->ndim());
+
+	const int64_t RADIUS = 3;
+	std::vector<double> buf(inout->dim(dd), 0);
+	std::vector<double> center(inout->ndim());
+	for(size_t ii=0; ii<center.size(); ii++) {
+		center[ii] = inout->dim(ii)/2.;
+	}
+
+	// need copy data into center of buffer, create iterator that moves
+	// in the specified dimension fastest
+	OrderIter<double> oit(inout);
+	OrderIter<double> iit(inout);
+	iit.setOrder({dd});
+	oit.setOrder({dd});
+
+	std::vector<int64_t> index(inout->ndim());
+	for(iit.goBegin(), oit.goBegin(); !iit.isEnd() ; ){
+		iit.index(index.size(), index.data());
+		
+		// calculate line shift
+		double lineshift = 0;
+		for(size_t ii=0; ii<len; ii++) {
+			if(ii != dd)
+				lineshift += dist[ii]*(index[ii]-center[ii]);
+		}
+
+		// fill buffer 
+		for(size_t tt=0; tt<inout->dim(dd); ++iit, tt++) 
+			buf[tt] = *iit;
+
+		// fill from line
+		for(size_t tt=0; tt<inout->dim(dd); ++oit, tt++) {
+			double tmp = 0;
+			double source = (double)tt-lineshift;
+			int64_t isource = round(source);
+			for(int64_t oo = -RADIUS; oo <= RADIUS; oo++) {
+				int64_t ind = clamp<int64_t>(0, inout->dim(dd)-1, isource+oo);
+				tmp += lanczosKernel(oo+isource-source, RADIUS)*buf[ind];
+			}
+
+			oit.set(tmp);
+		}
+	}
+}
+
+void shearImageFFT(shared_ptr<NDArray> inout, size_t dd, size_t len, double* dist)
+{
+	assert(dd < inout->ndim());
 
 	const std::complex<double> I(0, 1);
 	const double PI = acos(-1);
-	size_t padsize = round2(2*inout->dim(dir));
-	size_t paddiff = padsize-inout->dim(dir);
+	size_t padsize = round2(2*inout->dim(dd));
+	size_t paddiff = padsize-inout->dim(dd);
 	auto buffer = fftw_alloc_complex(padsize);
 	fftw_plan fwd = fftw_plan_dft_1d((int)padsize, buffer, buffer, 
 			FFTW_FORWARD, FFTW_MEASURE);
@@ -546,14 +682,14 @@ void shearImage(shared_ptr<NDArray> inout, size_t dir, size_t len, double* dist)
 	// need copy data into center of buffer, create iterator that moves
 	// in the specified dimension fastest
 	ChunkIter<cdouble_t> it(inout);
-	it.setLineChunk(dir);
+	it.setLineChunk(dd);
 	std::vector<int64_t> index(inout->ndim());
 	for(it.goBegin(); !it.isEnd() ; it.nextChunk()) {
 		it.index(index.size(), index.data());
 
 		double lineshift = 0;
 		for(size_t ii=0; ii<len; ii++) {
-			if(ii != dir)
+			if(ii != dd)
 				lineshift += dist[ii]*(index[ii]-center[ii]);
 		}
 
@@ -577,14 +713,14 @@ void shearImage(shared_ptr<NDArray> inout, size_t dir, size_t len, double* dist)
 		for(size_t tt=0; tt<padsize/2; tt++) {
 			double ff = (double)tt/(double)padsize;
 			cdouble_t tmp(buffer[tt][0]*normf, buffer[tt][1]*normf);
-			tmp *= std::exp(-2.*PI*I*lineshift*ff);
+			tmp *= sincWindow(ff, .5)*std::exp(-2.*PI*I*lineshift*ff);
 			buffer[tt][0] = tmp.real();
 			buffer[tt][1] = tmp.imag();
 		}
 		for(size_t tt=padsize/2; tt<padsize; tt++) {
 			double ff = -(double)(padsize-tt)/(double)padsize;
 			cdouble_t tmp(buffer[tt][0]*normf, buffer[tt][1]*normf);
-			tmp *= std::exp(-2.*PI*I*lineshift*ff);
+			tmp *= sincWindow(ff, .5)*std::exp(-2.*PI*I*lineshift*ff);
 			buffer[tt][0] = tmp.real();
 			buffer[tt][1] = tmp.imag();
 		}

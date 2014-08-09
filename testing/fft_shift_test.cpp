@@ -56,7 +56,7 @@ int closeCompare(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b)
 	itb.setOrder(ita.getOrder());
 	for(ita.goBegin(), itb.goBegin(); !ita.eof() && !itb.eof(); ++ita, ++itb) {
 		double diff = fabs(*ita - *itb);
-		if(diff > 1E-10) {
+		if(diff > .5) {
 			cerr << "Images differ!" << endl;
 			return -1;
 		}
@@ -96,26 +96,18 @@ int main()
 	double shift[3] = {1, 5, 10};
 
 	// manual shift
-	auto mshift = dynamic_pointer_cast<MRImage>(in->copy());
-	NDAccess<double> acc(in);
-	for(OrderIter<double> it(mshift); !it.eof(); ++it) {
-		it.index(3, index);
-		
-		for(size_t dd = 0 ; dd < in->ndim(); dd++)
-			index[dd] = clamp<int64_t>(0, in->dim(dd)-1, index[dd]-shift[dd]);
-
-		it.set(acc.get(3, index));
-
-	}
-	mshift->write("manual_shift.nii.gz");
-	
-	
+	auto kshift = dynamic_pointer_cast<MRImage>(in->copy());
 	for(size_t ii=0; ii<sizeof(shift)/sizeof(double); ii++)
-		shiftImage(in, ii, shift[ii]);
+		shiftImageKern(kshift, ii, shift[ii]);
+	kshift->write("kern_shift.nii.gz");
 	
-	in->write("fourier_shift.nii.gz");
+	
+	auto fshift = dynamic_pointer_cast<MRImage>(in->copy());
+	for(size_t ii=0; ii<sizeof(shift)/sizeof(double); ii++)
+		shiftImageFFT(fshift, ii, shift[ii]);
+	fshift->write("fourier_shift.nii.gz");
 
-	if(closeCompare(in, mshift) != 0)
+	if(closeCompare(kshift, fshift) != 0)
 		return -1;
 	
 
