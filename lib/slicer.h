@@ -169,6 +169,30 @@ public:
 	 * @param index output index variable
 	 */
 	void index(size_t len, int64_t* index) const;
+	
+	/**
+	 * @brief Places the first len dimension in the given array. If the number
+	 * of dimensions exceed the len then the additional dimensions will be
+	 * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
+	 * In other words index will be completely overwritten in the most sane way
+	 * possible if the internal dimensions and size index differ.
+	 *
+	 * @param ndim size of index
+	 * @param index output index variable
+	 */
+	void index(size_t len, int* index) const;
+
+	/**
+	 * @brief Places the first len dimension in the given array. If the number
+	 * of dimensions exceed the len then the additional dimensions will be
+	 * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
+	 * In other words index will be completely overwritten in the most sane way
+	 * possible if the internal dimensions and size index differ.
+	 *
+	 * @param ndim size of index
+	 * @param index output index variable
+	 */
+	void index(size_t len, double* index) const;
 
 	/***********************************************
 	 *
@@ -464,6 +488,30 @@ public:
 	 * @param index output index variable
 	 */
 	void index(size_t len, int64_t* index) const;
+	
+	/**
+	 * @brief Places the first len dimension in the given array. If the number
+	 * of dimensions exceed the len then the additional dimensions will be
+	 * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
+	 * In other words index will be completely overwritten in the most sane way
+	 * possible if the internal dimensions and size index differ.
+	 *
+	 * @param ndim size of index
+	 * @param index output index variable
+	 */
+	void index(size_t len, int* index) const;
+	
+	/**
+	 * @brief Places the first len dimension in the given array. If the number
+	 * of dimensions exceed the len then the additional dimensions will be
+	 * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
+	 * In other words index will be completely overwritten in the most sane way
+	 * possible if the internal dimensions and size index differ.
+	 *
+	 * @param ndim size of index
+	 * @param index output index variable
+	 */
+	void index(size_t len, double* index) const;
 
 	/***********************************************
 	 *

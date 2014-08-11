@@ -32,6 +32,7 @@
 #define ND_ALGOS_H
 
 #include "ndarray.h"
+#include "utility.h"
 #include "npltypes.h"
 
 #include <memory>
@@ -170,7 +171,8 @@ void rotateImageKern(shared_ptr<NDArray> inout, double rx, double ry, double rz)
  * @param dd Dimension to shift, will be positive 
  * @param dist
  */
-void shiftImageFFT(shared_ptr<NDArray> inout, size_t dd, double dist);
+void shiftImageFFT(shared_ptr<NDArray> inout, size_t dd, double dist, 
+		double(*window)(double,double) = npl::sincWindow);
 
 /**
  * @brief Performs a shear on the image where the sheared dimension (dim) will
@@ -181,8 +183,10 @@ void shiftImageFFT(shared_ptr<NDArray> inout, size_t dd, double dist);
  * @param dim Dimension to shift/shear
  * @param len Length of dist array
  * @param dist Distance terms to travel. Shift[dim] = x0*dist[0]+x1*dist[1] ...
+ * @param window Windowing function of fourier domain (default sinc)
  */
-void shearImageFFT(shared_ptr<NDArray> inout, size_t dim, size_t len, double* dist);
+void shearImageFFT(shared_ptr<NDArray> inout, size_t dim, size_t len, double* dist,
+		double(*window)(double,double) = npl::sincWindow);
 
 /**
  * @brief Performs a rotation using fourier shift and shears, using FFT for 
@@ -194,6 +198,10 @@ void shearImageFFT(shared_ptr<NDArray> inout, size_t dim, size_t len, double* di
  * @param rz Rotation about z axis
  */
 void rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz);
+
+///////// Temporary ///////////
+int shearYZXY(double terms[4][2], double* err, double* maxshear,
+		double Rx, double Ry, double Rz);
 
 } // npl
 #endif  //ND_ALGOS_H

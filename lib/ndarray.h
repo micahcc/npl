@@ -202,7 +202,7 @@ public:
 	 *
 	 * @return number of elements in the 4th or greater dimensions
 	 */
-	virtual int64_t tlen() = 0;
+	virtual int64_t tlen() const = 0;
 
 protected:
 	NDArray() {} ;
@@ -426,7 +426,7 @@ public:
 	 *
 	 * @return number of elements in the 4th or greater dimensions
 	 */
-	virtual int64_t tlen() {
+	virtual int64_t tlen() const {
 		if(D >= 3)
 			return _m_stride[2];
 		else

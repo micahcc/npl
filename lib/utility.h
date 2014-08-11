@@ -27,6 +27,75 @@
 
 namespace npl {
 
+/**
+ * @brief Cotangent function
+ *
+ * @param v angle in radians
+ *
+ * @return Cotangent of angle
+ */
+inline
+double cot(double v)
+{
+	return 1./tan(v);
+}
+
+/**
+ * @brief Cosecant function
+ *
+ * @param v angle in radians
+ *
+ * @return Cosecant of angle
+ */
+inline
+double csc(double v)
+{
+	return 1./sin(v);
+}
+
+/**
+ * @brief Secand function
+ *
+ * @param v angle in radians
+ *
+ * @return Secand of angle
+ */
+inline
+double sec(double v)
+{
+	return 1./cos(v);
+}
+
+
+/**
+ * @brief Sinc function centered at 0, with radius a, range should be = 2a
+ *
+ * @param x distance from center
+ * @param a radius
+ *
+ * @return weight
+ */
+double rectWindow(double x, double a);
+
+/**
+ * @brief Sinc function centered at 0, with radius a, range should be = 2a
+ *
+ * @param x distance from center
+ * @param a radius
+ *
+ * @return weight
+ */
+double sincWindow(double x, double a);
+
+/**
+ * @brief Lanczos kernel function
+ *
+ * @param x distance from center
+ * @param a radius of kernel
+ *
+ * @return weight
+ */
+double lanczosKernel(double x, double a);
 
 /**
  * @brief Reads a file and returns true if its entirely made up of printable ascii
@@ -202,7 +271,7 @@ void writePlot(std::string filename, const std::vector<double>& x,
 void writePlot(std::string filename, double(*f)(double),
 		double xrange[2], double xres, int ysize);
 
+}
 #endif // UTILITY_FUNCTIONS_H
 
 
-}

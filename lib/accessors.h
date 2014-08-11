@@ -246,6 +246,157 @@ protected:
 };
 
 /**
+ * @brief This is a basic accessor class, which allows for accessing
+ * array data in the type specified by the template.
+ *
+ * @tparam T Value to return on access
+ */
+template<typename T>
+class NDConstAccess
+{
+public:
+	NDConstAccess(std::shared_ptr<const NDArray> in) : parent(in)
+	{
+		switch(in->type()) {
+			case UINT8:
+				castget = castgetStatic<uint8_t>;
+				break;
+			case INT8:
+				castget = castgetStatic<int8_t>;
+				break;
+			case UINT16:
+				castget = castgetStatic<uint16_t>;
+				break;
+			case INT16:
+				castget = castgetStatic<int16_t>;
+				break;
+			case UINT32:
+				castget = castgetStatic<uint32_t>;
+				break;
+			case INT32:
+				castget = castgetStatic<int32_t>;
+				break;
+			case UINT64:
+				castget = castgetStatic<uint64_t>;
+				break;
+			case INT64:
+				castget = castgetStatic<int64_t>;
+				break;
+			case FLOAT32:
+				castget = castgetStatic<float>;
+				break;
+			case FLOAT64:
+				castget = castgetStatic<double>;
+				break;
+			case FLOAT128:
+				castget = castgetStatic<long double>;
+				break;
+			case COMPLEX64:
+				castget = castgetStatic<cfloat_t>;
+				break;
+			case COMPLEX128:
+				castget = castgetStatic<cdouble_t>;
+				break;
+			case COMPLEX256:
+				castget = castgetStatic<cquad_t>;
+				break;
+			case RGB24:
+				castget = castgetStatic<rgb_t>;
+				break;
+			case RGBA32:
+				castget = castgetStatic<rgba_t>;
+				break;
+			default:
+			case UNKNOWN_TYPE:
+				castget = castgetStatic<uint8_t>;
+				throw std::invalid_argument("Unknown type to NDConstAccess");
+				break;
+		}
+	};
+	
+	/**
+	 * @brief Gets value linear position in array, then casts to T
+	 *
+	 * @return value
+	 */
+	T operator[](int64_t index)
+	{
+		return castget(this->parent->__getAddr(index));
+	};
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index n-d index to access
+	 *
+	 * @return value
+	 */
+	T get(const std::vector<int64_t>& index)
+	{
+		return castget(this->parent->__getAddr(index));
+	};
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param len length of index array
+	 * @param index n-d index to access
+	 *
+	 * @return value
+	 */
+	T get(size_t len, int64_t* index)
+	{
+		return castget(this->parent->__getAddr(len, index));
+	};
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index n-d index to access
+	 *
+	 * @return value
+	 */
+	T operator[](const std::vector<int64_t>& index)
+	{
+		return castget(this->parent->__getAddr(index));
+	};
+	
+	int64_t tlen() { return this->parent->tlen(); };
+	
+protected:
+	
+
+	/**
+	 * @brief This is a wrapper function that will be called to safely cast
+	 * from the underlying type.
+	 *
+	 * @tparam U Underlying type of pixel, figured out in the constructor
+	 * @param ptr Pointer to memory where the pixel is.
+	 *
+	 * @return Correctly cast value
+	 */
+	template <typename U>
+	static T castgetStatic(void* ptr)
+	{
+		return (T)(*(static_cast<U*>(ptr)));
+	};
+	
+	/**
+	 * @brief Where to get the dat a from. Also the shared_ptr prevents dealloc
+	 */
+	std::shared_ptr<const NDArray> parent;
+
+	/**
+	 * @brief Function pointer to the correct function for casting from the
+	 * underlying type
+	 *
+	 * @param ptr location in memory where the pixel is stored
+	 */
+	T (*castget)(void* ptr);
+
+};
+
+/**
  * @brief The purpose of this class is to view an image as a 3D
  * image rather than a ND image. Therefore all dimensions above the third will
  * be ignored and index 0 will be used.
@@ -367,12 +518,12 @@ double linKern(double x)
  * @tparam T Type of value to cast and return
  */
 template<typename T>
-class LinInterp3DView : public Vector3DView<T>
+class LinInterp3DView : public NDConstAccess<T>
 {
 public:
-	LinInterp3DView(std::shared_ptr<NDArray> in,
+	LinInterp3DView(std::shared_ptr<const NDArray> in,
 				BoundaryConditionT bound = ZEROFLUX)
-				: Vector3DView<T>(in), m_boundmethod(bound)
+				: NDConstAccess<T>(in), m_boundmethod(bound)
 	{ };
 
 	/**
@@ -488,11 +639,6 @@ protected:
 	 *
 	 * @return value
 	 */
-	// Remove functions that aren't relevent from Base
-	void set(T v, int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
-	{
-		(void)(v); (void)(x); (void)(y); (void)(z); (void)(t);
-	};
 	T operator[](int64_t i) { (void)(i); return T(); };
 	T get(const std::vector<int64_t>& i) { (void)(i); return T(); };
 	T operator[](const std::vector<int64_t>& i) { (void)(i); return T(); };
@@ -509,12 +655,12 @@ protected:
  * @tparam T Type of value to cast and return
  */
 template<typename T>
-class NNInterp3DView : public Vector3DView<T>
+class NNInterp3DView : public NDConstAccess<T>
 {
 public:
 	NNInterp3DView(std::shared_ptr<NDArray> in,
 				BoundaryConditionT bound = ZEROFLUX)
-				: Vector3DView<T>(in), m_boundmethod(bound)
+				: NDConstAccess<T>(in), m_boundmethod(bound)
 	{ };
 
 	/**
@@ -584,10 +730,6 @@ private:
 	 * @return value
 	 */
 	// Remove functions that aren't relevent from Base
-	void set(T v, int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
-	{
-		(void)(v); (void)(x); (void)(y); (void)(z); (void)(t);
-	};
 	T operator[](int64_t i) { (void)(i); return T(); };
 	T get(const std::vector<int64_t>& i) { (void)(i); return T(); };
 	T operator[](const std::vector<int64_t>& i) { (void)(i); return T(); };

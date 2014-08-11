@@ -18,15 +18,11 @@
  *
  *****************************************************************************/
 
-/******************************************************************************
- * @file fft_test.cpp
- * @brief This file is specifically to test forward, reverse of fft image
- * procesing functions.
- ******************************************************************************/
-
 #include <version.h>
 #include <string>
 #include <stdexcept>
+
+#include <Eigen/Geometry> 
 
 #include "mrimage.h"
 #include "mrimage_utils.h"
@@ -36,6 +32,47 @@
 
 using namespace npl;
 using namespace std;
+using Eigen::Matrix3d;
+using Eigen::Vector3d;
+using Eigen::AngleAxisd;
+
+/**
+ * @brief Performs a rotation of the image first by rotating around z, then
+ * around y, then around x.
+ *
+ * @param rx Rotation around x, radians
+ * @param ry Rotation around y, radians
+ * @param rz Rotation around z, radians
+ * @param in Input image
+ *
+ * @return 
+ */
+shared_ptr<MRImage> bruteForceRotate(double rx, double ry, double rz, 
+		shared_ptr<const MRImage> in)
+{
+	Matrix3d m;
+	m = AngleAxisd(rx, Vector3d::UnitX())*AngleAxisd(ry,  Vector3d::UnitY())*
+				AngleAxisd(rz, Vector3d::UnitZ());
+	LinInterp3DView<double> lin(in);
+	auto out = dynamic_pointer_cast<MRImage>(in->copy());
+	Vector3d ind;
+	Vector3d cind;
+	Vector3d center;
+	for(size_t ii=0; ii<3 && ii<in->ndim(); ii++) {
+		center[ii] = (in->dim(ii)-1)/2.;
+	}
+
+	for(Vector3DIter<double> it(out); !it.isEnd(); ++it) {
+		it.index(3, ind.array().data());
+		cind = m*(ind-center);
+
+		// set for each t
+		for(size_t tt = 0; tt<in->tlen(); tt++) 
+			it.set(tt, lin(cind[0], cind[1], cind[2], tt));
+	}
+
+	return out;
+}
 
 int closeCompare(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b)
 {
@@ -70,7 +107,6 @@ int main()
 	// create an image
 	int64_t index[3];
 	size_t sz[] = {128, 128, 128};
-	cerr << sizeof(sz) << endl;
 	auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, FLOAT64);
 
 	// fill with square
@@ -86,7 +122,16 @@ int main()
 		}
 		++sit;
 	}
-	
+
+	in->write("original.nii.gz");
+	auto out = bruteForceRotate(.3, .1, .01, in);
+	out->write("rotated.nii.gz");
+
+	double shearterms[4][2]; 
+	double maxshear, err;
+	shearYZXY(shearterms, &err, &maxshear, .3, .1, .01);
+	cerr << "Absolute Error: " << err << endl;
+	cerr << "Maximum shear: " << maxshear << endl;
 //	// perform fourier rotation, +a
 //	// strictly the frequency for component k (where k = k-N/2,N/2]
 //	// double T = fft->dim(d)*in->spacing()[d];

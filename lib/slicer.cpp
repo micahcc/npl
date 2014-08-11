@@ -166,6 +166,48 @@ void Slicer::index(size_t len, int64_t* index) const
 }
 
 /**
+ * @brief Places the first ndim dimension in the given array. If the number
+ * of dimensions exceed the ndim then the additional dimensions will be
+ * ignored, if ndim exceeds the dimensionality then index[dim...ndim-1] = 0.
+ * In other words index will be completely overwritten in the most sane way
+ * possible if the internal dimensions and size index differ.
+ *
+ * @param ndim size of index
+ * @param index output index variable
+ */
+void Slicer::index(size_t len, int* index) const
+{
+	for(size_t ii=0; ii<len; ii++) {
+		if(ii<m_ndim) {
+			index[ii] = m_pos[ii];
+		} else {
+			index[ii] = 0;
+		}
+	}
+}
+
+/**
+ * @brief Places the first ndim dimension in the given array. If the number
+ * of dimensions exceed the ndim then the additional dimensions will be
+ * ignored, if ndim exceeds the dimensionality then index[dim...ndim-1] = 0.
+ * In other words index will be completely overwritten in the most sane way
+ * possible if the internal dimensions and size index differ.
+ *
+ * @param ndim size of index
+ * @param index output index variable
+ */
+void Slicer::index(size_t len, double* index) const
+{
+	for(size_t ii=0; ii<len; ii++) {
+		if(ii<m_ndim) {
+			index[ii] = m_pos[ii];
+		} else {
+			index[ii] = 0;
+		}
+	}
+}
+
+/**
  * @brief Sets the region of interest. During iteration or any motion the
  * position will not move outside the specified range. Invalidates position.
  *
@@ -859,6 +901,41 @@ void ChunkSlicer::index(size_t len, int64_t* index) const
 		index[ii] = m_pos[ii];
 	}
 }
+/**
+ * @brief Places the first len dimension in the given array. If the number
+ * of dimensions exceed the len then the additional dimensions will be
+ * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
+ * In other words index will be completely overwritten in the most sane way
+ * possible if the internal dimensions and size index differ.
+ *
+ * @param ndim size of index
+ * @param index output index variable
+ */
+void ChunkSlicer::index(size_t len, int* index) const
+{
+	for(size_t ii=0; ii<len && ii<m_ndim; ii++) {
+		index[ii] = m_pos[ii];
+	}
+}
+
+/**
+ * @brief Places the first len dimension in the given array. If the number
+ * of dimensions exceed the len then the additional dimensions will be
+ * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
+ * In other words index will be completely overwritten in the most sane way
+ * possible if the internal dimensions and size index differ.
+ *
+ * @param ndim size of index
+ * @param index output index variable
+ */
+void ChunkSlicer::index(size_t len, double* index) const
+{
+	for(size_t ii=0; ii<len && ii<m_ndim; ii++) {
+		index[ii] = m_pos[ii];
+	}
+}
+
+
 
 /***********************************************
  *

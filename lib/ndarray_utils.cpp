@@ -35,8 +35,12 @@
 #include "ndarray.h"
 #include "npltypes.h"
 #include "matrix.h"
+#include "utility.h"
 #include "iterators.h"
 #include "basic_functions.h"
+
+#include <Eigen/Geometry> 
+#include <Eigen/Dense> 
 
 #include "fftw3.h"
 
@@ -51,6 +55,10 @@ namespace npl {
 
 using std::vector;
 using std::shared_ptr;
+
+using Eigen::Matrix3d;
+using Eigen::Vector3d;
+using Eigen::AngleAxisd;
 
 int hob (int num)
 {
@@ -463,45 +471,13 @@ shared_ptr<NDArray> dilate(shared_ptr<NDArray> in, size_t reps)
 }
 
 /**
- * @brief Sinc function centered at 0, with radius a, range should be = 2a
- *
- * @param x
- * @param double
- *
- * @return 
- */
-double sincWindow(double x, double a)
-{
-	const double PI = acos(-1);
-
-	if(x == 0)
-		return 1;
-	else if(fabs(x) < a)
-		return sin(PI*x/a)/(PI*x/a);
-	else
-		return 0;
-}
-
-double lanczosKernel(double x, double a)
-{
-	const double PI = acos(-1);
-
-	if(x == 0)
-		return 1;
-	else if(fabs(x) < a)
-		return a*sin(PI*x)*sin(PI*x/a)/(PI*PI*x*x);
-	else
-		return 0;
-}
-
-/**
  * @brief Uses fourier shift theorem to rotate an image, using shears
  *
  * @param inout Input/output image to shift
  * @param dd dimension of image to shift
  * @param dist Distance (index's) to shift
  *
- * @return rotated image
+ * @return shifted image
  */
 void shiftImageKern(shared_ptr<NDArray> inout, size_t dd, double dist)
 {
@@ -540,15 +516,16 @@ void shiftImageKern(shared_ptr<NDArray> inout, size_t dd, double dist)
 }
 
 /**
- * @brief Uses fourier shift theorem to rotate an image, using shears
+ * @brief Uses fourier shift theorem to shift an image, using shears
  *
  * @param inout Input/output image to shift
  * @param dd dimension of image to shift
  * @param dist Distance (index's) to shift
  *
- * @return rotated image
+ * @return shifted image
  */
-void shiftImageFFT(shared_ptr<NDArray> inout, size_t dd, double dist)
+void shiftImageFFT(shared_ptr<NDArray> inout, size_t dd, double dist,
+		double(*window)(double, double))
 {
 	assert(dd < inout->ndim());
 
@@ -590,14 +567,14 @@ void shiftImageFFT(shared_ptr<NDArray> inout, size_t dd, double dist)
 		for(size_t tt=0; tt<padsize/2; tt++) {
 			double ff = (double)tt/(double)padsize;
 			cdouble_t tmp(buffer[tt][0]*normf, buffer[tt][1]*normf);
-			tmp *= sincWindow(ff, .5)*std::exp(-2.*PI*I*dist*ff);
+			tmp *= window(ff, .5)*std::exp(-2.*PI*I*dist*ff);
 			buffer[tt][0] = tmp.real();
 			buffer[tt][1] = tmp.imag();
 		}
 		for(size_t tt=padsize/2; tt<padsize; tt++) {
 			double ff = -(double)(padsize-tt)/(double)padsize;
 			cdouble_t tmp(buffer[tt][0]*normf, buffer[tt][1]*normf);
-			tmp *= sincWindow(ff, .5)*std::exp(-2.*PI*I*dist*ff);
+			tmp *= window(ff, .5)*std::exp(-2.*PI*I*dist*ff);
 			buffer[tt][0] = tmp.real();
 			buffer[tt][1] = tmp.imag();
 		}
@@ -661,7 +638,20 @@ void shearImageKern(shared_ptr<NDArray> inout, size_t dd, size_t len, double* di
 	}
 }
 
-void shearImageFFT(shared_ptr<NDArray> inout, size_t dd, size_t len, double* dist)
+
+/**
+ * @brief Performs a shear on the image where the sheared dimension (dim) will
+ * be shifted depending on the index in other dimensions (dist). 
+ * (in units of pixels), using FFT.
+ *
+ * @param inout Input/output image
+ * @param dim Dimension to shift/shear
+ * @param len Length of dist array
+ * @param dist Distance terms to travel. Shift[dim] = x0*dist[0]+x1*dist[1] ...
+ * @param window Windowing function of fourier domain (default sinc)
+ */
+void shearImageFFT(shared_ptr<NDArray> inout, size_t dd, size_t len, double* dist,
+		double(*window)(double,double))
 {
 	assert(dd < inout->ndim());
 
@@ -713,14 +703,14 @@ void shearImageFFT(shared_ptr<NDArray> inout, size_t dd, size_t len, double* dis
 		for(size_t tt=0; tt<padsize/2; tt++) {
 			double ff = (double)tt/(double)padsize;
 			cdouble_t tmp(buffer[tt][0]*normf, buffer[tt][1]*normf);
-			tmp *= sincWindow(ff, .5)*std::exp(-2.*PI*I*lineshift*ff);
+			tmp *= window(ff, .5)*std::exp(-2.*PI*I*lineshift*ff);
 			buffer[tt][0] = tmp.real();
 			buffer[tt][1] = tmp.imag();
 		}
 		for(size_t tt=padsize/2; tt<padsize; tt++) {
 			double ff = -(double)(padsize-tt)/(double)padsize;
 			cdouble_t tmp(buffer[tt][0]*normf, buffer[tt][1]*normf);
-			tmp *= sincWindow(ff, .5)*std::exp(-2.*PI*I*lineshift*ff);
+			tmp *= window(ff, .5)*std::exp(-2.*PI*I*lineshift*ff);
 			buffer[tt][0] = tmp.real();
 			buffer[tt][1] = tmp.imag();
 		}
@@ -735,6 +725,147 @@ void shearImageFFT(shared_ptr<NDArray> inout, size_t dd, size_t len, double* dis
 			it.set(tmp); 
 		}
 	}
+}
+
+///**
+// * @brief Rotates an image around the center using shear decomposition.
+// * Rotation order is Rz, Ry, Rx.
+// *
+// * @param inout Input/output image
+// * @param axis Rotation axis (through the middle)
+// * @param theta angle of rotation
+// */
+//void rotateImageFFT(shared_ptr<NDArray> inout, double axis[3], double theta)
+//{
+//	// convert to euler angles
+//	Vector3d axisv(axis);
+//	Matrix3d rotation = AngleAxisd(theta, axisv);
+//	rx = rotation(0,0); //TODO
+//	ry = rotation(0,0);
+//	rz = rotation(0,0);
+//
+//	// decompose into shears
+//	
+//	// perform shearing
+//}
+
+int shearYZXY(double terms[4][2], double* err, double* maxshear,
+		double Rx, double Ry, double Rz)
+{
+	cerr << "Shear YZXY" << endl;
+	terms[0][0] = -cos(Ry)*sin(Rz);
+	terms[0][1] = -csc(Rx)*sin(Rz)+cot(Rx)*sec(Ry)*sin(Rz)+cos(Rz)*tan(Ry);
+	terms[1][0] = csc(Rx)*tan(Ry)+sec(Ry)*(csc(Rz)-cot(Rz)*sec(Ry)-cot(Rx)*tan(Ry));
+	terms[1][1] = cot(Rx)-csc(Rx)*sec(Ry);
+	terms[2][0] = (csc(Rz)-cot(Rz)*sec(Ry))*sin(Rx)-cos(Rx)*tan(Ry);
+	terms[2][1] = cos(Ry)*sin(Rx);
+	terms[3][0] = -cot(Rz)+csc(Rz)*sec(Ry);
+	terms[3][1] = -csc(Rz)*tan(Ry)+sec(Ry)*(-csc(Rx)+cot(Rx)*sec(Ry)+cot(Rz)*tan(Ry));
+	
+	// construct matrices 
+	Matrix3d rotation;
+	rotation = AngleAxisd(Rx, Vector3d::UnitX())*
+				AngleAxisd(Ry, Vector3d::UnitY())*
+				AngleAxisd(Rz, Vector3d::UnitZ());
+//	rotation = AngleAxisd(Rz, Vector3d::UnitZ())*
+//				AngleAxisd(Ry, Vector3d::UnitY())*
+//				AngleAxisd(Rx, Vector3d::UnitX());
+	Matrix3d sy1 = Matrix3d::Identity();
+	sy1(1,0) = terms[0][0];
+	sy1(1,2) = terms[0][1];
+	cerr << "Shear Y:\n" << sy1 << endl;
+
+	Matrix3d sz = Matrix3d::Identity();
+	sz(2,0) = terms[1][0];
+	sz(2,1) = terms[1][1];
+	cerr << "Shear Z:\n" << sz << endl;
+
+	Matrix3d sx = Matrix3d::Identity();
+	sx(0,1) = terms[2][0];
+	sx(0,2) = terms[2][1];
+	cerr << "Shear X:\n" << sx << endl;
+
+	Matrix3d sy2 = Matrix3d::Identity();
+	sy2(1,0) = terms[3][0];
+	sy2(1,2) = terms[3][1];
+	cerr << "Shear Y:\n" << sy2 << endl;
+
+	auto shearProduct = sy1*sz*sx*sy2;
+	cerr << "Rotation:\n" << rotation << endl;
+	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
+	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
+	if(err)
+		*err = (rotation-shearProduct).cwiseAbs().sum();
+
+	if(maxshear) {
+		*maxshear = 0;
+		for(size_t ii=0; ii<4; ii++){
+			for(size_t jj=0; jj<2; jj++){
+				if(*maxshear < terms[ii][jj])
+					*maxshear = terms[ii][jj];
+			}
+		}
+	}
+	
+	return 0;
+}
+
+///**
+// * @brief Decomposes a rotation about Z,Y,X into shears, in order of X shears 
+// * then Z shears then Y sehars the X shears. 
+// *
+// * @param terms[8][2] Shears, 4 sets of shear terms
+// * @param rx Rotation about x axis (last)
+// * @param ry Rotation about y axis (middl)
+// * @param rz Rotation about z axis (first)
+// *
+// * @return Error when reconstructing the rotation matrxi
+// */
+//double shearXYZXDecompose(double terms[4][2], double rx, double ry, double rz)
+//{
+//	// calculate terms
+//	
+//	// construct matrices 
+//	Matrix3d rotation = AngleAxisd(rx, Vector3d::UnitX())*
+//				AngleAxisd(ry, Vector3d::UnitY())*
+//				AngleAxisd(rz, Vector3d::UnitZ());
+//	Matrix3d sx1 = Identity();
+//	sx1(0,1) = terms[0][0]
+//	sx1(0,2) = terms[0][1]
+//
+//	Matrix3d sy = Identity();
+//	sy(1,1) = terms[1][0]
+//	sy(1,2) = terms[1][1]
+//
+//	Matrix3d sz = Identity();
+//	sz(2,1) = terms[2][0]
+//	sz(2,2) = terms[2][1]
+//
+//	Matrix3d sx2 = Identity();
+//	sx2(0,1) = terms[3][0]
+//	sx2(0,2) = terms[3][1]
+//
+//	auto shearProduct = sx1*sy*sz*sx2;
+//	
+//	return (rotation - shearProduct).abs().sub();
+//}
+//
+/**
+ * @brief Rotates an image around the center using shear decomposition.
+ * Rotation order is Rz, Ry, Rx, and about the center of the image.
+ *
+ * @param inout Input/output image
+ * @param rx Rotation about x axis (applied last)
+ * @param ry Rotation about y axis (applied second)
+ * @param rz Rotation about z axis (applied first)
+ */
+void rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz)
+{
+	double MAXERR = 0.001;
+	double MAXSHEAR = 0.1;
+	// decompose into shears
+	
+	// perform shearing
 }
 
 

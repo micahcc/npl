@@ -150,22 +150,22 @@ def build(bld):
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='fft_test', 
             source='fft_test.cpp', 
-            use='ndarray_utils mrimage_utils iterators') 
+            use='ndarray_utils utility mrimage_utils iterators') 
     
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='fft_shift_test', 
             source='fft_shift_test.cpp', 
-            use='ndarray_utils mrimage_utils iterators') 
+            use='ndarray_utils utility mrimage_utils iterators') 
 
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='fft_shear_test', 
             source='fft_shear_test.cpp', 
-            use='ndarray_utils mrimage_utils iterators') 
+            use='ndarray_utils utility mrimage_utils iterators') 
 
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='fft_rotate_test', 
             source='fft_rotate_test.cpp', 
-            use='ndarray_utils mrimage_utils iterators') 
+            use='ndarray_utils utility mrimage_utils iterators EIGEN') 
 
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='fract_fft_test', 

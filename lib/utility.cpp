@@ -671,6 +671,63 @@ void writePlot(std::string filename, double(*f)(double),
 	writePlot(filename, x, y, ysize);
 }
 
+/**
+ * @brief Rectangle function centered at 0, with radius a, range should be = 2a
+ *
+ * @param x distance from center
+ * @param a radius
+ *
+ * @return weight
+ */
+double rectWindow(double x, double a)
+{
+	if(fabs(x) < a)
+		return 1;
+	else
+		return 0;
+}
+
+/**
+ * @brief Sinc function centered at 0, with radius a, range should be = 2a
+ *
+ * @param x distance from center
+ * @param a radius
+ *
+ * @return weight
+ */
+double sincWindow(double x, double a)
+{
+	const double PI = acos(-1);
+
+	if(x == 0)
+		return 1;
+	else if(fabs(x) < a)
+		return sin(PI*x/a)/(PI*x/a);
+	else
+		return 0;
+}
+
+/**
+ * @brief Lanczos kernel function
+ *
+ * @param x distance from center
+ * @param a radius of kernel
+ *
+ * @return weight
+ */
+double lanczosKernel(double x, double a)
+{
+	const double PI = acos(-1);
+
+	if(x == 0)
+		return 1;
+	else if(fabs(x) < a)
+		return a*sin(PI*x)*sin(PI*x/a)/(PI*PI*x*x);
+	else
+		return 0;
+}
+
+
 }
 
 
