@@ -107,14 +107,101 @@ int closeCompare(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b)
 	return 0;
 }
 
-Vector3d getAxis(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b)
+shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, size_t ldim)
+{
+	if(in->ndim() != 3) {
+		throw std::invalid_argument("Error, input image should be 3D!");
+	}
+
+	std::vector<size_t> osize(3, 0);
+	for(size_t ii=0; ii<3; ii++) {
+		osize[ii] = round2(in->dim(ii));
+		if(ldim != ii)
+			osize[ldim] += in->dim(ii);
+	}
+	osize[ldim] = round2(osize[ldim]+1);
+
+	auto oimg = createMRImage(3, osize.data(), COMPLEX128);
+	cerr << "Input:\n" << in << "\nPadded:\n" << oimg << endl;
+	
+	std::vector<int64_t> shift(3,0);
+	for(size_t dd=0; dd<3; dd++) 
+		shift[dd] = (osize[dd]-in->dim(dd))/2;
+	
+	// copy data
+	NDConstAccess<cdouble_t> inview(in);
+	std::vector<int64_t> index(in->ndim());
+	for(OrderIter<cdouble_t> it(out); !it.isEnd(); ++it) {
+		it.index(index.size(), index.data());
+		
+		bool outside = false;
+		for(size_t dd=0; dd<3; dd++) {
+			index[dd] -= shift[dd];
+			if(index[dd] < 0 || index[dd] >= in->dim(dd))
+				outside = true;
+		}
+
+		if(outside) 
+			it.set(0);
+		else
+			it.set(inview(index));
+	}
+
+	in->write("prepadded.nii.gz");
+	oimg->write("padded.nii.gz");
+
+	// fourier transform
+	for(size_t dd = 0; dd < 3; dd++) {
+		auto buffer = fftw_alloc_complex((int)osize[dd]);
+		fftw_plan fwd = fftw_plan_dft_1d((int)osize[dd], buffer, buffer, 
+				FFTW_FORWARD, FFTW_MEASURE);
+		
+		ChunkIter<cdouble_t> it(inout);
+		it.setLineChunk(dd);
+		for(it.goBegin(); !it.isEnd() ; it.nextChunk()) {
+			it.index(index.size(), index.data());
+
+			// fill from line
+			for(size_t tt=0; !it.isChunkEnd(); ++it, tt++) {
+				buffer[tt][0] = (*it).real();
+				buffer[tt][1] = (*it).imag();
+			}
+
+			// fourier transform
+			fftw_execute(fwd);
+			
+			double normf = 1./osize[dd];
+			for(size_t tt=0; !it.isChunkEnd(); ++it, tt++) {
+				cdouble_t tmp(buffer[tt][0]*normf, buffer[tt][1]*normf);
+				it.set(tmp);
+			}
+		}
+	}
+	oimg->write("padded_fftd.nii.gz");
+	
+	return oimg;
+}
+
+//
+void pseudoPolar(shared_ptr<MRImage> in, size_t praddim)
+{
+	
+}
+
+Vector3d getAxis(shared_ptr<const MRImage> img1, shared_ptr<const MRImage> img2)
 {
 	Vector3d axis;
 	
-//	ppiX = copyCast
-//
+	shared_ptr<MRImage> pp1;
+	shared_ptr<MRImage> pp2;
+	for(size_t ii=0; ii<3; ii++) {
+		pp1 = padFFT(img1, ii);
+		pp2 = padFFT(img2, ii);
 
-
+		
+	}
+	
+	
 	return axis;
 }
 
