@@ -35,6 +35,7 @@
 #include "utility.h"
 #include "npltypes.h"
 
+#include <Eigen/Dense>
 #include <memory>
 
 namespace npl {
@@ -197,11 +198,24 @@ void shearImageFFT(shared_ptr<NDArray> inout, size_t dim, size_t len, double* di
  * @param ry Rotation about y axis
  * @param rz Rotation about z axis
  */
-void rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz);
+int rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz);
 
-///////// Temporary ///////////
-int shearYZXY(double terms[4][2], double* err, double* maxshear,
-		double Rx, double Ry, double Rz);
+
+/**
+ * @brief Tests shear results. If there is a solution (error is not NAN), then 
+ * these should result small errors, so this checks that errors are small when
+ * possible.
+ *
+ * @param Rx rotation about X axis (last)
+ * @param Ry rotation about Y axis (middle)
+ * @param Rz rotation about Z axis (first)
+ *
+ * @return 
+ */
+int shearTest(double Rx, double Ry, double Rz);
+
+int shearDecompose(std::list<Eigen::Matrix3d>& terms, double Rx, double Ry,
+		double Rz);
 
 } // npl
 #endif  //ND_ALGOS_H

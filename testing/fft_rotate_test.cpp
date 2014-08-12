@@ -24,11 +24,15 @@
 
 #include <Eigen/Geometry> 
 
+#define DEBUG 1
+
 #include "mrimage.h"
 #include "mrimage_utils.h"
 #include "ndarray_utils.h"
 #include "iterators.h"
 #include "accessors.h"
+
+
 
 using namespace npl;
 using namespace std;
@@ -128,10 +132,31 @@ int main()
 	out->write("rotated.nii.gz");
 
 	double shearterms[4][2]; 
-	double maxshear, err;
-	shearYZXY(shearterms, &err, &maxshear, .3, .1, .01);
-	cerr << "Absolute Error: " << err << endl;
-	cerr << "Maximum shear: " << maxshear << endl;
+
+	std::list<Matrix3d> terms;
+	const double PI = acos(-1);
+	size_t iters = 10;
+	size_t failure = 0;
+	size_t count = 0;
+	for(size_t ii=0; ii<iters; ii++) {
+		for(size_t jj=0; jj<iters; jj++) {
+			for(size_t kk=0; kk<iters; kk++) {
+				double rx = ii/(2*PI);
+				double ry = jj/(2*PI);
+				double rz = kk/(2*PI);
+				count++;
+				if(shearTest(rx,ry,rz) != 0) {
+					cerr << "Failed Shear Test for " <<
+						rx << ", " << ry << ", " << rz << endl;
+					return -1;
+				}
+				if(shearDecompose(terms, rx, ry, rz) != 0)
+					failure++;
+			}
+		}
+	}
+
+	cerr << "Failure Rate:" << failure/(double)count << endl;;
 //	// perform fourier rotation, +a
 //	// strictly the frequency for component k (where k = k-N/2,N/2]
 //	// double T = fft->dim(d)*in->spacing()[d];

@@ -51,6 +51,8 @@
 #include <memory>
 #include <stdexcept>
 
+#define DEBUG
+
 namespace npl {
 
 using std::vector;
@@ -727,129 +729,781 @@ void shearImageFFT(shared_ptr<NDArray> inout, size_t dd, size_t len, double* dis
 	}
 }
 
-///**
-// * @brief Rotates an image around the center using shear decomposition.
-// * Rotation order is Rz, Ry, Rx.
-// *
-// * @param inout Input/output image
-// * @param axis Rotation axis (through the middle)
-// * @param theta angle of rotation
-// */
-//void rotateImageFFT(shared_ptr<NDArray> inout, double axis[3], double theta)
-//{
-//	// convert to euler angles
-//	Vector3d axisv(axis);
-//	Matrix3d rotation = AngleAxisd(theta, axisv);
-//	rx = rotation(0,0); //TODO
-//	ry = rotation(0,0);
-//	rz = rotation(0,0);
-//
-//	// decompose into shears
-//	
-//	// perform shearing
-//}
+double getMaxShear(const Matrix3d& in)
+{
+	double mval = 0;
+	for(size_t ii=0; ii<3; ii++) {
+		for(size_t jj=0; jj<3; jj++) {
+			if(ii != jj) {
+				if(fabs(in(ii,jj)) > mval) 
+					mval = fabs(in(ii,jj));
+			}
+		}
+	}
 
-int shearYZXY(double terms[4][2], double* err, double* maxshear,
+	return mval;
+}
+
+/*****************************************************************************
+ * Single Rotation Shears, which end up being 3 shears rather than four.
+ ****************************************************************************/
+
+int shearYZXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
+		double x, double y, double z)
+{
+#ifdef DEBUG
+	cerr << "Shear YZXY" << endl;
+#endif //DEBUG
+	Matrix3d sy1 = Matrix3d::Identity();
+	Matrix3d sz = Matrix3d::Identity();
+	Matrix3d sx = Matrix3d::Identity();
+	Matrix3d sy2 = Matrix3d::Identity();
+	Matrix3d shearProduct = Matrix3d::Identity();
+
+	sy1(1,0) = csc(x)*tan(y)+sec(y)*(csc(z)-cot(z)*sec(y)-cot(x)*tan(y));
+	sy1(1,2) = cot(x)-csc(x)*sec(y);
+	sz (2,0) = (csc(z)-cot(z)*sec(y))*sin(x)-cos(x)*tan(y);
+	sz (2,1) = cos(y)*sin(x);
+	sx (0,1) = -cos(y)*sin(z);
+	sx (0,2) = -csc(x)*sin(z)+cot(x)*sec(y)*sin(z)+cos(z)*tan(y);
+	sy2(1,0) = -cot(z)+csc(z)*sec(y);
+	sy2(1,2) = -csc(z)*tan(y)+sec(y)*(-csc(x)+cot(x)*sec(y)+cot(z)*tan(y));
+	
+	terms.clear();
+	terms.push_back(sy1);
+	terms.push_back(sz);
+	terms.push_back(sx);
+	terms.push_back(sy2);
+	
+	if(maxshear) {
+		*maxshear = 0;
+		for(auto v:terms) {
+#ifdef DEBUG
+			cerr << "Shear:\n" << v << endl;
+#endif //DEBUG
+			shearProduct *= v;
+			double mv = getMaxShear(v);
+			if(mv > *maxshear)
+				*maxshear = mv;
+		}
+	}
+	
+	//*construct*matrices*
+	Matrix3d rotation;
+	rotation = AngleAxisd(x, Vector3d::UnitX())*
+				AngleAxisd(y, Vector3d::UnitY())*
+				AngleAxisd(z, Vector3d::UnitZ());
+
+#ifdef DEBUG
+	cerr << "Rotation:\n" << rotation << endl;
+	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
+	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
+#endif //DEBUG
+	if(err)
+		*err = (rotation-shearProduct).cwiseAbs().sum();
+
+	return 0;
+}
+
+int shearXYZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
+		double x, double y, double z)
+{
+#ifdef DEBUG
+	cerr << "Shear XYZX" << endl;
+#endif //DEBUG
+	Matrix3d sx1 = Matrix3d::Identity();
+	Matrix3d sy = Matrix3d::Identity();
+	Matrix3d sz = Matrix3d::Identity();
+	Matrix3d sx2 = Matrix3d::Identity();
+	Matrix3d shearProduct = Matrix3d::Identity();
+
+	sx1(0,1) = cos(x)*cot(z)*sec(y)-csc(z)*sec(y)-sin(x)*tan(y);
+	sx1(0,2) = (sin(x)*(sin(x)-cos(z)*sec(y)*sin(x)-cot(z)*tan(y))+cos(x)*(-sec(y)+cos(2*z)*csc(z)*sin(x)*tan(y))+cos(x)*cos(x)*(1+cos(z)*sin(y)*tan(y)))/(cos(x)*cos(z)*sin(y)-sin(x)*sin(z));
+	sy (1,0) = cos(y)*sin(z);
+	sy (1,2) = (-cos(z)*sin(x)*sin(y)+(-cos(x)+cos(y))*sin(z))/(cos(x)*cos(z)*sin(y)-sin(x)*sin(z));
+	sz (2,0) = -cos(x)*cos(z)*sin(y)+sin(x)*sin(z);
+	sz (2,1) = sec(y)*sin(x)+(-cos(x)*cot(z)+csc(z))*tan(y);
+	sx2(0,1) = (2*sec(y)*sin(x)+cos(z)*(-2*sin(x)+cos(x)*cot(z)*sin(y))-cos(x)*sin(y)*(csc(z)+sin(z))+2*(-cos(x)*cot(z)+csc(z))*tan(y))/(2*cos(x)*cos(z)*sin(y)-2*sin(x)*sin(z));
+	sx2(0,2) = (-1+cos(x)*cos(y))/(-cos(x)*cos(z)*sin(y)+sin(x)*sin(z));
+
+	terms.clear();
+	terms.push_back(sx1);
+	terms.push_back(sy);
+	terms.push_back(sz);
+	terms.push_back(sx2);
+	
+	if(maxshear) {
+		*maxshear = 0;
+		for(auto v:terms) {
+#ifdef DEBUG
+			cerr << "Shear:\n" << v << endl;
+#endif //DEBUG
+			shearProduct *= v;
+			double mv = getMaxShear(v);
+			if(mv > *maxshear)
+				*maxshear = mv;
+		}
+	}
+	
+	//*construct*matrices*
+	Matrix3d rotation;
+	rotation = AngleAxisd(x, Vector3d::UnitX())*
+				AngleAxisd(y, Vector3d::UnitY())*
+				AngleAxisd(z, Vector3d::UnitZ());
+
+#ifdef DEBUG
+	cerr << "Rotation:\n" << rotation << endl;
+	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
+	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
+#endif //DEBUG
+	if(err)
+		*err = (rotation-shearProduct).cwiseAbs().sum();
+
+	return 0;
+}
+
+int shearXZYX(std::list<Matrix3d>& terms, double* err, double* maxshear,
+		double x, double y, double z)
+{
+#ifdef DEBUG
+	cerr << "Shear XZYX" << endl;
+#endif //DEBUG
+	Matrix3d sx1 = Matrix3d::Identity();
+	Matrix3d sz = Matrix3d::Identity();
+	Matrix3d sy = Matrix3d::Identity();
+	Matrix3d sx2 = Matrix3d::Identity();
+	Matrix3d shearProduct = Matrix3d::Identity();
+
+	sx1(0,1) = (-2+2*cos(x)*cos(z)-cos(x)*cos(x)*cos(y)*cos(z)+cos(y)*cos(z)*(1+sin(x)*sin(x))-2*csc(y)*sin(x)*sin(z)+cot(y)*sin(2*x)*sin(z))/(2*(cos(z)*sin(x)*sin(y)+cos(x)*sin(z)));
+	sx1(0,2) = -cos(x)*cot(y)+csc(y);
+	sz (2,0) = -sin(y);
+	sz (2,1) = (sin(y)-cos(x)*cos(z)*sin(y)+sin(x)*sin(z))/(cos(z)*sin(x)*sin(y)+cos(x)*sin(z));
+	sy (1,0) = cos(z)*sin(x)*sin(y)+cos(x)*sin(z);
+	sy (1,2) = -cos(z)*sin(x)+(-cos(x)+cos(y))*csc(y)*sin(z);
+	sx2(0,1) = (-1+cos(x)*cos(z)-sin(x)*sin(y)*sin(z))/(cos(z)*sin(x)*sin(y)+cos(x)*sin(z));
+	sx2(0,2) = ((-cos(y)+cos(z))*sin(x)+(-cot(y)+cos(x)*csc(y))*sin(z))/(cos(z)*sin(x)*sin(y)+cos(x)*sin(z));
+
+	terms.clear();
+	terms.push_back(sx1);
+	terms.push_back(sz);
+	terms.push_back(sy);
+	terms.push_back(sx2);
+	
+	if(maxshear) {
+		*maxshear = 0;
+		for(auto v:terms) {
+#ifdef DEBUG
+			cerr << "Shear:\n" << v << endl;
+#endif //DEBUG
+			shearProduct *= v;
+			double mv = getMaxShear(v);
+			if(mv > *maxshear)
+				*maxshear = mv;
+		}
+	}
+	
+	//*construct*matrices*
+	Matrix3d rotation;
+	rotation = AngleAxisd(x, Vector3d::UnitX())*
+				AngleAxisd(y, Vector3d::UnitY())*
+				AngleAxisd(z, Vector3d::UnitZ());
+
+#ifdef DEBUG
+	cerr << "Rotation:\n" << rotation << endl;
+	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
+	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
+#endif //DEBUG
+	if(err)
+		*err = (rotation-shearProduct).cwiseAbs().sum();
+
+	return 0;
+}
+
+int shearZXYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
+		double x, double y, double z)
+{
+#ifdef DEBUG
+	cerr << "Shear ZXYZ" << endl;
+#endif //DEBUG
+	Matrix3d sz1 = Matrix3d::Identity();
+	Matrix3d sx = Matrix3d::Identity();
+	Matrix3d sy = Matrix3d::Identity();
+	Matrix3d sz2 = Matrix3d::Identity();
+	Matrix3d shearProduct = Matrix3d::Identity();
+
+	sz1(2,0) = (-1+cos(y)*cos(z))/(cos(x)*cos(z)*sin(y)-sin(x)*sin(z));
+	sz1(2,1) = ((cos(x)-sec(y))*sin(z)-csc(x)*tan(y)+cos(z)*(sin(x)*sin(y)+cot(x)*tan(y)))/(cos(x)*cos(z)*sin(y)-sin(x)*sin(z));
+	sx (0,1) = -sec(y)*sin(z)+(cos(z)*cot(x)-csc(x))*tan(y);
+	sx (0,2) = cos(x)*cos(z)*sin(y)-sin(x)*sin(z);
+	sy (1,0) = ((-cos(y)+cos(z))*sin(x)+cos(x)*sin(y)*sin(z))/(cos(x)*cos(z)*sin(y)-sin(x)*sin(z));
+	sy (1,2) = -cos(y)*sin(x);
+	sz2(2,0) = (-4+cos(x-y)+cos(x+y)+(4*cos(z)+cos(x)*(-3+cos(2*y))*cos(2*z))*sec(y)+4*cot(x)*sin(z)*tan(y)-2*cos(2*x)*csc(x)*sin(2*z)*tan(y))/(4*cos(x)*cos(z)*sin(y)-4*sin(x)*sin(z));
+	sz2(2,1) = (-cos(z)*cot(x)+csc(x))*sec(y)+sin(z)*tan(y);
+
+	terms.clear();
+	terms.push_back(sz1);
+	terms.push_back(sx);
+	terms.push_back(sy);
+	terms.push_back(sz2);
+	
+	if(maxshear) {
+		*maxshear = 0;
+		for(auto v:terms) {
+#ifdef DEBUG
+			cerr << "Shear:\n" << v << endl;
+#endif //DEBUG
+			shearProduct *= v;
+			double mv = getMaxShear(v);
+			if(mv > *maxshear)
+				*maxshear = mv;
+		}
+	}
+	
+	//*construct*matrices*
+	Matrix3d rotation;
+	rotation = AngleAxisd(x, Vector3d::UnitX())*
+				AngleAxisd(y, Vector3d::UnitY())*
+				AngleAxisd(z, Vector3d::UnitZ());
+
+#ifdef DEBUG
+	cerr << "Rotation:\n" << rotation << endl;
+	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
+	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
+#endif //DEBUG
+	if(err)
+		*err = (rotation-shearProduct).cwiseAbs().sum();
+
+	return 0;
+}
+
+int shearZYXZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
+		double x, double y, double z)
+{
+#ifdef DEBUG
+	cerr << "Shear ZYXZ" << endl;
+#endif //DEBUG
+	Matrix3d sz1 = Matrix3d::Identity();
+	Matrix3d sy = Matrix3d::Identity();
+	Matrix3d sx = Matrix3d::Identity();
+	Matrix3d sz2 = Matrix3d::Identity();
+	Matrix3d shearProduct = Matrix3d::Identity();
+
+	sz1(2,0) = ((cos(y)-cos(z))*csc(y)*sin(x)+(-cos(x)+cos(y))*sin(z))/(cos(z)*sin(x)+cos(x)*sin(y)*sin(z));
+	sz1(2,1) = (1-cos(x)*cos(z)+sin(x)*sin(y)*sin(z))/(cos(z)*sin(x)+cos(x)*sin(y)*sin(z));
+	sy (1,0) = -cot(y)*sin(x)+cos(z)*csc(y)*sin(x)+cos(x)*sin(z);
+	sy (1,2) = -cos(z)*sin(x)-cos(x)*sin(y)*sin(z);
+	sx (0,1) = -((sin(y)-cos(x)*cos(z)*sin(y)+sin(x)*sin(z))/(cos(z)*sin(x)+cos(x)*sin(y)*sin(z)));
+	sx (0,2) = sin(y);
+	sz2(2,0) = (-1+cos(y)*cos(z))*csc(y);
+	sz2(2,1) = -((-4+cos(x-y)+cos(x+y)+4*cos(x)*cos(z)-2*cos(x)*cos(y)*cos(2*z)+4*(cos(z)*cot(y)-csc(y))*sin(x)*sin(z))/(4*(cos(z)*sin(x)+cos(x)*sin(y)*sin(z))));
+
+	terms.clear();
+	terms.push_back(sz1);
+	terms.push_back(sy);
+	terms.push_back(sx);
+	terms.push_back(sz2);
+	
+	if(maxshear) {
+		*maxshear = 0;
+		for(auto v:terms) {
+#ifdef DEBUG
+			cerr << "Shear:\n" << v << endl;
+#endif //DEBUG
+			shearProduct *= v;
+			double mv = getMaxShear(v);
+			if(mv > *maxshear)
+				*maxshear = mv;
+		}
+	}
+	
+	//*construct*matrices*
+	Matrix3d rotation;
+	rotation = AngleAxisd(x, Vector3d::UnitX())*
+				AngleAxisd(y, Vector3d::UnitY())*
+				AngleAxisd(z, Vector3d::UnitZ());
+
+#ifdef DEBUG
+	cerr << "Rotation:\n" << rotation << endl;
+	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
+	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
+#endif //DEBUG
+	if(err)
+		*err = (rotation-shearProduct).cwiseAbs().sum();
+
+	return 0;
+}
+
+int shearYXZY(std::list<Matrix3d>& terms, double* err, double* maxshear,
+		double x, double y, double z)
+{
+#ifdef DEBUG
+	cerr << "Shear YXZY" << endl;
+#endif //DEBUG
+	Matrix3d sy1 = Matrix3d::Identity();
+	Matrix3d sx = Matrix3d::Identity();
+	Matrix3d sz = Matrix3d::Identity();
+	Matrix3d sy2 = Matrix3d::Identity();
+	Matrix3d shearProduct = Matrix3d::Identity();
+
+	sy1(1,0) = (1-cos(y)*cos(z))/(cos(z)*sin(x)*sin(y)+cos(x)*sin(z));
+	sy1(1,2) = (-8*cos(z)*sin(x)*sin(y)+4*cos(2*z)*sin(2*x)*sin(y)+8*(-cos(x)+cos(y))*sin(z)+(-1+3*cos(2*x)-2*cos(x)*cos(x)*cos(2*y))*sin(2*z))/(8*(cos(z)*sin(x)*sin(y)+cos(x)*sin(z))*(cos(z)*sin(x)+cos(x)*sin(y)*sin(z)));
+	sx (0,1) = -cos(z)*sin(x)*sin(y)-cos(x)*sin(z);
+	sx (0,2) = (cos(z)*sin(x)*sin(y)+(cos(x)-cos(y))*sin(z))/(cos(z)*sin(x)+cos(x)*sin(y)*sin(z));
+	sz (2,0) = ((cos(y)-cos(z))*sin(x)-cos(x)*sin(y)*sin(z))/(cos(z)*sin(x)*sin(y)+cos(x)*sin(z));
+	sz (2,1) = cos(z)*sin(x)+cos(x)*sin(y)*sin(z);
+	sy2(1,0) = (-cos(z)*sin(x)*(-1+cos(z)*(cos(y)+cos(x)*sin(y)*sin(y)))+(cos(x)-cos(2*x)*cos(z))*sin(y)*sin(z)+(cos(x)-cos(y))*sin(x)*sin(z)*sin(z))/((cos(z)*sin(x)*sin(y)+cos(x)*sin(z))*(cos(z)*sin(x)+cos(x)*sin(y)*sin(z)));
+	sy2(1,2) = (-1+cos(x)*cos(y))/(cos(z)*sin(x)+cos(x)*sin(y)*sin(z));
+
+	terms.clear();
+	terms.push_back(sy1);
+	terms.push_back(sx);
+	terms.push_back(sz);
+	terms.push_back(sy2);
+	
+	if(maxshear) {
+		*maxshear = 0;
+		for(auto v:terms) {
+#ifdef DEBUG
+			cerr << "Shear:\n" << v << endl;
+#endif //DEBUG
+			shearProduct *= v;
+			double mv = getMaxShear(v);
+			if(mv > *maxshear)
+				*maxshear = mv;
+		}
+	}
+	
+	//*construct*matrices*
+	Matrix3d rotation;
+	rotation = AngleAxisd(x, Vector3d::UnitX())*
+				AngleAxisd(y, Vector3d::UnitY())*
+				AngleAxisd(z, Vector3d::UnitZ());
+
+#ifdef DEBUG
+	cerr << "Rotation:\n" << rotation << endl;
+	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
+	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
+#endif //DEBUG
+	if(err)
+		*err = (rotation-shearProduct).cwiseAbs().sum();
+
+	return 0;
+}
+
+/*****************************************************************************
+ * Single Rotation Shears, which end up being 3 shears rather than four.
+ ****************************************************************************/
+
+int shearYXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double Rx, double Ry, double Rz)
 {
-	cerr << "Shear YZXY" << endl;
-	terms[0][0] = -cos(Ry)*sin(Rz);
-	terms[0][1] = -csc(Rx)*sin(Rz)+cot(Rx)*sec(Ry)*sin(Rz)+cos(Rz)*tan(Ry);
-	terms[1][0] = csc(Rx)*tan(Ry)+sec(Ry)*(csc(Rz)-cot(Rz)*sec(Ry)-cot(Rx)*tan(Ry));
-	terms[1][1] = cot(Rx)-csc(Rx)*sec(Ry);
-	terms[2][0] = (csc(Rz)-cot(Rz)*sec(Ry))*sin(Rx)-cos(Rx)*tan(Ry);
-	terms[2][1] = cos(Ry)*sin(Rx);
-	terms[3][0] = -cot(Rz)+csc(Rz)*sec(Ry);
-	terms[3][1] = -csc(Rz)*tan(Ry)+sec(Ry)*(-csc(Rx)+cot(Rx)*sec(Ry)+cot(Rz)*tan(Ry));
+#ifdef DEBUG
+	cerr << "Shear YXY" << endl;
+#endif //DEBUG
+
+	double MINANG = 0.00000001;
+	if(fabs(Rx) > MINANG || fabs(Ry) > MINANG) {
+		if(err)
+			*err = NAN;
+		if(maxshear)
+			*maxshear= NAN;
+		return -1;
+	}
+
+	Matrix3d sy1 = Matrix3d::Identity();
+	Matrix3d sx = Matrix3d::Identity();
+	Matrix3d sy2 = Matrix3d::Identity();
+	Matrix3d shearProduct = Matrix3d::Identity();
 	
-	// construct matrices 
+	sy1(1,0) = tan(Rz/2.);
+	sy1(1,2) = 0;
+	sx (0,1) = -sin(Rz);
+	sx (0,2) = 0;
+	sy2(1,0) = tan(Rz/2.);
+	sy2(1,2) = 0;
+	
+	terms.clear();
+	terms.push_back(sy1);
+	terms.push_back(sx);
+	terms.push_back(sy2);
+	
+	//*construct*matrices*
 	Matrix3d rotation;
 	rotation = AngleAxisd(Rx, Vector3d::UnitX())*
 				AngleAxisd(Ry, Vector3d::UnitY())*
 				AngleAxisd(Rz, Vector3d::UnitZ());
-//	rotation = AngleAxisd(Rz, Vector3d::UnitZ())*
-//				AngleAxisd(Ry, Vector3d::UnitY())*
-//				AngleAxisd(Rx, Vector3d::UnitX());
-	Matrix3d sy1 = Matrix3d::Identity();
-	sy1(1,0) = terms[0][0];
-	sy1(1,2) = terms[0][1];
-	cerr << "Shear Y:\n" << sy1 << endl;
-
-	Matrix3d sz = Matrix3d::Identity();
-	sz(2,0) = terms[1][0];
-	sz(2,1) = terms[1][1];
-	cerr << "Shear Z:\n" << sz << endl;
-
-	Matrix3d sx = Matrix3d::Identity();
-	sx(0,1) = terms[2][0];
-	sx(0,2) = terms[2][1];
-	cerr << "Shear X:\n" << sx << endl;
-
-	Matrix3d sy2 = Matrix3d::Identity();
-	sy2(1,0) = terms[3][0];
-	sy2(1,2) = terms[3][1];
-	cerr << "Shear Y:\n" << sy2 << endl;
-
-	auto shearProduct = sy1*sz*sx*sy2;
-	cerr << "Rotation:\n" << rotation << endl;
-	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
-	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
-	if(err)
-		*err = (rotation-shearProduct).cwiseAbs().sum();
 
 	if(maxshear) {
 		*maxshear = 0;
-		for(size_t ii=0; ii<4; ii++){
-			for(size_t jj=0; jj<2; jj++){
-				if(*maxshear < terms[ii][jj])
-					*maxshear = terms[ii][jj];
-			}
+		for(auto v:terms) {
+#ifdef DEBUG
+			cerr << "Shear:\n" << v << endl;
+#endif //DEBUG
+			shearProduct *= v;
+			double mv = getMaxShear(v);
+			if(mv > *maxshear)
+				*maxshear = mv;
 		}
+	}
+
+#ifdef DEBUG
+	cerr << "Rotation:\n" << rotation << endl;
+	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
+	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
+#endif //DEBUG
+	if(err)
+		*err = (rotation-shearProduct).cwiseAbs().sum();
+
+	
+	return 0;
+}
+
+int shearXYX(std::list<Matrix3d>& terms, double* err, double* maxshear,
+		double Rx, double Ry, double Rz)
+{
+#ifdef DEBUG
+	cerr << "Shear XYX" << endl;
+#endif //DEBUG
+
+	double MINANG = 0.00000001;
+	if(fabs(Rx) > MINANG || fabs(Ry) > MINANG) {
+		if(err)
+			*err = NAN;
+		if(maxshear)
+			*maxshear= NAN;
+		return -1;
+	}
+
+	Matrix3d sx1 = Matrix3d::Identity();
+	Matrix3d sy = Matrix3d::Identity();
+	Matrix3d sx2 = Matrix3d::Identity();
+	Matrix3d shearProduct = Matrix3d::Identity();
+	
+	sx1(0,1) = (-1+cos(Rz))*csc(Rz);
+	sx1(0,2) = 0;
+	sy (1,0) = sin(Rz);
+	sy (1,2) = 0;
+	sx2(0,1) = -tan(Rz/2.);
+	sx2(0,2) = 0;
+	
+	terms.clear();
+	terms.push_back(sx1);
+	terms.push_back(sy);
+	terms.push_back(sx2);
+	
+	//*construct*matrices*
+	Matrix3d rotation;
+	rotation = AngleAxisd(Rx, Vector3d::UnitX())*
+				AngleAxisd(Ry, Vector3d::UnitY())*
+				AngleAxisd(Rz, Vector3d::UnitZ());
+
+	if(maxshear) {
+		*maxshear = 0;
+		for(auto v:terms) {
+#ifdef DEBUG
+			cerr << "Shear:\n" << v << endl;
+#endif //DEBUG
+			shearProduct *= v;
+			double mv = getMaxShear(v);
+			if(mv > *maxshear)
+				*maxshear = mv;
+		}
+	}
+
+#ifdef DEBUG
+	cerr << "Rotation:\n" << rotation << endl;
+	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
+	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
+#endif //DEBUG
+	if(err)
+		*err = (rotation-shearProduct).cwiseAbs().sum();
+
+	
+	return 0;
+}
+
+int shearXZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
+		double Rx, double Ry, double Rz)
+{
+#ifdef DEBUG
+	cerr << "Shear XZX" << endl;
+#endif //DEBUG
+
+	double MINANG = 0.00000001;
+	if(fabs(Rx) > MINANG || fabs(Rz) > MINANG) {
+		if(err)
+			*err = NAN;
+		if(maxshear)
+			*maxshear= NAN;
+		return -1;
+	}
+
+	Matrix3d sx1 = Matrix3d::Identity();
+	Matrix3d sz  = Matrix3d::Identity();
+	Matrix3d sx2 = Matrix3d::Identity();
+	Matrix3d shearProduct = Matrix3d::Identity();
+	
+	sx1(0,1) = 0;
+	sx1(0,2) = tan(Ry/2.);
+	sz (2,0) = -sin(Ry);
+	sz (2,1) = 0;
+	sx2(0,1) = 0;
+	sx2(0,2) = tan(Ry/2.);
+	
+	terms.clear();
+	terms.push_back(sx1);
+	terms.push_back(sz);
+	terms.push_back(sx2);
+
+	if(maxshear) {
+		*maxshear = 0;
+		for(auto v:terms) {
+#ifdef DEBUG
+			cerr << "Shear:\n" << v << endl;
+#endif //DEBUG
+			shearProduct *= v;
+			double mv = getMaxShear(v);
+			if(mv > *maxshear)
+				*maxshear = mv;
+		}
+	}
+
+	//*construct*matrices*
+	Matrix3d rotation;
+	rotation = AngleAxisd(Rx, Vector3d::UnitX())*
+				AngleAxisd(Ry, Vector3d::UnitY())*
+				AngleAxisd(Rz, Vector3d::UnitZ());
+
+#ifdef DEBUG
+	cerr << "Rotation:\n" << rotation << endl;
+	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
+	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
+#endif //DEBUG
+	if(err)
+		*err = (rotation-shearProduct).cwiseAbs().sum();
+	
+	return 0;
+}
+
+int shearZYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
+		double Rx, double Ry, double Rz)
+{
+#ifdef DEBUG
+	cerr << "Shear ZYZ" << endl;
+#endif //DEBUG
+
+	double MINANG = 0.00000001;
+	if(fabs(Ry) > MINANG || fabs(Rz) > MINANG) {
+		if(err)
+			*err = NAN;
+		if(maxshear)
+			*maxshear= NAN;
+		return -1;
+	}
+
+	Matrix3d sz1 = Matrix3d::Identity();
+	Matrix3d sy  = Matrix3d::Identity();
+	Matrix3d sz2 = Matrix3d::Identity();
+	Matrix3d shearProduct = Matrix3d::Identity();
+
+	sz1(2,0) = 0;
+	sz1(2,1) = tan(Rx/2.);
+	sy (1,0) = 0;
+	sy (1,2) = -sin(Rx);
+	sz2(2,0) = 0;
+	sz2(2,1) = tan(Rx/2.);
+	
+	terms.clear();
+	terms.push_back(sz1);
+	terms.push_back(sy);
+	terms.push_back(sz2);
+	
+	if(maxshear) {
+		*maxshear = 0;
+		for(auto v:terms) {
+#ifdef DEBUG
+			cerr << "Shear:\n" << v << endl;
+#endif //DEBUG
+			shearProduct *= v;
+			double mv = getMaxShear(v);
+			if(mv > *maxshear)
+				*maxshear = mv;
+		}
+	}
+	
+	//*construct*matrices*
+	Matrix3d rotation;
+	rotation = AngleAxisd(Rx, Vector3d::UnitX())*
+				AngleAxisd(Ry, Vector3d::UnitY())*
+				AngleAxisd(Rz, Vector3d::UnitZ());
+
+#ifdef DEBUG
+	cerr << "Rotation:\n" << rotation << endl;
+	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
+	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
+#endif //DEBUG
+	if(err)
+		*err = (rotation-shearProduct).cwiseAbs().sum();
+
+	return 0;
+}
+
+int shearDecompose(std::list<Matrix3d>& shearmats, double Rx, double Ry, double Rz)
+{
+	double ERRTOL = 0.0001;
+	double SHEARMAX = 0.5;
+	double ANGMIN = 0.000001;
+	double err, maxshear;
+	
+	// single angles first
+	if(fabs(Rx) < ANGMIN && fabs(Rz) < ANGMIN) {
+		shearYXY(shearmats, &err, &maxshear, Rx, Ry, Rz);
+		if(err < ERRTOL && maxshear < SHEARMAX) {
+			return 0;
+		} else {
+			return -1;
+		}
+	}
+
+	if(fabs(Rx) < ANGMIN && fabs(Rz) < ANGMIN) {
+		shearXZX(shearmats, &err, &maxshear, Rx, Ry, Rz);
+		if(err < ERRTOL && maxshear < SHEARMAX) {
+			return 0;
+		} else {
+			return -1;
+		}
+	}
+	
+	if(fabs(Rz) < ANGMIN && fabs(Ry) < ANGMIN) {
+		shearZYZ(shearmats, &err, &maxshear, Rx, Ry, Rz);
+		if(err < ERRTOL && maxshear < SHEARMAX) {
+			return 0;
+		} else {
+			return -1;
+		}
+	}
+
+	shearYZXY(shearmats, &err, &maxshear, Rx, Ry, Rz);
+	if(err < ERRTOL && maxshear < SHEARMAX) {
+		return 0;
+	}
+	
+	shearYXZY(shearmats, &err, &maxshear, Rx, Ry, Rz);
+	if(err < ERRTOL && maxshear < SHEARMAX) {
+		return 0;
+	}
+	
+	shearXYZX(shearmats, &err, &maxshear, Rx, Ry, Rz);
+	if(err < ERRTOL && maxshear < SHEARMAX) {
+		return 0;
+	}
+	
+	shearXZYX(shearmats, &err, &maxshear, Rx, Ry, Rz);
+	if(err < ERRTOL && maxshear < SHEARMAX) {
+		return 0;
+	}
+	
+	shearZYXZ(shearmats, &err, &maxshear, Rx, Ry, Rz);
+	if(err < ERRTOL && maxshear < SHEARMAX) {
+		return 0;
+	}
+	
+	shearZXYZ(shearmats, &err, &maxshear, Rx, Ry, Rz);
+	if(err < ERRTOL && maxshear < SHEARMAX) {
+		return 0;
+	}
+	
+	return -1;
+}
+
+/**
+ * @brief Tests all the shear decomposition functions.
+ * Given a rotation, it computes shear versions of the rotation matrix and 
+ * the error. The error should be very near 0 unless the reconstruction is 
+ * NAN.
+ *
+ * @param Rx Rotation about x axis (last)
+ * @param Ry Rotation about y axis (middle)
+ * @param Rz Rotation about z axis (first)
+ *
+ * @return 0 if successful.
+ */
+int shearTest(double Rx, double Ry, double Rz)
+{
+	cerr << "------------------------------" << endl;
+	cerr << Rx << "," << Ry << "," << Rz << endl;
+	double ERRTOL = 0.0001;
+	std::list<Matrix3d> terms;
+	double err, maxshear;
+	
+	// single angles first
+	shearYXY(terms, &err, &maxshear, Rx, Ry, Rz);
+	cerr << "YXY maxshear: " << maxshear << endl;
+	if(isnormal(err) && err > ERRTOL) {
+		cerr << "Err: " << err << endl;
+		return -1;
+	}
+
+	shearXZX(terms, &err, &maxshear, Rx, Ry, Rz);
+	cerr << "XZX maxshear: " << maxshear << endl;
+	if(isnormal(err) && err > ERRTOL) {
+		cerr << "Err: " << err << endl;
+		return -1;
+	}
+	
+	shearZYZ(terms, &err, &maxshear, Rx, Ry, Rz);
+	cerr << "ZYZ maxshear: " << maxshear << endl;
+	if(isnormal(err) && err > ERRTOL) {
+		cerr << "Err: " << err << endl;
+		return -1;
+	}
+
+	shearYZXY(terms, &err, &maxshear, Rx, Ry, Rz);
+	cerr << "YZXY maxshear: " << maxshear << endl;
+	if(isnormal(err) && err > ERRTOL) {
+		cerr << "Err: " << err << endl;
+		return -1;
+	}
+	
+	shearYXZY(terms, &err, &maxshear, Rx, Ry, Rz);
+	cerr << "YXZY maxshear: " << maxshear << endl;
+	if(isnormal(err) && err > ERRTOL) {
+		cerr << "Err: " << err << endl;
+		return -1;
+	}
+	
+	shearXYZX(terms, &err, &maxshear, Rx, Ry, Rz);
+	cerr << "XYZX maxshear: " << maxshear << endl;
+	if(isnormal(err) && err > ERRTOL) {
+		cerr << "Err: " << err << endl;
+		return -1;
+	}
+	
+	shearXZYX(terms, &err, &maxshear, Rx, Ry, Rz);
+	cerr << "XZYX maxshear: " << maxshear << endl;
+	if(isnormal(err) && err > ERRTOL) {
+		cerr << "Err: " << err << endl;
+		return -1;
+	}
+	
+	shearZYXZ(terms, &err, &maxshear, Rx, Ry, Rz);
+	cerr << "ZYXZ maxshear: " << maxshear << endl;
+	if(isnormal(err) && err > ERRTOL) {
+		cerr << "Err: " << err << endl;
+		return -1;
+	}
+	
+	shearZXYZ(terms, &err, &maxshear, Rx, Ry, Rz);
+	cerr << "ZXYZ maxshear: " << maxshear << endl;
+	if(isnormal(err) && err > ERRTOL) {
+		cerr << "Err: " << err << endl;
+		return -1;
 	}
 	
 	return 0;
 }
 
-///**
-// * @brief Decomposes a rotation about Z,Y,X into shears, in order of X shears 
-// * then Z shears then Y sehars the X shears. 
-// *
-// * @param terms[8][2] Shears, 4 sets of shear terms
-// * @param rx Rotation about x axis (last)
-// * @param ry Rotation about y axis (middl)
-// * @param rz Rotation about z axis (first)
-// *
-// * @return Error when reconstructing the rotation matrxi
-// */
-//double shearXYZXDecompose(double terms[4][2], double rx, double ry, double rz)
-//{
-//	// calculate terms
-//	
-//	// construct matrices 
-//	Matrix3d rotation = AngleAxisd(rx, Vector3d::UnitX())*
-//				AngleAxisd(ry, Vector3d::UnitY())*
-//				AngleAxisd(rz, Vector3d::UnitZ());
-//	Matrix3d sx1 = Identity();
-//	sx1(0,1) = terms[0][0]
-//	sx1(0,2) = terms[0][1]
-//
-//	Matrix3d sy = Identity();
-//	sy(1,1) = terms[1][0]
-//	sy(1,2) = terms[1][1]
-//
-//	Matrix3d sz = Identity();
-//	sz(2,1) = terms[2][0]
-//	sz(2,2) = terms[2][1]
-//
-//	Matrix3d sx2 = Identity();
-//	sx2(0,1) = terms[3][0]
-//	sx2(0,2) = terms[3][1]
-//
-//	auto shearProduct = sx1*sy*sz*sx2;
-//	
-//	return (rotation - shearProduct).abs().sub();
-//}
-//
+
 /**
  * @brief Rotates an image around the center using shear decomposition.
  * Rotation order is Rz, Ry, Rx, and about the center of the image.
@@ -859,13 +1513,21 @@ int shearYZXY(double terms[4][2], double* err, double* maxshear,
  * @param ry Rotation about y axis (applied second)
  * @param rz Rotation about z axis (applied first)
  */
-void rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz)
+int rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz)
 {
 	double MAXERR = 0.001;
 	double MAXSHEAR = 0.1;
+	std::list<Matrix3d> shears;
+
 	// decompose into shears
-	
+	if(shearDecompose(shears, rx, ry, rz) != 0) {
+		cerr << "Failed to find valid shear matrices" << endl;
+		return -1;
+	}
+
 	// perform shearing
+	
+	return 0;
 }
 
 
