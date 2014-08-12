@@ -28,6 +28,7 @@
 
 #include "mrimage.h"
 #include "mrimage_utils.h"
+#include "utility.h"
 #include "ndarray_utils.h"
 #include "iterators.h"
 #include "accessors.h"
@@ -55,8 +56,10 @@ shared_ptr<MRImage> bruteForceRotate(double rx, double ry, double rz,
 		shared_ptr<const MRImage> in)
 {
 	Matrix3d m;
-	m = AngleAxisd(rx, Vector3d::UnitX())*AngleAxisd(ry,  Vector3d::UnitY())*
-				AngleAxisd(rz, Vector3d::UnitZ());
+	// negate because we are starting from the destination and mapping from
+	// the source
+	m = AngleAxisd(-rx, Vector3d::UnitX())*AngleAxisd(-ry,  Vector3d::UnitY())*
+				AngleAxisd(-rz, Vector3d::UnitZ());
 	LinInterp3DView<double> lin(in);
 	auto out = dynamic_pointer_cast<MRImage>(in->copy());
 	Vector3d ind;
@@ -68,7 +71,7 @@ shared_ptr<MRImage> bruteForceRotate(double rx, double ry, double rz,
 
 	for(Vector3DIter<double> it(out); !it.isEnd(); ++it) {
 		it.index(3, ind.array().data());
-		cind = m*(ind-center);
+		cind = m*(ind-center)+center;
 
 		// set for each t
 		for(size_t tt = 0; tt<in->tlen(); tt++) 
@@ -118,8 +121,8 @@ int main()
 	while(!sit.eof()) {
 		sit.index(3, index);
 		if(index[0] > sz[0]/4 && index[0] < sz[0]/3 && 
-				index[1] > sz[1]/4 && index[1] < sz[1]/3 && 
-				index[2] > sz[2]/4 && index[2] < sz[2]/3) {
+				index[1] > sz[1]/5 && index[1] < sz[1]/2 && 
+				index[2] > sz[2]/3 && index[2] < 2*sz[2]/3) {
 			sit.set(1);
 		} else {
 			sit.set(0);
@@ -127,74 +130,41 @@ int main()
 		++sit;
 	}
 
-	in->write("original.nii.gz");
-	auto out = bruteForceRotate(.3, .1, .01, in);
-	out->write("rotated.nii.gz");
-
-	double shearterms[4][2]; 
-
+	cerr << "Testing Shear Decompositions" << endl;
 	std::list<Matrix3d> terms;
 	const double PI = acos(-1);
-	size_t iters = 10;
-	size_t failure = 0;
-	size_t count = 0;
-	for(size_t ii=0; ii<iters; ii++) {
-		for(size_t jj=0; jj<iters; jj++) {
-			for(size_t kk=0; kk<iters; kk++) {
-				double rx = ii/(2*PI);
-				double ry = jj/(2*PI);
-				double rz = kk/(2*PI);
-				count++;
+	int64_t iters = 10;
+	for(int64_t ii=-iters/2; ii<iters/2; ii++) {
+		for(int64_t jj=-iters/2; jj<iters/2; jj++) {
+			for(int64_t kk=-iters/2; kk<iters/2; kk++) {
+				double rx = (PI/2.)*ii/(double)iters;
+				double ry = (PI/2.)*jj/(double)iters;
+				double rz = (PI/2.)*kk/(double)iters;
+				cerr << rx << "," << ry << "," << rz << endl;
 				if(shearTest(rx,ry,rz) != 0) {
 					cerr << "Failed Shear Test for " <<
 						rx << ", " << ry << ", " << rz << endl;
 					return -1;
 				}
-				if(shearDecompose(terms, rx, ry, rz) != 0)
-					failure++;
+				if(shearDecompose(terms, rx, ry, rz) != 0) {
+					cerr << "Failure!" << endl;
+					return -1;
+				}
 			}
 		}
 	}
+	cerr << "Success" << endl;
 
-	cerr << "Failure Rate:" << failure/(double)count << endl;;
-//	// perform fourier rotation, +a
-//	// strictly the frequency for component k (where k = k-N/2,N/2]
-//	// double T = fft->dim(d)*in->spacing()[d];
-//	// double f = k/T; // where T is the total sampling period
-//	double rotate[3] = {1, 5, 10};
-//
-//	// algorithm (registration) will produce axis, we will rotate that axis to
-//	// make it align with +Z. 
-//
-//	// need euler angles for shearing, use mathematica to solve shearing for
-//	// angle-axis version?
-//	
-//	// manual shift
-//	auto mrotate = dynamic_pointer_cast<MRImage>(in->copy());
-//	NDAccess<double> acc(in);
-//	for(OrderIter<double> it(mrotate); !it.eof(); ++it) {
-//		it.index(3, index);
-//		
-//
-//		// rotate point
-//		for(size_t dd = 0 ; dd < in->ndim(); dd++)
-//			index[dd] = clamp<int64_t>(0, in->dim(dd)-1, index[dd]-shift[dd]);
-//
-//		it.set(acc.get(3, index));
-//
-//	}
-//	mrotate->write("manual_rotate.nii.gz");
-////	
-////	
-////	for(size_t ii=0; ii<sizeof(shift)/sizeof(double); ii++)
-////		shiftImage(in, ii, shift[ii]);
-////	
-////	in->write("fourier_shift.nii.gz");
-////
-//	if(closeCompare(in, mrotate) != 0)
-//		return -1;
-//	
+	in->write("original.nii.gz");
 
+	cerr << "Rotating manually" << endl;
+	auto out = bruteForceRotate(.3, 0, 0, in);
+	out->write("brute_rotated.nii.gz");
+	cerr << "Done" << endl;
+	
+	cerr << "Rotating with shears" << endl;
+	rotateImageFFT(in, .3, 0, 0);
+	in->write("fft_rotated.nii.gz");
 	return 0;
 }
 

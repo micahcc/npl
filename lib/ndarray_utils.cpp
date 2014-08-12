@@ -51,8 +51,6 @@
 #include <memory>
 #include <stdexcept>
 
-#define DEBUG
-
 namespace npl {
 
 using std::vector;
@@ -600,7 +598,7 @@ void shearImageKern(shared_ptr<NDArray> inout, size_t dd, size_t len, double* di
 	std::vector<double> buf(inout->dim(dd), 0);
 	std::vector<double> center(inout->ndim());
 	for(size_t ii=0; ii<center.size(); ii++) {
-		center[ii] = inout->dim(ii)/2.;
+		center[ii] = (inout->dim(ii)-1)/2.;
 	}
 
 	// need copy data into center of buffer, create iterator that moves
@@ -1158,70 +1156,6 @@ int shearYXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	return 0;
 }
 
-int shearXYX(std::list<Matrix3d>& terms, double* err, double* maxshear,
-		double Rx, double Ry, double Rz)
-{
-#ifdef DEBUG
-	cerr << "Shear XYX" << endl;
-#endif //DEBUG
-
-	double MINANG = 0.00000001;
-	if(fabs(Rx) > MINANG || fabs(Ry) > MINANG) {
-		if(err)
-			*err = NAN;
-		if(maxshear)
-			*maxshear= NAN;
-		return -1;
-	}
-
-	Matrix3d sx1 = Matrix3d::Identity();
-	Matrix3d sy = Matrix3d::Identity();
-	Matrix3d sx2 = Matrix3d::Identity();
-	Matrix3d shearProduct = Matrix3d::Identity();
-	
-	sx1(0,1) = (-1+cos(Rz))*csc(Rz);
-	sx1(0,2) = 0;
-	sy (1,0) = sin(Rz);
-	sy (1,2) = 0;
-	sx2(0,1) = -tan(Rz/2.);
-	sx2(0,2) = 0;
-	
-	terms.clear();
-	terms.push_back(sx1);
-	terms.push_back(sy);
-	terms.push_back(sx2);
-	
-	//*construct*matrices*
-	Matrix3d rotation;
-	rotation = AngleAxisd(Rx, Vector3d::UnitX())*
-				AngleAxisd(Ry, Vector3d::UnitY())*
-				AngleAxisd(Rz, Vector3d::UnitZ());
-
-	if(maxshear) {
-		*maxshear = 0;
-		for(auto v:terms) {
-#ifdef DEBUG
-			cerr << "Shear:\n" << v << endl;
-#endif //DEBUG
-			shearProduct *= v;
-			double mv = getMaxShear(v);
-			if(mv > *maxshear)
-				*maxshear = mv;
-		}
-	}
-
-#ifdef DEBUG
-	cerr << "Rotation:\n" << rotation << endl;
-	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
-	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
-#endif //DEBUG
-	if(err)
-		*err = (rotation-shearProduct).cwiseAbs().sum();
-
-	
-	return 0;
-}
-
 int shearXZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double Rx, double Ry, double Rz)
 {
@@ -1348,16 +1282,21 @@ int shearZYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	return 0;
 }
 
-int shearDecompose(std::list<Matrix3d>& shearmats, double Rx, double Ry, double Rz)
+int shearDecompose(std::list<Matrix3d>& bestshears, double Rx, double Ry, double Rz)
 {
 	double ERRTOL = 0.0001;
-	double SHEARMAX = 0.5;
+	double SHEARMAX = 1;
 	double ANGMIN = 0.000001;
 	double err, maxshear;
+	double bestmshear = SHEARMAX;
+	std::list<Matrix3d> ltmp;
 	
 	// single angles first
-	if(fabs(Rx) < ANGMIN && fabs(Rz) < ANGMIN) {
-		shearYXY(shearmats, &err, &maxshear, Rx, Ry, Rz);
+	if(fabs(Rx) < ANGMIN && fabs(Ry) < ANGMIN) {
+#ifdef DEBUG
+			cerr << "Chose YXY" << endl;
+#endif
+		shearYXY(bestshears, &err, &maxshear, Rx, Ry, Rz);
 		if(err < ERRTOL && maxshear < SHEARMAX) {
 			return 0;
 		} else {
@@ -1366,7 +1305,10 @@ int shearDecompose(std::list<Matrix3d>& shearmats, double Rx, double Ry, double 
 	}
 
 	if(fabs(Rx) < ANGMIN && fabs(Rz) < ANGMIN) {
-		shearXZX(shearmats, &err, &maxshear, Rx, Ry, Rz);
+#ifdef DEBUG
+			cerr << "Chose XZX" << endl;
+#endif
+		shearXZX(bestshears, &err, &maxshear, Rx, Ry, Rz);
 		if(err < ERRTOL && maxshear < SHEARMAX) {
 			return 0;
 		} else {
@@ -1375,7 +1317,10 @@ int shearDecompose(std::list<Matrix3d>& shearmats, double Rx, double Ry, double 
 	}
 	
 	if(fabs(Rz) < ANGMIN && fabs(Ry) < ANGMIN) {
-		shearZYZ(shearmats, &err, &maxshear, Rx, Ry, Rz);
+#ifdef DEBUG
+			cerr << "Chose ZYZ" << endl;
+#endif
+		shearZYZ(bestshears, &err, &maxshear, Rx, Ry, Rz);
 		if(err < ERRTOL && maxshear < SHEARMAX) {
 			return 0;
 		} else {
@@ -1383,36 +1328,58 @@ int shearDecompose(std::list<Matrix3d>& shearmats, double Rx, double Ry, double 
 		}
 	}
 
-	shearYZXY(shearmats, &err, &maxshear, Rx, Ry, Rz);
-	if(err < ERRTOL && maxshear < SHEARMAX) {
-		return 0;
+	shearYZXY(ltmp, &err, &maxshear, Rx, Ry, Rz);
+	if(err < ERRTOL && maxshear < bestmshear) {
+		bestmshear = maxshear;
+		bestshears.clear();
+		bestshears.splice(bestshears.end(), ltmp);
 	}
 	
-	shearYXZY(shearmats, &err, &maxshear, Rx, Ry, Rz);
-	if(err < ERRTOL && maxshear < SHEARMAX) {
-		return 0;
+	shearYXZY(ltmp, &err, &maxshear, Rx, Ry, Rz);
+	if(err < ERRTOL && maxshear < bestmshear) {
+		bestmshear = maxshear;
+		bestshears.clear();
+		bestshears.splice(bestshears.end(), ltmp);
 	}
 	
-	shearXYZX(shearmats, &err, &maxshear, Rx, Ry, Rz);
-	if(err < ERRTOL && maxshear < SHEARMAX) {
-		return 0;
+	shearXYZX(ltmp, &err, &maxshear, Rx, Ry, Rz);
+	if(err < ERRTOL && maxshear < bestmshear) {
+		bestmshear = maxshear;
+		bestshears.clear();
+		bestshears.splice(bestshears.end(), ltmp);
 	}
 	
-	shearXZYX(shearmats, &err, &maxshear, Rx, Ry, Rz);
-	if(err < ERRTOL && maxshear < SHEARMAX) {
-		return 0;
+	shearXZYX(ltmp, &err, &maxshear, Rx, Ry, Rz);
+	if(err < ERRTOL && maxshear < bestmshear) {
+		bestmshear = maxshear;
+		bestshears.clear();
+		bestshears.splice(bestshears.end(), ltmp);
 	}
 	
-	shearZYXZ(shearmats, &err, &maxshear, Rx, Ry, Rz);
-	if(err < ERRTOL && maxshear < SHEARMAX) {
-		return 0;
+	shearZYXZ(ltmp, &err, &maxshear, Rx, Ry, Rz);
+	if(err < ERRTOL && maxshear < bestmshear) {
+		bestmshear = maxshear;
+		bestshears.clear();
+		bestshears.splice(bestshears.end(), ltmp);
 	}
 	
-	shearZXYZ(shearmats, &err, &maxshear, Rx, Ry, Rz);
-	if(err < ERRTOL && maxshear < SHEARMAX) {
-		return 0;
+	shearZXYZ(ltmp, &err, &maxshear, Rx, Ry, Rz);
+	if(err < ERRTOL && maxshear < bestmshear) {
+		bestmshear = maxshear;
+		bestshears.clear();
+		bestshears.splice(bestshears.end(), ltmp);
 	}
 	
+	if(bestmshear <= SHEARMAX) {
+#ifdef DEBUG
+		cerr << "Best Shear:" << bestmshear << endl;
+		for(auto& v : bestshears) {
+			cerr << v << "\n\n";
+		}
+#endif
+		return 0;
+	}
+
 	return -1;
 }
 
@@ -1513,10 +1480,15 @@ int shearTest(double Rx, double Ry, double Rz)
  * @param ry Rotation about y axis (applied second)
  * @param rz Rotation about z axis (applied first)
  */
-int rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz)
+int rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz,
+		double(*window)(double,double))
 {
-	double MAXERR = 0.001;
-	double MAXSHEAR = 0.1;
+	const double PI = acos(-1);
+	if(fabs(rx) > PI/4. || fabs(ry) > PI/4. || fabs(rz) > PI/4.) {
+		cerr << "Fast large rotations not yet implemented" << endl;
+		return -1;
+	}
+
 	std::list<Matrix3d> shears;
 
 	// decompose into shears
@@ -1526,6 +1498,25 @@ int rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz)
 	}
 
 	// perform shearing
+	double shearvals[3];
+	for(const Matrix3d& shmat: shears) {
+		int64_t sheardim = -1;;
+		for(size_t rr = 0 ; rr < 3 ; rr++) {
+			for(size_t cc = 0 ; cc < 3 ; cc++) {
+				if(rr != cc && shmat(rr,cc) != 0) {
+					if(sheardim != -1 && sheardim != rr) {
+						cerr << "Error, multiple shear dimensions!" << endl;
+						return -1;
+					}
+					sheardim = rr;
+					shearvals[cc] = shmat(rr,cc);
+				}
+			}
+		}
+
+		// perform shear
+		shearImageFFT(inout, sheardim, 3, shearvals, window);
+	}
 	
 	return 0;
 }

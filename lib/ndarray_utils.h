@@ -198,7 +198,8 @@ void shearImageFFT(shared_ptr<NDArray> inout, size_t dim, size_t len, double* di
  * @param ry Rotation about y axis
  * @param rz Rotation about z axis
  */
-int rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz);
+int rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz,
+		double(*window)(double,double) = npl::sincWindow);
 
 
 /**
