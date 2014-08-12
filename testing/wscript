@@ -168,6 +168,11 @@ def build(bld):
             use='ndarray_utils utility mrimage_utils iterators EIGEN') 
 
     bld.program(install_path='${PREFIX}/tests', features='test',
+            target='fft_compute_axis', 
+            source='fft_compute_axis.cpp', 
+            use='ndarray_utils utility mrimage_utils iterators EIGEN') 
+
+    bld.program(install_path='${PREFIX}/tests', features='test',
             target='fract_fft_test', 
             source='fract_fft_test.cpp', 
             use='FFTW utility') 
