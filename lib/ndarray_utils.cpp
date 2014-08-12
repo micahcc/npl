@@ -666,7 +666,7 @@ void shearImageFFT(shared_ptr<NDArray> inout, size_t dd, size_t len, double* dis
 			FFTW_BACKWARD, FFTW_MEASURE);
 	std::vector<double> center(inout->ndim());
 	for(size_t ii=0; ii<center.size(); ii++) {
-		center[ii] = inout->dim(ii)/2.;
+		center[ii] = (inout->dim(ii)-1)/2.;
 	}
 
 	// need copy data into center of buffer, create iterator that moves
