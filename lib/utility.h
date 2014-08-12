@@ -28,76 +28,6 @@
 namespace npl {
 
 /**
- * @brief Cotangent function
- *
- * @param v angle in radians
- *
- * @return Cotangent of angle
- */
-inline
-double cot(double v)
-{
-	return 1./tan(v);
-}
-
-/**
- * @brief Cosecant function
- *
- * @param v angle in radians
- *
- * @return Cosecant of angle
- */
-inline
-double csc(double v)
-{
-	return 1./sin(v);
-}
-
-/**
- * @brief Secand function
- *
- * @param v angle in radians
- *
- * @return Secand of angle
- */
-inline
-double sec(double v)
-{
-	return 1./cos(v);
-}
-
-
-/**
- * @brief Sinc function centered at 0, with radius a, range should be = 2a
- *
- * @param x distance from center
- * @param a radius
- *
- * @return weight
- */
-double rectWindow(double x, double a);
-
-/**
- * @brief Sinc function centered at 0, with radius a, range should be = 2a
- *
- * @param x distance from center
- * @param a radius
- *
- * @return weight
- */
-double sincWindow(double x, double a);
-
-/**
- * @brief Lanczos kernel function
- *
- * @param x distance from center
- * @param a radius of kernel
- *
- * @return weight
- */
-double lanczosKernel(double x, double a);
-
-/**
  * @brief Reads a file and returns true if its entirely made up of printable ascii
  *
  * @param filename name of file to read
@@ -178,20 +108,6 @@ std::vector<std::vector<std::string>> readStrCSV(std::string filename,
  */
 std::vector<std::vector<double>> readNumericCSV(std::string filename,
 			char comment = '#');
-
-/**
- * @brief Takes a count, sum and sumsqr and returns the sample variance.
- * This is slightly different than the variance definition and I can
- * never remember the exact formulation.
- *
- * @param count Number of samples
- * @param sum sum of samples
- * @param sumsqr sum of square of the samples
- *
- * @return sample variance
- */
-inline
-double sample_var(int count, double sum, double sumsqr);
 
 /******************************************
  * Tools for writing TGA image files/plots

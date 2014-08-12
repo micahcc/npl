@@ -32,11 +32,12 @@
 #define ND_ALGOS_H
 
 #include "ndarray.h"
-#include "utility.h"
 #include "npltypes.h"
+#include "basic_functions.h"
 
 #include <Eigen/Dense>
 #include <memory>
+#include <list>
 
 namespace npl {
 

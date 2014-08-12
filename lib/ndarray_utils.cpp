@@ -1492,13 +1492,17 @@ int rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz,
 	std::list<Matrix3d> shears;
 
 	// decompose into shears
+	clock_t c = clock();
 	if(shearDecompose(shears, rx, ry, rz) != 0) {
 		cerr << "Failed to find valid shear matrices" << endl;
 		return -1;
 	}
+	c = clock() - c;
+	cerr << "Shear Decompose took " << c << " ticks " << endl;
 
 	// perform shearing
 	double shearvals[3];
+	c = clock();
 	for(const Matrix3d& shmat: shears) {
 		int64_t sheardim = -1;;
 		for(size_t rr = 0 ; rr < 3 ; rr++) {
@@ -1517,6 +1521,8 @@ int rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz,
 		// perform shear
 		shearImageFFT(inout, sheardim, 3, shearvals, window);
 	}
+	c = clock() - c;
+	cerr << "Shear Rotation took " << c << " ticks " << endl;
 	
 	return 0;
 }

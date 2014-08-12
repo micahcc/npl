@@ -23,6 +23,7 @@
 #include "ndarray.h"
 #include "mrimage.h"
 #include "basic_functions.h"
+#include "utility.h"
 
 namespace npl {
 
@@ -733,6 +734,149 @@ private:
 	T operator[](int64_t i) { (void)(i); return T(); };
 	T get(const std::vector<int64_t>& i) { (void)(i); return T(); };
 	T operator[](const std::vector<int64_t>& i) { (void)(i); return T(); };
+};
+
+/**
+ * @brief The purpose of this class is to view an image as a continuous
+ * 3D+vector dimension image rather than a 4+D image. Therefore all dimensions
+ * above the third are cast as a vector and interpolation is only performed
+ * between 3D points, with the 4th dimension assumed to be non-spatial. The
+ * would be applicable if the upper dimensions are of a different type
+ * than the first 3.
+ *
+ * @tparam T Type of value to cast and return
+ */
+template<typename T>
+class LanczosInterp3DView : public NDConstAccess<T>
+{
+public:
+	LanczosInterp3DView(std::shared_ptr<const NDArray> in,
+				BoundaryConditionT bound = ZEROFLUX)
+				: NDConstAccess<T>(in), m_boundmethod(bound), m_radius(2)
+	{ };
+
+	void setRadius(size_t rad) { m_radius = rad; };
+	size_t getRadius() { return m_radius; };
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T operator()(double x=0, double y=0, double z=0, int64_t t=0)
+	{
+		return get(x,y,z,t);
+	};
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T get(double x=0, double y=0, double z=0, int64_t t=0)
+	{
+		// figure out size of dimensions in parent
+		size_t dim[4];
+		dim[0] = this->parent->dim(0);
+		dim[1] = this->parent->ndim() > 1 ? this->parent->dim(1) : 1;
+		dim[2] = this->parent->ndim() > 2 ? this->parent->dim(2) : 1;
+		dim[3] = this->parent->tlen();
+		
+		// deal with t being outside bounds
+		if(t < 0 || t >= dim[3]) {
+			if(m_boundmethod == ZEROFLUX) {
+				// clamp
+				t = clamp<int64_t>(0, dim[3]-1, t);
+			} else if(m_boundmethod == WRAP) {
+				// wrap
+				t = wrap<int64_t>(0, dim[3]-1, t);
+			} else {
+				return 0;
+			}
+		}
+
+		// initialize variables
+		double cindex[3] = {x,y,z};
+		int64_t index[3];
+		const int KPOINTS = 1+m_radius*2;
+		const int DIM = 3;
+
+		// 1D version of the weights and indices
+		double karray[DIM][KPOINTS];
+		int64_t indarray[DIM][KPOINTS];
+		int64_t radius = m_radius;
+
+		for(int dd = 0; dd < DIM; dd++) {
+			for(int64_t ii=-radius; ii<=radius; ii++){
+				int64_t i = round(cindex[dd])+ii;
+				indarray[dd][ii+m_radius] = i;
+				karray[dd][ii+m_radius] = lanczosKernel(i-cindex[dd], m_radius);
+			}
+		}
+
+		bool iioutside = false;
+//		outside = false;
+
+		// compute weighted pixval by iterating over neighbors, which are
+		// combinations of KPOINTS
+		T pixval = 0;
+		double weight = 0;
+		div_t result;
+		for(int ii = 0 ; ii < pow(KPOINTS, DIM); ii++) {
+			weight = 1;
+
+			//set index
+			result.quot = ii;
+			iioutside = false;
+			for(int dd = 0; dd < DIM; dd++) {
+				result = std::div(result.quot, KPOINTS);
+				weight *= karray[dd][result.rem];
+				index[dd] = indarray[dd][result.rem];
+				iioutside = iioutside || index[dd] < 0 || index[dd] >= dim[dd];
+			}
+
+			// might prevent optimization
+			//			if(weight == 0)
+			//				continue;
+
+			// if the current point maps outside, then we need to deal with it
+//			outside = (weight != 0 && iioutside) || outside;
+			if(iioutside) {
+				if(m_boundmethod == ZEROFLUX) {
+					// clamp
+					for(size_t dd=0; dd<DIM; dd++)
+						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
+				} else if(m_boundmethod == WRAP) {
+					// wrap
+					for(size_t dd=0; dd<DIM; dd++)
+						wrap<int64_t>(0, dim[dd]-1, index[dd]);
+				} else {
+					// set wieght to zero, then just clamp
+					weight = 0;
+					for(size_t dd=0; dd<DIM; dd++)
+						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
+				}
+			}
+
+			T v = this->castget(this->parent->__getAddr(index[0], index[1],index[2],t));
+			pixval += weight*v;
+		}
+
+		return pixval;
+	}
+	
+	BoundaryConditionT m_boundmethod;
+protected:
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T operator[](int64_t i) { (void)(i); return T(); };
+	T get(const std::vector<int64_t>& i) { (void)(i); return T(); };
+	T operator[](const std::vector<int64_t>& i) { (void)(i); return T(); };
+	size_t m_radius;
 };
 
 } // namespace npl

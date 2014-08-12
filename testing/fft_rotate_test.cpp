@@ -52,7 +52,7 @@ using Eigen::AngleAxisd;
  *
  * @return 
  */
-shared_ptr<MRImage> bruteForceRotate(double rx, double ry, double rz, 
+shared_ptr<MRImage> linearRotate(double rx, double ry, double rz, 
 		shared_ptr<const MRImage> in)
 {
 	Matrix3d m;
@@ -158,7 +158,10 @@ int main()
 	in->write("original.nii.gz");
 
 	cerr << "Rotating manually" << endl;
-	auto out = bruteForceRotate(.3, 0, 0, in);
+	clock_t c = clock();
+	auto out = linearRotate(.3, 0, 0, in);
+	c = clock() - c;
+	cerr << "Linear Rotate took " << c << " ticks " << endl;
 	out->write("brute_rotated.nii.gz");
 	cerr << "Done" << endl;
 	

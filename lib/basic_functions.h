@@ -13,11 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file basic_functions.h
+ * @file basic_functions.h These are simple in-lineable functions for various
+ * purposes, including bounding indexes, and window functions 
  *
  *****************************************************************************/
 #ifndef BASIC_FUNCTIONS_H
 #define BASIC_FUNCTIONS_H
+
+#include <cmath>
 
 namespace npl {
 
@@ -55,13 +58,138 @@ inline T clamp(T inf, T sup, T v)
  * @return Wrapped value
  */
 template <typename T>
-T wrap(T inf, T sup, T v)
+inline T wrap(T inf, T sup, T v)
 {
 	T len = sup-inf+1;
 	T vtmp = v-inf;
 	T out = vtmp < 0 ? sup-((-vtmp-1)%len) : inf+(vtmp%len);
 	return out;
 }
+
+/**********************************************************
+ * Basic Statistical Functions
+ **********************************************************/
+
+/**
+ * @brief Takes a count, sum and sumsqr and returns the sample variance.
+ * This is slightly different than the variance definition and I can
+ * never remember the exact formulation.
+ *
+ * @param count Number of samples
+ * @param sum sum of samples
+ * @param sumsqr sum of square of the samples
+ *
+ * @return sample variance
+ */
+inline
+double sample_var(int count, double sum, double sumsqr)
+{
+	return (sumsqr-sum*sum/count)/(count-1);
+}
+
+/**********************************************************
+ * Windows/Kernels
+ **********************************************************/
+
+/**
+ * @brief Rectangle function centered at 0, with radius a, range should be = 2a
+ *
+ * @param x distance from center
+ * @param a radius
+ *
+ * @return weight
+ */
+inline
+double rectWindow(double x, double a)
+{
+	if(fabs(x) < a)
+		return 1;
+	else
+		return 0;
+}
+
+/**
+ * @brief Sinc function centered at 0, with radius a, range should be = 2a
+ *
+ * @param x distance from center
+ * @param a radius
+ *
+ * @return weight
+ */
+inline
+double sincWindow(double x, double a)
+{
+	const double PI = acos(-1);
+
+	if(x == 0)
+		return 1;
+	else if(fabs(x) < a)
+		return sin(PI*x/a)/(PI*x/a);
+	else
+		return 0;
+}
+
+/**
+ * @brief Lanczos kernel function
+ *
+ * @param x distance from center
+ * @param a radius of kernel
+ *
+ * @return weight
+ */
+inline
+double lanczosKernel(double x, double a)
+{
+	const double PI = acos(-1);
+
+	if(x == 0)
+		return 1;
+	else if(fabs(x) < a)
+		return a*sin(PI*x)*sin(PI*x/a)/(PI*PI*x*x);
+	else
+		return 0;
+}
+
+/**
+ * @brief Cotangent function
+ *
+ * @param v angle in radians
+ *
+ * @return Cotangent of angle
+ */
+inline
+double cot(double v)
+{
+	return 1./tan(v);
+}
+
+/**
+ * @brief Cosecant function
+ *
+ * @param v angle in radians
+ *
+ * @return Cosecant of angle
+ */
+inline
+double csc(double v)
+{
+	return 1./sin(v);
+}
+
+/**
+ * @brief Secand function
+ *
+ * @param v angle in radians
+ *
+ * @return Secand of angle
+ */
+inline
+double sec(double v)
+{
+	return 1./cos(v);
+}
+
+
 
 
 } // npl
