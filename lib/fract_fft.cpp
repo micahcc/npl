@@ -24,6 +24,7 @@
 
 #include "fract_fft.h"
 #include "utility.h"
+#include "basic_functions.h"
 
 #include <cstdlib>
 #include <cassert>
@@ -37,59 +38,6 @@
 using std::complex;
 
 namespace npl {
-
-/**
- * @brief Provides a list of the prime-fractors of the input number
- *
- * @param f input number
- *
- * @return list of factors
- */
-std::list<int64_t> factor(int64_t f)
-{
-	std::list<int64_t> factors;
-	for(int64_t ii = 2; ii<=f; ii++) {
-		while(f % ii == 0) {
-			f = f/ii;
-			factors.push_back(ii);
-		}
-	}
-
-	return factors;
-}
-
-/**
- * @brief Rounds a number up to the nearest number that can be broken down into
- * 3,5,7
- *
- * @param in Input number
- *
- * @return Next number up that matches the requirement
- */
-int64_t round357(int64_t in)
-{
-	// make it odd
-	if(in %2 == 0)
-		in++;
-
-	bool acceptable = false;
-	while(!acceptable) {
-		acceptable = true;
-		in += 2;
-
-		// check the factors
-		auto factors = factor(in);
-		for(auto f : factors) {
-			if(f != 3 && f != 5 && f != 7) {
-				acceptable = false;
-				break;
-			}
-		}
-	}
-
-	return in;
-}
-
 
 /**
  * @brief Fills the input array (chirp) with a chirp of the specified type

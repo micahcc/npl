@@ -60,28 +60,6 @@ using Eigen::Matrix3d;
 using Eigen::Vector3d;
 using Eigen::AngleAxisd;
 
-int hob (int num)
-{
-	if (!num)
-		return 0;
-
-	int ret = 1;
-
-	while (num >>= 1)
-		ret <<= 1;
-
-	return ret;
-}
-
-int64_t round2(int64_t in)
-{
-	int64_t just_hob = hob(in);
-	if(just_hob == in)
-		return in;
-	else
-		return (in<<1);
-}
-
 /**
  * @brief Performs in-place fft. Note that the input should already be padded
  * and a complex type

@@ -28,10 +28,13 @@
 
 #include "mrimage.h"
 #include "mrimage_utils.h"
-#include "utility.h"
 #include "ndarray_utils.h"
 #include "iterators.h"
 #include "accessors.h"
+#include "utility.h"
+#include "basic_functions.h"
+
+#include "fftw3.h"
 
 
 using namespace npl;
@@ -131,7 +134,7 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, size_t ldim)
 	// copy data
 	NDConstAccess<cdouble_t> inview(in);
 	std::vector<int64_t> index(in->ndim());
-	for(OrderIter<cdouble_t> it(out); !it.isEnd(); ++it) {
+	for(OrderIter<cdouble_t> it(oimg); !it.isEnd(); ++it) {
 		it.index(index.size(), index.data());
 		
 		bool outside = false;
@@ -144,7 +147,7 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, size_t ldim)
 		if(outside) 
 			it.set(0);
 		else
-			it.set(inview(index));
+			it.set(inview[index]);
 	}
 
 	in->write("prepadded.nii.gz");
@@ -156,7 +159,7 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, size_t ldim)
 		fftw_plan fwd = fftw_plan_dft_1d((int)osize[dd], buffer, buffer, 
 				FFTW_FORWARD, FFTW_MEASURE);
 		
-		ChunkIter<cdouble_t> it(inout);
+		ChunkIter<cdouble_t> it(oimg);
 		it.setLineChunk(dd);
 		for(it.goBegin(); !it.isEnd() ; it.nextChunk()) {
 			it.index(index.size(), index.data());
@@ -186,8 +189,9 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, size_t ldim)
 }
 
 //
-void pseudoPolar(shared_ptr<MRImage> in, size_t praddim)
+void pseudoPolar(shared_ptr<MRImage> in, size_t praddim, size_t origsz)
 {
+	std::vector<int64_t> index(in->ndim());
 	ChunkIter<cdouble_t> it(in);
 	it.setLineChunk(praddim);
 	
@@ -216,8 +220,11 @@ void pseudoPolar(shared_ptr<MRImage> in, size_t praddim)
 		// perform fractional fourier transform
 		// we start at alpha = +3, since we did NOT perform the inverse FFT
 		double k = index[praddim]-in->dim(praddim)/2;
-		double alpha = 2*k/n; // -3n/2 <= k <= 3n/2, -3 <= alpha <= 3
-		cerr << 
+		double n = origsz;
+		double a = 2*k/n; // -3n/2 <= k <= 3n/2, -3 <= alpha <= 3
+		double a -= 3;
+
+
 	}
 	fftw_free(buffer);
 	

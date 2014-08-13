@@ -21,6 +21,7 @@
 #define BASIC_FUNCTIONS_H
 
 #include <cmath>
+#include <list>
 
 namespace npl {
 
@@ -189,6 +190,97 @@ double sec(double v)
 	return 1./cos(v);
 }
 
+
+/**
+ * @brief Highest order bit
+ *
+ * @param num Input, output will be this with the highest order bit set
+ *
+ * @return 
+ */
+inline
+int hob(int num)
+{
+	if (!num)
+		return 0;
+
+	int ret = 1;
+
+	while(num >>= 1)
+		ret <<= 1;
+
+	return ret;
+}
+
+
+/**
+ * @brief Round up to the nearest power of 2.
+ *
+ * @param in Number to round
+ *
+ * @return Rounded up umber
+ */
+inline
+int64_t round2(int64_t in)
+{
+	int64_t just_hob = hob(in);
+	if(just_hob == in)
+		return in;
+	else
+		return (in<<1);
+}
+
+/**
+ * @brief Provides a list of the prime-fractors of the input number
+ *
+ * @param f input number
+ *
+ * @return list of factors
+ */
+std::list<int64_t> factor(int64_t f)
+{
+	std::list<int64_t> factors;
+	for(int64_t ii = 2; ii<=f; ii++) {
+		while(f % ii == 0) {
+			f = f/ii;
+			factors.push_back(ii);
+		}
+	}
+
+	return factors;
+}
+
+/**
+ * @brief Rounds a number up to the nearest number that can be broken down into
+ * 3,5,7
+ *
+ * @param in Input number
+ *
+ * @return Next number up that matches the requirement
+ */
+int64_t round357(int64_t in)
+{
+	// make it odd
+	if(in %2 == 0)
+		in++;
+
+	bool acceptable = false;
+	while(!acceptable) {
+		acceptable = true;
+		in += 2;
+
+		// check the factors
+		auto factors = factor(in);
+		for(auto f : factors) {
+			if(f != 3 && f != 5 && f != 7) {
+				acceptable = false;
+				break;
+			}
+		}
+	}
+
+	return in;
+}
 
 
 
