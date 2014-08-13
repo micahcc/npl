@@ -176,6 +176,9 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, size_t ldim)
 				it.set(tmp);
 			}
 		}
+
+		fftw_free(buffer);
+		fftw_destroy_plan(fwd);
 	}
 	oimg->write("padded_fftd.nii.gz");
 	
@@ -185,6 +188,38 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, size_t ldim)
 //
 void pseudoPolar(shared_ptr<MRImage> in, size_t praddim)
 {
+	ChunkIter<cdouble_t> it(in);
+	it.setLineChunk(praddim);
+	
+	assert(in->dim(praddim) >= in->dim(0));
+	assert(in->dim(praddim) >= in->dim(1));
+	assert(in->dim(praddim) >= in->dim(2));
+
+	// figure out which lines to break up (non praddim's)
+	size_t line[2];
+	size_t count = 0;
+	for(size_t dd=0; dd<3; dd++) {
+		if(dd != praddim)
+			line[count++] = dd;
+	}
+
+	auto buffer = fftw_alloc_complex((int)in->dim(praddim));
+	for(it.goBegin(); !it.isEnd() ; it.nextChunk()) {
+		it.index(index.size(), index.data());
+		
+		// fill from line
+		for(size_t tt=0; !it.isChunkEnd(); ++it, tt++) {
+			buffer[tt][0] = (*it).real();
+			buffer[tt][1] = (*it).imag();
+		}
+
+		// perform fractional fourier transform
+		// we start at alpha = +3, since we did NOT perform the inverse FFT
+		double k = index[praddim]-in->dim(praddim)/2;
+		double alpha = 2*k/n; // -3n/2 <= k <= 3n/2, -3 <= alpha <= 3
+		cerr << 
+	}
+	fftw_free(buffer);
 	
 }
 
