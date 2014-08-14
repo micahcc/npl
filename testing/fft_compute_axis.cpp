@@ -33,6 +33,7 @@
 #include "accessors.h"
 #include "utility.h"
 #include "basic_functions.h"
+#include "fract_fft.h"
 
 #include "fftw3.h"
 
@@ -192,55 +193,145 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, size_t ldim)
 void pseudoPolar(shared_ptr<MRImage> in, size_t praddim, size_t origsz)
 {
 	std::vector<int64_t> index(in->ndim());
-	ChunkIter<cdouble_t> it(in);
-	it.setLineChunk(praddim);
 	
 	assert(in->dim(praddim) >= in->dim(0));
 	assert(in->dim(praddim) >= in->dim(1));
 	assert(in->dim(praddim) >= in->dim(2));
+	size_t buffsize = 0;
 
 	// figure out which lines to break up (non praddim's)
 	size_t line[2];
-	size_t count = 0;
-	for(size_t dd=0; dd<3; dd++) {
-		if(dd != praddim)
-			line[count++] = dd;
-	}
-
-	auto buffer = fftw_alloc_complex((int)in->dim(praddim));
-	for(it.goBegin(); !it.isEnd() ; it.nextChunk()) {
-		it.index(index.size(), index.data());
-		
-		// fill from line
-		for(size_t tt=0; !it.isChunkEnd(); ++it, tt++) {
-			buffer[tt][0] = (*it).real();
-			buffer[tt][1] = (*it).imag();
+	{
+		size_t ll = 0;
+		for(size_t dd=0; dd<3; dd++) {
+			if(dd != praddim) {
+				line[ll++] = dd;
+				if(in->dim(dd) > buffsize)
+					buffsize = in->dim(dd);
+			}
 		}
-
-		// perform fractional fourier transform
-		// we start at alpha = +3, since we did NOT perform the inverse FFT
-		double k = index[praddim]-in->dim(praddim)/2;
-		double n = origsz;
-		double a = 2*k/n; // -3n/2 <= k <= 3n/2, -3 <= alpha <= 3
-		double a -= 3;
-
-
 	}
-	fftw_free(buffer);
 	
+	// take the longest line for the buffer
+	auto linebuf = fftw_alloc_complex((int)buffsize);
+	auto fullbuf = fftw_alloc_complex((int)buffsize*16);
+
+	// process the non-praddim limnes
+	for(size_t ii=0; ii<2; ii++) {
+		size_t linelen = in->dim(line[ii]);
+		ChunkIter<cdouble_t> it(in);
+		it.setLineChunk(line[ii]);
+		for(it.goBegin(); !it.isEnd() ; it.nextChunk()) {
+			it.index(index.size(), index.data());
+
+			// fill from line
+			for(size_t tt=0; !it.isChunkEnd(); ++it, tt++) {
+				linebuf[tt][0] = (*it).real();
+				linebuf[tt][1] = (*it).imag();
+			}
+
+			// perform fractional fourier transform
+			// we start at alpha = +3, since we did NOT perform the inverse FFT
+			int64_t k = index[praddim]-((int64_t)in->dim(praddim))/2;
+			double n = origsz;
+			double a = 2*k/n; // -3n/2 <= k <= 3n/2, -3 <= alpha <= 3
+			cerr << "k: " << k << ", a: " << a << endl;
+			a -= 3;
+			fractional_ft(linelen, linebuf, linebuf, a, buffsize*16, 
+					fullbuf, false);
+		}
+	}
+	
+	fftw_free(linebuf);
+	fftw_free(fullbuf);
 }
 
 Vector3d getAxis(shared_ptr<const MRImage> img1, shared_ptr<const MRImage> img2)
 {
 	Vector3d axis;
 	
+	std::vector<size_t> index(3);
+	size_t pseudo_radius = 0;
+	size_t pseudo_slope[2];
+	
 	shared_ptr<MRImage> pp1;
 	shared_ptr<MRImage> pp2;
 	for(size_t ii=0; ii<3; ii++) {
-		pp1 = padFFT(img1, ii);
-		pp2 = padFFT(img2, ii);
+		size_t tmp = 0;
+		for(size_t jj=0; jj<3; jj++) {
+			if(jj != ii) 
+				pseudo_slope[tmp++] = jj;
+		}
+		pseudo_radius = ii;
 
+		cerr << "ii: " << ii << " pseudo radius: " << pseudo_radius << 
+			", pseudo slope 1: " << pseudo_slope[0] << ", pseudo slope 2: " <<
+			pseudo_slope[1] << endl;
+
+		pp1 = padFFT(img1, pseudo_radius);
+//		pseudoPolar(pp1, pseudo_radius, img1->dim(ii));
+//		ChunkIter<cdouble_t> it1(pp1);
+//		it1->setLineChunk(pseudo_radius);
+//		
+		pp2 = padFFT(img2, pseudo_radius);
 		
+		{
+		std::string name = "pad1-0.nii.gz";
+		name[5] = '0'+ii;
+		dynamic_pointer_cast<MRImage>(pp1->copyCast(FLOAT64))->write(name);
+		name = "pad2-0.nii.gz";
+		name[5] = '0'+ii;
+		dynamic_pointer_cast<MRImage>(pp2->copyCast(FLOAT64))->write(name);
+		}
+//		pseudoPolar(pp2, pseudo_radius, img2->dim(ii));
+//		ChunkIter<cdouble_t> it2(pp2);
+//		it2->setLineChunk(pseudo_radius);
+//
+//		double maxcor = 0;
+//		int64_t bestang1 = -1;
+//		int64_t bestang2 = -1;
+//		for(; !it1.isEnd() && !it2.isEnd(); it1.nextChunk(), it2.nextChunk()) {
+//			double corr = 0;
+//			double mu1 = 0, mu2 = 0;
+//			double sig1 = 0, sig2 = 0;
+//			size_t count = 0;
+//			for(; !it1.isChunkEnd() && !it2.isChunkEnd(); ++it1, ++it2) {
+//				double m1 = (*it1).abs();
+//				double m2 = (*it2).abs();
+//				corr += m1*m2;
+//				mu1 += m1;
+//				mu2 += m2;
+//				sig1 += m1*m1;
+//				sig2 += m2*m2;
+//				count++;
+//			}
+//			assert(it1.isChunkEnd());
+//			assert(it2.isChunkEnd());
+//		}
+//
+//		assert(it1.isEnd());
+//		assert(it2.isEnd());
+//
+//		for(size_t ll = 0 ; ll < pp1->dim(pseudo_slope[0]); ll++) {
+//			for(size_t mm = 0 ; mm < pp1->dim(pseudo_slope[1]); mm++) {
+//				sig1 = 0; sig2 = 0;
+//				mu1 = 0; mu2 = 0;
+//				corr = 0;
+//				for(size_t kk = 0 ; kk < pp1->dim(pseudo_radius); kk++) {
+//					index[pseudo_slope[0]] = ll;
+//					index[pseudo_slope[1]] = mm;
+//					index[pseudo_radius] = kk;
+//
+//				}
+//
+//				if(corr > maxcor) {
+//					bestang1 = ll;
+//					bestang1 = mm;
+//					maxcor = corr;
+//					cerr << "New Best: " << ll << "," << mm << " -> " << corr << endl;
+//				}
+//			}
+//		}
 	}
 	
 	
@@ -275,6 +366,8 @@ int main()
 	auto out = bruteForceRotate(ax, .2, in);
 	out->write("brute_rotated.nii.gz");
 	cerr << "Done" << endl;
+
+	Vector3d newax = getAxis(in, out);
 
 	return 0;
 }

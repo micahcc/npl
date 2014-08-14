@@ -30,6 +30,7 @@
 #include <cassert>
 #include <cmath>
 #include <algorithm>
+#include <iostream>
 #include <list>
 #include <complex>
 
@@ -413,8 +414,8 @@ void fractional_fft(int64_t isize, int64_t usize, int64_t uppadsize,
  * @param in Input array, may be the same as output, length sz
  * @param out Output array, may be the same as input, length sz
  * @param Buffer size
- * @param a Fraction, 1 = fourier transform, 3 = inverse fourier transform,
- * 4 = identity
+ * @param a Fraction, 1 = fourier transform, 2 = reverse, 
+ * 3 = inverse fourier transform, 4 = identity
  * @param buffer Buffer to do computations in, may be null, in which case new
  * memory will be allocated and deallocated during processing. Note that if
  * the provided buffer is not sufficient size a new buffer will be allocated
@@ -445,7 +446,8 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	// check/allocate buffer
 	bool freemem = false;
 	if(bsz < isize+3*uppadsize || !buffer) {
-		bsz = 4*uppadsize;
+		std::cerr << "WARNING! Allocating vector in fractional_ft" << std::endl;
+		bsz = isize+3*uppadsize;
 		buffer = fftw_alloc_complex(bsz);
 		freemem = true;
 	}
