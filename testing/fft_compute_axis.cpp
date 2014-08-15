@@ -215,10 +215,14 @@ void pseudoPolar(shared_ptr<MRImage> in, size_t praddim)
 	// take the longest line for the buffer
 	auto linebuf = fftw_alloc_complex((int)buffsize);
 	auto fullbuf = fftw_alloc_complex((int)buffsize*16);
-
+	
 	// process the non-praddim limnes
 	for(size_t ii=0; ii<2; ii++) {
+
 		size_t linelen = in->dim(line[ii]);
+		fftw_plan rev = fftw_plan_dft_1d((int)linelen, linebuf, linebuf, 
+				FFTW_BACKWARD, FFTW_MEASURE);
+
 		ChunkIter<cdouble_t> it(in);
 		it.setLineChunk(line[ii]);
 		cerr << "PP: " << praddim << ", " << line[ii] << " line" << endl;
@@ -231,16 +235,18 @@ void pseudoPolar(shared_ptr<MRImage> in, size_t praddim)
 				linebuf[tt][1] = (*it).imag();
 			}
 
-			// perform fractional fourier transform
-			// we start at alpha = +3, since we did NOT perform the inverse FFT
+			// un-fourier transform
+			fftw_execute(rev);
+
+			// perform chirplet transform
 			int64_t k = index[praddim]-((int64_t)in->dim(praddim)/2);
 			double n = in->dim(praddim);
 			double a = 2*k/n; // -3n/2 <= k <= 3n/2, -3 <= alpha <= 3
 			cerr << "k: " << k << ", a: " << a << endl;
-			a -= 3;
-			fractional_ft(linelen, linebuf, linebuf, a, buffsize*16, 
-					fullbuf, false);
+			chirplet((int64_t)linelen, linebuf, linebuf, a, buffsize*16, fullbuf);
 		}
+
+		fftw_destroy_plan(rev);
 	}
 	
 	fftw_free(linebuf);

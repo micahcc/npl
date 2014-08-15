@@ -170,7 +170,7 @@ void interp(int64_t isize, fftw_complex* in, int64_t osize, fftw_complex* out)
  * @param buffer Buffer which may be preallocated
  * @param a Fraction of fourier transform to perform
  */
-void chirpz_brute(int64_t isize, int64_t usize, int64_t uppadsize,
+void chirplet_brute(int64_t isize, int64_t usize, int64_t uppadsize,
 		fftw_complex* inout, fftw_complex* buffer, double a)
 {
 	assert(a <= 1.5 && a>= 0.5);
@@ -280,7 +280,7 @@ void chirpz_brute(int64_t isize, int64_t usize, int64_t uppadsize,
 	interp(usize, upsampled, isize, inout);
 }
 
-void chirpz(int64_t isize, int64_t usize, int64_t uppadsize,
+void chirplet(int64_t isize, int64_t usize, int64_t uppadsize,
 		fftw_complex* inout, fftw_complex* buffer, double a)
 {
 	assert(usize%2 == 1);
@@ -437,6 +437,80 @@ void chirpz(int64_t isize, int64_t usize, int64_t uppadsize,
 using namespace std;
 
 /**
+ * @brief Comptues the Chirplet Transform using FFTW for nlogn
+ * performance.
+ *
+ * @param isize size of input/output
+ * @param in Input array, may be the same as output, length sz
+ * @param out Output array, may be the same as input, length sz
+ * @param Buffer size
+ * @param a Parameter
+ * @param buffer Buffer to do computations in, may be null, in which case new
+ * memory will be allocated and deallocated during processing. Note that if
+ * the provided buffer is not sufficient size a new buffer will be allocated
+ * and deallocated, and a warning will be produced
+ * @param nonfft
+ */
+void chirplet(size_t isize, fftw_complex* in, fftw_complex* out, double a,
+		size_t bsz, fftw_complex* buffer, bool nonfft)
+{
+	// there are 3 sizes: isize: the original size of the input array, usize :
+	// the size of the upsampled array, and uppadsize the padded+upsampled
+	// size, we want both uppadsize and usize to be odd, and we want uppadsize
+	// to be the product of small primes (3,5,7)
+	double approxratio = 4;
+	int64_t uppadsize = round357(isize*approxratio);
+	int64_t usize;
+	while( (usize = (uppadsize-1)/2) % 2 == 0) {
+		uppadsize = round357(uppadsize+2);
+	}
+
+	// check/allocate buffer
+	bool freemem = false;
+	if(bsz < isize+3*uppadsize || !buffer) {
+		std::cerr << "WARNING! Allocating vector in fractional_ft" << std::endl;
+		bsz = isize+3*uppadsize;
+		buffer = fftw_alloc_complex(bsz);
+		freemem = true;
+	}
+
+	fftw_complex* current = &buffer[0];
+	fftw_plan curr_to_out_fwd = fftw_plan_dft_1d(isize, current, out,
+			FFTW_FORWARD, FFTW_MEASURE);
+	fftw_plan curr_to_out_rev = fftw_plan_dft_1d(isize, current, out,
+			FFTW_BACKWARD, FFTW_MEASURE);
+	fftw_plan curr_to_curr_fwd = fftw_plan_dft_1d(isize, current, current,
+			FFTW_FORWARD, FFTW_MEASURE);
+	fftw_plan curr_to_curr_rev = fftw_plan_dft_1d(isize, current, current,
+			FFTW_BACKWARD, FFTW_MEASURE);
+
+	// copy input to buffer
+	for(size_t ii=0; ii<isize; ii++) {
+		current[ii][0] = in[ii][0];
+		current[ii][1] = in[ii][1];
+	}
+
+	if(nonfft) 
+		chirplet_brute(isize, usize, uppadsize, current, &buffer[isize], a+1);
+	else
+		chirplet(isize, usize, uppadsize, current, &buffer[isize], a+1);
+
+	// copy current to output
+	for(size_t ii=0; ii<isize; ii++) {
+		out[ii][0] = current[ii][0];
+		out[ii][1] = current[ii][1];
+	}
+
+	if(freemem)
+		fftw_free(buffer);
+
+	fftw_destroy_plan(curr_to_curr_fwd);
+	fftw_destroy_plan(curr_to_curr_rev);
+	fftw_destroy_plan(curr_to_out_fwd);
+	fftw_destroy_plan(curr_to_out_rev);
+}
+
+/**
  * @brief Comptues the Fractional Fourier transform using FFTW for nlogn
  * performance.
  *
@@ -506,29 +580,29 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		// to add 1, do an inverse FFT, then Fractional FT
 		fftw_execute(curr_to_out_rev);
 		if(nonfft)
-			chirpz_brute(isize, usize, uppadsize, current,
+			chirplet_brute(isize, usize, uppadsize, current,
 					&buffer[isize], a+1);
 		else
-			chirpz(isize, usize, uppadsize, current,
+			chirplet(isize, usize, uppadsize, current,
 					&buffer[isize], a+1);
 
 	} else if(a < 1.5) {
 		cerr << "B" << endl;
 		if(nonfft)
-			chirpz_brute(isize, usize, uppadsize, current,
+			chirplet_brute(isize, usize, uppadsize, current,
 					&buffer[isize], a);
 		else
-			chirpz(isize, usize, uppadsize, current,
+			chirplet(isize, usize, uppadsize, current,
 					&buffer[isize], a);
 	} else if(a < 2.5) {
 		cerr << "C" << endl;
 		// forward FFT is a = 1, then get the rest with fractional
 		fftw_execute(curr_to_out_fwd);
 		if(nonfft)
-			chirpz_brute(isize, usize, uppadsize, current,
+			chirplet_brute(isize, usize, uppadsize, current,
 					&buffer[isize], a-1);
 		else
-			chirpz(isize, usize, uppadsize, current,
+			chirplet(isize, usize, uppadsize, current,
 					&buffer[isize], a-1);
 	} else if(a < 3.5) {
 		cerr << "D" << endl;
@@ -541,10 +615,10 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		writePlotAbsAng("rev-abs.tga", "rev-ang.tga", isize, current);
 		// then follow up with fractional
 		if(nonfft)
-			chirpz_brute(isize, usize, uppadsize, current,
+			chirplet_brute(isize, usize, uppadsize, current,
 					&buffer[isize], a-2);
 		else
-			chirpz(isize, usize, uppadsize, current,
+			chirplet(isize, usize, uppadsize, current,
 					&buffer[isize], a-2);
 		writePlotAbsAng("postfract-abs.tga", "postfract-ang.tga", isize, current);
 	} else {
@@ -557,10 +631,10 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		fftw_execute(curr_to_out_rev);
 		// shift output
 		if(nonfft)
-			chirpz_brute(isize, usize, uppadsize, current,
+			chirplet_brute(isize, usize, uppadsize, current,
 					&buffer[isize], a-3);
 		else
-			chirpz(isize, usize, uppadsize, current,
+			chirplet(isize, usize, uppadsize, current,
 					&buffer[isize], a-3);
 		
 	}

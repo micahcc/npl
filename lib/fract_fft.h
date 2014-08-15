@@ -50,11 +50,8 @@ namespace npl {
 void fractional_ft(size_t sz, fftw_complex* in, fftw_complex* out, double a,
 		size_t bsz = 0, fftw_complex* buffer = NULL, bool nonfft = false);
 
-void chirpz(int64_t isize, int64_t usize, int64_t uppadsize,
-		fftw_complex* inout, fftw_complex* buffer, double a);
-
-void chirpz_brute(int64_t isize, int64_t usize, int64_t uppadsize,
-		fftw_complex* inout, fftw_complex* buffer, double a);
+void chirplet(size_t sz, fftw_complex* in, fftw_complex* out, double a,
+		size_t bsz = 0, fftw_complex* buffer = NULL, bool nonfft = false);
 
 void writePlotReIm(std::string reFile, std::string imFile, size_t insz,
 		fftw_complex* in);
