@@ -40,6 +40,33 @@ using std::complex;
 
 namespace npl {
 
+void writePlotReIm(std::string reFile, std::string imFile, size_t insz,
+		fftw_complex* in)
+{
+	std::vector<double> realv(insz);
+	std::vector<double> imv(insz);
+	for(size_t ii=0; ii<insz; ii++) {
+		realv[ii] = in[ii][0];
+		imv[ii] = in[ii][1];
+	}
+	writePlot(reFile, realv);
+	writePlot(imFile, imv);
+}
+
+void writePlotAbsAng(std::string absFile, std::string angFile, size_t insz,
+		fftw_complex* in)
+{
+	std::vector<double> absv(insz);
+	std::vector<double> angv(insz);
+	for(size_t ii=0; ii<insz; ii++) {
+		angv[ii] = atan2(in[ii][0], in[ii][1]);
+		absv[ii] = sqrt(pow(in[ii][0],2)+pow(in[ii][1],2));
+	}
+	writePlot(absFile, absv);
+	writePlot(angFile, angv);
+}
+
+
 /**
  * @brief Fills the input array (chirp) with a chirp of the specified type
  *
@@ -143,7 +170,7 @@ void interp(int64_t isize, fftw_complex* in, int64_t osize, fftw_complex* out)
  * @param buffer Buffer which may be preallocated
  * @param a Fraction of fourier transform to perform
  */
-void fractional_brute_ft(int64_t isize, int64_t usize, int64_t uppadsize,
+void chirpz_brute(int64_t isize, int64_t usize, int64_t uppadsize,
 		fftw_complex* inout, fftw_complex* buffer, double a)
 {
 	assert(a <= 1.5 && a>= 0.5);
@@ -253,7 +280,7 @@ void fractional_brute_ft(int64_t isize, int64_t usize, int64_t uppadsize,
 	interp(usize, upsampled, isize, inout);
 }
 
-void fractional_fft(int64_t isize, int64_t usize, int64_t uppadsize,
+void chirpz(int64_t isize, int64_t usize, int64_t uppadsize,
 		fftw_complex* inout, fftw_complex* buffer, double a)
 {
 	assert(usize%2 == 1);
@@ -406,9 +433,16 @@ void fractional_fft(int64_t isize, int64_t usize, int64_t uppadsize,
 	fftw_destroy_plan(sigbuff_plan_fwd);
 }
 
+#include <iostream>
+using namespace std;
+
 /**
  * @brief Comptues the Fractional Fourier transform using FFTW for nlogn
  * performance.
+ *
+ * The definition of the fractional fourier transform is:
+ * F(u) = SUM f(j) exp(-2 PI i a u j / (N+1)
+ * where j = [-N/2,N/2], u = [-N/2, N/2]
  *
  * @param isize size of input/output
  * @param in Input array, may be the same as output, length sz
@@ -425,8 +459,7 @@ void fractional_fft(int64_t isize, int64_t usize, int64_t uppadsize,
 void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		size_t bsz, fftw_complex* buffer, bool nonfft)
 {
-	double MINTHRESH = 0.000000000001;
-
+	cerr << "Warning fractional FT is not yet tested!" << endl;
 	// bring a into range
 	while(a < 0)
 		a += 4;
@@ -468,53 +501,68 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		current[ii][1] = in[ii][1];
 	}
 
-	while(a != 0) {
-		if(fabs(a-1) < MINTHRESH) {
-			// fourier transform
-			fftw_execute(curr_to_out_fwd);
-			a = 0;
-		} else if(fabs(a-2) < MINTHRESH) {
-			// reverse
-			for(size_t ii=0; ii<isize; ii++) {
-				out[ii][0] = current[isize-1-ii][0];
-				out[ii][1] = current[isize-1-ii][1];
-			}
-			a = 0;
-		} else if(fabs(a-3) < MINTHRESH) {
-			// inverse fourier transform
-			fftw_execute(curr_to_out_rev);
-			a = 0;
-		} else if(a < 0.5) {
-			// below range, do a FFT to bring into range of fractional_fft
-			fftw_execute(curr_to_curr_fwd);
-			a += 1;
-		} else if(a <= 1.5) {
-			// can do the general purpose fractional_fft
-			if(nonfft)
-				fractional_brute_ft(isize, usize, uppadsize, current,
-						&buffer[isize], a);
-			else
-				fractional_fft(isize, usize, uppadsize, current,
-						&buffer[isize], a);
-			a = 0;
-		} else if(a < 2.5) {
-			// above range, do an rev FFT to bring into range of fractional_fft
-			fftw_execute(curr_to_curr_rev);
-			a -= 1;
-		} else if(a < 3.5) {
-			// way above range, do an signal reversal to bring into range of
-			// fractional_fft
-			// reverse
-			for(size_t ii=0; ii<isize; ii++) {
-				current[ii][0] = current[isize-1-ii][0];
-				current[ii][1] = current[isize-1-ii][1];
-			}
-			a -= 2;
-		} else {
-			// 3.5-4, if we add 1 (subtract 3) we get to 0.5-1.5
-			fftw_execute(curr_to_curr_rev);
-			a -= 3;
+	if(a < 0.5) {
+		cerr << "A" << endl;
+		// to add 1, do an inverse FFT, then Fractional FT
+		fftw_execute(curr_to_out_rev);
+		if(nonfft)
+			chirpz_brute(isize, usize, uppadsize, current,
+					&buffer[isize], a+1);
+		else
+			chirpz(isize, usize, uppadsize, current,
+					&buffer[isize], a+1);
+
+	} else if(a < 1.5) {
+		cerr << "B" << endl;
+		if(nonfft)
+			chirpz_brute(isize, usize, uppadsize, current,
+					&buffer[isize], a);
+		else
+			chirpz(isize, usize, uppadsize, current,
+					&buffer[isize], a);
+	} else if(a < 2.5) {
+		cerr << "C" << endl;
+		// forward FFT is a = 1, then get the rest with fractional
+		fftw_execute(curr_to_out_fwd);
+		if(nonfft)
+			chirpz_brute(isize, usize, uppadsize, current,
+					&buffer[isize], a-1);
+		else
+			chirpz(isize, usize, uppadsize, current,
+					&buffer[isize], a-1);
+	} else if(a < 3.5) {
+		cerr << "D" << endl;
+		// reverse is = 2
+		writePlotAbsAng("pre-abs.tga", "pre-ang.tga", isize, current);
+		for(size_t ii=0; ii<isize/2; ii++) {
+			std::swap(current[ii][0],current[isize-1-ii][0]);
+			std::swap(current[ii][1],current[isize-1-ii][1]);
 		}
+		writePlotAbsAng("rev-abs.tga", "rev-ang.tga", isize, current);
+		// then follow up with fractional
+		if(nonfft)
+			chirpz_brute(isize, usize, uppadsize, current,
+					&buffer[isize], a-2);
+		else
+			chirpz(isize, usize, uppadsize, current,
+					&buffer[isize], a-2);
+		writePlotAbsAng("postfract-abs.tga", "postfract-ang.tga", isize, current);
+	} else {
+		cerr << "E" << endl;
+		// to add 1 (makeing it >4.5 / >0.5, do an inverse FFT, then Fractional
+		for(size_t ii=0; ii<isize/2; ii++) {
+			std::swap(current[ii][0],current[ii+isize/2][0]);
+			std::swap(current[ii][1],current[ii+isize/2][1]);
+		}
+		fftw_execute(curr_to_out_rev);
+		// shift output
+		if(nonfft)
+			chirpz_brute(isize, usize, uppadsize, current,
+					&buffer[isize], a-3);
+		else
+			chirpz(isize, usize, uppadsize, current,
+					&buffer[isize], a-3);
+		
 	}
 
 	// copy current to output

@@ -167,7 +167,7 @@ def build(bld):
             source='fft_rotate_test.cpp', 
             use='ndarray_utils utility mrimage_utils iterators EIGEN') 
 
-    bld.program(install_path='${PREFIX}/tests', features='test',
+    bld.program(install_path='${PREFIX}/tests', #features='test',
             target='fft_compute_axis', 
             source='fft_compute_axis.cpp', 
             use='fractfft ndarray_utils utility mrimage_utils iterators EIGEN') 

@@ -193,6 +193,48 @@ public:
 	 * @param index output index variable
 	 */
 	void index(size_t len, double* index) const;
+	
+	/**
+	 * @brief Places the first len dimension in the given array. If the number
+	 * of dimensions exceed the len then the additional dimensions will be
+	 * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
+	 * In other words index will be completely overwritten in the most sane way
+	 * possible if the internal dimensions and size index differ.
+	 *
+	 * @param index output index variable
+	 */
+	void index(std::vector<int64_t>& ind) const
+	{
+		index(ind.size(), ind.data()); 
+	}
+	
+	/**
+	 * @brief Places the first len dimension in the given array. If the number
+	 * of dimensions exceed the len then the additional dimensions will be
+	 * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
+	 * In other words index will be completely overwritten in the most sane way
+	 * possible if the internal dimensions and size index differ.
+	 *
+	 * @param index output index variable
+	 */
+	void index(std::vector<int>& ind) const
+	{
+		index(ind.size(), ind.data()); 
+	};
+
+	/**
+	 * @brief Places the first len dimension in the given array. If the number
+	 * of dimensions exceed the len then the additional dimensions will be
+	 * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
+	 * In other words index will be completely overwritten in the most sane way
+	 * possible if the internal dimensions and size index differ.
+	 *
+	 * @param index output index variable
+	 */
+	void index(std::vector<double>& ind) const 
+	{
+		index(ind.size(), ind.data()); 
+	};
 
 	/***********************************************
 	 *
@@ -512,6 +554,48 @@ public:
 	 * @param index output index variable
 	 */
 	void index(size_t len, double* index) const;
+	
+	/**
+	 * @brief Places the first len dimension in the given array. If the number
+	 * of dimensions exceed the len then the additional dimensions will be
+	 * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
+	 * In other words index will be completely overwritten in the most sane way
+	 * possible if the internal dimensions and size index differ.
+	 *
+	 * @param index output index variable
+	 */
+	void index(std::vector<int64_t>& ind) const
+	{
+		index(ind.size(), ind.data());
+	};
+	
+	/**
+	 * @brief Places the first len dimension in the given array. If the number
+	 * of dimensions exceed the len then the additional dimensions will be
+	 * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
+	 * In other words index will be completely overwritten in the most sane way
+	 * possible if the internal dimensions and size index differ.
+	 *
+	 * @param index output index variable
+	 */
+	void index(std::vector<int>& ind) const
+	{
+		index(ind.size(), ind.data());
+	};
+	
+	/**
+	 * @brief Places the first len dimension in the given array. If the number
+	 * of dimensions exceed the len then the additional dimensions will be
+	 * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
+	 * In other words index will be completely overwritten in the most sane way
+	 * possible if the internal dimensions and size index differ.
+	 *
+	 * @param index output index variable
+	 */
+	void index(std::vector<double>& ind) const
+	{
+		index(ind.size(), ind.data());
+	};
 
 	/***********************************************
 	 *
