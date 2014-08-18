@@ -170,7 +170,7 @@ void interp(int64_t isize, fftw_complex* in, int64_t osize, fftw_complex* out)
  * @param buffer Buffer which may be preallocated
  * @param a Fraction of fourier transform to perform
  */
-void chirplet_brute(int64_t isize, int64_t usize, int64_t uppadsize,
+void frft_limited_brute(int64_t isize, int64_t usize, int64_t uppadsize,
 		fftw_complex* inout, fftw_complex* buffer, double a)
 {
 	assert(a <= 1.5 && a>= 0.5);
@@ -280,7 +280,7 @@ void chirplet_brute(int64_t isize, int64_t usize, int64_t uppadsize,
 	interp(usize, upsampled, isize, inout);
 }
 
-void chirplet(int64_t isize, int64_t usize, int64_t uppadsize,
+void frft_limited(int64_t isize, int64_t usize, int64_t uppadsize,
 		fftw_complex* inout, fftw_complex* buffer, double a)
 {
 	assert(usize%2 == 1);
@@ -451,7 +451,7 @@ using namespace std;
  * and deallocated, and a warning will be produced
  * @param nonfft
  */
-void chirplet(size_t isize, fftw_complex* in, fftw_complex* out, double a,
+void frft_limited(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		size_t bsz, fftw_complex* buffer, bool nonfft)
 {
 	// there are 3 sizes: isize: the original size of the input array, usize :
@@ -475,15 +475,6 @@ void chirplet(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	}
 
 	fftw_complex* current = &buffer[0];
-	fftw_plan curr_to_out_fwd = fftw_plan_dft_1d(isize, current, out,
-			FFTW_FORWARD, FFTW_MEASURE);
-	fftw_plan curr_to_out_rev = fftw_plan_dft_1d(isize, current, out,
-			FFTW_BACKWARD, FFTW_MEASURE);
-	fftw_plan curr_to_curr_fwd = fftw_plan_dft_1d(isize, current, current,
-			FFTW_FORWARD, FFTW_MEASURE);
-	fftw_plan curr_to_curr_rev = fftw_plan_dft_1d(isize, current, current,
-			FFTW_BACKWARD, FFTW_MEASURE);
-
 	// copy input to buffer
 	for(size_t ii=0; ii<isize; ii++) {
 		current[ii][0] = in[ii][0];
@@ -491,9 +482,9 @@ void chirplet(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	}
 
 	if(nonfft) 
-		chirplet_brute(isize, usize, uppadsize, current, &buffer[isize], a+1);
+		frft_limited_brute(isize, usize, uppadsize, current, &buffer[isize], a+1);
 	else
-		chirplet(isize, usize, uppadsize, current, &buffer[isize], a+1);
+		frft_limited(isize, usize, uppadsize, current, &buffer[isize], a+1);
 
 	// copy current to output
 	for(size_t ii=0; ii<isize; ii++) {
@@ -503,11 +494,6 @@ void chirplet(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 
 	if(freemem)
 		fftw_free(buffer);
-
-	fftw_destroy_plan(curr_to_curr_fwd);
-	fftw_destroy_plan(curr_to_curr_rev);
-	fftw_destroy_plan(curr_to_out_fwd);
-	fftw_destroy_plan(curr_to_out_rev);
 }
 
 /**
@@ -533,7 +519,7 @@ void chirplet(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		size_t bsz, fftw_complex* buffer, bool nonfft)
 {
-	cerr << "Warning fractional FT is not yet tested!" << endl;
+	std::cerr << "Warning fractional FT is not yet tested!" << std::endl;
 	// bring a into range
 	while(a < 0)
 		a += 4;
@@ -576,36 +562,32 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	}
 
 	if(a < 0.5) {
-		cerr << "A" << endl;
 		// to add 1, do an inverse FFT, then Fractional FT
 		fftw_execute(curr_to_out_rev);
 		if(nonfft)
-			chirplet_brute(isize, usize, uppadsize, current,
+			frft_limited_brute(isize, usize, uppadsize, current,
 					&buffer[isize], a+1);
 		else
-			chirplet(isize, usize, uppadsize, current,
+			frft_limited(isize, usize, uppadsize, current,
 					&buffer[isize], a+1);
 
 	} else if(a < 1.5) {
-		cerr << "B" << endl;
 		if(nonfft)
-			chirplet_brute(isize, usize, uppadsize, current,
+			frft_limited_brute(isize, usize, uppadsize, current,
 					&buffer[isize], a);
 		else
-			chirplet(isize, usize, uppadsize, current,
+			frft_limited(isize, usize, uppadsize, current,
 					&buffer[isize], a);
 	} else if(a < 2.5) {
-		cerr << "C" << endl;
 		// forward FFT is a = 1, then get the rest with fractional
 		fftw_execute(curr_to_out_fwd);
 		if(nonfft)
-			chirplet_brute(isize, usize, uppadsize, current,
+			frft_limited_brute(isize, usize, uppadsize, current,
 					&buffer[isize], a-1);
 		else
-			chirplet(isize, usize, uppadsize, current,
+			frft_limited(isize, usize, uppadsize, current,
 					&buffer[isize], a-1);
 	} else if(a < 3.5) {
-		cerr << "D" << endl;
 		// reverse is = 2
 		writePlotAbsAng("pre-abs.tga", "pre-ang.tga", isize, current);
 		for(size_t ii=0; ii<isize/2; ii++) {
@@ -615,14 +597,13 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		writePlotAbsAng("rev-abs.tga", "rev-ang.tga", isize, current);
 		// then follow up with fractional
 		if(nonfft)
-			chirplet_brute(isize, usize, uppadsize, current,
+			frft_limited_brute(isize, usize, uppadsize, current,
 					&buffer[isize], a-2);
 		else
-			chirplet(isize, usize, uppadsize, current,
+			frft_limited(isize, usize, uppadsize, current,
 					&buffer[isize], a-2);
 		writePlotAbsAng("postfract-abs.tga", "postfract-ang.tga", isize, current);
 	} else {
-		cerr << "E" << endl;
 		// to add 1 (makeing it >4.5 / >0.5, do an inverse FFT, then Fractional
 		for(size_t ii=0; ii<isize/2; ii++) {
 			std::swap(current[ii][0],current[ii+isize/2][0]);
@@ -631,10 +612,10 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		fftw_execute(curr_to_out_rev);
 		// shift output
 		if(nonfft)
-			chirplet_brute(isize, usize, uppadsize, current,
+			frft_limited_brute(isize, usize, uppadsize, current,
 					&buffer[isize], a-3);
 		else
-			chirplet(isize, usize, uppadsize, current,
+			frft_limited(isize, usize, uppadsize, current,
 					&buffer[isize], a-3);
 		
 	}
@@ -653,6 +634,323 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	fftw_destroy_plan(curr_to_out_fwd);
 	fftw_destroy_plan(curr_to_out_rev);
 }
+
+void chirplet_help_brute(int64_t isize, int64_t usize, int64_t uppadsize,
+		fftw_complex* inout, fftw_complex* buffer, double alpha)
+{
+	const complex<double> I(0,1);
+
+	// zero
+	for(size_t ii=0; ii<uppadsize*3; ii++) {
+		buffer[ii][0] = 0;
+		buffer[ii][1] = 0;
+	}
+
+	fftw_complex* upsampled = &buffer[0];
+	fftw_complex* sigbuff = &buffer[usize];
+	fftw_complex* nega_chirp = &buffer[uppadsize];
+	fftw_complex* posa_chirp = &buffer[uppadsize*2];
+
+	// pre-compute chirps
+	createChirp(uppadsize, nega_chirp, isize, (double)usize/(double)isize,
+			0, alpha, false);
+	createChirp(uppadsize, posa_chirp, isize, (double)usize/(double)isize,
+			alpha, 0, false);
+	
+	interp(isize, inout, usize, upsampled);
+	
+	// pre-multiply
+	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
+		complex<double> tmp1(nega_chirp[nn+uppadsize/2][0],
+				nega_chirp[nn+uppadsize/2][1]);
+		complex<double> tmp2(upsampled[nn+usize/2][0],
+				upsampled[nn+usize/2][1]);
+		tmp1 *= tmp2;
+		upsampled[nn+usize/2][0] = tmp1.real();
+		upsampled[nn+usize/2][1] = tmp1.imag();
+	}
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(usize);
+		for(size_t ii=0; ii<usize; ii++)
+			tmp[ii] = upsampled[ii][0];
+		writePlot("brute_premult.tga", tmp);
+	}
+#endif //DEBUG
+
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(uppadsize);
+		for(size_t ii=0; ii<uppadsize; ii++)
+			tmp[ii] = posa_chirp[ii][0];
+		writePlot("brute_posa_chirp.tga", tmp);
+	}
+#endif //DEBUG
+//
+	
+	// multiply
+	/*
+	 * convolve
+	 */
+	for(int64_t mm = -usize/2; mm<=usize/2; mm++) {
+		sigbuff[mm+usize/2][0] = 0;
+		sigbuff[mm+usize/2][1] = 0;
+
+		for(int64_t nn = -usize/2; nn<= usize/2; nn++) {
+			complex<double> tmp1(posa_chirp[mm-nn+uppadsize/2][0],
+					posa_chirp[mm-nn+uppadsize/2][1]);
+			complex<double> tmp2(upsampled[nn+usize/2][0],
+					upsampled[nn+usize/2][1]);
+			tmp1 = tmp1*tmp2;
+
+			sigbuff[mm+usize/2][0] += tmp1.real();
+			sigbuff[mm+usize/2][1] += tmp1.imag();
+		}
+	}
+
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(usize);
+		for(size_t ii=0; ii<usize; ii++)
+			tmp[ii] = sqrt(sigbuff[ii][0]*sigbuff[ii][0]+
+					sigbuff[ii][1]*sigbuff[ii][1]);
+		writePlot("brute_convolve.tga", tmp);
+	}
+#endif //DEBUG
+	
+	// post-multiply
+	for(int64_t ii=-usize/2; ii<=usize/2; ii++) {
+		complex<double> tmp1(nega_chirp[ii+uppadsize/2][0],
+				nega_chirp[ii+uppadsize/2][1]);
+		complex<double> tmp2(sigbuff[ii+usize/2][0],
+				sigbuff[ii+usize/2][1]);
+		tmp1 = tmp1*tmp2;
+		upsampled[ii+usize/2][0] = tmp1.real();
+		upsampled[ii+usize/2][1] = tmp1.imag();
+	}
+	
+	interp(usize, upsampled, isize, inout);
+}
+
+void chirplet_help(int64_t isize, int64_t usize, int64_t uppadsize,
+		fftw_complex* inout, fftw_complex* buffer, double alpha)
+{
+	assert(usize%2 == 1);
+	assert(uppadsize%2 == 1);
+
+	const complex<double> I(0,1);
+
+	// zero
+	for(size_t ii=0; ii<uppadsize*3; ii++) {
+		buffer[ii][0] = 0;
+		buffer[ii][1] = 0;
+	}
+
+	fftw_complex* sigbuff = &buffer[0]; // note the overlap with upsampled
+	fftw_complex* upsampled = &buffer[uppadsize/2-usize/2];
+	fftw_complex* posa_chirp = &buffer[uppadsize];
+	fftw_complex* nega_chirp = &buffer[uppadsize*2];
+
+	// create buffers and plans
+	createChirp(uppadsize, nega_chirp, isize, (double)usize/(double)isize, 0, alpha, false);
+	createChirp(uppadsize, posa_chirp, isize, (double)usize/(double)isize, alpha, 0, true);
+
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(uppadsize);
+		for(size_t ii=0; ii<uppadsize; ii++)
+			tmp[ii] = nega_chirp[ii][0];
+		writePlot("fft_negachirp.tga", tmp);
+	}
+#endif //DEBUG
+
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(uppadsize);
+		for(size_t ii=0; ii<uppadsize; ii++)
+			tmp[ii] = b_chirp[ii][0];
+		writePlot("fft_posa_chirp.tga", tmp);
+	}
+#endif //DEBUG
+
+	fftw_plan sigbuff_plan_fwd = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff,
+			FFTW_FORWARD, FFTW_MEASURE);
+	fftw_plan sigbuff_plan_rev = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff,
+			FFTW_BACKWARD, FFTW_MEASURE);
+
+	// upsample input
+	interp(isize, inout, usize, upsampled);
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(usize);
+		for(size_t ii=0; ii<usize; ii++)
+			tmp[ii] = upsampled[ii][0];
+		writePlot("upin.tga", tmp);
+	}
+#endif //DEBUG
+	
+	// pre-multiply
+	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
+		complex<double> tmp1(nega_chirp[nn+uppadsize/2][0],
+				nega_chirp[nn+uppadsize/2][1]);
+		complex<double> tmp2(upsampled[nn+usize/2][0],
+				upsampled[nn+usize/2][1]);
+		tmp1 *= tmp2;
+		upsampled[nn+usize/2][0] = tmp1.real();
+		upsampled[nn+usize/2][1] = tmp1.imag();
+	}
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(usize);
+		for(size_t ii=0; ii<usize; ii++)
+			tmp[ii] = upsampled[ii][0];
+		writePlot("fft_premult.tga", tmp);
+	}
+#endif //DEBUG
+
+	/*
+	 * convolve
+	 */
+	fftw_execute(sigbuff_plan_fwd);
+	double normfactor = 1./uppadsize;
+	for(size_t ii=0; ii<uppadsize; ii++) {
+		sigbuff[ii][0] *= normfactor;
+		sigbuff[ii][1] *= normfactor;
+	}
+
+	for(size_t ii=0; ii<uppadsize; ii++) {
+		complex<double> tmp1(sigbuff[ii][0], sigbuff[ii][1]);
+		complex<double> tmp2(posa_chirp[ii][0], posa_chirp[ii][1]);
+		tmp1 *= tmp2;
+		sigbuff[ii][0] = tmp1.real();
+		sigbuff[ii][1] = tmp1.imag();
+	}
+	fftw_execute(sigbuff_plan_rev);
+
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(uppadsize);
+		for(size_t ii=0; ii<uppadsize; ii++)
+			tmp[ii] = sqrt(sigbuff[ii][0]*sigbuff[ii][0] +
+					sigbuff[ii][1]*sigbuff[ii][1]);
+		writePlot("fft_convolve.tga", tmp);
+	}
+#endif //DEBUG
+
+	// circular shift
+	std::rotate(&sigbuff[0][0], &sigbuff[(uppadsize-1)/2][0],
+			&sigbuff[uppadsize][0]);
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(uppadsize);
+		for(size_t ii=0; ii<uppadsize; ii++)
+			tmp[ii] = sqrt(sigbuff[ii][0]*sigbuff[ii][0] +
+					sigbuff[ii][1]*sigbuff[ii][1]);
+		writePlot("rotated.tga", tmp);
+	}
+#endif //DEBUG
+	
+	// post-multiply
+	for(int64_t ii=-usize/2; ii<=usize/2; ii++) {
+		complex<double> tmp1(nega_chirp[ii+uppadsize/2][0],
+				nega_chirp[ii+uppadsize/2][1]);
+		complex<double> tmp2(upsampled[ii+usize/2][0],
+				upsampled[ii+usize/2][1]);
+		tmp1 = tmp1*tmp2;
+		upsampled[ii+usize/2][0] = tmp1.real();
+		upsampled[ii+usize/2][1] = tmp1.imag();
+	}
+
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(uppadsize);
+		for(size_t ii=0; ii<uppadsize; ii++)
+			tmp[ii] = sigbuff[ii][0];
+		writePlot("mult.tga", tmp);
+	}
+#endif //DEBUG
+	
+	interp(usize, upsampled, isize, inout);
+
+	fftw_destroy_plan(sigbuff_plan_rev);
+	fftw_destroy_plan(sigbuff_plan_fwd);
+}
+
+
+/**
+ * @brief Comptues the chirplet transform using FFTW for n log n performance.
+ *
+ * @param isize Size of input/output
+ * @param in Input array, may be the same as out, length sz
+ * @param out Output array, may be the same as input, length sz
+ * @param alpha Fraction of full space to compute
+ * @param bsz Buffer size
+ * @param buffer Buffer to do computations in, may be null, in which case new
+ * memory will be allocated and deallocated during processing. Note that if
+ * the provided buffer is not sufficient size a new buffer will be allocated
+ * and deallocated, and a warning will be produced. 4x the padded value is
+ * needed, which means this value should be around 16x sz
+ * @param nonfft
+ */
+void chirplet(size_t isize, fftw_complex* in, fftw_complex* out, double a,
+		size_t bsz, fftw_complex* buffer, bool nonfft)
+{
+	// there are 3 sizes: isize: the original size of the input array, usize :
+	// the size of the upsampled array, and uppadsize the padded+upsampled
+	// size, we want both uppadsize and usize to be odd, and we want uppadsize
+	// to be the product of small primes (3,5,7)
+	double approxratio = 4;
+	int64_t uppadsize = round357(isize*approxratio);
+	int64_t usize;
+	while( (usize = (uppadsize-1)/2) % 2 == 0) {
+		uppadsize = round357(uppadsize+2);
+	}
+
+	// check/allocate buffer
+	bool freemem = false;
+	if(bsz < isize+3*uppadsize || !buffer) {
+		std::cerr << "WARNING! Allocating vector in fractional_ft" << std::endl;
+		bsz = isize+3*uppadsize;
+		buffer = fftw_alloc_complex(bsz);
+		freemem = true;
+	}
+
+	fftw_complex* current = &buffer[0];
+	fftw_plan curr_to_out_fwd = fftw_plan_dft_1d(isize, current, out,
+			FFTW_FORWARD, FFTW_MEASURE);
+	fftw_plan curr_to_out_rev = fftw_plan_dft_1d(isize, current, out,
+			FFTW_BACKWARD, FFTW_MEASURE);
+	fftw_plan curr_to_curr_fwd = fftw_plan_dft_1d(isize, current, current,
+			FFTW_FORWARD, FFTW_MEASURE);
+	fftw_plan curr_to_curr_rev = fftw_plan_dft_1d(isize, current, current,
+			FFTW_BACKWARD, FFTW_MEASURE);
+
+	// copy input to buffer
+	for(size_t ii=0; ii<isize; ii++) {
+		current[ii][0] = in[ii][0];
+		current[ii][1] = in[ii][1];
+	}
+
+	if(nonfft)
+		chirplet_help_brute(isize, usize, uppadsize, current, &buffer[isize], a);
+	else
+		chirplet_help(isize, usize, uppadsize, current, &buffer[isize], a);
+
+	// copy current to output
+	for(size_t ii=0; ii<isize; ii++) {
+		out[ii][0] = current[ii][0];
+		out[ii][1] = current[ii][1];
+	}
+
+	if(freemem)
+		fftw_free(buffer);
+
+	fftw_destroy_plan(curr_to_curr_fwd);
+	fftw_destroy_plan(curr_to_curr_rev);
+	fftw_destroy_plan(curr_to_out_fwd);
+	fftw_destroy_plan(curr_to_out_rev);
+}
+
 
 }
 

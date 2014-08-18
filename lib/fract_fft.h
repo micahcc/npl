@@ -50,6 +50,21 @@ namespace npl {
 void fractional_ft(size_t sz, fftw_complex* in, fftw_complex* out, double a,
 		size_t bsz = 0, fftw_complex* buffer = NULL, bool nonfft = false);
 
+/**
+ * @brief Comptues the chirplet transform using FFTW for n log n performance.
+ *
+ * @param isize Size of input/output
+ * @param in Input array, may be the same as out, length sz
+ * @param out Output array, may be the same as input, length sz
+ * @param alpha Fraction of full space to compute
+ * @param bsz Buffer size
+ * @param buffer Buffer to do computations in, may be null, in which case new
+ * memory will be allocated and deallocated during processing. Note that if
+ * the provided buffer is not sufficient size a new buffer will be allocated
+ * and deallocated, and a warning will be produced. 4x the padded value is
+ * needed, which means this value should be around 16x sz
+ * @param nonfft
+ */
 void chirplet(size_t sz, fftw_complex* in, fftw_complex* out, double a,
 		size_t bsz = 0, fftw_complex* buffer = NULL, bool nonfft = false);
 
