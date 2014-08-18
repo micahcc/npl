@@ -34,7 +34,7 @@
 #include <list>
 #include <complex>
 
-//#define DEBUG
+#define DEBUG
 
 using std::complex;
 
@@ -768,7 +768,7 @@ void chirplet_help(int64_t isize, int64_t usize, int64_t uppadsize,
 	{
 		std::vector<double> tmp(uppadsize);
 		for(size_t ii=0; ii<uppadsize; ii++)
-			tmp[ii] = b_chirp[ii][0];
+			tmp[ii] = posa_chirp[ii][0];
 		writePlot("fft_posa_chirp.tga", tmp);
 	}
 #endif //DEBUG

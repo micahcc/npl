@@ -51,22 +51,32 @@ void fractional_ft(size_t sz, fftw_complex* in, fftw_complex* out, double a,
 		size_t bsz = 0, fftw_complex* buffer = NULL, bool nonfft = false);
 
 /**
- * @brief Comptues the chirplet transform using FFTW for n log n performance.
+ * @brief Comptues the power fractional fourier transform using FFTW for n log
+ * n performance. 
  *
- * @param isize Size of input/output
- * @param in Input array, may be the same as out, length sz
- * @param out Output array, may be the same as input, length sz
- * @param alpha Fraction of full space to compute
- * @param bsz Buffer size
- * @param buffer Buffer to do computations in, may be null, in which case new
- * memory will be allocated and deallocated during processing. Note that if
- * the provided buffer is not sufficient size a new buffer will be allocated
- * and deallocated, and a warning will be produced. 4x the padded value is
- * needed, which means this value should be around 16x sz
+ * Definition:
+ *
+ * \hat{I}(\omega) = \Sum^{N/2}_{k=-N/2} I(k) \exp(-2 \pi i \alpha \omega k)
+ *
+ * @param isize 	Size of input/output
+ * @param in 		Input array, may be the same as out, length sz
+ * @param out 		Output array, may be the same as input, length sz
+ * @param alpha 	Fraction of full space to compute
+ * @param bsz 		Buffer size, if NULL or the value is less than the needed buffer,
+ * 					a realocation will occur. If this is non-null then the
+ * 					length of the new array will be placed in the variable.
+ * @param buffer 	Buffer to do computations in, may be null. If not null,
+ * 					then it is assumed that bsz contains the length of this
+ * 					array. If the buffer is sufficient size (around 16x input),
+ * 					then this will be used, otherwise new memory is allocated.
+ * 					If new memory is allocated and this and bsz are non-null,
+ * 					the bsz and this will be updated with the size and address
+ * 					of the new memory allocated. If this points to non-null
+ * 					then fftw_free() will be called on the given address. 
  * @param nonfft
  */
-void chirplet(size_t sz, fftw_complex* in, fftw_complex* out, double a,
-		size_t bsz = 0, fftw_complex* buffer = NULL, bool nonfft = false);
+void powerFFT(size_t sz, fftw_complex* in, fftw_complex* out, double a,
+		size_t* bsz = 0, fftw_complex** buffer = NULL);
 
 void writePlotReIm(std::string reFile, std::string imFile, size_t insz,
 		fftw_complex* in);
