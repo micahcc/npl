@@ -31,6 +31,7 @@
 #include "iterators.h"
 #include "accessors.h"
 #include "basic_functions.h"
+#include "basic_plot.h"
 #include "fract_fft.h"
 
 #include "fftw3.h"
@@ -189,69 +190,6 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, size_t ldim)
 	return oimg;
 }
 
-//
-void pseudoPolar(shared_ptr<MRImage> in, size_t praddim)
-{
-	std::vector<int64_t> index(in->ndim());
-	
-	assert(in->dim(praddim) >= in->dim(0));
-	assert(in->dim(praddim) >= in->dim(1));
-	assert(in->dim(praddim) >= in->dim(2));
-	size_t buffsize = 0;
-
-	// figure out which lines to break up (non praddim's)
-	size_t line[2];
-	{
-		size_t ll = 0;
-		for(size_t dd=0; dd<3; dd++) {
-			if(dd != praddim) {
-				line[ll++] = dd;
-				if(in->dim(dd) > buffsize)
-					buffsize = in->dim(dd);
-			}
-		}
-	}
-	
-	// take the longest line for the buffer
-	auto linebuf = fftw_alloc_complex((int)buffsize);
-	auto fullbuf = fftw_alloc_complex((int)buffsize*16);
-	
-	// process the non-praddim limnes
-	for(size_t ii=0; ii<2; ii++) {
-
-		size_t linelen = in->dim(line[ii]);
-		fftw_plan rev = fftw_plan_dft_1d((int)linelen, linebuf, linebuf, 
-				FFTW_BACKWARD, FFTW_MEASURE);
-
-		ChunkIter<cdouble_t> it(in);
-		it.setLineChunk(line[ii]);
-		cerr << "PP: " << praddim << ", " << line[ii] << " line" << endl;
-		for(it.goBegin(); !it.isEnd() ; it.nextChunk()) {
-			it.index(index.size(), index.data());
-
-			// fill from line
-			for(size_t tt=0; !it.isChunkEnd(); ++it, tt++) {
-				linebuf[tt][0] = (*it).real();
-				linebuf[tt][1] = (*it).imag();
-			}
-
-			// un-fourier transform
-			fftw_execute(rev);
-
-			// perform chirplet transform
-			int64_t k = index[praddim]-((int64_t)in->dim(praddim)/2);
-			double n = in->dim(praddim);
-			double a = 2*k/n; // -3n/2 <= k <= 3n/2, -3 <= alpha <= 3
-			cerr << "k: " << k << ", a: " << a << endl;
-			chirplet((int64_t)linelen, linebuf, linebuf, a, buffsize*16, fullbuf);
-		}
-
-		fftw_destroy_plan(rev);
-	}
-	
-	fftw_free(linebuf);
-	fftw_free(fullbuf);
-}
 
 void writeAngle(string filename, shared_ptr<const MRImage> in)
 {
@@ -277,27 +215,394 @@ void writeAbs(string filename, shared_ptr<const MRImage> in)
 	out->write(filename);
 }
 
+/**
+ * @brief Fills the input array (chirp) with a chirp of the specified type
+ *
+ * @param sz 		Size of output array
+ * @param chirp 	Output array
+ * @param origsz 	Original size, decides maximum frequency reached
+ * @param upratio 	Ratio of upsampling performed. This may be different than 
+ * 					sz/origsz
+ * @param alpha 	Positive term in exp
+ * @param beta 		Negative term in exp
+ * @param fft 		Whether to fft the output (put it in frequency domain)
+ */
+void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
+		double upratio, double alpha, bool fft)
+{
+//	assert(sz%2==1);
+	const double PI = acos(-1);
+	const complex<double> I(0,1);
+	
+	auto fwd_plan = fftw_plan_dft_1d((int)sz, chirp, chirp, FFTW_FORWARD,
+				FFTW_MEASURE | FFTW_PRESERVE_INPUT);
+
+	cerr << "Upsample: " << upratio << endl;
+	for(int64_t ii=-sz/2; ii<sz/2; ii++) {
+		double ff = ((double)ii)/upratio;
+		auto tmp = std::exp(I*PI*alpha*ff*ff/(double)origsz);
+		chirp[ii+sz/2][0] = tmp.real();
+		chirp[ii+sz/2][1] = tmp.imag();
+	}
+	
+	if(fft) {
+		fftw_execute(fwd_plan);
+		double norm = 1./sz;
+		for(size_t ii=0; ii<sz; ii++) {
+			chirp[ii][0] *= norm;
+			chirp[ii][1] *= norm;
+		}
+	}
+
+	fftw_destroy_plan(fwd_plan);
+}
+
+void powerFFT_help(int64_t isize, int64_t usize, int64_t uppadsize,
+		fftw_complex* inout, fftw_complex* buffer, double alpha)
+{
+//	assert(usize%2 == 1);
+//	assert(uppadsize%2 == 1);
+
+	const complex<double> I(0,1);
+
+	// zero
+	for(size_t ii=0; ii<uppadsize*3; ii++) {
+		buffer[ii][0] = 0;
+		buffer[ii][1] = 0;
+	}
+
+	fftw_complex* sigbuff = &buffer[0]; // note the overlap with upsampled
+	fftw_complex* upsampled = &buffer[uppadsize/2-usize/2];
+	fftw_complex* posa_chirp = &buffer[uppadsize];
+	fftw_complex* nega_chirp = &buffer[uppadsize*2];
+
+	// create buffers and plans
+	createChirp(uppadsize, nega_chirp, isize, (double)usize/(double)isize, -alpha, false);
+	createChirp(uppadsize, posa_chirp, isize, (double)usize/(double)isize, alpha, true);
+
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(uppadsize);
+		for(size_t ii=0; ii<uppadsize; ii++)
+			tmp[ii] = nega_chirp[ii][0];
+		writePlot("fft_negachirp.tga", tmp, 8000, 1000);
+	}
+#endif //DEBUG
+
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(uppadsize);
+		for(size_t ii=0; ii<uppadsize; ii++)
+			tmp[ii] = posa_chirp[ii][0];
+		writePlot("fft_posa_chirp.tga", tmp, 8000, 1000);
+	}
+#endif //DEBUG
+
+	fftw_plan sigbuff_plan_fwd = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff,
+			FFTW_FORWARD, FFTW_MEASURE);
+	fftw_plan sigbuff_plan_rev = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff,
+			FFTW_BACKWARD, FFTW_MEASURE);
+
+	// upsample input
+	interp(isize, inout, usize, upsampled);
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(usize);
+		for(size_t ii=0; ii<usize; ii++)
+			tmp[ii] = upsampled[ii][0];
+		writePlot("upin.tga", tmp);
+	}
+#endif //DEBUG
+	
+	// pre-multiply
+	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
+		complex<double> tmp1(nega_chirp[nn+uppadsize/2][0],
+				nega_chirp[nn+uppadsize/2][1]);
+		complex<double> tmp2(upsampled[nn+usize/2][0],
+				upsampled[nn+usize/2][1]);
+		tmp1 *= tmp2;
+		upsampled[nn+usize/2][0] = tmp1.real();
+		upsampled[nn+usize/2][1] = tmp1.imag();
+	}
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(usize);
+		for(size_t ii=0; ii<usize; ii++)
+			tmp[ii] = upsampled[ii][0];
+		writePlot("fft_premult.tga", tmp);
+	}
+#endif //DEBUG
+
+	/*
+	 * convolve
+	 */
+	fftw_execute(sigbuff_plan_fwd);
+	double normfactor = 1./uppadsize;
+	for(size_t ii=0; ii<uppadsize; ii++) {
+		sigbuff[ii][0] *= normfactor;
+		sigbuff[ii][1] *= normfactor;
+	}
+
+	for(size_t ii=0; ii<uppadsize; ii++) {
+		complex<double> tmp1(sigbuff[ii][0], sigbuff[ii][1]);
+		complex<double> tmp2(posa_chirp[ii][0], posa_chirp[ii][1]);
+		tmp1 *= tmp2;
+		sigbuff[ii][0] = tmp1.real();
+		sigbuff[ii][1] = tmp1.imag();
+	}
+	fftw_execute(sigbuff_plan_rev);
+
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(uppadsize);
+		for(size_t ii=0; ii<uppadsize; ii++)
+			tmp[ii] = sqrt(sigbuff[ii][0]*sigbuff[ii][0] +
+					sigbuff[ii][1]*sigbuff[ii][1]);
+		writePlot("fft_convolve.tga", tmp);
+	}
+#endif //DEBUG
+
+	// circular shift
+	std::rotate(&sigbuff[0][0], &sigbuff[(uppadsize-1)/2][0],
+			&sigbuff[uppadsize][0]);
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(uppadsize);
+		for(size_t ii=0; ii<uppadsize; ii++)
+			tmp[ii] = sqrt(sigbuff[ii][0]*sigbuff[ii][0] +
+					sigbuff[ii][1]*sigbuff[ii][1]);
+		writePlot("rotated.tga", tmp);
+	}
+#endif //DEBUG
+	
+	// post-multiply
+	for(int64_t ii=-usize/2; ii<=usize/2; ii++) {
+		complex<double> tmp1(nega_chirp[ii+uppadsize/2][0],
+				nega_chirp[ii+uppadsize/2][1]);
+		complex<double> tmp2(upsampled[ii+usize/2][0],
+				upsampled[ii+usize/2][1]);
+		tmp1 = tmp1*tmp2;
+		upsampled[ii+usize/2][0] = tmp1.real();
+		upsampled[ii+usize/2][1] = tmp1.imag();
+	}
+
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(uppadsize);
+		for(size_t ii=0; ii<uppadsize; ii++)
+			tmp[ii] = sigbuff[ii][0];
+		writePlot("mult.tga", tmp);
+	}
+#endif //DEBUG
+	
+	interp(usize, upsampled, isize, inout);
+
+	fftw_destroy_plan(sigbuff_plan_rev);
+	fftw_destroy_plan(sigbuff_plan_fwd);
+}
+
+
+/**
+ * @brief Comptues the powerFFT transform using FFTW for n log n performance.
+ *
+ * @param isize Size of input/output
+ * @param in Input array, may be the same as out, length sz
+ * @param out Output array, may be the same as input, length sz
+ * @param alpha Fraction of full space to compute
+ * @param bsz Buffer size
+ * @param buffer Buffer to do computations in, may be null, in which case new
+ * memory will be allocated and deallocated during processing. Note that if
+ * the provided buffer is not sufficient size a new buffer will be allocated
+ * and deallocated, and a warning will be produced. 4x the padded value is
+ * needed, which means this value should be around 16x sz
+ * @param nonfft
+ */
+void powerFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
+		size_t* inbsz, fftw_complex** inbuffer)
+{
+	// there are 3 sizes: isize: the original size of the input array, usize :
+	// the size of the upsampled array, and uppadsize the padded+upsampled
+	// size, we want both uppadsize and usize to be odd, and we want uppadsize
+	// to be the product of small primes (3,5,7)
+	double approxratio = 2;
+	int64_t usize = round2(approxratio*isize);
+	int64_t uppadsize = usize*2;
+
+	cerr << "input size: " << isize << endl;
+	cerr << "upsample size: " << usize << endl;
+	cerr << "upsample+pad size: " << uppadsize << endl;
+
+
+	size_t bsz = 0;
+	fftw_complex* buffer = NULL;
+	if(inbsz) 
+		bsz = *inbsz;
+
+	if(inbuffer) 
+		buffer = *inbuffer;
+
+	// check/allocate buffer
+	bool allocated = false;
+	if(bsz < isize+3*uppadsize || !buffer) {
+		std::cerr << "WARNING! Allocating vector in fractional_ft" << std::endl;
+		bsz = isize+3*uppadsize;
+		buffer = fftw_alloc_complex(bsz);
+		allocated = true;
+	}
+
+	fftw_complex* current = &buffer[0];
+	fftw_plan curr_to_out_fwd = fftw_plan_dft_1d(isize, current, out,
+			FFTW_FORWARD, FFTW_MEASURE);
+	fftw_plan curr_to_out_rev = fftw_plan_dft_1d(isize, current, out,
+			FFTW_BACKWARD, FFTW_MEASURE);
+	fftw_plan curr_to_curr_fwd = fftw_plan_dft_1d(isize, current, current,
+			FFTW_FORWARD, FFTW_MEASURE);
+	fftw_plan curr_to_curr_rev = fftw_plan_dft_1d(isize, current, current,
+			FFTW_BACKWARD, FFTW_MEASURE);
+
+	// copy input to buffer
+	for(size_t ii=0; ii<isize; ii++) {
+		current[ii][0] = in[ii][0];
+		current[ii][1] = in[ii][1];
+	}
+
+	powerFFT_help(isize, usize, uppadsize, current, &buffer[isize], a);
+
+	// copy current to output
+	for(size_t ii=0; ii<isize; ii++) {
+		out[ii][0] = current[ii][0];
+		out[ii][1] = current[ii][1];
+	}
+
+	if(allocated) {
+		if(inbsz && inbuffer) {
+			*inbsz = bsz;
+			*inbuffer = buffer;
+		} else {
+			fftw_free(buffer);
+		}
+	} 
+
+	fftw_destroy_plan(curr_to_curr_fwd);
+	fftw_destroy_plan(curr_to_curr_rev);
+	fftw_destroy_plan(curr_to_out_fwd);
+	fftw_destroy_plan(curr_to_out_rev);
+}
+
+void powerFT_brute(size_t len, fftw_complex* in, fftw_complex* out, double a)
+{
+	const complex<double> I(0,1);
+	const double PI = acos(-1);
+	int64_t ilen = len;
+
+	for(int64_t ii=0; ii<ilen; ii++) {
+		double ff=(ii-(ilen-1.)/2.);
+		out[ii][0]=0;
+		out[ii][1]=0;
+
+		for(int64_t jj=0; jj<ilen; jj++) {
+			double xx=(jj-(ilen-1.)/2.);
+			complex<double> tmp1(in[jj][0], in[jj][1]);
+			complex<double> tmp2 = tmp1*std::exp(-2.*PI*I*a*xx*ff/(double)ilen);
+			
+			out[ii][0] += tmp2.real();
+			out[ii][1] += tmp2.imag();
+		}
+	}
+}
+
+void pseudoPolar(shared_ptr<MRImage> in, size_t praddim)
+{
+	std::vector<int64_t> index(in->ndim());
+	
+	assert(in->dim(praddim) >= in->dim(0));
+	assert(in->dim(praddim) >= in->dim(1));
+	assert(in->dim(praddim) >= in->dim(2));
+	size_t buffsize = 0;
+	size_t worksize = 0;
+
+	// figure out which lines to break up (non praddim's)
+	size_t line[2];
+	{
+		size_t ll = 0;
+		for(size_t dd=0; dd<3; dd++) {
+			if(dd != praddim) {
+				line[ll++] = dd;
+				if(in->dim(dd) > buffsize)
+					buffsize = in->dim(dd);
+			}
+		}
+	}
+	worksize = buffsize*16;
+	
+	// take the longest line for the buffer
+	auto linebuf = fftw_alloc_complex((int)buffsize);
+	auto fullbuf = fftw_alloc_complex((int)worksize);
+	
+	// process the non-praddim limnes
+	for(size_t ii=0; ii<2; ii++) {
+
+		size_t linelen = in->dim(line[ii]);
+		fftw_plan rev = fftw_plan_dft_1d((int)linelen, linebuf, linebuf, 
+				FFTW_BACKWARD, FFTW_MEASURE);
+
+		ChunkIter<cdouble_t> it(in);
+		it.setLineChunk(line[ii]);
+		cerr << "PP: " << praddim << ", " << line[ii] << " line" << endl;
+		for(it.goBegin(); !it.isEnd() ; it.nextChunk()) {
+			it.index(index.size(), index.data());
+
+			// fill from line
+			for(size_t tt=0; !it.isChunkEnd(); ++it, tt++) {
+				linebuf[tt][0] = (*it).real();
+				linebuf[tt][1] = (*it).imag();
+			}
+
+			// un-fourier transform
+			fftw_execute(rev);
+
+			// perform powerFFT transform
+			int64_t k = index[praddim]-((int64_t)in->dim(praddim)/2);
+			double n = in->dim(praddim);
+			double a = 2*k/n; // -3n/2 <= k <= 3n/2, -3 <= alpha <= 3
+			cerr << "k: " << k << ", a: " << a << endl;
+			powerFFT((int64_t)linelen, linebuf, linebuf, a, &worksize, &fullbuf);
+		}
+
+		fftw_destroy_plan(rev);
+	}
+	
+	fftw_free(linebuf);
+	fftw_free(fullbuf);
+}
+
 int testPowerFFT(size_t length, double alpha)
 {
 	auto line = fftw_alloc_complex(length);
 	auto line_out = fftw_alloc_complex(length);
-	auto buffer = fftw_alloc_complex(16*length);
+	size_t worklen = length*16;
+	auto workbuff= fftw_alloc_complex(worklen);
 	
 	// fill with a noisy square
 	for(size_t ii=0; ii<length; ii++){ 
-		if(ii > length/3 && ii < length*2/3) {
+		if(ii > 2.*length/5 && ii < length*3./5) {
 			line[ii][0] = 1;
 			line[ii][1] = 0;
 		} else {
 			line[ii][0] = 0;
 			line[ii][1] = 0;
 		}
-		line[ii][0]+=.1*rand()/(double)RAND_MAX;
-		line[ii][1]+=.1*rand()/(double)RAND_MAX;
+		line[ii][0]+=.01*rand()/(double)RAND_MAX;
+		line[ii][1]+=.01*rand()/(double)RAND_MAX;
 	}
+	
+	writePlotReIm("input.tga", length, line);
 
 	powerFT_brute(length, line, line_out, alpha);
-	powerFFT(length, line, line, alpha, length*16, buffer);
+	powerFFT(length, line, line, alpha, &worklen, &workbuff);
+
+	writePlotAbsAng("powerBruteFT.tga", length, line_out);
+	writePlotAbsAng("powerFFT.tga", length, line);
 
 	for(size_t ii=0; ii<length; ii++) {
 		complex<double> a(line_out[ii][0], line_out[ii][1]);
@@ -353,7 +658,7 @@ int testPseudoPolar()
 int main()
 {
 	// test the 'Power' Fourier Transform
-	if(testPowerFFT() != 0)
+	if(testPowerFFT(128, -1) != 0)
 		return -1;
 
 //	if(testPseudoPolar() != 0) 

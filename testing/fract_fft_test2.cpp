@@ -36,6 +36,7 @@
 
 #include "utility.h"
 #include "fract_fft.h"
+#include "basic_plot.h"
 
 #include "fftw3.h"
 

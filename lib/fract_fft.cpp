@@ -25,6 +25,7 @@
 #include "fract_fft.h"
 #include "utility.h"
 #include "basic_functions.h"
+#include "basic_plot.h"
 
 #include <cstdlib>
 #include <cassert>
@@ -40,8 +41,7 @@ using std::complex;
 
 namespace npl {
 
-void writePlotReIm(std::string reFile, std::string imFile, size_t insz,
-		fftw_complex* in)
+void writePlotReIm(std::string file, size_t insz, fftw_complex* in)
 {
 	std::vector<double> realv(insz);
 	std::vector<double> imv(insz);
@@ -49,12 +49,14 @@ void writePlotReIm(std::string reFile, std::string imFile, size_t insz,
 		realv[ii] = in[ii][0];
 		imv[ii] = in[ii][1];
 	}
-	writePlot(reFile, realv);
-	writePlot(imFile, imv);
+
+	TGAPlot plt;
+	plt.addArray(insz, realv.data());
+	plt.addArray(insz, imv.data());
+	plt.write(file);
 }
 
-void writePlotAbsAng(std::string absFile, std::string angFile, size_t insz,
-		fftw_complex* in)
+void writePlotAbsAng(std::string file, size_t insz, fftw_complex* in)
 {
 	std::vector<double> absv(insz);
 	std::vector<double> angv(insz);
@@ -62,22 +64,25 @@ void writePlotAbsAng(std::string absFile, std::string angFile, size_t insz,
 		angv[ii] = atan2(in[ii][0], in[ii][1]);
 		absv[ii] = sqrt(pow(in[ii][0],2)+pow(in[ii][1],2));
 	}
-	writePlot(absFile, absv);
-	writePlot(angFile, angv);
+
+	TGAPlot plt;
+	plt.addArray(insz, absv.data());
+	plt.addArray(insz, angv.data());
+	plt.write(file);
 }
 
 
 /**
  * @brief Fills the input array (chirp) with a chirp of the specified type
  *
- * @param sz Size of output array
- * @param chirp Output array
- * @param origsz Original size, decides maximum frequency reached
- * @param upratio Ratio of upsampling performed. This may be different than
- * sz/origsz
- * @param alpha Positive term in exp
- * @param beta Negative term in exp
- * @param fft Whether to fft the output (put it in frequency domain)
+ * @param sz 		Size of output array
+ * @param chirp 	Output array
+ * @param origsz 	Original size, decides maximum frequency reached
+ * @param upratio 	Ratio of upsampling performed. This may be different than 
+ * 					sz/origsz
+ * @param alpha 	Positive term in exp
+ * @param beta 		Negative term in exp
+ * @param fft 		Whether to fft the output (put it in frequency domain)
  */
 void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
 		double upratio, double alpha, double beta, bool fft)
@@ -131,10 +136,10 @@ double lanczos(double v, double a)
 /**
  * @brief Interpolate the input array, filling the output array
  *
- * @param isize Size of in
- * @param in Values to interpolate
- * @param osize Size of out
- * @param out Output array, filled with interpolated values of in
+ * @param isize 	Size of in
+ * @param in 		Values to interpolate
+ * @param osize 	Size of out
+ * @param out 		Output array, filled with interpolated values of in
  */
 void interp(int64_t isize, fftw_complex* in, int64_t osize, fftw_complex* out)
 {
@@ -589,12 +594,12 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 					&buffer[isize], a-1);
 	} else if(a < 3.5) {
 		// reverse is = 2
-		writePlotAbsAng("pre-abs.tga", "pre-ang.tga", isize, current);
+		writePlotAbsAng("pre.tga", isize, current);
 		for(size_t ii=0; ii<isize/2; ii++) {
 			std::swap(current[ii][0],current[isize-1-ii][0]);
 			std::swap(current[ii][1],current[isize-1-ii][1]);
 		}
-		writePlotAbsAng("rev-abs.tga", "rev-ang.tga", isize, current);
+		writePlotAbsAng("rev.tga", isize, current);
 		// then follow up with fractional
 		if(nonfft)
 			frft_limited_brute(isize, usize, uppadsize, current,
@@ -602,7 +607,7 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		else
 			frft_limited(isize, usize, uppadsize, current,
 					&buffer[isize], a-2);
-		writePlotAbsAng("postfract-abs.tga", "postfract-ang.tga", isize, current);
+		writePlotAbsAng("postfract.tga", isize, current);
 	} else {
 		// to add 1 (makeing it >4.5 / >0.5, do an inverse FFT, then Fractional
 		for(size_t ii=0; ii<isize/2; ii++) {

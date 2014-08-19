@@ -31,6 +31,31 @@
 namespace npl {
 
 /**
+ * @brief Interpolate the input array, filling the output array
+ *
+ * @param isize 	Size of in
+ * @param in 		Values to interpolate
+ * @param osize 	Size of out
+ * @param out 		Output array, filled with interpolated values of in
+ */
+void interp(int64_t isize, fftw_complex* in, int64_t osize, fftw_complex* out);
+
+/**
+ * @brief Fills the input array (chirp) with a chirp of the specified type
+ *
+ * @param sz 		Size of output array
+ * @param chirp 	Output array
+ * @param origsz 	Original size, decides maximum frequency reached
+ * @param upratio 	Ratio of upsampling performed. This may be different than 
+ * 					sz/origsz
+ * @param alpha 	Positive term in exp
+ * @param beta 		Negative term in exp
+ * @param fft 		Whether to fft the output (put it in frequency domain)
+ */
+void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
+		double upratio, double alpha, double beta, bool fft);
+
+/**
  * @brief Comptues the Fractional Fourier transform using FFTW for nlogn
  * performance.
  *
@@ -75,14 +100,12 @@ void fractional_ft(size_t sz, fftw_complex* in, fftw_complex* out, double a,
  * 					then fftw_free() will be called on the given address. 
  * @param nonfft
  */
-void powerFFT(size_t sz, fftw_complex* in, fftw_complex* out, double a,
-		size_t* bsz = 0, fftw_complex** buffer = NULL);
+//void powerFFT(size_t sz, fftw_complex* in, fftw_complex* out, double a,
+//		size_t* bsz = 0, fftw_complex** buffer = NULL);
 
-void writePlotReIm(std::string reFile, std::string imFile, size_t insz,
-		fftw_complex* in);
+void writePlotReIm(std::string file, size_t insz, fftw_complex* in);
 
-void writePlotAbsAng(std::string absFile, std::string angFile, size_t insz,
-		fftw_complex* in);
+void writePlotAbsAng(std::string file, size_t insz, fftw_complex* in);
 
 }
 

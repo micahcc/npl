@@ -35,6 +35,7 @@
 // #define DEBUG
 
 #include "utility.h"
+#include "basic_plot.h"
 
 #include "fftw3.h"
 

@@ -32,13 +32,16 @@ def build(bld):
     bld.shlib( target = 'fractfft', 
             source = 'fract_fft.cpp ', 
             export_includes = ['.'],
-            use='FFTW utility')
+            use='FFTW utility basic_plot')
     bld.shlib( target = 'npltypes', 
             source = 'npltypes.cpp ', 
             export_includes = ['.'])
     bld.shlib( target = 'iterators', 
             source = 'iterators.cpp', 
             use='ndarray slicer kslicer',
+            export_includes = ['.'])
+    bld.shlib( target = 'basic_plot', 
+            source = 'basic_plot.cpp', 
             export_includes = ['.'])
 
 

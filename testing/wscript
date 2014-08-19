@@ -167,15 +167,20 @@ def build(bld):
             source='fft_rotate_test.cpp', 
             use='ndarray_utils utility mrimage_utils iterators EIGEN') 
 
-    bld.program(install_path='${PREFIX}/tests', #features='test',
-            target='fft_compute_axis', 
-            source='fft_compute_axis.cpp', 
-            use='fractfft ndarray_utils utility mrimage_utils iterators EIGEN') 
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='pseudopolar_test', 
+            source='pseudopolar_test.cpp', 
+            use='tgaImage fractfft ndarray_utils utility mrimage_utils iterators EIGEN') 
+
+#    bld.program(install_path='${PREFIX}/tests', #features='test',
+#            target='fft_compute_axis', 
+#            source='fft_compute_axis.cpp', 
+#            use='fractfft ndarray_utils utility mrimage_utils iterators EIGEN') 
 
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='fract_fft_test', 
             source='fract_fft_test.cpp', 
-            use='FFTW utility') 
+            use='FFTW utility fractfft') 
     
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='fract_fft_test2', 
