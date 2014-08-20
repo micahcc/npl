@@ -281,21 +281,11 @@ void powerFFT_help(int64_t isize, int64_t usize, int64_t uppadsize,
 	createChirp(uppadsize, posa_chirp, isize, (double)usize/(double)isize, alpha, true);
 
 #ifdef DEBUG
-	{
-		std::vector<double> tmp(uppadsize);
-		for(size_t ii=0; ii<uppadsize; ii++)
-			tmp[ii] = nega_chirp[ii][0];
-		writePlot("fft_negachirp.tga", tmp, 8000, 1000);
-	}
+	writePlotReIm("fft_negachirp.svg", uppadsize, nega_chirp);
 #endif //DEBUG
 
 #ifdef DEBUG
-	{
-		std::vector<double> tmp(uppadsize);
-		for(size_t ii=0; ii<uppadsize; ii++)
-			tmp[ii] = posa_chirp[ii][0];
-		writePlot("fft_posa_chirp.tga", tmp, 8000, 1000);
-	}
+	writePlotReIm("fft_posachirp.svg", uppadsize, posa_chirp);
 #endif //DEBUG
 
 	fftw_plan sigbuff_plan_fwd = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff,
@@ -304,22 +294,12 @@ void powerFFT_help(int64_t isize, int64_t usize, int64_t uppadsize,
 			FFTW_BACKWARD, FFTW_MEASURE);
 
 #ifdef DEBUG
-	{
-		std::vector<double> tmp(isize);
-		for(size_t ii=0; ii<isize; ii++)
-			tmp[ii] = inout[ii][0];
-		writePlot("in.tga", tmp);
-	}
+	writePlotReIm("fft_in.svg", isize, inout);
 #endif //DEBUG
 	// upsample input
 	interp(isize, inout, usize, upsampled);
 #ifdef DEBUG
-	{
-		std::vector<double> tmp(usize);
-		for(size_t ii=0; ii<usize; ii++)
-			tmp[ii] = upsampled[ii][0];
-		writePlot("upin.tga", tmp);
-	}
+	writePlotReIm("fft_upin.svg", usize, upsampled);
 #endif //DEBUG
 	
 	// pre-multiply
@@ -333,19 +313,14 @@ void powerFFT_help(int64_t isize, int64_t usize, int64_t uppadsize,
 		upsampled[nn+usize/2][1] = tmp1.imag();
 	}
 #ifdef DEBUG
-	{
-		std::vector<double> tmp(usize);
-		for(size_t ii=0; ii<usize; ii++)
-			tmp[ii] = upsampled[ii][0];
-		writePlot("fft_premult.tga", tmp);
-	}
+	writePlotReIm("fft_premult.svg", usize, upsampled);
 #endif //DEBUG
 
 	/*
 	 * convolve
 	 */
 	fftw_execute(sigbuff_plan_fwd);
-	double normfactor = .5*sqrt(1./uppadsize);
+	double normfactor = sqrt(1./uppadsize);
 	for(size_t ii=0; ii<uppadsize; ii++) {
 		sigbuff[ii][0] *= normfactor;
 		sigbuff[ii][1] *= normfactor;
@@ -359,28 +334,21 @@ void powerFFT_help(int64_t isize, int64_t usize, int64_t uppadsize,
 		sigbuff[ii][1] = tmp1.imag();
 	}
 	fftw_execute(sigbuff_plan_rev);
+	
+	for(size_t ii=0; ii<uppadsize; ii++) {
+		sigbuff[ii][0] *= normfactor;
+		sigbuff[ii][1] *= normfactor;
+	}
 
 #ifdef DEBUG
-	{
-		std::vector<double> tmp(uppadsize);
-		for(size_t ii=0; ii<uppadsize; ii++)
-			tmp[ii] = sqrt(sigbuff[ii][0]*sigbuff[ii][0] +
-					sigbuff[ii][1]*sigbuff[ii][1]);
-		writePlot("fft_convolve.tga", tmp);
-	}
+	writePlotReIm("fft_convolve.svg", uppadsize, sigbuff);
 #endif //DEBUG
 
 	// circular shift
 	std::rotate(&sigbuff[0][0], &sigbuff[(uppadsize-1)/2][0],
 			&sigbuff[uppadsize][0]);
 #ifdef DEBUG
-	{
-		std::vector<double> tmp(uppadsize);
-		for(size_t ii=0; ii<uppadsize; ii++)
-			tmp[ii] = sqrt(sigbuff[ii][0]*sigbuff[ii][0] +
-					sigbuff[ii][1]*sigbuff[ii][1]);
-		writePlot("rotated.tga", tmp);
-	}
+	writePlotReIm("fft_rotated.svg", uppadsize, sigbuff);
 #endif //DEBUG
 	
 	// post-multiply
@@ -395,20 +363,178 @@ void powerFFT_help(int64_t isize, int64_t usize, int64_t uppadsize,
 	}
 
 #ifdef DEBUG
-	{
-		std::vector<double> tmp(uppadsize);
-		for(size_t ii=0; ii<uppadsize; ii++)
-			tmp[ii] = sigbuff[ii][0];
-		writePlot("mult.tga", tmp);
-	}
+	writePlotReIm("fft_postmult.svg", uppadsize, sigbuff);
 #endif //DEBUG
 	
 	interp(usize, upsampled, isize, inout);
+	
+#ifdef DEBUG
+	writePlotReIm("fft_out.svg", isize, inout);
+#endif //DEBUG
 
 	fftw_destroy_plan(sigbuff_plan_rev);
 	fftw_destroy_plan(sigbuff_plan_fwd);
 }
 
+void powerFT_brute2_help(int64_t isize, int64_t usize, int64_t uppadsize,
+		fftw_complex* inout, fftw_complex* buffer, double alpha)
+{
+//	assert(usize%2 == 1);
+//	assert(uppadsize%2 == 1);
+
+	const complex<double> I(0,1);
+	const double PI = acos(-1);
+
+	// zero
+	for(size_t ii=0; ii<uppadsize*3; ii++) {
+		buffer[ii][0] = 0;
+		buffer[ii][1] = 0;
+	}
+
+	fftw_complex* sigbuff = &buffer[0]; // note the overlap with upsampled
+	fftw_complex* upsampled = &buffer[usize];
+
+#ifdef DEBUG
+	writePlotReIm("brute2_in.svg", isize, inout);
+#endif //DEBUG
+	// upsample input
+	interp(isize, inout, usize, upsampled);
+#ifdef DEBUG
+	writePlotReIm("brute2_upin.svg", usize, upsampled);
+#endif //DEBUG
+	
+	// pre-multiply
+	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
+		double ff = nn*isize/(double)usize;
+		complex<double> tmp1 = std::exp(-PI*I*alpha*ff*ff/(double)isize);
+		complex<double> tmp2(upsampled[nn+usize/2][0], upsampled[nn+usize/2][1]);
+		tmp1 *= tmp2;
+		upsampled[nn+usize/2][0] = tmp1.real();
+		upsampled[nn+usize/2][1] = tmp1.imag();
+	}
+#ifdef DEBUG
+	writePlotReIm("brute2_premult.svg", usize, upsampled);
+#endif //DEBUG
+
+	/*
+	 * convolve
+	 */
+
+	for(int64_t ii=-usize/2; ii<=usize/2; ii++) {
+		double xx = ii*isize/(double)usize;
+		sigbuff[ii+usize/2][0] = 0;
+		sigbuff[ii+usize/2][1] = 0;
+		for(int64_t jj=-usize/2; jj<=usize/2; jj++) {
+			double ww = jj*isize/(double)usize;
+			complex<double> tmp1 = std::exp(PI*I*alpha*(ww-xx)*(ww-xx)/(double)isize);
+			complex<double> tmp2(upsampled[jj+usize/2][0], upsampled[jj+usize/2][1]);
+			tmp1 *= tmp2;
+			sigbuff[ii+usize/2][0] += tmp1.real();
+			sigbuff[ii+usize/2][1] += tmp1.imag();
+		}
+		complex<double> tmp3(sigbuff[ii+usize/2][0], sigbuff[ii+usize/2][1]);
+	}
+		
+#ifdef DEBUG
+	writePlotReIm("brute2_convolve.svg", usize, sigbuff);
+#endif //DEBUG
+	
+	// post-multiply
+	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
+		double ff = nn*isize/(double)usize;
+		complex<double> tmp1 = std::exp(-PI*I*alpha*ff*ff/(double)isize);
+		complex<double> tmp2(sigbuff[nn+usize/2][0], sigbuff[nn+usize/2][1]);
+		tmp1 *= tmp2;
+		upsampled[nn+usize/2][0] = tmp1.real();
+		upsampled[nn+usize/2][1] = tmp1.imag();
+	}
+
+#ifdef DEBUG
+	writePlotReIm("brute2_postmult.svg", usize, upsampled);
+#endif //DEBUG
+	
+	interp(usize, upsampled, isize, inout);
+
+#ifdef DEBUG
+	writePlotReIm("brute2_out.svg", isize, inout);
+#endif //DEBUG
+}
+
+/**
+ * @brief Comptues the powerFFT transform using FFTW for n log n performance.
+ *
+ * @param isize Size of input/output
+ * @param in Input array, may be the same as out, length sz
+ * @param out Output array, may be the same as input, length sz
+ * @param alpha Fraction of full space to compute
+ * @param bsz Buffer size
+ * @param buffer Buffer to do computations in, may be null, in which case new
+ * memory will be allocated and deallocated during processing. Note that if
+ * the provided buffer is not sufficient size a new buffer will be allocated
+ * and deallocated, and a warning will be produced. 4x the padded value is
+ * needed, which means this value should be around 16x sz
+ * @param nonfft
+ */
+void powerFT_brute2(size_t isize, fftw_complex* in, fftw_complex* out, double a,
+		size_t* inbsz, fftw_complex** inbuffer)
+{
+	// there are 3 sizes: isize: the original size of the input array, usize :
+	// the size of the upsampled array, and uppadsize the padded+upsampled
+	// size, we want both uppadsize and usize to be odd, and we want uppadsize
+	// to be the product of small primes (3,5,7)
+	double approxratio = 10;
+	int64_t uppadsize = round357(isize*approxratio);;
+	int64_t usize;
+	while((usize = (uppadsize-1)/2)%2 == 0) {
+		uppadsize = round357(uppadsize+2);
+	}
+
+	cerr << "input size: " << isize << endl;
+	cerr << "upsample size: " << usize << endl;
+	cerr << "upsample+pad size: " << uppadsize << endl;
+
+	size_t bsz = 0;
+	fftw_complex* buffer = NULL;
+	if(inbsz) 
+		bsz = *inbsz;
+
+	if(inbuffer) 
+		buffer = *inbuffer;
+
+	// check/allocate buffer
+	bool allocated = false;
+	if(bsz < isize+3*uppadsize || !buffer) {
+		std::cerr << "WARNING! Allocating vector in fractional_ft" << std::endl;
+		bsz = isize+3*uppadsize;
+		buffer = fftw_alloc_complex(bsz);
+		allocated = true;
+	}
+
+	fftw_complex* current = &buffer[0];
+
+	// copy input to buffer
+	for(size_t ii=0; ii<isize; ii++) {
+		current[ii][0] = in[ii][0];
+		current[ii][1] = in[ii][1];
+	}
+
+	powerFT_brute2_help(isize, usize, uppadsize, current, &buffer[isize], a);
+
+	// copy current to output
+	for(size_t ii=0; ii<isize; ii++) {
+		out[ii][0] = current[ii][0];
+		out[ii][1] = current[ii][1];
+	}
+
+	if(allocated) {
+		if(inbsz && inbuffer) {
+			*inbsz = bsz;
+			*inbuffer = buffer;
+		} else {
+			fftw_free(buffer);
+		}
+	} 
+}
 
 /**
  * @brief Comptues the powerFFT transform using FFTW for n log n performance.
@@ -432,7 +558,7 @@ void powerFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	// the size of the upsampled array, and uppadsize the padded+upsampled
 	// size, we want both uppadsize and usize to be odd, and we want uppadsize
 	// to be the product of small primes (3,5,7)
-	double approxratio = 2;
+	double approxratio = 10;
 	int64_t uppadsize = round357(isize*approxratio);;
 	int64_t usize;
 	while((usize = (uppadsize-1)/2)%2 == 0) {
@@ -493,12 +619,12 @@ void powerFT_brute(size_t len, fftw_complex* in, fftw_complex* out, double a)
 	int64_t ilen = len;
 
 	for(int64_t ii=0; ii<ilen; ii++) {
-		double ff=(ii-(ilen-1.)/2.);
+		double ff=(ii-(ilen)/2.);
 		out[ii][0]=0;
 		out[ii][1]=0;
 
 		for(int64_t jj=0; jj<ilen; jj++) {
-			double xx=(jj-(ilen-1.)/2.);
+			double xx=(jj-(ilen)/2.);
 			complex<double> tmp1(in[jj][0], in[jj][1]);
 			complex<double> tmp2 = tmp1*std::exp(-2.*PI*I*a*xx*ff/(double)ilen);
 			
@@ -576,32 +702,41 @@ void pseudoPolar(shared_ptr<MRImage> in, size_t praddim)
 int testPowerFFT(size_t length, double alpha)
 {
 	auto line = fftw_alloc_complex(length);
-	auto line_out = fftw_alloc_complex(length);
+	auto line_brute = fftw_alloc_complex(length);
+	auto line_brute2 = fftw_alloc_complex(length);
+	auto line_fft = fftw_alloc_complex(length);
 	size_t worklen = length*40;
 	auto workbuff= fftw_alloc_complex(worklen);
 	
 	// fill with a noisy square
+	double sum = 0;
 	for(size_t ii=0; ii<length; ii++){ 
 		if(ii > 2.*length/5 && ii < length*3./5) {
 			line[ii][0] = 1;
 			line[ii][1] = 0;
+			sum += 1;
 		} else {
 			line[ii][0] = 0;
 			line[ii][1] = 0;
 		}
 	}
+	for(size_t ii=0; ii<length; ii++) 
+		line[ii][0] /= sum;
 	
-	//writePlotReIm("input.tga", length, line);
+	//writePlotReIm("input.svg", length, line);
 
-	powerFT_brute(length, line, line_out, alpha);
-	writePlotReIm("input.tga", length, line);
-	powerFFT(length, line, line, alpha, &worklen, &workbuff);
+	powerFT_brute(length, line, line_brute, alpha);
+	powerFT_brute2(length, line, line_brute2, alpha, &worklen, &workbuff);
 
-	writePlotAbsAng("powerBruteFT.tga", length, line_out);
-	writePlotAbsAng("powerFFT.tga", length, line);
+	writePlotReIm("input.svg", length, line);
+	powerFFT(length, line, line_fft, alpha, &worklen, &workbuff);
+
+	writePlotReIm("powerBruteFT.svg", length, line_brute);
+	writePlotReIm("powerBruteFT2.svg", length, line_brute2);
+	writePlotReIm("powerFFT.svg", length, line_fft);
 
 	for(size_t ii=0; ii<length; ii++) {
-		complex<double> a(line_out[ii][0], line_out[ii][1]);
+		complex<double> a(line_brute[ii][0], line_brute[ii][1]);
 		complex<double> b(line[ii][0], line[ii][1]);
 		
 		if(abs(abs(a) - abs(b)) > 0.001) {
@@ -654,7 +789,7 @@ int testPseudoPolar()
 int main()
 {
 	// test the 'Power' Fourier Transform
-	if(testPowerFFT(128, .5) != 0)
+	if(testPowerFFT(128, 1) != 0)
 		return -1;
 
 //	if(testPseudoPolar() != 0) 
