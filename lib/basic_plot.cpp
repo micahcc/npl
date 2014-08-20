@@ -61,6 +61,43 @@ void Plotter::clear()
 	arrs.clear();
 }
 
+vector<pair<double,double>> computeTicks(double low, double hi, double res)
+{
+	vector<pair<double,double>> ticks;
+
+	// compute x ticks
+	double sp = (hi-low);
+	double step = 1;
+	while(sp > 1) {
+		sp /= 10.;
+		step *= 10.;
+	}
+	while(sp < 1) {
+		sp *= 10.;
+		step /= 10.;
+	}
+
+	if((hi-low)/step < 2)
+		step /= 10;
+
+	if(step == 0)
+		return ticks;
+#ifdef DEBUG	
+	cerr << low << "-" << hi << endl;
+#endif //DEBUG	
+	double rounded = ceil((low+step/3.)/step);
+	while(rounded < hi) {
+		double coord = (rounded-low)/res;
+		ticks.push_back(make_pair(coord, rounded));
+#ifdef DEBUG	
+		cerr << coord << "=" << rounded << endl;
+#endif //DEBUG	
+		rounded += step;
+	}
+
+	return ticks;
+}
+
 /**
  * @brief Writes the output image to the given file
  *
@@ -428,69 +465,69 @@ int Plotter::writeSVG(size_t xres, size_t yres, std::string fname)
 
 	// create axis
 	o << "<path d=\" ";
-	double nticks = 5;
+	size_t MINTICKS = 2;
 	double bound = 40;
 	double ticklen = 5;
 	o << "M0 " << yres << " V0 H " << xres;
 
+	// compute x ticks
+	auto xticks = computeTicks(xrange[0], xrange[1], xstep);
+	auto yticks = computeTicks(yrange[0], yrange[1], ystep);
+
 	// add x ticks
-	double real = xrange[0];
-	double coord = xres/nticks;
-	real = coord*xstep + xrange[0];
-	double rounded = ceil(real);
-	coord = (rounded-xrange[0])/xstep;
-	while(coord < xres) {
-		o << "M " << coord << " 0 v " << ticklen << " ";
-		coord += xres/nticks;
-		real = coord*xstep + xrange[0];
-		rounded = ceil(real);
-		coord = (rounded-xrange[0])/xstep;
+	for(auto& p:xticks) {
+		o << "M " << p.first << " 0 v " << ticklen << " ";
 	}
-	// add y ticks
-	real = yrange[0];
-	coord = yres/nticks;
-	real = coord*ystep + yrange[0];
-	rounded = ceil(real);
-	coord = (rounded-yrange[0])/ystep;
-	while(coord < yres) {
-		o << "M0 " << coord << " h " << ticklen << " ";
-		coord += yres/nticks;
-		real = coord*ystep + yrange[0];
-		rounded = ceil(real);
-		coord = (rounded-yrange[0])/ystep;
+	for(auto& p:yticks) {
+		o << "M0 " << p.first << " h " << ticklen << " ";
 	}
+
 	o << "\" stroke=\"black\" width=\"5\" fill=\"none\" />";
-	
-	// add x labels 
-	real = xrange[0];
-	coord = xres/nticks;
-	real = coord*xstep + xrange[0];
-	rounded = ceil(real);
-	coord = (rounded-xrange[0])/xstep;
-	while(coord < xres) {
-		o << "<text x=\"" << coord << "\" y=\"" << -10.
+
+	// add x labels
+	for(auto& p:xticks) {
+		o << "<text x=\"" << p.first << "\" y=\"" << -10.
 			<< "\" fill=\"black\" transform=\"translate(-10) matrix(1,0,0,-1,0,0)\">" 
-			<< setprecision(3) << rounded << "</text>" << endl;
-		coord += xres/nticks;
-		real = coord*xstep + xrange[0];
-		rounded = ceil(real);;
-		coord = (rounded-xrange[0])/xstep;
+			<< setprecision(3) << p.second << "</text>" << endl;
 	}
-	// add y ticks
-	real = yrange[0];
-	coord = yres/nticks;
-	real = coord*ystep + yrange[0];
-	rounded = ceil(real);
-	coord = (rounded-yrange[0])/ystep;
-	while(coord < yres) {
-		o << "<text x=\"" << 15 << "\" y=\"-" << coord-4 
+	
+	// add y labels
+	for(auto& p:yticks) {
+		o << "<text x=\"" << 15 << "\" y=\"-" << p.first-4 
 			<< "\" fill=\"black\" transform=\"matrix(1,0,0,-1,0,0)\">" 
-			<< setprecision(3) << rounded << "</text>" << endl;
-		coord += yres/nticks;
-		real = coord*ystep + yrange[0];
-		rounded = ceil(real);
-		coord = (rounded-yrange[0])/ystep;
+			<< setprecision(3) << p.second << "</text>" << endl;
 	}
+//	
+//	// add x labels 
+//	real = xrange[0];
+//	coord = xres/nticks;
+//	real = coord*xstep + xrange[0];
+//	rounded = ceil(real);
+//	coord = (rounded-xrange[0])/xstep;
+//	while(coord < xres) {
+//		o << "<text x=\"" << coord << "\" y=\"" << -10.
+//			<< "\" fill=\"black\" transform=\"translate(-10) matrix(1,0,0,-1,0,0)\">" 
+//			<< setprecision(3) << rounded << "</text>" << endl;
+//		coord += xres/nticks;
+//		real = coord*xstep + xrange[0];
+//		rounded = ceil(real);;
+//		coord = (rounded-xrange[0])/xstep;
+//	}
+//	// add y ticks
+//	real = yrange[0];
+//	coord = yres/nticks;
+//	real = coord*ystep + yrange[0];
+//	rounded = ceil(real);
+//	coord = (rounded-yrange[0])/ystep;
+//	while(coord < yres) {
+//		o << "<text x=\"" << 15 << "\" y=\"-" << coord-4 
+//			<< "\" fill=\"black\" transform=\"matrix(1,0,0,-1,0,0)\">" 
+//			<< setprecision(3) << rounded << "</text>" << endl;
+//		coord += yres/nticks;
+//		real = coord*ystep + yrange[0];
+//		rounded = ceil(real);
+//		coord = (rounded-yrange[0])/ystep;
+//	}
 
 	//close the file
 	o << "</g></svg>" << endl;
