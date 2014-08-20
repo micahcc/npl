@@ -18,6 +18,7 @@
  *****************************************************************************/
 
 #include <iostream>
+#include <iomanip>
 #include <cstdlib>
 #include <tuple>
 #include <fstream>
@@ -26,16 +27,18 @@
 
 #include "basic_plot.h"
 
+using namespace std;
+
 namespace npl {
 
-TGAPlot::TGAPlot(size_t xres, size_t yres)
+Plotter::Plotter(size_t xres, size_t yres)
 {
 	clear();
 	res[0] = xres;
 	res[1] = yres;
 }
 
-void TGAPlot::clear()
+void Plotter::clear()
 {
 	res[0] = 1024;
 	res[1] = 768;
@@ -63,15 +66,15 @@ void TGAPlot::clear()
  *
  * @param fname File name to write to.
  */
-void TGAPlot::write(std::string fname)
+int Plotter::write(std::string fname)
 {
-	write(res[0], res[1], fname);
+	return write(res[0], res[1], fname);
 }
 
 /**
  * @brief If the ranged haven't been provided, then autoset them
  */
-void TGAPlot::computeRange(size_t xres)
+void Plotter::computeRange(size_t xres)
 {
 	bool pad_x = false;;
 	bool pad_y = false;;
@@ -101,7 +104,7 @@ void TGAPlot::computeRange(size_t xres)
 			}
 		}
 
-		double pad = (xrange[1]-xrange[0])*.1;
+		double pad = (xrange[1]-xrange[0])*.15;
 		if(pad_x) 
 			xrange[0] -= pad/2;
 		xrange[1] += pad/2;
@@ -159,7 +162,7 @@ void TGAPlot::computeRange(size_t xres)
 			}
 		}
 
-		double pad = (yrange[1]-yrange[0])*.1;
+		double pad = (yrange[1]-yrange[0])*.15;
 		if(pad_y) 
 			yrange[0] -= pad/2;
 		yrange[1] += pad/2;
@@ -169,19 +172,16 @@ void TGAPlot::computeRange(size_t xres)
 		yrange[1] = yrange[0]+0.00001;
 	if(fabs(xrange[1]-xrange[0]) < 0.00001)
 		xrange[1] = xrange[0]+0.00001;
+
 }
 
-/**
- * @brief Write the output image with the given (temporary) resolution.
- * Does not affect the internal resolution
- *
- * @param xres X resolution
- * @param yres Y resolution
- * @param fname Filename
- */
-void TGAPlot::write(size_t xres, size_t yres, std::string fname)
+int Plotter::writeTGA(size_t xres, size_t yres, std::string fname)
 {
 	std::ofstream o(fname.c_str(), std::ios::out | std::ios::binary);
+	if(!o.is_open()) {
+		return -1;
+	}
+
 
 	//Write the header
 	o.put(0); //ID
@@ -370,6 +370,144 @@ void TGAPlot::write(size_t xres, size_t yres, std::string fname)
 	
 	//close the file
 	o.close();
+	return 0;
+}
+
+int Plotter::writeSVG(size_t xres, size_t yres, std::string fname)
+{
+	std::ofstream o(fname.c_str());
+	if(!o.is_open()) {
+		return -1;
+	}
+
+	o << "<svg viewBox=\"0 0 " << xres << " " 
+		<< yres << "\" xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\"> "
+		<< endl << "<descr>Hello world</descr>" << endl 
+		<< "<g transform=\"matrix(1,0,0,-1,0,0) translate(0,-768)\">" << endl;
+
+	computeRange(xres);
+	double xstep = (xrange[1]-xrange[0])/xres;
+	double ystep = (yrange[1]-yrange[0])/yres;
+
+	// start with buffers, interpolating between points
+	for(auto& arr: arrs) {
+		auto& sty = std::get<0>(arr);
+		auto& xarr = std::get<1>(arr);
+		auto& yarr = std::get<2>(arr);
+		assert(xarr.size() == yarr.size());
+
+		o << "<polyline fill=\"none\" points=\"";
+		for(size_t ii=0; ii<xarr.size(); ii++) {
+			double x = (xarr[ii-1]-xrange[0])/xstep;
+			double y = (yarr[ii-1]-yrange[0])/ystep;
+			o << x << "," << y << " ";
+		}
+		o << "\" stroke=\"#";
+		for(size_t ii=0; ii<3; ii++)
+			o << hex << setfill('0') << setw(2) << (int)sty.rgba[ii];
+		o << dec << "\"></polyline>"<< endl;
+	}
+	
+	for(auto& func: funcs) {
+		auto& sty = std::get<0>(func);
+		auto& foo = std::get<1>(func);
+
+		double xx = xrange[0];
+		o << "<polyline fill=\"none\" stroke=\"blue\" points=\"";
+		while(xx < xrange[1]) {
+			double dx = xstep;
+			double yy = foo(xx);
+			double xi = (xx-xrange[0])/xstep;
+			double yi = (yy-yrange[0])/ystep;
+			xx += dx;
+			o << xi << "," << yi << " ";
+		}
+		o << "\"></polyline>" << endl;
+	}
+
+	// create axis
+	o << "<path d=\" ";
+	double nticks = 5;
+	double bound = 40;
+	double ticklen = 5;
+	cerr << yres << ", " << xres << endl;
+	o << "M0 " << yres << " V0 H " << xres;
+
+	// add x ticks
+	double real = xrange[0];
+	double rounded = ceil(real);;
+	double coord = (rounded-xrange[0])/xstep + xres/nticks;
+	while(coord < xres) {
+		o << "M " << coord << " 0 v " << ticklen << " ";
+		real = coord*xstep + xrange[0];
+		rounded = ceil(real);;
+		coord = (rounded-xrange[0])/xstep + xres/nticks;
+	}
+	// add y ticks
+	real = yrange[0];
+	rounded = ceil(real);;
+	coord = (rounded-yrange[0])/ystep + yres/nticks;
+	while(coord < yres) {
+		o << "M0 " << coord << " h " << ticklen << " ";
+		real = coord*ystep + yrange[0];
+		rounded = ceil(real);
+		coord = (rounded-yrange[0])/ystep + yres/nticks;
+	}
+	o << "\" stroke=\"black\" width=\"5\" fill=\"none\" />";
+	
+	// add x labels 
+	real = xrange[0];
+	rounded = ceil(real);;
+	coord = (rounded-xrange[0])/xstep + xres/nticks;
+	while(coord < xres) {
+		o << "<text x=\"" << coord << "\" y=\"" << -10.
+			<< "\" fill=\"black\" transform=\"translate(-10) matrix(1,0,0,-1,0,0)\">" 
+			<< setprecision(3) << rounded << "</text>" << endl;
+		real = coord*xstep + xrange[0];
+		rounded = ceil(real);;
+		coord = (rounded-xrange[0])/xstep + xres/nticks;
+	}
+	// add y ticks
+	real = yrange[0];
+	rounded = ceil(real);;
+	coord = (rounded-yrange[0])/ystep + yres/nticks;
+	while(coord < yres) {
+		o << "<text x=\"" << 15 << "\" y=\"-" << coord-4 
+			<< "\" fill=\"black\" transform=\"matrix(1,0,0,-1,0,0)\">" 
+			<< setprecision(3) << rounded << "</text>" << endl;
+		real = coord*ystep + yrange[0];
+		rounded = ceil(real);
+		coord = (rounded-yrange[0])/ystep + yres/nticks;
+	}
+
+	//close the file
+	o << "</g></svg>" << endl;
+	o.close();
+
+	return 0;
+}
+
+/**
+ * @brief Write the output image with the given (temporary) resolution.
+ * Does not affect the internal resolution
+ *
+ * @param xres X resolution
+ * @param yres Y resolution
+ * @param fname Filename
+ */
+int Plotter::write(size_t xres, size_t yres, std::string fname)
+{
+	size_t svg = fname.rfind(".svg");
+	size_t tga = fname.rfind(".tga");
+	if(svg != string::npos) {
+		cerr << "Writing " << fname << " as SVG file" << endl;
+		return writeSVG(xres, yres, fname);
+	} else if(tga != string::npos) {
+		cerr << "Writing " << fname << " as TGA file" << endl;
+		return writeTGA(xres, yres, fname);
+	}
+	cerr << "Unsupported file type " << fname << endl;
+	return -1;
 }
 
 /**
@@ -379,7 +517,7 @@ void TGAPlot::write(size_t xres, size_t yres, std::string fname)
  * @param low Lower bound
  * @param high Upper bound
  */
-void TGAPlot::setXRange(double low, double high)
+void Plotter::setXRange(double low, double high)
 {
 	xrange[0] = low;
 	xrange[1] = high;
@@ -393,7 +531,7 @@ void TGAPlot::setXRange(double low, double high)
  * @param low Lower bound
  * @param high Upper bound
  */
-void TGAPlot::setYRange(double low, double high)
+void Plotter::setYRange(double low, double high)
 {
 	yrange[0] = low;
 	yrange[1] = high;
@@ -405,13 +543,13 @@ void TGAPlot::setYRange(double low, double high)
  * @param xres Width of output image
  * @param yres Height of output image
  */
-void TGAPlot::setRes(size_t xres, size_t yres)
+void Plotter::setRes(size_t xres, size_t yres)
 {
 	res[0] = xres;
 	res[1] = yres;
 }
 
-void TGAPlot::addFunc(Function f)
+void Plotter::addFunc(Function f)
 {
 	this->addFunc(*curr_color, f);
 	curr_color++;
@@ -419,18 +557,18 @@ void TGAPlot::addFunc(Function f)
 		curr_color = colors.begin();
 }
 
-void TGAPlot::addFunc(const std::string& style, Function f)
+void Plotter::addFunc(const std::string& style, Function f)
 {
 	StyleT tmps(style);
 	addFunc(tmps, f);
 }
 
-void TGAPlot::addFunc(const StyleT& style, Function f)
+void Plotter::addFunc(const StyleT& style, Function f)
 {
 	funcs.push_back(std::make_tuple(style, f));
 }
 
-void TGAPlot::addArray(size_t sz, const double* array)
+void Plotter::addArray(size_t sz, const double* array)
 {
 	std::vector<double> tmpx(sz);
 	std::vector<double> tmpy(sz);
@@ -446,7 +584,7 @@ void TGAPlot::addArray(size_t sz, const double* array)
 		curr_color = colors.begin();
 }
 
-void TGAPlot::addArray(size_t sz, const double* xarr, const double* yarr)
+void Plotter::addArray(size_t sz, const double* xarr, const double* yarr)
 {
 	std::vector<double> tmpx(sz);
 	std::vector<double> tmpy(sz);
@@ -462,7 +600,7 @@ void TGAPlot::addArray(size_t sz, const double* xarr, const double* yarr)
 		curr_color = colors.begin();
 };
 
-void TGAPlot::addArray(const std::string& style, size_t sz, const double* array)
+void Plotter::addArray(const std::string& style, size_t sz, const double* array)
 {
 	std::vector<double> tmpx(sz);
 	std::vector<double> tmpy(sz);
@@ -474,7 +612,7 @@ void TGAPlot::addArray(const std::string& style, size_t sz, const double* array)
 	arrs.push_back(std::make_tuple(tmpstyle, tmpx, tmpy));
 }
 
-void TGAPlot::addArray(const StyleT& style, size_t sz, const double* xarr, const double* yarr)
+void Plotter::addArray(const StyleT& style, size_t sz, const double* xarr, const double* yarr)
 {
 	std::vector<double> tmpx(sz);
 	std::vector<double> tmpy(sz);

@@ -36,7 +36,7 @@ void writePlot(std::string filename, const std::vector<T>& data,
 
 typedef char rgba[4];
 
-class TGAPlot
+class Plotter
 {
 public:
 	struct StyleT;
@@ -44,7 +44,7 @@ public:
 	/**
 	 * @brief Constructor
 	 */
-	TGAPlot(size_t xres = 1024, size_t yres = 768);
+	Plotter(size_t xres = 1024, size_t yres = 768);
 
 	/**
 	 * @brief Removes all state variables, including plotted points, and
@@ -57,7 +57,7 @@ public:
 	 *
 	 * @param fname File name to write to.
 	 */
-	void write(std::string fname);
+	int write(std::string fname);
 
 	/**
 	 * @brief Write the output image with the given (temporary) resolution.
@@ -67,7 +67,7 @@ public:
 	 * @param yres Y resolution
 	 * @param fname Filename
 	 */
-	void write(size_t xres, size_t yres, std::string fname);
+	int write(size_t xres, size_t yres, std::string fname);
 
 	/**
 	 * @brief Sets the x range. To use the extremal values from input arrays
@@ -215,12 +215,14 @@ public:
 
 private:
 	void computeRange(size_t xres);
+	int writeTGA(size_t xres, size_t yres, std::string fname);
+	int writeSVG(size_t xres, size_t yres, std::string fname);
 };
 
 template <typename T>
 void writePlot(std::string filename, const std::vector<T>& data)
 {
-	TGAPlot plt;
+	Plotter plt;
 	plt.addArray(data.size(), data.data());
 	plt.write(filename);
 }
@@ -230,7 +232,7 @@ template <typename T>
 void writePlot(std::string filename, const std::vector<T>& data, size_t xsize,
 		size_t ysize)
 {
-	TGAPlot plt(xsize, ysize);
+	Plotter plt(xsize, ysize);
 	plt.addArray(data.size(), data.data());
 	plt.write(filename);
 }
