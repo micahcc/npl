@@ -50,7 +50,7 @@ void writePlotReIm(std::string file, size_t insz, fftw_complex* in)
 		imv[ii] = in[ii][1];
 	}
 
-	TGAPlot plt;
+	Plotter plt;
 	plt.addArray(insz, realv.data());
 	plt.addArray(insz, imv.data());
 	plt.write(file);
@@ -76,7 +76,7 @@ void writePlotAbsAng(std::string file, size_t insz, fftw_complex* in)
 	std::cerr << "File: " << file << std::endl; 
 	std::cerr << "Phase Range: " << phasemin << ", " << phasemax << std::endl;
 	std::cerr << "Abs Range: " << absmin << ", " << absmax << std::endl;
-	TGAPlot plt;
+	Plotter plt;
 	plt.addArray(insz, absv.data());
 	plt.addArray(insz, angv.data());
 	plt.write(file);
