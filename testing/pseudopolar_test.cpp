@@ -238,11 +238,11 @@ void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
 				FFTW_MEASURE | FFTW_PRESERVE_INPUT);
 
 	cerr << "Upsample: " << upratio << endl;
-	for(int64_t ii=-sz/2; ii<=sz/2; ii++) {
-		double xx = ((double)ii)/upratio;
+	for(int64_t ii=0; ii<sz; ii++) {
+		double xx = (ii-(sz-1.)/2.)/upratio;
 		auto tmp = std::exp(I*PI*alpha*xx*xx/(double)origsz);
-		chirp[ii+sz/2][0] = tmp.real();
-		chirp[ii+sz/2][1] = tmp.imag();
+		chirp[ii][0] = tmp.real();
+		chirp[ii][1] = tmp.imag();
 	}
 	
 	if(fft) {
@@ -260,8 +260,6 @@ void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
 void powerFFT_help(int64_t isize, int64_t usize, int64_t uppadsize,
 		fftw_complex* inout, fftw_complex* buffer, double alpha)
 {
-//	assert(usize%2 == 1);
-//	assert(uppadsize%2 == 1);
 
 	const complex<double> I(0,1);
 
@@ -303,14 +301,13 @@ void powerFFT_help(int64_t isize, int64_t usize, int64_t uppadsize,
 #endif //DEBUG
 	
 	// pre-multiply
-	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
-		complex<double> tmp1(nega_chirp[nn+uppadsize/2][0],
-				nega_chirp[nn+uppadsize/2][1]);
-		complex<double> tmp2(upsampled[nn+usize/2][0],
-				upsampled[nn+usize/2][1]);
+	for(int64_t nn = 0; nn<usize; nn++) {
+		size_t cc = nn+(uppadsize-usize)/2;
+		complex<double> tmp1(nega_chirp[cc][0], nega_chirp[cc][1]);
+		complex<double> tmp2(upsampled[nn][0], upsampled[nn][1]);
 		tmp1 *= tmp2;
-		upsampled[nn+usize/2][0] = tmp1.real();
-		upsampled[nn+usize/2][1] = tmp1.imag();
+		upsampled[nn][0] = tmp1.real();
+		upsampled[nn][1] = tmp1.imag();
 	}
 #ifdef DEBUG
 	writePlotReIm("fft_premult.svg", usize, upsampled);
@@ -335,7 +332,8 @@ void powerFFT_help(int64_t isize, int64_t usize, int64_t uppadsize,
 	}
 	fftw_execute(sigbuff_plan_rev);
 	
-	normfactor = 2*isize;
+	// not sure why this works...
+	normfactor = 2*isize; 
 	for(size_t ii=0; ii<uppadsize; ii++) {
 		sigbuff[ii][0] *= normfactor;
 		sigbuff[ii][1] *= normfactor;
@@ -353,14 +351,13 @@ void powerFFT_help(int64_t isize, int64_t usize, int64_t uppadsize,
 #endif //DEBUG
 	
 	// post-multiply
-	for(int64_t ii=-usize/2; ii<=usize/2; ii++) {
-		complex<double> tmp1(nega_chirp[ii+uppadsize/2][0],
-				nega_chirp[ii+uppadsize/2][1]);
-		complex<double> tmp2(upsampled[ii+usize/2][0],
-				upsampled[ii+usize/2][1]);
+	for(int64_t ii=0; ii<usize; ii++) {
+		size_t cc = ii+(uppadsize-usize)/2;
+		complex<double> tmp1(nega_chirp[cc][0], nega_chirp[cc][1]);
+		complex<double> tmp2(upsampled[ii][0], upsampled[ii][1]);
 		tmp1 = tmp1*tmp2;
-		upsampled[ii+usize/2][0] = tmp1.real();
-		upsampled[ii+usize/2][1] = tmp1.imag();
+		upsampled[ii][0] = tmp1.real();
+		upsampled[ii][1] = tmp1.imag();
 	}
 
 #ifdef DEBUG
@@ -531,11 +528,8 @@ void powerFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	// size, we want both uppadsize and usize to be odd, and we want uppadsize
 	// to be the product of small primes (3,5,7)
 	double approxratio = 10;
-	int64_t uppadsize = round357(isize*approxratio);;
-	int64_t usize;
-	while((usize = (uppadsize-1)/2)%2 == 0) {
-		uppadsize = round357(uppadsize+2);
-	}
+	int64_t usize = round2(isize*2);
+	int64_t uppadsize = usize*2;
 
 	cerr << "input size: " << isize << endl;
 	cerr << "upsample size: " << usize << endl;
@@ -596,7 +590,7 @@ void powerFT_brute(size_t len, fftw_complex* in, fftw_complex* out, double a)
 		out[ii][1]=0;
 
 		for(int64_t jj=0; jj<ilen; jj++) {
-			double xx=(jj-(ilen)/2.);
+			double xx=(jj-(ilen-1)/2.);
 			complex<double> tmp1(in[jj][0], in[jj][1]);
 			complex<double> tmp2 = tmp1*std::exp(-2.*PI*I*a*xx*ff/(double)ilen);
 			
