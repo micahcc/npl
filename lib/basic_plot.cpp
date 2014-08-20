@@ -257,9 +257,8 @@ void TGAPlot::write(size_t xres, size_t yres, std::string fname)
 				dy /= (fabs(dy)+1);
 			}
 
-			bool xdone = false;
-			bool ydone = false;
-			while(!xdone || !ydone) {
+			bool done = false;
+			while(!done) {
 				int64_t xi = std::max<int>(std::min<int>(xres-1, round(xp)), 0);
 				int64_t yi = std::max<int>(std::min<int>(yres-1, round(yp)), 0);
 				buffer[yi*xres+xi][0] = sty.rgba[0];
@@ -270,15 +269,17 @@ void TGAPlot::write(size_t xres, size_t yres, std::string fname)
 				// step
 				xp+=dx;
 				yp+=dy;
-				if(dx >= 0 && xp >= xf)
-					xdone = true;
-				else if(dx < 0 && xp <= xf)
-					xdone = true;
-				if(dy >= 0 && yp >= yf)
-					ydone = true;
-				else if(dy < 0 && yp <= yf)
-					ydone = true;
-
+				if(fabs(xp) > fabs(yp)) {
+					if(dx >= 0 && xp >= xf)
+						done = true;
+					else if(dx < 0 && xp <= xf)
+						done = true;
+				} else {
+					if(dy >= 0 && yp >= yf)
+						done = true;
+					else if(dy < 0 && yp <= yf)
+						done = true;
+				}
 			}
 		}
 	}

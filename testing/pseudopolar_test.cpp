@@ -238,16 +238,16 @@ void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
 				FFTW_MEASURE | FFTW_PRESERVE_INPUT);
 
 	cerr << "Upsample: " << upratio << endl;
-	for(int64_t ii=-sz/2; ii<sz/2; ii++) {
-		double ff = ((double)ii)/upratio;
-		auto tmp = std::exp(I*PI*alpha*ff*ff/(double)origsz);
+	for(int64_t ii=-sz/2; ii<=sz/2; ii++) {
+		double xx = ((double)ii)/upratio;
+		auto tmp = std::exp(I*PI*alpha*xx*xx/(double)origsz);
 		chirp[ii+sz/2][0] = tmp.real();
 		chirp[ii+sz/2][1] = tmp.imag();
 	}
 	
 	if(fft) {
 		fftw_execute(fwd_plan);
-		double norm = 1./sz;
+		double norm = sqrt(1./sz);
 		for(size_t ii=0; ii<sz; ii++) {
 			chirp[ii][0] *= norm;
 			chirp[ii][1] *= norm;
@@ -303,6 +303,14 @@ void powerFFT_help(int64_t isize, int64_t usize, int64_t uppadsize,
 	fftw_plan sigbuff_plan_rev = fftw_plan_dft_1d(uppadsize, sigbuff, sigbuff,
 			FFTW_BACKWARD, FFTW_MEASURE);
 
+#ifdef DEBUG
+	{
+		std::vector<double> tmp(isize);
+		for(size_t ii=0; ii<isize; ii++)
+			tmp[ii] = inout[ii][0];
+		writePlot("in.tga", tmp);
+	}
+#endif //DEBUG
 	// upsample input
 	interp(isize, inout, usize, upsampled);
 #ifdef DEBUG
@@ -337,7 +345,7 @@ void powerFFT_help(int64_t isize, int64_t usize, int64_t uppadsize,
 	 * convolve
 	 */
 	fftw_execute(sigbuff_plan_fwd);
-	double normfactor = 1./uppadsize;
+	double normfactor = .5*sqrt(1./uppadsize);
 	for(size_t ii=0; ii<uppadsize; ii++) {
 		sigbuff[ii][0] *= normfactor;
 		sigbuff[ii][1] *= normfactor;
@@ -425,13 +433,15 @@ void powerFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	// size, we want both uppadsize and usize to be odd, and we want uppadsize
 	// to be the product of small primes (3,5,7)
 	double approxratio = 2;
-	int64_t usize = round2(approxratio*isize);
-	int64_t uppadsize = usize*2;
+	int64_t uppadsize = round357(isize*approxratio);;
+	int64_t usize;
+	while((usize = (uppadsize-1)/2)%2 == 0) {
+		uppadsize = round357(uppadsize+2);
+	}
 
 	cerr << "input size: " << isize << endl;
 	cerr << "upsample size: " << usize << endl;
 	cerr << "upsample+pad size: " << uppadsize << endl;
-
 
 	size_t bsz = 0;
 	fftw_complex* buffer = NULL;
@@ -451,14 +461,6 @@ void powerFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	}
 
 	fftw_complex* current = &buffer[0];
-	fftw_plan curr_to_out_fwd = fftw_plan_dft_1d(isize, current, out,
-			FFTW_FORWARD, FFTW_MEASURE);
-	fftw_plan curr_to_out_rev = fftw_plan_dft_1d(isize, current, out,
-			FFTW_BACKWARD, FFTW_MEASURE);
-	fftw_plan curr_to_curr_fwd = fftw_plan_dft_1d(isize, current, current,
-			FFTW_FORWARD, FFTW_MEASURE);
-	fftw_plan curr_to_curr_rev = fftw_plan_dft_1d(isize, current, current,
-			FFTW_BACKWARD, FFTW_MEASURE);
 
 	// copy input to buffer
 	for(size_t ii=0; ii<isize; ii++) {
@@ -482,11 +484,6 @@ void powerFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 			fftw_free(buffer);
 		}
 	} 
-
-	fftw_destroy_plan(curr_to_curr_fwd);
-	fftw_destroy_plan(curr_to_curr_rev);
-	fftw_destroy_plan(curr_to_out_fwd);
-	fftw_destroy_plan(curr_to_out_rev);
 }
 
 void powerFT_brute(size_t len, fftw_complex* in, fftw_complex* out, double a)
@@ -580,7 +577,7 @@ int testPowerFFT(size_t length, double alpha)
 {
 	auto line = fftw_alloc_complex(length);
 	auto line_out = fftw_alloc_complex(length);
-	size_t worklen = length*16;
+	size_t worklen = length*40;
 	auto workbuff= fftw_alloc_complex(worklen);
 	
 	// fill with a noisy square
@@ -592,13 +589,12 @@ int testPowerFFT(size_t length, double alpha)
 			line[ii][0] = 0;
 			line[ii][1] = 0;
 		}
-		line[ii][0]+=.01*rand()/(double)RAND_MAX;
-		line[ii][1]+=.01*rand()/(double)RAND_MAX;
 	}
 	
-	writePlotReIm("input.tga", length, line);
+	//writePlotReIm("input.tga", length, line);
 
 	powerFT_brute(length, line, line_out, alpha);
+	writePlotReIm("input.tga", length, line);
 	powerFFT(length, line, line, alpha, &worklen, &workbuff);
 
 	writePlotAbsAng("powerBruteFT.tga", length, line_out);
@@ -658,7 +654,7 @@ int testPseudoPolar()
 int main()
 {
 	// test the 'Power' Fourier Transform
-	if(testPowerFFT(128, -1) != 0)
+	if(testPowerFFT(128, .5) != 0)
 		return -1;
 
 //	if(testPseudoPolar() != 0) 

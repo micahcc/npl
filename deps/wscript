@@ -1,6 +1,7 @@
 
 def build(bld):
     bld(name = 'tclap', export_includes = ['tclap/include'])
+    bld(name = 'EIGEN', export_includes = ['eigen'])
     
 #    if bld.env.STATIC_LINK:
 #        bld.stlib(target='alglib', features='cxx', 

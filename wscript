@@ -61,8 +61,6 @@ def configure(conf):
                 args=['--cflags', '--libs'])
     conf.check_cfg(package='fftw3', uselib_store='FFTW',
                 args=['--cflags', '--libs'])
-    conf.check_cfg(package='eigen3', uselib_store='EIGEN',
-                args=['--cflags', '--libs'])
 
 def options(ctx):
     ctx.load('compiler_cxx')
