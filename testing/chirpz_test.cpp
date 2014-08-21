@@ -22,10 +22,9 @@
 #include <string>
 #include <stdexcept>
 
-#include <Eigen/Geometry> 
-
 #define DEBUG 1
 
+#include <complex>
 #include "basic_plot.h"
 #include "chirpz.h"
 
@@ -86,7 +85,7 @@ int testPowerFFT(size_t length, double alpha)
 int main()
 {
 	// test the 'Power' Fourier Transform
-	if(testPowerFFT(128, 1) != 0)
+	if(testPowerFFT(128, .95) != 0)
 		return -1;
 
 	return 0;
