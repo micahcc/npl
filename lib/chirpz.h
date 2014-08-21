@@ -20,7 +20,11 @@
 #ifndef CHIRPZ_H
 #define CHIRPZ_H
 
-#include <cmath>
+#include <cstddef>
+#include <cstdlib>
+#include <string>
+
+#include "fftw3.h"
 
 namespace npl {
 
@@ -88,6 +92,24 @@ void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a);
  * @param a		Fraction/Alpha To raise exp() term to
  */
 void chirpzFT_brute(size_t len, fftw_complex* in, fftw_complex* out, double a);
+
+/**
+ * @brief Plots an array of complex points with the Real and Imaginary Parts
+ *
+ * @param file	Filename
+ * @param insz	Size of in
+ * @param in	Array input
+ */
+void writePlotAbsAng(std::string file, size_t insz, fftw_complex* in);
+
+/**
+ * @brief Plots an array of complex points with the Real and Imaginary Parts
+ *
+ * @param file	Filename
+ * @param insz	Size of in
+ * @param in	Array input
+ */
+void writePlotReIm(std::string file, size_t insz, fftw_complex* in);
 
 }
 

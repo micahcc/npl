@@ -502,7 +502,7 @@ void powerFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	// the size of the upsampled array, and uppadsize the padded+upsampled
 	// size, we want both uppadsize and usize to be odd, and we want uppadsize
 	// to be the product of small primes (3,5,7)
-	double approxratio = 10;
+//	double approxratio = 10;
 	int64_t usize = round2(isize*2);
 	int64_t uppadsize = usize*2;
 

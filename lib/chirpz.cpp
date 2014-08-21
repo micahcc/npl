@@ -19,7 +19,49 @@
 
 #include "chirpz.h"
 
+#include <cmath>
+#include <complex>
+#include <iostream>
+#include <algorithm>
+
+#include "basic_functions.h"
+#include "basic_plot.h"
+
+using namespace std;
+#define DEBUG
+
 namespace npl {
+
+/**
+ * @brief Interpolate the input array, filling the output array
+ *
+ * @param isize 	Size of in
+ * @param in 		Values to interpolate
+ * @param osize 	Size of out
+ * @param out 		Output array, filled with interpolated values of in
+ */
+void interp(int64_t isize, fftw_complex* in, int64_t osize, fftw_complex* out)
+{
+	// fill/average pad
+	int64_t radius = 3;
+	double ratio = (double)(isize)/(double)osize;
+	
+	// copy/center
+	for(size_t oo=0; oo<osize; oo++) {
+		double cii = ratio*oo;
+		int64_t center = round(cii);
+
+		complex<double> sum = 0;
+		for(int64_t ii=center-radius; ii<=center+radius; ii++) {
+			if(ii>=0 && ii<isize) {
+				complex<double> tmp(in[ii][0], in[ii][1]);
+				sum += lanczosKernel(ii-cii, radius)*tmp;
+			}
+		}
+		out[oo][0] = sum.real();
+		out[oo][1] = sum.imag();
+	}
+}
 
 /**
  * @brief Fills the input array (chirp) with a chirp of the specified type
@@ -77,14 +119,10 @@ void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a)
 	// the size of the upsampled array, and uppadsize the padded+upsampled
 	// size, we want both uppadsize and usize to be odd, and we want uppadsize
 	// to be the product of small primes (3,5,7)
-	double approxratio = 10;
-	int64_t usize = round2(isize*2);
+	double approxratio = 2;
+	int64_t usize = round2(isize*approxratio);
 	int64_t uppadsize = usize*2;
 	double upratio = (double)usize/(double)isize;
-
-	cerr << "input size: " << isize << endl;
-	cerr << "upsample size: " << usize << endl;
-	cerr << "upsample+pad size: " << uppadsize << endl;
 
 	size_t bsz = isize+3*uppadsize;
 	fftw_complex* buffer = fftw_alloc_complex(bsz);
@@ -92,8 +130,8 @@ void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a)
 	fftw_complex* nchirp = &buffer[isize+uppadsize];
 	fftw_complex* pchirp = &buffer[isize+2*uppadsize];
 	
-	createChirp(uppadsize, nchirp, isize, upratio, -alpha, false);
-	createChirp(uppadsize, pchirp, isize, upratio, alpha, true);
+	createChirp(uppadsize, nchirp, isize, upratio, -a, false);
+	createChirp(uppadsize, pchirp, isize, upratio, a, true);
 
 	// copy input to buffer
 	for(size_t ii=0; ii<isize; ii++) {
@@ -144,7 +182,7 @@ void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
 	const complex<double> I(0,1);
 
 	// zero
-	for(size_t ii=0; ii<uppadsize*3; ii++) {
+	for(size_t ii=0; ii<uppadsize; ii++) {
 		buffer[ii][0] = 0;
 		buffer[ii][1] = 0;
 	}
@@ -158,10 +196,13 @@ void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
 			FFTW_BACKWARD, FFTW_MEASURE);
 
 #ifdef DEBUG
+	writePlotReIm("fft_poschirpf.svg", uppadsize, poschirpF);
+	writePlotReIm("fft_negchirp.svg", uppadsize, negchirp);
 	writePlotReIm("fft_in.svg", isize, inout);
 #endif //DEBUG
 	// upsample input
 	interp(isize, inout, usize, upsampled);
+
 #ifdef DEBUG
 	writePlotReIm("fft_upin.svg", usize, upsampled);
 #endif //DEBUG
@@ -169,12 +210,13 @@ void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
 	// pre-multiply
 	for(int64_t nn = 0; nn<usize; nn++) {
 		size_t cc = nn+(uppadsize-usize)/2;
-		complex<double> tmp1(nega_chirp[cc][0], nega_chirp[cc][1]);
+		complex<double> tmp1(negchirp[cc][0], negchirp[cc][1]);
 		complex<double> tmp2(upsampled[nn][0], upsampled[nn][1]);
 		tmp1 *= tmp2;
 		upsampled[nn][0] = tmp1.real();
 		upsampled[nn][1] = tmp1.imag();
 	}
+
 #ifdef DEBUG
 	writePlotReIm("fft_premult.svg", usize, upsampled);
 #endif //DEBUG
@@ -191,7 +233,7 @@ void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
 
 	for(size_t ii=0; ii<uppadsize; ii++) {
 		complex<double> tmp1(sigbuff[ii][0], sigbuff[ii][1]);
-		complex<double> tmp2(posa_chirp[ii][0], posa_chirp[ii][1]);
+		complex<double> tmp2(poschirpF[ii][0], poschirpF[ii][1]);
 		tmp1 *= tmp2;
 		sigbuff[ii][0] = tmp1.real();
 		sigbuff[ii][1] = tmp1.imag();
@@ -219,7 +261,7 @@ void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
 	// post-multiply
 	for(int64_t ii=0; ii<usize; ii++) {
 		size_t cc = ii+(uppadsize-usize)/2;
-		complex<double> tmp1(nega_chirp[cc][0], nega_chirp[cc][1]);
+		complex<double> tmp1(negchirp[cc][0], negchirp[cc][1]);
 		complex<double> tmp2(upsampled[ii][0], upsampled[ii][1]);
 		tmp1 = tmp1*tmp2;
 		upsampled[ii][0] = tmp1.real();
@@ -269,6 +311,59 @@ void chirpzFT_brute(size_t len, fftw_complex* in, fftw_complex* out, double a)
 			out[ii][1] += tmp2.imag();
 		}
 	}
+}
+
+
+/**
+ * @brief Plots an array of complex points with the Real and Imaginary Parts
+ *
+ * @param file	Filename
+ * @param insz	Size of in
+ * @param in	Array input
+ */
+void writePlotReIm(std::string file, size_t insz, fftw_complex* in)
+{
+	std::vector<double> realv(insz);
+	std::vector<double> imv(insz);
+	for(size_t ii=0; ii<insz; ii++) {
+		realv[ii] = in[ii][0];
+		imv[ii] = in[ii][1];
+	}
+
+	Plotter plt;
+	plt.addArray(insz, realv.data());
+	plt.addArray(insz, imv.data());
+	plt.write(file);
+}
+
+/**
+ * @brief Plots an array of complex points with the Real and Imaginary Parts
+ *
+ * @param file	Filename
+ * @param insz	Size of in
+ * @param in	Array input
+ */
+void writePlotAbsAng(std::string file, size_t insz, fftw_complex* in)
+{
+	double phasemax = -INFINITY;
+	double phasemin = INFINITY;
+	double absmax = -INFINITY;
+	double absmin = INFINITY;
+	std::vector<double> absv(insz);
+	std::vector<double> angv(insz);
+	for(size_t ii=0; ii<insz; ii++) {
+		angv[ii] = atan2(in[ii][0], in[ii][1]);
+		absv[ii] = sqrt(pow(in[ii][0],2)+pow(in[ii][1],2));
+		phasemax = std::max(phasemax, angv[ii]);
+		absmax = std::max(absmax, absv[ii]);
+		phasemin = std::min(phasemin, angv[ii]);
+		absmin = std::min(absmin, absv[ii]);
+	}
+
+	Plotter plt;
+	plt.addArray(insz, absv.data());
+	plt.addArray(insz, angv.data());
+	plt.write(file);
 }
 
 }
