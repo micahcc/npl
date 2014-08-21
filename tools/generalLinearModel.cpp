@@ -47,7 +47,7 @@ int main(int argc, char** argv)
 			"an fMRI image. ",
 			' ', __version__ );
 
-	TCLAP::MultiArg<string> a_fmri("i", "input", "fMRI image.",
+	TCLAP::ValueArg<string> a_fmri("i", "input", "fMRI image.",
 			true, "*.nii.gz", cmd);
 	TCLAP::MultiArg<string> a_events("e", "event-reg", "Event-related regression "
 			"variable. Three columns, ONSET DURATION VALUE. If these overlap, "
@@ -64,56 +64,39 @@ int main(int argc, char** argv)
 
 	cmd.parse(argc, argv);
 	
-	// read fMRI images
-	std::list<shared_ptr<MRImage>> fmri;
-	int tlen = -1;
-	double TR = -1;
-	for(auto it=a_fmri.begin(); it != a_fmri.end(); it++) {
-		fmri.push_back(readMRImage(*it));
-
-		if(fmri.back()->ndim() != 4) {
-			cerr << "Inputs should be 4D!" << endl;
-			return -1;
-		}
-
-		// TODO resample volumes as necessary
-
-		// check number of volumes
-		if(tlen == -1) {
-			tlen = fmri.back()->tlen();
-		} else if(tlen != fmri.back()->tlen()) {
-			cerr << "Inputs should have same time-length!" << endl;
-			return -1;
-		}
-		
-		// check TR
-		if(TR < 0) {
-			TR = fmri.back()->spacing()[3];
-		} else if(fabs(TR-fmri.back()->spacing()[3] > 0.00000001)) {
-			cerr << "Inputs should have same timing!" << endl;
-			return -1;
-		}
+	// read fMRI image
+	shared_ptr<MRImage> fmri = readMRImage(a_fmri.getValue());
+	if(fmri->ndim() != 4) {
+		cerr << "Input should be 4D!" << endl;
+		return -1;
 	}
+	assert(fmri->tlen() == fmri->dim(3));
+	int tlen = fmri->tlen();
+	double TR = fmri->space()[3];
 
 	// read the event-related designs, will have rows to match time, and cols
 	// to match number of regressors
 	MatrixXd X(tlen, a_events.getValue().size());
-	vector<double> upsampled(tlen*10);
-	for(auto it=a_events.begin(); it != a_events.end(); it++) {
+	const double dt = 0.1
+	vector<double> upsampled(tlen*TR/dt, NAN);
+	size_t regnum = 0;
+	for(auto it=a_events.begin(); it != a_events.end(); it++, regnum++) {
 		auto events = readNumericCSV(*it);
-		
+		auto v = getRegressor(events, TR, tlen, 0);
 
+		// draw
+		writePlot(dirname(*it)+"/ev1.svg", v);
 
-		if(tlen == -1) {
-			tlen = fmri.back()->tlen();
-		} else if(tlen != fmri.back()->tlen()) {
-			std::length_error("Input images have # of timepoints");
-		}
+		// copy to output
+		for(size_t ii=0; ii<tlen; ii++) 
+			X(ii, regnum) = v(ii*TR/dt);
 	}
 
-	//
-	
-	Eigen::VectorXd y(tlen*fmri.size());
+	Eigen::VectorXd y(tlen);
+	// for each voxel
+	//    fill y
+	//    perform regression
+	//    write to out volumes
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
