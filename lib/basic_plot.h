@@ -153,9 +153,6 @@ public:
 					rgba[1]=255;
 					rgba[2]=255;
 					rgba[3]=255;
-#ifdef DEBUG
-					cerr << &a[ii] << "->";
-#endif //DEBUG
 					for(int jj=0; ii<a.size() && jj<8; jj++,ii++) {
 
 						if(a[ii] >= 'A' && a[ii] <= 'F') {
@@ -176,11 +173,6 @@ public:
 						} else 
 							break;
 					}
-#ifdef DEBUG
-					for(size_t jj=0; jj<4; jj++) 
-						cerr << rgba[jj] << ",";
-					cerr << endl;
-#endif //DEBUG
 				} else if(a[ii] == 'r') { // red
 					rgba[0] = 255; rgba[1] = 0; rgba[2] = 0; rgba[3] = 255;
 				} else if(a[ii] == 'g') { // green
