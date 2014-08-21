@@ -29,10 +29,10 @@ def build(bld):
             source = 'mrimage_utils.cpp', 
             export_includes = ['.'],
             use='ZLIB slicer mrimage ndarray_utils kslicer') 
-    bld.shlib( target = 'fractfft', 
-            source = 'fract_fft.cpp ', 
-            export_includes = ['.'],
-            use='FFTW utility basic_plot')
+#    bld.shlib( target = 'fractfft', 
+#            source = 'fract_fft.cpp ', 
+#            export_includes = ['.'],
+#            use='FFTW utility basic_plot')
     bld.shlib( target = 'npltypes', 
             source = 'npltypes.cpp ', 
             export_includes = ['.'])
@@ -45,5 +45,6 @@ def build(bld):
             export_includes = ['.'])
     bld.shlib( target = 'chirpz', 
             source = 'chirpz.cpp', 
+            use = 'basic_plot FFTW',
             export_includes = ['.'])
 

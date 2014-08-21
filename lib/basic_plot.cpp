@@ -434,7 +434,7 @@ int Plotter::writeSVG(size_t xres, size_t yres, std::string fname)
 		assert(xarr.size() == yarr.size());
 
 		o << "<polyline fill=\"none\" points=\"";
-		for(size_t ii=0; ii<xarr.size(); ii++) {
+		for(size_t ii=1; ii<xarr.size(); ii++) {
 			double x = (xarr[ii-1]-xrange[0])/xstep;
 			double y = (yarr[ii-1]-yrange[0])/ystep;
 			o << x << "," << y << " ";
@@ -447,7 +447,7 @@ int Plotter::writeSVG(size_t xres, size_t yres, std::string fname)
 	
 	// functions
 	for(auto& func: funcs) {
-		auto& sty = std::get<0>(func);
+//		auto& sty = std::get<0>(func);
 		auto& foo = std::get<1>(func);
 
 		double xx = xrange[0];
@@ -465,8 +465,6 @@ int Plotter::writeSVG(size_t xres, size_t yres, std::string fname)
 
 	// create axis
 	o << "<path d=\" ";
-	size_t MINTICKS = 2;
-	double bound = 40;
 	double ticklen = 5;
 	o << "M0 " << yres << " V0 H " << xres;
 

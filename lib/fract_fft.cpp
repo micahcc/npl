@@ -41,47 +41,6 @@ using std::complex;
 
 namespace npl {
 
-void writePlotReIm(std::string file, size_t insz, fftw_complex* in)
-{
-	std::vector<double> realv(insz);
-	std::vector<double> imv(insz);
-	for(size_t ii=0; ii<insz; ii++) {
-		realv[ii] = in[ii][0];
-		imv[ii] = in[ii][1];
-	}
-
-	Plotter plt;
-	plt.addArray(insz, realv.data());
-	plt.addArray(insz, imv.data());
-	plt.write(file);
-}
-
-void writePlotAbsAng(std::string file, size_t insz, fftw_complex* in)
-{
-	double phasemax = -INFINITY;
-	double phasemin = INFINITY;
-	double absmax = -INFINITY;
-	double absmin = INFINITY;
-	std::vector<double> absv(insz);
-	std::vector<double> angv(insz);
-	for(size_t ii=0; ii<insz; ii++) {
-		angv[ii] = atan2(in[ii][0], in[ii][1]);
-		absv[ii] = sqrt(pow(in[ii][0],2)+pow(in[ii][1],2));
-		phasemax = std::max(phasemax, angv[ii]);
-		absmax = std::max(absmax, absv[ii]);
-		phasemin = std::min(phasemin, angv[ii]);
-		absmin = std::min(absmin, absv[ii]);
-	}
-
-	std::cerr << "File: " << file << std::endl; 
-	std::cerr << "Phase Range: " << phasemin << ", " << phasemax << std::endl;
-	std::cerr << "Abs Range: " << absmin << ", " << absmax << std::endl;
-	Plotter plt;
-	plt.addArray(insz, absv.data());
-	plt.addArray(insz, angv.data());
-	plt.write(file);
-}
-
 
 /**
  * @brief Fills the input array (chirp) with a chirp of the specified type
