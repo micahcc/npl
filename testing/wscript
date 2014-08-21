@@ -168,10 +168,15 @@ def build(bld):
             use='ndarray_utils utility mrimage_utils iterators EIGEN') 
 
     bld.program(install_path='${PREFIX}/tests', features='test',
-            target='pseudopolar_test', 
-            source='pseudopolar_test.cpp', 
-            use='tgaImage fractfft ndarray_utils utility mrimage_utils iterators EIGEN') 
-
+            target='chirpz_test', 
+            source='chirpz_test.cpp', 
+            use='chirpz') 
+    
+#    bld.program(install_path='${PREFIX}/tests', features='test',
+#            target='pseudopolar_test', 
+#            source='pseudopolar_test.cpp', 
+#            use='tgaImage fractfft ndarray_utils utility mrimage_utils iterators EIGEN') 
+#
 #    bld.program(install_path='${PREFIX}/tests', #features='test',
 #            target='fft_compute_axis', 
 #            source='fft_compute_axis.cpp', 

@@ -43,5 +43,7 @@ def build(bld):
     bld.shlib( target = 'basic_plot', 
             source = 'basic_plot.cpp', 
             export_includes = ['.'])
-
+    bld.shlib( target = 'chirpz', 
+            source = 'chirpz.cpp', 
+            export_includes = ['.'])
 
