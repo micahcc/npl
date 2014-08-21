@@ -37,6 +37,7 @@ using namespace std;
 
 int testPowerFFT(size_t length, double alpha)
 {
+	const double PI = acos(-1);
 	auto line = fftw_alloc_complex(length);
 	auto line_brute = fftw_alloc_complex(length);
 	auto line_fft = fftw_alloc_complex(length);
@@ -56,8 +57,6 @@ int testPowerFFT(size_t length, double alpha)
 	for(size_t ii=0; ii<length; ii++) 
 		line[ii][0] /= sum;
 	
-	//writePlotReIm("input.svg", length, line);
-
 	writePlotReIm("input.svg", length, line);
 	chirpzFT_brute(length, line, line_brute, alpha);
 	chirpzFFT(length, line, line_fft, alpha);
@@ -67,16 +66,19 @@ int testPowerFFT(size_t length, double alpha)
 
 	for(size_t ii=0; ii<length; ii++) {
 		complex<double> a(line_brute[ii][0], line_brute[ii][1]);
-		complex<double> b(line[ii][0], line[ii][1]);
+		complex<double> b(line_fft[ii][0], line_fft[ii][1]);
 		
-		if(abs(abs(a) - abs(b)) > 0.001) {
+		if(abs(a.real() - b.real()) > 0.1) {
 			cerr << "Error, absolute difference in chirpzFFT" << endl;
+			cerr << a.real() << " vs " << b.real() << endl;
 			return -1;
 		}
-		if(abs(arg(a) - arg(b)) > 0.1) {
-			cerr << "Error, angle difference in chirpzFFT" << endl;
+		if(abs(a.imag() - b.imag()) > 0.1) {
+			cerr << "Error, absolute difference in chirpzFFT" << endl;
+			cerr << a.imag() << " vs " << b.imag() << endl;
 			return -1;
 		}
+		
 	}
 
 	return 0;

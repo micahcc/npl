@@ -373,7 +373,7 @@ vector<double> getRegressor(vector<vector<double>>& spec,
 	vector<double> tseries(ntimes*upsample);
 	
 	// fill tseries with 0's
-	for(int ii=0; ii<tseries.length(); ii++)
+	for(int ii=0; ii < tseries.size(); ii++)
 		tseries[ii] = 0;
 
 	if(spec[0].size() == 3) {
@@ -386,7 +386,7 @@ vector<double> getRegressor(vector<vector<double>>& spec,
 			int64_t itstart  = lround((tstart-t0)*upsample/tr);
 			int64_t itstop = lround((tstop-t0)*upsample/tr);
 			for(int64_t it=itstart; it<=itstop; it++) {
-				if(it < 0 || it >= tseries.length()) 
+				if(it < 0 || it >= tseries.size()) 
 					continue;
 
 				if(!warned && tseries[it] != 0) {
@@ -404,7 +404,7 @@ vector<double> getRegressor(vector<vector<double>>& spec,
 		for(size_t ii=0; ii<spec.size(); ii++) {
 			double tstart=spec[ii][0];
 			int64_t it = lround((tstart-t0)*upsample/tr);
-			if(it >= 0 && it < tseries.length()) {
+			if(it >= 0 && it < tseries.size()) {
 				tseries[it] = 1;
 			}
 		}
@@ -500,7 +500,18 @@ double cannonHrf(double t)
 void convolve(std::vector<double>& signal, double(*foo)(double),
 		double tr, double length)
 {
-	
+	std::vector<double> kern(length/tr);
+	for(size_t ii=0; ii<kern.size(); ii++) 
+		kern[ii] = foo(ii*tr);
+
+	std::vector<double> tmp(signal);
+	for(int64_t ii=0; ii<signal.size(); ii++) {
+		signal[ii] = 0;
+		for(int64_t jj=0; jj<kern.size(); jj++) {
+			if(jj-ii >= 0) 
+				signal[ii] += tmp[ii]*kern[jj-ii];
+		}
+	}
 }
 
 } // NPL

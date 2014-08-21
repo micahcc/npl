@@ -163,8 +163,6 @@ double cannonHrf(double t, double rdelay, double udelay, double rdisp,
  */
 double cannonHrf(double t);
 
-}
-
 /**
  * @brief Takes a 1 or 3 column format of regressor and produces
  * a timeseries sampeled every tr, starting at time t0, and running
@@ -221,6 +219,7 @@ std::vector<double> getRegressor(std::vector<std::vector<double>>& spec,
  */
 void convolve(std::vector<double>& signal, double(*foo)(double),
 		double tr, double length);
+
 }
 #endif // UTILITY_FUNCTIONS_H
 

@@ -28,7 +28,7 @@
 #include "basic_plot.h"
 
 using namespace std;
-#define DEBUG
+//#define DEBUG
 
 namespace npl {
 
