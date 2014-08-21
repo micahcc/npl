@@ -190,31 +190,6 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, size_t ldim)
 	return oimg;
 }
 
-
-void writeAngle(string filename, shared_ptr<const MRImage> in)
-{
-	OrderConstIter<cdouble_t> iit(in);
-	auto out = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
-	OrderIter<double> oit(out);
-	for(iit.goBegin(), oit.goBegin(); !iit.eof() && !oit.eof(); ++iit, ++oit) {
-		oit.set(std::arg(*iit));
-	}
-
-	out->write(filename);
-}
-
-void writeAbs(string filename, shared_ptr<const MRImage> in)
-{
-	OrderConstIter<cdouble_t> iit(in);
-	auto out = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
-	OrderIter<double> oit(out);
-	for(iit.goBegin(), oit.goBegin(); !iit.eof() && !oit.eof(); ++iit, ++oit) {
-		oit.set(std::abs(*iit));
-	}
-
-	out->write(filename);
-}
-
 /**
  * @brief Fills the input array (chirp) with a chirp of the specified type
  *
