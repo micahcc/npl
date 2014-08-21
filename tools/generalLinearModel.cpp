@@ -30,6 +30,7 @@
 #include "iterators.h"
 #include "accessors.h"
 #include "utility.h"
+#include "basic_plot.h"
 
 using std::string;
 using namespace npl;
@@ -48,7 +49,7 @@ int main(int argc, char** argv)
 			' ', __version__ );
 
 	TCLAP::ValueArg<string> a_fmri("i", "input", "fMRI image.",
-			true, "*.nii.gz", cmd);
+			true, "", "*.nii.gz", cmd);
 	TCLAP::MultiArg<string> a_events("e", "event-reg", "Event-related regression "
 			"variable. Three columns, ONSET DURATION VALUE. If these overlap, "
 			"an error will be thrown. ", false, "*.txt", cmd);
@@ -72,13 +73,11 @@ int main(int argc, char** argv)
 	}
 	assert(fmri->tlen() == fmri->dim(3));
 	int tlen = fmri->tlen();
-	double TR = fmri->space()[3];
+	double TR = fmri->spacing()[3];
 
 	// read the event-related designs, will have rows to match time, and cols
 	// to match number of regressors
 	MatrixXd X(tlen, a_events.getValue().size());
-	const double dt = 0.1
-	vector<double> upsampled(tlen*TR/dt, NAN);
 	size_t regnum = 0;
 	for(auto it=a_events.begin(); it != a_events.end(); it++, regnum++) {
 		auto events = readNumericCSV(*it);
@@ -89,7 +88,7 @@ int main(int argc, char** argv)
 
 		// copy to output
 		for(size_t ii=0; ii<tlen; ii++) 
-			X(ii, regnum) = v(ii*TR/dt);
+			X(ii, regnum) = v[ii];
 	}
 
 	Eigen::VectorXd y(tlen);

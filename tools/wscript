@@ -11,5 +11,5 @@ def build(bld):
             source = 'copyOrientation.cpp', use = 'mrimage_utils tclap')
     bld.program(target = 'nplGLM', 
             source = 'generalLinearModel.cpp', 
-            use = 'mrimage_utils EIGEN tclap utility')
+            use = 'mrimage_utils EIGEN tclap utility basic_plot')
 
