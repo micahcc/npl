@@ -35,9 +35,9 @@ using namespace npl;
 using namespace std;
 
 
-int testPowerFFT(size_t length, double alpha)
+int testChirpz(size_t length, double alpha)
 {
-	const double PI = acos(-1);
+	cerr << "Testing length = " << length << " with alpha = " << alpha << endl;
 	auto line = fftw_alloc_complex(length);
 	auto line_brute = fftw_alloc_complex(length);
 	auto line_fft = fftw_alloc_complex(length);
@@ -87,7 +87,15 @@ int testPowerFFT(size_t length, double alpha)
 int main()
 {
 	// test the 'Power' Fourier Transform
-	if(testPowerFFT(128, .95) != 0)
+	if(testChirpz(128, .95) != 0)
+		return -1;
+	if(testChirpz(1024, .95) != 0)
+		return -1;
+	if(testChirpz(321, .95) != 0)
+		return -1;
+	if(testChirpz(727, .15) != 0)
+		return -1;
+	if(testChirpz(727, .55) != 0)
 		return -1;
 
 	return 0;
