@@ -171,10 +171,9 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in)
 			fftw_execute(fwd);
 			
 			// copy/shift
-			double normf = 1./osize[dd];
 			it.goChunkBegin();
 			for(size_t tt=osize[dd]/2; !it.isChunkEnd(); ++it) {
-				cdouble_t tmp(buffer[tt][0]*normf, buffer[tt][1]*normf);
+				cdouble_t tmp(buffer[tt][0], buffer[tt][1]);
 				it.set(tmp);
 				tt=(tt+1)%osize[dd];
 			}
@@ -183,6 +182,15 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in)
 		fftw_free(buffer);
 		fftw_destroy_plan(fwd);
 	}
+
+	double normf = 1;
+	for(size_t dd=0; dd<oimg->ndim(); dd++)
+		normf *= oimg->dim(dd);
+	normf = 1./normf;
+	for(OrderIter<cdouble_t> it(oimg); !it.eof(); ++it) {
+		it.set(normf*it.get());
+	}
+
 	writeComplex("padded_fft", oimg);
 	
 	return oimg;
@@ -321,17 +329,22 @@ int testPseudoPolar()
 
 	// fill with square
 	OrderIter<double> sit(in);
+	double sum = 0;
 	while(!sit.eof()) {
 		sit.index(3, index);
-		if(index[0] > 2*sz[0]/5 && index[0] < 3*sz[0]/5 && 
-				index[1] > 2*sz[1]/5 && index[1] < 3*sz[1]/5 && 
-				index[2] > 2*sz[2]/5 && index[2] < 3*sz[2]/5) {
+		if(index[0] > 3*sz[0]/5 && index[0] < 4*sz[0]/5 && 
+				index[1] > 1*sz[1]/5 && index[1] < 2*sz[1]/5 && 
+				index[2] > 1*sz[2]/5 && index[2] < 3*sz[2]/5) {
 			sit.set(1);
+			sum += 1;
 		} else {
 			sit.set(0);
 		}
 		++sit;
 	}
+	
+	for(sit.goBegin(); !sit.eof(); ++sit) 
+		sit.set(sit.get()/sum);
 	
 	// test the pseudopolar transforms
 	for(size_t dd=0; dd<3; dd++) {

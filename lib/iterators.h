@@ -911,7 +911,7 @@ public:
 	 *
 	 * @return current value
 	 */
-	void set(const T& v)
+	void set(T v)
 	{
 		this->castset(parent->__getAddr(Slicer::operator*()), v);
 	};
@@ -1515,7 +1515,7 @@ public:
 	 *
 	 * @return current value
 	 */
-	void set(const T& v)
+	void set(T v)
 	{
 		this->castset(parent->__getAddr(ChunkSlicer::operator*()), v);
 	};
@@ -2091,7 +2091,7 @@ public:
 	 * @brief Set the value at the ith element of thevector
 	 *
 	 */
-	void set(int64_t i, const T& v)
+	void set(int64_t i, T v)
 	{
 		this->castset(parent->__getAddr(Slicer::operator*()+i), v);
 	};
@@ -2100,7 +2100,7 @@ public:
 	 * @brief Set the value at the 0th element of the vector
 	 *
 	 */
-	void set(const T& v)
+	void set(T v)
 	{
 		this->castset(parent->__getAddr(Slicer::operator*()), v);
 	};
