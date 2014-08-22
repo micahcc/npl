@@ -43,6 +43,26 @@ using Eigen::Matrix3d;
 using Eigen::Vector3d;
 using Eigen::AngleAxisd;
 
+void writeComplex(string basename, shared_ptr<const MRImage> in)
+{
+	auto re = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
+	auto im = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
+
+	OrderIter<double> rit(re);
+	OrderIter<double> iit(im);
+	OrderConstIter<cdouble_t> init(in);
+	while(!init.eof()) {
+		iit.set((*init).imag());
+		rit.set((*init).real());
+		++init;
+		++rit;
+		++iit;
+	}
+
+	re->write(basename + "_re.nii.gz");
+	im->write(basename + "_im.nii.gz");
+}
+
 /**
  * @brief Performs a rotation of the image first by rotating around z, then
  * around y, then around x.
@@ -120,35 +140,15 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in)
 	for(size_t ii=0; ii<3; ii++) 
 		osize[ii] = round2(in->dim(ii));
 
-	auto oimg = createMRImage(3, osize.data(), COMPLEX128);
-	cerr << "Input:\n" << in << "\nPadded:\n" << oimg << endl;
-	
-	std::vector<int64_t> shift(3,0);
-	for(size_t dd=0; dd<3; dd++) 
-		shift[dd] = (osize[dd]-in->dim(dd))/2;
+	auto oimg = dynamic_pointer_cast<MRImage>(in->copyCast(osize.size(),
+			osize.data(), COMPLEX128));
 	
 	// copy data
-	NDConstAccess<cdouble_t> inview(in);
 	std::vector<int64_t> index(in->ndim());
-	for(OrderIter<cdouble_t> it(oimg); !it.isEnd(); ++it) {
-		it.index(index.size(), index.data());
-		
-		bool outside = false;
-		for(size_t dd=0; dd<3; dd++) {
-			index[dd] -= shift[dd];
-			if(index[dd] < 0 || index[dd] >= in->dim(dd))
-				outside = true;
-		}
-
-		if(outside) 
-			it.set(0);
-		else
-			it.set(inview[index]);
-	}
-#ifdef DEBUG
+//#ifdef DEBUG
 	in->write("prepadded.nii.gz");
-	oimg->write("padded.nii.gz");
-#endif //DEBUG
+	writeComplex("padded", oimg);
+//#endif //DEBUG
 
 	// fourier transform
 	for(size_t dd = 0; dd < 3; dd++) {
@@ -162,7 +162,7 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in)
 			it.index(index.size(), index.data());
 
 			// fill from line
-			for(size_t tt=0; !it.isChunkEnd(); ++it, tt++) {
+			for(size_t tt=0; !it.eoc(); ++it, tt++) {
 				buffer[tt][0] = (*it).real();
 				buffer[tt][1] = (*it).imag();
 			}
@@ -172,6 +172,7 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in)
 			
 			// copy/shift
 			double normf = 1./osize[dd];
+			it.goChunkBegin();
 			for(size_t tt=osize[dd]/2; !it.isChunkEnd(); ++it) {
 				cdouble_t tmp(buffer[tt][0]*normf, buffer[tt][1]*normf);
 				it.set(tmp);
@@ -182,7 +183,7 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in)
 		fftw_free(buffer);
 		fftw_destroy_plan(fwd);
 	}
-	oimg->write("padded_fftd.nii.gz");
+	writeComplex("padded_fft", oimg);
 	
 	return oimg;
 }
@@ -278,9 +279,8 @@ shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 		for(it.goBegin(); !it.eof(); it.nextChunk()) {
 			it.index(index);
 			
-			alpha = (2*index[prdim]-out->dim(prdim)+1)/in->dim(prdim);
-
 			// recompute chirps if alpha changed
+			alpha = 2*(index[prdim]/(double)out->dim(prdim)) - 1;
 			if(alpha != prevAlpha) {
 				cerr << "Recomputing chirps for alpha = " << alpha << endl;
 				createChirp(uppadsize, nchirp, isize, upratio, -alpha, false);
@@ -323,9 +323,9 @@ int testPseudoPolar()
 	OrderIter<double> sit(in);
 	while(!sit.eof()) {
 		sit.index(3, index);
-		if(index[0] > sz[0]/4 && index[0] < sz[0]/3 && 
-				index[1] > sz[1]/5 && index[1] < sz[1]/2 && 
-				index[2] > sz[2]/3 && index[2] < 2*sz[2]/3) {
+		if(index[0] > 2*sz[0]/5 && index[0] < 3*sz[0]/5 && 
+				index[1] > 2*sz[1]/5 && index[1] < 3*sz[1]/5 && 
+				index[2] > 2*sz[2]/5 && index[2] < 3*sz[2]/5) {
 			sit.set(1);
 		} else {
 			sit.set(0);
@@ -335,8 +335,12 @@ int testPseudoPolar()
 	
 	// test the pseudopolar transforms
 	for(size_t dd=0; dd<3; dd++) {
+		cerr << "Computing With PseudoRadius = " << dd << endl;
 		auto pp1_fft = pseudoPolar(in, dd);
 		auto pp1_brute = pseudoPolarBrute(in, dd);
+
+		writeComplex("fft_pp"+to_string(dd), pp1_fft);
+		writeComplex("brute_pp"+to_string(dd), pp1_brute);
 		if(closeCompare(pp1_fft, pp1_brute) != 0) {
 			cerr << "FFT and BruteForce pseudopolar differ" << endl;
 			return -1;
