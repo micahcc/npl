@@ -32,7 +32,7 @@
 #include "accessors.h"
 #include "basic_functions.h"
 #include "basic_plot.h"
-#include "fract_fft.h"
+#include "chirpz.h"
 
 #include "fftw3.h"
 
@@ -110,19 +110,15 @@ int closeCompare(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b)
 	return 0;
 }
 
-shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, size_t ldim)
+shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in)
 {
 	if(in->ndim() != 3) {
 		throw std::invalid_argument("Error, input image should be 3D!");
 	}
 
 	std::vector<size_t> osize(3, 0);
-	for(size_t ii=0; ii<3; ii++) {
+	for(size_t ii=0; ii<3; ii++) 
 		osize[ii] = round2(in->dim(ii));
-		if(ldim != ii)
-			osize[ldim] += in->dim(ii);
-	}
-	osize[ldim] = round2(osize[ldim]+1);
 
 	auto oimg = createMRImage(3, osize.data(), COMPLEX128);
 	cerr << "Input:\n" << in << "\nPadded:\n" << oimg << endl;
@@ -149,9 +145,10 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, size_t ldim)
 		else
 			it.set(inview[index]);
 	}
-
+#ifdef DEBUG
 	in->write("prepadded.nii.gz");
 	oimg->write("padded.nii.gz");
+#endif //DEBUG
 
 	// fourier transform
 	for(size_t dd = 0; dd < 3; dd++) {
@@ -194,35 +191,35 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, size_t ldim)
  * @brief 
  *
  * @param in		Input Image (in normal space)
- * @param praddim	Pseudo-Radius dimension
+ * @param prdim	Pseudo-Radius dimension
  *
  * @return 			Pseudo-polar space image
  */
-shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t praddim)
+shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t prdim)
 {
 	if(in->ndim() != 3) 
 		return NULL;
 
-	shared_ptr<MRImage> out = padFFT(in, praddim);
-	shared_ptr<MRImage> tmp = padFFT(in, praddim);
+	shared_ptr<MRImage> out = padFFT(in);
+	shared_ptr<MRImage> tmp = padFFT(in);
 
 	// interpolate along lines
 	std::vector<double> index(3);
 	std::vector<double> index2(3);
-	LinInterp3DView interp(out);
-	for(OrderIter oit(out); !oit.eof(); ++oit) {
+	LinInterp3DView<cdouble_t> interp(out);
+	for(OrderIter<cdouble_t> oit(out); !oit.eof(); ++oit) {
 		oit.index(index.size(), index.data());
 		
 		// make index into slope, then back to a flat index
 		for(size_t ii=0; ii<3; ii++) {
-			if(ii != praddim)
+			if(ii != prdim)
 				index[ii] = 2*(index[ii] - (in->dim(ii)-1)/2.)/(in->dim(ii)-1.);
 		}
 
 		// centered radius
-		double crad = index[praddim]-(in->dim(praddim)-1.)/2.;
+		double crad = index[prdim]-(in->dim(prdim)-1.)/2.;
 		for(size_t ii=0; ii<3; ii++) {
-			if(ii != praddim) {
+			if(ii != prdim) {
 				index2[ii] = crad*index[ii];
 			} else { 
 				// pseudo radius
@@ -230,45 +227,38 @@ shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t praddim)
 			}
 		}
 
-		out.set(interp(index2));
+		oit.set(interp(index2[0], index2[1], index2[2]));
 	}
 
 	return out;
 }
 
-shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t praddim)
+shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 {
-	assert(out->dim(praddim) >= out->dim(0));
-	assert(out->dim(praddim) >= out->dim(1));
-	assert(out->dim(praddim) >= out->dim(2));
-
 	// create output
-	shared_ptr<MRImage> out = padFFT(in, praddim);
+	shared_ptr<MRImage> out = padFFT(in);
 
 	// declare variables
 	std::vector<int64_t> index(out->ndim()); 
 	const double approxratio = 2; // how much to upsample by
-	size_t buffsize = 0; // minimum buffer size needed
-	
-	// figure out which lines to break up (non praddim's)
-	size_t line[2];
+
+	// compute/initialize buffer
+	size_t buffsize = [&]
 	{
-		size_t ll = 0;
+		size_t m = 0;
 		for(size_t dd=0; dd<3; dd++) {
-			if(dd != praddim) {
-				line[ll++] = dd;
-				if(out->dim(dd) > buffsize)
-					buffsize = out->dim(dd);
+			if(dd != prdim) {
+				if(out->dim(dd) > m)
+					m = out->dim(dd);
 			}
 		}
-	}
+		return m*16;
+	}();
 
-
-	buffsize *= 16;
-	fftw_complex* buffer = fftw_alloc_complex(bsz);
+	fftw_complex* buffer = fftw_alloc_complex(buffsize);
 
 	for(size_t dd=0; dd<3; dd++) {
-		if(dd == praddim)
+		if(dd == prdim)
 			continue;
 
 		size_t isize = out->dim(dd);
@@ -281,93 +271,48 @@ shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t praddim)
 
 		assert(buffsize >= isize+3*uppadsize);
 		
-		ChunkIter it(out);
+		ChunkIter<cdouble_t> it(out);
 		it.setLineChunk(dd);
-		it.setOrder({praddim}, true); // make pseudoradius slowest
-		double alpha, prevAlpha;
+		it.setOrder({prdim}, true); // make pseudoradius slowest
+		double alpha, prevAlpha = NAN;
 		for(it.goBegin(); !it.eof(); it.nextChunk()) {
 			it.index(index);
 			
-			alpha = (2*index[praddim]-out->dim(praddim)+1)/in->dim(praddim);
+			alpha = (2*index[prdim]-out->dim(prdim)+1)/in->dim(prdim);
 
 			// recompute chirps if alpha changed
-			if(alhpa != prevAlpha) {
+			if(alpha != prevAlpha) {
 				cerr << "Recomputing chirps for alpha = " << alpha << endl;
-				createChirp(uppadsize, nchirp, isize, upratio, -a, false);
-				createChirp(uppadsize, pchirp, isize, upratio, a, true);
+				createChirp(uppadsize, nchirp, isize, upratio, -alpha, false);
+				createChirp(uppadsize, pchirp, isize, upratio, alpha, true);
 			}
 
-			for(it.goChunkBegin(); !it.eoc(); ++it) {
-
+			// copy from input image
+			it.goChunkBegin();
+			for(size_t ii=0; !it.eoc(); ii++, ++it) {
+				current[ii][0] = (*it).real();
+				current[ii][1] = (*it).imag();
 			}
-
+		
+			// compute chirpz transform
+			// TODO buffer[isize] contains an upsampled version, use that 
+			chirpzFFT(isize, usize, current, uppadsize, &buffer[isize], nchirp, pchirp);
+			
+			// copy from buffer back to output
+			it.goChunkBegin();
+			for(size_t ii=0; !it.eoc(); ii++, ++it) {
+				cdouble_t tmp(current[ii][0], current[ii][1]);
+				it.set(tmp);
+			}
 			prevAlpha = alpha;
-		}
-
-
-		// copy input to buffer
-		for(size_t ii=0; ii<isize; ii++) {
-			current[ii][0] = in[ii][0];
-			current[ii][1] = in[ii][1];
-		}
-
-		chirpzFFT(isize, usize, current, uppadsize, &buffer[isize], nchirp, pchirp);
-
-		// copy current to output
-		for(size_t ii=0; ii<isize; ii++) {
-			out[ii][0] = current[ii][0];
-			out[ii][1] = current[ii][1];
-		}
 		}
 	}
 	fftw_free(buffer);
 
-	worksize = buffsize*16;
-	
-	// take the longest line for the buffer
-	auto linebuf = fftw_alloc_complex((int)buffsize);
-	auto fullbuf = fftw_alloc_complex((int)worksize);
-	
-	// process the non-praddim limnes
-//	for(size_t ii=0; ii<2; ii++) {
-//
-//		size_t linelen = in->dim(line[ii]);
-//		fftw_plan rev = fftw_plan_dft_1d((int)linelen, linebuf, linebuf, 
-//				FFTW_BACKWARD, FFTW_MEASURE);
-//
-//		ChunkIter<cdouble_t> it(in);
-//		it.setLineChunk(line[ii]);
-//		cerr << "PP: " << praddim << ", " << line[ii] << " line" << endl;
-//		for(it.goBegin(); !it.isEnd() ; it.nextChunk()) {
-//			it.index(index.size(), index.data());
-//
-//			// fill from line
-//			for(size_t tt=0; !it.isChunkEnd(); ++it, tt++) {
-//				linebuf[tt][0] = (*it).real();
-//				linebuf[tt][1] = (*it).imag();
-//			}
-//
-//			// un-fourier transform
-//			fftw_execute(rev);
-//
-//			// perform powerFFT transform
-//			int64_t k = index[praddim]-((int64_t)in->dim(praddim)/2);
-//			double n = in->dim(praddim);
-//			double a = 2*k/n; // -3n/2 <= k <= 3n/2, -3 <= alpha <= 3
-//			cerr << "k: " << k << ", a: " << a << endl;
-//			powerFFT((int64_t)linelen, linebuf, linebuf, a, &worksize, &fullbuf);
-//		}
-//
-//		fftw_destroy_plan(rev);
-//	}
-//	
-	fftw_free(linebuf);
-	fftw_free(fullbuf);
-
 	return out;
 }
 
-int testPseudoPolar(size_t dim, double alpha)
+int testPseudoPolar()
 {
 	// create an image
 	int64_t index[3];
@@ -391,7 +336,7 @@ int testPseudoPolar(size_t dim, double alpha)
 	// test the pseudopolar transforms
 	for(size_t dd=0; dd<3; dd++) {
 		auto pp1_fft = pseudoPolar(in, dd);
-		auto pp1_brute = pseudoPolarBrute(img1, dd);
+		auto pp1_brute = pseudoPolarBrute(in, dd);
 		if(closeCompare(pp1_fft, pp1_brute) != 0) {
 			cerr << "FFT and BruteForce pseudopolar differ" << endl;
 			return -1;
@@ -404,7 +349,7 @@ int testPseudoPolar(size_t dim, double alpha)
 int main()
 {
 	// test the 'Power' Fourier Transform
-	if(testPseudoPolar(128, 1) != 0)
+	if(testPseudoPolar() != 0)
 		return -1;
 
 //	if(testPseudoPolar() != 0) 
