@@ -161,10 +161,11 @@ cdouble_t& cdouble_t::operator=(const cquad_t& v)
 ////cdouble_t::cdouble_t(double v) : std::complex<double>(v) {}
 ////cdouble_t::cdouble_t(float v) : std::complex<double>(v) {}
 ////cdouble_t::cdouble_t(int64_t v) : std::complex<double>(v) {}
-cdouble_t::cdouble_t(const cfloat_t& v): std::complex<double>(v) {}
-cdouble_t::cdouble_t(const cquad_t& v): std::complex<double>(v) {}
-cdouble_t::cdouble_t(const std::complex<float>& v): std::complex<double>(v) {}
-cdouble_t::cdouble_t(const std::complex<long double>& v): std::complex<double>(v) {}
+cdouble_t::cdouble_t(const cfloat_t& v): std::complex<double>(v.real(), v.imag()) {}
+cdouble_t::cdouble_t(const cquad_t& v): std::complex<double>(v.real(), v.imag()) {}
+cdouble_t::cdouble_t(const std::complex<float>& v): std::complex<double>(v.real(), v.imag()) {}
+cdouble_t::cdouble_t(const std::complex<double>& v): std::complex<double>(v.real(), v.imag()) {}
+cdouble_t::cdouble_t(const std::complex<long double>& v): std::complex<double>(v.real(), v.imag()) {}
 //cdouble_t::cdouble_t(rgb_t v): std::complex<double>((double)v) {}
 //	
 ////////////////////////////////////////////////////////
@@ -218,10 +219,11 @@ cfloat_t::operator uint8_t() const {
 //	return std::complex<double>(real(), imag());
 //};
 //
-cfloat_t::cfloat_t(const cdouble_t& v): std::complex<float>(v) {}
-cfloat_t::cfloat_t(const cquad_t& v): std::complex<float>(v) {}
-cfloat_t::cfloat_t(const std::complex<double>& v): std::complex<float>(v) {}
-cfloat_t::cfloat_t(const std::complex<long double>& v): std::complex<float>(v) {}
+cfloat_t::cfloat_t(const cdouble_t& v): std::complex<float>(v.real(), v.imag()) {}
+cfloat_t::cfloat_t(const cquad_t& v): std::complex<float>(v.real(), v.imag()) {}
+cfloat_t::cfloat_t(const std::complex<float>& v): std::complex<float>(v.real(), v.imag()) {}
+cfloat_t::cfloat_t(const std::complex<double>& v): std::complex<float>(v.real(), v.imag()) {}
+cfloat_t::cfloat_t(const std::complex<long double>& v): std::complex<float>(v.real(), v.imag()) {}
 //cfloat_t::cfloat_t(rgba_t v) : std::complex<float>((float)v) {}
 //cfloat_t::cfloat_t(rgb_t v) : std::complex<float>((float)v) {}
 
@@ -311,10 +313,11 @@ cquad_t::operator uint8_t() const {
 //cquad_t::cquad_t(double v) : std::complex<float>(v) {}
 //cquad_t::cquad_t(float v) : std::complex<float>(v) {}
 //cquad_t::cquad_t(int64_t v) : std::complex<float>(v) {}
-cquad_t::cquad_t(const cdouble_t& v): std::complex<long double>(v) {}
-cquad_t::cquad_t(const cfloat_t& v): std::complex<long double>(v) {}
-cquad_t::cquad_t(const std::complex<double>& v): std::complex<long double>(v) {}
-cquad_t::cquad_t(const std::complex<float>& v): std::complex<long double>(v) {}
+cquad_t::cquad_t(const cfloat_t& v): std::complex<long double>(v.real(), v.imag()) {}
+cquad_t::cquad_t(const cdouble_t& v): std::complex<long double>(v.real(), v.imag()) {}
+cquad_t::cquad_t(const std::complex<float>& v): std::complex<long double>(v.real(), v.imag()) {}
+cquad_t::cquad_t(const std::complex<double>& v): std::complex<long double>(v.real(), v.imag()) {}
+cquad_t::cquad_t(const std::complex<long double>& v): std::complex<long double>(v.real(), v.imag()) {}
 //cquad_t::cquad_t(rgba_t v) : std::complex<long double>((long double)v) {}
 //cquad_t::cquad_t(rgb_t v) : std::complex<long double>((long double)v) {}
 

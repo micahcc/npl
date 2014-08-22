@@ -55,6 +55,7 @@ struct cdouble_t: public std::complex<double>
 	explicit cdouble_t(const cquad_t&);
 	explicit cdouble_t(const std::complex<float>& );
 	explicit cdouble_t(const std::complex<long double>&);
+	cdouble_t(const std::complex<double>&);
 //	explicit cdouble_t(rgba_t);
 //	explicit cdouble_t(rgb_t);
 //	explicit cdouble_t(const unsigned char& c) : std::complex<double>((double)c) {};
@@ -89,6 +90,7 @@ struct cfloat_t : public std::complex<float>
 	explicit cfloat_t(const cquad_t&);
 	explicit cfloat_t(const std::complex<double>&);
 	explicit cfloat_t(const std::complex<long double>&);
+	cfloat_t(const std::complex<float>&);
 //	explicit cfloat_t(rgba_t);
 //	explicit cfloat_t(rgb_t);
 //	explicit cfloat_t(const unsigned char& c) : std::complex<float>((float)c) {};
@@ -123,6 +125,7 @@ struct cquad_t : public std::complex<long double>
 	explicit cquad_t(const cfloat_t&);
 	explicit cquad_t(const std::complex<float>&);
 	explicit cquad_t(const std::complex<double>&);
+	cquad_t(const std::complex<long double>&);
 //	explicit cquad_t(rgba_t);
 //	explicit cquad_t(rgb_t);
 //	
