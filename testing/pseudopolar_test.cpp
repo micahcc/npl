@@ -183,14 +183,6 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in)
 		fftw_destroy_plan(fwd);
 	}
 
-	double normf = 1;
-	for(size_t dd=0; dd<oimg->ndim(); dd++)
-		normf *= oimg->dim(dd);
-	normf = 1./normf;
-	for(OrderIter<cdouble_t> it(oimg); !it.eof(); ++it) {
-		it.set(normf*it.get());
-	}
-
 	writeComplex("padded_fft", oimg);
 	
 	return oimg;
