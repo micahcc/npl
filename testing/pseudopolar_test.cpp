@@ -218,7 +218,7 @@ shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t prdim)
 	LinInterp3DView<cdouble_t> interp(tmp);
 	for(OrderIter<cdouble_t> oit(out); !oit.eof(); ++oit) {
 		oit.index(index.size(), index.data());
-		cerr << "[" << index[0] << ", " << index[1] << ", " << index[2] << "]" <<  "->" ;
+//		cerr << "[" << index[0] << ", " << index[1] << ", " << index[2] << "]" <<  "->" ;
 		
 		// make index into slope, then back to a flat index
 		size_t jj=0;
@@ -226,12 +226,12 @@ shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t prdim)
 		for(size_t ii=0; ii<3; ii++) {
 			if(ii != prdim) {
 				double middle = (in->dim(ii)-1)/2.;
-				double slope = (index[ii]-middle)/middle;
+				double slope = (1+index[ii]-middle)/(middle+1);
 				angles[jj++] = slope;
 			}
 		}
-		cerr << "R: " << radius << ", 1: " << angles[0] << ", 2: " 
-				<< angles[1] << " -> ";
+//		cerr << "R: " << radius << ", 1: " << angles[0] << ", 2: " 
+//				<< angles[1] << " -> ";
 
 		// centered radius
 		jj = 0;
@@ -241,7 +241,7 @@ shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t prdim)
 			else
 				index2[ii] = radius+in->dim(ii)/2.;
 		}
-		cerr << "[" << index2[0] << ", " << index2[1] << ", " << index2[2] << "]" << endl;
+//		cerr << "[" << index2[0] << ", " << index2[1] << ", " << index2[2] << "]" << endl;
 
 		oit.set(interp(index2[0], index2[1], index2[2]));
 	}
@@ -277,6 +277,7 @@ shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 	for(size_t dd=0; dd<3; dd++) {
 		if(dd == prdim)
 			continue;
+		bool draw = true;
 
 		size_t isize = out->dim(dd);
 		int64_t usize = round2(isize*approxratio);
@@ -314,11 +315,22 @@ shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 				current[ii][1] = (*it).imag();
 				ii=(ii+1)%isize;
 			}
+
+			if(draw) {
+				writePlotReIm("preifft_"+to_string(dd)+".nii.gz", isize, current);
+			}
 			fftw_execute(plan);
+			if(draw) {
+				writePlotReIm("ifftd_"+to_string(dd)+".nii.gz", isize, current);
+			}
 		
 			// compute chirpz transform
 			// TODO buffer[isize] contains an upsampled version, use that 
 			chirpzFFT(isize, usize, current, uppadsize, &buffer[isize], nchirp, pchirp);
+			if(draw) {
+				writePlotReIm("chirped_"+to_string(dd)+".nii.gz", isize, current);
+				draw = false;
+			}
 			
 			// copy from buffer back to output
 			it.goChunkBegin();
@@ -405,10 +417,10 @@ int testPseudoPolar()
 	{
 		cerr << "Computing With PseudoRadius = " << dd << endl;
 		auto pp1_fft = pseudoPolar(in, dd);
-//		auto pp1_brute = pseudoPolarBrute(in, dd);
+		auto pp1_brute = pseudoPolarBrute(in, dd);
 
 		writeComplex("fft_pp"+to_string(dd), pp1_fft);
-//		writeComplex("brute_pp"+to_string(dd), pp1_brute);
+		writeComplex("brute_pp"+to_string(dd), pp1_brute);
 //		if(closeCompare(pp1_fft, pp1_brute) != 0) {
 //			cerr << "FFT and BruteForce pseudopolar differ" << endl;
 //			return -1;
