@@ -63,8 +63,8 @@ void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
  */
 void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout, 
 		size_t uppadsize, fftw_complex* buffer, fftw_complex* prechirp,
-		fftw_complex* convchirp, fftw_complex* postchirp, bool debug = false,
-		double a = 0);
+		fftw_complex* convchirp, fftw_complex* postchirp, bool debug = false);
+		
 
 /**
  * @brief Comptues the chirpzFFT transform using FFTW for n log n performance.

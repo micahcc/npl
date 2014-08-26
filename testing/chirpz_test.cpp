@@ -34,6 +34,10 @@
 using namespace npl;
 using namespace std;
 
+clock_t brute1_time = 0;
+clock_t brute2_time = 0;
+clock_t fft_time = 0;
+
 int testChirpz(size_t length, double alpha, bool debug = false)
 {
 	cerr << "Testing length = " << length << " with alpha = " << alpha << endl;
@@ -42,6 +46,7 @@ int testChirpz(size_t length, double alpha, bool debug = false)
 
 	auto line = fftw_alloc_complex(length);
 	auto line_brute = fftw_alloc_complex(length);
+	auto line_brute2 = fftw_alloc_complex(length);
 	auto line_fft = fftw_alloc_complex(length);
 	
 	// fill with a noisy square
@@ -49,7 +54,8 @@ int testChirpz(size_t length, double alpha, bool debug = false)
 	for(size_t ii=0; ii<length; ii++){ 
 		double v = 0;
 		if(ii > (length)/2. - 10 && ii < length/2. + 10) {
-			v = std::exp(-pow(ii-length/2.,2)/16);
+			v = 1;
+//			v = std::exp(-pow(ii-length/2.,2)/16);
 			line[ii][0] = v;
 			line[ii][1] = 0;
 			sum += v;
@@ -58,20 +64,33 @@ int testChirpz(size_t length, double alpha, bool debug = false)
 			line[ii][1] = 0;
 		}
 	}
-	cerr << "Test Signal:\n";
+	if(debug) cerr << "Test Signal:\n";
 	for(size_t ii=0; ii<length; ii++) {
 		line[ii][0] /= sum;
-		cerr << line[ii][0] << endl;
+		if(debug) cerr << line[ii][0] << endl;
 	}
 	
-	writePlotReIm(oss.str()+"_input.svg", length, line);
-	chirpzFT_brute(length, line, line_brute, alpha);
-	chirpzFT_brute2(length, line, line_brute, alpha, debug);
-	chirpzFFT(length, line, line_fft, alpha, debug);
+	if(debug) {
+		writePlotReIm(oss.str()+"_input.svg", length, line);
+	}
 
-	writePlotReIm(oss.str()+"_chirpzBruteFT.svg", length, line_brute);
-	writePlotReIm(oss.str()+"_chirpzBruteFT2.svg", length, line_brute);
-	writePlotReIm(oss.str()+"_chirpzFFT.svg", length, line_fft);
+	clock_t n = clock();
+	chirpzFT_brute(length, line, line_brute, alpha);
+	brute1_time += clock()-n;
+
+	n = clock();
+	chirpzFT_brute2(length, line, line_brute2, alpha, debug);
+	brute2_time += clock()-n;
+	
+	n = clock();
+	chirpzFFT(length, line, line_fft, alpha, debug);
+	fft_time += clock()-n;
+
+	if(debug) {
+		writePlotReIm(oss.str()+"_chirpzBruteFT.svg", length, line_brute);
+		writePlotReIm(oss.str()+"_chirpzBruteFT2.svg", length, line_brute2);
+		writePlotReIm(oss.str()+"_chirpzFFT.svg", length, line_fft);
+	}
 
 	for(size_t ii=0; ii<length; ii++) {
 		complex<double> a(line_brute[ii][0], line_brute[ii][1]);
@@ -101,38 +120,35 @@ int main(int argc, char** argv)
 		cerr << length << "," << alpha << endl;
 		if(testChirpz(length, alpha, true) != 0)
 			return -1;
-		return 0;
-	} 
-	// test the 'Power' Fourier Transform
-//	if(testChirpz(64, -1) != 0)
-//		return -1;
-	if(testChirpz(64, .25, true) != 0)
-		return -1;
-//	if(testChirpz(256, -1, true) != 0)
-//		return -1;
-//	if(testChirpz(1024, -.95, true) != 0)
-//		return -1;
-//	if(testChirpz(321, -.95) != 0)
-//		return -1;
-//	if(testChirpz(727, -.15) != 0)
-//		return -1;
-//	if(testChirpz(727, -.55) != 0)
-//		return -1;
-//	if(testChirpz(727, -1) != 0)
-//		return -1;
-//	if(testChirpz(128, -.95) != 0)
-//		return -1;
-//	if(testChirpz(1024, -.95) != 0)
-//		return -1;
-//	if(testChirpz(321, -.95) != 0)
-//		return -1;
-//	if(testChirpz(727, -.15) != 0)
-//		return -1;
-//	if(testChirpz(727, -.55) != 0)
-//		return -1;
-//	if(testChirpz(727, -1) != 0)
-//		return -1;
-
+	} else {
+		if(testChirpz(256, 1) != 0)
+			return -1;
+		if(testChirpz(1024, .95) != 0)
+			return -1;
+		if(testChirpz(321, .95) != 0)
+			return -1;
+		if(testChirpz(727, .15) != 0)
+			return -1;
+		if(testChirpz(727, .55) != 0)
+			return -1;
+		if(testChirpz(727, -1) != 0)
+			return -1;
+		if(testChirpz(128, -.95) != 0)
+			return -1;
+		if(testChirpz(1024, -.95) != 0)
+			return -1;
+		if(testChirpz(321, -.95) != 0)
+			return -1;
+		if(testChirpz(727, -.15) != 0)
+			return -1;
+		if(testChirpz(727, -.55) != 0)
+			return -1;
+		if(testChirpz(727, -1) != 0)
+			return -1;
+	}
+	cerr << "Brute1 Time:" << brute1_time << endl;
+	cerr << "Brute2 Time:" << brute2_time << endl;
+	cerr << "Fast Chirp Time:" << fft_time << endl;
 	return 0;
 }
 

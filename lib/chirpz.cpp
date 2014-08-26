@@ -85,7 +85,6 @@ void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
 	auto fwd_plan = fftw_plan_dft_1d((int)sz, chirp, chirp, FFTW_FORWARD,
 				FFTW_MEASURE | FFTW_PRESERVE_INPUT);
 
-	cerr << "Upsample: " << upratio << endl;
 	for(int64_t ii=0; ii<sz; ii++) {
 		double xx = 0;
 		if(center) 
@@ -153,6 +152,7 @@ void chirpzFT_brute2(size_t isize, size_t usize, fftw_complex* inout,
 	/*
 	 * convolve
 	 */
+	double normfactor = (double)isize/(double)usize;
 	for(int64_t ii=0; ii<usize; ii++) {
 		double ff = (double)ii - usize/2.;
 		workspace[ii] = 0;
@@ -164,6 +164,7 @@ void chirpzFT_brute2(size_t isize, size_t usize, fftw_complex* inout,
 			complex<double> tmp2 = exp(PI*I*freq*pos*alpha);
 			workspace[ii] += tmp1*tmp2;
 		}
+		workspace[ii] *= normfactor;
 	}
 
 	if(debug) {
@@ -207,7 +208,7 @@ void chirpzFT_brute2(size_t isize, fftw_complex* in, fftw_complex* out, double a
 	// the size of the upsampled array, and uppadsize the padded+upsampled
 	// size, we want both uppadsize and usize to be odd, and we want uppadsize
 	// to be the product of small primes (3,5,7)
-	double approxratio = 4;
+	double approxratio = 1;
 	int64_t usize = round2(isize*approxratio);
 
 	size_t bsz = isize+usize;
@@ -245,7 +246,7 @@ void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	// the size of the upsampled array, and uppadsize the padded+upsampled
 	// size, we want both uppadsize and usize to be odd, and we want uppadsize
 	// to be the product of small primes (3,5,7)
-	double approxratio = 4;
+	double approxratio = 1;
 	int64_t usize = round2(isize*approxratio);
 	int64_t uppadsize = usize*4;
 	double upratio = (double)usize/(double)isize;
@@ -262,11 +263,10 @@ void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	createChirp(uppadsize, convchirp, isize, upratio, -a, true, true);
 
 	// copy input to buffer, must shift because of chirp being centered
-//	std::rotate_copy(&in[0][0], &in[isize/2][0], &in[isize][0], &current[0][0]);
 	std::copy(&in[0][0], &in[isize][0], &current[0][0]);
 
 	chirpzFFT(isize, usize, current, uppadsize, &buffer[isize], 
-			prechirp, convchirp, postchirp, debug, a);
+			prechirp, convchirp, postchirp, debug);
 
 	// copy current to output
 	for(size_t ii=0; ii<isize; ii++) {
@@ -305,10 +305,9 @@ void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
  */
 void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout, 
 		size_t uppadsize, fftw_complex* buffer, fftw_complex* prechirp, 
-		fftw_complex* convchirp, fftw_complex* postchirp, bool debug, double a)
+		fftw_complex* convchirp, fftw_complex* postchirp, bool debug)
 {
 	const complex<double> I(0,1);
-	const double PI = acos(-1);
 
 	// zero
 	for(size_t ii=0; ii<uppadsize; ii++) {
@@ -354,7 +353,7 @@ void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
 	 * convolve
 	 */
 	fftw_execute(sigbuff_plan_fwd);
-	double normfactor = 1./uppadsize;
+	double normfactor = (double)isize/(usize*uppadsize);
 	for(size_t ii=0; ii<uppadsize; ii++) {
 		sigbuff[ii][0] *= normfactor;
 		sigbuff[ii][1] *= normfactor;
