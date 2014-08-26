@@ -140,13 +140,13 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in)
 	for(size_t ii=0; ii<3; ii++) 
 		osize[ii] = round2(in->dim(ii));
 
+	writeComplex("prepadded", in);
 	auto oimg = dynamic_pointer_cast<MRImage>(in->copyCast(osize.size(),
 			osize.data(), COMPLEX128));
 	
 	// copy data
 	std::vector<int64_t> index(in->ndim());
 //#ifdef DEBUG
-	in->write("prepadded.nii.gz");
 	writeComplex("padded", oimg);
 //#endif //DEBUG
 
@@ -158,7 +158,7 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in)
 		
 		ChunkIter<cdouble_t> it(oimg);
 		it.setLineChunk(dd);
-		for(it.goBegin(); !it.isEnd() ; it.nextChunk()) {
+		for(it.goBegin(); !it.eof() ; it.nextChunk()) {
 			it.index(index.size(), index.data());
 
 			// fill from line
@@ -171,12 +171,12 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in)
 			fftw_execute(fwd);
 			
 			// copy/shift
-			it.goChunkBegin();
 			// F += N/2 (even), for N = 4:
 			// 0 -> 2 (f =  0)
 			// 1 -> 3 (f = +1)
 			// 2 -> 0 (f = -2)
 			// 3 -> 1 (f = -1)
+			it.goChunkBegin();
 			for(size_t tt=osize[dd]/2; !it.isChunkEnd(); ++it) {
 				cdouble_t tmp(buffer[tt][0], buffer[tt][1]);
 				it.set(tmp);
@@ -184,8 +184,8 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in)
 			}
 		}
 
-		fftw_free(buffer);
 		fftw_destroy_plan(fwd);
+		fftw_free(buffer);
 	}
 
 	writeComplex("padded_fft", oimg);
@@ -273,11 +273,11 @@ shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 	}();
 
 	fftw_complex* buffer = fftw_alloc_complex(buffsize);
+	bool draw = true;
 
 	for(size_t dd=0; dd<3; dd++) {
 		if(dd == prdim)
 			continue;
-		bool draw = true;
 
 		size_t isize = out->dim(dd);
 		int64_t usize = round2(isize*approxratio);
@@ -310,25 +310,41 @@ shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 
 			// copy from input image, shift
 			it.goChunkBegin();
+			if(draw) cerr << "Original Data" << endl;
 			for(size_t ii=isize/2; !it.eoc(); ++it) {
 				current[ii][0] = (*it).real();
 				current[ii][1] = (*it).imag();
+				if(draw) cerr << current[ii][0] << "," << current[ii][1] << endl;
 				ii=(ii+1)%isize;
 			}
+			if(draw) cerr << endl;
 
 			if(draw) {
-				writePlotReIm("preifft_"+to_string(dd)+".nii.gz", isize, current);
+				writePlotReIm("preifft_"+to_string(dd)+".svg", isize, current);
+				for(size_t ii=0; ii<isize; ii++){ 
+					cerr << current[ii][0] << "," << current[ii][1] << endl;
+				}
+				cerr << endl;
 			}
 			fftw_execute(plan);
 			if(draw) {
-				writePlotReIm("ifftd_"+to_string(dd)+".nii.gz", isize, current);
+				writePlotReIm("ifftd_"+to_string(dd)+".svg", isize, current);
+				for(size_t ii=0; ii<isize; ii++){ 
+					cerr << current[ii][0] << "," << current[ii][1] << endl;
+				}
+				cerr << endl;
 			}
 		
 			// compute chirpz transform
 			// TODO buffer[isize] contains an upsampled version, use that 
-			chirpzFFT(isize, usize, current, uppadsize, &buffer[isize], nchirp, pchirp);
+//			chirpzFFT(isize, usize, current, uppadsize, &buffer[isize], nchirp, pchirp);
+			chirpzFFT(isize, current, current, alpha, draw);
 			if(draw) {
-				writePlotReIm("chirped_"+to_string(dd)+".nii.gz", isize, current);
+				writePlotReIm("chirped_"+to_string(dd)+".svg", isize, current);
+				for(size_t ii=0; ii<isize; ii++){ 
+					cerr << current[ii][0] << "," << current[ii][1] << endl;
+				}
+				cerr << endl;
 				draw = false;
 			}
 			
@@ -349,7 +365,7 @@ shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 	return out;
 }
 
-shared_ptr<MRImage> createTestImage(size_t sz1)
+shared_ptr<MRImage> createTestImageFreq(size_t sz1)
 {
 	// create an image
 	int64_t index[3];
@@ -406,9 +422,36 @@ shared_ptr<MRImage> createTestImage(size_t sz1)
 	return in;
 }
 
+shared_ptr<MRImage> createTestImageSpace(size_t sz1)
+{
+	// create an image
+	int64_t index[3];
+	size_t sz[] = {sz1, sz1, sz1};
+	auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, COMPLEX128);
+
+	// fill with a shape
+	OrderIter<double> sit(in);
+	double sum = 0;
+	while(!sit.eof()) {
+		sit.index(3, index);
+		double v = index[0]>(sz[0]/2. - 2) && index[0]<(sz[0]/2. + 2) 
+					&& index[1]>(sz[1]/2. - 2) && index[1]<(sz[1]/2. + 2) 
+					&& index[2]>(sz[2]/2. - 2) && index[2]<(sz[2]/2. + 2);
+		sit.set(v);
+		sum += v;
+		++sit;
+	}
+	
+	for(sit.goBegin(); !sit.eof(); ++sit) 
+		sit.set(sit.get()/sum);
+	cerr << "Finished filling"<<endl;
+
+	return in;
+}
+
 int testPseudoPolar()
 {
-	auto in = createTestImage(64);
+	auto in = createTestImageSpace(64);
 	writeComplex("input", in);
 	
 	// test the pseudopolar transforms
