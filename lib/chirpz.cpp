@@ -109,48 +109,6 @@ void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
 	fftw_destroy_plan(fwd_plan);
 }
 
-void createPostChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
-		double upratio, double alpha)
-{
-//	assert(sz%2==1);
-	const double PI = acos(-1);
-	const complex<double> I(0,1);
-	
-	for(int64_t ii=0; ii<sz; ii++) {
-		double ff = (double)ii - sz/2.;
-		complex<double> tmp = exp(-PI*I*ff*ff*alpha/(upratio*upratio*origsz));
-		chirp[ii][0] = tmp.real();
-		chirp[ii][1] = tmp.imag();
-	}
-}
-
-void createConvChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
-		double upratio, double alpha)
-{
-//	assert(sz%2==1);
-	const double PI = acos(-1);
-	const complex<double> I(0,1);
-	
-	auto fwd_plan = fftw_plan_dft_1d((int)sz, chirp, chirp, FFTW_FORWARD,
-				FFTW_MEASURE | FFTW_PRESERVE_INPUT);
-
-	for(int64_t ii=0; ii<sz; ii++) {
-		double xx = (ii-sz/2)/upratio;
-		auto tmp = std::exp(I*PI*alpha*xx*xx/(double)origsz);
-		chirp[ii][0] = tmp.real();
-		chirp[ii][1] = tmp.imag();
-	}
-	
-	fftw_execute(fwd_plan);
-	double norm = 1./sz;
-	for(size_t ii=0; ii<sz; ii++) {
-		chirp[ii][0] *= norm;
-		chirp[ii][1] *= norm;
-	}
-
-	fftw_destroy_plan(fwd_plan);
-}
-
 void chirpzFT_brute2(size_t isize, size_t usize, fftw_complex* inout, 
 		fftw_complex* buffer, double alpha, bool debug)
 {
@@ -301,7 +259,7 @@ void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	
 	createChirp(uppadsize, prechirp, isize, upratio, a, false, false);
 	createChirp(uppadsize, postchirp, isize, upratio, a, true, false);
-	createConvChirp(uppadsize, convchirp, isize, upratio, a);
+	createChirp(uppadsize, convchirp, isize, upratio, -a, true, true);
 
 	// copy input to buffer, must shift because of chirp being centered
 //	std::rotate_copy(&in[0][0], &in[isize/2][0], &in[isize][0], &current[0][0]);
@@ -432,35 +390,15 @@ void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
 		writePlotReIm("fft_rotated.svg", uppadsize, sigbuff);
 	}
 	
-	// post-multiply
-//	for(int64_t ii=0; ii<uppadsize; ii++) {
-////		size_t cc = ii+(uppadsize-usize)/2;
-////		complex<double> tmp1(negchirp[cc][0], negchirp[cc][1]);
-//		complex<double> tmp1(postchirp[ii][0], postchirp[ii][1]);
-//		complex<double> tmp2(sigbuff[ii][0], sigbuff[ii][1]);
-//		tmp1 = tmp1*tmp2;
-//		sigbuff[ii][0] = tmp1.real();
-//		sigbuff[ii][1] = tmp1.imag();
-//	}
 	for(int64_t nn = 0; nn<usize; nn++) {
-		complex<double> tmp1(postchirp[nn+uppadsize/2-usize/2][0], postchirp[nn+uppadsize/2-usize/2][1]);
+		complex<double> tmp1(postchirp[nn+uppadsize/2-usize/2][0], 
+				postchirp[nn+uppadsize/2-usize/2][1]);
 		complex<double> tmp2(upsampled[nn][0], upsampled[nn][1]);
 		tmp1 *= tmp2;
 		upsampled[nn][0] = tmp1.real();
 		upsampled[nn][1] = tmp1.imag();
 	}
 
-	// works
-//	for(int64_t nn = 0; nn<usize; nn++) {
-//		double ff = (double)nn - usize/2.;
-//		double freq = (double)ff*isize/usize; // go to isize frequency, not usize
-//		double pos = (double)nn/usize; // go to isize frequency, not usize
-//		complex<double> tmp1 = exp(-PI*I*freq*pos*a);
-//		complex<double> tmp2(upsampled[nn][0], upsampled[nn][1]);
-//		tmp1 *= tmp2;
-//		upsampled[nn][0] = tmp1.real();
-//		upsampled[nn][1] = tmp1.imag();
-//	}
 
 	if(debug) {
 		writePlotReIm("fft_postmult.svg", uppadsize, sigbuff);
