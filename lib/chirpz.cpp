@@ -277,6 +277,55 @@ void chirpzFT_brute2(size_t isize, fftw_complex* in, fftw_complex* out, double a
 
 	fftw_free(buffer);
 }
+
+/**
+ * @brief Comptues the chirpzFFT transform using FFTW for n log n performance.
+ *
+ * @param isize Size of input/output
+ * @param in Input array, may be the same as out, length sz
+ * @param out Output array, may be the same as input, length sz
+ * @param alpha Fraction of full space to compute
+ * @param debug Write out diagnostic plots
+ */
+void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a, 
+		bool debug)
+{
+	// there are 3 sizes: isize: the original size of the input array, usize :
+	// the size of the upsampled array, and uppadsize the padded+upsampled
+	// size, we want both uppadsize and usize to be odd, and we want uppadsize
+	// to be the product of small primes (3,5,7)
+	double approxratio = 4;
+	int64_t usize = round2(isize*approxratio);
+	int64_t uppadsize = usize*4;
+	double upratio = (double)usize/(double)isize;
+
+	size_t bsz = isize+4*uppadsize;
+	fftw_complex* buffer = fftw_alloc_complex(bsz);
+	fftw_complex* current = &buffer[0];
+	fftw_complex* prechirp = &buffer[isize+uppadsize];
+	fftw_complex* postchirp = &buffer[isize+2*uppadsize];
+	fftw_complex* convchirp = &buffer[isize+3*uppadsize];
+	
+	createChirp(uppadsize, prechirp, isize, upratio, a, false, false);
+	createPostChirp(uppadsize, postchirp, isize, upratio, a);
+	createConvChirp(uppadsize, convchirp, isize, upratio, a);
+
+	// copy input to buffer, must shift because of chirp being centered
+//	std::rotate_copy(&in[0][0], &in[isize/2][0], &in[isize][0], &current[0][0]);
+	std::copy(&in[0][0], &in[isize][0], &current[0][0]);
+
+	chirpzFFT(isize, usize, current, uppadsize, &buffer[isize], 
+			prechirp, convchirp, postchirp, debug, a);
+
+	// copy current to output
+	for(size_t ii=0; ii<isize; ii++) {
+		out[ii][0] = current[ii][0];
+		out[ii][1] = current[ii][1];
+	}
+
+	fftw_free(buffer);
+}
+
 /**
  * @brief Comptues the chirpzFFT transform using FFTW for n log n performance.
  *
