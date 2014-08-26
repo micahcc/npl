@@ -257,7 +257,6 @@ shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 
 	// declare variables
 	std::vector<int64_t> index(out->ndim()); 
-	const double approxratio = 2; // how much to upsample by
 
 	// compute/initialize buffer
 	size_t buffsize = [&]
@@ -269,7 +268,7 @@ shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 					m = out->dim(dd);
 			}
 		}
-		return m*16;
+		return m*30;
 	}();
 
 	fftw_complex* buffer = fftw_alloc_complex(buffsize);
@@ -280,12 +279,13 @@ shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 			continue;
 
 		size_t isize = out->dim(dd);
-		int64_t usize = round2(isize*approxratio);
-		int64_t uppadsize = usize*2;
+		int64_t usize = round2(isize);
+		int64_t uppadsize = usize*4;
 		double upratio = (double)usize/(double)isize;
 		fftw_complex* current = &buffer[0];
-		fftw_complex* nchirp = &buffer[isize+uppadsize];
-		fftw_complex* pchirp = &buffer[isize+2*uppadsize];
+		fftw_complex* prechirp = &buffer[isize+uppadsize];
+		fftw_complex* postchirp = &buffer[isize+2*uppadsize];
+		fftw_complex* convchirp = &buffer[isize+3*uppadsize];
 		fftw_plan plan = fftw_plan_dft_1d((int)isize, current, current,
 				FFTW_BACKWARD, FFTW_MEASURE);
 
@@ -304,8 +304,12 @@ shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 				cerr << "[" << index[0] << ", " << index[1] << ", " << index[2]
 					<< "]" << endl;
 				cerr << "Recomputing chirps for alpha = " << alpha << endl;
-				createChirp(uppadsize, nchirp, isize, upratio, -alpha, false);
-				createChirp(uppadsize, pchirp, isize, upratio, alpha, true);
+				createChirp(uppadsize, prechirp, isize, upratio, alpha, 
+						false, false);
+				createChirp(uppadsize, postchirp, isize, upratio, alpha, 
+						true, false);
+				createChirp(uppadsize, convchirp, isize, upratio, -alpha,
+						true, true);
 			}
 
 			// copy from input image, shift
@@ -336,9 +340,8 @@ shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 			}
 		
 			// compute chirpz transform
-			// TODO buffer[isize] contains an upsampled version, use that 
-//			chirpzFFT(isize, usize, current, uppadsize, &buffer[isize], nchirp, pchirp);
-			chirpzFFT(isize, current, current, alpha, draw);
+			chirpzFFT(isize, usize, current, uppadsize, &buffer[isize],
+						prechirp, convchirp, postchirp, draw);
 			if(draw) {
 				writePlotReIm("chirped_"+to_string(dd)+".svg", isize, current);
 				for(size_t ii=0; ii<isize; ii++){ 

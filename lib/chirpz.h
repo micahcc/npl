@@ -40,10 +40,11 @@ namespace npl {
  * 					sz/origsz
  * @param alpha 	Positive term in exp
  * @param beta 		Negative term in exp
+ * @param center	Whether to center, or start at 0 
  * @param fft 		Whether to fft the output (put it in frequency domain)
  */
 void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
-		double upratio, double alpha, bool fft);
+		double upratio, double alpha, bool center, bool fft);
 
 /**
  * @brief Comptues the chirpzFFT transform using FFTW for n log n performance.
