@@ -173,7 +173,7 @@ void chirpzFT_brute2(size_t isize, size_t usize, fftw_complex* inout,
 	for(int64_t nn = 0; nn<usize; nn++) {
 		double ff = (double)nn - usize/2.;
 		double freq = (double)ff*isize/usize; // go to isize frequency, not usize
-		double pos = (double)nn/usize; // go to isize frequency, not usize
+		double pos = (double)ff/usize; // go to isize frequency, not usize
 		complex<double> tmp = exp(-PI*I*freq*pos*alpha);
 		tmp *= workspace[nn];
 		upsampled[nn][0] = tmp.real();
@@ -339,8 +339,6 @@ void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
 	
 	// pre-multiply
 	for(int64_t nn = 0; nn<usize; nn++) {
-//		size_t cc = nn+(uppadsize-usize)/2;
-//		complex<double> tmp1(prechirp[cc][0], prechirp[cc][1]);
 		complex<double> tmp1(prechirp[nn][0], prechirp[nn][1]);
 		complex<double> tmp2(upsampled[nn][0], upsampled[nn][1]);
 		tmp1 *= tmp2;
@@ -371,9 +369,7 @@ void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
 	}
 	fftw_execute(sigbuff_plan_rev);
 	
-	// not sure why this works...
-//	normfactor = 2*isize; 
-	normfactor = 4*isize; 
+	normfactor = uppadsize; 
 	for(size_t ii=0; ii<uppadsize; ii++) {
 		sigbuff[ii][0] *= normfactor;
 		sigbuff[ii][1] *= normfactor;
