@@ -71,25 +71,25 @@ int testChirpz(size_t length, double alpha, bool debug = false)
 
 	writePlotReIm(oss.str()+"_chirpzBruteFT.svg", length, line_brute);
 	writePlotReIm(oss.str()+"_chirpzBruteFT2.svg", length, line_brute);
-//	writePlotReIm(oss.str()+"_chirpzFFT.svg", length, line_fft);
-//
-//	for(size_t ii=0; ii<length; ii++) {
-//		complex<double> a(line_brute[ii][0], line_brute[ii][1]);
-//		complex<double> b(line_fft[ii][0], line_fft[ii][1]);
-//		
-//		if(abs(a.real() - b.real()) > 0.3) {
-//			cerr << "Error, absolute difference in chirpzFFT" << endl;
-//			cerr << a.real() << " vs " << b.real() << endl;
-//			return -1;
-//		}
-//		if(abs(a.imag() - b.imag()) > 0.3) {
-//			cerr << "Error, absolute difference in chirpzFFT" << endl;
-//			cerr << a.imag() << " vs " << b.imag() << endl;
-//			return -1;
-//		}
-//		
-//	}
-//
+	writePlotReIm(oss.str()+"_chirpzFFT.svg", length, line_fft);
+
+	for(size_t ii=0; ii<length; ii++) {
+		complex<double> a(line_brute[ii][0], line_brute[ii][1]);
+		complex<double> b(line_fft[ii][0], line_fft[ii][1]);
+		
+		if(abs(a.real() - b.real()) > 0.3) {
+			cerr << "Error, absolute difference in chirpzFFT" << endl;
+			cerr << a.real() << " vs " << b.real() << endl;
+			return -1;
+		}
+		if(abs(a.imag() - b.imag()) > 0.3) {
+			cerr << "Error, absolute difference in chirpzFFT" << endl;
+			cerr << a.imag() << " vs " << b.imag() << endl;
+			return -1;
+		}
+		
+	}
+
 	return 0;
 }
 
