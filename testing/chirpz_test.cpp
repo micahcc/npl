@@ -58,8 +58,11 @@ int testChirpz(size_t length, double alpha, bool debug = false)
 			line[ii][1] = 0;
 		}
 	}
-	for(size_t ii=0; ii<length; ii++) 
+	cerr << "Test Signal:\n";
+	for(size_t ii=0; ii<length; ii++) {
 		line[ii][0] /= sum;
+		cerr << line[ii][0] << endl;
+	}
 	
 	writePlotReIm(oss.str()+"_input.svg", length, line);
 	chirpzFT_brute(length, line, line_brute, alpha);
@@ -90,8 +93,16 @@ int testChirpz(size_t length, double alpha, bool debug = false)
 	return 0;
 }
 
-int main()
+int main(int argc, char** argv)
 {
+	if(argc == 3) {
+		int length = atoi(argv[1]);
+		double alpha = atof(argv[2]);
+		cerr << length << "," << alpha << endl;
+		if(testChirpz(length, alpha, true) != 0)
+			return -1;
+		return 0;
+	} 
 	// test the 'Power' Fourier Transform
 //	if(testChirpz(64, -1) != 0)
 //		return -1;
