@@ -23,6 +23,8 @@
 #include <cstddef>
 #include <cstdlib>
 #include <string>
+#include <vector>
+#include <complex>
 
 #include "fftw3.h"
 
@@ -54,23 +56,33 @@ void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
  * @param inout		Input array, length sz
  * @param uppadsize	Padded+upsampled array size
  * @param buffer	Complex buffer used for upsampling, size = uppadsize
- * @param negchirp	Chirp defined as exp(-i PI alpha x^2), centered with 
- * 					frequencies ranging: [-(isize-1.)/2.,-(isize-1.)/2.]
- * 					and with size uppadsize. Computed using:
- *
- * 					createChirp(uppadsize, nega_chirp, isize, 
- * 							(double)usize/(double)isize, -alpha, false);
- *
- * @param poschirpF	Chirp defined as F{ exp(-i PI alpha x^2) }, centered with 
- * 					frequencies ranging: [-(isize-1.)/2.,-(isize-1.)/2.]
- * 					and with size uppadsize. Computed using:
- *
- * 					createChirp(uppadsize, posa_chirp, isize, 
- * 							(double)usize/(double)isize, alpha, true);
+ * @param prechirp 	Pre-multiply chirp.
+ * @param convchirp	Chirp that we need to convolve with
+ * @param postchirp	Post-multiply chirp.
+ * @param debug	whether to write out diagnostic plots
  */
 void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout, 
-		size_t uppadsize, fftw_complex* buffer, fftw_complex* negchirp, 
-		fftw_complex* poschirpF);
+		size_t uppadsize, fftw_complex* buffer, fftw_complex* prechirp,
+		fftw_complex* convchirp, fftw_complex* postchirp, bool debug = false);
+
+/**
+ * @brief Comptues the chirpzFFT transform using FFTW for n log n performance.
+ *
+ * This version needs for chirps to already been calculated. This is useful
+ * if you are running a large number of inputs with the same alpha
+ *
+ * @param isize 	Size of input/output
+ * @param usize 	Size that we should upsample input to 
+ * @param inout		Input array, length sz
+ * @param uppadsize	Padded+upsampled array size
+ * @param buffer	Complex buffer used for upsampling, size = uppadsize
+ * @param prechirp 	Pre-multiply chirp.
+ * @param convchirp	Chirp that we need to convolve with
+ * @param postchirp	Post-multiply chirp.
+ * @param debug	whether to write out diagnostic plots
+ */
+void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout, 
+		fftw_complex* buffer, bool debug = false);
 
 /**
  * @brief Comptues the chirpzFFT transform using FFTW for n log n performance.
@@ -79,8 +91,22 @@ void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
  * @param in Input array, may be the same as out, length sz
  * @param out Output array, may be the same as input, length sz
  * @param alpha Fraction of full space to compute
+ * @param debug	whether to write out diagnostic plots
  */
-void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a);
+void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a, 
+		bool debug = false);
+
+/**
+ * @brief Performs chirpz transform with a as fractional parameter by N^2 
+ * algorithm.
+ *
+ * @param len	Length of input array
+ * @param in	Input Array (length = len)
+ * @param out	Output Array (length = len)
+ * @param a		Fraction/Alpha To raise exp() term to
+ */
+void chirpzFT_brute2(size_t len, fftw_complex* in, fftw_complex* out, double a, 
+		bool debug = false);
 
 /**
  * @brief Performs chirpz transform with a as fractional parameter by N^2 
@@ -101,6 +127,8 @@ void chirpzFT_brute(size_t len, fftw_complex* in, fftw_complex* out, double a);
  * @param in	Array input
  */
 void writePlotAbsAng(std::string file, size_t insz, fftw_complex* in);
+
+void writePlotReIm(std::string file, const std::vector<std::complex<double>>& in);
 
 /**
  * @brief Plots an array of complex points with the Real and Imaginary Parts
