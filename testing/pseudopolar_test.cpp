@@ -196,8 +196,9 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in)
 			// 2 -> 0 (f = -2)
 			// 3 -> 1 (f = -1)
 			it.goChunkBegin();
+			double norm = 1./sqrt(osize[dd]);
 			for(size_t tt=osize[dd]/2; !it.isChunkEnd(); ++it) {
-				cdouble_t tmp(buffer[tt][0], buffer[tt][1]);
+				cdouble_t tmp(buffer[tt][0]*norm, buffer[tt][1]*norm);
 				it.set(tmp);
 				tt=(tt+1)%osize[dd];
 			}
@@ -291,7 +292,7 @@ shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 	}();
 
 	fftw_complex* buffer = fftw_alloc_complex(buffsize);
-	bool draw = true;
+	bool draw = false;
 
 	for(size_t dd=0; dd<3; dd++) {
 		if(dd == prdim)
@@ -316,6 +317,13 @@ shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 		double alpha, prevAlpha = NAN;
 		for(it.goBegin(); !it.eof(); it.nextChunk()) {
 			it.index(index);
+
+			string istr;
+			if(index[0] == 1) {
+				draw = true;
+				istr = "Dir"+to_string(dd)+"_"+to_string(index[0])+"_"+
+					to_string(index[1])+"_"+to_string(index[2]);
+			}
 			
 			// recompute chirps if alpha changed
 			alpha = 2*(index[prdim]/(double)out->dim(prdim)) - 1;
@@ -333,25 +341,27 @@ shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 
 			// copy from input image, shift
 			it.goChunkBegin();
-			if(draw) cerr << "Original Data" << endl;
 			for(size_t ii=isize/2; !it.eoc(); ++it) {
 				current[ii][0] = (*it).real();
 				current[ii][1] = (*it).imag();
-				if(draw) cerr << current[ii][0] << "," << current[ii][1] << endl;
 				ii=(ii+1)%isize;
 			}
-			if(draw) cerr << endl;
 
 			if(draw) {
-				writePlotReIm("preifft_"+to_string(dd)+".svg", isize, current);
+				writePlotReIm("preifft_"+istr+".svg", isize, current);
 				for(size_t ii=0; ii<isize; ii++){ 
 					cerr << current[ii][0] << "," << current[ii][1] << endl;
 				}
 				cerr << endl;
 			}
 			fftw_execute(plan);
+			double norm = 1./sqrt(isize);
+			for(size_t ii=0; ii<isize; ii++) {
+				current[ii][0] *= norm;
+				current[ii][1] *= norm;
+			}
 			if(draw) {
-				writePlotReIm("ifftd_"+to_string(dd)+".svg", isize, current);
+				writePlotReIm("ifftd_"+istr+".svg", isize, current);
 				for(size_t ii=0; ii<isize; ii++){ 
 					cerr << current[ii][0] << "," << current[ii][1] << endl;
 				}
@@ -360,9 +370,9 @@ shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 		
 			// compute chirpz transform
 			chirpzFFT(isize, usize, current, uppadsize, &buffer[isize],
-						prechirp, convchirp, postchirp, draw);
+						prechirp, convchirp, postchirp);
 			if(draw) {
-				writePlotReIm("chirped_"+to_string(dd)+".svg", isize, current);
+				writePlotReIm("chirped_"+istr+".svg", isize, current);
 				for(size_t ii=0; ii<isize; ii++){ 
 					cerr << current[ii][0] << "," << current[ii][1] << endl;
 				}
@@ -406,11 +416,24 @@ shared_ptr<MRImage> createTestImageFreq(size_t sz1)
 //			v = 1;
 //		else 
 //			v = 0;
-		// lines in z direction
-		if((index[0]+index[1])%2 == 0)
+		
+//		// lines in x direction, this actually won't work, because there
+//		// will be aliasing during down-sampling, 
+//		if((index[2]+index[1])%2 == 0)
+//			v = 1;
+//		else
+//			v = 0;
+
+		// lines in x direction
+		if(sin(index[2]) > 0 && sin(index[1]) > 0)
 			v = 1;
 		else
 			v = 0;
+
+//		// gaussian
+//		v = 1;
+//		for(size_t ii=0; ii<3; ii++)
+//			v *= std::exp(-pow(index[ii]-sz1/2.,2)/16);
 		sit.set(v);
 		sum += v;
 		++sit;

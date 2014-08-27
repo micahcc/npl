@@ -39,40 +39,102 @@ clock_t brute2_time = 0;
 clock_t fft_time = 0;
 clock_t zoom_time = 0;
 
-int testChirpz(size_t length, double alpha, bool debug = false)
+double alpha = -1;
+
+fftw_complex line[] = {{0.03125,0},
+{-0.000216305,0.000747931},
+{-0.000380475,0.000946459},
+{2.50957e-05,-0.000388651},
+{0.000989912,-0.000162022},
+{0.000808298,-0.000945903},
+{-5.06103e-05,0.000847835},
+{-0.00220405,-0.00140134},
+{-0.000976563,0.000976562},
+{-0.000391243,-0.00211353},
+{0.0101042,0.0148596},
+{0.00362542,0.00364142},
+{-0.00219561,-0.00196647},
+{0.00151088,0.00510937},
+{-0.00162308,-0.000469246},
+{0.00149291,0.000545992},
+{0,-0.00195312},
+{0.00138813,0.000517917},
+{-0.00142822,-0.000510394},
+{-0.000233746,0.000641898},
+{-0.00113858,-0.000585406},
+{0.00130033,0.000708506},
+{2.44012e-05,0.000225943},
+{0.000877585,0.000567459},
+{-0.000976563,-0.000976562},
+{0.000520198,-0.000834397},
+{-0.000647485,-0.000449016},
+{0.000286254,0.00122494},
+{-0.00156197,0.00121905},
+{0.00048997,0.000247633},
+{0.00181375,-0.00138292},
+{0.00634527,-0.00139419},
+{-0.00390625,0},
+{0.00634527,0.00139419},
+{0.00181375,0.00138292},
+{0.00048997,-0.000247633},
+{-0.00156197,-0.00121905},
+{0.000286254,-0.00122494},
+{-0.000647485,0.000449016},
+{0.000520198,0.000834397},
+{-0.000976563,0.000976562},
+{0.000877585,-0.000567459},
+{2.44012e-05,-0.000225943},
+{0.00130033,-0.000708506},
+{-0.00113858,0.000585406},
+{-0.000233746,-0.000641898},
+{-0.00142822,0.000510394},
+{0.00138813,-0.000517917},
+{0,0.00195312},
+{0.00149291,-0.000545992},
+{-0.00162308,0.000469246},
+{0.00151088,-0.00510937},
+{-0.00219561,0.00196647},
+{0.00362542,-0.00364142},
+{0.0101042,-0.0148596},
+{-0.000391243,0.00211353},
+{-0.000976563,-0.000976562},
+{-0.00220405,0.00140134},
+{-5.06103e-05,-0.000847835},
+{0.000808298,0.000945903},
+{0.000989912,0.000162022},
+{2.50957e-05,0.000388651},
+{-0.000380475,-0.000946459},
+{-0.000216305,-0.000747931}};
+
+// this won't work because the frequencies will cause aliasing!
+//fftw_complex line[] = {
+//	{0.015625,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
+//	{0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
+//	{0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
+//	{0,0}, {0,0}, {0,0}, {0.015625,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
+//	{0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
+//	{0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0},
+//	{0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}
+//};
+
+int testChirpz(double alpha)
 {
+	bool debug = true;
+	size_t length = sizeof(line)/sizeof(fftw_complex);
 	cerr << "Testing length = " << length << " with alpha = " << alpha << endl;
 	ostringstream oss;
 	oss << "test_" << length << "_" << alpha;
 
-	auto line = fftw_alloc_complex(length);
 	auto line_brute = fftw_alloc_complex(length);
 	auto line_brute2 = fftw_alloc_complex(length);
 	auto line_fft = fftw_alloc_complex(length);
 	auto line_zoom = fftw_alloc_complex(length);
 	
-	// fill with a noisy square
-	double sum = 0;
-	for(size_t ii=0; ii<length; ii++){ 
-		double v = 0;
-		if(ii > (length)/2. - 10 && ii < length/2. + 10) {
-			v = 1;
-//			v = std::exp(-pow(ii-length/2.,2)/16);
-			line[ii][0] = v;
-			line[ii][1] = 0;
-			sum += v;
-		} else {
-			line[ii][0] = 0;
-			line[ii][1] = 0;
-		}
-	}
-	if(debug) cerr << "Test Signal:\n";
-	for(size_t ii=0; ii<length; ii++) {
-		line[ii][0] /= sum;
-		if(debug) cerr << line[ii][0] << endl;
-	}
-	
 	if(debug) {
+		cerr << "Test Signal:\n";
+		for(size_t ii=0; ii<length; ii++) {
+			cerr << line[ii][0] << endl;
+		}
 		writePlotReIm(oss.str()+"_input.svg", length, line);
 	}
 
@@ -87,7 +149,7 @@ int testChirpz(size_t length, double alpha, bool debug = false)
 	n = clock();
 	chirpzFFT(length, line, line_fft, alpha, debug);
 	fft_time += clock()-n;
-
+	
 	n = clock();
 	chirpzFT_zoom(length, line, line_zoom, alpha);
 	zoom_time += clock()-n;
@@ -121,43 +183,15 @@ int testChirpz(size_t length, double alpha, bool debug = false)
 
 int main(int argc, char** argv)
 {
-	if(argc == 3) {
-		int length = atoi(argv[1]);
-		double alpha = atof(argv[2]);
-		cerr << length << "," << alpha << endl;
-		if(testChirpz(length, alpha, true) != 0)
-			return -1;
-	} else {
-		if(testChirpz(256, 1) != 0)
-			return -1;
-		if(testChirpz(1024, .95) != 0)
-			return -1;
-		if(testChirpz(321, .95) != 0)
-			return -1;
-		if(testChirpz(727, .15) != 0)
-			return -1;
-		if(testChirpz(727, .55) != 0)
-			return -1;
-		if(testChirpz(727, -1) != 0)
-			return -1;
-		if(testChirpz(128, -.95) != 0)
-			return -1;
-		if(testChirpz(1024, -.95) != 0)
-			return -1;
-		if(testChirpz(321, -.95) != 0)
-			return -1;
-		if(testChirpz(727, -.15) != 0)
-			return -1;
-		if(testChirpz(727, -.55) != 0)
-			return -1;
-		if(testChirpz(727, -1) != 0)
-			return -1;
-	}
-	cerr << "Brute1 Time:" << brute1_time << endl;
-	cerr << "Brute2 Time:" << brute2_time << endl;
-	cerr << "Fast Chirp Time:" << fft_time << endl;
+	double alpha = 1;
+	if(argc == 2)
+		alpha = atof(argv[1]);
+
+	if(testChirpz(alpha) != 0)
+		return -1;
 	return 0;
 }
+
 
 
 
