@@ -121,6 +121,31 @@ void chirpzFT_brute2(size_t len, fftw_complex* in, fftw_complex* out, double a,
  */
 void chirpzFT_brute(size_t len, fftw_complex* in, fftw_complex* out, double a);
 
+
+/**
+ * @brief Performs the chirpz-transform using linear intpolation and the FFT.
+ * For greater speed pre-allocate the buffer and use the other chirpzFT_zoom
+ *
+ * @param isize Input size
+ * @param in	Input line
+ * @param out	Output line
+ * @param a		Zoom factor (alpha)
+ */
+void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out, 
+		double a);
+
+/**
+ * @brief Performs the chirpz-transform using linear intpolation and teh FFT.
+ *
+ * @param isize 	Input size
+ * @param in		Input line
+ * @param out		Output line
+ * @param buffer	Buffer, should be size isize
+ * @param a			Zoom factor (alpha)
+ */
+void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out, 
+		fftw_complex* buffer, double a);
+
 /**
  * @brief Plots an array of complex points with the Real and Imaginary Parts
  *

@@ -231,6 +231,102 @@ void chirpzFT_brute2(size_t isize, fftw_complex* in, fftw_complex* out, double a
 }
 
 /**
+ * @brief Comptues the chirpzFFT transform by interpolating a pre-computed 
+ * space line. Note 0 <= a <= 1, to choose positive versus negative you must
+ * do a forward (negative) or backward (positive) FFT first
+ *
+ * @param isize Size of input/output (Should be in fourier space)
+ * @param in Input array, may be the same as out, length sz
+ * @param out Output array, must not be the same as input, length sz
+ * @param alpha Fraction of full space to compute
+ * @param debug Write out diagnostic plots
+ */
+void chirpzZoom_help(size_t isize, fftw_complex* in, fftw_complex* out, double a)
+{
+	cerr << "ZOOMHELP" << endl;
+	if(in == out) 
+		throw std::invalid_argument("Input/Output cannot be equal");
+	if(a < 0 || a > 1)
+		throw std::invalid_argument("Zoom (a) must satisfy: 0 <= a <= 1");
+	
+	// fill/average pad
+	int64_t radius = 4;
+	
+	// copy/center
+	for(size_t oo=0; oo<isize; oo++) {
+		double cii = (oo-(isize/2.))*fabs(a)+isize/2.;
+		int64_t center = round(cii);
+
+		complex<double> sum = 0;
+		for(int64_t ii=center-radius; ii<=center+radius; ii++) {
+			if(ii>=0 && ii<isize) {
+				complex<double> tmp(in[ii][0], in[ii][1]);
+				sum += lanczosKernel(ii-cii, radius)*tmp;
+			}
+		}
+		out[oo][0] = sum.real();
+		out[oo][1] = sum.imag();
+	}
+	
+}
+
+/**
+ * @brief Performs the chirpz-transform using linear intpolation and the FFT.
+ * For greater speed pre-allocate the buffer and use the other chirpzFT_zoom
+ *
+ * @param isize Input size
+ * @param in	Input line
+ * @param out	Output line
+ * @param a		Zoom factor (alpha)
+ */
+void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out, 
+		double a)
+{
+ 	fftw_complex* buffer = fftw_alloc_complex(isize);
+	chirpzFT_zoom(isize, in, out, buffer, a);
+ 	fftw_free(buffer);
+}
+
+/**
+ * @brief Performs the chirpz-transform using linear intpolation and teh FFT.
+ *
+ * @param isize 	Input size
+ * @param in		Input line
+ * @param out		Output line
+ * @param buffer	Buffer, should be size isize
+ * @param a			Zoom factor (alpha)
+ */
+void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out, 
+		fftw_complex* buffer, double a)
+{
+	if(a > 1 || a < -1)
+		throw std::invalid_argument("Zoom (a) must satisfy: -1 <= a <= 1");
+	auto dir = a < 0 ? FFTW_FORWARD : FFTW_BACKWARD;
+
+	fftw_plan plan = fftw_plan_dft_1d(isize, buffer, buffer, dir, FFTW_MEASURE);
+	for(size_t ii=0; ii<isize; ii++) {
+		buffer[ii][0] = in[ii][0];
+		buffer[ii][1] = in[ii][1];
+	}
+
+	fftw_execute(plan);
+
+	// normalize 
+	double norm = 1./isize;
+	for(size_t ii=0; ii<isize; ii++) {
+		buffer[ii][0] *= norm;
+		buffer[ii][1] *= norm;
+	}
+
+	// rotate
+	std::rotate(&buffer[0][0], &buffer[isize/2][0], &buffer[isize][0]);
+	chirpzZoom_help(isize, buffer, out, fabs(a));
+
+	fftw_destroy_plan(plan);
+}
+
+
+/**
  * @brief Comptues the chirpzFFT transform using FFTW for n log n performance.
  *
  * @param isize Size of input/output
@@ -262,7 +358,7 @@ void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	createChirp(uppadsize, postchirp, isize, upratio, a, true, false);
 	createChirp(uppadsize, convchirp, isize, upratio, -a, true, true);
 
-	// copy input to buffer, must shift because of chirp being centered
+	// copy input to buffer
 	std::copy(&in[0][0], &in[isize][0], &current[0][0]);
 
 	chirpzFFT(isize, usize, current, uppadsize, &buffer[isize], 
