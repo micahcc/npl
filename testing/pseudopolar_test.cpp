@@ -43,6 +43,25 @@ using Eigen::Matrix3d;
 using Eigen::Vector3d;
 using Eigen::AngleAxisd;
 
+void writeComplexAA(string basename, shared_ptr<const MRImage> in)
+{
+	auto absimg = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
+	auto angimg = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
+
+	OrderIter<double> rit(absimg);
+	OrderIter<double> iit(angimg);
+	OrderConstIter<cdouble_t> init(in);
+	while(!init.eof()) {
+		rit.set(abs(*init));
+		iit.set(arg(*init));
+		++init;
+		++rit;
+		++iit;
+	}
+
+	absimg->write(basename + "_abs.nii.gz");
+	angimg->write(basename + "_ang.nii.gz");
+}
 void writeComplex(string basename, shared_ptr<const MRImage> in)
 {
 	auto re = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
@@ -188,7 +207,7 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in)
 		fftw_free(buffer);
 	}
 
-	writeComplex("padded_fft", oimg);
+	writeComplexAA("padded_fft", oimg);
 	
 	return oimg;
 }
@@ -361,7 +380,7 @@ shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 		}
 
 		fftw_destroy_plan(plan);
-		writeComplex("early"+to_string(dd), out); 
+		writeComplexAA("early"+to_string(dd), out); 
 	}
 	fftw_free(buffer);
 
@@ -380,8 +399,18 @@ shared_ptr<MRImage> createTestImageFreq(size_t sz1)
 	double sum = 0;
 	while(!sit.eof()) {
 		sit.index(3, index);
-		double v = 1000-(pow(index[0]-sz[0]/2.,2) + pow(index[1]-sz[1]/2.,2) +
-				pow(index[2]-sz[2]/2.,2));
+		double v;
+	
+		// ball
+//		if(pow(sz1/2.-index[0],2)+pow(sz1/2.-index[1],2)+pow(sz1/2.-index[2],2) < 20)
+//			v = 1;
+//		else 
+//			v = 0;
+		// lines in z direction
+		if((index[0]+index[1])%2 == 0)
+			v = 1;
+		else
+			v = 0;
 		sit.set(v);
 		sum += v;
 		++sit;
@@ -454,7 +483,8 @@ shared_ptr<MRImage> createTestImageSpace(size_t sz1)
 
 int testPseudoPolar()
 {
-	auto in = createTestImageSpace(64);
+//	auto in = createTestImageSpace(64);
+	auto in = createTestImageFreq(64);
 	writeComplex("input", in);
 	
 	// test the pseudopolar transforms
@@ -465,8 +495,8 @@ int testPseudoPolar()
 		auto pp1_fft = pseudoPolar(in, dd);
 		auto pp1_brute = pseudoPolarBrute(in, dd);
 
-		writeComplex("fft_pp"+to_string(dd), pp1_fft);
-		writeComplex("brute_pp"+to_string(dd), pp1_brute);
+		writeComplexAA("fft_pp"+to_string(dd), pp1_fft);
+		writeComplexAA("brute_pp"+to_string(dd), pp1_brute);
 //		if(closeCompare(pp1_fft, pp1_brute) != 0) {
 //			cerr << "FFT and BruteForce pseudopolar differ" << endl;
 //			return -1;
