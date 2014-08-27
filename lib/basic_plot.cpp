@@ -434,9 +434,9 @@ int Plotter::writeSVG(size_t xres, size_t yres, std::string fname)
 		assert(xarr.size() == yarr.size());
 
 		o << "<polyline fill=\"none\" points=\"";
-		for(size_t ii=1; ii<xarr.size(); ii++) {
-			double x = (xarr[ii-1]-xrange[0])/xstep;
-			double y = (yarr[ii-1]-yrange[0])/ystep;
+		for(size_t ii=0; ii<xarr.size(); ii++) {
+			double x = (xarr[ii]-xrange[0])/xstep;
+			double y = (yarr[ii]-yrange[0])/ystep;
 			o << x << "," << y << " ";
 		}
 		o << "\" stroke=\"#";
