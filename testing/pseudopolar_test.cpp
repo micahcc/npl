@@ -149,25 +149,29 @@ int closeCompare(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b)
 	return 0;
 }
 
-shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in)
+// upsample in anglular directions
+shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, double* upsamp)
 {
 	if(in->ndim() != 3) {
 		throw std::invalid_argument("Error, input image should be 3D!");
 	}
 
 	std::vector<size_t> osize(3, 0);
-	for(size_t ii=0; ii<3; ii++) 
-		osize[ii] = round2(in->dim(ii));
+	for(size_t ii=0; ii<3; ii++) {
+		osize[ii] = round2(in->dim(ii)*upsamp[ii]);
+	}
 
+#ifdef DEBUG
 	writeComplex("prepadded", in);
+#endif //DEBUG
 	auto oimg = dynamic_pointer_cast<MRImage>(in->copyCast(osize.size(),
 			osize.data(), COMPLEX128));
 	
 	// copy data
 	std::vector<int64_t> index(in->ndim());
-//#ifdef DEBUG
+#ifdef DEBUG
 	writeComplex("padded", oimg);
-//#endif //DEBUG
+#endif //DEBUG
 
 	// fourier transform
 	for(size_t dd = 0; dd < 3; dd++) {
@@ -208,7 +212,9 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in)
 		fftw_free(buffer);
 	}
 
+#ifdef DEBUG
 	writeComplexAA("padded_fft", oimg);
+#endif //DEBUG
 	
 	return oimg;
 }
@@ -226,9 +232,13 @@ shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t prdim)
 	if(in->ndim() != 3) 
 		return NULL;
 
-	shared_ptr<MRImage> out = padFFT(in);
-	shared_ptr<MRImage> tmp = padFFT(in);
-	writeComplex("tmp", tmp);
+	double upsample[3] = {2,2,2};
+	upsample[prdim] = 1;
+
+	shared_ptr<MRImage> out = padFFT(in, upsample);
+	shared_ptr<MRImage> tmp = padFFT(in, upsample);
+
+	writeComplexAA("earlyout", out);
 
 	// interpolate along lines
 	std::vector<double> index(3); // index space version of output
@@ -242,11 +252,11 @@ shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t prdim)
 		
 		// make index into slope, then back to a flat index
 		size_t jj=0;
-		radius = index[prdim]-((int64_t)in->dim(prdim))/2;
+		radius = (double)index[prdim]-((double)out->dim(prdim))/2.;
 		for(size_t ii=0; ii<3; ii++) {
 			if(ii != prdim) {
-				double middle = (in->dim(ii)-1)/2.;
-				double slope = (1+index[ii]-middle)/(middle+1);
+				double middle = out->dim(ii)/2.;
+				double slope = 2*(index[ii]-middle)/middle;
 				angles[jj++] = slope;
 			}
 		}
@@ -257,9 +267,9 @@ shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t prdim)
 		jj = 0;
 		for(size_t ii=0; ii<3; ii++) {
 			if(ii != prdim) 
-				index2[ii] = angles[jj++]*radius+in->dim(ii)/2.;
+				index2[ii] = angles[jj++]*radius+out->dim(ii)/2.;
 			else
-				index2[ii] = radius+in->dim(ii)/2.;
+				index2[ii] = radius+out->dim(ii)/2.;
 		}
 //		cerr << "[" << index2[0] << ", " << index2[1] << ", " << index2[2] << "]" << endl;
 
@@ -273,7 +283,10 @@ shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t prdim)
 shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 {
 	// create output
-	shared_ptr<MRImage> out = padFFT(in);
+	double upsample[3] = {2,2,2};
+	upsample[prdim] = 1;
+
+	shared_ptr<MRImage> out = padFFT(in, upsample);
 
 	// declare variables
 	std::vector<int64_t> index(out->ndim()); 
@@ -319,11 +332,11 @@ shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 			it.index(index);
 
 			string istr;
-			if(index[0] == 1) {
-				draw = true;
-				istr = "Dir"+to_string(dd)+"_"+to_string(index[0])+"_"+
-					to_string(index[1])+"_"+to_string(index[2]);
-			}
+//			if(index[0] == 1) {
+//				draw = true;
+//				istr = "Dir"+to_string(dd)+"_"+to_string(index[0])+"_"+
+//					to_string(index[1])+"_"+to_string(index[2]);
+//			}
 			
 			// recompute chirps if alpha changed
 			alpha = 2*(index[prdim]/(double)out->dim(prdim)) - 1;
@@ -417,19 +430,19 @@ shared_ptr<MRImage> createTestImageFreq(size_t sz1)
 //		else 
 //			v = 0;
 		
-//		// lines in x direction, this actually won't work, because there
-//		// will be aliasing during down-sampling, 
-//		if((index[2]+index[1])%2 == 0)
-//			v = 1;
-//		else
-//			v = 0;
-
-		// lines in x direction
-		if(sin(index[2]) > 0 && sin(index[1]) > 0)
+		// lines in x direction, this actually won't work, because there
+		// will be aliasing during down-sampling, 
+		if((index[2]+index[1])%2 == 0)
 			v = 1;
 		else
 			v = 0;
-
+//
+//		// lines in x direction
+//		if(sin(index[2]) > 0 && sin(index[1]) > 0)
+//			v = 1;
+//		else
+//			v = 0;
+//
 //		// gaussian
 //		v = 1;
 //		for(size_t ii=0; ii<3; ii++)
