@@ -135,15 +135,27 @@ int closeCompare(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b)
 		}
 	}
 
+	double corr = 0;
+	double sum1 = 0;
+	double sum2 = 0;
+	double sumsq1 = 0;
+	double sumsq2 = 0;
+	size_t count = 0;
 	OrderConstIter<double> ita(a);
 	OrderConstIter<double> itb(b);
 	itb.setOrder(ita.getOrder());
 	for(ita.goBegin(), itb.goBegin(); !ita.eof() && !itb.eof(); ++ita, ++itb) {
-		double diff = fabs(*ita - *itb);
-		if(diff > 1E-10) {
-			cerr << "Images differ!" << endl;
-			return -1;
-		}
+		corr += abs(*ita)*abs(*itb);
+		sum1 += abs(*ita);
+		sum2 += abs(*itb);
+		sumsq1 += abs(*ita)*abs(*ita);
+		sumsq2 += abs(*itb)*abs(*itb);
+		count++;
+	}
+
+	corr = sample_corr(count, sum1, sum2, sumsq1, sumsq2, corr);
+	if(corr < .98) {
+		return 1;
 	}
 
 	return 0;
@@ -232,13 +244,12 @@ shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t prdim)
 	if(in->ndim() != 3) 
 		return NULL;
 
-	double upsample[3] = {2,2,2};
+	double uscale = 2;
+	double upsample[3] = {uscale,uscale,uscale};
 	upsample[prdim] = 1;
 
 	shared_ptr<MRImage> out = padFFT(in, upsample);
 	shared_ptr<MRImage> tmp = padFFT(in, upsample);
-
-	writeComplexAA("earlyout", out);
 
 	// interpolate along lines
 	std::vector<double> index(3); // index space version of output
@@ -256,7 +267,7 @@ shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t prdim)
 		for(size_t ii=0; ii<3; ii++) {
 			if(ii != prdim) {
 				double middle = out->dim(ii)/2.;
-				double slope = 2*(index[ii]-middle)/middle;
+				double slope = uscale*(index[ii]-middle)/middle;
 				angles[jj++] = slope;
 			}
 		}
@@ -275,7 +286,6 @@ shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t prdim)
 
 		oit.set(interp(index2[0], index2[1], index2[2]));
 	}
-	writeComplex("out", out);
 
 	return out;
 }
@@ -341,9 +351,6 @@ shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
 			// recompute chirps if alpha changed
 			alpha = 2*(index[prdim]/(double)out->dim(prdim)) - 1;
 			if(alpha != prevAlpha) {
-				cerr << "[" << index[0] << ", " << index[1] << ", " << index[2]
-					<< "]" << endl;
-				cerr << "Recomputing chirps for alpha = " << alpha << endl;
 				createChirp(uppadsize, prechirp, isize, upratio, alpha, 
 						false, false);
 				createChirp(uppadsize, postchirp, isize, upratio, alpha, 
@@ -524,19 +531,17 @@ int testPseudoPolar()
 	writeComplex("input", in);
 	
 	// test the pseudopolar transforms
-//	for(size_t dd=0; dd<3; dd++) {
-	size_t dd = 0;
-	{
+	for(size_t dd=0; dd<3; dd++) {
 		cerr << "Computing With PseudoRadius = " << dd << endl;
 		auto pp1_fft = pseudoPolar(in, dd);
 		auto pp1_brute = pseudoPolarBrute(in, dd);
 
 		writeComplexAA("fft_pp"+to_string(dd), pp1_fft);
 		writeComplexAA("brute_pp"+to_string(dd), pp1_brute);
-//		if(closeCompare(pp1_fft, pp1_brute) != 0) {
-//			cerr << "FFT and BruteForce pseudopolar differ" << endl;
-//			return -1;
-//		}
+		if(closeCompare(pp1_fft, pp1_brute) != 0) {
+			cerr << "FFT and BruteForce pseudopolar differ" << endl;
+			return -1;
+		}
 	}
 	
 	return 0;
