@@ -13,7 +13,7 @@ def build(bld):
             export_includes = ['.'])
     bld.shlib(target = 'ndarray_utils',
             source = 'ndarray_utils.cpp', 
-            use='utility npltypes slicer ndarray FFTW',
+            use='utility npltypes slicer chirpz ndarray FFTW',
             export_includes = ['.'])
     bld.shlib(target = 'slicer',
             source = 'slicer.cpp', 

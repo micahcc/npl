@@ -241,12 +241,11 @@ void chirpzFT_brute2(size_t isize, fftw_complex* in, fftw_complex* out, double a
  * @param alpha Fraction of full space to compute
  * @param debug Write out diagnostic plots
  */
-void chirpzZoom_help(size_t isize, fftw_complex* in, fftw_complex* out, double a)
+void zoom(size_t isize, fftw_complex* in, fftw_complex* out, double a)
 {
-	cerr << "ZOOMHELP" << endl;
 	if(in == out) 
 		throw std::invalid_argument("Input/Output cannot be equal");
-	if(a < 0 || a > 1)
+	if(a < -1 || a > 1)
 		throw std::invalid_argument("Zoom (a) must satisfy: 0 <= a <= 1");
 	
 	// fill/average pad
@@ -254,7 +253,8 @@ void chirpzZoom_help(size_t isize, fftw_complex* in, fftw_complex* out, double a
 	
 	// copy/center
 	for(size_t oo=0; oo<isize; oo++) {
-		double cii = (oo-(isize/2.))*fabs(a)+isize/2.;
+//		double cii = (oo-((isize-1.)/2.))*a+(isize-1.)/2.;
+		double cii = (oo-(isize/2.))*a+isize/2.;
 		int64_t center = round(cii);
 
 		complex<double> sum = 0;
@@ -267,7 +267,6 @@ void chirpzZoom_help(size_t isize, fftw_complex* in, fftw_complex* out, double a
 		out[oo][0] = sum.real();
 		out[oo][1] = sum.imag();
 	}
-	
 }
 
 /**
@@ -318,9 +317,9 @@ void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out,
 		buffer[ii][1] *= norm;
 	}
 
-	// rotate
+	// rotate, making 0 frequency in the middle
 	std::rotate(&buffer[0][0], &buffer[isize/2][0], &buffer[isize][0]);
-	chirpzZoom_help(isize, buffer, out, fabs(a));
+	zoom(isize, buffer, out, fabs(a));
 
 	fftw_destroy_plan(plan);
 }
