@@ -14,11 +14,6 @@
  * limitations under the License.
  *
  * @file ndarray_utils.cpp
- *
- *****************************************************************************/
-
-/******************************************************************************
- * @file ndarray_utils.cpp
  * @brief This file contains common functions which are useful for processing
  * of N-dimensional arrays and their derived counterparts (MRImage for
  * example). All of these functions return pointers to NDArray types, however
@@ -1505,6 +1500,228 @@ int rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz,
 	return 0;
 }
 
+/**
+ * @brief Fills the input array (chirp) with a chirp of the specified type
+ *
+ * @param sz 		Size of output array 
+ * @param chirp 	Output array
+ * @param origsz 	Original size, decides maximum frequency reached
+ * @param upratio 	Ratio of upsampling performed. This may be different than 
+ * 					sz/origsz
+ * @param alpha 	Positive term in exp
+ * @param beta 		Negative term in exp
+ * @param fft 		Whether to fft the output (put it in frequency domain)
+ */
+void pphelp_createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
+		double upratio, double alpha, bool center, bool fft)
+{
+//	assert(sz%2==1);
+	const double PI = acos(-1);
+	const complex<double> I(0,1);
+	
+	auto fwd_plan = fftw_plan_dft_1d((int)sz, chirp, chirp, FFTW_FORWARD,
+				FFTW_MEASURE | FFTW_PRESERVE_INPUT);
+
+	for(int64_t ii=0; ii<sz; ii++) {
+		double xx = 0;
+		if(center) 
+			xx = (ii-sz/2.)/upratio;
+		else
+			xx = ii/upratio;
+		auto tmp = std::exp(-I*PI*alpha*xx*xx/(double)origsz);
+		chirp[ii][0] = tmp.real();
+		chirp[ii][1] = tmp.imag();
+	}
+	
+	if(fft) {
+		fftw_execute(fwd_plan);
+		double norm = 1./sz;
+		for(size_t ii=0; ii<sz; ii++) {
+			chirp[ii][0] *= norm;
+			chirp[ii][1] *= norm;
+		}
+		std::rotate(&chirp[0][0], &chirp[sz/2][0], &chirp[sz][0]);
+	}
+
+	fftw_destroy_plan(fwd_plan);
+}
+
+shared_ptr<NDArray> pseudoPolar_single(shared_ptr<const NDArray> inimg,
+		size_t prdim, double angle_scale,
+		size_t buffsize, fftw_complex* buffer)
+{
+	// create output
+	const complex<double> I(0,1);
+	std::vector<double> upsample(inimg->ndim(), angle_scale);
+	upsample[prdim] = 1;
+	shared_ptr<MRImage> out = padFFT(in, upsample);
+	
+	// declare variables
+	std::vector<int64_t> index(out->ndim()); 
+
+	for(size_t dd=0; dd<out->ndim(); dd++) {
+		if(dd == prdim)
+			continue;
+
+		size_t isize = out->dim(dd);
+		int64_t usize = round2(isize);
+		int64_t uppadsize = usize*4;
+		double upratio = (double)usize/(double)isize;
+		if(uppadsize > buffsize)
+			throw std::length_error("Buffer not large enough for processing");
+		
+		fftw_complex* current = &buffer[0];
+		fftw_complex* sigbuff = &buffer[isize]; // note the overlap with upsampled
+		fftw_complex* upsampled = &buffer[isize+uppadsize/2-usize/2];
+		fftw_complex* prechirp = &buffer[isize+uppadsize];
+		fftw_complex* postchirp = &buffer[isize+2*uppadsize];
+		fftw_complex* convchirp = &buffer[isize+3*uppadsize];
+		fftw_plan plan = fftw_plan_dft_1d((int)isize, current, current,
+				FFTW_BACKWARD, FFTW_MEASURE);
+		fftw_plan sigbuff_plan_fwd = fftw_plan_dft_1d(uppadsize, sigbuff,
+				sigbuff, FFTW_FORWARD, FFTW_MEASURE);
+		fftw_plan sigbuff_plan_rev = fftw_plan_dft_1d(uppadsize, sigbuff,
+				sigbuff, FFTW_BACKWARD, FFTW_MEASURE);
+
+		assert(buffsize >= isize+3*uppadsize);
+		
+		ChunkIter<cdouble_t> it(out);
+		it.setLineChunk(dd);
+		it.setOrder({prdim}, true); // make pseudoradius slowest
+		double alpha, prevAlpha = NAN;
+		for(it.goBegin(); !it.eof(); it.nextChunk()) {
+			it.index(index);
+			
+			// recompute chirps if alpha changed
+			alpha = 2*(index[prdim]/((double)out->dim(prdim)-1.)) - 1.;
+			if(alpha != prevAlpha) {
+				pphelp_createChirp(uppadsize, prechirp, isize, upratio, 
+						alpha, false, false);
+				pphelp_createChirp(uppadsize, postchirp, isize, upratio, 
+						alpha, true, false);
+				pphelp_createChirp(uppadsize, convchirp, isize, upratio,
+						-alpha, true, true);
+			}
+
+			// copy fourier domain from input image
+			it.goChunkBegin();
+			for(size_t ii=0; !it.eoc(); ++it) {
+				current[ii][0] = (*it).real();
+				current[ii][1] = (*it).imag();
+			}
+
+			// compute chirpz transform
+			chirpzFFT(isize, usize, current, uppadsize, &buffer[isize],
+						prechirp, convchirp, postchirp);
+			/////////////////////////////////////////////////////
+
+			// SHIT can't premultiply
+	// pre-multiply
+	for(int64_t nn = 0; nn<usize; nn++) {
+		complex<double> tmp1(prechirp[nn][0], prechirp[nn][1]);
+		complex<double> tmp2(upsampled[nn][0], upsampled[nn][1]);
+		tmp1 *= tmp2;
+		upsampled[nn][0] = tmp1.real();
+		upsampled[nn][1] = tmp1.imag();
+	}
+
+	/*
+	 * convolve
+	 */
+	fftw_execute(sigbuff_plan_fwd);
+	double normfactor = (double)isize/(usize*uppadsize);
+	for(size_t ii=0; ii<uppadsize; ii++) {
+		sigbuff[ii][0] *= normfactor;
+		sigbuff[ii][1] *= normfactor;
+	}
+
+	for(size_t ii=0; ii<uppadsize; ii++) {
+		complex<double> tmp1(sigbuff[ii][0], sigbuff[ii][1]);
+		complex<double> tmp2(convchirp[ii][0], convchirp[ii][1]);
+		tmp1 *= tmp2;
+		sigbuff[ii][0] = tmp1.real();
+		sigbuff[ii][1] = tmp1.imag();
+	}
+	fftw_execute(sigbuff_plan_rev);
+	
+	normfactor = uppadsize; 
+	for(size_t ii=0; ii<uppadsize; ii++) {
+		sigbuff[ii][0] *= normfactor;
+		sigbuff[ii][1] *= normfactor;
+	}
+	
+	if(debug) {
+		writePlotReIm("fft_convolve.svg", uppadsize, sigbuff);
+	}
+
+	// circular shift
+	std::rotate(&sigbuff[0][0], &sigbuff[uppadsize/2-usize/2][0],
+			&sigbuff[uppadsize][0]);
+	if(debug) {
+		writePlotReIm("fft_rotated.svg", uppadsize, sigbuff);
+	}
+	
+	for(int64_t nn = 0; nn<usize; nn++) {
+		complex<double> tmp1(postchirp[nn+uppadsize/2-usize/2][0], 
+				postchirp[nn+uppadsize/2-usize/2][1]);
+		complex<double> tmp2(upsampled[nn][0], upsampled[nn][1]);
+		tmp1 *= tmp2;
+		upsampled[nn][0] = tmp1.real();
+		upsampled[nn][1] = tmp1.imag();
+	}
+
+
+	if(debug) {
+		writePlotReIm("fft_postmult.svg", uppadsize, sigbuff);
+	}
+	
+	interp(usize, upsampled, isize, inout);
+	
+	if(debug) {
+		writePlotReIm("fft_out.svg", isize, inout);
+	}
+
+	fftw_destroy_plan(sigbuff_plan_rev);
+	fftw_destroy_plan(sigbuff_plan_fwd);
+			/////////////////////////////////////////////////////
+			
+			// copy from buffer back to output
+			it.goChunkBegin();
+			for(size_t ii=0; !it.eoc(); ii++, ++it) {
+				cdouble_t tmp(current[ii][0], current[ii][1]);
+				it.set(tmp);
+			}
+			prevAlpha = alpha;
+		}
+
+		fftw_destroy_plan(plan);
+	}
+
+	return out;
+
+}
+
+vector<shared_ptr<NDArray>> pseudoPolar(shared_ptr<const NDArray> inimg, 
+		double angle_scale)
+{
+	// compute/initialize buffer
+	size_t buffsize = [&]
+	{
+		size_t m = 0;
+		for(size_t dd=0; dd<3; dd++) {
+			if(dd != prdim) 
+				m = std::max(m, round2(out->dim(dd)*angle_scale));
+		}
+		return m*16;
+	}();
+
+	fftw_complex* buffer = fftw_alloc_complex(buffsize);
+
+	std::vector<shared_ptr<NDArray> out;
+	for(size_t dd=0; dd<inimg->ndim(); dd++) {
+		out.push_back(pseudoPolar_single());
+	}
+}
 
 } // npl
 #endif  //IMAGE_PROCESSING_H
