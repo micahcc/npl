@@ -219,6 +219,46 @@ int shearTest(double Rx, double Ry, double Rz);
 int shearDecompose(std::list<Eigen::Matrix3d>& terms, double Rx, double Ry,
 		double Rz);
 
+
+/**
+ * @brief Computes the pseudopolar-gridded fourier transform on the input
+ * image, with prdim as the pseudo-radius direction. To sample the whole space
+ * you would need to call this once for each of the dimensions, or use the
+ * other function which does not take this argument, and returns a vector.
+ *
+ * @param in	Input image to compute pseudo-polar fourier transform on
+ * @param prdim	Dimension to be the pseudo-radius in output
+ *
+ * @return 		Pseudo-polar sample fourier transform
+ */
+shared_ptr<NDArray> pseudoPolar(shared_ptr<const NDArray> in, size_t prdim);
+
+/**
+ * @brief Computes the pseudopolar-gridded fourier transform on the input
+ * image returns a vector of pseudo-polar sampled image, one for each dimension
+ * as the pseudo-radius.
+ *
+ * @param in	Input image to compute pseudo-polar fourier transform on
+ *
+ * @return 		Vector of Pseudo-polar sample fourier transforms, one for each
+ * dimension
+ */
+std::vector<std::shared_ptr<NDArray>> pseudoPolar(shared_ptr<const NDArray> in);
+
+/**
+ * @brief Computes the pseudopolar-gridded fourier transform on the input
+ * image, with prdim as the pseudo-radius direction. To sample the whole space
+ * you would need to call this once for each of the dimensions, or use the
+ * other function which does not take this argument, and returns a vector.
+ * This function skips the chirpz transform by interpolation-zooming.
+ *
+ * @param in	Input image to compute pseudo-polar fourier transform on
+ * @param prdim	Dimension to be the pseudo-radius in output
+ *
+ * @return 		Pseudo-polar sample fourier transform
+ */
+shared_ptr<NDArray> pseudoPolarZoom(shared_ptr<const NDArray> in, size_t prdim);
+
 } // npl
 #endif  //ND_ALGOS_H
 

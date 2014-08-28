@@ -166,6 +166,17 @@ void writePlotReIm(std::string file, const std::vector<std::complex<double>>& in
  */
 void writePlotReIm(std::string file, size_t insz, fftw_complex* in);
 
+/**
+ * @brief Performs a de-facto chirpz by interpolated zoom of a fourier-space
+ * line.
+ *
+ * @param isize	Size of input array
+ * @param in	Input array (which should be in the fourier domain)
+ * @param out	Output array
+ * @param a		Zoom factor (should be -1 <= a <= 1)
+ */
+void zoom(size_t isize, fftw_complex* in, fftw_complex* out, double a);
+
 }
 
 #endif //CHIRPZ_H
