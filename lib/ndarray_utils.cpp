@@ -38,6 +38,7 @@
 #include "utility.h"
 #include "iterators.h"
 #include "basic_functions.h"
+#include "chirpz.h"
 
 #include <Eigen/Geometry> 
 #include <Eigen/Dense> 
@@ -50,6 +51,9 @@
 #include <cassert>
 #include <memory>
 #include <stdexcept>
+
+
+#include "mrimage.h"
 
 namespace npl {
 
@@ -1505,6 +1509,287 @@ int rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz,
 	return 0;
 }
 
+// upsample in anglular directions
+shared_ptr<NDArray> pphelp_padFFT(shared_ptr<const NDArray> in, 
+		const std::vector<double>& upsamp)
+{
+	std::vector<size_t> osize(in->ndim(), 0);
+	size_t maxbsize = 0;
+	for(size_t ii=0; ii<in->ndim(); ii++) {
+		osize[ii] = round2(in->dim(ii)*upsamp[ii]);
+		maxbsize = std::max(maxbsize, osize[ii]);
+	}
+
+	auto buffer = fftw_alloc_complex(maxbsize);
+	auto oimg = in->copyCast(osize.size(), osize.data(), COMPLEX128);
+	std::vector<int64_t> index(in->ndim());
+
+	// fourier transform
+	for(size_t dd = 0; dd < oimg->ndim(); dd++) {
+		fftw_plan fwd = fftw_plan_dft_1d((int)osize[dd], buffer, buffer, 
+				FFTW_FORWARD, FFTW_MEASURE);
+		
+		ChunkIter<cdouble_t> it(oimg);
+		it.setLineChunk(dd);
+		for(it.goBegin(); !it.eof() ; it.nextChunk()) {
+			it.index(index.size(), index.data());
+
+			// fill from line
+			for(size_t tt=0; !it.eoc(); ++it, tt++) {
+				buffer[tt][0] = (*it).real();
+				buffer[tt][1] = (*it).imag();
+			}
+
+			// fourier transform
+			fftw_execute(fwd);
+			
+			// copy/shift
+			// F += N/2 (even), for N = 4:
+			// 0 -> 2 (f =  0)
+			// 1 -> 3 (f = +1)
+			// 2 -> 0 (f = -2)
+			// 3 -> 1 (f = -1)
+			it.goChunkBegin();
+			double norm = 1./sqrt(osize[dd]);
+			for(size_t tt=osize[dd]/2; !it.isChunkEnd(); ++it) {
+				cdouble_t tmp(buffer[tt][0]*norm, buffer[tt][1]*norm);
+				it.set(tmp);
+				tt=(tt+1)%osize[dd];
+			}
+		}
+
+		fftw_destroy_plan(fwd);
+	}
+
+	fftw_free(buffer);
+	
+	return oimg;
+}
+
+/**
+ * @brief Computes the pseudopolar-gridded fourier transform on the input
+ * image, with prdim as the pseudo-radius direction. To sample the whole space
+ * you would need to call this once for each of the dimensions, or use the
+ * other function which does not take this argument, and returns a vector.
+ * This function skips the chirpz transform by interpolation-zooming.
+ *
+ * @param in	Input image to compute pseudo-polar fourier transform on
+ * @param prdim	Dimension to be the pseudo-radius in output
+ *
+ * @return 		Pseudo-polar sample fourier transform
+ */
+shared_ptr<NDArray> pseudoPolarZoom(shared_ptr<const NDArray> inimg, size_t prdim)
+{
+	// create output
+	std::vector<double> upsample(inimg->ndim(), 2);
+	upsample[prdim] = 1;
+
+	shared_ptr<NDArray> out = pphelp_padFFT(inimg, upsample);
+	
+	// write out padded/FFT image
+	{
+		auto absimg = dynamic_pointer_cast<MRImage>(out->copyCast(FLOAT64));
+		auto angimg = dynamic_pointer_cast<MRImage>(out->copyCast(FLOAT64));
+
+		OrderIter<double> rit(absimg);
+		OrderIter<double> iit(angimg);
+		OrderConstIter<cdouble_t> init(out);
+		while(!init.eof()) {
+			rit.set(abs(*init));
+			iit.set(arg(*init));
+			++init;
+			++rit;
+			++iit;
+		}
+
+		absimg->write("fft"+to_string(prdim)+"_abs.nii.gz");
+		angimg->write("fft"+to_string(prdim)+"_ang.nii.gz");
+	}
+
+	// declare variables
+	std::vector<int64_t> index(out->ndim()); 
+
+	// compute/initialize buffer
+	size_t buffsize = [&]
+	{
+		size_t m = 0;
+		for(size_t dd=0; dd<3; dd++) {
+			if(dd != prdim) {
+				if(out->dim(dd) > m)
+					m = out->dim(dd);
+			}
+		}
+		return m*2;
+	}();
+
+	fftw_complex* buffer = fftw_alloc_complex(buffsize);
+
+
+	for(size_t dd=0; dd<out->ndim(); dd++) {
+		if(dd == prdim)
+			continue;
+
+		size_t isize = out->dim(dd);
+		
+		ChunkIter<cdouble_t> it(out);
+		it.setLineChunk(dd);
+		it.setOrder({prdim}, true); // make pseudoradius slowest
+		for(it.goBegin(); !it.eof(); it.nextChunk()) {
+			it.index(index);
+
+			// recompute chirps if alpha changed
+			double alpha = 2*(index[prdim]/(double)out->dim(prdim)) - 1;
+
+			// copy from input image
+			it.goChunkBegin();
+			for(size_t ii=0; !it.eoc(); ++it, ii++) {
+				buffer[ii][0] = (*it).real();
+				buffer[ii][1] = (*it).imag();
+			}
+
+			// zoom
+			assert(buffsize >= isize*2);
+			zoom(isize, &buffer[0], &buffer[isize], alpha);
+			
+			// copy from buffer back to output
+			it.goChunkBegin();
+			for(size_t ii=0; !it.eoc(); ii++, ++it) {
+				cdouble_t tmp(buffer[isize+ii][0], buffer[isize+ii][1]);
+				it.set(tmp);
+			}
+		}
+	}
+	fftw_free(buffer);
+
+	return out;
+}
+
+/**
+ * @brief Computes the pseudopolar-gridded fourier transform on the input
+ * image, with prdim as the pseudo-radius direction. To sample the whole space
+ * you would need to call this once for each of the dimensions, or use the
+ * other function which does not take this argument, and returns a vector.
+ *
+ * @param in	Input image to compute pseudo-polar fourier transform on
+ * @param prdim	Dimension to be the pseudo-radius in output
+ *
+ * @return 		Pseudo-polar sample fourier transform
+ */
+shared_ptr<NDArray> pseudoPolar(shared_ptr<const NDArray> in, size_t prdim)
+{
+	// create output
+	std::vector<double> upsample(in->ndim(), 2);
+	upsample[prdim] = 1;
+
+	shared_ptr<NDArray> out = pphelp_padFFT(in, upsample);
+
+	// declare variables
+	std::vector<int64_t> index(out->ndim()); 
+
+	// compute/initialize buffer
+	size_t buffsize = [&]
+	{
+		size_t m = 0;
+		for(size_t dd=0; dd<3; dd++) {
+			if(dd != prdim) {
+				if(out->dim(dd) > m)
+					m = out->dim(dd);
+			}
+		}
+		return m*30;
+	}();
+
+	fftw_complex* buffer = fftw_alloc_complex(buffsize);
+
+	for(size_t dd=0; dd<out->ndim(); dd++) {
+		if(dd == prdim)
+			continue;
+
+		size_t isize = out->dim(dd);
+		int64_t usize = round2(isize);
+		int64_t uppadsize = usize*4;
+		double upratio = (double)usize/(double)isize;
+		fftw_complex* current = &buffer[0];
+		fftw_complex* prechirp = &buffer[isize+uppadsize];
+		fftw_complex* postchirp = &buffer[isize+2*uppadsize];
+		fftw_complex* convchirp = &buffer[isize+3*uppadsize];
+		fftw_plan plan = fftw_plan_dft_1d((int)isize, current, current,
+				FFTW_BACKWARD, FFTW_MEASURE);
+
+		assert(buffsize >= isize+3*uppadsize);
+		
+		ChunkIter<cdouble_t> it(out);
+		it.setLineChunk(dd);
+		it.setOrder({prdim}, true); // make pseudoradius slowest
+		double alpha, prevAlpha = NAN;
+		for(it.goBegin(); !it.eof(); it.nextChunk()) {
+			it.index(index);
+
+			// recompute chirps if alpha changed
+			alpha = 2*(index[prdim]/(double)out->dim(prdim)) - 1;
+			if(alpha != prevAlpha) {
+				createChirp(uppadsize, prechirp, isize, upratio, alpha, 
+						false, false);
+				createChirp(uppadsize, postchirp, isize, upratio, alpha, 
+						true, false);
+				createChirp(uppadsize, convchirp, isize, upratio, -alpha,
+						true, true);
+			}
+
+			// copy from input image, shift
+			it.goChunkBegin();
+			for(size_t ii=isize/2; !it.eoc(); ++it) {
+				current[ii][0] = (*it).real();
+				current[ii][1] = (*it).imag();
+				ii=(ii+1)%isize;
+			}
+
+			fftw_execute(plan);
+			double norm = 1./sqrt(isize);
+			for(size_t ii=0; ii<isize; ii++) {
+				current[ii][0] *= norm;
+				current[ii][1] *= norm;
+			}
+		
+			// compute chirpz transform
+			chirpzFFT(isize, usize, current, uppadsize, &buffer[isize],
+						prechirp, convchirp, postchirp);
+			
+			// copy from buffer back to output
+			it.goChunkBegin();
+			for(size_t ii=0; !it.eoc(); ii++, ++it) {
+				cdouble_t tmp(current[ii][0], current[ii][1]);
+				it.set(tmp);
+			}
+			prevAlpha = alpha;
+		}
+
+		fftw_destroy_plan(plan);
+	}
+	fftw_free(buffer);
+
+	return out;
+}
+
+/**
+ * @brief Computes the pseudopolar-gridded fourier transform on the input
+ * image returns a vector of pseudo-polar sampled image, one for each dimension
+ * as the pseudo-radius.
+ *
+ * @param in	Input image to compute pseudo-polar fourier transform on
+ *
+ * @return 		Vector of Pseudo-polar sample fourier transforms, one for each
+ * dimension
+ */
+vector<shared_ptr<NDArray>> pseudoPolar(shared_ptr<const NDArray> in)
+{
+	std::vector<shared_ptr<NDArray>> out(in->ndim());
+	for(size_t dd=0; dd < in->ndim(); dd++) {
+		out[dd] = pseudoPolar(in, dd);
+	}
+
+	return out;
+}
 
 } // npl
 #endif  //IMAGE_PROCESSING_H

@@ -36,7 +36,6 @@
 
 #include "fftw3.h"
 
-
 using namespace npl;
 using namespace std;
 using Eigen::Matrix3d;
@@ -290,133 +289,6 @@ shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t prdim)
 	return out;
 }
 
-shared_ptr<MRImage> pseudoPolar(shared_ptr<MRImage> in, size_t prdim)
-{
-	// create output
-	double upsample[3] = {2,2,2};
-	upsample[prdim] = 1;
-
-	shared_ptr<MRImage> out = padFFT(in, upsample);
-
-	// declare variables
-	std::vector<int64_t> index(out->ndim()); 
-
-	// compute/initialize buffer
-	size_t buffsize = [&]
-	{
-		size_t m = 0;
-		for(size_t dd=0; dd<3; dd++) {
-			if(dd != prdim) {
-				if(out->dim(dd) > m)
-					m = out->dim(dd);
-			}
-		}
-		return m*30;
-	}();
-
-	fftw_complex* buffer = fftw_alloc_complex(buffsize);
-	bool draw = false;
-
-	for(size_t dd=0; dd<3; dd++) {
-		if(dd == prdim)
-			continue;
-
-		size_t isize = out->dim(dd);
-		int64_t usize = round2(isize);
-		int64_t uppadsize = usize*4;
-		double upratio = (double)usize/(double)isize;
-		fftw_complex* current = &buffer[0];
-		fftw_complex* prechirp = &buffer[isize+uppadsize];
-		fftw_complex* postchirp = &buffer[isize+2*uppadsize];
-		fftw_complex* convchirp = &buffer[isize+3*uppadsize];
-		fftw_plan plan = fftw_plan_dft_1d((int)isize, current, current,
-				FFTW_BACKWARD, FFTW_MEASURE);
-
-		assert(buffsize >= isize+3*uppadsize);
-		
-		ChunkIter<cdouble_t> it(out);
-		it.setLineChunk(dd);
-		it.setOrder({prdim}, true); // make pseudoradius slowest
-		double alpha, prevAlpha = NAN;
-		for(it.goBegin(); !it.eof(); it.nextChunk()) {
-			it.index(index);
-
-			string istr;
-//			if(index[0] == 1) {
-//				draw = true;
-//				istr = "Dir"+to_string(dd)+"_"+to_string(index[0])+"_"+
-//					to_string(index[1])+"_"+to_string(index[2]);
-//			}
-			
-			// recompute chirps if alpha changed
-			alpha = 2*(index[prdim]/(double)out->dim(prdim)) - 1;
-			if(alpha != prevAlpha) {
-				createChirp(uppadsize, prechirp, isize, upratio, alpha, 
-						false, false);
-				createChirp(uppadsize, postchirp, isize, upratio, alpha, 
-						true, false);
-				createChirp(uppadsize, convchirp, isize, upratio, -alpha,
-						true, true);
-			}
-
-			// copy from input image, shift
-			it.goChunkBegin();
-			for(size_t ii=isize/2; !it.eoc(); ++it) {
-				current[ii][0] = (*it).real();
-				current[ii][1] = (*it).imag();
-				ii=(ii+1)%isize;
-			}
-
-			if(draw) {
-				writePlotReIm("preifft_"+istr+".svg", isize, current);
-				for(size_t ii=0; ii<isize; ii++){ 
-					cerr << current[ii][0] << "," << current[ii][1] << endl;
-				}
-				cerr << endl;
-			}
-			fftw_execute(plan);
-			double norm = 1./sqrt(isize);
-			for(size_t ii=0; ii<isize; ii++) {
-				current[ii][0] *= norm;
-				current[ii][1] *= norm;
-			}
-			if(draw) {
-				writePlotReIm("ifftd_"+istr+".svg", isize, current);
-				for(size_t ii=0; ii<isize; ii++){ 
-					cerr << current[ii][0] << "," << current[ii][1] << endl;
-				}
-				cerr << endl;
-			}
-		
-			// compute chirpz transform
-			chirpzFFT(isize, usize, current, uppadsize, &buffer[isize],
-						prechirp, convchirp, postchirp);
-			if(draw) {
-				writePlotReIm("chirped_"+istr+".svg", isize, current);
-				for(size_t ii=0; ii<isize; ii++){ 
-					cerr << current[ii][0] << "," << current[ii][1] << endl;
-				}
-				cerr << endl;
-				draw = false;
-			}
-			
-			// copy from buffer back to output
-			it.goChunkBegin();
-			for(size_t ii=0; !it.eoc(); ii++, ++it) {
-				cdouble_t tmp(current[ii][0], current[ii][1]);
-				it.set(tmp);
-			}
-			prevAlpha = alpha;
-		}
-
-		fftw_destroy_plan(plan);
-		writeComplexAA("early"+to_string(dd), out); 
-	}
-	fftw_free(buffer);
-
-	return out;
-}
-
 shared_ptr<MRImage> createTestImageFreq(size_t sz1)
 {
 	// create an image
@@ -533,13 +405,19 @@ int testPseudoPolar()
 	// test the pseudopolar transforms
 	for(size_t dd=0; dd<3; dd++) {
 		cerr << "Computing With PseudoRadius = " << dd << endl;
-		auto pp1_fft = pseudoPolar(in, dd);
+		auto pp1_fft = dynamic_pointer_cast<MRImage>(pseudoPolar(in, dd));
+		auto pp1_zoom = dynamic_pointer_cast<MRImage>(pseudoPolarZoom(in, dd));
 		auto pp1_brute = pseudoPolarBrute(in, dd);
 
 		writeComplexAA("fft_pp"+to_string(dd), pp1_fft);
+		writeComplexAA("zoom_pp"+to_string(dd), pp1_zoom);
 		writeComplexAA("brute_pp"+to_string(dd), pp1_brute);
 		if(closeCompare(pp1_fft, pp1_brute) != 0) {
 			cerr << "FFT and BruteForce pseudopolar differ" << endl;
+			return -1;
+		}
+		if(closeCompare(pp1_zoom, pp1_brute) != 0) {
+			cerr << "Zoom and BruteForce pseudopolar differ" << endl;
 			return -1;
 		}
 	}
