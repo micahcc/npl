@@ -1608,11 +1608,9 @@ shared_ptr<NDArray> pseudoPolarZoom(shared_ptr<const NDArray> inimg, size_t prdi
 	size_t buffsize = [&]
 	{
 		size_t m = 0;
-		for(size_t dd=0; dd<3; dd++) {
-			if(dd != prdim) {
-				if(out->dim(dd) > m)
-					m = out->dim(dd);
-			}
+		for(size_t dd=0; dd<out->ndim(); dd++) {
+			if(dd != prdim) 
+				m = max(out->dim(dd), m);
 		}
 		return m*2;
 	}();
@@ -1685,11 +1683,9 @@ shared_ptr<NDArray> pseudoPolar(shared_ptr<const NDArray> in, size_t prdim)
 	size_t buffsize = [&]
 	{
 		size_t m = 0;
-		for(size_t dd=0; dd<3; dd++) {
-			if(dd != prdim) {
-				if(out->dim(dd) > m)
-					m = out->dim(dd);
-			}
+		for(size_t dd=0; dd<in->ndim(); dd++) {
+			if(dd != prdim) 
+				m = std::max(out->dim(dd), m);
 		}
 		return m*30;
 	}();
@@ -1700,18 +1696,16 @@ shared_ptr<NDArray> pseudoPolar(shared_ptr<const NDArray> in, size_t prdim)
 		if(dd == prdim)
 			continue;
 
-		size_t isize = out->dim(dd);
-		int64_t usize = round2(isize);
+		int64_t usize = out->dim(dd);
 		int64_t uppadsize = usize*4;
-		double upratio = (double)usize/(double)isize;
 		fftw_complex* current = &buffer[0];
-		fftw_complex* prechirp = &buffer[isize+uppadsize];
-		fftw_complex* postchirp = &buffer[isize+2*uppadsize];
-		fftw_complex* convchirp = &buffer[isize+3*uppadsize];
-		fftw_plan plan = fftw_plan_dft_1d((int)isize, current, current,
+		fftw_complex* prechirp = &buffer[usize+uppadsize];
+		fftw_complex* postchirp = &buffer[usize+2*uppadsize];
+		fftw_complex* convchirp = &buffer[usize+3*uppadsize];
+		fftw_plan plan = fftw_plan_dft_1d((int)usize, current, current,
 				FFTW_BACKWARD, FFTW_MEASURE);
 
-		assert(buffsize >= isize+3*uppadsize);
+		assert(buffsize >= usize+3*uppadsize);
 		
 		ChunkIter<cdouble_t> it(out);
 		it.setLineChunk(dd);
@@ -1723,31 +1717,31 @@ shared_ptr<NDArray> pseudoPolar(shared_ptr<const NDArray> in, size_t prdim)
 			// recompute chirps if alpha changed
 			alpha = 2*(index[prdim]/(double)out->dim(prdim)) - 1;
 			if(alpha != prevAlpha) {
-				createChirp(uppadsize, prechirp, isize, upratio, alpha, 
+				createChirp(uppadsize, prechirp, usize, 1, alpha, 
 						false, false);
-				createChirp(uppadsize, postchirp, isize, upratio, alpha, 
+				createChirp(uppadsize, postchirp, usize, 1, alpha, 
 						true, false);
-				createChirp(uppadsize, convchirp, isize, upratio, -alpha,
+				createChirp(uppadsize, convchirp, usize, 1, -alpha,
 						true, true);
 			}
 
 			// copy from input image, shift
 			it.goChunkBegin();
-			for(size_t ii=isize/2; !it.eoc(); ++it) {
+			for(size_t ii=usize/2; !it.eoc(); ++it) {
 				current[ii][0] = (*it).real();
 				current[ii][1] = (*it).imag();
-				ii=(ii+1)%isize;
+				ii=(ii+1)%usize;
 			}
 
 			fftw_execute(plan);
-			double norm = 1./sqrt(isize);
-			for(size_t ii=0; ii<isize; ii++) {
+			double norm = 1./sqrt(usize*usize);
+			for(size_t ii=0; ii<usize; ii++) {
 				current[ii][0] *= norm;
 				current[ii][1] *= norm;
 			}
 		
 			// compute chirpz transform
-			chirpzFFT(isize, usize, current, uppadsize, &buffer[isize],
+			chirpzFFT(usize, usize, current, uppadsize, &buffer[usize],
 						prechirp, convchirp, postchirp);
 			
 			// copy from buffer back to output

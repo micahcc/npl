@@ -181,7 +181,22 @@ def build(bld):
             target='pseudopolar_test', 
             source='pseudopolar_test.cpp', 
             use='chirpz ndarray_utils utility mrimage_utils iterators EIGEN') 
+    
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='pseudopolar_test2', 
+            source='pseudopolar_test2.cpp', 
+            use='chirpz ndarray_utils utility mrimage_utils iterators EIGEN') 
 
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='pseudopolar_test3', 
+            source='pseudopolar_test3.cpp', 
+            use='chirpz ndarray_utils utility mrimage_utils iterators EIGEN') 
+    
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='pseudopolar_test4', 
+            source='pseudopolar_test4.cpp', 
+            use='chirpz ndarray_utils utility mrimage_utils iterators EIGEN') 
+    
 #    bld.program(install_path='${PREFIX}/tests', #features='test',
 #            target='fft_compute_axis', 
 #            source='fft_compute_axis.cpp', 

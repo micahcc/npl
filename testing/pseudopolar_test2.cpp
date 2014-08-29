@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file pseudopolar_test.cpp Tests the ability of FFT and Zoom based pseudo
+ * @file pseudopolar_test2.cpp Tests the ability of FFT and Zoom based pseudo
  * polar gridded fourier transform to match a brute-force linear interpolation
- * method, for highly variable (striped) fourier domain
+ * method, for square input function in space domain
  *
  *****************************************************************************/
 
@@ -250,7 +250,6 @@ shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t prdim)
 	LinInterp3DView<cdouble_t> interp(tmp);
 	for(OrderIter<cdouble_t> oit(out); !oit.eof(); ++oit) {
 		oit.index(index.size(), index.data());
-//		cerr << "[" << index[0] << ", " << index[1] << ", " << index[2] << "]" <<  "->" ;
 		
 		// make index into slope, then back to a flat index
 		size_t jj=0;
@@ -262,8 +261,6 @@ shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t prdim)
 				angles[jj++] = slope;
 			}
 		}
-//		cerr << "R: " << radius << ", 1: " << angles[0] << ", 2: " 
-//				<< angles[1] << " -> ";
 
 		// centered radius
 		jj = 0;
@@ -273,7 +270,6 @@ shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t prdim)
 			else
 				index2[ii] = radius+out->dim(ii)/2.;
 		}
-//		cerr << "[" << index2[0] << ", " << index2[1] << ", " << index2[2] << "]" << endl;
 
 		oit.set(interp(index2[0], index2[1], index2[2]));
 	}
@@ -281,7 +277,7 @@ shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t prdim)
 	return out;
 }
 
-shared_ptr<MRImage> createTestImageFreq(size_t sz1)
+shared_ptr<MRImage> createTestImageSpace(size_t sz1)
 {
 	// create an image
 	int64_t index[3];
@@ -293,16 +289,13 @@ shared_ptr<MRImage> createTestImageFreq(size_t sz1)
 	double sum = 0;
 	while(!sit.eof()) {
 		sit.index(3, index);
-		double v;
-	
-		
-		// lines in x direction, this actually won't work, because there
-		// will be aliasing during down-sampling, 
-		if((index[2]+index[1])%2 == 0)
-			v = 1;
-		else
-			v = 0;
-		
+		double v = index[0]>(sz[0]/2. - 2) && index[0]<(sz[0]/2. + 2) 
+					&& index[1]>(sz[1]/2. - 2) && index[1]<(sz[1]/2. + 2) 
+					&& index[2]>(sz[2]/2. - 2) && index[2]<(sz[2]/2. + 2);
+//		// gaussian
+//		v = 1;
+//		for(size_t ii=0; ii<3; ii++)
+//			v *= std::exp(-pow(index[ii]-sz1/2.,2)/16);
 		sit.set(v);
 		sum += v;
 		++sit;
@@ -310,37 +303,6 @@ shared_ptr<MRImage> createTestImageFreq(size_t sz1)
 	
 	for(sit.goBegin(); !sit.eof(); ++sit) 
 		sit.set(sit.get()/sum);
-
-	// perform inverse fourier transform
-	auto buffer = fftw_alloc_complex((int)sz1);
-	fftw_plan fwd = fftw_plan_dft_1d((int)sz1, buffer, buffer, 
-			FFTW_BACKWARD, FFTW_MEASURE);
-	for(size_t dd = 0; dd < 3; dd++) {
-		ChunkIter<cdouble_t> it(in);
-		it.setLineChunk(dd);
-		for(it.goBegin(); !it.isEnd() ; it.nextChunk()) {
-			it.index(3, index);
-
-			// fill from line, shifting
-			for(size_t tt=sz1/2; !it.isChunkEnd(); ++it) {
-				buffer[tt][0] = (*it).real();
-				buffer[tt][1] = (*it).imag();
-				tt=(tt+1)%sz1;
-			}
-
-			// fourier transform
-			fftw_execute(fwd);
-
-			// copy
-			it.goChunkBegin();
-			for(size_t tt=0; !it.eoc(); ++it, tt++) {
-				cdouble_t tmp(buffer[tt][0], buffer[tt][1]);
-				it.set(tmp);
-			}
-		}
-	}
-	fftw_free(buffer);
-	fftw_destroy_plan(fwd);
 	cerr << "Finished filling"<<endl;
 
 	return in;
@@ -348,7 +310,7 @@ shared_ptr<MRImage> createTestImageFreq(size_t sz1)
 
 int testPseudoPolar()
 {
-	auto in = createTestImageFreq(64);
+	auto in = createTestImageSpace(64);
 	writeComplex("input", in);
 	clock_t n = clock();
 	

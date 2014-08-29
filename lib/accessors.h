@@ -510,6 +510,185 @@ double linKern(double x)
 
 /**
  * @brief The purpose of this class is to view an image as a continuous
+ * ND image and to sample at a continuous ND-position within. 
+ *
+ * @tparam T Type of value to cast and return
+ */
+template<typename T>
+class LinInterpNDView : public NDConstAccess<T>
+{
+public:
+	LinInterpNDView(std::shared_ptr<const NDArray> in,
+				BoundaryConditionT bound = ZEROFLUX)
+				: NDConstAccess<T>(in), m_boundmethod(bound)
+	{ };
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param x	x-dimension 
+	 * @param y	y-dimension 
+	 * @param z	z-dimension 
+	 * @param t	4th dimension 
+	 * @param u	5th dimension 
+	 * @param v	6th dimension 
+	 * @param w	7th dimension 
+	 *
+	 * @return value Interpolated value at given position
+	 */
+	T operator()(double x=0, double y=0, double z=0, double t=0, double u = 0,
+			double v = 0, double w = 0)
+	{
+		std::vector<double> tmp({x,y,z,t,u,v,w});
+		return get(tmp);
+	};
+
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index  Position in ND-space to interpolate
+	 *
+	 * @return value Interpolated value at given position
+	 */
+	T operator()(const std::vector<float>& index)
+	{
+		return get(index);
+	};
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index  Position in ND-space to interpolate
+	 *
+	 * @return value Interpolated value at given position
+	 */
+	T operator()(const std::vector<double>& index)
+	{
+		return get(index);
+	};
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index  Position in ND-space to interpolate
+	 *
+	 * @return value Interpolated value at given position
+	 */
+	T operator()(std::initializer_list<double> index)
+	{
+		std::vector<double> tmp(index.begin(), index.end());
+		return get(tmp);
+	};
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index  Position in ND-space to interpolate
+	 *
+	 * @return value Interpolated value at given position
+	 */
+	T operator()(std::initializer_list<float> index)
+	{
+		std::vector<double> tmp(index.size());
+		size_t ii=0;
+		for(auto& v: index)
+			tmp[ii++] = v;
+
+		return get(tmp);
+	};
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T get(const vector<double>& cindex)
+	{
+		// initialize variables
+		int DIM = this->parent->ndim();
+		vector<size_t> dim(this->parent->dim(), this->parent->dim()+DIM);
+
+		vector<int64_t> index(DIM);
+		const int KPOINTS = 2;
+
+		// 1D version of the weights and indices
+		vector<vector<double>> karray(DIM, vector<double>(KPOINTS));
+		vector<vector<int64_t>> indarray(DIM, vector<int64_t>(KPOINTS));
+		
+		for(int dd = 0; dd < DIM; dd++) {
+			indarray[dd][0] = floor(cindex[dd]);
+			indarray[dd][1] = indarray[dd][0]+1; //make sure they aren't the same
+			karray[dd][0] = linKern(indarray[dd][0]-cindex[dd]);
+			karray[dd][1] = linKern(indarray[dd][1]-cindex[dd]);
+		}
+
+		bool iioutside = false;
+//		outside = false;
+
+		// compute weighted pixval by iterating over neighbors, which are
+		// combinations of KPOINTS
+		T pixval = 0;
+		double weight = 0;
+		div_t result;
+		for(int ii = 0 ; ii < pow(KPOINTS, DIM); ii++) {
+			weight = 1;
+
+			//set index
+			result.quot = ii;
+			iioutside = false;
+			for(int dd = 0; dd < DIM; dd++) {
+				result = std::div(result.quot, KPOINTS);
+				weight *= karray[dd][result.rem];
+				index[dd] = indarray[dd][result.rem];
+				iioutside = iioutside || index[dd] < 0 || index[dd] >= dim[dd];
+			}
+
+			// might prevent optimization
+			//			if(weight == 0)
+			//				continue;
+
+			// if the current point maps outside, then we need to deal with it
+//			outside = (weight != 0 && iioutside) || outside;
+			if(iioutside) {
+				if(m_boundmethod == ZEROFLUX) {
+					// clamp
+					for(size_t dd=0; dd<DIM; dd++)
+						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
+				} else if(m_boundmethod == WRAP) {
+					// wrap
+					for(size_t dd=0; dd<DIM; dd++)
+						wrap<int64_t>(0, dim[dd]-1, index[dd]);
+				} else {
+					// set wieght to zero, then just clamp
+					weight = 0;
+					for(size_t dd=0; dd<DIM; dd++)
+						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
+				}
+			}
+
+			T v = this->castget(this->parent->__getAddr(index));
+			pixval += weight*v;
+		}
+
+		return pixval;
+	}
+	
+	BoundaryConditionT m_boundmethod;
+protected:
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T operator[](int64_t i) { (void)(i); return T(); };
+	T get(const std::vector<int64_t>& i) { (void)(i); return T(); };
+	T operator[](const std::vector<int64_t>& i) { (void)(i); return T(); };
+};
+
+/**
+ * @brief The purpose of this class is to view an image as a continuous
  * 3D+vector dimension image rather than a 4+D image. Therefore all dimensions
  * above the third are cast as a vector and interpolation is only performed
  * between 3D points, with the 4th dimension assumed to be non-spatial. The
