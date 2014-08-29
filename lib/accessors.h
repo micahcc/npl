@@ -13,7 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file accessors.h
+ * @file accessors.h Provides accessors to the NDArray data structure. Due to
+ * the fact that dimensionality and pixel type are not carried around in the
+ * container type, it is necessary to provide generic accessors that will cast
+ * input data to the correct type and return it, or take input, cast it to the 
+ * underlying type and set the internal pixel. While this might seem 
+ * round-about, it allows you to write general purpose algorithms functions
+ * without concerning with dimensionality or pixel type.
  *
  *****************************************************************************/
 
