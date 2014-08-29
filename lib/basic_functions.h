@@ -72,6 +72,23 @@ inline T wrap(T inf, T sup, T v)
  **********************************************************/
 
 /**
+ * @brief Takes a count, sum and sumsqr and returns the sample variance.
+ * This is slightly different than the variance definition and I can
+ * never remember the exact formulation.
+ *
+ * @param count Number of samples
+ * @param sum sum of samples
+ * @param sumsqr sum of square of the samples
+ *
+ * @return sample variance
+ */
+inline
+double sample_var(int count, double sum, double sumsqr)
+{
+	return (sumsqr-sum*sum/count)/(count-1);
+}
+
+/**
  * @brief Computes the sample correlation.
  *
  * @param count 	Number of samples
@@ -89,23 +106,6 @@ double sample_corr(int count, double sum1, double sum2,
 {
 	return (count*s1s2-sum1*sum2)/
 			sqrt((count*sumsq1-sum1*sum1)*(count*sumsq2-sum2*sum2));
-}
-
-/**
- * @brief Takes a count, sum and sumsqr and returns the sample variance.
- * This is slightly different than the variance definition and I can
- * never remember the exact formulation.
- *
- * @param count Number of samples
- * @param sum sum of samples
- * @param sumsqr sum of square of the samples
- *
- * @return sample variance
- */
-inline
-double sample_var(int count, double sum, double sumsqr)
-{
-	return (sumsqr-sum*sum/count)/(count-1);
 }
 
 /**********************************************************
