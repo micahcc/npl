@@ -13,3 +13,7 @@ def build(bld):
             source = 'generalLinearModel.cpp', 
             use = 'mrimage_utils EIGEN tclap utility basic_plot')
 
+    bld.program(target = 'nplICA',
+            source = 'fmri_ica.cpp',
+            use = 'mrimage_utils EIGEN tclap');
+

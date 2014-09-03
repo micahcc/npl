@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file applyDeform.cpp
+ * @file applyDeform.cpp Tool to apply a deformation field to another image. 
+ * Not yet functional
  *
  *****************************************************************************/
 
