@@ -22,21 +22,18 @@
 #include <string>
 #include <stdexcept>
 
+#include <Eigen/Dense>
+
 #include "mrimage.h"
-#include "mrimage_utils.h"
-#include "kernel_slicer.h"
-#include "kdtree.h"
 #include "iterators.h"
-#include "accessors.h"
+#include "statistics.h"
 
 using std::string;
-using namespace npl;
 using std::shared_ptr;
 
-typedef MatrixXd Matrix;
-typedef VectorXd Vector;
+using namespace npl;
 
-MatrixXd reduce(shared_ptr<const MRImage> in)
+Matrix reduce(shared_ptr<const MRImage> in)
 {
     if(in->ndim() != 4)
         throw std::invalid_argument("Input mmust be 4D!");
@@ -45,24 +42,32 @@ MatrixXd reduce(shared_ptr<const MRImage> in)
     size_t T = in->tlen();
     size_t N = in->elements()/T;
 
-    MatrixXd data(N, T);
+    // fill, zero mean the timeseries
+    MatrixXd data(T, N);
     ChunkConstIter<double> it(in); 
     it->setLineChunk(3);
     for(size_t xx=0; !it.eof(); it.nextChunk(), ++xx) {
+        norm = 0;
         for(size_t tt=0; !it.eoc(); ++it) {
-            data(xx,tt) = *it;
+            data(tt,xx) = *it;
+            norm += *it;
         }
+        norm = 1./norm;
+        for(size_t tt=0; !it.eoc(); ++it) 
+            data(tt,xx) = data(tt,xx)*norm;
     }
 
     // perform PCA
 	std::cerr << "PCA...";
-	MatrixXd X_pc = pca(X);
+	Matrix X_pc = pca(X);
 	std::cerr << "Done " << endl;
 	
-//    // perform ICA
-//	std::cerr << "ICA...";
-//	MatrixXd X_ic = ica(X_pc);
-//	std::cerr << "Done" << endl;
+    // perform ICA
+	std::cerr << "ICA...";
+	Matrix X_ic = ica(X_pc);
+	std::cerr << "Done" << endl;
+
+    return X_ic;
 }
 
 int main(int argc, char** argv)
