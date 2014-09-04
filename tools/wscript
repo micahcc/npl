@@ -9,8 +9,6 @@ def build(bld):
             install_path='${PREFIX}/tools_incomplete', 
             source = 'convertDeform.cpp', 
             use = 'mrimage_utils tclap iterators accessors')
-#    bld.program(target = 'applyDeform', 
-#            source = 'applyDeform.cpp', use = 'mrimage_utils tclap iterators accessors')
     bld.program(target = 'copyOrientation', 
             source = 'copyOrientation.cpp', 
             use = 'mrimage_utils tclap')
@@ -22,3 +20,13 @@ def build(bld):
             install_path='${PREFIX}/tools_incomplete', 
             source = 'fmri_ica.cpp',
             use = 'mrimage_utils statistics tclap');
+    bld.program(target = 'niiHeader', 
+            source = 'niiHeader.cpp', use = 'mrimage')
+#    bld.program(target = 'indexMapToOffsetMap', 
+#            source = 'indexMapToOffsetMap.cpp', use = 'mrimage tclap kdtree kslicer')
+#    
+#    bld.program(target = 'applyDeform', 
+#            source = 'applyDeform.cpp', use = 'mrimage tclap slicer')
+#
+#    bld.program(target = 'applyDeform', 
+#            source = 'applyDeform.cpp', use = 'mrimage_utils tclap iterators accessors')
