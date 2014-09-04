@@ -21,9 +21,11 @@
 #define NPLTYPES_H
 
 #include <complex>
+#include <memory>
+
+using std::shared_ptr;
 
 namespace npl {
-
 
 struct rgba_t;
 struct rgb_t;
