@@ -20,13 +20,14 @@
 
 #include <Eigen/SVD>
 #include "statistics.h"
+#include "basic_functions.h"
 
 #include <random>
 #include <cmath>
 #include <iostream>
 
 using Eigen::MatrixXd;
-using Eigen::VectorXdXd;
+using Eigen::VectorXd;
 
 namespace npl {
 
@@ -35,7 +36,6 @@ double fastICA_g1(double u)
 {
 	return tanh(u);
 }
-
 
 double fastICA_dg1(double u)
 {
@@ -75,7 +75,8 @@ void apply(double* dst, const double* src,  double(*func)(double), size_t sz)
  */
 MatrixXd pca(const MatrixXd& X, double varth)
 {
-	const double VARTHRESH = .05;
+    varth=1-varth; 
+
     double totalv = 0; // total variance
     int outdim = 0;
 
@@ -91,14 +92,11 @@ MatrixXd pca(const MatrixXd& X, double varth)
     const MatrixXd& U = svd.matrixU();
     //only keep dimensions with variance passing the threshold
     for(size_t ii=0; ii<W.rows(); ii++)
-        totalv = W[ii]*W[ii];
+        totalv += W[ii]*W[ii];
 
     double sum = 0;
-    for(outdim = 0; outdim < W.rows(); outdim++) {
+    for(outdim = 0; outdim < W.rows() && sum < totalv*varth; outdim++) 
         sum += W[outdim]*W[outdim];
-        if(sum > totalv*(1-VARTHRESH))
-            break;
-    }
 #ifndef NDEBUG
     std::cout << "Output Dimensions: " << outdim 
             << "\nCreating Reduced MatrixXd..." << std::endl;
@@ -107,7 +105,7 @@ MatrixXd pca(const MatrixXd& X, double varth)
     MatrixXd Xr(X.rows(), outdim);
 	for(int rr=0; rr<X.rows(); rr++) {
 		for(int cc=0; cc<outdim ; cc++) {
-			Xr(rr,cc) = U(rr, cc)*W[cc];
+			Xr(rr,cc) = U(rr, cc);
 		}
 	}
 #ifndef NDEBUG
@@ -146,8 +144,24 @@ MatrixXd pca(const MatrixXd& X, double varth)
  *
  * @return 		RxP matrix, where P is the number of independent components
  */
-MatrixXd ica(const MatrixXd& X, double varth)
+MatrixXd ica(const MatrixXd& Xin, double varth)
 {
+    // remove mean/variance
+    MatrixXd X(Xin.rows(), Xin.cols());
+    for(size_t cc=0; cc<X.cols(); cc++)  {
+        double sum = 0;
+        double sumsq = 0;
+        for(size_t rr=0; rr<X.rows(); rr++)  {
+            sum += Xin(rr,cc);
+            sumsq += Xin(rr,cc)*Xin(rr,cc);
+        }
+        double sigma = sqrt(sample_var(X.rows(), sum, sumsq));
+        double mean = sum/X.rows();
+
+        for(size_t rr=0; rr<X.rows(); rr++)  
+            X(rr,cc) = (Xin(rr,cc)-mean)/sigma;
+    }
+
     const size_t ITERS = 100;
     const double MAGTHRESH = 0.0001;
 
@@ -158,7 +172,7 @@ MatrixXd ica(const MatrixXd& X, double varth)
 
 	int samples = X.rows();
 	int dims = X.cols();
-    int ncomp = std::min(samples, dims)-1; // -1 is for debugging purposes...
+    int ncomp = std::min(samples, dims); 
 	
 	double mag = 1;
 	VectorXd proj(samples);
@@ -178,7 +192,7 @@ MatrixXd ica(const MatrixXd& X, double varth)
 		//cache w_p for wt_wj mutlication
 		for(int jj = 0 ; jj < pp; jj++){
 			//w^t_p w_j
-			double wt_wj = -W.col(pp).dot(W.col(jj));
+			double wt_wj = W.col(pp).dot(W.col(jj));
 
 			//w_p -= (w^t_p w_j) w_j
 			W.col(pp) -= wt_wj*W.col(jj);
@@ -206,30 +220,28 @@ MatrixXd ica(const MatrixXd& X, double varth)
                 sum += fastICA_dg2(proj[jj]);
             W.col(pp) = -W.col(pp)*sum/samples;
 	
-            // g(X wp) X^T/R
+            // X^Tg(X wp)/R
             for(size_t jj=0; jj<samples; jj++)
                 proj[jj] = fastICA_g2(proj[jj]);
-            W.col(pp) += proj*X.transpose()/samples;
+            W.col(pp) += X.transpose()*proj/samples;
 		
             //GramSchmidt Decorrelate
             //sum(w^t_p w_j w_j) for j < p
             //cache w_p for wt_wj mutlication
             for(int jj = 0 ; jj < pp; jj++){
                 //w^t_p w_j
-                double wt_wj = -W.col(pp).dot(W.col(jj));
+                double wt_wj = W.col(pp).dot(W.col(jj));
 
                 //w_p -= (w^t_p w_j) w_j
                 W.col(pp) -= wt_wj*W.col(jj);
             }
             W.col(pp).normalize();
-            double mag = (W.col(pp)-wprev).norm();
+            mag = (W.col(pp)-wprev).norm();
 		}
 
 #ifndef NDEBUG
-        std::cout << "Final (" << pp << "): ";
-		for(unsigned int cc = 0 ; cc < dims ; cc++)
-			std::cout << W(pp, cc) << ' ';
-        std::cout << std::endl;
+        std::cout << "Final (" << pp << "):\n";
+        std::cout << W.col(pp).transpose() << std::endl;
 #endif// NDEBUG
 	}
 	

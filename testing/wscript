@@ -201,6 +201,17 @@ def build(bld):
             target='pseudopolar_axis_test1', 
             source='pseudopolar_axis_test1.cpp', 
             use='ndarray_utils utility mrimage_utils iterators EIGEN') 
+
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='pca_test', 
+            source='pca_test.cpp', 
+            use='statistics basic_plot') 
+    
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='ica_test', 
+            source='ica_test.cpp', 
+            use='statistics basic_plot')
+
 #
 #    bld.program(install_path='${PREFIX}/tests', features='test',
 #            target='fract_fft_test', 

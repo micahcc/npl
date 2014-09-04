@@ -25,9 +25,6 @@
 
 namespace npl {
 
-typedef Eigen::MatrixXd Matrix;
-typedef Eigen::VectorXd Vector;
-
 /**
  * @brief Computes the Principal Components of input matrix X
  *
@@ -41,7 +38,7 @@ typedef Eigen::VectorXd Vector;
  *
  * @return 		RxP matrix, where P is the number of principal components
  */
-Matrix pca(const Matrix& X, double varth);
+Eigen::MatrixXd pca(const Eigen::MatrixXd& X, double varth);
 
 /**
  * @brief Computes the Independent Components of input matrix X. Note that
@@ -72,7 +69,7 @@ Matrix pca(const Matrix& X, double varth);
  *
  * @return 		RxP matrix, where P is the number of independent components
  */
-Matrix ica(const Matrix& X, double varth);
+Eigen::MatrixXd ica(const Eigen::MatrixXd& X, double varth);
 
 }
 

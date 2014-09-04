@@ -2,18 +2,23 @@
 def build(bld):
     # todo rename
     bld.program(target = 'deformJacobianMap', 
-            source = 'deformJacobianMap.cpp', use = 'mrimage_utils tclap iterators accessors')
+            install_path='${PREFIX}/tools_incomplete', 
+            source = 'deformJacobianMap.cpp', 
+            use = 'mrimage_utils tclap iterators accessors')
     bld.program(target = 'convertDeform', 
-            source = 'convertDeform.cpp', use = 'mrimage_utils tclap iterators accessors')
+            install_path='${PREFIX}/tools_incomplete', 
+            source = 'convertDeform.cpp', 
+            use = 'mrimage_utils tclap iterators accessors')
 #    bld.program(target = 'applyDeform', 
 #            source = 'applyDeform.cpp', use = 'mrimage_utils tclap iterators accessors')
     bld.program(target = 'copyOrientation', 
-            source = 'copyOrientation.cpp', use = 'mrimage_utils tclap')
+            source = 'copyOrientation.cpp', 
+            use = 'mrimage_utils tclap')
     bld.program(target = 'nplGLM', 
+            install_path='${PREFIX}/tools_incomplete', 
             source = 'generalLinearModel.cpp', 
             use = 'mrimage_utils EIGEN tclap utility basic_plot')
-
     bld.program(target = 'nplICA',
+            install_path='${PREFIX}/tools_incomplete', 
             source = 'fmri_ica.cpp',
-            use = 'mrimage_utils EIGEN tclap');
-
+            use = 'mrimage_utils statistics tclap');
