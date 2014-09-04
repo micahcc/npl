@@ -53,7 +53,8 @@ int corrCompare(const VectorXd& v, const MatrixXd& data)
             corr += v[tt]*data(tt,dd);
         }
         corr = sample_corr(data.rows(), mu1, mu2, ss1, ss2, corr);
-        if(fabs(corr) > 0.75) {
+        std::cerr << corr << std::endl;
+        if(fabs(corr) > 0.99) {
             std::cerr << "Corr="<<corr<<" good enough" << std::endl;
             return 0;
         }
@@ -87,7 +88,7 @@ int main()
 
     size_t ntimes = 1000;
     size_t ndims = 3;
-    MatrixXd data(ntimes, ndims);
+    MatrixXd tdata(ntimes, ndims);
     MatrixXd mix(ndims, ndims);
 
     // create square wave
@@ -95,17 +96,17 @@ int main()
     for(size_t ii=0; ii<ntimes; ii++) {
         if(ii % 20 == 0)
             high = !high;
-        data(ii,0) = high;
+        tdata(ii,0) = high;
     }
     // create sin wave
     for(size_t ii=0; ii<ntimes; ii++) 
-        data(ii,1) = sin(ii/10.);
+        tdata(ii,1) = sin(ii/10.);
 
     // create gaussian 
     for(size_t ii=0; ii<ntimes; ii++) 
-        data(ii,2) = gaussdist(rng);
+        tdata(ii,2) = gaussdist(rng);
 
-    plotMat("before_mix.svg", data);
+    plotMat("before_mix.svg", tdata);
 
     /* 
      * Mix The Data
@@ -117,7 +118,7 @@ int main()
             mix(ii,jj) = unifdist(rng);
     }
 
-    data = data*mix;
+    MatrixXd data = tdata*mix;
     plotMat("after_mix.svg", data);
     
     // remove mean/variance
@@ -147,15 +148,15 @@ int main()
      */
 
     // compare square wave
-    if(corrCompare(data.col(0), pdata) != 0)
+    if(corrCompare(tdata.col(0), idata) != 0)
         return -1;
     
     // compare sin wave
-    if(corrCompare(data.col(1), pdata) != 0)
+    if(corrCompare(tdata.col(1), idata) != 0)
         return -1;
     
     // compare random 
-    if(corrCompare(data.col(2), pdata) != 0)
+    if(corrCompare(tdata.col(2), idata) != 0)
         return -1;
 
     return 0;
