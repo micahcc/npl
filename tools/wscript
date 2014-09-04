@@ -21,7 +21,7 @@ def build(bld):
             source = 'fmri_ica.cpp',
             use = 'mrimage_utils statistics tclap');
     bld.program(target = 'niiHeader', 
-            source = 'niiHeader.cpp', use = 'mrimage')
+            source = 'niiHeader.cpp', use = 'mrimage mrimage_utils')
 #    bld.program(target = 'indexMapToOffsetMap', 
 #            source = 'indexMapToOffsetMap.cpp', use = 'mrimage tclap kdtree kslicer')
 #    
