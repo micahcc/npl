@@ -21,6 +21,7 @@
 #include <string>
 
 #include "mrimage.h"
+#include "mrimage_utils.h"
 
 int main(int argc, char** argv)
 {
