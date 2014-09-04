@@ -162,7 +162,7 @@ MatrixXd ica(const MatrixXd& Xin, double varth)
             X(rr,cc) = (Xin(rr,cc)-mean)/sigma;
     }
 
-    const size_t ITERS = 100;
+    const size_t ITERS = 10000;
     const double MAGTHRESH = 0.0001;
 
     // Seed with a real random value, if available
