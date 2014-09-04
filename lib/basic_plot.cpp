@@ -65,6 +65,9 @@ vector<pair<double,double>> computeTicks(double low, double hi, double res)
 {
 	vector<pair<double,double>> ticks;
 
+    if(std::isinf(low) || std::isinf(hi))
+        return ticks;
+
 	// compute x ticks
 	double sp = (hi-low);
 	double step = 1;

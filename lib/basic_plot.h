@@ -36,6 +36,20 @@ void writePlot(std::string filename, const std::vector<T>& data,
 
 typedef char rgba[4];
 
+/**
+ * @brief Class for creating basic plots of arrays or functions. An example
+ * might be:
+ *
+ * Plotter plot;
+ *
+ * vector<double> data;
+ * 
+ * // (fill data)
+ *
+ * plot.addArray(data.size(), data.data());
+ * plot.write("data.svg");
+ *
+ */
 class Plotter
 {
 public:
@@ -211,21 +225,47 @@ private:
 	int writeSVG(size_t xres, size_t yres, std::string fname);
 };
 
+/**
+ * @brief Writes a plot to the given filename. This is a convience wrapper
+ * around Plotter, which for quick-and-dirty use might be too much setup.
+ *
+ * @tparam T Type of data to plot (will be cast to double)
+ * @param filename
+ * @param data Vector of data to plot
+ */
 template <typename T>
 void writePlot(std::string filename, const std::vector<T>& data)
 {
 	Plotter plt;
-	plt.addArray(data.size(), data.data());
+    std::vector<double> tmp(data.size());
+    for(size_t ii=0; ii<data.size(); ii++)
+        tmp[ii] = (double)data[ii];
+
+	plt.addArray(tmp.size(), tmp.data());
 	plt.write(filename);
 }
 
 
+/**
+ * @brief Writes a plot to the given filename. This is a convience wrapper
+ * around Plotter, which for quick-and-dirty use might be too much setup.
+ *
+ * @tparam T Type of data to plot (will be cast to double)
+ * @param filename
+ * @param data Vector of 1D data to plot
+ * @param xsize size output image (only matters for raster images *.tga)
+ * @param ysize size output image (only matters for raster images *.tga)
+ */
 template <typename T>
 void writePlot(std::string filename, const std::vector<T>& data, size_t xsize,
 		size_t ysize)
 {
 	Plotter plt(xsize, ysize);
-	plt.addArray(data.size(), data.data());
+    
+    std::vector<double> tmp(data.size());
+    for(size_t ii=0; ii<data.size(); ii++)
+        tmp[ii] = (double)data[ii];
+	plt.addArray(tmp.size(), tmp.data());
 	plt.write(filename);
 }
 
