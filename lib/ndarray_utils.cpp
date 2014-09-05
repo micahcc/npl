@@ -47,7 +47,6 @@
 #include <memory>
 #include <stdexcept>
 
-
 #include "mrimage.h"
 
 namespace npl {
@@ -356,6 +355,10 @@ bool comparable(const NDArray* left, const NDArray* right, bool* elL, bool* elR)
 	return ret;
 }
 
+/*************************
+ * Basic Kernel Functions
+ *************************/
+
 /**
  * @brief Erode an binary array repeatedly
  *
@@ -446,6 +449,10 @@ shared_ptr<NDArray> dilate(shared_ptr<NDArray> in, size_t reps)
 
 	return out;
 }
+
+/********************
+ * Image Shifting 
+ ********************/
 
 /**
  * @brief Uses fourier shift theorem to rotate an image, using shears
@@ -567,12 +574,28 @@ void shiftImageFFT(shared_ptr<NDArray> inout, size_t dd, double dist,
 	}
 }
 
-void shearImageKern(shared_ptr<NDArray> inout, size_t dd, size_t len, double* dist)
-{
-	assert(dd < inout->ndim());
+/********************
+ * Image Shearing 
+ ********************/
 
-	const int64_t RADIUS = 3;
-	std::vector<double> buf(inout->dim(dd), 0);
+/**
+ * @brief Performs a shear on the image where the sheared dimension (dim) will
+ * be shifted depending on the index in other dimensions (dist). 
+ * (in units of pixels). Uses Lanczos interpolation.
+ *
+ * @param inout Input/output image
+ * @param dim Dimension to shift/shear
+ * @param len Length of dist array
+ * @param dist Distance terms to travel. Shift[dim] = x0*dist[0]+x1*dist[1] ...
+ * @param kern 1D interpolation kernel
+ */
+void shearImageKern(shared_ptr<NDArray> inout, size_t dim, size_t len, 
+        double* dist, double(*kern)(double,double))
+{
+	assert(dim < inout->ndim());
+
+	const int64_t RADIUS = 5;
+	std::vector<double> buf(inout->dim(dim), 0);
 	std::vector<double> center(inout->ndim());
 	for(size_t ii=0; ii<center.size(); ii++) {
 		center[ii] = (inout->dim(ii)-1)/2.;
@@ -582,8 +605,8 @@ void shearImageKern(shared_ptr<NDArray> inout, size_t dd, size_t len, double* di
 	// in the specified dimension fastest
 	OrderIter<double> oit(inout);
 	OrderIter<double> iit(inout);
-	iit.setOrder({dd});
-	oit.setOrder({dd});
+	iit.setOrder({dim});
+	oit.setOrder({dim});
 
 	std::vector<int64_t> index(inout->ndim());
 	for(iit.goBegin(), oit.goBegin(); !iit.isEnd() ; ){
@@ -592,22 +615,22 @@ void shearImageKern(shared_ptr<NDArray> inout, size_t dd, size_t len, double* di
 		// calculate line shift
 		double lineshift = 0;
 		for(size_t ii=0; ii<len; ii++) {
-			if(ii != dd)
+			if(ii != dim)
 				lineshift += dist[ii]*(index[ii]-center[ii]);
 		}
 
 		// fill buffer 
-		for(size_t tt=0; tt<inout->dim(dd); ++iit, tt++) 
+		for(size_t tt=0; tt<inout->dim(dim); ++iit, tt++) 
 			buf[tt] = *iit;
 
 		// fill from line
-		for(size_t tt=0; tt<inout->dim(dd); ++oit, tt++) {
+		for(size_t tt=0; tt<inout->dim(dim); ++oit, tt++) {
 			double tmp = 0;
 			double source = (double)tt-lineshift;
 			int64_t isource = round(source);
 			for(int64_t oo = -RADIUS; oo <= RADIUS; oo++) {
-				int64_t ind = clamp<int64_t>(0, inout->dim(dd)-1, isource+oo);
-				tmp += lanczosKernel(oo+isource-source, RADIUS)*buf[ind];
+				int64_t ind = clamp<int64_t>(0, inout->dim(dim)-1, isource+oo);
+				tmp += kern(oo+isource-source, RADIUS)*buf[ind];
 			}
 
 			oit.set(tmp);
@@ -726,7 +749,7 @@ double getMaxShear(const Matrix3d& in)
 int shearYZXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double x, double y, double z)
 {
-#ifdef DEBUG
+#ifndef NDEBUG
 	cerr << "Shear YZXY" << endl;
 #endif //DEBUG
 	Matrix3d sy1 = Matrix3d::Identity();
@@ -753,7 +776,7 @@ int shearYZXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
-#ifdef DEBUG
+#ifndef NDEBUG
 			cerr << "Shear:\n" << v << endl;
 #endif //DEBUG
 			shearProduct *= v;
@@ -769,7 +792,7 @@ int shearYZXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				AngleAxisd(y, Vector3d::UnitY())*
 				AngleAxisd(z, Vector3d::UnitZ());
 
-#ifdef DEBUG
+#ifndef NDEBUG
 	cerr << "Rotation:\n" << rotation << endl;
 	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
 	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
@@ -783,7 +806,7 @@ int shearYZXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 int shearXYZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double x, double y, double z)
 {
-#ifdef DEBUG
+#ifndef NDEBUG
 	cerr << "Shear XYZX" << endl;
 #endif //DEBUG
 	Matrix3d sx1 = Matrix3d::Identity();
@@ -810,7 +833,7 @@ int shearXYZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
-#ifdef DEBUG
+#ifndef NDEBUG
 			cerr << "Shear:\n" << v << endl;
 #endif //DEBUG
 			shearProduct *= v;
@@ -826,7 +849,7 @@ int shearXYZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				AngleAxisd(y, Vector3d::UnitY())*
 				AngleAxisd(z, Vector3d::UnitZ());
 
-#ifdef DEBUG
+#ifndef NDEBUG
 	cerr << "Rotation:\n" << rotation << endl;
 	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
 	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
@@ -840,7 +863,7 @@ int shearXYZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 int shearXZYX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double x, double y, double z)
 {
-#ifdef DEBUG
+#ifndef NDEBUG
 	cerr << "Shear XZYX" << endl;
 #endif //DEBUG
 	Matrix3d sx1 = Matrix3d::Identity();
@@ -867,7 +890,7 @@ int shearXZYX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
-#ifdef DEBUG
+#ifndef NDEBUG
 			cerr << "Shear:\n" << v << endl;
 #endif //DEBUG
 			shearProduct *= v;
@@ -883,7 +906,7 @@ int shearXZYX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				AngleAxisd(y, Vector3d::UnitY())*
 				AngleAxisd(z, Vector3d::UnitZ());
 
-#ifdef DEBUG
+#ifndef NDEBUG
 	cerr << "Rotation:\n" << rotation << endl;
 	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
 	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
@@ -897,7 +920,7 @@ int shearXZYX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 int shearZXYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double x, double y, double z)
 {
-#ifdef DEBUG
+#ifndef NDEBUG
 	cerr << "Shear ZXYZ" << endl;
 #endif //DEBUG
 	Matrix3d sz1 = Matrix3d::Identity();
@@ -924,7 +947,7 @@ int shearZXYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
-#ifdef DEBUG
+#ifndef NDEBUG
 			cerr << "Shear:\n" << v << endl;
 #endif //DEBUG
 			shearProduct *= v;
@@ -940,7 +963,7 @@ int shearZXYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				AngleAxisd(y, Vector3d::UnitY())*
 				AngleAxisd(z, Vector3d::UnitZ());
 
-#ifdef DEBUG
+#ifndef NDEBUG
 	cerr << "Rotation:\n" << rotation << endl;
 	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
 	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
@@ -954,7 +977,7 @@ int shearZXYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 int shearZYXZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double x, double y, double z)
 {
-#ifdef DEBUG
+#ifndef NDEBUG
 	cerr << "Shear ZYXZ" << endl;
 #endif //DEBUG
 	Matrix3d sz1 = Matrix3d::Identity();
@@ -981,7 +1004,7 @@ int shearZYXZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
-#ifdef DEBUG
+#ifndef NDEBUG
 			cerr << "Shear:\n" << v << endl;
 #endif //DEBUG
 			shearProduct *= v;
@@ -997,7 +1020,7 @@ int shearZYXZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				AngleAxisd(y, Vector3d::UnitY())*
 				AngleAxisd(z, Vector3d::UnitZ());
 
-#ifdef DEBUG
+#ifndef NDEBUG
 	cerr << "Rotation:\n" << rotation << endl;
 	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
 	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
@@ -1011,7 +1034,7 @@ int shearZYXZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 int shearYXZY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double x, double y, double z)
 {
-#ifdef DEBUG
+#ifndef NDEBUG
 	cerr << "Shear YXZY" << endl;
 #endif //DEBUG
 	Matrix3d sy1 = Matrix3d::Identity();
@@ -1038,7 +1061,7 @@ int shearYXZY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
-#ifdef DEBUG
+#ifndef NDEBUG
 			cerr << "Shear:\n" << v << endl;
 #endif //DEBUG
 			shearProduct *= v;
@@ -1054,7 +1077,7 @@ int shearYXZY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				AngleAxisd(y, Vector3d::UnitY())*
 				AngleAxisd(z, Vector3d::UnitZ());
 
-#ifdef DEBUG
+#ifndef NDEBUG
 	cerr << "Rotation:\n" << rotation << endl;
 	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
 	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
@@ -1072,7 +1095,7 @@ int shearYXZY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 int shearYXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double Rx, double Ry, double Rz)
 {
-#ifdef DEBUG
+#ifndef NDEBUG
 	cerr << "Shear YXY" << endl;
 #endif //DEBUG
 
@@ -1111,7 +1134,7 @@ int shearYXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
-#ifdef DEBUG
+#ifndef NDEBUG
 			cerr << "Shear:\n" << v << endl;
 #endif //DEBUG
 			shearProduct *= v;
@@ -1121,7 +1144,7 @@ int shearYXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		}
 	}
 
-#ifdef DEBUG
+#ifndef NDEBUG
 	cerr << "Rotation:\n" << rotation << endl;
 	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
 	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
@@ -1136,7 +1159,7 @@ int shearYXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 int shearXZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double Rx, double Ry, double Rz)
 {
-#ifdef DEBUG
+#ifndef NDEBUG
 	cerr << "Shear XZX" << endl;
 #endif //DEBUG
 
@@ -1169,7 +1192,7 @@ int shearXZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
-#ifdef DEBUG
+#ifndef NDEBUG
 			cerr << "Shear:\n" << v << endl;
 #endif //DEBUG
 			shearProduct *= v;
@@ -1185,7 +1208,7 @@ int shearXZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				AngleAxisd(Ry, Vector3d::UnitY())*
 				AngleAxisd(Rz, Vector3d::UnitZ());
 
-#ifdef DEBUG
+#ifndef NDEBUG
 	cerr << "Rotation:\n" << rotation << endl;
 	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
 	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
@@ -1199,7 +1222,7 @@ int shearXZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 int shearZYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double Rx, double Ry, double Rz)
 {
-#ifdef DEBUG
+#ifndef NDEBUG
 	cerr << "Shear ZYZ" << endl;
 #endif //DEBUG
 
@@ -1232,7 +1255,7 @@ int shearZYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
-#ifdef DEBUG
+#ifndef NDEBUG
 			cerr << "Shear:\n" << v << endl;
 #endif //DEBUG
 			shearProduct *= v;
@@ -1248,7 +1271,7 @@ int shearZYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				AngleAxisd(Ry, Vector3d::UnitY())*
 				AngleAxisd(Rz, Vector3d::UnitZ());
 
-#ifdef DEBUG
+#ifndef NDEBUG
 	cerr << "Rotation:\n" << rotation << endl;
 	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
 	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
@@ -1259,6 +1282,21 @@ int shearZYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	return 0;
 }
 
+/**
+ * @brief Decomposes a euler angle rotation using the rotation matrix made up 
+ * of R = Rx*Ry*Rz. Note that this would be multiplying the input vector by Rz
+ * then Ry, then Rx. This does not support angles > PI/4. To do that, you
+ * should first do bulk rotation using 90 degree rotations (which requires not
+ * interpolation).
+ *
+ * @param bestshears    List of the best fitting shears, should be applied in
+ *                      forward order
+ * @param Rx            Rotation about X axis
+ * @param Ry            Rotation about Y axis
+ * @param Rz            Rotation about Z axis
+ *
+ * @return              Success if 0
+ */
 int shearDecompose(std::list<Matrix3d>& bestshears, double Rx, double Ry, double Rz)
 {
 	double ERRTOL = 0.0001;
@@ -1270,7 +1308,7 @@ int shearDecompose(std::list<Matrix3d>& bestshears, double Rx, double Ry, double
 	
 	// single angles first
 	if(fabs(Rx) < ANGMIN && fabs(Ry) < ANGMIN) {
-#ifdef DEBUG
+#ifndef NDEBUG
 			cerr << "Chose YXY" << endl;
 #endif
 		shearYXY(bestshears, &err, &maxshear, Rx, Ry, Rz);
@@ -1282,7 +1320,7 @@ int shearDecompose(std::list<Matrix3d>& bestshears, double Rx, double Ry, double
 	}
 
 	if(fabs(Rx) < ANGMIN && fabs(Rz) < ANGMIN) {
-#ifdef DEBUG
+#ifndef NDEBUG
 			cerr << "Chose XZX" << endl;
 #endif
 		shearXZX(bestshears, &err, &maxshear, Rx, Ry, Rz);
@@ -1294,7 +1332,7 @@ int shearDecompose(std::list<Matrix3d>& bestshears, double Rx, double Ry, double
 	}
 	
 	if(fabs(Rz) < ANGMIN && fabs(Ry) < ANGMIN) {
-#ifdef DEBUG
+#ifndef NDEBUG
 			cerr << "Chose ZYZ" << endl;
 #endif
 		shearZYZ(bestshears, &err, &maxshear, Rx, Ry, Rz);
@@ -1348,7 +1386,7 @@ int shearDecompose(std::list<Matrix3d>& bestshears, double Rx, double Ry, double
 	}
 	
 	if(bestmshear <= SHEARMAX) {
-#ifdef DEBUG
+#ifndef NDEBUG
 		cerr << "Best Shear:" << bestmshear << endl;
 		for(auto& v : bestshears) {
 			cerr << v << "\n\n";
@@ -1366,9 +1404,9 @@ int shearDecompose(std::list<Matrix3d>& bestshears, double Rx, double Ry, double
  * the error. The error should be very near 0 unless the reconstruction is 
  * NAN.
  *
- * @param Rx Rotation about x axis (last)
+ * @param Rx Rotation about x axis (first)
  * @param Ry Rotation about y axis (middle)
- * @param Rz Rotation about z axis (first)
+ * @param Rz Rotation about z axis (last)
  *
  * @return 0 if successful.
  */
@@ -1448,16 +1486,82 @@ int shearTest(double Rx, double Ry, double Rz)
 }
 
 
+/*****************************************
+ * Image Rotation
+ ****************************************/
+
 /**
- * @brief Rotates an image around the center using shear decomposition.
- * Rotation order is Rz, Ry, Rx, and about the center of the image.
+ * @brief Rotates an image around the center using shear decomposition followed
+ * by kernel-based shearing. Rotation order is Rz, Ry, Rx, and about the center
+ * of the image. This means that 1D interpolation will be used.
  *
  * @param inout Input/output image
- * @param rx Rotation about x axis (applied last)
- * @param ry Rotation about y axis (applied second)
- * @param rz Rotation about z axis (applied first)
+ * @param rx Rotation about x axis
+ * @param ry Rotation about y axis
+ * @param rz Rotation about z axis
  */
-int rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz,
+int rotateImageShearKern(shared_ptr<NDArray> inout, double rx, double ry, double rz,
+		double(*kern)(double,double))
+{
+	const double PI = acos(-1);
+	if(fabs(rx) > PI/4. || fabs(ry) > PI/4. || fabs(rz) > PI/4.) {
+		cerr << "Fast large rotations not yet implemented" << endl;
+		return -1;
+	}
+
+	std::list<Matrix3d> shears;
+
+	// decompose into shears
+	clock_t c = clock();
+	if(shearDecompose(shears, rx, ry, rz) != 0) {
+		cerr << "Failed to find valid shear matrices" << endl;
+		return -1;
+	}
+	c = clock() - c;
+    shears.reverse();
+#ifndef NDEBUG
+	cerr << "Shear Decompose took " << c << " ticks " << endl;
+#endif 
+
+	// perform shearing
+	double shearvals[3];
+	c = clock();
+	for(const Matrix3d& shmat: shears) {
+		int64_t sheardim = -1;;
+		for(size_t rr = 0 ; rr < 3 ; rr++) {
+			for(size_t cc = 0 ; cc < 3 ; cc++) {
+				if(rr != cc && shmat(rr,cc) != 0) {
+					if(sheardim != -1 && sheardim != rr) {
+						cerr << "Error, multiple shear dimensions!" << endl;
+						return -1;
+					}
+					sheardim = rr;
+					shearvals[cc] = shmat(rr,cc);
+				}
+			}
+		}
+
+		// perform shear
+		shearImageKern(inout, sheardim, 3, shearvals, kern);
+	}
+	c = clock() - c;
+	cerr << "Shear Rotation took " << c << " ticks " << endl;
+	
+	return 0;
+}
+
+/**
+ * @brief Rotates an image around the center using shear decomposition followed
+ * by FFT-based shearing. Rotation order is Rz, Ry, Rx, and about the center of
+ * the image.
+ *
+ * @param inout Input/output image
+ * @param rx Rotation about x axis
+ * @param ry Rotation about y axis
+ * @param rz Rotation about z axis
+ * @param rz Rotation about z axis
+ */
+int rotateImageShearFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz,
 		double(*window)(double,double))
 {
 	const double PI = acos(-1);
@@ -1475,7 +1579,10 @@ int rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz,
 		return -1;
 	}
 	c = clock() - c;
+    shears.reverse();
+#ifndef NDEBUG
 	cerr << "Shear Decompose took " << c << " ticks " << endl;
+#endif
 
 	// perform shearing
 	double shearvals[3];
@@ -1503,6 +1610,10 @@ int rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz,
 	
 	return 0;
 }
+
+/**********************************
+ * Radial Fourier Transforms
+ *********************************/
 
 // upsample in anglular directions
 shared_ptr<NDArray> pphelp_padFFT(shared_ptr<const NDArray> in, 
