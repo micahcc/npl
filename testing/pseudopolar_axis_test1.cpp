@@ -164,10 +164,10 @@ Vector3d getAxis(shared_ptr<const MRImage> img1, shared_ptr<const MRImage> img2)
 	
 	std::vector<int64_t> index(3);
 	size_t pslope[2];
+	double bestang0 = -1;
 	double bestang1 = -1;
-	double bestang2 = -1;
+	double mineang0 = -1;
 	double mineang1 = -1;
-	double mineang2 = -1;
 	double maxcor = 0;
 	double minerr = INFINITY;
 	
@@ -190,11 +190,11 @@ Vector3d getAxis(shared_ptr<const MRImage> img1, shared_ptr<const MRImage> img2)
 		ChunkIter<cdouble_t> it2(s2_pp);
 		it2.setLineChunk(ii);
 
-		writeComplex("s1_pp"+to_string(ii)+".nii.gz", s1_pp);
-		writeComplex("s2_pp"+to_string(ii)+".nii.gz", s2_pp);
+		writeComplexAA("s1_pp"+to_string(ii)+".nii.gz", s1_pp);
+		writeComplexAA("s2_pp"+to_string(ii)+".nii.gz", s2_pp);
 
-		maxcor = 0;
-		for(; !it1.eof() && !it2.eof(); it1.nextChunk(), it2.nextChunk()) {
+		for(it1.goBegin(), it2.goBegin(); !it1.eof() && !it2.eof(); 
+                        it1.nextChunk(), it2.nextChunk()) {
 			it1.index(index);
 			double corr = 0;
 			double sum1 = 0, sum2 = 0;
@@ -209,41 +209,42 @@ Vector3d getAxis(shared_ptr<const MRImage> img1, shared_ptr<const MRImage> img2)
 				sum2 += m2;
 				ssq1 += m1*m1;
 				ssq2 += m2*m2;
+				err += pow(m1-m2,2);
 				count++;
-				err += pow(abs(*it1)-abs(*it2),2);
 			}
 			assert(it1.isChunkEnd());
 			assert(it2.isChunkEnd());
 
-			cerr << err << endl;
 			if(err < minerr) {
 				minerr = err;
-				mineang1 = (index[pslope[0]]-s1_pp->dim(pslope[0])/2.)/
-					s1_pp->dim(pslope[0]);
-				mineang2 = (index[pslope[1]]-s2_pp->dim(pslope[1])/2.)/
-					s2_pp->dim(pslope[1]);
-				cerr << "New Min Err: " << err << ", " << mineang1 << ","
-					<< mineang2 << endl;
+				mineang0 = 2.*index[pslope[0]]/s1_pp->dim(pslope[0])-1;
+				mineang1 = 2.*index[pslope[1]]/s2_pp->dim(pslope[1])-1;
+				cerr << "New Min Err " <<count<< ": " << err << ", " << mineang0 << ","
+					<< mineang0 << endl;
 			}
 
 			corr = sample_corr(count, sum1, sum2, ssq1, ssq2, corr); 
 			if(fabs(corr) > maxcor) {
-				bestang1 = (index[pslope[0]]-s1_pp->dim(pslope[0])/2.)/
+				bestang0 = (index[pslope[0]]-s1_pp->dim(pslope[0])/2.)/
 					s1_pp->dim(pslope[0]);
-				bestang2 = (index[pslope[1]]-s2_pp->dim(pslope[1])/2.)/
+				bestang1 = (index[pslope[1]]-s2_pp->dim(pslope[1])/2.)/
 					s2_pp->dim(pslope[1]);
 				maxcor = corr;
-				cerr << "New Max Cor: " << corr << ", " << bestang1 << ","
-					<< bestang2 << endl;
+				cerr << "New Max Cor: " << corr << ", " << bestang0 << ","
+					<< bestang1 << endl;
+                axis[ii] = 1;
+                axis[pslope[0]] = bestang0;
+                axis[pslope[1]] = bestang1;
+                axis.normalize();
 			}
 			
 		}
 
 		cerr << "pseudo radius: " << ii << 
 			", pseudo slope 1: " << pslope[0] << ", pseudo slope 2: " 
-			<< pslope[1] << " best cor: " << maxcor << " at " << bestang1 
-			<< ", " << bestang2 << ", best err: " << minerr << " at " <<
-			mineang1 << ", " << mineang2 << endl;
+			<< pslope[1] << " best cor: " << maxcor << " at " << bestang0 
+			<< ", " << bestang1 << ", best err: " << minerr << " at " <<
+			mineang0 << ", " << mineang1 << endl;
 		assert(it1.isEnd());
 		assert(it2.isEnd());
 	}
@@ -261,7 +262,7 @@ int testRotationAxis()
 
 	cerr << "Rotating" << endl;
 
-    Vector3d axis(0.3, 0, 0);
+    Vector3d axis(1, .0, .4);
     axis.normalize();
     Matrix3d R = AngleAxisd(3.14159/4, axis).matrix();
     Vector3d euler = R.eulerAngles(0,1,2);
@@ -269,16 +270,36 @@ int testRotationAxis()
     cerr << "Matrix:\n" << R << endl;
     cerr << "Euler:\n" << euler.transpose() << endl;
 
+    /// figure out which one would be the pseudopolar radius and slopes
+    size_t rad = 0;
+    size_t slopes[2];
+    {
+        double mrad = 0;
+        for(size_t dd=0; dd<3; dd++) {
+            if(axis[dd] > mrad) {
+                mrad = axis[dd];
+                rad = dd;
+            }
+        }
+        size_t tmpd = 0;
+        for(size_t dd=0; dd<3; dd++) {
+            if(rad != dd) 
+                slopes[tmpd++] = dd;
+        }
+    }
+    cerr << "Expected Pseudoradius: " << rad << endl;
+    cerr << "Slope Dim: " << slopes[0] << " = " << axis[slopes[0]]/axis[rad] << endl;
+    cerr << "Slope Dim: " << slopes[1] << " = " << axis[slopes[1]]/axis[rad] << endl;
+
     // rotate image
     auto out = dynamic_pointer_cast<MRImage>(in->copy());
-	rotateImageShearKern(out, euler[0], euler[1], euler[2]);
-    
+	rotateImageShearFFT(out, euler[0], euler[1], euler[2]);
 
 	writeComplex("rotated", out);
 	cerr << "Done" << endl;
 
 	Vector3d newax = getAxis(in, out);
-	cerr << "Axis: " << newax << endl;
+	cerr << "Axis: " << newax.transpose() << endl;
 
 	return 0;
 }
