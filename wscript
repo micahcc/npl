@@ -33,6 +33,7 @@ def configure(conf):
         conf.env.RPATH.append('$ORIGIN/../lib')
     
     conf.env.LINKFLAGS = ['-lm']
+    conf.env.DEFINES = []
     conf.env.CXXFLAGS = ['-Wall', '-Wextra', '-Wno-sign-compare', '-std=c++11']
     conf.env.STATIC_LINK = False
 
