@@ -1525,7 +1525,6 @@ int rotateImageShearKern(shared_ptr<NDArray> inout, double rx, double ry, double
 
 	// perform shearing
 	double shearvals[3];
-	c = clock();
 	for(const Matrix3d& shmat: shears) {
 		int64_t sheardim = -1;;
 		for(size_t rr = 0 ; rr < 3 ; rr++) {
@@ -1544,8 +1543,6 @@ int rotateImageShearKern(shared_ptr<NDArray> inout, double rx, double ry, double
 		// perform shear
 		shearImageKern(inout, sheardim, 3, shearvals, kern);
 	}
-	c = clock() - c;
-	cerr << "Shear Rotation took " << c << " ticks " << endl;
 	
 	return 0;
 }
@@ -1586,7 +1583,6 @@ int rotateImageShearFFT(shared_ptr<NDArray> inout, double rx, double ry, double 
 
 	// perform shearing
 	double shearvals[3];
-	c = clock();
 	for(const Matrix3d& shmat: shears) {
 		int64_t sheardim = -1;;
 		for(size_t rr = 0 ; rr < 3 ; rr++) {
@@ -1605,8 +1601,6 @@ int rotateImageShearFFT(shared_ptr<NDArray> inout, double rx, double ry, double 
 		// perform shear
 		shearImageFFT(inout, sheardim, 3, shearvals, window);
 	}
-	c = clock() - c;
-	cerr << "Shear Rotation took " << c << " ticks " << endl;
 	
 	return 0;
 }
