@@ -1039,9 +1039,12 @@ void ChunkSlicer::setChunkSize(size_t len, const int64_t* sizes, bool defunity)
 /**
  * @brief Sets the chunk sizes so that each chunk is a line in the given 
  * dimension. This would be analogous to itk's linear iterator. 
+ * Note, you should call goBegin() or nextChunk() after this otherwise the
+ * first chunk may be unitialized.
  * Usage:
  *
  * it.setLineChunk(0);
+ * it.goBegin();
  * while(!it.isEnd()) {
  *	while(!it.isChunkEnd()) {
  *	
