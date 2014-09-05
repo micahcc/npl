@@ -112,6 +112,10 @@ shared_ptr<NDArray> fft_r2c(shared_ptr<const NDArray> in);
 bool comparable(const NDArray* left, const NDArray* right,
 		bool* elL = NULL, bool* elR = NULL);
 
+/*************************
+ * Basic Kernel Functions
+ *************************/
+
 /**
  * @brief Dilate an binary array repeatedly
  *
@@ -132,6 +136,10 @@ shared_ptr<NDArray> dilate(shared_ptr<NDArray> in, size_t reps);
  */
 shared_ptr<NDArray> erode(shared_ptr<NDArray> in, size_t reps);
 
+/********************
+ * Image Shifting 
+ ********************/
+
 /**
  * @brief Performs unidirectional shift in the direction of +dd, of distance 
  * (in units of pixels). Uses Lanczos interpolation.
@@ -143,29 +151,6 @@ shared_ptr<NDArray> erode(shared_ptr<NDArray> in, size_t reps);
 void shiftImageKern(shared_ptr<NDArray> inout, size_t dd, double dist);
 
 /**
- * @brief Performs a shear on the image where the sheared dimension (dim) will
- * be shifted depending on the index in other dimensions (dist). 
- * (in units of pixels). Uses Lanczos interpolation.
- *
- * @param inout Input/output image
- * @param dim Dimension to shift/shear
- * @param len Length of dist array
- * @param dist Distance terms to travel. Shift[dim] = x0*dist[0]+x1*dist[1] ...
- */
-void shearImageKern(shared_ptr<NDArray> inout, size_t dim, size_t len, double* dist);
-
-/**
- * @brief Performs a rotation using fourier shift and shears. 
- * Uses Lanczos interpolation.
- *
- * @param inout Input/output image
- * @param rx Rotation about x axis
- * @param ry Rotation about y axis
- * @param rz Rotation about z axis
- */
-void rotateImageKern(shared_ptr<NDArray> inout, double rx, double ry, double rz);
-
-/**
  * @brief Performs unidirectional shift in the direction of +dd, of distance 
  * (in units of pixels), using FFT.
  *
@@ -175,6 +160,25 @@ void rotateImageKern(shared_ptr<NDArray> inout, double rx, double ry, double rz)
  */
 void shiftImageFFT(shared_ptr<NDArray> inout, size_t dd, double dist, 
 		double(*window)(double,double) = npl::sincWindow);
+
+
+/********************
+ * Image Shearing 
+ ********************/
+
+/**
+ * @brief Performs a shear on the image where the sheared dimension (dim) will
+ * be shifted depending on the index in other dimensions (dist). 
+ * (in units of pixels). Uses Lanczos interpolation.
+ *
+ * @param inout Input/output image
+ * @param dim Dimension to shift/shear
+ * @param len Length of dist array
+ * @param dist Distance terms to travel. Shift[dim] = x0*dist[0]+x1*dist[1] ...
+ * @param kern 1D interpolation kernel
+ */
+void shearImageKern(shared_ptr<NDArray> inout, size_t dim, size_t len, 
+        double* dist, double(*kern)(double,double) = npl::lanczosKernel);
 
 /**
  * @brief Performs a shear on the image where the sheared dimension (dim) will
@@ -191,22 +195,27 @@ void shearImageFFT(shared_ptr<NDArray> inout, size_t dim, size_t len, double* di
 		double(*window)(double,double) = npl::sincWindow);
 
 /**
- * @brief Performs a rotation using fourier shift and shears, using FFT for 
- * unidirectional shifts, using FFT.
+ * @brief Decomposes a euler angle rotation using the rotation matrix made up 
+ * of R = Rx*Ry*Rz. Note that this would be multiplying the input vector by Rz
+ * then Ry, then Rx. This does not support angles > PI/4. To do that, you
+ * should first do bulk rotation using 90 degree rotations (which requires not
+ * interpolation).
  *
- * @param inout Input/output image
- * @param rx Rotation about x axis
- * @param ry Rotation about y axis
- * @param rz Rotation about z axis
+ * @param bestshears    List of the best fitting shears, should be applied in
+ *                      forward order
+ * @param Rx            Rotation about X axis
+ * @param Ry            Rotation about Y axis
+ * @param Rz            Rotation about Z axis
+ *
+ * @return              Success if 0
  */
-int rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz,
-		double(*window)(double,double) = npl::sincWindow);
-
+int shearDecompose(std::list<Eigen::Matrix3d>& bestshears, 
+        double Rx, double Ry, double Rz);
 
 /**
  * @brief Tests shear results. If there is a solution (error is not NAN), then 
  * these should result small errors, so this checks that errors are small when
- * possible.
+ * possible. Note that the rotation matrix would be given by R = Rx*Ry*Rz
  *
  * @param Rx rotation about X axis (last)
  * @param Ry rotation about Y axis (middle)
@@ -216,9 +225,49 @@ int rotateImageFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz,
  */
 int shearTest(double Rx, double Ry, double Rz);
 
-int shearDecompose(std::list<Eigen::Matrix3d>& terms, double Rx, double Ry,
-		double Rz);
 
+/********************
+ * Image Rotating
+ ********************/
+
+/**
+ * @brief Performs a rotation using 3D intperolation kernel (lanczos)
+ *
+ * @param inout Input/output image
+ * @param rx Rotation about x axis
+ * @param ry Rotation about y axis
+ * @param rz Rotation about z axis
+ */
+void rotateImageKern(shared_ptr<NDArray> inout, double rx, double ry, double rz);
+
+/**
+ * @brief Performs a rotation using fourier shift and shears, using FFT for 
+ * unidirectional shifts, using FFT. Rotation matrix R = Rx*Ry*Rz
+ *
+ * @param inout Input/output image
+ * @param rx Rotation about x axis
+ * @param ry Rotation about y axis
+ * @param rz Rotation about z axis
+ * @param kern Kernel to perform 1D interpolation with. 
+ */
+int rotateImageShearKern(shared_ptr<NDArray> inout, double rx, double ry, double rz,
+		double(*kern)(double,double) = npl::lanczosKernel);
+
+/**
+ * @brief Performs a rotation using fourier shift and shears, using FFT for 
+ * unidirectional shifts, using FFT. Rotation matrix R = Rx*Ry*Rz
+ *
+ * @param inout Input/output image
+ * @param rx Rotation about x axis
+ * @param ry Rotation about y axis
+ * @param rz Rotation about z axis
+ */
+int rotateImageShearFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz,
+		double(*window)(double,double) = npl::sincWindow);
+
+/****************************
+ * Radial Fourier Transforms
+ ****************************/
 
 /**
  * @brief Computes the pseudopolar-gridded fourier transform on the input

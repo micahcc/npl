@@ -24,6 +24,7 @@
 #include <stdexcept>
 
 #include <Eigen/Geometry> 
+#include <Eigen/Eigenvalues> 
 
 #define DEBUG 1
 
@@ -46,6 +47,7 @@ using namespace std;
 using Eigen::Matrix3d;
 using Eigen::Vector3d;
 using Eigen::AngleAxisd;
+using Eigen::EigenSolver;
 
 /**
  * @brief Performs a rotation of the image first by rotating around z, then
@@ -133,15 +135,18 @@ shared_ptr<MRImage> createTestImage(size_t sz1)
 	size_t sz[] = {sz1, sz1, sz1};
 	auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, COMPLEX128);
 
-	// fill with a shape
+	// fill with a shape that is somewhat unique when rotated. 
 	OrderIter<double> sit(in);
 	double sum = 0;
 	while(!sit.eof()) {
 		sit.index(3, index);
 		double v = index[0]>(sz[0]/2. - 10) && index[0]<(sz[0]/2. + 2) 
 					&& index[1]>(sz[1]/2. + 3) && index[1]<(sz[1]/2. + 10) 
-					&& index[2]>(sz[2]/2. - 1) && index[2]<(sz[2]/2. + 1);
-		sit.set(v);
+					&& index[2]>(sz[2]/2. - 4) && index[2]<(sz[2]/2. + 2);
+		double u = index[0]>(sz[0]/2. + 3) && index[0]<(sz[0]/2. + 6) 
+					&& index[1]>(sz[1]/2. - 10) && index[1]<(sz[1]/2. - 3) 
+					&& index[2]>(sz[2]/2. - 4) && index[2]<(sz[2]/2. + 1);
+		sit.set(v+u);
 		sum += v;
 		++sit;
 	}
@@ -255,10 +260,21 @@ int testRotationAxis()
 	cerr << "Done" << endl;
 
 	cerr << "Rotating" << endl;
-	Vector3d ax(.0, .2, .1);
-	ax.normalize();
-	auto out = bruteForceRotate(ax, .5, in);
-	out->write("brute_rotated.nii.gz");
+
+    Vector3d axis(0.3, 0, 0);
+    axis.normalize();
+    Matrix3d R = AngleAxisd(3.14159/4, axis).matrix();
+    Vector3d euler = R.eulerAngles(0,1,2);
+    cerr << "Axis:\n" << axis.transpose() << endl;
+    cerr << "Matrix:\n" << R << endl;
+    cerr << "Euler:\n" << euler.transpose() << endl;
+
+    // rotate image
+    auto out = dynamic_pointer_cast<MRImage>(in->copy());
+	rotateImageShearKern(out, euler[0], euler[1], euler[2]);
+    
+
+	writeComplex("rotated", out);
 	cerr << "Done" << endl;
 
 	Vector3d newax = getAxis(in, out);
