@@ -36,13 +36,6 @@ namespace npl {
 using std::vector;
 using std::shared_ptr;
 
-double gaussKern(double x)
-{
-	const double PI = acos(-1);
-	const double den = 1./sqrt(2*PI);
-	return den*exp(-x*x/(2));
-}
-
 /**
  * @brief Smooths an image in 1 dimension
  *
@@ -55,6 +48,13 @@ double gaussKern(double x)
 void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
 		double stddev)
 {
+    const auto gaussKern = [](double x) 
+    {
+        const double PI = acos(-1);
+        const double den = 1./sqrt(2*PI);
+        return den*exp(-x*x/(2));
+    };
+
 	//TODO figure out how to scale this properly, including with stddev and
 	//spacing
 	if(dim >= inout->ndim()) {
