@@ -360,6 +360,78 @@ bool comparable(const NDArray* left, const NDArray* right, bool* elL, bool* elR)
  *************************/
 
 /**
+ * @brief Smooths an image in 1 dimension
+ *
+ * @param in Input/output image to smooth
+ * @param dim dimensions to smooth in. If you are smoothing individual volumes
+ * of an fMRI you would provide dim={0,1,2}
+ * @param stddev standard deviation in physical units index*spacing
+ *
+ */
+void gaussianSmooth1D(shared_ptr<NDArray> inout, size_t dim,
+		double stddev)
+{
+    const auto gaussKern = [](double x) 
+    {
+        const double PI = acos(-1);
+        const double den = 1./sqrt(2*PI);
+        return den*exp(-x*x/(2));
+    };
+
+	//TODO figure out how to scale this properly, including with stddev and
+	//spacing
+	if(dim >= inout->ndim()) {
+		throw std::out_of_range("Invalid dimension specified for 1D gaussian "
+				"smoothing");
+	}
+
+	std::vector<int64_t> index(dim, 0);
+	std::vector<double> buff(inout->dim(dim));
+
+	// for reading have the kernel iterator
+	KernelIter<double> kit(inout);
+	std::vector<size_t> radius(inout->ndim(), 0);
+	for(size_t dd=0; dd<inout->ndim(); dd++) {
+		if(dd == dim)
+			radius[dd] = round(2*stddev);
+	}
+	kit.setRadius(radius);
+	kit.goBegin();
+
+	// calculate normalization factor
+	double normalize = 0;
+	int64_t rad = radius[dim];
+	for(int64_t ii=-rad; ii<=rad; ii++)
+		normalize += gaussKern(ii/stddev);
+
+	// for writing, have the regular iterator
+	OrderIter<double> it(inout);
+	it.setOrder(kit.getOrder());
+	it.goBegin();
+	while(!it.eof()) {
+
+		// perform kernel math, writing to buffer
+		for(size_t ii=0; ii<inout->dim(dim); ii++, ++kit) {
+			double tmp = 0;
+			for(size_t kk=0; kk<kit.ksize(); kk++) {
+				double dist = kit.from_center(kk, dim);
+				double nval = kit[kk];
+				double stddist = dist/stddev;
+				double weighted = gaussKern(stddist)*nval/normalize;
+				tmp += weighted;
+			}
+			buff[ii] = tmp;
+		}
+		
+		// write back out
+		for(size_t ii=0; ii<inout->dim(dim); ii++, ++it)
+			it.set(buff[ii]);
+
+	}
+}
+
+
+/**
  * @brief Erode an binary array repeatedly
  *
  * @param in Input to erode
@@ -1802,7 +1874,7 @@ shared_ptr<NDArray> pseudoPolar(shared_ptr<const NDArray> in, size_t prdim)
 			continue;
 
 		int64_t usize = out->dim(dd);
-		int64_t uppadsize = usize*4;
+		int64_t uppadsize = usize*2;
 		fftw_complex* current = &buffer[0];
 		fftw_complex* prechirp = &buffer[usize+uppadsize];
 		fftw_complex* postchirp = &buffer[usize+2*uppadsize];
