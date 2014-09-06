@@ -247,7 +247,7 @@ int64_t round2(int64_t in)
 	if(just_hob == in)
 		return in;
 	else
-		return (in<<1);
+		return (just_hob<<1);
 }
 
 /**
