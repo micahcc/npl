@@ -351,9 +351,8 @@ Vector3d getAxis(shared_ptr<const MRImage> inimg1, shared_ptr<const MRImage> ini
 int testRotationAxis(double x, double y, double z, double theta)
 {
     cerr << "Creating Test Image" << endl;
-    size_t SIZE = 100;
+    size_t SIZE = 64;
     auto in = createTestImage(SIZE);
-    writeComplex("input", in);
     cerr << "Done" << endl;
 
     cerr << "Rotating" << endl;
@@ -393,8 +392,12 @@ int testRotationAxis(double x, double y, double z, double theta)
 //    auto out = createTestImageRotated(SIZE, euler[0], euler[1], euler[2]);
     auto out = dynamic_pointer_cast<MRImage>(in->copy());
     rotateImageShearFFT(out, euler[0], euler[1], euler[2]);
-
     writeComplex("rotated", out);
+    
+    rotateImageShearFFT(in, euler[0], euler[1], euler[2]);
+    rotateImageShearFFT(in, -euler[0], -euler[1], -euler[2]);
+    writeComplex("input", in);
+
     cerr << "Done" << endl;
 
     Vector3d newax = getAxis(in, out);
