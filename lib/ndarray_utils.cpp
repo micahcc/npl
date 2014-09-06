@@ -1808,7 +1808,7 @@ shared_ptr<NDArray> pseudoPolarZoom(shared_ptr<const NDArray> inimg, size_t prdi
 			it.index(index);
 
 			// recompute chirps if alpha changed
-			double alpha = 2*(index[prdim]/(double)out->dim(prdim)) - 1;
+			double alpha = 2*(index[prdim]/(out->dim(prdim)-1.)) - 1;
 
 			// copy from input image
 			it.goChunkBegin();
