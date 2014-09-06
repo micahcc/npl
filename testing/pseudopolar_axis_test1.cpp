@@ -63,71 +63,71 @@ using Eigen::EigenSolver;
  * @return 
  */
 shared_ptr<MRImage> bruteForceRotate(Vector3d axis, double theta,
-		shared_ptr<const MRImage> in)
+        shared_ptr<const MRImage> in)
 {
-	Matrix3d m;
-	// negate because we are starting from the destination and mapping from
-	// the source
-	m = AngleAxisd(-theta, axis);
-	LinInterp3DView<double> lin(in);
-	auto out = dynamic_pointer_cast<MRImage>(in->copy());
-	Vector3d ind;
-	Vector3d cind;
-	Vector3d center;
-	for(size_t ii=0; ii<3 && ii<in->ndim(); ii++) {
-		center[ii] = (in->dim(ii)-1)/2.;
-	}
+    Matrix3d m;
+    // negate because we are starting from the destination and mapping from
+    // the source
+    m = AngleAxisd(-theta, axis);
+    LinInterp3DView<double> lin(in);
+    auto out = dynamic_pointer_cast<MRImage>(in->copy());
+    Vector3d ind;
+    Vector3d cind;
+    Vector3d center;
+    for(size_t ii=0; ii<3 && ii<in->ndim(); ii++) {
+        center[ii] = (in->dim(ii)-1)/2.;
+    }
 
-	for(Vector3DIter<double> it(out); !it.isEnd(); ++it) {
-		it.index(3, ind.array().data());
-		cind = m*(ind-center)+center;
+    for(Vector3DIter<double> it(out); !it.isEnd(); ++it) {
+        it.index(3, ind.array().data());
+        cind = m*(ind-center)+center;
 
-		// set for each t
-		for(size_t tt = 0; tt<in->tlen(); tt++) 
-			it.set(tt, lin(cind[0], cind[1], cind[2], tt));
-	}
+        // set for each t
+        for(size_t tt = 0; tt<in->tlen(); tt++) 
+            it.set(tt, lin(cind[0], cind[1], cind[2], tt));
+    }
 
-	return out;
+    return out;
 }
 
 void writeComplexAA(string basename, shared_ptr<const MRImage> in)
 {
-	auto absimg = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
-	auto angimg = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
+    auto absimg = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
+    auto angimg = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
 
-	OrderIter<double> rit(absimg);
-	OrderIter<double> iit(angimg);
-	OrderConstIter<cdouble_t> init(in);
-	while(!init.eof()) {
-		rit.set(abs(*init));
-		iit.set(arg(*init));
-		++init;
-		++rit;
-		++iit;
-	}
+    OrderIter<double> rit(absimg);
+    OrderIter<double> iit(angimg);
+    OrderConstIter<cdouble_t> init(in);
+    while(!init.eof()) {
+        rit.set(abs(*init));
+        iit.set(arg(*init));
+        ++init;
+        ++rit;
+        ++iit;
+    }
 
-	absimg->write(basename + "_abs.nii.gz");
-	angimg->write(basename + "_ang.nii.gz");
+    absimg->write(basename + "_abs.nii.gz");
+    angimg->write(basename + "_ang.nii.gz");
 }
 
 void writeComplex(string basename, shared_ptr<const MRImage> in)
 {
-	auto re = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
-	auto im = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
+    auto re = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
+    auto im = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
 
-	OrderIter<double> rit(re);
-	OrderIter<double> iit(im);
-	OrderConstIter<cdouble_t> init(in);
-	while(!init.eof()) {
-		iit.set((*init).imag());
-		rit.set((*init).real());
-		++init;
-		++rit;
-		++iit;
-	}
+    OrderIter<double> rit(re);
+    OrderIter<double> iit(im);
+    OrderConstIter<cdouble_t> init(in);
+    while(!init.eof()) {
+        iit.set((*init).imag());
+        rit.set((*init).real());
+        ++init;
+        ++rit;
+        ++iit;
+    }
 
-	re->write(basename + "_re.nii.gz");
-	im->write(basename + "_im.nii.gz");
+    re->write(basename + "_re.nii.gz");
+    im->write(basename + "_im.nii.gz");
 }
 
 double box(double x, double xmin, double xmax)
@@ -153,64 +153,64 @@ double gaussGen(double x, double y, double z, double xsz, double ysz, double zsz
 shared_ptr<MRImage> createTestImageRotated(size_t sz1, double rx, double ry, 
         double rz)
 {
-	// create an image
-	size_t sz[] = {sz1, sz1, sz1};
-	auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, COMPLEX128);
+    // create an image
+    size_t sz[] = {sz1, sz1, sz1};
+    auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, COMPLEX128);
 
     // create rotation matrix
-	Matrix3d m;
-	m = AngleAxisd(rx, Vector3d::UnitX())*AngleAxisd(ry, Vector3d::UnitY())*
+    Matrix3d m;
+    m = AngleAxisd(rx, Vector3d::UnitX())*AngleAxisd(ry, Vector3d::UnitY())*
         AngleAxisd(rz, Vector3d::UnitZ());
     m = m.inverse();
 
     double sum = 0;
-	Vector3d ind;
-	Vector3d cind;
-	Vector3d center;
-	for(size_t ii=0; ii<3 && ii<in->ndim(); ii++) {
-		center[ii] = (in->dim(ii)-1)/2.;
-	}
+    Vector3d ind;
+    Vector3d cind;
+    Vector3d center;
+    for(size_t ii=0; ii<3 && ii<in->ndim(); ii++) {
+        center[ii] = (in->dim(ii)-1)/2.;
+    }
 
-	for(Vector3DIter<double> it(in); !it.isEnd(); ++it) {
-		it.index(3, ind.array().data());
-		cind = m*(ind-center)+center;
+    for(Vector3DIter<double> it(in); !it.isEnd(); ++it) {
+        it.index(3, ind.array().data());
+        cind = m*(ind-center)+center;
 
-		// set for each t
-		for(size_t tt = 0; tt<in->tlen(); tt++) {
+        // set for each t
+        for(size_t tt = 0; tt<in->tlen(); tt++) {
             double v = boxGen(cind[0], cind[1], cind[2], sz1, sz1, sz1);
-			it.set(tt, v);
+            it.set(tt, v);
             sum += v;
         }
-	}
+    }
 
-	for(OrderIter<double> sit(in); !sit.eof(); ++sit) 
-		sit.set(sit.get()/sum);
+    for(OrderIter<double> sit(in); !sit.eof(); ++sit) 
+        sit.set(sit.get()/sum);
 
-	return in;
+    return in;
 }
 
 shared_ptr<MRImage> createTestImage(size_t sz1)
 {
-	// create an image
-	int64_t index[3];
-	size_t sz[] = {sz1, sz1, sz1};
-	auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, COMPLEX128);
+    // create an image
+    int64_t index[3];
+    size_t sz[] = {sz1, sz1, sz1};
+    auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, COMPLEX128);
 
-	// fill with a shape that is somewhat unique when rotated. 
-	OrderIter<double> sit(in);
-	double sum = 0;
-	while(!sit.eof()) {
-		sit.index(3, index);
+    // fill with a shape that is somewhat unique when rotated. 
+    OrderIter<double> sit(in);
+    double sum = 0;
+    while(!sit.eof()) {
+        sit.index(3, index);
         double v= boxGen(index[0], index[1], index[2], sz1, sz1, sz1);
-		sit.set(v);
-		sum += v;
-		++sit;
-	}
-	
-	for(sit.goBegin(); !sit.eof(); ++sit) 
-		sit.set(sit.get()/sum);
+        sit.set(v);
+        sum += v;
+        ++sit;
+    }
 
-	return in;
+    for(sit.goBegin(); !sit.eof(); ++sit) 
+        sit.set(sit.get()/sum);
+
+    return in;
 }
 
 Vector3d getAxis(shared_ptr<const MRImage> inimg1, shared_ptr<const MRImage> inimg2)
@@ -225,103 +225,103 @@ Vector3d getAxis(shared_ptr<const MRImage> inimg1, shared_ptr<const MRImage> ini
 //    for(size_t dd=0; dd<img2->ndim(); dd++)
 //        gaussianSmooth1D(img2, dd, 5);
 
-	ostringstream oss;
-	Vector3d axis;
-	
+    ostringstream oss;
+    Vector3d axis;
+
     size_t ndim = 3;
-	std::vector<int64_t> index(ndim);
-	std::vector<int64_t> cindex(ndim);
-	size_t pslope[ndim-1];
-	double bestang0 = -1;
-	double bestang1 = -1;
-	double mineang0 = -1;
-	double mineang1 = -1;
-	double maxcor = 0;
-	double minerr = INFINITY;
+    std::vector<int64_t> index(ndim);
+    std::vector<int64_t> cindex(ndim);
+    size_t pslope[ndim-1];
+    double bestang0 = -1;
+    double bestang1 = -1;
+    double mineang0 = -1;
+    double mineang1 = -1;
+    double maxcor = 0;
+    double minerr = INFINITY;
 
-	for(size_t ii=0; ii<ndim; ii++) {
-		size_t tmp = 0;
-		for(size_t jj=0; jj<ndim; jj++) {
-			if(jj != ii) 
-				pslope[tmp++] = jj;
-		}
+    for(size_t ii=0; ii<ndim; ii++) {
+        size_t tmp = 0;
+        for(size_t jj=0; jj<ndim; jj++) {
+            if(jj != ii) 
+                pslope[tmp++] = jj;
+        }
 
-		cerr << "pseudo radius: " << ii << 
-			", pseudo slope 1: " << pslope[0] << ", pseudo slope 2: " <<
-			pslope[1] << endl;
+        cerr << "pseudo radius: " << ii << 
+            ", pseudo slope 1: " << pslope[0] << ", pseudo slope 2: " <<
+            pslope[1] << endl;
 
-		auto s1_pp = dynamic_pointer_cast<MRImage>(pseudoPolarZoom(img1, ii));
-		auto s2_pp = dynamic_pointer_cast<MRImage>(pseudoPolarZoom(img2, ii));
-		
-		writeComplexAA("s1_pp"+to_string(ii), s1_pp);
-		writeComplexAA("s2_pp"+to_string(ii), s2_pp);
+        auto s1_pp = dynamic_pointer_cast<MRImage>(pseudoPolarZoom(img1, ii));
+        auto s2_pp = dynamic_pointer_cast<MRImage>(pseudoPolarZoom(img2, ii));
+
+        writeComplexAA("s1_pp"+to_string(ii), s1_pp);
+        writeComplexAA("s2_pp"+to_string(ii), s2_pp);
 
         vector<size_t> compdim(s1_pp->dim(), s1_pp->dim()+s1_pp->ndim());
         compdim[ii] = 1;
         auto corimg = dynamic_pointer_cast<MRImage>(
-                    s1_pp->copyCast(compdim.size(), compdim.data(), FLOAT64));
+                s1_pp->copyCast(compdim.size(), compdim.data(), FLOAT64));
         auto errimg = dynamic_pointer_cast<MRImage>(
-                    s1_pp->copyCast(compdim.size(), compdim.data(), FLOAT64));
+                s1_pp->copyCast(compdim.size(), compdim.data(), FLOAT64));
 
-		ChunkIter<cdouble_t> it1(s1_pp);
-		it1.setLineChunk(ii);
-		ChunkIter<cdouble_t> it2(s2_pp);
-		it2.setLineChunk(ii);
+        ChunkIter<cdouble_t> it1(s1_pp);
+        it1.setLineChunk(ii);
+        ChunkIter<cdouble_t> it2(s2_pp);
+        it2.setLineChunk(ii);
 
-		OrderIter<double> cit(corimg);
-		OrderIter<double> eit(errimg);
-		for(it1.goBegin(), it2.goBegin(), cit.goBegin(), eit.goBegin(); 
-                    !it1.eof() && !it2.eof() && !cit.eof() && !eit.eof(); 
-                    it1.nextChunk(), it2.nextChunk(), ++cit, ++eit) {
+        OrderIter<double> cit(corimg);
+        OrderIter<double> eit(errimg);
+        for(it1.goBegin(), it2.goBegin(), cit.goBegin(), eit.goBegin(); 
+                !it1.eof() && !it2.eof() && !cit.eof() && !eit.eof(); 
+                it1.nextChunk(), it2.nextChunk(), ++cit, ++eit) {
 
             // double check the indices
             it1.index(index);
             cit.index(cindex);
 
-			double ang0 = 2.*index[pslope[0]]/(s1_pp->dim(pslope[0]))-1;
-			double ang1 = 2.*index[pslope[1]]/(s2_pp->dim(pslope[1]))-1;
+            double ang0 = 2.*index[pslope[0]]/(s1_pp->dim(pslope[0]))-1;
+            double ang1 = 2.*index[pslope[1]]/(s2_pp->dim(pslope[1]))-1;
 
             for(size_t ii=0; ii<index.size(); ii++){
                 if(index[ii] != cindex[ii])
                     throw std::logic_error("Iteration order wrong!");
             }
 
-			double corr = 0;
-			double sum1 = 0, sum2 = 0;
-			double ssq1 = 0, ssq2= 0;
-			size_t count = 0;
-			double err = 0;
-			for(; !it1.eoc() && !it2.eoc(); ++it1, ++it2) {
-				double m1 = abs(*it1);
-				double m2 = abs(*it2);
-				corr += m1*m2;
-				sum1 += m1;
-				sum2 += m2;
-				ssq1 += m1*m1;
-				ssq2 += m2*m2;
-				err += pow(m1-m2,2);
-				count++;
-			}
-			assert(it1.isChunkEnd());
-			assert(it2.isChunkEnd());
+            double corr = 0;
+            double sum1 = 0, sum2 = 0;
+            double ssq1 = 0, ssq2= 0;
+            size_t count = 0;
+            double err = 0;
+            for(; !it1.eoc() && !it2.eoc(); ++it1, ++it2) {
+                double m1 = abs(*it1);
+                double m2 = abs(*it2);
+                corr += m1*m2;
+                sum1 += m1;
+                sum2 += m2;
+                ssq1 += m1*m1;
+                ssq2 += m2*m2;
+                err += pow(m1-m2,2);
+                count++;
+            }
+            assert(it1.isChunkEnd());
+            assert(it2.isChunkEnd());
 
-			if(err < minerr) {
-				minerr = err;
-				cerr << "New Min Err: " << err << ", " << ang0 << ","
-					<< ang1 << " or " << index[0] << "," << index[1] << "," 
+            if(err < minerr) {
+                minerr = err;
+                cerr << "New Min Err: " << err << ", " << ang0 << ","
+                    << ang1 << " or " << index[0] << "," << index[1] << "," 
                     << index[2] << endl;
                 mineang0 = ang0;
                 mineang1 = ang1;
-			}
+            }
 
-			corr = sample_corr(count, sum1, sum2, ssq1, ssq2, corr); 
+            corr = sample_corr(count, sum1, sum2, ssq1, ssq2, corr); 
             cit.set(corr);
             eit.set(err);
 
-			if(fabs(corr) > maxcor) {
-				maxcor = corr;
-				cerr << "New Max Cor: " << corr << ", " << ang0 << ","
-					<< ang1 << " or " << index[0] << "," << index[1] 
+            if(fabs(corr) > maxcor) {
+                maxcor = corr;
+                cerr << "New Max Cor: " << corr << ", " << ang0 << ","
+                    << ang1 << " or " << index[0] << "," << index[1] 
                     << "," << index[2] << endl;
                 axis[ii] = 1;
                 bestang0 = ang0;
@@ -329,34 +329,34 @@ Vector3d getAxis(shared_ptr<const MRImage> inimg1, shared_ptr<const MRImage> ini
                 axis[pslope[0]] = bestang0;
                 axis[pslope[1]] = bestang1;
                 axis.normalize();
-			}
-			
-		}
+            }
+
+        }
 
         corimg->write("corimg_"+to_string(ii)+".nii.gz");
         errimg->write("errimg_"+to_string(ii)+".nii.gz");
-		cerr << "pseudo radius: " << ii << 
-			", pseudo slope 1: " << pslope[0] << ", pseudo slope 2: " 
-			<< pslope[1] << " best cor: " << maxcor << " at " << bestang0 
-			<< ", " << bestang1 << ", best err: " << minerr << " at " <<
-			mineang0 << ", " << mineang1 << endl;
-		assert(it1.isEnd());
-		assert(it2.isEnd());
-	}
-	
-	
-	return axis;
+        cerr << "pseudo radius: " << ii << 
+            ", pseudo slope 1: " << pslope[0] << ", pseudo slope 2: " 
+            << pslope[1] << " best cor: " << maxcor << " at " << bestang0 
+            << ", " << bestang1 << ", best err: " << minerr << " at " <<
+            mineang0 << ", " << mineang1 << endl;
+        assert(it1.isEnd());
+        assert(it2.isEnd());
+    }
+
+
+    return axis;
 }
 
 int testRotationAxis(double x, double y, double z, double theta)
 {
-	cerr << "Creating Test Image" << endl;
+    cerr << "Creating Test Image" << endl;
     size_t SIZE = 100;
-	auto in = createTestImage(SIZE);
-	writeComplex("input", in);
-	cerr << "Done" << endl;
+    auto in = createTestImage(SIZE);
+    writeComplex("input", in);
+    cerr << "Done" << endl;
 
-	cerr << "Rotating" << endl;
+    cerr << "Rotating" << endl;
 
     Vector3d axis(x, y, z);
     axis.normalize();
@@ -394,13 +394,13 @@ int testRotationAxis(double x, double y, double z, double theta)
     auto out = dynamic_pointer_cast<MRImage>(in->copy());
     rotateImageShearFFT(out, euler[0], euler[1], euler[2]);
 
-	writeComplex("rotated", out);
-	cerr << "Done" << endl;
+    writeComplex("rotated", out);
+    cerr << "Done" << endl;
 
-	Vector3d newax = getAxis(in, out);
-	cerr << "Axis: " << newax.transpose() << endl;
+    Vector3d newax = getAxis(in, out);
+    cerr << "Axis: " << newax.transpose() << endl;
 
-	return 0;
+    return 0;
 }
 
 int main(int argc, char** argv)
@@ -422,7 +422,7 @@ int main(int argc, char** argv)
     } 
     if(testRotationAxis(x, y, z, theta) != 0)
         return -1;
-	
-	return 0;
+
+    return 0;
 }
 
