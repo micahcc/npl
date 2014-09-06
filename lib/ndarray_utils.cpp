@@ -1892,7 +1892,7 @@ shared_ptr<NDArray> pseudoPolar(shared_ptr<const NDArray> in, size_t prdim)
 			it.index(index);
 
 			// recompute chirps if alpha changed
-			alpha = 2*(index[prdim]/(double)out->dim(prdim)) - 1;
+			alpha = 2*(index[prdim]/(out->dim(prdim)-1)) - 1;
 			if(alpha != prevAlpha) {
 				createChirp(uppadsize, prechirp, usize, 1, alpha, 
 						false, false);
