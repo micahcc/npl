@@ -177,7 +177,7 @@ shared_ptr<MRImage> createTestImageRotated(size_t sz1, double rx, double ry,
 
         // set for each t
         for(size_t tt = 0; tt<in->tlen(); tt++) {
-            double v = boxGen(cind[0], cind[1], cind[2], sz1, sz1, sz1);
+            double v = gaussGen(cind[0], cind[1], cind[2], sz1, sz1, sz1);
             it.set(tt, v);
             sum += v;
         }
@@ -201,7 +201,7 @@ shared_ptr<MRImage> createTestImage(size_t sz1)
     double sum = 0;
     while(!sit.eof()) {
         sit.index(3, index);
-        double v= boxGen(index[0], index[1], index[2], sz1, sz1, sz1);
+        double v= gaussGen(index[0], index[1], index[2], sz1, sz1, sz1);
         sit.set(v);
         sum += v;
         ++sit;
@@ -250,8 +250,8 @@ Vector3d getAxis(shared_ptr<const MRImage> inimg1, shared_ptr<const MRImage> ini
             ", pseudo slope 1: " << pslope[0] << ", pseudo slope 2: " <<
             pslope[1] << endl;
 
-        auto s1_pp = dynamic_pointer_cast<MRImage>(pseudoPolarZoom(img1, ii));
-        auto s2_pp = dynamic_pointer_cast<MRImage>(pseudoPolarZoom(img2, ii));
+        auto s1_pp = dynamic_pointer_cast<MRImage>(pseudoPolar(img1, ii));
+        auto s2_pp = dynamic_pointer_cast<MRImage>(pseudoPolar(img2, ii));
 
         writeComplexAA("s1_pp"+to_string(ii), s1_pp);
         writeComplexAA("s2_pp"+to_string(ii), s2_pp);
