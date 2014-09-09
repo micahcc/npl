@@ -178,7 +178,6 @@ public:
 	 */
 	virtual shared_ptr<NDArray> copyCast(size_t newdims,
 				const size_t* newsize) const = 0;
-
 	
 //	virtual int opself(const NDArray* right, double(*func)(double,double),
 //			bool elevR) = 0;

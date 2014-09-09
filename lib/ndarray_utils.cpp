@@ -23,9 +23,6 @@
  * generally data of any dimension, without regard to orientation.
  ******************************************************************************/
 
-#ifndef IMAGE_PROCESSING_H
-#define IMAGE_PROCESSING_H
-
 #include "ndarray_utils.h"
 #include "ndarray.h"
 #include "npltypes.h"
@@ -57,6 +54,41 @@ using std::shared_ptr;
 using Eigen::Matrix3d;
 using Eigen::Vector3d;
 using Eigen::AngleAxisd;
+
+/**
+ * @brief Computes the derivative of the image. If dir is set then it will be
+ * a 1D derivative in the dimension specified by dir. If dir is < 0, then all
+ * directional derivatives of the input image will be computed and the output
+ * image will have 1 higher dimension with derivative of 0 in the first volume
+ * 1 in the second and so on.
+ *
+ * Thus a 2D image will produce a [X,Y,2] image and a 3D image will produce a 
+ * [X,Y,Z,3] sized image.
+ *
+ * @param in    Input image/NDarray 
+ * @param dir   Specify the dimension
+ *
+ * @return 
+ */
+shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in, int dir = -1)
+{
+    shared_ptr<NDArray> out;
+    if(dir < 0)
+        vectro<size_t> osize(in->dim(), in->dim()+in->ndim());
+        osize.push_back(in->ndim());
+        out = in->copyCast(osize);
+    else
+        out in->copy();
+    
+    // enforce highest as slowest 
+    OrderIter<double> it(in);
+    OrderIter<double> dit(out);
+    dit.setOrder(it.getOrder()); 
+
+    for(it.goBegin(), dit.goBegin(); !dit.eof() && !it.eof(); ++it, ++dit) {
+        // get the input image
+    }
+}
 
 /**
  * @brief Performs in-place fft. Note that the input should already be padded
@@ -1958,6 +1990,5 @@ vector<shared_ptr<NDArray>> pseudoPolar(shared_ptr<const NDArray> in)
 }
 
 } // npl
-#endif  //IMAGE_PROCESSING_H
 
 

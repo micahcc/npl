@@ -14,19 +14,14 @@
  * limitations under the License.
  *
  * @file mrimage_utils.h
- *
- *****************************************************************************/
-
-/******************************************************************************
- * @file mrimage_utils.h
  * @brief This file contains common functions which are useful for image
  * processing. Note that ndarray_utils.h has utilities which are more general
  * whereas this file contains functions which are specifically for image
  * processing.
  ******************************************************************************/
 
-#ifndef IMAGE_PROCESSING_H
-#define IMAGE_PROCESSING_H
+#ifndef MRIMAGE_UTILS_H
+#define MRIMAGE_UTILS_H
 
 #include "ndarray.h"
 #include "npltypes.h"
@@ -249,4 +244,4 @@ shared_ptr<MRImage> ifft_c2r(shared_ptr<const MRImage> in);
 shared_ptr<MRImage> shiftImage(shared_ptr<MRImage> in, size_t len, double* vect);
 
 } // npl
-#endif  //IMAGE_PROCESSING_H
+#endif  //MRIMAGE_UTILS_H
