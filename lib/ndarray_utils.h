@@ -28,8 +28,8 @@
  * generally data of any dimension, without regard to orientation.
  ******************************************************************************/
 
-#ifndef ND_ALGOS_H
-#define ND_ALGOS_H
+#ifndef NDARRAY_UTILS_H
+#define NDARRAY_UTILS_H
 
 #include "ndarray.h"
 #include "npltypes.h"
@@ -115,6 +115,23 @@ bool comparable(const NDArray* left, const NDArray* right,
 /*************************
  * Basic Kernel Functions
  *************************/
+
+/**
+ * @brief Computes the derivative of the image. If dir is set then it will be
+ * a 1D derivative in the dimension specified by dir. If dir is < 0, then all
+ * directional derivatives of the input image will be computed and the output
+ * image will have 1 higher dimension with derivative of 0 in the first volume
+ * 1 in the second and so on.
+ *
+ * Thus a 2D image will produce a [X,Y,2] image and a 3D image will produce a 
+ * [X,Y,Z,3] sized image.
+ *
+ * @param in    Input image/NDarray 
+ * @param dir   Specify the dimension
+ *
+ * @return 
+ */
+shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in, int dir = -1);
 
 /**
  * @brief Dilate an binary array repeatedly
@@ -309,5 +326,5 @@ std::vector<std::shared_ptr<NDArray>> pseudoPolar(shared_ptr<const NDArray> in);
 shared_ptr<NDArray> pseudoPolarZoom(shared_ptr<const NDArray> in, size_t prdim);
 
 } // npl
-#endif  //ND_ALGOS_H
+#endif  //NDARRAY_UTILS_H
 
