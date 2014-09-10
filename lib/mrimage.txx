@@ -65,8 +65,9 @@ MRImageStore<D,T>::MRImageStore(size_t len, const size_t* size) :
 }
 
 template <size_t D,typename T>
-MRImageStore<D,T>::MRImageStore(size_t len, const size_t* size, T* ptr) :
-	NDArrayStore<D,T>(len, size, ptr), MRImage()
+MRImageStore<D,T>::MRImageStore(size_t len, const size_t* size, T* ptr,
+        const std::function<void(void*)>& deleter) :
+	NDArrayStore<D,T>(len, size, ptr, deleter), MRImage()
 {
 	orientDefault();
 }

@@ -40,30 +40,6 @@ using std::vector;
 using std::shared_ptr;
 
 /**
- * @brief Creates a new MRImage with dimensions set by ndim, and size set by
- * size. Output pixel type is decided by ptype variable.
- *
- * @param ndim number of image dimensions
- * @param size size of image, in each dimension
- * @param ptype Pixel type npl::PixelT
- *
- * @return New image, default orientation
- */
-shared_ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT ptype);
-
-/**
- * @brief Creates a new MRImage with dimensions set by ndim, and size set by
- * size. Output pixel type is decided by ptype variable.
- *
- * @param size size of image, in each dimension, number of dimensions decied by
- * length of size vector
- * @param ptype Pixel type npl::PixelT
- *
- * @return New image, default orientation
- */
-shared_ptr<MRImage> createMRImage(const std::vector<size_t>& size, PixelT);
-
-/**
  * @brief Create a new image that is a copy of the input, possibly with new
  * dimensions and pixeltype. The new image will have all overlapping pixels
  * copied from the old image.
@@ -176,6 +152,36 @@ int writeMRImage(MRImage* img, std::string fn, bool nifti2 = false);
  */
 std::ostream& operator<<(std::ostream &out, const MRImage& img);
 
+/*****************************************************************************
+ * Kernel Functions
+ ****************************************************************************/
+
+/**
+ * @brief Computes the derivative of the image in the specified direction. 
+ * This is identical to the NDArray version, but it scales by the spacing.
+ *
+ * @param in    Input image/NDarray 
+ * @param dir   Specify the dimension
+ *
+ * @return      Image storing the directional derivative of in
+ */
+shared_ptr<MRImage> derivative(shared_ptr<const MRImage> in, size_t dir);
+
+/**
+ * @brief Computes the derivative of the image. Computes all
+ * directional derivatives of the input image and the output
+ * image will have 1 higher dimension with derivative of 0 in the first volume
+ * 1 in the second and so on.
+ *
+ * Thus a 2D image will produce a [X,Y,2] image and a 3D image will produce a 
+ * [X,Y,Z,3] sized image.
+ *
+ * @param in    Input image/NDarray 
+ *
+ * @return 
+ */
+shared_ptr<MRImage> derivative(shared_ptr<const MRImage> in);
+
 
 /**
  * @brief Gaussian smooths an image in 1 direction.
@@ -186,51 +192,25 @@ std::ostream& operator<<(std::ostream &out, const MRImage& img);
  */
 void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, double stddev);
 
+/******************************************************
+ * Resample Image Functions
+ ******************************************************/
+
 /**
- * @brief Smooths an image in 1 dimension, masked version. Only updates pixels
- * within masked region.
+ * @brief Performs smoothing in each dimension, then downsamples so that pixel
+ * spacing is roughly equal to FWHM.
  *
- * @param in Input/output image to smooth
- * @param dim dimensions to smooth in. If you are smoothing individual volumes
- * of an fMRI you would provide dim={0,1,2}
- * @param stddev standard deviation in physical units index*spacing
- * @param mask Only smooth (alter) point within the mask, inverted by 'invert'
- * @param invert only smooth points outside the mask
+ * @param in    Input image
+ * @param sigma Standard deviation for smoothing
+ *
+ * @return  Smoothed and downsampled image
  */
-//void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
-//		double stddev, shared_ptr<MRImage> mask, bool invert);
+shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, 
+        double sigma);
 
 /******************************************************
  * FFT Tools
  *****************************************************/
-
-/**
- * @brief Perform fourier transform on the dimensions specified. Those
- * dimensions will be padded out. The output of this will be a complex double.
- * If len = 0 or dim == NULL, then ALL dimensions will be transformed.
- *
- * @param in Input image to fourier transform
- *
- * @return Complex image, which is the result of inverse fourier transforming
- * the (Real) input image. Note that the last dimension only contains the real
- * frequencies, but all other dimensions contain both
- */
-shared_ptr<MRImage> fft_r2c(shared_ptr<const MRImage> in);
-
-/**
- * @brief Perform fourier transform on the dimensions specified. Those
- * dimensions will be padded out. The output of this will be a double.
- * If len = 0 or dim == NULL, then ALL dimensions will be transformed.
- *
- * @param in Input image to inverse fourier trnasform
- * @param len length of input dimension array
- * @param dim dimensions to transform
- *
- * @return Image with specified dimensions in the real domain. Image will
- * differ in size from input.
- */
-shared_ptr<MRImage> ifft_c2r(shared_ptr<const MRImage> in);
-
 /**
  * @brief Uses fourier shift theorem to shift an image
  *

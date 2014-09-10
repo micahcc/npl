@@ -42,20 +42,20 @@ namespace npl {
 /**
  * @brief Returns the directory name for the given file. TODO: windows support
  *
- * @param std::string 	Input path
+ * @param path Input path
  *
  * @return 				Output directory name of input path
  */
-std::string dirname(std::string in)
+std::string dirname(std::string path)
 {
-	size_t n = in.find_last_of('/');
+	size_t n = path.find_last_of('/');
 	while(true) {
 		if(n == 0) {
-			return in;
-		} else if(in[n-1] == '\\') {
-			n = in.find_last_of('/', n);
+			return path;
+		} else if(path[n-1] == '\\') {
+			n = path.find_last_of('/', n);
 		} else {
-			return in.substr(0, n+1);
+			return path.substr(0, n+1);
 		}
 	}
 
@@ -319,7 +319,6 @@ vector<vector<string>> readStrCSV(string filename, char comment)
  * out
  *
  * @param filename file to read
- * @param out vector of rows (stored in vectors)
  * @param comment lines with this first non-white space character will be ignored
  *
  * @return maximum row width

@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file utility.h
+ * @file utility.h File with random utilities, for string processing, for 
+ * determining basic filename information (basename/dirname). 
  *
  *****************************************************************************/
 #ifndef UTILITY_FUNCTIONS_H
@@ -24,17 +25,18 @@
 #include <list>
 #include <vector>
 
+#define __FUNCTION_STR__ std::string(__PRETTY_FUNCTION__)
 
 namespace npl {
 
 /**
  * @brief Returns the directory name for the given file
  *
- * @param std::string 	Input path
+ * @param path Input path
  *
  * @return 				Output directory name of input path
  */
-std::string dirname(std::string);
+std::string dirname(std::string path);
 
 /**
  * @brief Reads a file and returns true if its entirely made up of printable ascii
@@ -219,6 +221,35 @@ std::vector<double> getRegressor(std::vector<std::vector<double>>& spec,
  */
 void convolve(std::vector<double>& signal, double(*foo)(double),
 		double tr, double length);
+
+/**
+ * @brief Computes the standard deviation from FWHM (because I can never
+ * remember the ratio)
+ *
+ * @param fwhm  Full width-half max that we want to convert to equivalent
+ * standard deviation
+ *
+ * @return  Standard deviation for a gaussian with the specified FWHM
+ */
+inline
+double fwhm_to_sd(double fwhm)
+{
+    return fwhm/(2*sqrt(2*log(2)));
+}
+
+/**
+ * @brief Computes the FWHM from from standard deviation (because I can never
+ * remember the ratio)
+ *
+ * @param sd Standard deviation of a Gaussian function. 
+ *
+ * @return Full-width-half-max size of the same gaussian function
+ */
+inline
+double sd_to_fwhm(double sd)
+{
+    return sd*(2*sqrt(2*log(2)));
+}
 
 }
 #endif // UTILITY_FUNCTIONS_H

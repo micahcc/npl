@@ -45,6 +45,7 @@
 #include <stdexcept>
 
 #include "mrimage.h"
+#include "accessors.h"
 
 namespace npl {
 
@@ -56,9 +57,47 @@ using Eigen::Vector3d;
 using Eigen::AngleAxisd;
 
 /**
- * @brief Computes the derivative of the image. If dir is set then it will be
- * a 1D derivative in the dimension specified by dir. If dir is < 0, then all
- * directional derivatives of the input image will be computed and the output
+ * @brief Computes the derivative of the image in the specified direction. 
+ *
+ * @param in    Input image/NDarray 
+ * @param dir   Specify the dimension
+ *
+ * @return      Image storing the directional derivative of in
+ */
+shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in, size_t dir)
+{
+    if(dir >= in->ndim())
+        throw std::invalid_argument("Input direction is outside range of "
+                "input dimensions in\n" + __FUNCTION_STR__);
+
+    auto out = in->copy();
+
+    vector<int64_t> index(in->ndim());
+    NDConstAccess<double> inGet(in);
+
+    Vector3DIter<double> oit(out);
+    for(oit.goBegin(); !oit.eof(); ++oit) {
+        // get index
+        oit.index(index.size(), index.data());
+
+        // before
+        index[dir]--;
+        double der = -inGet[index];
+
+        // after
+        index[dir] += 2;
+        der += inGet[index];
+
+        // set
+        oit.set(dir, der/2.);
+    }
+
+    return out;
+}
+
+/**
+ * @brief Computes the derivative of the image. Computes all  
+ * directional derivatives of the input image and the output
  * image will have 1 higher dimension with derivative of 0 in the first volume
  * 1 in the second and so on.
  *
@@ -66,79 +105,40 @@ using Eigen::AngleAxisd;
  * [X,Y,Z,3] sized image.
  *
  * @param in    Input image/NDarray 
- * @param dir   Specify the dimension
  *
  * @return 
  */
-shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in, int dir = -1)
+shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in)
 {
-    shared_ptr<NDArray> out;
-    if(dir < 0)
-        vectro<size_t> osize(in->dim(), in->dim()+in->ndim());
-        osize.push_back(in->ndim());
-        out = in->copyCast(osize);
-    else
-        out in->copy();
-    
-    // enforce highest as slowest 
-    OrderIter<double> it(in);
-    OrderIter<double> dit(out);
-    dit.setOrder(it.getOrder()); 
+    vector<size_t> osize(in->dim(), in->dim()+in->ndim());
+    osize.push_back(in->ndim());
+    auto out = in->copyCast(osize.size(), osize.data());
 
-    for(it.goBegin(), dit.goBegin(); !dit.eof() && !it.eof(); ++it, ++dit) {
-        // get the input image
+    vector<int64_t> index(in->ndim());
+    NDConstAccess<double> inGet(in);
+
+    Vector3DIter<double> oit(out);
+    for(oit.goBegin(); !oit.eof(); ++oit) {
+        // get index
+        oit.index(index.size(), index.data());
+
+        // compute derivative in each direction
+        for(size_t dd=0; dd<in->ndim(); dd++) {
+            // before
+            index[dd]--;
+            double der = -inGet[index];
+
+            // after
+            index[dd] += 2;
+            der += inGet[index];
+
+            // set
+            oit.set(dd, der/2.);
+        }
     }
-}
 
-/**
- * @brief Performs in-place fft. Note that the input should already be padded
- * and a complex type
- *
- * @param in
- * @param dim
- */
-//void fft1d(shared_ptr<NDArray> in, size_t dd, bool inverse)
-//{
-//	// plan and execute
-//	double* indata = fftw_alloc_real(in->dim(dd));
-//	fftw_complex *data = fftw_alloc_complex(in->dim(dd));
-//	fftw_plan plan;
-//	if(inverse) {
-//		plan = fftw_plan_dft_1d(in->dim(dd), data, data, FFTW_BACKWARD,
-//				FFTW_MEASURE);
-//	} else {
-//		plan = fftw_plan_dft_1d(in->dim(dd), data, data, FFTW_FORWARD,
-//				FFTW_MEASURE);
-//	}
-//
-//	OrderIter<cdouble_t> oit(in);
-//	oit.setOrder({dd});
-//	OrderConstIter<cdouble_t> iit(in);
-//	iit.setOrder(oit.getOrder()); // make dd the fastest
-//	while(!iit.eof() && !oit.eof()) {
-//
-//		// fill array
-//		for(size_t ii=0; ii<in->dim(dd); ++iit, ii++) {
-//			data[ii][0] = (*iit).real();
-//			data[ii][1] = (*iit).imag();
-//		}
-//		
-//		// execute
-//		fftw_execute(plan);
-//		
-//		// write array
-//		cdouble_t tmp;
-//		for(size_t ii=0; ii<in->dim(dd); ++oit, ii++) {
-//			tmp.real(data[ii][0]);
-//			tmp.real(data[ii][1]);
-//			data[ii][0] = (*iit).real();
-//			data[ii][1] = (*iit).imag();
-//			oit.set(tmp);
-//		}
-//		
-//	}
-//
-//}
+    return out;
+}
 
 /**
  * @brief Perform fourier transform on the dimensions specified. Those
@@ -146,8 +146,6 @@ shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in, int dir = -1)
  * If len = 0 or dim == NULL, then ALL dimensions will be transformed.
  *
  * @param in Input image to inverse fourier trnasform
- * @param len length of input dimension array
- * @param dim dimensions to transform
  *
  * @return Image with specified dimensions in the real domain. Image will
  * differ in size from input.
@@ -226,9 +224,10 @@ shared_ptr<NDArray> ifft_c2r(shared_ptr<const NDArray> in)
  *
  * @param in Input image to fourier transform
  *
- * @return Complex image, which is the result of inverse fourier transforming
- * the (Real) input image. Note that the last dimension only contains the real
- * frequencies, but all other dimensions contain both
+ * @return Complex image, which is the result of fourier transforming
+ * the (Real) input image. No special packing is done, but input is NOT shifted
+ * to middle. (So zero frequency is at 0,0,...)
+ *
  */
 shared_ptr<NDArray> fft_r2c(shared_ptr<const NDArray> in)
 {
@@ -394,7 +393,7 @@ bool comparable(const NDArray* left, const NDArray* right, bool* elL, bool* elR)
 /**
  * @brief Smooths an image in 1 dimension
  *
- * @param in Input/output image to smooth
+ * @param inout Input/output image to smooth
  * @param dim dimensions to smooth in. If you are smoothing individual volumes
  * of an fMRI you would provide dim={0,1,2}
  * @param stddev standard deviation in physical units index*spacing
@@ -607,20 +606,21 @@ void shiftImageKern(shared_ptr<NDArray> inout, size_t dd, double dist)
  * @brief Uses fourier shift theorem to shift an image, using shears
  *
  * @param inout Input/output image to shift
- * @param dd dimension of image to shift
+ * @param dim dimension of image to shift
  * @param dist Distance (index's) to shift
+ * @param window Windowing function to apply in fourier domain
  *
  * @return shifted image
  */
-void shiftImageFFT(shared_ptr<NDArray> inout, size_t dd, double dist,
+void shiftImageFFT(shared_ptr<NDArray> inout, size_t dim, double dist,
 		double(*window)(double, double))
 {
-	assert(dd < inout->ndim());
+	assert(dim < inout->ndim());
 
 	const std::complex<double> I(0, 1);
 	const double PI = acos(-1);
-	size_t padsize = round2(inout->dim(dd));
-	size_t paddiff = padsize-inout->dim(dd);
+	size_t padsize = round2(inout->dim(dim));
+	size_t paddiff = padsize-inout->dim(dim);
 	auto buffer = fftw_alloc_complex(padsize);
 	fftw_plan fwd = fftw_plan_dft_1d((int)padsize, buffer, buffer, 
 			FFTW_FORWARD, FFTW_MEASURE);
@@ -631,8 +631,8 @@ void shiftImageFFT(shared_ptr<NDArray> inout, size_t dd, double dist,
 	// in the specified dimension fastest
 	OrderConstIter<cdouble_t> iit(inout);
 	OrderIter<cdouble_t> oit(inout);
-	iit.setOrder({dd});
-	oit.setOrder({dd});
+	iit.setOrder({dim});
+	oit.setOrder({dim});
 
 	for(iit.goBegin(), oit.goBegin(); !iit.isEnd() ;) {
 		// zero buffer 
@@ -642,7 +642,7 @@ void shiftImageFFT(shared_ptr<NDArray> inout, size_t dd, double dist,
 		}
 
 		// fill from line
-		for(size_t tt=0; tt<inout->dim(dd); ++iit, tt++) {
+		for(size_t tt=0; tt<inout->dim(dim); ++iit, tt++) {
 			buffer[tt+paddiff/2][0] = (*iit).real();
 			buffer[tt+paddiff/2][1] = (*iit).imag();
 		}
@@ -671,7 +671,7 @@ void shiftImageFFT(shared_ptr<NDArray> inout, size_t dd, double dist,
 		fftw_execute(rev);
 
 		// fill line from buffer
-		for(size_t tt=0; tt<inout->dim(dd); ++oit, tt++) {
+		for(size_t tt=0; tt<inout->dim(dim); ++oit, tt++) {
 			cdouble_t tmp(buffer[tt+paddiff/2][0], buffer[tt+paddiff/2][1]);
 			oit.set(tmp); 
 		}
@@ -754,15 +754,15 @@ void shearImageKern(shared_ptr<NDArray> inout, size_t dim, size_t len,
  * @param dist Distance terms to travel. Shift[dim] = x0*dist[0]+x1*dist[1] ...
  * @param window Windowing function of fourier domain (default sinc)
  */
-void shearImageFFT(shared_ptr<NDArray> inout, size_t dd, size_t len, double* dist,
+void shearImageFFT(shared_ptr<NDArray> inout, size_t dim, size_t len, double* dist,
 		double(*window)(double,double))
 {
-	assert(dd < inout->ndim());
+	assert(dim < inout->ndim());
 
 	const std::complex<double> I(0, 1);
 	const double PI = acos(-1);
-	size_t padsize = round2(2*inout->dim(dd));
-	size_t paddiff = padsize-inout->dim(dd);
+	size_t padsize = round2(2*inout->dim(dim));
+	size_t paddiff = padsize-inout->dim(dim);
 	auto buffer = fftw_alloc_complex(padsize);
 	fftw_plan fwd = fftw_plan_dft_1d((int)padsize, buffer, buffer, 
 			FFTW_FORWARD, FFTW_MEASURE);
@@ -776,14 +776,14 @@ void shearImageFFT(shared_ptr<NDArray> inout, size_t dd, size_t len, double* dis
 	// need copy data into center of buffer, create iterator that moves
 	// in the specified dimension fastest
 	ChunkIter<cdouble_t> it(inout);
-	it.setLineChunk(dd);
+	it.setLineChunk(dim);
 	std::vector<int64_t> index(inout->ndim());
 	for(it.goBegin(); !it.isEnd() ; it.nextChunk()) {
 		it.index(index.size(), index.data());
 
 		double lineshift = 0;
 		for(size_t ii=0; ii<len; ii++) {
-			if(ii != dd)
+			if(ii != dim)
 				lineshift += dist[ii]*(index[ii]-center[ii]);
 		}
 
@@ -1661,6 +1661,7 @@ int rotateImageShearKern(shared_ptr<NDArray> inout, double rx, double ry, double
  * @param ry Rotation about y axis
  * @param rz Rotation about z axis
  * @param rz Rotation about z axis
+ * @param window Window function to apply in fourier domain
  */
 int rotateImageShearFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz,
 		double(*window)(double,double))
@@ -1777,7 +1778,7 @@ shared_ptr<NDArray> pphelp_padFFT(shared_ptr<const NDArray> in,
  * other function which does not take this argument, and returns a vector.
  * This function skips the chirpz transform by interpolation-zooming.
  *
- * @param in	Input image to compute pseudo-polar fourier transform on
+ * @param inimg	Input image to compute pseudo-polar fourier transform on
  * @param prdim	Dimension to be the pseudo-radius in output
  *
  * @return 		Pseudo-polar sample fourier transform

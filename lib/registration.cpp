@@ -18,6 +18,7 @@
  *****************************************************************************/
 
 #include "registration.h"
+#include "mrimage_utils.h"
 
 using Eigen::VectorXd;
 
@@ -35,6 +36,7 @@ using Eigen::VectorXd;
 shared_ptr<MRImage> motionCorrect(shared_ptr<const MRImage> input, size_t ref)
 {
     
+    return NULL;
 };
 
 
@@ -44,7 +46,7 @@ int computeRotationGrad(shared_ptr<const MRImage> fixed,
         shared_ptr<const MRImage> moving_deriv, 
         const VectorXd& params, VectorXd& grad)
 {
-    
+    // start here
 };
 
 int computeRotationValue(shared_ptr<const MRImage> fixed, 
@@ -71,11 +73,23 @@ Matrix4d corReg3D(shared_ptr<const MRImage> fixed,
 {
     // make sure the input image have matching properties
     if(!fixed->matchingOrient(moving, true))
-        throw std::bad_argument("Input images have mismatching pixels in " +
-                __NAME__);
+        throw std::bad_argument("Input images have mismatching pixels in\n" +
+                __FUNCTION_STR__);
 
-    // compute input image derivatives
-    
+    std::vector<double> sigma_schedule({8, 4, 2});
+
+    for(size_t ii=0; ii<sigma_schedule.size(); ii++) {
+        // smooth and downsample input images
+        auto tmpfixed = smoothDownsample(fixed, sigma_schedule[ii]);
+        auto tmpmoving = smoothDownsample(tmpmoving, sigma_schedule[ii]);
+
+        // compute derivatives
+        auto dfixed = derivative(tmpfixed);
+        auto dmoving = derivative(tmpmoving);
+        
+        // initialize optimizer
+    }
+
 
     // set up optimizer
     

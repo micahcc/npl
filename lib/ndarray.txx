@@ -82,13 +82,14 @@ NDArrayStore<D,T>::NDArrayStore(size_t len, const size_t* a_args) : _m_data(NULL
 }
 
 template <size_t D, typename T>
-NDArrayStore<D,T>::NDArrayStore(size_t len, const size_t* dim, T* ptr) : _m_data(NULL)
+NDArrayStore<D,T>::NDArrayStore(size_t len, const size_t* dim, T* ptr,
+        const std::function<void(void*)>& deleter) : _m_data(NULL)
 {
 	if(len != D) {
 		std::cerr << "Length of input size (" << len << ") array to " << D
 			<< "D array is not allowed." << endl;
 	}
-	graft(dim, ptr);
+	graft(dim, ptr, deleter);
 }
 
 template <size_t D, typename T>
@@ -109,15 +110,17 @@ void NDArrayStore<D,T>::updateStrides()
  * @param ptr Pointer to new data
  */
 template <size_t D, typename T>
-void NDArrayStore<D,T>::graft(const size_t dim[D], T* ptr)
+void NDArrayStore<D,T>::graft(const size_t dim[D], T* ptr, 
+        const std::function<void(void*)>& deleter)
 {
 	if(_m_data)
-		delete[] _m_data;
+		m_freefunc(_m_data);
 
 	for(size_t ii=0; ii<D; ii++)
 		_m_dim[ii] = dim[ii];
 
 	_m_data = ptr;
+    m_freefunc = deleter;
 
 	updateStrides();
 }
@@ -185,8 +188,9 @@ void NDArrayStore<D,T>::resize(const size_t dim[D])
 		}
 
 		// set up data pointer
-		delete[] _m_data;
+        m_freefunc(_m_data);
 		_m_data = newdata;
+        m_freefunc = [](void* p) {delete[] (T*)p;};
 	} else {
 		// just create the data
 		size_t dsize = 1;
@@ -197,6 +201,7 @@ void NDArrayStore<D,T>::resize(const size_t dim[D])
 		
 		// allocate
 		_m_data = new T[dsize];
+        m_freefunc = [](void* p) {delete[] (T*)p;};
 
 		// zero fill
 		std::fill(_m_data, _m_data+dsize, (T)0);

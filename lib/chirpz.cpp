@@ -72,7 +72,6 @@ void interp(int64_t isize, fftw_complex* in, int64_t osize, fftw_complex* out)
  * @param upratio 	Ratio of upsampling performed. This may be different than 
  * 					sz/origsz
  * @param alpha 	Positive term in exp
- * @param beta 		Negative term in exp
  * @param fft 		Whether to fft the output (put it in frequency domain)
  */
 void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
@@ -108,6 +107,17 @@ void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
 	fftw_destroy_plan(fwd_plan);
 }
 
+/**
+ * @brief Performs chirpz transform with a as fractional parameter by N^2 
+ * algorithm.
+ *
+ * @param isize Length of input array
+ * @param usize Length of upsampled array
+ * @param inout Input/Output Array (length = isize)
+ * @param buffer Buffer to perform upsampling in. Should be size of usize
+ * @param alpha	Fraction/Alpha To raise exp() term to
+ * @param debug Whether to write out debug information (including plots!)
+ */
 void chirpzFT_brute2(size_t isize, size_t usize, fftw_complex* inout, 
 		fftw_complex* buffer, double alpha, bool debug)
 {
@@ -198,7 +208,7 @@ void chirpzFT_brute2(size_t isize, size_t usize, fftw_complex* inout,
  * @param isize Size of input/output
  * @param in Input array, may be the same as out, length sz
  * @param out Output array, may be the same as input, length sz
- * @param alpha Fraction of full space to compute
+ * @param a Fraction of full space to compute
  * @param debug Write out diagnostic plots
  */
 void chirpzFT_brute2(size_t isize, fftw_complex* in, fftw_complex* out, double a, 
@@ -238,8 +248,7 @@ void chirpzFT_brute2(size_t isize, fftw_complex* in, fftw_complex* out, double a
  * @param isize Size of input/output (Should be in fourier space)
  * @param in Input array, may be the same as out, length sz
  * @param out Output array, must not be the same as input, length sz
- * @param alpha Fraction of full space to compute
- * @param debug Write out diagnostic plots
+ * @param a Fraction of full space to compute
  */
 void zoom(size_t isize, fftw_complex* in, fftw_complex* out, double a)
 {
@@ -331,7 +340,7 @@ void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out,
  * @param isize Size of input/output
  * @param in Input array, may be the same as out, length sz
  * @param out Output array, may be the same as input, length sz
- * @param alpha Fraction of full space to compute
+ * @param a Fraction of full space to compute
  * @param debug Write out diagnostic plots
  */
 void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a, 
@@ -383,20 +392,12 @@ void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
  * @param inout		Input array, length sz
  * @param uppadsize	Padded+upsampled array size
  * @param buffer	Complex buffer used for upsampling, size = uppadsize
- * @param negchirp	Chirp defined as exp(-i PI alpha x^2), centered with 
- * 					frequencies ranging: [-(isize-1.)/2.,-(isize-1.)/2.]
- * 					and with size uppadsize. Computed using:
- *
- * 					createChirp(uppadsize, nega_chirp, isize, 
- * 							(double)usize/(double)isize, -alpha, false);
- *
- * @param poschirpF	Chirp defined as F{ exp(-i PI alpha x^2) }, centered with 
- * 					frequencies ranging: [-(isize-1.)/2.,-(isize-1.)/2.]
- * 					and with size uppadsize. Computed using:
- *
- * 					createChirp(uppadsize, posa_chirp, isize, 
- * 							(double)usize/(double)isize, alpha, true);
- * @param debug Write out diagnostic plots
+ * @param prechirp  Pre-multiplication chirp (see other chirpzFFT functionfor
+ *                  how it might be generated)
+ * @param convchirp Chirp in frequency domain which will be convolved with the
+ *                  prechirp-multiplied input data
+ * @param postchirp Same as prechirp, but shifted
+ * @param debug     Write out diagnostic plots
  */
 void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout, 
 		size_t uppadsize, fftw_complex* buffer, fftw_complex* prechirp, 
@@ -538,7 +539,6 @@ void chirpzFT_brute(size_t len, fftw_complex* in, fftw_complex* out, double a)
  * @brief Plots an array of complex points with the Real and Imaginary Parts
  *
  * @param file	Filename
- * @param insz	Size of in
  * @param in	Array input
  */
 void writePlotReIm(std::string file, const std::vector<complex<double>>& in)

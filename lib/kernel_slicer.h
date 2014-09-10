@@ -133,7 +133,7 @@ public:
 	 * it will have a radius of 0, but if you didn't know you had a 10D image
 	 * all the dimensions about to support the radius will.
 	 *
-	 * @param radii in all directions.
+	 * @param kradius Radius in all directions.
 	 */
 	void setRadius(size_t kradius);
 	
@@ -148,7 +148,7 @@ public:
 	 * [kRange[1].first, kRange[1].second]
 	 * ...
 	 *
-	 * @param Vector of [inf, sup] in each dimension. Unaddressed (missing)
+	 * @param krange Vector of [inf, sup] in each dimension. Unaddressed (missing)
 	 * values are assumed to be [0,0].
 	 */
 	void setWindow(const std::vector<std::pair<int64_t, int64_t>>& krange);
@@ -262,7 +262,7 @@ public:
 	 * In other words index will be completely overwritten in the most sane way
 	 * possible if the internal dimensions and size index differ.
 	 *
-	 * @param ndim size of index
+	 * @param len size of index
 	 * @param index output index variable
 	 */
 	void center_index(size_t len, int64_t* index) const;
@@ -332,9 +332,7 @@ public:
 	void from_center(size_t kit, size_t len, int64_t* dindex) const;
 
 	/**
-	 * @brief Get both ND position and linear position
-	 *
-	 * @param ndpos	Output, ND position
+	 * @brief Get linear position
 	 *
 	 * @return linear position
 	 */
@@ -348,11 +346,8 @@ protected:
 	/**
 	 * @brief All around intializer. Sets all internal variables.
 	 *
-	 * @param dim 		Dimension (size) of memory block.
-	 * @param krange 	Range of offset values. Each pair indicats a min and max
-	 * 					in the i'th dimension. So {{-3,0}, {-3,3},{0,3}} would
-	 * 					indicate a kernel from (X-3,Y-3,Z+0) to (X+0,Y+3,Z+3).
-	 * 					Ranges must include zero.
+	 * @param ndim 	Rank (number of dimensions), also length of dim array
+     * @param dim Dimension (size) of memory block.
 	 */
 	void initialize(size_t ndim, const size_t* dim);
 

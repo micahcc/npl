@@ -36,10 +36,155 @@ namespace npl {
 using std::vector;
 using std::shared_ptr;
 
+
+/**
+ * @brief Computes the derivative of the image in the specified direction. 
+ * This is identical to the NDArray version, but it scales by the spacing.
+ *
+ * @param in    Input image/NDarray 
+ * @param dir   Specify the dimension
+ *
+ * @return      Image storing the directional derivative of in
+ */
+shared_ptr<MRImage> derivative(shared_ptr<const MRImage> in, size_t dir)
+{
+    if(dir >= in->ndim())
+        throw std::invalid_argument("Input direction is outside range of "
+                "input dimensions in\n" + __FUNCTION_STR__);
+
+    auto out = dynamic_pointer_cast<MRImage>(in->copy());
+
+    vector<int64_t> index(in->ndim());
+    NDConstAccess<double> inGet(in);
+
+    Vector3DIter<double> oit(out);
+    for(oit.goBegin(); !oit.eof(); ++oit) {
+        // get index
+        oit.index(index.size(), index.data());
+
+        // before
+        index[dir]--;
+        double der = -inGet[index];
+
+        // after
+        index[dir] += 2;
+        der += inGet[index];
+
+        // set
+        oit.set(dir, der/(in->spacing()[dir]*2));
+    }
+
+    return out;
+}
+
+/**
+ * @brief Computes the derivative of the image. Computes all
+ * directional derivatives of the input image and the output
+ * image will have 1 higher dimension with derivative of 0 in the first volume
+ * 1 in the second and so on.
+ *
+ * Thus a 2D image will produce a [X,Y,2] image and a 3D image will produce a 
+ * [X,Y,Z,3] sized image.
+ *
+ * @param in    Input image/NDarray 
+ *
+ * @return 
+ */
+shared_ptr<MRImage> derivative(shared_ptr<const MRImage> in)
+{
+    vector<size_t> osize(in->dim(), in->dim()+in->ndim());
+    osize.push_back(in->ndim());
+    auto out = dynamic_pointer_cast<MRImage>(
+            in->copyCast(osize.size(), osize.data()));
+
+    vector<int64_t> index(in->ndim());
+    NDConstAccess<double> inGet(in);
+
+    Vector3DIter<double> oit(out);
+    for(oit.goBegin(); !oit.eof(); ++oit) {
+        // get index
+        oit.index(index.size(), index.data());
+
+        // compute derivative in each direction
+        for(size_t dd=0; dd<in->ndim(); dd++) {
+            // before
+            index[dd]--;
+            double der = -inGet[index];
+
+            // after
+            index[dd] += 2;
+            der += inGet[index];
+
+            // set
+            oit.set(dd, der/(in->spacing()[dd]*2));
+        }
+    }
+
+    return out;
+}
+
+/**
+ * @brief Performs smoothing in each dimension, then downsamples so that pixel
+ * spacing is roughly equal to FWHM.
+ *
+ * @param in    Input image
+ * @param sigma Standard deviation for smoothing
+ *
+ * @return  Smoothed and downsampled image
+ */
+shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
+{
+    double fwhm = sd_to_fwhm(sigma);
+
+    // convert mm to indices
+    vector<double> sd(in->ndim(), sigma);
+    for(size_t ii=0; ii<in->ndim(); ii++)
+        sd[ii] /= in->spacing()[ii];
+
+    // compute input fourier transform
+    auto fimg = dynamic_pointer_cast<MRImage>(fft_r2c(in));
+
+    // create downsampled image
+    vector<size_t> odim(in->ndim(), 0);
+    for(size_t ii=0; ii<odim.size(); ii++) 
+        odim[ii] = round2(in->dim(ii)*in->spacing()[ii]/sd_to_fwhm(sd[ii]));
+    auto dfimg = dynamic_pointer_cast<MRImage>(
+            fimg->copyCast(odim.size(), odim.data()));
+
+    // window with gaussian window, but only sample output image
+    vector<int64_t> dindex(in->ndim());
+    vector<int64_t> findex(in->ndim());
+    for(OrderIter<cdouble_t> iter(dfimg); !iter.eof(); ++iter) {
+        iter.index(dindex);
+
+        for(size_t dd=0; dd<in->ndim(); dd++) {
+            if(dindex[dd] < dfimg->dim(dd)/2)
+                findex[dd] = dindex[dd];
+            else
+                findex[dd] = fimg->dim(dd)-(dfimg->dim(dd)-dindex[dd]);
+        }
+
+        // window in each dimension
+        double w = 1;
+        for(size_t dd=0; dd<dfimg->ndim(); dd++) {
+            double ff = dindex[dd]/(double)dfimg->dim(dd);
+            if(ff > .5) ff = 1-ff; // negative frequencies
+            w *= exp(-M_PI*M_PI*ff*ff*2*sd[dd]*sd[dd]);
+        }
+
+        iter.set((*iter)*w);
+    }
+
+    // inverse fourier transform
+    auto out = dynamic_pointer_cast<MRImage>(ifft_c2r(dfimg));
+    
+    return out;
+}
+
 /**
  * @brief Smooths an image in 1 dimension
  *
- * @param in Input/output image to smooth
+ * @param inout Input/output image to smooth
  * @param dim dimensions to smooth in. If you are smoothing individual volumes
  * of an fMRI you would provide dim={0,1,2}
  * @param stddev standard deviation in physical units index*spacing
@@ -55,8 +200,6 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
         return den*exp(-x*x/(2));
     };
 
-	//TODO figure out how to scale this properly, including with stddev and
-	//spacing
 	if(dim >= inout->ndim()) {
 		throw std::out_of_range("Invalid dimension specified for 1D gaussian "
 				"smoothing");
@@ -964,46 +1107,6 @@ ostream& operator<<(ostream &out, const MRImage& img)
 	return out;
 }
 
-/**
- * @brief Perform fourier transform on the dimensions specified. Those
- * dimensions will be padded out. The output of this will be a double.
- * If len = 0 or dim == NULL, then ALL dimensions will be transformed.
- *
- * @param in Input image to inverse fourier trnasform
- * @param len length of input dimension array
- * @param dim dimensions to transform
- *
- * @return Image with specified dimensions in the real domain. Image will
- * differ in size from input.
- */
-shared_ptr<MRImage> ifft_c2r(shared_ptr<const MRImage> in)
-{
-	auto out = dynamic_pointer_cast<MRImage>(ifft_c2r(
-				dynamic_pointer_cast<const NDArray>(in)));
-	for(size_t dd = 0; dd<in->ndim(); dd++)
-		out->spacing()[dd] = 1./(in->spacing()[dd]*out->dim(dd));
-	return out;
-}
-
-/**
- * @brief Perform fourier transform on the dimensions specified. Those
- * dimensions will be padded out. The output of this will be a complex double.
- * If len = 0 or dim == NULL, then ALL dimensions will be transformed.
- *
- * @param in Input image to fourier transform
- *
- * @return Complex image, which is the result of inverse fourier transforming
- * the (Real) input image. Note that the last dimension only contains the real
- * frequencies, but all other dimensions contain both
- */
-shared_ptr<MRImage> fft_r2c(shared_ptr<const MRImage> in)
-{
-	auto out = dynamic_pointer_cast<MRImage>(fft_r2c(
-				dynamic_pointer_cast<const NDArray>(in)));
-	for(size_t dd = 0; dd<in->ndim(); dd++)
-		out->spacing()[dd] = 1./(in->spacing()[dd]*out->dim(dd));
-	return out;
-}
 //
 ///**
 // * @brief Uses fourier shift theorem to shift an image

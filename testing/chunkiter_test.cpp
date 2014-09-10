@@ -23,6 +23,7 @@
 #include "iterators.h"
 #include "accessors.h"
 #include "mrimage.h"
+#include "mrimage_utils.h"
 
 using namespace std;
 using namespace npl;

@@ -72,7 +72,7 @@ shared_ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype)
  * @brief Creates a new NDArray with dimensions set by ndim, and size set by
  * size. Output pixel type is decided by ptype variable.
  *
- * @param size size of image, in each dimension, number of dimensions decied by
+ * @param dim size of image, in each dimension, number of dimensions decied by
  * length of size vector
  * @param ptype Pixel type npl::PixelT
  *
@@ -132,9 +132,8 @@ public:
 	 * huge number of templates I have kills the compiler, so we call an
 	 * outside function that calls templates that has all combinations of D,T.
 	 *
-	 * @param in Input array, anything that can be copied will be
-	 * @param newdims Number of dimensions in output array
-	 * @param newsize Size of output array
+     * @param newdims Number of dimensions in copied output
+	 * @param newsize Size of output, this array should be of size newdims
 	 * @param newtype Type of pixels in output array
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
@@ -152,7 +151,6 @@ public:
 	 * huge number of templates I have kills the compiler, so we call an
 	 * outside function that calls templates that has all combinations of D,T.
 	 *
-	 * @param in Input array, anything that can be copied will be
 	 * @param newtype Type of pixels in output array
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
@@ -170,9 +168,9 @@ public:
 	 * huge number of templates I have kills the compiler, so we call an
 	 * outside function that calls templates that has all combinations of D,T.
 	 *
-	 * @param in Input array, anything that can be copied will be
 	 * @param newdims Number of dimensions in output array
-	 * @param newsize Size of output array
+     * @param newsize Input array of length newdims that gives the size of
+     *                output array,
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
 	 */
@@ -206,6 +204,11 @@ public:
 protected:
 	NDArray() {} ;
 
+    /**
+     * @brief The function which should be called when deleting data. By
+     * default this will just be delete[], but if data is grafted or if
+     */
+    std::function<void(void*)> m_freefunc;
 };
 
 
@@ -223,7 +226,7 @@ public:
 	 * @brief Constructor with initializer list. Orientation will be default
 	 * (direction = identity, spacing = 1, origin = 0).
 	 *
-	 * @param a_args dimensions of input, the length of this initializer list
+	 * @param dim dimensions of input, the length of this initializer list
 	 * may not be fully used if a_args is longer than D. If it is shorter
 	 * then D then additional dimensions are left as size 1.
 	 */
@@ -233,7 +236,7 @@ public:
 	 * @brief Constructor with vector. Orientation will be default
 	 * (direction = identity, spacing = 1, origin = 0).
 	 *
-	 * @param a_args dimensions of input, the length of this initializer list
+	 * @param dim dimensions of input, the length of this initializer list
 	 * may not be fully used if a_args is longer than D. If it is shorter
 	 * then D then additional dimensions are left as size 1.
 	 */
@@ -244,7 +247,7 @@ public:
 	 * (direction = identity, spacing = 1, origin = 0).
 	 *
 	 * @param len Length of array 'size'
-	 * @param size dimensions of input, the length of this initializer list
+	 * @param dim dimensions of input, the length of this initializer list
 	 * may not be fully used if a_args is longer than D. If it is shorter
 	 * then D then additional dimensions are left as size 1.
 	 */
@@ -257,15 +260,17 @@ public:
 	 * constructor completes.
 	 *
 	 * @param len Length of array 'size'
-	 * @param size dimensions of input, the length of this initializer list
+	 * @param dim dimensions of input, the length of this initializer list
 	 * may not be fully used if a_args is longer than D. If it is shorter
 	 * then D then additional dimensions are left as size 1.
 	 * @param ptr Pointer to data array, should be allocated with new, and
 	 * size should be exactly sizeof(T)*size[0]*size[1]*...*size[len-1]
+	 * @param deleter Function which should be used to delete ptr
 	 */
-	NDArrayStore(size_t len, const size_t* dim, T* ptr);
+	NDArrayStore(size_t len, const size_t* dim, T* ptr, 
+            const std::function<void(void*)>& deleter);
 	
-	~NDArrayStore() { delete[] _m_data; };
+	~NDArrayStore() { m_freefunc(_m_data); };
 
 	/*
 	 * get / set functions
@@ -310,10 +315,12 @@ public:
 	 * @brief Grafts data of the given dimensions into the image, effectively
 	 * changing the image size.
 	 *
-	 * @param dim[D] Dimensions of image
+	 * @param dim Dimensions of image
 	 * @param ptr Pointer to data which we will take control of
+	 * @param deleter Function which can be called on ptr to delete it.
 	 */
-	void graft(const size_t dim[D], T* ptr);
+	void graft(const size_t dim[D], T* ptr, const
+            std::function<void(void*)>& deleter);
 	
 	/**************************************************************************
 	 * Duplication Functions
@@ -336,9 +343,9 @@ public:
 	 * huge number of templates I have kills the compiler, so we call an
 	 * outside function that calls templates that has all combinations of D,T.
 	 *
-	 * @param in Input array, anything that can be copied will be
 	 * @param newdims Number of dimensions in output array
-	 * @param newsize Size of output array
+     * @param newsize Input array sized 'newdims', indicating size of output
+     *                array
 	 * @param newtype Type of pixels in output array
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
@@ -356,7 +363,6 @@ public:
 	 * huge number of templates I have kills the compiler, so we call an
 	 * outside function that calls templates that has all combinations of D,T.
 	 *
-	 * @param in Input array, anything that can be copied will be
 	 * @param newtype Type of pixels in output array
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
@@ -374,7 +380,6 @@ public:
 	 * huge number of templates I have kills the compiler, so we call an
 	 * outside function that calls templates that has all combinations of D,T.
 	 *
-	 * @param in Input array, anything that can be copied will be
 	 * @param newdims Number of dimensions in output array
 	 * @param newsize Size of output array
 	 *

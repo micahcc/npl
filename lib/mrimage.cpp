@@ -37,59 +37,6 @@ namespace npl {
  * and MRImageStore; we don't want to call across libraries if we can avoid
  * it.
  ******************************************************************************/
-	
-void MRImage::updateSliceTiming(double duration, int start, int end, SliceOrderT order)
-{
-	m_slice_duration = duration;
-	m_slice_start = start;
-	m_slice_end = end;
-
-	switch(order) {
-		case NIFTI_SLICE_SEQ_INC:
-			m_slice_order = SEQ;
-			for(int ii=m_slice_start; ii<=m_slice_end; ii++)
-				m_slice_timing[ii] = ii*m_slice_duration;
-		break;
-		case NIFTI_SLICE_SEQ_DEC:
-			m_slice_order = RSEQ;
-			for(int ii=m_slice_end; ii>=m_slice_start; ii--)
-				m_slice_timing[ii] = ii*m_slice_duration;
-		break;
-		case NIFTI_SLICE_ALT_INC:
-			m_slice_order = ALT;
-			for(int ii=m_slice_start; ii<=m_slice_end; ii+=2)
-				m_slice_timing[ii] = ii*m_slice_duration;
-			for(int ii=m_slice_start+1; ii<=m_slice_end; ii+=2)
-				m_slice_timing[ii] = ii*m_slice_duration;
-		break;
-		case NIFTI_SLICE_ALT_DEC:
-			m_slice_order = RALT;
-			for(int ii=m_slice_end; ii>=m_slice_start; ii-=2)
-				m_slice_timing[ii] = ii*m_slice_duration;
-			for(int ii=m_slice_end-1; ii>=m_slice_start; ii-=2)
-				m_slice_timing[ii] = ii*m_slice_duration;
-		break;
-		case NIFTI_SLICE_ALT_INC2:
-			m_slice_order = ALT_SHFT;
-			for(int ii=m_slice_start+1; ii<=m_slice_end; ii+=2)
-				m_slice_timing[ii] = ii*m_slice_duration;
-			for(int ii=m_slice_start; ii<=m_slice_end; ii+=2)
-				m_slice_timing[ii] = ii*m_slice_duration;
-		break;
-		case NIFTI_SLICE_ALT_DEC2:
-			m_slice_order = RALT_SHFT;
-			for(int ii=m_slice_end-1; ii>=m_slice_start; ii-=2)
-				m_slice_timing[ii] = ii*m_slice_duration;
-			for(int ii=m_slice_end; ii>=m_slice_start; ii-=2)
-				m_slice_timing[ii] = ii*m_slice_duration;
-		break;
-		default:
-		case UNKNOWN_SLICE:
-			m_slice_order = UNKNOWN_SLICE;
-			m_slice_timing.clear();
-		break;
-	}
-}
 
 /**
  * @brief Template helper for creating new images.
@@ -130,17 +77,17 @@ shared_ptr<MRImage> createMRImageHelp(size_t len, const size_t* dim)
 
 /**
  * @brief Creates a new MRImage with dimensions set by ndim, and size set by
- * size. Output pixel type is decided by ptype variable.
+ * size. Output pixel type is decided by type variable.
  *
  * @param ndim number of image dimensions
  * @param size size of image, in each dimension
- * @param ptype Pixel type npl::PixelT
+ * @param type Pixel type npl::PixelT
  *
  * @return New image, default orientation
  */
-shared_ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT ptype)
+shared_ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type)
 {
-	switch(ptype) {
+	switch(type) {
          case UINT8:
 			return createMRImageHelp<uint8_t>(ndim, size);
         break;
@@ -197,20 +144,80 @@ shared_ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT ptype)
 
 /**
  * @brief Creates a new MRImage with dimensions set by ndim, and size set by
- * size. Output pixel type is decided by ptype variable.
+ * size. Output pixel type is decided by type variable.
  *
- * @param size size of image, in each dimension, number of dimensions decied by
+ * @param dim size of image, in each dimension, number of dimensions decied by
  * length of size vector
- * @param ptype Pixel type npl::PixelT
+ * @param type Pixel type npl::PixelT
  *
  * @return New image, default orientation
  */
-shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT ptype)
+shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type)
 {
-	return createMRImage(dim.size(), dim.data(), ptype);
+	return createMRImage(dim.size(), dim.data(), type);
 }
 
 
+/**
+ * @brief Sets slice timing from duration, start, and end order variables.
+ *
+ * @param duration Duration of data collection for each slice (same unit as TR)
+ * @param start First slice collected
+ * @param end Last slice collected
+ * @param order Order of slice collection. Defined by NIFTI format
+ */
+void MRImage::updateSliceTiming(double duration, int start, int end, SliceOrderT order)
+{
+	m_slice_duration = duration;
+	m_slice_start = start;
+	m_slice_end = end;
+
+	switch(order) {
+		case NIFTI_SLICE_SEQ_INC:
+			m_slice_order = SEQ;
+			for(int ii=m_slice_start; ii<=m_slice_end; ii++)
+				m_slice_timing[ii] = ii*m_slice_duration;
+		break;
+		case NIFTI_SLICE_SEQ_DEC:
+			m_slice_order = RSEQ;
+			for(int ii=m_slice_end; ii>=m_slice_start; ii--)
+				m_slice_timing[ii] = ii*m_slice_duration;
+		break;
+		case NIFTI_SLICE_ALT_INC:
+			m_slice_order = ALT;
+			for(int ii=m_slice_start; ii<=m_slice_end; ii+=2)
+				m_slice_timing[ii] = ii*m_slice_duration;
+			for(int ii=m_slice_start+1; ii<=m_slice_end; ii+=2)
+				m_slice_timing[ii] = ii*m_slice_duration;
+		break;
+		case NIFTI_SLICE_ALT_DEC:
+			m_slice_order = RALT;
+			for(int ii=m_slice_end; ii>=m_slice_start; ii-=2)
+				m_slice_timing[ii] = ii*m_slice_duration;
+			for(int ii=m_slice_end-1; ii>=m_slice_start; ii-=2)
+				m_slice_timing[ii] = ii*m_slice_duration;
+		break;
+		case NIFTI_SLICE_ALT_INC2:
+			m_slice_order = ALT_SHFT;
+			for(int ii=m_slice_start+1; ii<=m_slice_end; ii+=2)
+				m_slice_timing[ii] = ii*m_slice_duration;
+			for(int ii=m_slice_start; ii<=m_slice_end; ii+=2)
+				m_slice_timing[ii] = ii*m_slice_duration;
+		break;
+		case NIFTI_SLICE_ALT_DEC2:
+			m_slice_order = RALT_SHFT;
+			for(int ii=m_slice_end-1; ii>=m_slice_start; ii-=2)
+				m_slice_timing[ii] = ii*m_slice_duration;
+			for(int ii=m_slice_end; ii>=m_slice_start; ii-=2)
+				m_slice_timing[ii] = ii*m_slice_duration;
+		break;
+		default:
+		case UNKNOWN_SLICE:
+			m_slice_order = UNKNOWN_SLICE;
+			m_slice_timing.clear();
+		break;
+	}
+}
 /**
  * @brief Helper function that casts all the elements as the given type then uses
  * the same type to set all the elements of the output image. Only overlapping

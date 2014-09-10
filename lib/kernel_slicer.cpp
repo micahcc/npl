@@ -211,7 +211,8 @@ void KSlicer::setRadius(std::vector<size_t> kradius)
  *
  * You should call goBegin() after this
  *
- * @param radii in all directions.
+ * @param kradius radii in all directions.
+ *
  */
 void KSlicer::setRadius(size_t kradius)
 {
@@ -237,8 +238,9 @@ void KSlicer::setRadius(size_t kradius)
  *
  * You should call goBegin() after this
  *
- * @param Vector of [inf, sup] in each dimension. Unaddressed (missing)
+ * @param krange Vector of [inf, sup] in each dimension. Unaddressed (missing)
  * values are assumed to be [0,0].
+ *
  */
 void KSlicer::setWindow(const std::vector<std::pair<int64_t, int64_t>>& krange)
 {
@@ -319,7 +321,7 @@ void KSlicer::setWindow(const std::vector<std::pair<int64_t, int64_t>>& krange)
  *
  * You should call goBegin() after this
  *
- * @param roi Range of region of interest. Pairs indicates the range
+ * @param roi   Range of region of interest. Pairs indicates the range
  * 	in i'th dimension, so krange = {{1,5},{0,9},{32,100}}
  * 	would cause the iterator to range from (1,0,32) to (5,9,100)
  */
@@ -344,11 +346,8 @@ void KSlicer::setROI(std::vector<std::pair<int64_t, int64_t>> roi)
 /**
  * @brief All around intializer. Sets all internal variables.
  *
+ * @param ndim 		Number of dimensions (rank) of image. 
  * @param dim 		Dimension (size) of memory block.
- * @param krange 	Range of offset values. Each pair indicats a min and max
- * 					in the i'th dimension. So {{-3,0}, {-3,3},{0,3}} would
- * 					indicate a kernel from (X-3,Y-3,Z+0) to (X+0,Y+3,Z+3).
- * 					Ranges must include zero.
  */
 void KSlicer::initialize(size_t ndim, const size_t* dim)
 {
@@ -507,7 +506,7 @@ void KSlicer::goIndex(const std::vector<int64_t>& newpos)
  * In other words index will be completely overwritten in the most sane way
  * possible if the internal dimensions and size index differ.
  *
- * @param ndim size of index
+ * @param len size of index
  * @param index output index variable
  */
 void KSlicer::center_index(size_t len, int64_t* index) const
@@ -523,7 +522,7 @@ void KSlicer::center_index(size_t len, int64_t* index) const
  * In other words index will be completely overwritten in the most sane way
  * possible if the internal dimensions and size index differ.
  *
- * @param ndim size of index
+ * @param len size of index
  * @param index output index variable
  */
 void KSlicer::offset_index(size_t kit, size_t len, int64_t* index, bool bound) const

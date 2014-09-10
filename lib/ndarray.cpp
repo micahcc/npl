@@ -22,6 +22,7 @@
 #include <iostream>
 
 #include "npltypes.h"
+#include "utility.h"
 
 namespace npl {
 
@@ -35,34 +36,34 @@ namespace npl {
  * @brief Template helper for creating new images.
  *
  * @tparam T Type of voxels
- * @param len Length of input dimension array
+ * @param ndim Length of input dimension array
  * @param dim Size of new image
  *
  * @return New NDArray with defaults set
  */
 template <typename T>
-shared_ptr<NDArray> createNDArrayHelp(size_t len, const size_t* dim)
+shared_ptr<NDArray> createNDArrayHelp(size_t ndim, const size_t* dim)
 {
-	switch(len) {
+	switch(ndim) {
 		case 1:
-			return std::make_shared<NDArrayStore<1, T>>(len, dim);
+			return std::make_shared<NDArrayStore<1, T>>(ndim, dim);
 		case 2:
-			return std::make_shared<NDArrayStore<2, T>>(len, dim);
+			return std::make_shared<NDArrayStore<2, T>>(ndim, dim);
 		case 3:
-			return std::make_shared<NDArrayStore<3, T>>(len, dim);
+			return std::make_shared<NDArrayStore<3, T>>(ndim, dim);
 		case 4:
-			return std::make_shared<NDArrayStore<4, T>>(len, dim);
+			return std::make_shared<NDArrayStore<4, T>>(ndim, dim);
 		case 5:
-			return std::make_shared<NDArrayStore<5, T>>(len, dim);
+			return std::make_shared<NDArrayStore<5, T>>(ndim, dim);
 		case 6:
-			return std::make_shared<NDArrayStore<6, T>>(len, dim);
+			return std::make_shared<NDArrayStore<6, T>>(ndim, dim);
 		case 7:
-			return std::make_shared<NDArrayStore<7, T>>(len, dim);
+			return std::make_shared<NDArrayStore<7, T>>(ndim, dim);
 		case 8:
-			return std::make_shared<NDArrayStore<8, T>>(len, dim);
+			return std::make_shared<NDArrayStore<8, T>>(ndim, dim);
 		default:
-			std::cerr << "Unsupported len, dimension: " << len << std::endl;
-			return NULL;
+            throw std::invalid_argument("Unsupported len, dimension: " +
+                    to_string(ndim) + " in\n" + __FUNCTION_STR__);
 	}
 
 	return NULL;
@@ -130,7 +131,8 @@ shared_ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype)
 			return createNDArrayHelp<rgba_t>(ndim, size);
         break;
 		 default:
-		return NULL;
+            throw std::invalid_argument("Unsupported pixel type: " +
+                    to_string(ptype) + " in\n" + __FUNCTION_STR__);
 	}
 	return NULL;
 }
@@ -139,7 +141,7 @@ shared_ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype)
  * @brief Creates a new NDArray with dimensions set by ndim, and size set by
  * size. Output pixel type is decided by ptype variable.
  *
- * @param size size of image, in each dimension, number of dimensions decied by
+ * @param dim size of image, in each dimension, number of dimensions decied by
  * length of size vector
  * @param ptype Pixel type npl::PixelT
  *
@@ -265,7 +267,8 @@ shared_ptr<NDArray> _copyCast(shared_ptr<const NDArray> in, size_t newdims,
 			_copyCast_help<rgba_t>(in, out);
 			break;
 		default:
-			return NULL;
+            throw std::invalid_argument("Unsupported pixel type: " +
+                    to_string(newtype) + " in\n" + __FUNCTION_STR__);
 	}
 	return out;
 }

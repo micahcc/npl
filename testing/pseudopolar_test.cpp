@@ -29,6 +29,7 @@
 
 #include "mrimage.h"
 #include "ndarray_utils.h"
+#include "mrimage_utils.h"
 #include "iterators.h"
 #include "accessors.h"
 #include "basic_functions.h"

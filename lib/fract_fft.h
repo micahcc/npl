@@ -59,52 +59,47 @@ void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
  * @brief Comptues the Fractional Fourier transform using FFTW for nlogn
  * performance.
  *
+ * The definition of the fractional fourier transform is:
+ * \f[
+ * F(u) = SUM f(j) exp(-2 PI i a u j / (N+1)
+ * \f]
+ * where 
+ * \f$j = [-N/2,N/2], u = [-N/2, N/2]\f$
+ *
  * @param isize size of input/output
  * @param in Input array, may be the same as output, length sz
  * @param out Output array, may be the same as input, length sz
+ * @param bsz Buffer size
  * @param a Fraction, 1 = fourier transform, 2 = reverse, 
  * 3 = inverse fourier transform, 4 = identity
- * @param Buffer size
  * @param buffer Buffer to do computations in, may be null, in which case new
  * memory will be allocated and deallocated during processing. Note that if
  * the provided buffer is not sufficient size a new buffer will be allocated
- * and deallocated, and a warning will be produced. 4x the padded value is
- * needed, which means this value should be around 16x sz
- * @param nonfft
+ * and deallocated, and a warning will be produced
+ * @param nonfft Whether to use brute force method (non-fft)
+ *
  */
-void fractional_ft(size_t sz, fftw_complex* in, fftw_complex* out, double a,
+void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		size_t bsz = 0, fftw_complex* buffer = NULL, bool nonfft = false);
 
 /**
- * @brief Comptues the power fractional fourier transform using FFTW for n log
- * n performance. 
+ * @brief Writes a 2D plot of the complex array where both real and imaginary
+ * values are plotted together.
  *
- * Definition:
- *
- * \hat{I}(\omega) = \Sum^{N/2}_{k=-N/2} I(k) \exp(-2 \pi i \alpha \omega k)
- *
- * @param isize 	Size of input/output
- * @param in 		Input array, may be the same as out, length sz
- * @param out 		Output array, may be the same as input, length sz
- * @param alpha 	Fraction of full space to compute
- * @param bsz 		Buffer size, if NULL or the value is less than the needed buffer,
- * 					a realocation will occur. If this is non-null then the
- * 					length of the new array will be placed in the variable.
- * @param buffer 	Buffer to do computations in, may be null. If not null,
- * 					then it is assumed that bsz contains the length of this
- * 					array. If the buffer is sufficient size (around 16x input),
- * 					then this will be used, otherwise new memory is allocated.
- * 					If new memory is allocated and this and bsz are non-null,
- * 					the bsz and this will be updated with the size and address
- * 					of the new memory allocated. If this points to non-null
- * 					then fftw_free() will be called on the given address. 
- * @param nonfft
+ * @param file Filename base
+ * @param insz Size of in array
+ * @param in Array of complex values
  */
-//void powerFFT(size_t sz, fftw_complex* in, fftw_complex* out, double a,
-//		size_t* bsz = 0, fftw_complex** buffer = NULL);
-
 void writePlotReIm(std::string file, size_t insz, fftw_complex* in);
 
+/**
+ * @brief Writes a 2D plot of the complex array where both absolute value and 
+ * angle * values are plotted together.
+ *
+ * @param file Filename base
+ * @param insz Size of in array
+ * @param in Array of complex values
+ */
 void writePlotAbsAng(std::string file, size_t insz, fftw_complex* in);
 
 }

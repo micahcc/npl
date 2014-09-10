@@ -62,7 +62,8 @@ public:
 	/**
 	 * @brief Updates dimensions of target nd array
 	 *
-	 * @param dim	size of nd array, number of dimesions given by dim.size()
+	 * @param ndim Rank (dimensionality) of data block, length of dim
+	 * @param dim Size of data block, in each dimension
 	 */
 	void setDim(size_t ndim, const size_t* dim);
 	
@@ -132,14 +133,15 @@ public:
 	 * will be ignored. Any values missing due to ndim > len will be treated as
 	 * zeros.
 	 *
-	 * @param newpos	location to move to
+	 * @param len Length of newpos array
+	 * @param newpos location to move to
 	 */
 	void goIndex(size_t len, int64_t* newpos);
 	
 	/**
 	 * @brief Jump to the given position
 	 *
-	 * @param newpos	location to move to
+	 * @param newpos location to move to
 	 */
 	void goIndex(std::vector<int64_t> newpos);
 
@@ -153,7 +155,7 @@ public:
 	 * @brief dereference operator. Returns the linear position in the array
 	 * given the n-dimensional position.
 	 *
-	 * @return
+	 * @return The current linear index.
 	 */
 	inline
 	int64_t operator*() const { return m_linpos; };
@@ -165,7 +167,7 @@ public:
 	 * In other words index will be completely overwritten in the most sane way
 	 * possible if the internal dimensions and size index differ.
 	 *
-	 * @param ndim size of index
+	 * @param len size of index
 	 * @param index output index variable
 	 */
 	void index(size_t len, int64_t* index) const;
@@ -177,7 +179,7 @@ public:
 	 * In other words index will be completely overwritten in the most sane way
 	 * possible if the internal dimensions and size index differ.
 	 *
-	 * @param ndim size of index
+	 * @param len size of index
 	 * @param index output index variable
 	 */
 	void index(size_t len, int* index) const;
@@ -189,7 +191,7 @@ public:
 	 * In other words index will be completely overwritten in the most sane way
 	 * possible if the internal dimensions and size index differ.
 	 *
-	 * @param ndim size of index
+	 * @param len size of index
 	 * @param index output index variable
 	 */
 	void index(size_t len, double* index) const;
@@ -201,7 +203,7 @@ public:
 	 * In other words index will be completely overwritten in the most sane way
 	 * possible if the internal dimensions and size index differ.
 	 *
-	 * @param index output index variable
+	 * @param ind output index variable
 	 */
 	void index(std::vector<int64_t>& ind) const
 	{
@@ -215,7 +217,7 @@ public:
 	 * In other words index will be completely overwritten in the most sane way
 	 * possible if the internal dimensions and size index differ.
 	 *
-	 * @param index output index variable
+	 * @param ind output index variable
 	 */
 	void index(std::vector<int>& ind) const
 	{
@@ -229,7 +231,7 @@ public:
 	 * In other words index will be completely overwritten in the most sane way
 	 * possible if the internal dimensions and size index differ.
 	 *
-	 * @param index output index variable
+	 * @param ind output index variable
 	 */
 	void index(std::vector<double>& ind) const 
 	{
@@ -258,7 +260,6 @@ public:
 	 * @param len	Length of both lower and upper arrays.
 	 * @param lower	Coordinate at lower bound of bounding box.
 	 * @param upper	Coordinate at upper bound of bounding box.
-	 * @param roi	pair of [min,max] values in the desired hypercube
 	 */
 	void setROI(size_t len = 0, const int64_t* lower = NULL, 
 			const int64_t* upper = NULL);
@@ -493,7 +494,8 @@ public:
 	 * will be ignored. Any values missing due to ndim > len will be treated as
 	 * zeros.
 	 *
-	 * @param newpos	location to move to
+	 * @param len length of newpos array 
+	 * @param newpos Position to move to 
 	 */
 	void goIndex(size_t len, int64_t* newpos);
 	
@@ -526,7 +528,7 @@ public:
 	 * In other words index will be completely overwritten in the most sane way
 	 * possible if the internal dimensions and size index differ.
 	 *
-	 * @param ndim size of index
+	 * @param len size of index array
 	 * @param index output index variable
 	 */
 	void index(size_t len, int64_t* index) const;
@@ -538,7 +540,7 @@ public:
 	 * In other words index will be completely overwritten in the most sane way
 	 * possible if the internal dimensions and size index differ.
 	 *
-	 * @param ndim size of index
+	 * @param len size of index
 	 * @param index output index variable
 	 */
 	void index(size_t len, int* index) const;
@@ -550,7 +552,7 @@ public:
 	 * In other words index will be completely overwritten in the most sane way
 	 * possible if the internal dimensions and size index differ.
 	 *
-	 * @param ndim size of index
+	 * @param len size of index
 	 * @param index output index variable
 	 */
 	void index(size_t len, double* index) const;
@@ -562,7 +564,7 @@ public:
 	 * In other words index will be completely overwritten in the most sane way
 	 * possible if the internal dimensions and size index differ.
 	 *
-	 * @param index output index variable
+	 * @param ind output index variable
 	 */
 	void index(std::vector<int64_t>& ind) const
 	{
@@ -576,7 +578,7 @@ public:
 	 * In other words index will be completely overwritten in the most sane way
 	 * possible if the internal dimensions and size index differ.
 	 *
-	 * @param index output index variable
+	 * @param ind output index variable
 	 */
 	void index(std::vector<int>& ind) const
 	{
@@ -590,7 +592,7 @@ public:
 	 * In other words index will be completely overwritten in the most sane way
 	 * possible if the internal dimensions and size index differ.
 	 *
-	 * @param index output index variable
+	 * @param ind output index variable
 	 */
 	void index(std::vector<double>& ind) const
 	{
@@ -619,7 +621,6 @@ public:
 	 * @param len	Length of both lower and upper arrays.
 	 * @param lower	Coordinate at lower bound of bounding box.
 	 * @param upper	Coordinate at upper bound of bounding box.
-	 * @param roi	pair of [min,max] values in the desired hypercube
 	 */
 	void setROI(size_t len = 0, const int64_t* lower = NULL, 
 			const int64_t* upper = NULL);
@@ -658,7 +659,7 @@ public:
 	 *	it.nextChunk();
 	 * }
 	 *
-	 * @param dim Dimension to travel linearly along
+	 * @param dir Dimension to travel linearly along
 	 */
 	void setLineChunk(size_t dir);
 
