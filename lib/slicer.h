@@ -245,6 +245,30 @@ public:
 	 *
 	 **********************************************/
 
+    /**
+     * @brief Sets the region of interest, with lower bound of 0.
+     * During iteration or any motion the
+     * position will not move outside the specified range. Invalidates position.
+     *
+     * Invalidates position
+     *
+     * @param len length of roi array
+     * @param roi Size of ROI (which runs from [0,0...] to [roi[0], roi[1]...]
+     */
+    void setROI(size_t len, const size_t* roi);
+
+    /**
+     * @brief Sets the region of interest, with lower bound of 0.
+     * During iteration or any motion the
+     * position will not move outside the specified range. Invalidates position.
+     *
+     * Invalidates position
+     *
+     * @param len length of roi array
+     * @param roisize Size of ROI (which runs from [0,0...] to [roi[0], roi[1]...]
+     */
+    void setROI(size_t len, const int64_t* roi);
+
 	/**
 	 * @brief Sets the region of interest. During iteration or any motion the
 	 * position will not move outside the specified range. Extra elements in
@@ -605,6 +629,30 @@ public:
 	 * Modification
 	 *
 	 **********************************************/
+
+    /**
+     * @brief Sets the region of interest, with lower bound of 0.
+     * During iteration or any motion the
+     * position will not move outside the specified range. Invalidates position.
+     *
+     * Invalidates position
+     *
+     * @param len length of roi array
+     * @param roi Size of ROI (which runs from [0,0...] to [roi[0], roi[1]...]
+     */
+    void setROI(size_t len, const size_t* roi);
+
+    /**
+     * @brief Sets the region of interest, with lower bound of 0.
+     * During iteration or any motion the
+     * position will not move outside the specified range. Invalidates position.
+     *
+     * Invalidates position
+     *
+     * @param len length of roi array
+     * @param roisize Size of ROI (which runs from [0,0...] to [roi[0], roi[1]...]
+     */
+    void setROI(size_t len, const int64_t* roi);
 
 	/**
 	 * @brief Sets the region of interest. During iteration or any motion the

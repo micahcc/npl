@@ -209,6 +209,68 @@ void Slicer::index(size_t len, double* index) const
 }
 
 /**
+ * @brief Sets the region of interest, with lower bound of 0.
+ * During iteration or any motion the
+ * position will not move outside the specified range. Invalidates position.
+ *
+ * Invalidates position
+ *
+ * @param len
+ * @param roi Size of ROI (which runs from [0,0...] to [roi[0], roi[1]...]
+ */
+void Slicer::setROI(size_t len, const size_t* roi)
+{
+	m_linfirst = 0;
+	for(size_t ii=0; ii<m_ndim ; ii++) {
+        m_roi[ii].first = 0;
+		if(ii < len) {
+			// clamp, to be <= 0...sizes[ii]-1
+			m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, roi[ii]);
+		} else {
+			// no specification, just make it all
+			m_roi[ii].first = 0;
+			m_roi[ii].second = m_dim[ii]-1;
+		}
+		m_linfirst += m_strides[ii]*m_roi[ii].first;
+	}
+
+	for(size_t ii=0; ii<m_ndim; ii++)
+		m_pos[ii] = m_roi[ii].first;
+	m_linpos = m_linfirst;
+}
+
+/**
+ * @brief Sets the region of interest, with lower bound of 0.
+ * During iteration or any motion the
+ * position will not move outside the specified range. Invalidates position.
+ *
+ * Invalidates position
+ *
+ * @param len length of roi array
+ * @param roi Size of ROI (which runs from [0,0...] to [roi[0], roi[1]...]
+ */
+void Slicer::setROI(size_t len, const int64_t* roi)
+{
+	m_linfirst = 0;
+	for(size_t ii=0; ii<m_ndim ; ii++) {
+        m_roi[ii].first = 0;
+		if(ii < len) {
+			// clamp, to be <= 0...sizes[ii]-1
+			m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, roi[ii]);
+		} else {
+			// no specification, just make it all
+			m_roi[ii].first = 0;
+			m_roi[ii].second = m_dim[ii]-1;
+		}
+		m_linfirst += m_strides[ii]*m_roi[ii].first;
+	}
+
+	for(size_t ii=0; ii<m_ndim; ii++)
+		m_pos[ii] = m_roi[ii].first;
+	m_linpos = m_linfirst;
+}
+
+/**
  * @brief Sets the region of interest. During iteration or any motion the
  * position will not move outside the specified range. Invalidates position.
  *
@@ -945,6 +1007,71 @@ void ChunkSlicer::index(size_t len, double* index) const
  **********************************************/
 
 /**
+ * @brief Sets the region of interest, with lower bound of 0.
+ * During iteration or any motion the
+ * position will not move outside the specified range. Invalidates position.
+ *
+ * Invalidates position
+ *
+ * @param len Length of roi
+ * @param roisize Size of ROI (which runs from [0,0...] to [roi[0], roi[1]...]
+ */
+void ChunkSlicer::setROI(size_t len, const size_t* roi)
+{
+	m_linfirst = 0;
+	for(size_t ii=0; ii<m_ndim ; ii++) {
+        m_roi[ii].first = 0;
+		if(ii < len) {
+			// clamp, to be <= 0...sizes[ii]-1
+			m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, roi[ii]);
+		} else {
+			// no specification, just make it all
+			m_roi[ii].first = 0;
+			m_roi[ii].second = m_dim[ii]-1;
+		}
+		m_linfirst += m_strides[ii]*m_roi[ii].first;
+	}
+
+	for(size_t ii=0; ii<m_ndim; ii++)
+		m_pos[ii] = m_roi[ii].first;
+	m_linpos = m_linfirst;
+	m_chunkfirst = m_linfirst;
+}
+
+/**
+ * @brief Sets the region of interest, with lower bound of 0.
+ * During iteration or any motion the
+ * position will not move outside the specified range. Invalidates position.
+ *
+ * Invalidates position
+ *
+ * @param len Length of roi
+ * @param roisize Size of ROI (which runs from [0,0...] to [roi[0], roi[1]...]
+ */
+void ChunkSlicer::setROI(size_t len, const int64_t* roi)
+{
+	m_linfirst = 0;
+	for(size_t ii=0; ii<m_ndim ; ii++) {
+        m_roi[ii].first = 0;
+		if(ii < len) {
+			// clamp, to be <= 0...sizes[ii]-1
+			m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, roi[ii]);
+		} else {
+			// no specification, just make it all
+			m_roi[ii].first = 0;
+			m_roi[ii].second = m_dim[ii]-1;
+		}
+		m_linfirst += m_strides[ii]*m_roi[ii].first;
+	}
+
+	for(size_t ii=0; ii<m_ndim; ii++)
+		m_pos[ii] = m_roi[ii].first;
+	m_linpos = m_linfirst;
+	m_chunkfirst = m_linfirst;
+}
+
+
+/**
  * @brief Sets the region of interest. During iteration or any motion the
  * position will not move outside the specified range. Extra elements in
  * roi beyond the number of dimensions, are ignored.
@@ -1003,6 +1130,7 @@ void ChunkSlicer::setROI(size_t len, const int64_t* lower, const int64_t* upper)
 	for(size_t ii=0; ii<m_ndim; ii++)
 		m_pos[ii] = m_roi[ii].first;
 	m_linpos = m_linfirst;
+	m_chunkfirst = m_linfirst;
 }
 
 /**

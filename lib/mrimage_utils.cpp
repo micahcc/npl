@@ -127,6 +127,8 @@ shared_ptr<MRImage> derivative(shared_ptr<const MRImage> in)
  * @brief Performs smoothing in each dimension, then downsamples so that pixel
  * spacing is roughly equal to FWHM.
  *
+ * /todo less memory allocation, reuse fftw_alloc data
+ *
  * @param in    Input image
  * @param sigma Standard deviation for smoothing
  *
@@ -134,8 +136,6 @@ shared_ptr<MRImage> derivative(shared_ptr<const MRImage> in)
  */
 shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
 {
-    double fwhm = sd_to_fwhm(sigma);
-
     // convert mm to indices
     vector<double> sd(in->ndim(), sigma);
     for(size_t ii=0; ii<in->ndim(); ii++)
@@ -143,13 +143,14 @@ shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
 
     // compute input fourier transform
     auto fimg = dynamic_pointer_cast<MRImage>(fft_r2c(in));
+    NDConstAccess<cdouble_t> facc(fimg);
 
     // create downsampled image
     vector<size_t> odim(in->ndim(), 0);
     for(size_t ii=0; ii<odim.size(); ii++) {
-        double tmp = in->dim(ii)*in->spacing()[ii]/sd_to_fwhm(sd[ii]);
-        if(tmp > in->dim(ii))
-            tmp = in->dim(ii);
+        double tmp = fimg->dim(ii)*in->spacing()[ii]/sd_to_fwhm(sd[ii]);
+        if(tmp > fimg->dim(ii))
+            tmp = fimg->dim(ii);
         odim[ii] = round2(tmp);
 
     }
@@ -177,11 +178,16 @@ shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
             w *= exp(-M_PI*M_PI*ff*ff*2*sd[dd]*sd[dd]);
         }
 
-        iter.set((*iter)*w);
+
+        iter.set(facc[findex]*w);
     }
 
     // inverse fourier transform
     auto out = dynamic_pointer_cast<MRImage>(ifft_c2r(dfimg));
+
+    // set spacing
+    for(size_t dd=0; dd<in->ndim(); dd++) 
+        out->spacing()[dd] = in->spacing()[dd]*fimg->dim(dd)/dfimg->dim(dd);
     
     return out;
 }
