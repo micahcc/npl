@@ -111,7 +111,8 @@ Slicer& Slicer::operator--()
  *
  * Invalidates position, Order, ROI gets reset, 
  *
- * @param dim	size of nd array, number of dimesions given by dim.size()
+ * @param ndim	size of dim array (the number of image dimensions)
+ * @param dim	size of array, number of dimesions given by dim.size()
  */
 void Slicer::setDim(size_t ndim, const size_t* dim)
 {
@@ -151,7 +152,7 @@ void Slicer::setDim(size_t ndim, const size_t* dim)
  * In other words index will be completely overwritten in the most sane way
  * possible if the internal dimensions and size index differ.
  *
- * @param ndim size of index
+ * @param len size of index
  * @param index output index variable
  */
 void Slicer::index(size_t len, int64_t* index) const
@@ -172,7 +173,7 @@ void Slicer::index(size_t len, int64_t* index) const
  * In other words index will be completely overwritten in the most sane way
  * possible if the internal dimensions and size index differ.
  *
- * @param ndim size of index
+ * @param len size of index
  * @param index output index variable
  */
 void Slicer::index(size_t len, int* index) const
@@ -193,7 +194,7 @@ void Slicer::index(size_t len, int* index) const
  * In other words index will be completely overwritten in the most sane way
  * possible if the internal dimensions and size index differ.
  *
- * @param ndim size of index
+ * @param len size of index
  * @param index output index variable
  */
 void Slicer::index(size_t len, double* index) const
@@ -892,7 +893,7 @@ void ChunkSlicer::goIndex(std::vector<int64_t> newpos)
  * In other words index will be completely overwritten in the most sane way
  * possible if the internal dimensions and size index differ.
  *
- * @param ndim size of index
+ * @param len size of index
  * @param index output index variable
  */
 void ChunkSlicer::index(size_t len, int64_t* index) const
@@ -908,7 +909,7 @@ void ChunkSlicer::index(size_t len, int64_t* index) const
  * In other words index will be completely overwritten in the most sane way
  * possible if the internal dimensions and size index differ.
  *
- * @param ndim size of index
+ * @param len size of index
  * @param index output index variable
  */
 void ChunkSlicer::index(size_t len, int* index) const
@@ -925,7 +926,7 @@ void ChunkSlicer::index(size_t len, int* index) const
  * In other words index will be completely overwritten in the most sane way
  * possible if the internal dimensions and size index differ.
  *
- * @param ndim size of index
+ * @param len size of index
  * @param index output index variable
  */
 void ChunkSlicer::index(size_t len, double* index) const
@@ -981,7 +982,6 @@ void ChunkSlicer::setROI(const std::vector<std::pair<int64_t, int64_t>>& roi)
  * @param len	Length of both lower and upper arrays.
  * @param lower	Coordinate at lower bound of bounding box.
  * @param upper	Coordinate at upper bound of bounding box.
- * @param roi	pair of [min,max] values in the desired hypercube
  */
 void ChunkSlicer::setROI(size_t len, const int64_t* lower, const int64_t* upper)
 {
@@ -1053,7 +1053,7 @@ void ChunkSlicer::setChunkSize(size_t len, const int64_t* sizes, bool defunity)
  *	it.nextChunk();
  * }
  *
- * @param dim Dimension to travel linearly along
+ * @param dir Dimension to travel linearly along
  */
 void ChunkSlicer::setLineChunk(size_t dir)
 {

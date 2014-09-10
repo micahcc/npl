@@ -212,6 +212,12 @@ def build(bld):
             source='ica_test.cpp', 
             use='statistics basic_plot')
 
+    # Test Basic Image Processing Functions
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='smooth_test1', 
+            source='smooth_test1.cpp', 
+            use='mrimage_utils')
+
 #
 #    bld.program(install_path='${PREFIX}/tests', features='test',
 #            target='fract_fft_test', 

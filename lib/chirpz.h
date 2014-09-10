@@ -39,7 +39,6 @@ namespace npl {
  * @param upratio 	Ratio of upsampling performed. This may be different than 
  * 					sz/origsz
  * @param alpha 	Positive term in exp
- * @param beta 		Negative term in exp
  * @param center	Whether to center, or start at 0 
  * @param fft 		Whether to fft the output (put it in frequency domain)
  */
@@ -76,11 +75,7 @@ void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
  * @param isize 	Size of input/output
  * @param usize 	Size that we should upsample input to 
  * @param inout		Input array, length sz
- * @param uppadsize	Padded+upsampled array size
  * @param buffer	Complex buffer used for upsampling, size = uppadsize
- * @param prechirp 	Pre-multiply chirp.
- * @param convchirp	Chirp that we need to convolve with
- * @param postchirp	Post-multiply chirp.
  * @param debug	whether to write out diagnostic plots
  */
 void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout, 
@@ -92,7 +87,7 @@ void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
  * @param isize Size of input/output
  * @param in Input array, may be the same as out, length sz
  * @param out Output array, may be the same as input, length sz
- * @param alpha Fraction of full space to compute
+ * @param a Ratio of the output frequency spectrum to sample.
  * @param debug	whether to write out diagnostic plots
  */
 void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a, 
@@ -102,12 +97,13 @@ void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
  * @brief Performs chirpz transform with a as fractional parameter by N^2 
  * algorithm.
  *
- * @param len	Length of input array
+ * @param isize Length of input array
  * @param in	Input Array (length = len)
  * @param out	Output Array (length = len)
  * @param a		Fraction/Alpha To raise exp() term to
+ * @param debug	Write out debugging information (including plots!)
  */
-void chirpzFT_brute2(size_t len, fftw_complex* in, fftw_complex* out, double a, 
+void chirpzFT_brute2(size_t isize, fftw_complex* in, fftw_complex* out, double a, 
 		bool debug = false);
 
 /**
@@ -142,6 +138,7 @@ void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out,
  * @param out		Output line
  * @param buffer	Buffer, should be size isize
  * @param a			Zoom factor (alpha)
+ *
  */
 void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out, 
 		fftw_complex* buffer, double a);
@@ -155,6 +152,12 @@ void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out,
  */
 void writePlotAbsAng(std::string file, size_t insz, fftw_complex* in);
 
+/**
+ * @brief Plots an array of complex points with the Real and Imaginary Parts
+ *
+ * @param file	Filename
+ * @param in	Array input
+ */
 void writePlotReIm(std::string file, const std::vector<std::complex<double>>& in);
 
 /**

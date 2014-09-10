@@ -418,13 +418,13 @@ using namespace std;
  * @param isize size of input/output
  * @param in Input array, may be the same as output, length sz
  * @param out Output array, may be the same as input, length sz
- * @param Buffer size
  * @param a Parameter
+ * @param bsz Buffer size
  * @param buffer Buffer to do computations in, may be null, in which case new
  * memory will be allocated and deallocated during processing. Note that if
  * the provided buffer is not sufficient size a new buffer will be allocated
  * and deallocated, and a warning will be produced
- * @param nonfft
+ * @param nonfft whether to use brute force approach
  */
 void frft_limited(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		size_t bsz, fftw_complex* buffer, bool nonfft)
@@ -476,20 +476,22 @@ void frft_limited(size_t isize, fftw_complex* in, fftw_complex* out, double a,
  * performance.
  *
  * The definition of the fractional fourier transform is:
+ * \f[
  * F(u) = SUM f(j) exp(-2 PI i a u j / (N+1)
- * where j = [-N/2,N/2], u = [-N/2, N/2]
+ * \f]
+ * \f$j = [-N/2,N/2], u = [-N/2, N/2]\f$
  *
  * @param isize size of input/output
  * @param in Input array, may be the same as output, length sz
  * @param out Output array, may be the same as input, length sz
- * @param Buffer size
+ * @param bsz Buffer size
  * @param a Fraction, 1 = fourier transform, 2 = reverse, 
  * 3 = inverse fourier transform, 4 = identity
  * @param buffer Buffer to do computations in, may be null, in which case new
  * memory will be allocated and deallocated during processing. Note that if
  * the provided buffer is not sufficient size a new buffer will be allocated
  * and deallocated, and a warning will be produced
- * @param nonfft
+ * @param nonfft Whether to use brute force method (non-fft)
  */
 void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		size_t bsz, fftw_complex* buffer, bool nonfft)
@@ -858,13 +860,14 @@ void chirplet_help(int64_t isize, int64_t usize, int64_t uppadsize,
  * @param isize Size of input/output
  * @param in Input array, may be the same as out, length sz
  * @param out Output array, may be the same as input, length sz
- * @param alpha Fraction of full space to compute
+ * @param a Fraction of full space to compute
  * @param bsz Buffer size
  * @param buffer Buffer to do computations in, may be null, in which case new
- * memory will be allocated and deallocated during processing. Note that if
- * the provided buffer is not sufficient size a new buffer will be allocated
- * and deallocated, and a warning will be produced. 4x the padded value is
- * needed, which means this value should be around 16x sz
+ *        memory will be allocated and deallocated during processing. Note that
+ *        if the provided buffer is not sufficient size a new buffer will be
+ *        allocated and deallocated, and a warning will be produced. 4x the
+ *        padded value is needed, which means this value should be around 16x
+ *        sz
  * @param nonfft
  */
 void chirplet(size_t isize, fftw_complex* in, fftw_complex* out, double a,

@@ -51,33 +51,33 @@ enum BoundaryConditionT {ZEROFLUX=0, CONSTZERO=1, WRAP=2};
 
 class MRImage;
 
-/******************************************************************************
- * Basic Functions.
- ******************************************************************************/
+/*****************************************************************************
+ * Helper Function to Create MRImage's
+ ****************************************************************************/
 
 /**
  * @brief Creates a new MRImage with dimensions set by ndim, and size set by
- * size. Output pixel type is decided by ptype variable.
+ * size. Output pixel type is decided by type variable.
  *
  * @param ndim number of image dimensions
  * @param size size of image, in each dimension
- * @param ptype Pixel type npl::PixelT
+ * @param type Pixel type npl::PixelT
  *
  * @return New image, default orientation
  */
-shared_ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT ptype);
+shared_ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type);
 
 /**
  * @brief Creates a new MRImage with dimensions set by ndim, and size set by
- * size. Output pixel type is decided by ptype variable.
+ * size. Output pixel type is decided by type variable.
  *
- * @param size size of image, in each dimension, number of dimensions decied by
+ * @param dim size of image, in each dimension, number of dimensions decied by
  * length of size vector
- * @param ptype Pixel type npl::PixelT
+ * @param type Pixel type npl::PixelT
  *
  * @return New image, default orientation
  */
-shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT ptype);
+shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type);
 
 /******************************************************************************
  * Classes.
@@ -140,7 +140,6 @@ public:
 	 * huge number of templates I have kills the compiler, so we call an
 	 * outside function that calls templates that has all combinations of D,T.
 	 *
-	 * @param in Input image, anything that can be copied will be
 	 * @param newdims Number of dimensions in output image
 	 * @param newsize Size of output image
 	 * @param newtype Type of pixels in output image
@@ -160,7 +159,6 @@ public:
 	 * huge number of templates I have kills the compiler, so we call an
 	 * outside function that calls templates that has all combinations of D,T.
 	 *
-	 * @param in Input image, anything that can be copied will be
 	 * @param newtype Type of pixels in output image
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
@@ -178,7 +176,6 @@ public:
 	 * huge number of templates I have kills the compiler, so we call an
 	 * outside function that calls templates that has all combinations of D,T.
 	 *
-	 * @param in Input image, anything that can be copied will be
 	 * @param newdims Number of dimensions in output image
 	 * @param newsize Size of output image
 	 *
@@ -241,7 +238,7 @@ public:
 	 *
 	 * @param len Length of xyz/ras arrays.
 	 * @param ras Array in RAS... coordinates (may be as long as you want).
-	 * @param xyz Corresponding coordinate, rounded to nearest integer
+	 * @param index Corresponding coordinate, rounded to nearest integer
 	 *
 	 * @return 0
 	 */
@@ -429,8 +426,10 @@ public:
 	 * then D then additional dimensions are left as size 1.
 	 * @param ptr Pointer to data array, should be allocated with new, and
 	 * size should be exactly sizeof(T)*size[0]*size[1]*...*size[len-1]
+	 * @param deleter Function to use to delete (free) ptr
 	 */
-	MRImageStore(size_t len, const size_t* size, T* ptr);
+	MRImageStore(size_t len, const size_t* size, T* ptr, 
+            const std::function<void(void*)>& deleter) ;
 	
 	/**
 	 * @brief Performs a deep copy of the entire image and all metadata.
@@ -449,7 +448,6 @@ public:
 	 * huge number of templates I have kills the compiler, so we call an
 	 * outside function that calls templates that has all combinations of D,T.
 	 *
-	 * @param in Input image, anything that can be copied will be
 	 * @param newdims Number of dimensions in output image
 	 * @param newsize Size of output image
 	 * @param newtype Type of pixels in output image
@@ -469,7 +467,6 @@ public:
 	 * huge number of templates I have kills the compiler, so we call an
 	 * outside function that calls templates that has all combinations of D,T.
 	 *
-	 * @param in Input image, anything that can be copied will be
 	 * @param newtype Type of pixels in output image
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
@@ -487,7 +484,6 @@ public:
 	 * huge number of templates I have kills the compiler, so we call an
 	 * outside function that calls templates that has all combinations of D,T.
 	 *
-	 * @param in Input image, anything that can be copied will be
 	 * @param newdims Number of dimensions in output image
 	 * @param newsize Size of output image
 	 *
@@ -558,7 +554,7 @@ public:
 	 *
 	 * @param len Length of xyz/ras arrays.
 	 * @param ras Array in RAS... coordinates (may be as long as you want).
-	 * @param xyz Corresponding coordinate, rounded to nearest integer
+	 * @param index Corresponding coordinate, rounded to nearest integer
 	 *
 	 * @return 0
 	 */
@@ -743,7 +739,7 @@ public:
      * don't. 
      *
      * @param other MRimage to compare.
-     * @param other Whether to enforce identical size as well as orientation
+     * @param checksize Whether to enforce identical size as well as orientation
      *
      * @return True if the two images have matching orientation information.
      */

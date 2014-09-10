@@ -14,11 +14,6 @@
  * limitations under the License.
  *
  * @file ndarray_utils.h
- *
- *****************************************************************************/
-
-/******************************************************************************
- * @file ndarray_utils.h
  * @brief This file contains common functions which are useful for processing
  * of N-dimensional arrays and their derived counterparts (MRImage for
  * example). All of these functions return pointers to NDArray types, however
@@ -64,8 +59,6 @@ shared_ptr<NDArray> ifft_c2r(shared_ptr<const NDArray> in);
  * If len = 0 or dim == NULL, then ALL dimensions will be transformed.
  *
  * @param in Input image to fourier trnasform
- * @param len Length of input dim array
- * @param dim Array specifying which dimensions to fourier transform
  *
  * @return Real image, which is the result of inverse fourier transforming
  * the (complex) input image.
@@ -117,9 +110,8 @@ bool comparable(const NDArray* left, const NDArray* right,
  *************************/
 
 /**
- * @brief Computes the derivative of the image. If dir is set then it will be
- * a 1D derivative in the dimension specified by dir. If dir is < 0, then all
- * directional derivatives of the input image will be computed and the output
+ * @brief Computes the derivative of the image. Computes all  
+ * directional derivatives of the input image and the output
  * image will have 1 higher dimension with derivative of 0 in the first volume
  * 1 in the second and so on.
  *
@@ -127,11 +119,20 @@ bool comparable(const NDArray* left, const NDArray* right,
  * [X,Y,Z,3] sized image.
  *
  * @param in    Input image/NDarray 
- * @param dir   Specify the dimension
  *
  * @return 
  */
-shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in, int dir = -1);
+shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in);
+
+/**
+ * @brief Computes the derivative of the image in the specified direction. 
+ *
+ * @param in    Input image/NDarray 
+ * @param dir   Specify the dimension
+ *
+ * @return      Image storing the directional derivative of in
+ */
+shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in, size_t dir);
 
 /**
  * @brief Dilate an binary array repeatedly
@@ -153,6 +154,18 @@ shared_ptr<NDArray> dilate(shared_ptr<NDArray> in, size_t reps);
  */
 shared_ptr<NDArray> erode(shared_ptr<NDArray> in, size_t reps);
 
+
+/**
+ * @brief Smooths an image in 1 dimension
+ *
+ * @param inout Input/output image to smooth
+ * @param dim dimensions to smooth in. If you are smoothing individual volumes
+ * of an fMRI you would provide dim={0,1,2}
+ * @param stddev standard deviation in physical units index*spacing
+ *
+ */
+void gaussianSmooth1D(shared_ptr<NDArray> inout, size_t dim, double stddev);
+
 /********************
  * Image Shifting 
  ********************/
@@ -172,10 +185,11 @@ void shiftImageKern(shared_ptr<NDArray> inout, size_t dd, double dist);
  * (in units of pixels), using FFT.
  *
  * @param inout Input/output image
- * @param dd Dimension to shift, will be positive 
+ * @param dim Dimension to shift, will be positive 
  * @param dist
+ * @param window Windowing function to apply in fourier domain
  */
-void shiftImageFFT(shared_ptr<NDArray> inout, size_t dd, double dist, 
+void shiftImageFFT(shared_ptr<NDArray> inout, size_t dim, double dist, 
 		double(*window)(double,double) = npl::sincWindow);
 
 
@@ -278,6 +292,7 @@ int rotateImageShearKern(shared_ptr<NDArray> inout, double rx, double ry, double
  * @param rx Rotation about x axis
  * @param ry Rotation about y axis
  * @param rz Rotation about z axis
+ * @param window Window function to apply in fourier domain
  */
 int rotateImageShearFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz,
 		double(*window)(double,double) = npl::sincWindow);
@@ -318,12 +333,13 @@ std::vector<std::shared_ptr<NDArray>> pseudoPolar(shared_ptr<const NDArray> in);
  * other function which does not take this argument, and returns a vector.
  * This function skips the chirpz transform by interpolation-zooming.
  *
- * @param in	Input image to compute pseudo-polar fourier transform on
+ * @param inimg	Input image to compute pseudo-polar fourier transform on
  * @param prdim	Dimension to be the pseudo-radius in output
  *
  * @return 		Pseudo-polar sample fourier transform
  */
-shared_ptr<NDArray> pseudoPolarZoom(shared_ptr<const NDArray> in, size_t prdim);
+shared_ptr<NDArray> pseudoPolarZoom(shared_ptr<const NDArray> inimg, 
+        size_t prdim);
 
 } // npl
 #endif  //NDARRAY_UTILS_H

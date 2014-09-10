@@ -136,7 +136,7 @@ MatrixXd pca(const MatrixXd& X, double varth)
  * Output: W = [w0 w1 w2 ... ]
  * Output: S = XW, where each column is a dimension, each row a sample
  *
- * @param X 	RxC matrix where each column row is a sample, each column a
+ * @param Xin 	RxC matrix where each column row is a sample, each column a
  *              dimension (or feature). The number of columns in the output
  *              will be fewer because there will be fewer features
  * @param varth Variance threshold. Don't include dimensions after this percent
