@@ -125,6 +125,122 @@ shared_ptr<MRImage> derivative(shared_ptr<const MRImage> in)
     return out;
 }
 
+shared_ptr<MRImage> fft_forward(shared_ptr<const MRImage> in, 
+        const std::vector<size_t>& in_osize)
+{
+
+    // make sure osize matches input dimensions
+    vector<size_t> osize(in_osize);
+    osize.resize(in->ndim(), 1);
+    size_t ndim = osize.size();
+
+    // create padded NDArray, allocated with fftw
+    size_t opixels = 1;
+    vector<int> osize32(ndim);
+    for(size_t ii=0; ii<ndim; ii++) {
+        opixels *= osize[ii];
+        osize32[ii] = osize[ii];
+
+        if(osize[ii] < in->dim(ii)) 
+            throw std::invalid_argument("Input image larger than output size!"
+                    " In\n" + __FUNCTION_STR__);
+    }
+
+    auto outbuff = fftw_alloc_complex(opixels);
+    auto output = createMRImage(osize.size(), osize.data(), COMPLEX64,
+            outbuff, [](void* ptr) {fftw_free(ptr);});
+    
+    // create ND FFTW Plan
+    auto fwd = fftw_plan_dft((int)ndim, osize32.data(), outbuff, outbuff, 
+            FFTW_FORWARD, FFTW_MEASURE);
+    std::fill(outbuff, outbuff[opixels][0], 0);
+    
+    // fill padded from input
+    OrderConstIter<cdouble_t> iit(in);
+    OrderIter<cdouble_t> pit(output);
+    pit.setROI(ndim, in->dim());
+    pit.setOrder(iit.getOrder());
+    for(iit.goBegin(), pit.goBegin(); !iit.eof() && !pit.eof(); ++pit, ++iit) 
+        pit.set(*iit);
+    assert(iit.eof() && pit.eof());
+    
+    // fourier transform
+    fftw_execute(fwd);
+
+    return output;
+}
+
+shared_ptr<MRImage> fft_backward(shared_ptr<const MRImage> in,
+        const std::vector<size_t>& in_osize)
+{
+
+    // make sure osize matches input dimensions
+    vector<size_t> osize(in_osize);
+    osize.resize(in->ndim(), 1);
+    size_t ndim = osize.size();
+
+    // create padded NDArray, allocated with fftw
+    size_t opixels = 1;
+    vector<int> osize32(ndim);
+    for(size_t ii=0; ii<ndim; ii++) {
+        opixels *= osize[ii];
+        osize32[ii] = osize[ii];
+    }
+
+    auto outbuff = fftw_alloc_complex(opixels);
+    auto output = createMRImage(osize.size(), osize.data(), COMPLEX64,
+            outbuff, [](void* ptr) {fftw_free(ptr);});
+    
+    // create ND FFTW Plan
+    auto fwd = fftw_plan_dft((int)ndim, osize32.data(), outbuff, outbuff, 
+            FFTW_BACKWARD, FFTW_MEASURE);
+    std::fill(outbuff, outbuff[opixels][0], 0);
+    
+    // fill padded from input
+    OrderIter<cdouble_t> it(output);
+    vector<size_t> iindex(ndim);
+    vector<size_t> oindex(ndim);
+    for(it.goBegin(); !it.eof(); ++it) {
+        it.index(oindex);
+
+        // compute input index, handling frequency unrwrapping
+        for(size_t dd=0; dd<ndim; dd++) {
+            // if input is larger
+            if(in->dim(dd) > osize[dd]) {
+                oindex[dd] = 
+            } else {
+
+            }
+        }
+
+        pit.set(*iit);
+    }
+    assert(iit.eof() && pit.eof());
+    
+    // fourier transform
+    fftw_execute(fwd);
+
+    return output;
+}
+
+shared_ptr<MRImage> fft_backward(shared_ptr<const MRImage>, const
+        std::vector<size_t>& osize)
+{
+    // create padded NDArray, allocated with fftw
+    auto padbuff = fftw_alloc_complex(padpixels);
+    auto padded = createNDArray(
+            in->copyCast(paddim.size(), paddim.data()),
+            padbuff, [](void* ptr) {fftw_free(ptr);});
+    
+    // create ND FFTW Plans
+    vector<int> paddim32(ndim, 0);
+    for(size_t dd=0; dd<ndim; dd++)
+        paddim32[dd] = paddim[dd];
+    
+    auto fwd = fftw_plan_dft((int)ndim, paddim32.data(), padbuff, 
+            padbuff, FFTW_FORWARD, FFTW_MEASURE);
+}
+
 /**
  * @brief Performs smoothing in each dimension, then downsamples so that pixel
  * spacing is roughly equal to FWHM.
@@ -138,17 +254,19 @@ shared_ptr<MRImage> derivative(shared_ptr<const MRImage> in)
  */
 shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
 {
+    size_t ndim = in->ndim();
+
     // convert mm to indices
-    vector<double> sd(in->ndim(), sigma);
-    for(size_t ii=0; ii<in->ndim(); ii++)
+    vector<double> sd(ndim, sigma);
+    for(size_t ii=0; ii<ndim; ii++)
         sd[ii] /= in->spacing()[ii];
 
     // create downsampled image
-    // TODO after downsampling crop off original zero padding
-    size_t maxsize = 0;
-    vector<size_t> paddim(in->ndim(), 0);
-    vector<size_t> downdim(in->ndim(), 0);
-    vector<size_t> odim(in->ndim(), 0);
+    size_t padpixels = 1;
+    size_t downpixels = 1;
+    vector<size_t> paddim(ndim, 0);
+    vector<size_t> downdim(ndim, 0);
+    vector<size_t> odim(ndim, 0);
     for(size_t ii=0; ii<odim.size(); ii++) {
         // compute ratio
         double ratio;
@@ -158,77 +276,41 @@ shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
             ratio = 1/sd_to_fwhm(sd[ii]);
 
         paddim[ii] = round2(in->dim(ii));
-        downdim[ii] = round2(ceil(ratio*in->dim(ii)));
         odim[ii] = ceil(ratio*in->dim(ii));
-        maxsize = max(paddim[ii], maxsize);
+        downdim[ii] = round2(odim[ii]);
+
+        padpixels *= paddim[ii];
+        downpixels *= downdim[ii];
 
         assert(paddim[ii] >= downdim[ii]);
         assert(odim[ii] <= in->dim(ii));
     }
 
-    auto out = dynamic_pointer_cast<MRImage>(
-            in->copyCast(odim.size(), odim.data()));
+    auto tmpimg = fft_forward(in, paddim);
 
-    // smooth downsample each dimension
-    auto buffer1 = fftw_alloc_complex(2*maxsize);
-    auto buffer2 = &buffer1[maxsize];
-    for(size_t dd=0; dd<in->ndim(); dd++) {
-        auto fwd = fftw_plan_dft_1d((int)paddim[dd], buffer1, buffer2,
-                FFTW_FORWARD, FFTW_MEASURE);
-        auto rev = fftw_plan_dft_1d((int)downdim[dd], buffer1, buffer2, 
-                FFTW_BACKWARD, FFTW_MEASURE);
+    // window
+    OrderIter<cdouble_t> it(padded);
+    vector<size_t> index(ndim); 
+    for(it.goBegin(); !it.eof(); ++it) {
+        it.index(index);
 
-        // copy input to buffer1, the perform fourier transform
-        ChunkConstIter<cdouble_t> it1(in);
-        it1.setLineChunk(dd);
-        for(size_t ii=0; !it1.eoc(); ii++, ++it1) {
-            cdouble_t tmp = *it1;;
-            buffer1[ii][0] = tmp.real();
-            buffer1[ii][1] = tmp.imag();
-        }
-        // fill remaining zeros
-        for(size_t ii=in->dim(dd); ii<paddim[dd]; ii++) {
-            buffer1[ii][0] = 0;
-            buffer1[ii][1] = 0;
-        }
-
-        // fourier transform
-        fftw_execute(fwd);
-
-        // window first half
-        double normf = 1./paddim[dd];
-        for(size_t ii=0; ii < downdim[dd]/2; ii++) {
-            double ff = ii/(double)paddim[ii];
-            double w = exp(-M_PI*M_PI*ff*ff*2*sd[dd]*sd[dd]);
-            buffer1[ii][0] = buffer2[ii][0]*w*normf;
-            buffer1[ii][0] = buffer2[ii][1]*w*normf;
-        }
-        // shift down negative frequencies, and window
-        for(int64_t ii = downdim[dd]/2; ii < downdim[dd]; ii++) {
-            // corresponding point in larger buffer
-            int64_t jj = paddim[dd]-downdim[dd]+ii; 
-            double ff = 1.-ii/(double)downdim[dd];
-            double w = exp(-M_PI*M_PI*ff*ff*2*sd[dd]*sd[dd]);
-            buffer1[ii][0] = buffer2[jj][0]*w;
-            buffer1[ii][1] = buffer2[jj][0]*w;
-        }
-
-        // reverse fourier transform
-        fftw_execute(rev);
-
-        // copy to output 
-        ChunkIter<cdouble_t> it2(out);
-        it2.setLineChunk(dd);
-        for(size_t ii=0; !it2.eoc(); ii++, ++it2) {
-            cdouble_t tmp(buffer2[ii][0], buffer2[ii][1]);
-            it2.set(tmp);
+        // window in each dimension
+        double w = 1;
+        for(size_t dd=0; dd<ndim; dd++) {
+            double ff = index[dd]/(double)paddim[dd];
+            if(ff > .5) ff = 1-ff; // negative frequencies
+            w *= exp(-M_PI*M_PI*ff*ff*2*sd[dd]*sd[dd]);
         }
     }
 
+    // Downsample and ifft
+    tmpimg = fft_backward(tmpimg, downdim);
+    
+    // create output image, an crop
 
-    // set spacing
-    for(size_t dd=0; dd<in->ndim(); dd++) 
-        out->spacing()[dd] = in->spacing()[dd]*paddim[dd]/downdim[dd];
+//    // set spacing
+//    for(size_t dd=0; dd<in->ndim(); dd++) 
+//        out->spacing()[dd] = in->spacing()[dd]*paddim[dd]/downdim[dd];
     
     return out;
 }
