@@ -26,7 +26,6 @@
 #include "ndarray.h"
 #include "npltypes.h"
 #include "matrix.h"
-#include "nifti.h"
 
 #include <string>
 #include <iostream>
@@ -38,84 +37,6 @@ namespace npl {
 
 using std::vector;
 using std::shared_ptr;
-
-/**
- * @brief Create a new image that is a copy of the input, possibly with new
- * dimensions and pixeltype. The new image will have all overlapping pixels
- * copied from the old image.
- *
- * @param in Input image, anything that can be copied will be
- * @param newdims Number of dimensions in output image
- * @param newsize Size of output image
- * @param newtype Type of pixels in output image
- *
- * @return Image with overlapping sections cast and copied from 'in'
- */
-shared_ptr<MRImage> copyCast(shared_ptr<MRImage> in, size_t newdims,
-		const size_t* newsize, PixelT newtype);
-
-/**
- * @brief Create a new image that is a copy of the input, possibly with new
- * dimensions or size. The new image will have all overlapping pixels
- * copied from the old image. The new image will have the same pixel type as
- * the input image
- *
- * @param in Input image, anything that can be copied will be
- * @param newdims Number of dimensions in output image
- * @param newsize Size of output image
- *
- * @return Image with overlapping sections cast and copied from 'in'
- */
-shared_ptr<MRImage> copyCast(shared_ptr<MRImage> in, size_t newdims,
-		const size_t* newsize);
-
-/**
- * @brief Create a new image that is a copy of the input, with same dimensions
- * but pxiels cast to newtype. The new image will have all overlapping pixels
- * copied from the old image.
- *
- * @param in Input image, anything that can be copied will be
- * @param newtype Type of pixels in output image
- *
- * @return Image with overlapping sections cast and copied from 'in'
- */
-shared_ptr<MRImage> copyCast(shared_ptr<MRImage> in, PixelT newtype);
-
-/**
- * @brief Reads a nifti image, given an already open gzFile.
- *
- * @param file gzFile to read from
- * @param verbose whether to print out information during header parsing
- *
- * @return New MRImage with values from header and pixels set
- */
-shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose);
-
-/**
- * @brief Reads a nifti2 header from an already-open gzFile. End users should
- * use readMRImage instead.
- *
- * @param file Already opened gzFile, will seek to 0
- * @param header Header to put data into
- * @param doswap whether to swap header fields
- * @param verbose Whether to print information about header
- *
- * @return 0 if successful
- */
-int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap, bool verbose);
-
-/**
- * @brief Function to parse nifti1header. End users should use readMRimage.
- *
- * @param file already open gzFile, although it will seek to begin
- * @param header Header to fill in
- * @param doswap Whether to byteswap header elements
- * @param verbose Whether to print out header information
- *
- * @return 0 if successful
- */
-int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap, bool verbose);
-
 
 /**
  * @brief Reads an MRI image. Right now only nift images are supported. later
@@ -223,6 +144,46 @@ shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in,
  * @return shifted image
  */
 shared_ptr<MRImage> shiftImage(shared_ptr<MRImage> in, size_t len, double* vect);
+
+/**
+ * @brief Writes a pair of images, one real, one imaginary or if absPhase is
+ * set to true then an absolute image and a phase image. 
+ *
+ * @param basename Base filename _abs.nii.gz and _phase.nii.gz or _re.nii.gz
+ * and _im.nii.gz will be appended, depending on absPhase
+ * @param in Input image
+ * @param absPhase Whether the break up into absolute and phase rather than
+ * re/imaginary
+ */
+void writeComplex(std::string basename, shared_ptr<const MRImage> in, 
+        bool absPhase = false);
+
+/**
+ * @brief Performs forward FFT transform in N dimensions.
+ *
+ * @param in Input image
+ * @param in_osize Size of output image (will be padded up to this prior to
+ * FFT)
+ *
+ * @return Frequency domain of input. Note the output will be
+ * COMPLEX128/CDOUBLE type
+ */
+shared_ptr<MRImage> fft_forward(shared_ptr<const MRImage> in, 
+        const std::vector<size_t>& in_osize);
+
+/**
+ * @brief Performs inverse FFT transform in N dimensions.
+ *
+ * @param in Input image
+ * @param in_osize Size of output image. If this is smaller than the input then
+ * the frequency domain will be trunkated, if it is larger then the fourier
+ * domain will be padded ( output upsampled )
+ *
+ * @return Frequency domain of input. Note the output will be
+ * COMPLEX128/CDOUBLE type
+ */
+shared_ptr<MRImage> fft_backward(shared_ptr<const MRImage> in,
+        const std::vector<size_t>& in_osize);
 
 } // npl
 #endif  //MRIMAGE_UTILS_H

@@ -147,11 +147,11 @@ def build(bld):
             use='iterators mrimage')
 
     # Test Fourier Domain
-#    bld.program(install_path='${PREFIX}/tests', features='test',
-#            target='fft_test', 
-#            source='fft_test.cpp', 
-#            use='ndarray_utils utility mrimage_utils iterators') 
-    
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='fft_test', 
+            source='fft_test.cpp', 
+            use='ndarray_utils utility mrimage_utils iterators') 
+   
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='fft_shift_test', 
             source='fft_shift_test.cpp', 

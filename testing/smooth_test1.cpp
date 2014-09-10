@@ -61,40 +61,38 @@ shared_ptr<MRImage> testimage()
 int main()
 {
     auto img = testimage();
-    img->write("original.nii.gz");
+    img->write("original1.nii.gz");
 
-    auto img2 = smoothDownsample(img, .001);
-    img->write("smooth_tiny.nii.gz");
-    
-    img2 = smoothDownsample(img, .1);
-    img2->write("smooth_small.nii.gz");
-    
-    img2 = smoothDownsample(img, 1);
-    img2->write("smooth_medium.nii.gz");
-    
-    img2 = smoothDownsample(img, 5);
-    img2->write("smooth_large.nii.gz");
-
+//    auto img2 = smoothDownsample(img, .001);
+//    img->write("smooth_tiny.nii.gz");
+//    
+//    img2 = smoothDownsample(img, .1);
+//    img2->write("smooth_small.nii.gz");
+//    
+    auto img2 = smoothDownsample(img, 1);
+    img2->write("smooth_medium1.nii.gz");
+//    
+//    img2 = smoothDownsample(img, 5);
+//    img2->write("smooth_large.nii.gz");
+//
     // adjust the spacing
-    img->spacing()[0] = 5;
-    img->spacing()[1] = 7;
+    img->spacing()[0] = 1;
+    img->spacing()[1] = 5;
     img->spacing()[2] = 10;
 
-    // smooth again, should be non-isotropic now
-    img2 = smoothDownsample(img, .001);
-    img->write("smooth_tiny2.nii.gz");
-    
-    img2 = smoothDownsample(img, .1);
-    img2->write("smooth_small2.nii.gz");
-    
-    img2 = smoothDownsample(img, 1);
-    img2->write("smooth_medium2.nii.gz");
-    
+    img->write("original2.nii.gz");
+//    // smooth again, should be non-isotropic now
+//    img2 = smoothDownsample(img, .001);
+//    img->write("smooth_tiny2.nii.gz");
+//    
+//    img2 = smoothDownsample(img, .1);
+//    img2->write("smooth_small2.nii.gz");
+//    
     img2 = smoothDownsample(img, 5);
-    img2->write("smooth_large2.nii.gz");
-    
-    img2 = smoothDownsample(img, 10);
-    img2->write("smooth_huge2.nii.gz");
+    img2->write("smooth_medium2.nii.gz");
+//    
+//    img2 = smoothDownsample(img, 10);
+//    img2->write("smooth_huge2.nii.gz");
 
     return 0;
 }

@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file mrimage_utils.cpp
+ * @file mrimage_utils.cpp Utilities for operating on MR Images. These are
+ * functions which are sensitive to MR variables, such as spacing, orientation,
+ * slice timing etc. ndarray_utils contains more general purpose tools.
  *
  *****************************************************************************/
 
@@ -38,6 +40,53 @@ namespace npl {
 using std::vector;
 using std::shared_ptr;
 
+#ifdef VERYDEBUG
+
+#define DEBUGWRITE(FOO) FOO 
+
+#else
+
+#define DEBUGWRITE(FOO)
+
+#endif
+
+/**
+ * @brief Writes a pair of images, one real, one imaginary or if absPhase is
+ * set to true then an absolute image and a phase image. 
+ *
+ * @param basename Base filename _abs.nii.gz and _phase.nii.gz or _re.nii.gz
+ * and _im.nii.gz will be appended, depending on absPhase
+ * @param in Input image
+ * @param absPhase Whether the break up into absolute and phase rather than
+ * re/imaginary
+ */
+void writeComplex(std::string basename, shared_ptr<const MRImage> in, 
+        bool absPhase)
+{
+    auto img1 = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
+    auto img2 = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
+
+    OrderIter<double> it1(img1);
+    OrderIter<double> it2(img2);
+    OrderConstIter<cdouble_t> init(in);
+    for(; !init.eof(); ++init, ++it1, ++it2) {
+        if(absPhase) {
+            it1.set(abs(*init));
+            it2.set(arg(*init));
+        } else {
+            it1.set((*init).real());
+            it2.set((*init).imag());
+        }
+    }
+
+    if(absPhase) {
+        img1->write(basename + "_abs.nii.gz");
+        img2->write(basename + "_ang.nii.gz");
+    } else {
+        img1->write(basename + "_re.nii.gz");
+        img2->write(basename + "_im.nii.gz");
+    }
+}
 
 /**
  * @brief Computes the derivative of the image in the specified direction. 
@@ -125,6 +174,16 @@ shared_ptr<MRImage> derivative(shared_ptr<const MRImage> in)
     return out;
 }
 
+/**
+ * @brief Performs forward FFT transform in N dimensions.
+ *
+ * @param in Input image
+ * @param in_osize Size of output image (will be padded up to this prior to
+ * FFT)
+ *
+ * @return Frequency domain of input. Note the output will be
+ * COMPLEX128/CDOUBLE type
+ */
 shared_ptr<MRImage> fft_forward(shared_ptr<const MRImage> in, 
         const std::vector<size_t>& in_osize)
 {
@@ -147,13 +206,17 @@ shared_ptr<MRImage> fft_forward(shared_ptr<const MRImage> in,
     }
 
     auto outbuff = fftw_alloc_complex(opixels);
-    auto output = createMRImage(osize.size(), osize.data(), COMPLEX64,
+    auto output = createMRImage(osize.size(), osize.data(), CDOUBLE,
             outbuff, [](void* ptr) {fftw_free(ptr);});
+    output->copyMetadata(in);
     
     // create ND FFTW Plan
     auto fwd = fftw_plan_dft((int)ndim, osize32.data(), outbuff, outbuff, 
             FFTW_FORWARD, FFTW_MEASURE);
-    std::fill(outbuff, outbuff[opixels][0], 0);
+    for(size_t ii=0; ii<opixels; ii++) {
+        outbuff[ii][0] = 0;
+        outbuff[ii][1] = 0;
+    }
     
     // fill padded from input
     OrderConstIter<cdouble_t> iit(in);
@@ -163,13 +226,42 @@ shared_ptr<MRImage> fft_forward(shared_ptr<const MRImage> in,
     for(iit.goBegin(), pit.goBegin(); !iit.eof() && !pit.eof(); ++pit, ++iit) 
         pit.set(*iit);
     assert(iit.eof() && pit.eof());
-    
+
+    DEBUGWRITE(writeComplex("forward_prefft", output));
+
     // fourier transform
     fftw_execute(fwd);
+
+    OrderIter<cdouble_t> it(output);;
+    for(size_t ii=0; !it.eof(); ii++, ++it) {
+        cdouble_t tmp(*it);
+        assert(tmp.real() == outbuff[ii][0]);
+        assert(tmp.imag() == outbuff[ii][1]);
+    }
+
+    // normalize
+    double normf = 1./opixels;
+    for(size_t ii=0; ii<opixels; ii++) {
+        outbuff[ii][0] = normf*outbuff[ii][0];
+        outbuff[ii][1] = normf*outbuff[ii][1];
+    }
+
+    DEBUGWRITE(writeComplex("forward_postfft", output));
 
     return output;
 }
 
+/**
+ * @brief Performs inverse FFT transform in N dimensions.
+ *
+ * @param in Input image
+ * @param in_osize Size of output image. If this is smaller than the input then
+ * the frequency domain will be trunkated, if it is larger then the fourier
+ * domain will be padded ( output upsampled )
+ *
+ * @return Frequency domain of input. Note the output will be
+ * COMPLEX128/CDOUBLE type
+ */
 shared_ptr<MRImage> fft_backward(shared_ptr<const MRImage> in,
         const std::vector<size_t>& in_osize)
 {
@@ -179,7 +271,7 @@ shared_ptr<MRImage> fft_backward(shared_ptr<const MRImage> in,
     osize.resize(in->ndim(), 1);
     size_t ndim = osize.size();
 
-    // create padded NDArray, allocated with fftw
+    // create output NDArray, allocated with fftw
     size_t opixels = 1;
     vector<int> osize32(ndim);
     for(size_t ii=0; ii<ndim; ii++) {
@@ -188,57 +280,63 @@ shared_ptr<MRImage> fft_backward(shared_ptr<const MRImage> in,
     }
 
     auto outbuff = fftw_alloc_complex(opixels);
-    auto output = createMRImage(osize.size(), osize.data(), COMPLEX64,
+    auto output = createMRImage(osize.size(), osize.data(), CDOUBLE,
             outbuff, [](void* ptr) {fftw_free(ptr);});
+    output->copyMetadata(in);
     
     // create ND FFTW Plan
-    auto fwd = fftw_plan_dft((int)ndim, osize32.data(), outbuff, outbuff, 
+    auto plan = fftw_plan_dft((int)ndim, osize32.data(), outbuff, outbuff, 
             FFTW_BACKWARD, FFTW_MEASURE);
-    std::fill(outbuff, outbuff[opixels][0], 0);
-    
+    for(size_t ii=0; ii<opixels; ii++) {
+        outbuff[ii][0] = 0;
+        outbuff[ii][1] = 0;
+    }
+
     // fill padded from input
+    NDConstAccess<cdouble_t> iacc(in);
     OrderIter<cdouble_t> it(output);
-    vector<size_t> iindex(ndim);
-    vector<size_t> oindex(ndim);
+    vector<int64_t> iindex(ndim);
+    vector<int64_t> oindex(ndim);
     for(it.goBegin(); !it.eof(); ++it) {
         it.index(oindex);
 
-        // compute input index, handling frequency unrwrapping
-        for(size_t dd=0; dd<ndim; dd++) {
-            // if input is larger
-            if(in->dim(dd) > osize[dd]) {
-                oindex[dd] = 
-            } else {
+        // if the curent oindex doesn't exist in the input (due to output size
+        // being larger than input size), then leave as 0
+        bool skip = false;
 
+        // compute input index, handling frequency unrwrapping
+        int64_t ilen, olen;
+        for(size_t dd=0; dd<ndim; dd++) {
+            ilen = in->dim(dd);
+            olen = output->dim(dd);
+
+            if(oindex[dd] < olen/2) {
+                iindex[dd] = oindex[dd];
+                if(iindex[dd] >= ilen/2) {
+                    skip = true;
+                    break;
+                }
+            } else  {
+                // negative frequencies
+                iindex[dd] = ilen-(olen-oindex[dd]); 
+                if(iindex[dd] < ilen/2) {
+                    skip = true;
+                    break;
+                }
             }
+
         }
 
-        pit.set(*iit);
+        if(skip)
+            continue;
+
+        it.set(iacc[iindex]);
     }
-    assert(iit.eof() && pit.eof());
     
     // fourier transform
-    fftw_execute(fwd);
+    fftw_execute(plan);
 
     return output;
-}
-
-shared_ptr<MRImage> fft_backward(shared_ptr<const MRImage>, const
-        std::vector<size_t>& osize)
-{
-    // create padded NDArray, allocated with fftw
-    auto padbuff = fftw_alloc_complex(padpixels);
-    auto padded = createNDArray(
-            in->copyCast(paddim.size(), paddim.data()),
-            padbuff, [](void* ptr) {fftw_free(ptr);});
-    
-    // create ND FFTW Plans
-    vector<int> paddim32(ndim, 0);
-    for(size_t dd=0; dd<ndim; dd++)
-        paddim32[dd] = paddim[dd];
-    
-    auto fwd = fftw_plan_dft((int)ndim, paddim32.data(), padbuff, 
-            padbuff, FFTW_FORWARD, FFTW_MEASURE);
 }
 
 /**
@@ -286,11 +384,13 @@ shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
         assert(odim[ii] <= in->dim(ii));
     }
 
+    DEBUGWRITE(writeComplex("in", in);)
     auto tmpimg = fft_forward(in, paddim);
+    DEBUGWRITE(writeComplex("freq", tmpimg);)
 
     // window
-    OrderIter<cdouble_t> it(padded);
-    vector<size_t> index(ndim); 
+    OrderIter<cdouble_t> it(tmpimg);
+    vector<int64_t> index(ndim); 
     for(it.goBegin(); !it.eof(); ++it) {
         it.index(index);
 
@@ -301,16 +401,30 @@ shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
             if(ff > .5) ff = 1-ff; // negative frequencies
             w *= exp(-M_PI*M_PI*ff*ff*2*sd[dd]*sd[dd]);
         }
+
+        it.set((*it)*w);
     }
 
     // Downsample and ifft
+    DEBUGWRITE(writeComplex("windowed", tmpimg));
     tmpimg = fft_backward(tmpimg, downdim);
+    DEBUGWRITE(writeComplex("ifreq", tmpimg));
     
-    // create output image, an crop
+    // create output image, and crop
+    auto out = dynamic_pointer_cast<MRImage>(
+            in->copyCast(odim.size(), odim.data()));
+    DEBUGWRITE(writeComplex("cropped", tmpimg));
+    
+    OrderConstIter<cdouble_t> iit(tmpimg);
+    OrderIter<cdouble_t> oit(out);
+    iit.setROI(out->ndim(), out->dim());
+    iit.setOrder(oit.getOrder());
+    for(iit.goBegin(), oit.goBegin(); !iit.eof(); ++iit, ++oit) 
+        oit.set(*iit);
 
-//    // set spacing
-//    for(size_t dd=0; dd<in->ndim(); dd++) 
-//        out->spacing()[dd] = in->spacing()[dd]*paddim[dd]/downdim[dd];
+    // set spacing
+    for(size_t dd=0; dd<in->ndim(); dd++) 
+        out->spacing()[dd] = in->spacing()[dd]*paddim[dd]/downdim[dd];
     
     return out;
 }
@@ -439,660 +553,6 @@ int writeMRImage(MRImage* img, std::string fn, bool nifti2)
 	if(nifti2)
 		version = 2;
 	return img->write(fn, version);
-}
-
-/**
- * @brief Helper function for readNiftiImage. End users should use readMRImage
- *
- * @tparam T Type of pixels to read
- * @param file Already opened gzFile
- * @param vox_offset Offset to start reading at
- * @param dim Dimensions of input image
- * @param pixsize Size, in bytes, of each pixel
- * @param doswap Whether to perform byte swapping on the pixels
- *
- * @return New MRImage with loaded pixels
- */
-template <typename T>
-shared_ptr<MRImage> readPixels(gzFile file, size_t vox_offset,
-		const std::vector<size_t>& dim, size_t pixsize, bool doswap)
-{
-	// jump to voxel offset
-	gzseek(file, vox_offset, SEEK_SET);
-
-	/*
-	 * Create Slicer Object to iterate through image slices
-	 */
-
-	// dim 0 is the fastest in nifti images, so go in that order
-	Slicer slicer(dim.size(), dim.data());
-	slicer.setOrder({}, true);
-
-	T tmp(0);
-	shared_ptr<MRImage> out;
-
-	// someday this all might be simplify by using MRImage* and the
-	// dbl or int64 functions, as long as we trust that the type is
-	// going to be good enough to caputre the underlying pixle type
-	switch(dim.size()) {
-		case 1: {
-			auto typed = std::make_shared<MRImageStore<1, T>>(dim);
-			for(slicer.goBegin(); !slicer.isEnd(); ++slicer) {
-				gzread(file, &tmp, pixsize);
-				if(doswap) swap<T>(&tmp);
-				(*typed)[*slicer] = tmp;
-			}
-			out = typed;
-			} break;
-		case 2:{
-			auto typed = std::make_shared<MRImageStore<2, T>>(dim);
-			for(slicer.goBegin(); !slicer.isEnd(); ++slicer) {
-				gzread(file, &tmp, pixsize);
-				if(doswap) swap<T>(&tmp);
-				(*typed)[*slicer] = tmp;
-			}
-			out = typed;
-			} break;
-		case 3:{
-			auto typed = std::make_shared<MRImageStore<3, T>>(dim);
-			for(slicer.goBegin(); !slicer.isEnd(); ++slicer) {
-				gzread(file, &tmp, pixsize);
-				if(doswap) swap<T>(&tmp);
-				(*typed)[*slicer] = tmp;
-			}
-			out = typed;
-			} break;
-		case 4:{
-			auto typed = std::make_shared<MRImageStore<4, T>>(dim);
-			for(slicer.goBegin(); !slicer.isEnd(); ++slicer) {
-				gzread(file, &tmp, pixsize);
-				if(doswap) swap<T>(&tmp);
-				(*typed)[*slicer] = tmp;
-			}
-			out = typed;
-			} break;
-		case 5:{
-			auto typed = std::make_shared<MRImageStore<5, T>>(dim);
-			for(slicer.goBegin(); !slicer.isEnd(); ++slicer) {
-				gzread(file, &tmp, pixsize);
-				if(doswap) swap<T>(&tmp);
-				(*typed)[*slicer] = tmp;
-			}
-			out = typed;
-			} break;
-		case 6:{
-			auto typed = std::make_shared<MRImageStore<6, T>>(dim);
-			for(slicer.goBegin(); !slicer.isEnd(); ++slicer) {
-				gzread(file, &tmp, pixsize);
-				if(doswap) swap<T>(&tmp);
-				(*typed)[*slicer] = tmp;
-			}
-			out = typed;
-			} break;
-		case 7:{
-			auto typed = std::make_shared<MRImageStore<7, T>>(dim);
-			for(slicer.goBegin(); !slicer.isEnd(); ++slicer) {
-				gzread(file, &tmp, pixsize);
-				if(doswap) swap<T>(&tmp);
-				(*typed)[*slicer] = tmp;
-			}
-			out = typed;
-			} break;
-		case 8:{
-			auto typed = std::make_shared<MRImageStore<8, T>>(dim);
-			for(slicer.goBegin(); !slicer.isEnd(); ++slicer) {
-				gzread(file, &tmp, pixsize);
-				if(doswap) swap<T>(&tmp);
-				(*typed)[*slicer] = tmp;
-			}
-			out = typed;
-			} break;
-	};
-
-	return out;
-}
-
-/**
- * @brief Function to parse nifti1header. End users should use readMRimage.
- *
- * @param file already open gzFile, although it will seek to begin
- * @param header Header to fill in
- * @param doswap Whether to byteswap header elements
- * @param verbose Whether to print out header information
- *
- * @return 0 if successful
- */
-int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap,
-		bool verbose)
-{
-	// seek to 0
-	gzseek(file, 0, SEEK_SET);
-
-	static_assert(sizeof(nifti1_header) == 348, "Error, nifti header packing failed");
-
-	// read header
-	gzread(file, header, sizeof(nifti1_header));
-	if(strncmp(header->magic, "n+1", 3)) {
-		gzclearerr(file);
-		gzrewind(file);
-		return 1;
-	}
-
-	// byte swap
-	int64_t npixel = 1;
-	if(header->sizeof_hdr != 348) {
-		*doswap = true;
-		swap(&header->sizeof_hdr);
-		if(header->sizeof_hdr != 348) {
-			swap(&header->sizeof_hdr);
-			return -1;
-		}
-		swap(&header->ndim);
-		for(size_t ii=0; ii<7; ii++)
-			swap(&header->dim[ii]);
-		swap(&header->intent_p1);
-		swap(&header->intent_p2);
-		swap(&header->intent_p3);
-		swap(&header->intent_code);
-		swap(&header->datatype);
-		swap(&header->bitpix);
-		swap(&header->slice_start);
-		swap(&header->qfac);
-		for(size_t ii=0; ii<7; ii++)
-			swap(&header->pixdim[ii]);
-		swap(&header->vox_offset);
-		swap(&header->scl_slope);
-		swap(&header->scl_inter);
-		swap(&header->slice_end);
-		swap(&header->cal_max);
-		swap(&header->cal_min);
-		swap(&header->slice_duration);
-		swap(&header->toffset);
-		swap(&header->glmax);
-		swap(&header->glmin);
-		swap(&header->qform_code);
-		swap(&header->sform_code);
-		
-		for(size_t ii=0; ii<3; ii++)
-			swap(&header->quatern[ii]);
-		for(size_t ii=0; ii<3; ii++)
-			swap(&header->qoffset[ii]);
-		for(size_t ii=0; ii<12; ii++)
-			swap(&header->saffine[ii]);
-
-		for(int32_t ii=0; ii<header->ndim; ii++)
-			npixel *= header->dim[ii];
-	}
-	
-	if(verbose) {
-		std::cerr << "sizeof_hdr=" << header->sizeof_hdr << std::endl;
-		std::cerr << "data_type=" << header->data_type << std::endl;
-		std::cerr << "db_name=" << header->db_name << std::endl;
-		std::cerr << "extents=" << header->extents  << std::endl;
-		std::cerr << "session_error=" << header->session_error << std::endl;
-		std::cerr << "regular=" << header->regular << std::endl;
-
-		std::cerr << "magic =" << header->magic  << std::endl;
-		std::cerr << "datatype=" << header->datatype << std::endl;
-		std::cerr << "bitpix=" << header->bitpix << std::endl;
-		std::cerr << "ndim=" << header->ndim << std::endl;
-		for(size_t ii=0; ii < 7; ii++)
-			std::cerr << "dim["<<ii<<"]=" << header->dim[ii] << std::endl;
-		std::cerr << "intent_p1 =" << header->intent_p1  << std::endl;
-		std::cerr << "intent_p2 =" << header->intent_p2  << std::endl;
-		std::cerr << "intent_p3 =" << header->intent_p3  << std::endl;
-		std::cerr << "qfac=" << header->qfac << std::endl;
-		for(size_t ii=0; ii < 7; ii++)
-			std::cerr << "pixdim["<<ii<<"]=" << header->pixdim[ii] << std::endl;
-		std::cerr << "vox_offset=" << header->vox_offset << std::endl;
-		std::cerr << "scl_slope =" << header->scl_slope  << std::endl;
-		std::cerr << "scl_inter =" << header->scl_inter  << std::endl;
-		std::cerr << "cal_max=" << header->cal_max << std::endl;
-		std::cerr << "cal_min=" << header->cal_min << std::endl;
-		std::cerr << "slice_duration=" << header->slice_duration << std::endl;
-		std::cerr << "toffset=" << header->toffset << std::endl;
-		std::cerr << "glmax=" << header->glmax  << std::endl;
-		std::cerr << "glmin=" << header->glmin  << std::endl;
-		std::cerr << "slice_start=" << header->slice_start << std::endl;
-		std::cerr << "slice_end=" << header->slice_end << std::endl;
-		std::cerr << "descrip=" << header->descrip << std::endl;
-		std::cerr << "aux_file=" << header->aux_file << std::endl;
-		std::cerr << "qform_code =" << header->qform_code  << std::endl;
-		std::cerr << "sform_code =" << header->sform_code  << std::endl;
-		for(size_t ii=0; ii < 3; ii++){
-			std::cerr << "quatern["<<ii<<"]="
-				<< header->quatern[ii] << std::endl;
-		}
-		for(size_t ii=0; ii < 3; ii++){
-			std::cerr << "qoffset["<<ii<<"]="
-				<< header->qoffset[ii] << std::endl;
-		}
-		for(size_t ii=0; ii < 3; ii++) {
-			for(size_t jj=0; jj < 4; jj++) {
-				std::cerr << "saffine["<<ii<<"*4+"<<jj<<"]="
-					<< header->saffine[ii*4+jj] << std::endl;
-			}
-		}
-		std::cerr << "slice_code=" << (int)header->slice_code << std::endl;
-		std::cerr << "xyzt_units=" << header->xyzt_units << std::endl;
-		std::cerr << "intent_code =" << header->intent_code  << std::endl;
-		std::cerr << "intent_name=" << header->intent_name << std::endl;
-		std::cerr << "dim_info.bits.freqdim=" << header->dim_info.bits.freqdim << std::endl;
-		std::cerr << "dim_info.bits.phasedim=" << header->dim_info.bits.phasedim << std::endl;
-		std::cerr << "dim_info.bits.slicedim=" << header->dim_info.bits.slicedim << std::endl;
-	}
-	
-	return 0;
-}
-
-/**
- * @brief Reads a nifti image, given an already open gzFile.
- *
- * @param file gzFile to read from
- * @param verbose whether to print out information during header parsing
- *
- * @return New MRImage with values from header and pixels set
- */
-shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose)
-{
-	bool doswap = false;
-	int16_t datatype = 0;
-	size_t start;
-	std::vector<size_t> dim;
-	size_t psize;
-	int qform_code = 0;
-	std::vector<double> pixdim;
-	std::vector<double> offset;
-	std::vector<double> quatern(3,0);
-	double qfac;
-	double slice_duration = 0;
-	int slice_code = 0;
-	int slice_start = 0;
-	int slice_end = 0;
-	int freqdim = 0;
-	int phasedim = 0;
-	int slicedim = 0;
-
-	int ret = 0;
-	nifti1_header header1;
-	nifti2_header header2;
-	if((ret = readNifti1Header(file, &header1, &doswap, verbose)) == 0) {
-		start = header1.vox_offset;
-		dim.resize(header1.ndim, 0);
-		for(int64_t ii=0; ii<header1.ndim && ii < 7; ii++) {
-			dim[ii] = header1.dim[ii];
-		}
-		psize = (header1.bitpix >> 3);
-		qform_code = header1.qform_code;
-		datatype = header1.datatype;
-
-		slice_code = header1.slice_code;
-		slice_duration = header1.slice_duration;
-		slice_start = header1.slice_start;
-		slice_end = header1.slice_end;
-		freqdim = (int)(header1.dim_info.bits.freqdim)-1;
-		phasedim = (int)(header1.dim_info.bits.phasedim)-1;
-		slicedim = (int)(header1.dim_info.bits.slicedim)-1;
-
-		// pixdim
-		pixdim.resize(header1.ndim, 0);
-		for(int64_t ii=0; ii<header1.ndim && ii < 7; ii++)
-			pixdim[ii] = header1.pixdim[ii];
-
-		// offset
-		offset.resize(4, 0);
-		for(int64_t ii=0; ii<header1.ndim && ii < 3; ii++)
-			offset[ii] = header1.qoffset[ii];
-		if(header1.ndim > 3)
-			offset[3] = header1.toffset;
-
-		// quaternion
-		for(int64_t ii=0; ii<3 && ii<header1.ndim; ii++)
-			quatern[ii] = header1.quatern[ii];
-		qfac = header1.qfac;
-	}
-
-	if(ret!=0 && (ret = readNifti2Header(file, &header2, &doswap, verbose)) == 0) {
-		start = header2.vox_offset;
-		dim.resize(header2.ndim, 0);
-		for(int64_t ii=0; ii<header2.ndim && ii < 7; ii++) {
-			dim[ii] = header2.dim[ii];
-		}
-		psize = (header2.bitpix >> 3);
-		qform_code = header2.qform_code;
-		datatype = header2.datatype;
-		
-		slice_code = header2.slice_code;
-		slice_duration = header2.slice_duration;
-		slice_start = header2.slice_start;
-		slice_end = header2.slice_end;
-		freqdim = (int)(header2.dim_info.bits.freqdim)-1;
-		phasedim = (int)(header2.dim_info.bits.phasedim)-1;
-		slicedim = (int)(header2.dim_info.bits.slicedim)-1;
-
-		// pixdim
-		pixdim.resize(header2.ndim, 0);
-		for(int64_t ii=0; ii<header2.ndim && ii < 7; ii++)
-			pixdim[ii] = header2.pixdim[ii];
-		
-		// offset
-		offset.resize(4, 0);
-		for(int64_t ii=0; ii<header2.ndim && ii < 3; ii++)
-			offset[ii] = header2.qoffset[ii];
-		if(header2.ndim > 3)
-			offset[3] = header2.toffset;
-		
-		// quaternion
-		for(int64_t ii=0; ii<3 && ii<header2.ndim; ii++)
-			quatern[ii] = header2.quatern[ii];
-		qfac = header2.qfac;
-	}
-
-	shared_ptr<MRImage> out;
-
-	// create image
-	switch(datatype) {
-		// 8 bit
-		case NIFTI_TYPE_INT8:
-			out = readPixels<int8_t>(file, start, dim, psize, doswap);
-		break;
-		case NIFTI_TYPE_UINT8:
-			out = readPixels<uint8_t>(file, start, dim, psize, doswap);
-		break;
-		// 16  bit
-		case NIFTI_TYPE_INT16:
-			out = readPixels<int16_t>(file, start, dim, psize, doswap);
-		break;
-		case NIFTI_TYPE_UINT16:
-			out = readPixels<uint16_t>(file, start, dim, psize, doswap);
-		break;
-		// 32 bit
-		case NIFTI_TYPE_INT32:
-			out = readPixels<int32_t>(file, start, dim, psize, doswap);
-		break;
-		case NIFTI_TYPE_UINT32:
-			out = readPixels<uint32_t>(file, start, dim, psize, doswap);
-		break;
-		// 64 bit int
-		case NIFTI_TYPE_INT64:
-			out = readPixels<int64_t>(file, start, dim, psize, doswap);
-		break;
-		case NIFTI_TYPE_UINT64:
-			out = readPixels<uint64_t>(file, start, dim, psize, doswap);
-		break;
-		// floats
-		case NIFTI_TYPE_FLOAT32:
-			out = readPixels<float>(file, start, dim, psize, doswap);
-		break;
-		case NIFTI_TYPE_FLOAT64:
-			out = readPixels<double>(file, start, dim, psize, doswap);
-		break;
-		case NIFTI_TYPE_FLOAT128:
-			out = readPixels<long double>(file, start, dim, psize, doswap);
-		break;
-		// RGB
-		case NIFTI_TYPE_RGB24:
-			out = readPixels<rgb_t>(file, start, dim, psize, doswap);
-		break;
-		case NIFTI_TYPE_RGBA32:
-			out = readPixels<rgba_t>(file, start, dim, psize, doswap);
-		break;
-		case NIFTI_TYPE_COMPLEX256:
-			out = readPixels<cquad_t>(file, start, dim, psize, doswap);
-		break;
-		case NIFTI_TYPE_COMPLEX128:
-			out = readPixels<cdouble_t>(file, start, dim, psize, doswap);
-		break;
-		case NIFTI_TYPE_COMPLEX64:
-			out = readPixels<cfloat_t>(file, start, dim, psize, doswap);
-		break;
-	}
-
-	if(!out)
-		return NULL;
-
-	/*
-	 * Now that we have an Image*, we can fill in the remaining values from
-	 * the header
-	 */
-
-	// figure out orientation
-	if(qform_code > 0) {
-		/*
-		 * set spacing
-		 */
-		for(size_t ii=0; ii<out->ndim(); ii++)
-			out->spacing()[ii] = pixdim[ii];
-		
-		/*
-		 * set origin
-		 */
-		// x,y,z
-		for(size_t ii=0; ii<out->ndim(); ii++) {
-			out->origin()[ii] = offset[ii];
-		}
-		
-		// calculate a, copy others
-		double b = quatern[0];
-		double c = quatern[1];
-		double d = quatern[2];
-		double a = sqrt(1.0-(b*b+c*c+d*d));
-
-		// calculate R, (was already identity)
-		out->direction()(0, 0) = a*a+b*b-c*c-d*d;
-
-		if(out->ndim() > 1) {
-			out->direction()(0,1) = 2*b*c-2*a*d;
-			out->direction()(1,0) = 2*b*c+2*a*d;
-			out->direction()(1,1) = a*a+c*c-b*b-d*d;
-		}
-
-		if(qfac != -1)
-			qfac = 1;
-		
-		if(out->ndim() > 2) {
-			out->direction()(0,2) = qfac*(2*b*d+2*a*c);
-			out->direction()(1,2) = qfac*(2*c*d-2*a*b);
-			out->direction()(2,2) = qfac*(a*a+d*d-c*c-b*b);
-			out->direction()(2,1) = 2*c*d+2*a*b;
-			out->direction()(2,0) = 2*b*d-2*a*c;
-		}
-		
-		if(verbose) {
-			std::cerr << "Direction:" << std::endl;
-			std::cerr << out->direction() << endl;;
-		}
-
-		// finally update affine, but scale pixdim[z] by qfac temporarily
-		out->updateAffine();
-		if(verbose) {
-			std::cerr << "Affine:" << std::endl;
-			std::cerr << out->affine() << endl;;
-		}
-//	} else if(header.sform_code > 0) {
-//		/* use the sform, since no qform exists */
-//
-//		// origin, last column
-//		double di = 0, dj = 0, dk = 0;
-//		for(size_t ii=0; ii<3 && ii<out->ndim(); ii++) {
-//			di += pow(header.saffine[4*ii+0],2); //column 0
-//			dj += pow(header.saffine[4*jj+1],2); //column 1
-//			dk += pow(header.saffine[4*kk+2],2); //column 2
-//			out->origin()[ii] = header.saffine[4*ii+3]; //column 3
-//		}
-//		
-//		// set direction and spacing
-//		out->m_spacing[0] = sqrt(di);
-//		out->m_dir[0*out->ndim()+0] = header.saffine[4*0+0]/di;
-//
-//		if(out->ndim() > 1) {
-//			out->m_spacing[1] = sqrt(dj);
-//			out->m_dir[0*out->ndim()+1] = header.saffine[4*0+1]/dj;
-//			out->m_dir[1*out->ndim()+1] = header.saffine[4*1+1]/dj;
-//			out->m_dir[1*out->ndim()+0] = header.saffine[4*1+0]/di;
-//		}
-//		if(out->ndim() > 2) {
-//			out->m_spacing[2] = sqrt(dk);
-//			out->m_dir[0*out->ndim()+2] = header.saffine[4*0+2]/dk;
-//			out->m_dir[1*out->ndim()+2] = header.saffine[4*1+2]/dk;
-//			out->m_dir[2*out->ndim()+2] = header.saffine[4*2+2]/dk;
-//			out->m_dir[2*out->ndim()+1] = header.saffine[4*2+1]/dj;
-//			out->m_dir[2*out->ndim()+0] = header.saffine[4*2+0]/di;
-//		}
-//
-//		// affine matrix
-//		updateAffine();
-	} else {
-		// only spacing changes
-		for(size_t ii=0; ii<dim.size(); ii++)
-			out->spacing()[ii] = pixdim[ii];
-		out->updateAffine();
-	}
-
-	/**************************************************************************
-	 * Medical Imaging Varaibles Variables
-	 **************************************************************************/
-	
-	// direct copies
-	out->m_freqdim = freqdim;
-	out->m_phasedim = phasedim;
-	out->m_slicedim = slicedim;
-	
-	// slice timing
-	out->updateSliceTiming(slice_duration,  slice_start, slice_end,
-			(SliceOrderT)slice_code);
-
-	return out;
-}
-
-/**
- * @brief Reads a nifti2 header from an already-open gzFile. End users should
- * use readMRImage instead.
- *
- * @param file Already opened gzFile, will seek to 0
- * @param header Header to put data into
- * @param doswap whether to swap header fields
- * @param verbose Whether to print information about header
- *
- * @return 0 if successful
- */
-int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap,
-		bool verbose)
-{
-	// seek to 0
-	gzseek(file, 0, SEEK_SET);
-
-	static_assert(sizeof(nifti2_header) == 540, "Error, nifti header packing failed");
-
-	// read header
-	gzread(file, header, sizeof(nifti2_header));
-	if(strncmp(header->magic, "n+2", 3)) {
-		gzclearerr(file);
-		gzrewind(file);
-		return -1;
-	}
-
-	// byte swap
-	int64_t npixel = 1;
-	if(header->sizeof_hdr != 540) {
-		*doswap = true;
-		swap(&header->sizeof_hdr);
-		if(header->sizeof_hdr != 540) {
-			swap(&header->sizeof_hdr);
-			return -1;
-		}
-		swap(&header->datatype);
-		swap(&header->bitpix);
-		swap(&header->ndim);
-		for(size_t ii=0; ii<7; ii++)
-			swap(&header->dim[ii]);
-		swap(&header->intent_p1);
-		swap(&header->intent_p2);
-		swap(&header->intent_p3);
-		swap(&header->qfac);
-		for(size_t ii=0; ii<7; ii++)
-			swap(&header->pixdim[ii]);
-		swap(&header->vox_offset);
-		swap(&header->scl_slope);
-		swap(&header->scl_inter);
-		swap(&header->cal_max);
-		swap(&header->cal_min);
-		swap(&header->slice_duration);
-		swap(&header->toffset);
-		swap(&header->slice_start);
-		swap(&header->slice_end);
-//		swap(&header->glmax);
-//		swap(&header->glmin);
-		swap(&header->qform_code);
-		swap(&header->sform_code);
-		
-		for(size_t ii=0; ii<3; ii++)
-			swap(&header->quatern[ii]);
-		for(size_t ii=0; ii<3; ii++)
-			swap(&header->qoffset[ii]);
-		for(size_t ii=0; ii<12; ii++)
-			swap(&header->saffine[ii]);
-		
-		swap(&header->slice_code);
-		swap(&header->xyzt_units);
-		swap(&header->intent_code);
-
-		for(int32_t ii=0; ii<header->ndim; ii++)
-			npixel *= header->dim[ii];
-	}
-	
-	if(verbose) {
-		std::cerr << "sizeof_hdr=" << header->sizeof_hdr << std::endl;
-		std::cerr << "magic =" << header->magic  << std::endl;
-		std::cerr << "datatype=" << header->datatype << std::endl;
-		std::cerr << "bitpix=" << header->bitpix << std::endl;
-		std::cerr << "ndim=" << header->ndim << std::endl;
-		for(size_t ii=0; ii < 7; ii++)
-			std::cerr << "dim["<<ii<<"]=" << header->dim[ii] << std::endl;
-		std::cerr << "intent_p1 =" << header->intent_p1  << std::endl;
-		std::cerr << "intent_p2 =" << header->intent_p2  << std::endl;
-		std::cerr << "intent_p3 =" << header->intent_p3  << std::endl;
-		std::cerr << "qfac=" << header->qfac << std::endl;
-		for(size_t ii=0; ii < 7; ii++)
-			std::cerr << "pixdim["<<ii<<"]=" << header->pixdim[ii] << std::endl;
-		std::cerr << "vox_offset=" << header->vox_offset << std::endl;
-		std::cerr << "scl_slope =" << header->scl_slope  << std::endl;
-		std::cerr << "scl_inter =" << header->scl_inter  << std::endl;
-		std::cerr << "cal_max=" << header->cal_max << std::endl;
-		std::cerr << "cal_min=" << header->cal_min << std::endl;
-		std::cerr << "slice_duration=" << header->slice_duration << std::endl;
-		std::cerr << "toffset=" << header->toffset << std::endl;
-		std::cerr << "slice_start=" << header->slice_start << std::endl;
-		std::cerr << "slice_end=" << header->slice_end << std::endl;
-		std::cerr << "descrip=" << header->descrip << std::endl;
-		std::cerr << "aux_file=" << header->aux_file << std::endl;
-		std::cerr << "qform_code =" << header->qform_code  << std::endl;
-		std::cerr << "sform_code =" << header->sform_code  << std::endl;
-		for(size_t ii=0; ii < 3; ii++){
-			std::cerr << "quatern["<<ii<<"]="
-				<< header->quatern[ii] << std::endl;
-		}
-		for(size_t ii=0; ii < 3; ii++){
-			std::cerr << "qoffset["<<ii<<"]="
-				<< header->qoffset[ii] << std::endl;
-		}
-		for(size_t ii=0; ii < 3; ii++) {
-			for(size_t jj=0; jj < 4; jj++) {
-				std::cerr << "saffine["<<ii<<"*4+"<<jj<<"]="
-					<< header->saffine[ii*4+jj] << std::endl;
-			}
-		}
-		std::cerr << "slice_code=" << (int)header->slice_code << std::endl;
-		std::cerr << "xyzt_units=" << header->xyzt_units << std::endl;
-		std::cerr << "intent_code =" << header->intent_code  << std::endl;
-		std::cerr << "intent_name=" << header->intent_name << std::endl;
-		std::cerr << "dim_info.bits.freqdim=" << header->dim_info.bits.freqdim << std::endl;
-		std::cerr << "dim_info.bits.phasedim=" << header->dim_info.bits.phasedim << std::endl;
-		std::cerr << "dim_info.bits.slicedim=" << header->dim_info.bits.slicedim << std::endl;
-		std::cerr << "unused_str=" << header->unused_str << std::endl;
-	}
-	
-	return 0;
 }
 
 /**

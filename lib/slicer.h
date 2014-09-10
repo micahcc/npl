@@ -253,9 +253,10 @@ public:
      * Invalidates position
      *
      * @param len length of roi array
-     * @param roi Size of ROI (which runs from [0,0...] to [roi[0], roi[1]...]
+     * @param roisize Size of ROI (which runs in the block from:
+     * [0 to roisize[0]-1,0. to roisize[1]-1, etc]
      */
-    void setROI(size_t len, const size_t* roi);
+    void setROI(size_t len, const size_t* roisize);
 
     /**
      * @brief Sets the region of interest, with lower bound of 0.
@@ -265,9 +266,10 @@ public:
      * Invalidates position
      *
      * @param len length of roi array
-     * @param roisize Size of ROI (which runs from [0,0...] to [roi[0], roi[1]...]
+     * @param roisize Size of ROI (which runs in the block from:
+     * [0 to roisize[0]-1,0. to roisize[1]-1, etc]
      */
-    void setROI(size_t len, const int64_t* roi);
+    void setROI(size_t len, const int64_t* roisize);
 
 	/**
 	 * @brief Sets the region of interest. During iteration or any motion the
@@ -638,9 +640,10 @@ public:
      * Invalidates position
      *
      * @param len length of roi array
-     * @param roi Size of ROI (which runs from [0,0...] to [roi[0], roi[1]...]
+     * @param roisize Size of ROI (which runs in the block from:
+     * [0 to roisize[0]-1,0. to roisize[1]-1, etc]
      */
-    void setROI(size_t len, const size_t* roi);
+    void setROI(size_t len, const size_t* roisize);
 
     /**
      * @brief Sets the region of interest, with lower bound of 0.
@@ -650,9 +653,10 @@ public:
      * Invalidates position
      *
      * @param len length of roi array
-     * @param roisize Size of ROI (which runs from [0,0...] to [roi[0], roi[1]...]
+     * @param roisize Size of ROI (which runs in the block from:
+     * [0 to roisize[0]-1,0. to roisize[1]-1, etc]
      */
-    void setROI(size_t len, const int64_t* roi);
+    void setROI(size_t len, const int64_t* roisize);
 
 	/**
 	 * @brief Sets the region of interest. During iteration or any motion the

@@ -90,46 +90,6 @@ shared_ptr<MRImage> bruteForceRotate(Vector3d axis, double theta,
     return out;
 }
 
-void writeComplexAA(string basename, shared_ptr<const MRImage> in)
-{
-    auto absimg = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
-    auto angimg = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
-
-    OrderIter<double> rit(absimg);
-    OrderIter<double> iit(angimg);
-    OrderConstIter<cdouble_t> init(in);
-    while(!init.eof()) {
-        rit.set(abs(*init));
-        iit.set(arg(*init));
-        ++init;
-        ++rit;
-        ++iit;
-    }
-
-    absimg->write(basename + "_abs.nii.gz");
-    angimg->write(basename + "_ang.nii.gz");
-}
-
-void writeComplex(string basename, shared_ptr<const MRImage> in)
-{
-    auto re = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
-    auto im = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
-
-    OrderIter<double> rit(re);
-    OrderIter<double> iit(im);
-    OrderConstIter<cdouble_t> init(in);
-    while(!init.eof()) {
-        iit.set((*init).imag());
-        rit.set((*init).real());
-        ++init;
-        ++rit;
-        ++iit;
-    }
-
-    re->write(basename + "_re.nii.gz");
-    im->write(basename + "_im.nii.gz");
-}
-
 double box(double x, double xmin, double xmax)
 {
     return (x < xmax && x > xmin);
@@ -253,8 +213,8 @@ Vector3d getAxis(shared_ptr<const MRImage> inimg1, shared_ptr<const MRImage> ini
         auto s1_pp = dynamic_pointer_cast<MRImage>(pseudoPolar(img1, ii));
         auto s2_pp = dynamic_pointer_cast<MRImage>(pseudoPolar(img2, ii));
 
-        writeComplexAA("s1_pp"+to_string(ii), s1_pp);
-        writeComplexAA("s2_pp"+to_string(ii), s2_pp);
+        writeComplex("s1_pp"+to_string(ii), s1_pp, true);
+        writeComplex("s2_pp"+to_string(ii), s2_pp, true);
 
         vector<size_t> compdim(s1_pp->dim(), s1_pp->dim()+s1_pp->ndim());
         compdim[ii] = 1;

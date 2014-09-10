@@ -32,7 +32,7 @@ def build(bld):
     bld.shlib( target = 'mrimage_utils', 
             source = 'mrimage_utils.cpp', 
             export_includes = ['.'],
-            use='ZLIB slicer mrimage ndarray_utils fftw kslicer') 
+            use='slicer mrimage ndarray_utils fftw kslicer') 
 #    bld.shlib( target = 'fractfft', 
 #            source = 'fract_fft.cpp ', 
 #            export_includes = ['.'],
