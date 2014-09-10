@@ -79,6 +79,36 @@ shared_ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type);
  */
 shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type);
 
+/**
+ * @brief Creates a new MRImage with dimensions set by ndim, and size set by
+ * size. Output pixel type is decided by type variable.
+ *
+ * @param ndim number of image dimensions
+ * @param size size of image, in each dimension
+ * @param type Pixel type npl::PixelT
+ * @param ptr Pointer to data block
+ * @param deleter function to delete data block
+ *
+ * @return New image, default orientation
+ */
+shared_ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type,
+        void* ptr, std::function<void(void*)> deleter);
+
+/**
+ * @brief Creates a new MRImage with dimensions set by ndim, and size set by
+ * size. Output pixel type is decided by type variable.
+ *
+ * @param dim size of image, in each dimension, number of dimensions decied by
+ * length of size vector
+ * @param type Pixel type npl::PixelT
+ * @param ptr Pointer to data block
+ * @param deleter function to delete data block
+ *
+ * @return New image, default orientation
+ */
+shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type,
+        void* ptr, std::function<void(void*)> deleter);
+
 /******************************************************************************
  * Classes.
  ******************************************************************************/
@@ -183,6 +213,16 @@ public:
 	 */
 	virtual shared_ptr<NDArray> copyCast(size_t newdims,
 				const size_t* newsize) const = 0;
+
+    /**
+     * @brief Copies metadata from another image. This includes slice timing,
+     * anything read from nifti files, spacing, orientation etc, but NOT 
+     * pixel data, size, and dimensionality. 
+     *
+     * @param src Other image to copy from
+     */
+    virtual void copyMetadata(shared_ptr<const MRImage> src);
+
 
 	//////////////////////////////////
 	// coordinate system conversion

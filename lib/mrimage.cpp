@@ -382,6 +382,26 @@ shared_ptr<MRImage> _copyCast(shared_ptr<const MRImage> in, size_t newdims,
 	return _copyCast(in, newdims, newsize, in->type());
 }
 
+/**
+ * @brief Copies metadata from another image. This includes slice timing,
+ * anything read from nifti files, spacing, orientation etc, but NOT 
+ * pixel data, size, and dimensionality. 
+ *
+ * @param in Other image to copy from
+ */
+virtual void MRImage::copyMetadata(shared_ptr<const MRImage> in)
+{
+	// copy image metadata
+	this->m_freqdim = in->m_freqdim;
+	this->m_slicedim = in->m_slicedim;
+	this->m_phasedim = in->m_phasedim;
+	this->m_slice_duration = in->m_slice_duration;
+	this->m_slice_start = in->m_slice_start;
+	this->m_slice_end = in->m_slice_end;
+	this->m_slice_timing = in->m_slice_timing;
+	this->m_slice_order = in->m_slice_order;
+	this->setOrient(in->origin(), in->spacing(), in->direction(), 1);
+};
 
 /******************************************************************************
  * Pre-Compile Image Types

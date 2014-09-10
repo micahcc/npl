@@ -247,52 +247,52 @@ shared_ptr<NDArray> fft_r2c(shared_ptr<const NDArray> in)
 	for(size_t dd=0; dd<in->ndim(); dd++)
 		cerr << in->dim(dd) << ",";
 	cerr << "]" << endl;
-	size_t inpixel = 1;
 	size_t outpixel = 1;
 	std::vector<int> padsize(in->dim(), in->dim()+ndim);
 	std::vector<size_t> outsize(in->dim(), in->dim()+ndim);
 	for(size_t ii=0; ii<ndim; ii++) {
 		padsize[ii] = round2(in->dim(ii));
-		inpixel *= padsize[ii];
-		outsize[ii] = padsize[ii];
-		outpixel *= outsize[ii];
+		outpixel *= padsize[ii];
 	}
 
-	auto idata = fftw_alloc_complex(inpixel);
-	auto odata = fftw_alloc_complex(outpixel);
+	auto data = fftw_alloc_complex(outpixel);
 
 	// plan
 	fftw_plan plan = fftw_plan_dft((int)padsize.size(), padsize.data(),
-				idata, odata, FFTW_FORWARD, FFTW_MEASURE);
+				data, data, FFTW_FORWARD, FFTW_MEASURE);
 
-	// copy data into idata
-	OrderConstIter<cdouble_t> iit(in);
-	for(size_t ii=0; !iit.eof(); ++iit, ii++) {
-		idata[ii][0] = (*iit).real();
-		idata[ii][1] = (*iit).imag();
-	}
+    // zero data
+    for(size_t ii=0; ii<outpixel; ii++) {
+        data[ii][0] = 0;
+        data[ii][1] = 0;
+    }
+
+    // create output image and graft
+    auto out = createMRImage(padsize, COMPLEX64, data, 
+            [](void* ptr) { fftw_free(ptr); });
+
+	// copy data from input
+	OrderConstIter<double> iit(in);
+	OrderConstIter<cdouble_t> oit(out);
+    iit.setROI(in->ndim(), in->dim());
+    oit.setROI(in->ndim(), in->dim());
+    iit.setOrder(oit.getOrder());
+	for(iit.goBegin() && oit.goBegin(); !iit.eof() && !oit.eof(); ++iit, ++oit)
+        oit.set(iit.get());
 
 	// fourier transform
 	fftw_execute(plan);
-	fftw_free(idata);
 
-	// copy data out
-	auto out = in->copyCast(outsize.size(), outsize.data(), COMPLEX128);
+    // normalize
+    oit.setROI(out->ndim(), out->dim());
+	for(oit.goBegin(); !oit.eof(); ++oit) 
+        oit.set(*oit/outpixel);
 
-	OrderIter<cdouble_t> oit(out);
-	cdouble_t tmp;
-	for(size_t ii=0; !oit.eof(); ii++, ++oit) {
-		tmp.real(odata[ii][0]/inpixel);
-		tmp.imag(odata[ii][1]/inpixel);
-		oit.set(tmp);;
-	}
-
-	cerr << "Out Dimensions (with hermitian symmetry): [";
+	cerr << "Out Dimensions: [";
 	for(size_t dd=0; dd<out->ndim(); dd++)
 		cerr << out->dim(dd) << ",";
 	cerr << "]" << endl;
 	
-	fftw_free(odata);
 	return out;
 }
 
