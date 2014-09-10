@@ -146,8 +146,13 @@ shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
 
     // create downsampled image
     vector<size_t> odim(in->ndim(), 0);
-    for(size_t ii=0; ii<odim.size(); ii++) 
-        odim[ii] = round2(in->dim(ii)*in->spacing()[ii]/sd_to_fwhm(sd[ii]));
+    for(size_t ii=0; ii<odim.size(); ii++) {
+        double tmp = in->dim(ii)*in->spacing()[ii]/sd_to_fwhm(sd[ii]);
+        if(tmp > in->dim(ii))
+            tmp = in->dim(ii);
+        odim[ii] = round2(tmp);
+
+    }
     auto dfimg = dynamic_pointer_cast<MRImage>(
             fimg->copyCast(odim.size(), odim.data()));
 

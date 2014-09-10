@@ -63,7 +63,8 @@ public:
 	 * @brief Updates dimensions of target nd array
 	 *
 	 * @param ndim Rank (dimensionality) of data block, length of dim
-	 * @param dim Size of data block, in each dimension
+     * @param dim Size of data block, in each dimension, so dim = {32, 2,54 }
+     * would have 32*2*54 members 
 	 */
 	void setDim(size_t ndim, const size_t* dim);
 	
