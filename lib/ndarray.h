@@ -80,6 +80,37 @@ shared_ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype)
  */
 shared_ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype);
 
+/**
+ * @brief Creates a new NDArray with dimensions set by ndim, and size set by
+ * size. Output pixel type is decided by ptype variable.
+ *
+ * @param ndim number of image dimensions
+ * @param size size of image, in each dimension
+ * @param ptype Pixel type npl::PixelT
+ * @param ptr Pointer to data to graft.
+ * @param deleter Function to delete ptr
+ *
+ * @return New image, default orientation
+ */
+shared_ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype
+        void* ptr, std::function<void(void*)> deleter);
+
+/**
+ * @brief Creates a new NDArray with dimensions set by ndim, and size set by
+ * size. Output pixel type is decided by ptype variable.
+ *
+ * @param dim size of image, in each dimension, number of dimensions decied by
+ * length of size vector
+ * @param ptype Pixel type npl::PixelT
+ * @param ptr Pointer to data to graft.
+ * @param deleter Function to delete ptr
+ *
+ * @return New image, default orientation
+ */
+shared_ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype,
+        void* ptr, std::function<void(void*)> deleter);
+
+
 /******************************************************************************
  * Classes.
  ******************************************************************************/
