@@ -41,31 +41,6 @@ using std::shared_ptr;
 
 
 /**
- * @brief Perform fourier transform on the dimensions specified. Those
- * dimensions will be padded out. The output of this will be a double.
- * If len = 0 or dim == NULL, then ALL dimensions will be transformed.
- *
- * @param in Input image to inverse fourier trnasform
- *
- * @return Image with specified dimensions in the real domain. Image will
- * differ in size from input, and the last dimension will only contain the
- * positive frequencies
- */
-shared_ptr<NDArray> ifft_c2r(shared_ptr<const NDArray> in);
-
-/**
- * @brief Perform fourier transform on the dimensions specified. Those
- * dimensions will be padded out. The output of this will be a complex double.
- * If len = 0 or dim == NULL, then ALL dimensions will be transformed.
- *
- * @param in Input image to fourier trnasform
- *
- * @return Real image, which is the result of inverse fourier transforming
- * the (complex) input image.
- */
-shared_ptr<NDArray> fft_r2c(shared_ptr<const NDArray> in);
-
-/**
  * @brief Returns whether two NDArrays have the same dimensions, and therefore
  * can be element-by-element compared/operated on. elL is set to true if left
  * is elevatable to right (ie all dimensions match or are missing or are unary).

@@ -30,6 +30,8 @@
 
 #include <cstring>
 
+using std::make_shared;
+
 namespace npl {
 
 /******************************************************************************
@@ -52,21 +54,21 @@ shared_ptr<MRImage> createMRImageHelp(size_t len, const size_t* dim)
 {
 	switch(len) {
 		case 1:
-			return std::make_shared<MRImageStore<1, T>>(len, dim);
+			return make_shared<MRImageStore<1, T>>(len, dim);
 		case 2:
-			return std::make_shared<MRImageStore<2, T>>(len, dim);
+			return make_shared<MRImageStore<2, T>>(len, dim);
 		case 3:
-			return std::make_shared<MRImageStore<3, T>>(len, dim);
+			return make_shared<MRImageStore<3, T>>(len, dim);
 		case 4:
-			return std::make_shared<MRImageStore<4, T>>(len, dim);
+			return make_shared<MRImageStore<4, T>>(len, dim);
 		case 5:
-			return std::make_shared<MRImageStore<5, T>>(len, dim);
+			return make_shared<MRImageStore<5, T>>(len, dim);
 		case 6:
-			return std::make_shared<MRImageStore<6, T>>(len, dim);
+			return make_shared<MRImageStore<6, T>>(len, dim);
 		case 7:
-			return std::make_shared<MRImageStore<7, T>>(len, dim);
+			return make_shared<MRImageStore<7, T>>(len, dim);
 		case 8:
-			return std::make_shared<MRImageStore<8, T>>(len, dim);
+			return make_shared<MRImageStore<8, T>>(len, dim);
 		default:
 			std::cerr << "Unsupported len, dimension: " << len << std::endl;
 			return NULL;
@@ -156,6 +158,135 @@ shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type)
 {
 	return createMRImage(dim.size(), dim.data(), type);
 }
+
+/**
+ * @brief Template helper for creating new images.
+ *
+ * @tparam T Type of voxels
+ * @param len Length of input dimension array
+ * @param dim Size of new image
+ * @param ptr data to use (instead of allocating new data)
+ * @param deleter function that can destroy ptr properly
+ *
+ * @return New MRImage with defaults set
+ */
+template <typename T>
+shared_ptr<MRImage> createMRImageHelp(size_t len, const size_t* dim,
+        void* ptr, std::function<void(void*)> deleter)
+{
+	switch(len) {
+		case 1:
+			return make_shared<MRImageStore<1, T>>(len, dim, (T*)ptr, deleter);
+		case 2:
+			return make_shared<MRImageStore<2, T>>(len, dim, (T*)ptr, deleter);
+		case 3:
+			return make_shared<MRImageStore<3, T>>(len, dim, (T*)ptr, deleter);
+		case 4:
+			return make_shared<MRImageStore<4, T>>(len, dim, (T*)ptr, deleter);
+		case 5:
+			return make_shared<MRImageStore<5, T>>(len, dim, (T*)ptr, deleter);
+		case 6:
+			return make_shared<MRImageStore<6, T>>(len, dim, (T*)ptr, deleter);
+		case 7:
+			return make_shared<MRImageStore<7, T>>(len, dim, (T*)ptr, deleter);
+		case 8:
+			return make_shared<MRImageStore<8, T>>(len, dim, (T*)ptr, deleter);
+		default:
+			std::cerr << "Unsupported len, dimension: " << len << std::endl;
+			return NULL;
+	}
+
+	return NULL;
+}
+
+/**
+ * @brief Creates a new MRImage with dimensions set by ndim, and size set by
+ * size. Output pixel type is decided by type variable.
+ *
+ * @param ndim number of image dimensions
+ * @param size size of image, in each dimension
+ * @param type Pixel type npl::PixelT
+ * @param ptr Pointer to data block
+ * @param deleter function to delete data block
+ *
+ * @return New image, default orientation
+ */
+shared_ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type,
+        void* ptr, std::function<void(void*)> deleter)
+{
+	switch(type) {
+         case UINT8:
+			return createMRImageHelp<uint8_t>(ndim, size, ptr, deleter);
+        break;
+         case INT16:
+			return createMRImageHelp<int16_t>(ndim, size, ptr, deleter);
+        break;
+         case INT32:
+			return createMRImageHelp<int32_t>(ndim, size, ptr, deleter);
+        break;
+         case FLOAT32:
+			return createMRImageHelp<float>(ndim, size, ptr, deleter);
+        break;
+         case COMPLEX64:
+			return createMRImageHelp<cfloat_t>(ndim, size, ptr, deleter);
+        break;
+         case FLOAT64:
+			return createMRImageHelp<double>(ndim, size, ptr, deleter);
+        break;
+         case RGB24:
+			return createMRImageHelp<rgb_t>(ndim, size, ptr, deleter);
+        break;
+         case INT8:
+			return createMRImageHelp<int8_t>(ndim, size, ptr, deleter);
+        break;
+         case UINT16:
+			return createMRImageHelp<uint16_t>(ndim, size, ptr, deleter);
+        break;
+         case UINT32:
+			return createMRImageHelp<uint32_t>(ndim, size, ptr, deleter);
+        break;
+         case INT64:
+			return createMRImageHelp<int64_t>(ndim, size, ptr, deleter);
+        break;
+         case UINT64:
+			return createMRImageHelp<uint64_t>(ndim, size, ptr, deleter);
+        break;
+         case FLOAT128:
+			return createMRImageHelp<long double>(ndim, size, ptr, deleter);
+        break;
+         case COMPLEX128:
+			return createMRImageHelp<cdouble_t>(ndim, size, ptr, deleter);
+        break;
+         case COMPLEX256:
+			return createMRImageHelp<cquad_t>(ndim, size, ptr, deleter);
+        break;
+         case RGBA32:
+			return createMRImageHelp<rgba_t>(ndim, size, ptr, deleter);
+        break;
+		 default:
+		return NULL;
+	}
+	return NULL;
+};
+
+/**
+ * @brief Creates a new MRImage with dimensions set by ndim, and size set by
+ * size. Output pixel type is decided by type variable.
+ *
+ * @param dim size of image, in each dimension, number of dimensions decied by
+ * length of size vector
+ * @param type Pixel type npl::PixelT
+ * @param ptr Pointer to data block
+ * @param deleter function to delete data block
+ *
+ * @return New image, default orientation
+ */
+shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type,
+        void* ptr, std::function<void(void*)> deleter)
+{
+    return createMRImage(dim.size(), dim.data(), type, ptr, deleter);
+}
+
 
 
 /**
@@ -389,7 +520,7 @@ shared_ptr<MRImage> _copyCast(shared_ptr<const MRImage> in, size_t newdims,
  *
  * @param in Other image to copy from
  */
-virtual void MRImage::copyMetadata(shared_ptr<const MRImage> in)
+void MRImage::copyMetadata(shared_ptr<const MRImage> in)
 {
 	// copy image metadata
 	this->m_freqdim = in->m_freqdim;
