@@ -67,25 +67,6 @@ void writeComplexAA(string basename, shared_ptr<const MRImage> in)
 	absimg->write(basename + "_abs.nii.gz");
 	angimg->write(basename + "_ang.nii.gz");
 }
-void writeComplex(string basename, shared_ptr<const MRImage> in)
-{
-	auto re = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
-	auto im = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
-
-	OrderIter<double> rit(re);
-	OrderIter<double> iit(im);
-	OrderConstIter<cdouble_t> init(in);
-	while(!init.eof()) {
-		iit.set((*init).imag());
-		rit.set((*init).real());
-		++init;
-		++rit;
-		++iit;
-	}
-
-	re->write(basename + "_re.nii.gz");
-	im->write(basename + "_im.nii.gz");
-}
 
 int corrCompare(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b)
 {

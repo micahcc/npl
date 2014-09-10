@@ -29,6 +29,7 @@
 #include "ndarray.h"
 #include "npltypes.h"
 #include "matrix.h"
+#include "nifti.h"
 
 #include "zlib.h"
 
@@ -108,6 +109,42 @@ shared_ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type,
  */
 shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type,
         void* ptr, std::function<void(void*)> deleter);
+
+/**
+ * @brief Reads a nifti image, given an already open gzFile.
+ *
+ * @param file gzFile to read from
+ * @param verbose whether to print out information during header parsing
+ *
+ * @return New MRImage with values from header and pixels set
+ */
+shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose);
+
+/**
+ * @brief Reads a nifti2 header from an already-open gzFile. End users should
+ * use readMRImage instead.
+ *
+ * @param file Already opened gzFile, will seek to 0
+ * @param header Header to put data into
+ * @param doswap whether to swap header fields
+ * @param verbose Whether to print information about header
+ *
+ * @return 0 if successful
+ */
+int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap, bool verbose);
+
+/**
+ * @brief Function to parse nifti1header. End users should use readMRimage.
+ *
+ * @param file already open gzFile, although it will seek to begin
+ * @param header Header to fill in
+ * @param doswap Whether to byteswap header elements
+ * @param verbose Whether to print out header information
+ *
+ * @return 0 if successful
+ */
+int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap, bool verbose);
+
 
 /******************************************************************************
  * Classes.

@@ -49,44 +49,6 @@ using Eigen::Matrix3d;
 using Eigen::Vector3d;
 using Eigen::AngleAxisd;
 
-void writeComplexAA(string basename, shared_ptr<const MRImage> in)
-{
-	auto absimg = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
-	auto angimg = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
-
-	OrderIter<double> rit(absimg);
-	OrderIter<double> iit(angimg);
-	OrderConstIter<cdouble_t> init(in);
-	while(!init.eof()) {
-		rit.set(abs(*init));
-		iit.set(arg(*init));
-		++init;
-		++rit;
-		++iit;
-	}
-
-	absimg->write(basename + "_abs.nii.gz");
-	angimg->write(basename + "_ang.nii.gz");
-}
-void writeComplex(string basename, shared_ptr<const MRImage> in)
-{
-	auto re = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
-	auto im = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
-
-	OrderIter<double> rit(re);
-	OrderIter<double> iit(im);
-	OrderConstIter<cdouble_t> init(in);
-	while(!init.eof()) {
-		iit.set((*init).imag());
-		rit.set((*init).real());
-		++init;
-		++rit;
-		++iit;
-	}
-
-	re->write(basename + "_re.nii.gz");
-	im->write(basename + "_im.nii.gz");
-}
 
 int corrCompare(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b)
 {
@@ -215,7 +177,7 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in,
 	}
 
 #ifdef DEBUG
-	writeComplexAA("padded_fft", oimg);
+	writeComplex("padded_fft", oimg, true);
 #endif //DEBUG
 	
 	return oimg;
@@ -303,7 +265,7 @@ shared_ptr<MRImage> createTestImageSpace(const std::vector<size_t>& sz)
 int testPseudoPolar(vector<size_t> indim)
 {
 	auto in = createTestImageSpace(indim);
-	writeComplex("input", in);
+	writeComplex("input", in, true);
 	clock_t n = clock();
 	
 	// test the pseudopolar transforms
@@ -322,9 +284,9 @@ int testPseudoPolar(vector<size_t> indim)
 		auto pp1_brute = pseudoPolarBrute(in, dd);
 		brute_time += clock()-n;
 
-		writeComplexAA("fft_pp"+to_string(dd), pp1_fft);
-		writeComplexAA("zoom_pp"+to_string(dd), pp1_zoom);
-		writeComplexAA("brute_pp"+to_string(dd), pp1_brute);
+		writeComplex("fft_pp"+to_string(dd), pp1_fft, true);
+		writeComplex("zoom_pp"+to_string(dd), pp1_zoom, true);
+		writeComplex("brute_pp"+to_string(dd), pp1_brute, true);
 		if(closeCompare(pp1_fft, pp1_brute, 0.01) != 0) {
 			cerr << "FFT and BruteForce pseudopolar differ" << endl;
 			return -1;

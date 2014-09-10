@@ -24,6 +24,8 @@
 #include "npltypes.h"
 #include "utility.h"
 
+using std::make_shared;
+
 namespace npl {
 
 /******************************************************************************
@@ -152,6 +154,134 @@ shared_ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype)
 	return createNDArray(dim.size(), dim.data(), ptype);
 }
 
+/**
+ * @brief Template helper for creating new images.
+ *
+ * @tparam T Type of voxels
+ * @param ndim Length of input dimension array
+ * @param dim Size of new image
+ * @param ptr Pointer to data block
+ * @param deleter function to delete data block
+ *
+ * @return New NDArray with defaults set
+ */
+template <typename T>
+shared_ptr<NDArray> createNDArrayHelp(size_t ndim, const size_t* dim,
+        void* ptr, std::function<void(void*)> deleter)
+{
+	switch(ndim) {
+		case 1:
+			return make_shared<NDArrayStore<1, T>>(ndim, dim, (T*)ptr, deleter);
+		case 2:
+			return make_shared<NDArrayStore<2, T>>(ndim, dim, (T*)ptr, deleter);
+		case 3:
+			return make_shared<NDArrayStore<3, T>>(ndim, dim, (T*)ptr, deleter);
+		case 4:
+			return make_shared<NDArrayStore<4, T>>(ndim, dim, (T*)ptr, deleter);
+		case 5:
+			return make_shared<NDArrayStore<5, T>>(ndim, dim, (T*)ptr, deleter);
+		case 6:
+			return make_shared<NDArrayStore<6, T>>(ndim, dim, (T*)ptr, deleter);
+		case 7:
+			return make_shared<NDArrayStore<7, T>>(ndim, dim, (T*)ptr, deleter);
+		case 8:
+			return make_shared<NDArrayStore<8, T>>(ndim, dim, (T*)ptr, deleter);
+		default:
+            throw std::invalid_argument("Unsupported len, dimension: " +
+                    to_string(ndim) + " in\n" + __FUNCTION_STR__);
+	}
+
+	return NULL;
+}
+
+/**
+ * @brief Creates a new NDArray with dimensions set by ndim, and size set by
+ * size. Output pixel type is decided by ptype variable.
+ *
+ * @param ndim number of image dimensions
+ * @param size size of image, in each dimension
+ * @param ptype Pixel type npl::PixelT
+ * @param ptr Pointer to data block
+ * @param deleter function to delete data block
+ *
+ * @return New image, default orientation
+ */
+shared_ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype,
+        void* ptr, std::function<void(void*)> deleter)
+{
+	switch(ptype) {
+         case UINT8:
+			return createNDArrayHelp<uint8_t>(ndim, size, ptr, deleter);
+        break;
+         case INT16:
+			return createNDArrayHelp<int16_t>(ndim, size, ptr, deleter);
+        break;
+         case INT32:
+			return createNDArrayHelp<int32_t>(ndim, size, ptr, deleter);
+        break;
+         case FLOAT32:
+			return createNDArrayHelp<float>(ndim, size, ptr, deleter);
+        break;
+         case COMPLEX64:
+			return createNDArrayHelp<cfloat_t>(ndim, size, ptr, deleter);
+        break;
+         case FLOAT64:
+			return createNDArrayHelp<double>(ndim, size, ptr, deleter);
+        break;
+         case RGB24:
+			return createNDArrayHelp<rgb_t>(ndim, size, ptr, deleter);
+        break;
+         case INT8:
+			return createNDArrayHelp<int8_t>(ndim, size, ptr, deleter);
+        break;
+         case UINT16:
+			return createNDArrayHelp<uint16_t>(ndim, size, ptr, deleter);
+        break;
+         case UINT32:
+			return createNDArrayHelp<uint32_t>(ndim, size, ptr, deleter);
+        break;
+         case INT64:
+			return createNDArrayHelp<int64_t>(ndim, size, ptr, deleter);
+        break;
+         case UINT64:
+			return createNDArrayHelp<uint64_t>(ndim, size, ptr, deleter);
+        break;
+         case FLOAT128:
+			return createNDArrayHelp<long double>(ndim, size, ptr, deleter);
+        break;
+         case COMPLEX128:
+			return createNDArrayHelp<cdouble_t>(ndim, size, ptr, deleter);
+        break;
+         case COMPLEX256:
+			return createNDArrayHelp<cquad_t>(ndim, size, ptr, deleter);
+        break;
+         case RGBA32:
+			return createNDArrayHelp<rgba_t>(ndim, size, ptr, deleter);
+        break;
+		 default:
+            throw std::invalid_argument("Unsupported pixel type: " +
+                    to_string(ptype) + " in\n" + __FUNCTION_STR__);
+	}
+	return NULL;
+}
+
+/**
+ * @brief Creates a new NDArray with dimensions set by ndim, and size set by
+ * size. Output pixel type is decided by ptype variable.
+ *
+ * @param dim size of image, in each dimension, number of dimensions decied by
+ * length of size vector
+ * @param ptype Pixel type npl::PixelT
+ * @param ptr Pointer to data block
+ * @param deleter function to delete data block
+ *
+ * @return New image, default orientation
+ */
+shared_ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype,
+        void* ptr, std::function<void(void*)> deleter)
+{
+	return createNDArray(dim.size(), dim.data(), ptype, ptr, deleter);
+}
 
 /**
  * @brief Helper function that casts all the elements as the given type then uses

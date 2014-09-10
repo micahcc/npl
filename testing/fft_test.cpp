@@ -68,7 +68,6 @@ int main()
 	// create an image
 	int64_t index[3];
 	size_t sz[] = {128, 128, 128};
-	cerr << sizeof(sz) << endl;
 	auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, FLOAT64);
 
 	// fill with sphere
@@ -88,8 +87,10 @@ int main()
 	
 	// fourier transform image in xyz direction
 	in->write("pre-fft.nii.gz");
-	auto fft = dynamic_pointer_cast<MRImage>(fft_r2c(in));
-	auto ifft = dynamic_pointer_cast<MRImage>(ifft_c2r(fft));
+    std::vector<size_t> iosize(sz, sz+3);
+	auto fft = dynamic_pointer_cast<MRImage>(fft_forward(in, iosize));
+	auto ifft = dynamic_pointer_cast<MRImage>(fft_backward(fft, iosize));
+    ifft = dynamic_pointer_cast<MRImage>(ifft->copyCast(FLOAT64));
 	ifft->write("post-ifft.nii.gz");
 	if(closeCompare(ifft, in) != 0)
 		return -1;

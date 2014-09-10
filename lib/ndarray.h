@@ -46,9 +46,9 @@ using std::shared_ptr;
  * Define Types
  *****************************************************************************/
 enum PixelT {UNKNOWN_TYPE=0, UINT8=2, INT16=4, INT32=8, FLOAT32=16,
-	COMPLEX64=32, FLOAT64=64, RGB24=128, INT8=256, UINT16=512, UINT32=768,
-	INT64=1024, UINT64=1280, FLOAT128=1536, COMPLEX128=1792, COMPLEX256=2048,
-	RGBA32=2304 };
+    COMPLEX64=32, CFLOAT=32, FLOAT64=64, RGB24=128, INT8=256, UINT16=512,
+    UINT32=768, INT64=1024, UINT64=1280, FLOAT128=1536, CDOUBLE=1792,
+    COMPLEX128=1792, CQUAD=2048, COMPLEX256=2048, RGBA32=2304 };
 
 class NDArray;
 
@@ -92,8 +92,8 @@ shared_ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype);
  *
  * @return New image, default orientation
  */
-shared_ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype
-        void* ptr, std::function<void(void*)> deleter);
+shared_ptr<NDArray> createNDArray(size_t ndim, const size_t* size, 
+        PixelT ptype, void* ptr, std::function<void(void*)> deleter);
 
 /**
  * @brief Creates a new NDArray with dimensions set by ndim, and size set by
@@ -107,8 +107,8 @@ shared_ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype
  *
  * @return New image, default orientation
  */
-shared_ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype,
-        void* ptr, std::function<void(void*)> deleter);
+shared_ptr<NDArray> createNDArray(const std::vector<size_t>& dim, 
+        PixelT ptype, void* ptr, std::function<void(void*)> deleter);
 
 
 /******************************************************************************
