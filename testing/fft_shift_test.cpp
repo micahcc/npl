@@ -28,7 +28,6 @@
 #include <stdexcept>
 
 #include "mrimage.h"
-#include "fftshift.h"
 #include "mrimage_utils.h"
 #include "ndarray_utils.h"
 #include "iterators.h"

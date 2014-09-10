@@ -1081,6 +1081,7 @@ private:
  * it.setBreaks({0,0,0,1}); // stop at the end of each volume
  * it.setBreaks({1,1,1,0}); // stop at the end of each time-series
  * it.setBreaks({1,1,1}); // same as above (default = 0)
+ * it.setLineChunk(0); // iterates along lines in dimension 0
  *
  * for(it.goBegin(); !it.isEnd(); it.nextChunk()) {
  * 	for(it.goBegin(); !it.isChunkEnd(); ++it) {

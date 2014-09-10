@@ -192,6 +192,7 @@ shared_ptr<MRImage> derivative(shared_ptr<const MRImage> in);
  */
 void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, double stddev);
 
+
 /******************************************************
  * Resample Image Functions
  ******************************************************/

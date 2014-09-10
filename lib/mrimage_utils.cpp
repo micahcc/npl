@@ -24,6 +24,8 @@
 #include "mrimage_utils.h"
 #include "byteswap.h"
 
+#include "fftw3.h"
+
 #include <string>
 #include <iostream>
 #include <iomanip>
@@ -141,53 +143,92 @@ shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
     for(size_t ii=0; ii<in->ndim(); ii++)
         sd[ii] /= in->spacing()[ii];
 
-    // compute input fourier transform
-    auto fimg = dynamic_pointer_cast<MRImage>(fft_r2c(in));
-    NDConstAccess<cdouble_t> facc(fimg);
-
     // create downsampled image
+    // TODO after downsampling crop off original zero padding
+    size_t maxsize = 0;
+    vector<size_t> paddim(in->ndim(), 0);
+    vector<size_t> downdim(in->ndim(), 0);
     vector<size_t> odim(in->ndim(), 0);
     for(size_t ii=0; ii<odim.size(); ii++) {
-        double tmp = fimg->dim(ii)*in->spacing()[ii]/sd_to_fwhm(sd[ii]);
-        if(tmp > fimg->dim(ii))
-            tmp = fimg->dim(ii);
-        odim[ii] = round2(tmp);
+        // compute ratio
+        double ratio;
+        if(sd_to_fwhm(sd[ii]) < 1)
+            ratio = 1;
+        else
+            ratio = 1/sd_to_fwhm(sd[ii]);
 
-    }
-    auto dfimg = dynamic_pointer_cast<MRImage>(
-            fimg->copyCast(odim.size(), odim.data()));
+        paddim[ii] = round2(in->dim(ii));
+        downdim[ii] = round2(ceil(ratio*in->dim(ii)));
+        odim[ii] = ceil(ratio*in->dim(ii));
+        maxsize = max(paddim[ii], maxsize);
 
-    // window with gaussian window, but only sample output image
-    vector<int64_t> dindex(in->ndim());
-    vector<int64_t> findex(in->ndim());
-    for(OrderIter<cdouble_t> iter(dfimg); !iter.eof(); ++iter) {
-        iter.index(dindex);
-
-        for(size_t dd=0; dd<in->ndim(); dd++) {
-            if(dindex[dd] < dfimg->dim(dd)/2)
-                findex[dd] = dindex[dd];
-            else
-                findex[dd] = fimg->dim(dd)-(dfimg->dim(dd)-dindex[dd]);
-        }
-
-        // window in each dimension
-        double w = 1;
-        for(size_t dd=0; dd<dfimg->ndim(); dd++) {
-            double ff = dindex[dd]/(double)dfimg->dim(dd);
-            if(ff > .5) ff = 1-ff; // negative frequencies
-            w *= exp(-M_PI*M_PI*ff*ff*2*sd[dd]*sd[dd]);
-        }
-
-
-        iter.set(facc[findex]*w);
+        assert(paddim[ii] >= downdim[ii]);
+        assert(odim[ii] <= in->dim(ii));
     }
 
-    // inverse fourier transform
-    auto out = dynamic_pointer_cast<MRImage>(ifft_c2r(dfimg));
+    auto out = dynamic_pointer_cast<MRImage>(
+            in->copyCast(odim.size(), odim.data()));
+
+    // smooth downsample each dimension
+    auto buffer1 = fftw_alloc_complex(2*maxsize);
+    auto buffer2 = &buffer1[maxsize];
+    for(size_t dd=0; dd<in->ndim(); dd++) {
+        auto fwd = fftw_plan_dft_1d((int)paddim[dd], buffer1, buffer2,
+                FFTW_FORWARD, FFTW_MEASURE);
+        auto rev = fftw_plan_dft_1d((int)downdim[dd], buffer1, buffer2, 
+                FFTW_BACKWARD, FFTW_MEASURE);
+
+        // copy input to buffer1, the perform fourier transform
+        ChunkConstIter<cdouble_t> it1(in);
+        it1.setLineChunk(dd);
+        for(size_t ii=0; !it1.eoc(); ii++, ++it1) {
+            cdouble_t tmp = *it1;;
+            buffer1[ii][0] = tmp.real();
+            buffer1[ii][1] = tmp.imag();
+        }
+        // fill remaining zeros
+        for(size_t ii=in->dim(dd); ii<paddim[dd]; ii++) {
+            buffer1[ii][0] = 0;
+            buffer1[ii][1] = 0;
+        }
+
+        // fourier transform
+        fftw_execute(fwd);
+
+        // window first half
+        double normf = 1./paddim[dd];
+        for(size_t ii=0; ii < downdim[dd]/2; ii++) {
+            double ff = ii/(double)paddim[ii];
+            double w = exp(-M_PI*M_PI*ff*ff*2*sd[dd]*sd[dd]);
+            buffer1[ii][0] = buffer2[ii][0]*w*normf;
+            buffer1[ii][0] = buffer2[ii][1]*w*normf;
+        }
+        // shift down negative frequencies, and window
+        for(int64_t ii = downdim[dd]/2; ii < downdim[dd]; ii++) {
+            // corresponding point in larger buffer
+            int64_t jj = paddim[dd]-downdim[dd]+ii; 
+            double ff = 1.-ii/(double)downdim[dd];
+            double w = exp(-M_PI*M_PI*ff*ff*2*sd[dd]*sd[dd]);
+            buffer1[ii][0] = buffer2[jj][0]*w;
+            buffer1[ii][1] = buffer2[jj][0]*w;
+        }
+
+        // reverse fourier transform
+        fftw_execute(rev);
+
+        // copy to output 
+        ChunkIter<cdouble_t> it2(out);
+        it2.setLineChunk(dd);
+        for(size_t ii=0; !it2.eoc(); ii++, ++it2) {
+            cdouble_t tmp(buffer2[ii][0], buffer2[ii][1]);
+            it2.set(tmp);
+        }
+    }
+
 
     // set spacing
     for(size_t dd=0; dd<in->ndim(); dd++) 
-        out->spacing()[dd] = in->spacing()[dd]*fimg->dim(dd)/dfimg->dim(dd);
+        out->spacing()[dd] = in->spacing()[dd]*paddim[dd]/downdim[dd];
     
     return out;
 }
@@ -261,6 +302,10 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
 
 	}
 }
+
+/*******************************************************************
+ * Input/Output Functions
+ ******************************************************************/
 
 /**
  * @brief Reads an MRI image. Right now only nift images are supported. later
