@@ -404,6 +404,20 @@ public:
 	 * medical image specific stuff, eventually these should be moved to a
 	 * medical image subclass
 	 */
+
+    /**
+     * @brief Returns true of the other image has matching orientation as this.
+     * If checksize = true, then it will also check the size of the two images
+     * and return true if both orientation and size match, and false if they
+     * don't. 
+     *
+     * @param other MRimage to compare.
+     * @param checksize Whether to enforce identical size as well as orientation
+     *
+     * @return True if the two images have matching orientation information.
+     */
+    virtual 
+    bool matchingOrient(shared_ptr<const MRImage> other, bool checksize) const;
 	
 	// < 0 indicate unset variables
 	int m_freqdim;
@@ -813,19 +827,6 @@ public:
 	 * @return Pointer to exact duplicate of current image.
 	 */
 	std::shared_ptr<MRImage> cloneImage() const;
-
-    /**
-     * @brief Returns true of the other image has matching orientation as this.
-     * If checksize = true, then it will also check the size of the two images
-     * and return true if both orientation and size match, and false if they
-     * don't. 
-     *
-     * @param other MRimage to compare.
-     * @param checksize Whether to enforce identical size as well as orientation
-     *
-     * @return True if the two images have matching orientation information.
-     */
-    bool matchingOrient(shared_ptr<const MRImage> other, bool checksize) const;
 
 protected:
 	// used to transform index to RAS (Right Handed Coordinate System)

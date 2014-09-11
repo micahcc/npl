@@ -1193,6 +1193,59 @@ void MRImage::copyMetadata(shared_ptr<const MRImage> in)
 	this->setOrient(in->origin(), in->spacing(), in->direction(), 1);
 };
 
+/**
+ * @brief Returns true of the other image has matching orientation as this.
+ * If checksize = true, then it will also check the size of the two images
+ * and return true if both orientation and size match, and false if they
+ * don't. 
+ *
+ * @param other MRimage to compare.
+ * @param checksize Whether to enforce identical size as well as orientation
+ *
+ * @return True if the two images have matching orientation information.
+ */
+bool MRImage::matchingOrient(shared_ptr<const MRImage> other, bool checksize) const
+{
+    if(ndim() != other->ndim())
+        return false;
+    
+    double err = 0;
+    double THRESH = 0.000001;
+
+    // check spacing
+    err = 0;
+    for(size_t dd=0; dd<ndim(); dd++) 
+        err += pow(spacing()[dd]-other->spacing()[dd],2);
+    if(err > THRESH)
+        return false;
+
+    // Check Origin
+    err = 0;
+    for(size_t dd=0; dd<ndim(); dd++) 
+        err += pow(origin()[dd]-other->origin()[dd],2);
+    if(err > THRESH)
+        return false;
+    
+    // check direction
+    err = 0;
+    for(size_t dd=0; dd<ndim(); dd++) {
+        for(size_t ee=0; ee<ndim(); ee++) {
+            err += pow(direction()(dd,ee)-other->direction()(dd,ee),2);
+        }
+    }
+    if(err > THRESH)
+        return false;
+  
+    if(checksize) {
+        for(size_t dd=0; dd<ndim(); dd++) {
+            if(dim(dd) != other->dim(dd))
+                return false;
+        }
+    }
+
+    return true;
+};
+
 /******************************************************************************
  * Pre-Compile Image Types
  ******************************************************************************/

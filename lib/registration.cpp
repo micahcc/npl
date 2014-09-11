@@ -17,10 +17,28 @@
  *
  *****************************************************************************/
 
+#include "lbfgs.h"
 #include "registration.h"
+#include "mrimage.h"
 #include "mrimage_utils.h"
+#include "accessors.h"
+#include "iterators.h"
+
+#include <memory>
+#include <stdexcept>
+#include <functional>
+
+#include <Eigen/Dense>
+
+using std::dynamic_pointer_cast;
 
 using Eigen::VectorXd;
+using Eigen::Vector3d;
+using Eigen::Matrix3d;
+using Eigen::AngleAxisd;
+
+using std::cerr;
+using std::endl;
 
 #define VERYDEBUG 1
 
@@ -29,6 +47,8 @@ using Eigen::VectorXd;
 #else
 #define DEBUGWRITE(FOO) 
 #endif
+
+namespace npl {
 
 /**
  * @brief Performs motion correction on a set of volumes. Each 3D volume is
@@ -43,21 +63,20 @@ using Eigen::VectorXd;
  */
 shared_ptr<MRImage> motionCorrect(shared_ptr<const MRImage> input, size_t ref)
 {
-    
+ 
+    (void)input;
+    (void)ref;
     return NULL;
 };
 
 
-int computeRotationGrad(
+int rotationGrad(
         shared_ptr<const MRImage> fixed, 
         shared_ptr<const MRImage> moving, 
         shared_ptr<const MRImage> moving_deriv, 
         const VectorXd& params, VectorXd& grad)
 {
-    if(!workspace) 
-        workspace = dynamic_pointer_cast<MRImage>(fixed->copy());
 
-    assert(workspace->ndim() == 3);
     assert(fixed->ndim() == 3);
     assert(moving->ndim() == 3);
 
@@ -75,40 +94,36 @@ int computeRotationGrad(
     auto d_shift_x = dynamic_pointer_cast<MRImage>(moving->copy());
     auto d_shift_y = dynamic_pointer_cast<MRImage>(moving->copy());
     auto d_shift_z = dynamic_pointer_cast<MRImage>(moving->copy());
-    NDAccess<double> d_ang_x(d_theta_x);
-    NDAccess<double> d_ang_y(d_theta_y);
-    NDAccess<double> d_ang_z(d_theta_z);
-    NDAccess<double> d_shi_x(d_shift_x);
-    NDAccess<double> d_shi_y(d_shift_y);
-    NDAccess<double> d_shi_z(d_shift_z);
+    Pixel3DView<double> d_ang_x(d_theta_x);
+    Pixel3DView<double> d_ang_y(d_theta_y);
+    Pixel3DView<double> d_ang_z(d_theta_z);
+    Pixel3DView<double> d_shi_x(d_shift_x);
+    Pixel3DView<double> d_shi_y(d_shift_y);
+    Pixel3DView<double> d_shi_z(d_shift_z);
 #endif
 
 	LinInterp3DView<double> lin(moving);
-	Matrix4d m;
-    m.setZero();
 
 	// negate because we are starting from the destination and mapping from
 	// the source, since we need to invert, it is necessary to reverse the
     // real order
-	m.block<3,3>(0,0) = 
-                AngleAxisd(-rz, Vector3d::UnitZ())*
+    Matrix3d rotation;
+	rotation = AngleAxisd(-rz,Vector3d::UnitZ())*
                 AngleAxisd(-ry,Vector3d::UnitY())*
                 AngleAxisd(-rx,Vector3d::UnitX());
-    m(0, 3) = sx;
-    m(1, 3) = sy;
-    m(2, 3) = sz;
+	Vector3d shift(sx, sy, sz);
 
-    DEBUGWRITE(cerr << "Params: " << params.transpose() << " Matrix: " 
-            << m << endl;);
+    DEBUGWRITE(cerr << "Params: " << params.transpose() << " Rotation: " 
+            << rotation << " Shift: " << shift.transpose() << endl;);
 
     // for interpolating moving image
     LinInterp3DView<double> get_dmove(moving_deriv);
     LinInterp3DView<double> get_move(moving);
 
     // for computing roted indices
-	Vector4d ind; ind.setOnes();
-	Vector4d cind; cind.setOnes();
-	Vector4d center; center.setZero();
+	Vector3d ind; ind.setOnes();
+	Vector3d cind; cind.setOnes();
+	Vector3d center; center.setZero();
 
     // compute center
 	for(size_t ii=0; ii<3 && ii<moving->ndim(); ii++) 
@@ -117,9 +132,9 @@ int computeRotationGrad(
     //  Compute derivative Images (if debugging is enabled, otherwise just
     //  compute the gradient)
     grad.setZero();
-    for(OrderIter<double> it(fixed); !it.eof(); ++it) {
+    for(NDConstIter<double> it(fixed); !it.eof(); ++it) {
 		it.index(3, ind.array().data());
-		cind = m*(ind-center)+center;
+		cind = rotation*(ind-center)+center+shift;
         
         // Here we compute dg(v(u,p))/dp, where g is the image, u is the
         // coordinate in the fixed image, and p is the param. 
@@ -160,12 +175,12 @@ int computeRotationGrad(
         double dCdSz = dg_dz;
 
 #ifdef VERYDEBUG
-        d_ang_x.set(dCdRx, index);
-        d_ang_y.set(dCdRy, index);
-        d_ang_z.set(dCdRz, index);
-        d_shi_x.set(dCdSx, index);
-        d_shi_y.set(dCdSy, index);
-        d_shi_z.set(dCdSz, index);
+        d_ang_x.set(dCdRx, ind[0], ind[1], ind[2]);
+        d_ang_y.set(dCdRy, ind[0], ind[1], ind[2]);
+        d_ang_z.set(dCdRz, ind[0], ind[1], ind[2]);
+        d_shi_x.set(dCdSx, ind[0], ind[1], ind[2]);
+        d_shi_y.set(dCdSy, ind[0], ind[1], ind[2]);
+        d_shi_z.set(dCdSz, ind[0], ind[1], ind[2]);
 #endif
      
         grad[0] += (*it)*dCdRx;
@@ -187,19 +202,19 @@ int computeRotationGrad(
     d_shift_z->write("d_shift_z.nii.gz");
 #endif
 
+    return 0;
 };
 
-int computeRotationValue(
+int rotationValue(
         shared_ptr<const MRImage> fixed, 
         shared_ptr<const MRImage> moving, 
         const VectorXd& params, double& val)
 {
 #ifdef VERYDEBUG
     auto workspace = dynamic_pointer_cast<MRImage>(fixed->copy());
-    NDAccess<double> acc(workspace);
+    Pixel3DView<double> acc(workspace);
 #endif 
 
-    assert(workspace->ndim() == 3);
     assert(fixed->ndim() == 3);
     assert(moving->ndim() == 3);
 
@@ -211,26 +226,22 @@ int computeRotationValue(
     double sz = params[5];
 
 	LinInterp3DView<double> lin(moving);
-	Matrix4d m;
-    m.setZero();
 
 	// negate because we are starting from the destination and mapping from
 	// the source, since we need to invert, it is necessary to reverse the
     // real order
-	m.block<3,3>(0,0) = 
-                AngleAxisd(-rz, Vector3d::UnitZ())*
+	Matrix3d rotation;
+	rotation = AngleAxisd(-rz, Vector3d::UnitZ())*
                 AngleAxisd(-ry,Vector3d::UnitY())*
                 AngleAxisd(-rx,Vector3d::UnitX());
-    m(0, 3) = sx;
-    m(1, 3) = sy;
-    m(2, 3) = sz;
+    Vector3d shift(sx, sy, sz);
 
-    DEBUGWRITE(cerr << "Params: " << params.transpose() << " Matrix: " 
-            << m << endl;);
+    DEBUGWRITE(cerr << "Params: " << params.transpose() << " Rotation: " 
+            << rotation << " Shift: " << shift.transpose() << endl;);
 
-	Vector4d ind; ind.setOnes();
-	Vector4d cind; cind.setOnes();
-	Vector4d center; center.setZero();
+	Vector3d ind;
+	Vector3d cind;
+	Vector3d center;
 
     // compute center
 	for(size_t ii=0; ii<3 && ii<moving->ndim(); ii++) 
@@ -243,13 +254,13 @@ int computeRotationValue(
     double ss1 = 0;
     double ss2 = 0;
     double corr = 0;
-	for(OrderIter<double> it(fixed); !it.eof(); ++it) {
+	for(NDConstIter<double> it(fixed); !it.eof(); ++it) {
 		it.index(3, ind.array().data());
-		cind = m*(ind-center)+center;
+		cind = rotation*(ind-center)+center+shift;
         
         double a = lin(cind[0], cind[1], cind[2]);
 #ifdef VERYDEBUG
-        acc.set(a, index);
+        acc.set(a, ind[0], ind[1], ind[2]);
 #endif
         double b = *it;
         sum1 += a;
@@ -261,6 +272,7 @@ int computeRotationValue(
 
     val = sample_corr(fixed->elements(), sum1, sum2, ss1, ss2, corr);
 
+    return 0;
 };
 
 /**
@@ -276,34 +288,55 @@ int computeRotationValue(
  *                  4th column.
  */
 Matrix4d corReg3D(shared_ptr<const MRImage> fixed, 
-        shared_ptr<const MRImage> moving, size_t ref)
+        shared_ptr<const MRImage> moving)
 {
+    using namespace std::placeholders;
+
+    Matrix4d output;
+
     // make sure the input image have matching properties
     if(!fixed->matchingOrient(moving, true))
-        throw std::bad_argument("Input images have mismatching pixels in\n" +
-                __FUNCTION_STR__);
+        throw std::invalid_argument("Input images have mismatching pixels "
+                "in\n" + __FUNCTION_STR__);
 
     std::vector<double> sigma_schedule({8, 4, 2});
 
     for(size_t ii=0; ii<sigma_schedule.size(); ii++) {
         // smooth and downsample input images
         auto tmpfixed = smoothDownsample(fixed, sigma_schedule[ii]);
-        auto tmpmoving = smoothDownsample(tmpmoving, sigma_schedule[ii]);
+        auto tmpmoving = smoothDownsample(moving, sigma_schedule[ii]);
 
         // compute derivatives
-        auto dfixed = derivative(tmpfixed);
-        auto dmoving = derivative(tmpmoving);
-        DEBUGWRITE(dfixed->write("dfixed.nii.gz");
-        DEBUGWRITE(dmoving->write("dfixed.nii.gz");
+        auto deriv = derivative(tmpmoving);
+        DEBUGWRITE(deriv->write("movderiv.nii.gz"));
+        
+        // create value and gradient functions
+        auto vfunc = std::bind(rotationValue, fixed, moving, _1, _2);
+        auto gfunc = std::bind(rotationGrad, fixed, moving, deriv, _1, _2);
+#ifdef VERYDEBUG
+        double error = 0;
+        double tol = 0.01;
+        VectorXd x = VectorXd::Zero(6);
+        if(testgrad(error, x, 0.00000001, tol, vfunc, gfunc) != 0) {
+            throw std::logic_error("Analytical/numeric derivative mismatch "
+                    "in\n"+ __FUNCTION_STR__);
+        }
+#endif
 
         // initialize optimizer
-
+        LBFGSOpt opt(6, vfunc, gfunc);
+        opt.state_x = VectorXd::Zero(6);
+        opt.stop_Its = 10000;
+        opt.stop_X = 0;
+        opt.stop_G = 0.0000000001;
+        StopReason stopr = opt.optimize();
+        cerr << Optimizer::explainStop(stopr) << endl;
     }
 
-
-    // set up optimizer
-    
-    // run
-    
-    // apply parameters
+    // TODO set output
+    output.setZero();
+    return output; 
 };
+
+}
+
