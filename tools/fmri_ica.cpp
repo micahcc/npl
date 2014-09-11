@@ -113,7 +113,7 @@ int main(int argc, char** argv)
     
     for(size_t cc = 0; cc < regr.cols(); cc++) {
         // perform regression
-        imageRegress();
+        //imageRegress();
     }
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions

@@ -33,8 +33,6 @@
 #include "iterators.h"
 #include "accessors.h"
 
-
-
 using namespace npl;
 using namespace std;
 using Eigen::Matrix3d;
@@ -125,7 +123,7 @@ int main()
     // linear ntperolation
 	cerr << "!Rotating manually" << endl;
 	clock_t c = clock();
-	auto out1 = linearRotate(Rx, Ry, Rz, in);
+	auto out1 = dynamic_pointer_cast<MRImage>(linearRotate(Rx, Ry, Rz, in));
 	c = clock() - c;
 	cerr << "!Linear Rotate took " << c/(double)CLOCKS_PER_SEC << "s" << endl;
 	out1->write("brute_rotated.nii.gz");

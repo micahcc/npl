@@ -39,6 +39,10 @@ namespace npl {
 using std::vector;
 using std::shared_ptr;
 
+/**
+ * \defgroup NDarrayUtilities 
+ * @{
+ */
 
 /**
  * @brief Returns whether two NDArrays have the same dimensions, and therefore
@@ -231,6 +235,19 @@ int shearDecompose(std::list<Eigen::Matrix3d>& bestshears,
  */
 int shearTest(double Rx, double Ry, double Rz);
 
+/**
+ * @brief Performs a rotation of the image first by rotating around z, then
+ * around y, then around x. (Rx*Ry*Rz)
+ *
+ * @param rx Rotation around x, radians
+ * @param ry Rotation around y, radians
+ * @param rz Rotation around z, radians
+ * @param in Input image
+ *
+ * @return Rotated image.
+ */
+shared_ptr<NDArray> linearRotate(double rx, double ry, double rz, 
+		shared_ptr<const NDArray> in);
 
 /********************
  * Image Rotating
@@ -315,6 +332,8 @@ std::vector<std::shared_ptr<NDArray>> pseudoPolar(shared_ptr<const NDArray> in);
  */
 shared_ptr<NDArray> pseudoPolarZoom(shared_ptr<const NDArray> inimg, 
         size_t prdim);
+
+/** @}  NDArrayUtilities */
 
 } // npl
 #endif  //NDARRAY_UTILS_H

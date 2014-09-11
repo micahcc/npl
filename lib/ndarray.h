@@ -57,6 +57,11 @@ class NDArray;
  ******************************************************************************/
 
 /**
+ * \addtogroup NDarrayUtilities 
+ * @{
+ */
+
+/**
  * @brief Creates a new NDArray with dimensions set by ndim, and size set by
  * size. Output pixel type is decided by ptype variable.
  *
@@ -110,6 +115,7 @@ shared_ptr<NDArray> createNDArray(size_t ndim, const size_t* size,
 shared_ptr<NDArray> createNDArray(const std::vector<size_t>& dim, 
         PixelT ptype, void* ptr, std::function<void(void*)> deleter);
 
+/** @} NDArrayUtilities */
 
 /******************************************************************************
  * Classes.

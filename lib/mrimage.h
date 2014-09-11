@@ -55,6 +55,10 @@ class MRImage;
 /*****************************************************************************
  * Helper Function to Create MRImage's
  ****************************************************************************/
+/**
+ * \addtogroup MRImageUtilities
+ * @{
+ */
 
 /**
  * @brief Creates a new MRImage with dimensions set by ndim, and size set by
@@ -145,6 +149,7 @@ int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap, bool verb
  */
 int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap, bool verbose);
 
+/** @} MRImageUtilities */
 
 /******************************************************************************
  * Classes.
@@ -862,6 +867,5 @@ protected:
 	int writeNifti2Header(gzFile file) const;
 	int writePixels(gzFile file) const;
 };
-
 } // npl
 #endif
