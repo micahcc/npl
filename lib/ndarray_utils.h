@@ -40,7 +40,7 @@ using std::vector;
 using std::shared_ptr;
 
 /**
- * \defgroup NDarrayUtilities 
+ * \defgroup NDarrayUtilities General Purpose NDarray and Image Functions
  * @{
  */
 

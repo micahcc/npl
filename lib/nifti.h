@@ -17,6 +17,12 @@
  *
  *****************************************************************************/
 
+/**
+ * \defgroup NiftiFormat The NIFTI File Format
+ * @{
+ *
+ */
+
 #ifndef NIFTI_H
 #define NIFTI_H
 
@@ -277,7 +283,7 @@ enum NIFTI_TYPE {
        p1 = degrees of freedom
        R/sqrt(1-R*R) is t-distributed with p1 DOF. */
 
-/*! \defgroup NIFTI1_INTENT_CODES
+/*! \defgroup NIFTI1_INTENT_CODES Intent Codes 
     \brief nifti1 intent codes, to describe intended meaning of dataset contents
     @{
  */
@@ -802,7 +808,7 @@ enum NIFTI_TYPE {
    /* [qs]form_code value:  */      /* x,y,z coordinate system refers to:    */
    /*-----------------------*/      /*---------------------------------------*/
 
-/*! \defgroup NIFTI1_XFORM_CODES
+/*! \defgroup NIFTI1_XFORM_CODES Patient Orientation Codes 
     \brief nifti1 xform codes to describe the "standard" coordinate system
     @{
  */
@@ -851,7 +857,7 @@ enum NIFTI_TYPE {
    for m=0..dim[4]-1.
 -----------------------------------------------------------------------------*/
 
-/*! \defgroup NIFTI1_UNITS
+/*! \defgroup NIFTI1_UNITS Image Unit Codes
     \brief nifti1 units codes to describe the unit of measurement for
            each dimension of the dataset
     @{
@@ -963,7 +969,7 @@ enum NIFTI_TYPE {
   into the dim_info byte.
 -----------------------------------------------------------------------------*/
 
-/*! \defgroup NIFTI1_SLICE_ORDER
+/*! \defgroup NIFTI1_SLICE_ORDER Slice Order Codes
     \brief nifti1 slice order codes, describing the acquisition order
            of the slices
     @{
@@ -975,6 +981,8 @@ enum NIFTI_TYPE {
 #define NIFTI_SLICE_ALT_DEC   4
 #define NIFTI_SLICE_ALT_INC2  5  /* 05 May 2005: RWCox */
 #define NIFTI_SLICE_ALT_DEC2  6  /* 05 May 2005: RWCox */
-/* @} */
+/** @} */
+
+/** @} NiftiFormat */
 
 #endif /* _NIFTI_HEADER_ */
