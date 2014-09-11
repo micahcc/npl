@@ -41,13 +41,9 @@ using std::vector;
 using std::shared_ptr;
 
 #ifdef VERYDEBUG
-
 #define DEBUGWRITE(FOO) FOO 
-
 #else
-
-#define DEBUGWRITE(FOO)
-
+#define DEBUGWRITE(FOO) 
 #endif
 
 /**

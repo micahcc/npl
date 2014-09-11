@@ -1,0 +1,3 @@
+[submodule "deps/optimizers"]
+	path = deps/optimizers
+	url = git@github.com:MicahChambers/cppConvexOptimizers.git

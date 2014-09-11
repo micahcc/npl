@@ -72,6 +72,8 @@ MatrixXd reduce(shared_ptr<const MRImage> in)
     return X_ic;
 }
 
+
+
 int main(int argc, char** argv)
 {
 	try {
@@ -107,8 +109,12 @@ int main(int argc, char** argv)
 	}
 
     // 
-	
-
+	MatrixXd regr = reduce(inimg);
+    
+    for(size_t cc = 0; cc < regr.cols(); cc++) {
+        // perform regression
+        imageRegress();
+    }
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
