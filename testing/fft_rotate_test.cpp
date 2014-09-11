@@ -41,47 +41,6 @@ using Eigen::Matrix3d;
 using Eigen::Vector3d;
 using Eigen::AngleAxisd;
 
-/**
- * @brief Performs a rotation of the image first by rotating around z, then
- * around y, then around x.
- *
- * @param rx Rotation around x, radians
- * @param ry Rotation around y, radians
- * @param rz Rotation around z, radians
- * @param in Input image
- *
- * @return 
- */
-shared_ptr<MRImage> linearRotate(double rx, double ry, double rz, 
-		shared_ptr<const MRImage> in)
-{
-	Matrix3d m;
-	// negate because we are starting from the destination and mapping from
-	// the source, since we need to invert, it is necessary to reverse the
-    // real order
-	m = AngleAxisd(-rz, Vector3d::UnitZ())*AngleAxisd(-ry,Vector3d::UnitY())*
-                AngleAxisd(-rx,Vector3d::UnitX());
-	LinInterp3DView<double> lin(in);
-	auto out = dynamic_pointer_cast<MRImage>(in->copy());
-	Vector3d ind;
-	Vector3d cind;
-	Vector3d center;
-	for(size_t ii=0; ii<3 && ii<in->ndim(); ii++) {
-		center[ii] = (in->dim(ii)-1)/2.;
-	}
-
-	for(Vector3DIter<double> it(out); !it.isEnd(); ++it) {
-		it.index(3, ind.array().data());
-		cind = m*(ind-center)+center;
-
-		// set for each t
-		for(size_t tt = 0; tt<in->tlen(); tt++) 
-			it.set(tt, lin(cind[0], cind[1], cind[2], tt));
-	}
-
-	return out;
-}
-
 int closeCompare(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b, 
         double thresh = .01)
 {
