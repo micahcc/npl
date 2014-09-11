@@ -63,6 +63,7 @@ int main()
 {
     // create test image
     auto img = squareImage();
+    img->write("regtest1_init.nii.gz");
 
     // rotate it
     auto moved = toMRImage(img->copy());
@@ -73,6 +74,7 @@ int main()
     shiftImageFFT(moved, 2, -2);
 
     // perform registration
+    moved->write("regtest1_moved.nii.gz");
     auto result = corReg3D(img, moved);
 
     (void)result;
