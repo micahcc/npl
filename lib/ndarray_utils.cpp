@@ -86,7 +86,6 @@ shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in, size_t dir)
         // before
         if(index[dir] == 0) {
             dy -= inGet[index];
-            index[dir]++;
         } else {
             index[dir]--;
             dy -= inGet[index];
@@ -149,7 +148,6 @@ shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in)
             // before
             if(index[dd] == 0) {
                 dy -= inGet[index];
-                index[dd]++;
             } else {
                 index[dd]--;
                 dy -= inGet[index];
@@ -164,6 +162,7 @@ shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in)
                 index[dd]++;
                 dy += inGet[index];
                 dx++;
+                index[dd]--;
             }
 
             // set

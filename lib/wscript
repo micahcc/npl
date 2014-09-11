@@ -5,7 +5,7 @@ def build(bld):
     
     bld.shlib(target = 'registration',
             source = 'registration.cpp',
-            use='mrimage mrimage_utils accessors iterators lbfgs',
+            use='mrimage mrimage_utils ndarray_utils accessors iterators lbfgs',
             export_includes = ['.'])
     bld.shlib(target = 'statistics',
             source = 'statistics.cpp',

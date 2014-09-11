@@ -403,7 +403,7 @@ shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
         if(sd_to_fwhm(sd[ii]) < 1)
             ratio = 1;
         else
-            ratio = 1/sd_to_fwhm(sd[ii]);
+            ratio = 2/sd_to_fwhm(sd[ii]);
 
         paddim[ii] = round2(in->dim(ii));
         odim[ii] = ceil(ratio*in->dim(ii));

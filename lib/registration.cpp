@@ -21,6 +21,7 @@
 #include "registration.h"
 #include "mrimage.h"
 #include "mrimage_utils.h"
+#include "ndarray_utils.h"
 #include "accessors.h"
 #include "iterators.h"
 
@@ -49,6 +50,9 @@ using std::endl;
 #endif
 
 namespace npl {
+
+
+// TODO Prevent wrapping of smoothDownsample by padding more
 
 /**
  * @brief Performs motion correction on a set of volumes. Each 3D volume is
@@ -113,8 +117,8 @@ int rotationGrad(
                 AngleAxisd(-rx,Vector3d::UnitX());
 	Vector3d shift(sx, sy, sz);
 
-    DEBUGWRITE(cerr << "Params: " << params.transpose() << " Rotation: " 
-            << rotation << " Shift: " << shift.transpose() << endl;);
+    DEBUGWRITE(cerr << "Params: " << params.transpose() << "\nRotation:\n" 
+            << rotation << "\nShift: " << shift.transpose() << endl;);
 
     // for interpolating moving image
     LinInterp3DView<double> get_dmove(moving_deriv);
@@ -236,8 +240,8 @@ int rotationValue(
                 AngleAxisd(-rx,Vector3d::UnitX());
     Vector3d shift(sx, sy, sz);
 
-    DEBUGWRITE(cerr << "Params: " << params.transpose() << " Rotation: " 
-            << rotation << " Shift: " << shift.transpose() << endl;);
+    DEBUGWRITE(cerr << "Params: " << params.transpose() << "\nRotation:\n" 
+            << rotation << "\nShift: " << shift.transpose() << endl;);
 
 	Vector3d ind;
 	Vector3d cind;
@@ -299,15 +303,17 @@ Matrix4d corReg3D(shared_ptr<const MRImage> fixed,
         throw std::invalid_argument("Input images have mismatching pixels "
                 "in\n" + __FUNCTION_STR__);
 
-    std::vector<double> sigma_schedule({8, 4, 2});
+    std::vector<double> sigma_schedule({3, 2, 1});
 
     for(size_t ii=0; ii<sigma_schedule.size(); ii++) {
         // smooth and downsample input images
         auto tmpfixed = smoothDownsample(fixed, sigma_schedule[ii]);
         auto tmpmoving = smoothDownsample(moving, sigma_schedule[ii]);
+        DEBUGWRITE(tmpfixed->write("smooth_fixed.nii.gz"));
+        DEBUGWRITE(tmpmoving->write("smooth_moving.nii.gz"));
 
         // compute derivatives
-        auto deriv = derivative(tmpmoving);
+        auto deriv = toMRImage(derivative(tmpmoving));
         DEBUGWRITE(deriv->write("movderiv.nii.gz"));
         
         // create value and gradient functions
