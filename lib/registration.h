@@ -25,11 +25,10 @@
 
 #include <memory>
 
-namespace npl {
-
-using std::vector;
 using std::shared_ptr;
 using Eigen::Matrix4d;
+
+namespace npl {
 
 /**
  * @brief Performs motion correction on a set of volumes. Each 3D volume is
@@ -57,7 +56,7 @@ shared_ptr<MRImage> motionCorrect(shared_ptr<const MRImage> input, size_t ref);
  *                  4th column.
  */
 Matrix4d corReg3D(shared_ptr<const MRImage> fixed, 
-        shared_ptr<const MRImage> moving, size_t ref);
+        shared_ptr<const MRImage> moving);
 
 } // npl
 #endif  //MRIMAGE_UTILS_H

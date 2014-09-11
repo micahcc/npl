@@ -218,6 +218,11 @@ def build(bld):
             source='smooth_test1.cpp', 
             use='mrimage_utils')
 
+    # Registration Testing
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='rigid_reg_test1', 
+            source='rigid_reg_test1.cpp', 
+            use='registration')
 #
 #    bld.program(install_path='${PREFIX}/tests', features='test',
 #            target='fract_fft_test', 

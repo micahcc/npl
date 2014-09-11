@@ -28,6 +28,7 @@ def configure(conf):
     conf.env.RPATH = []
     if opts['enable_rpath'] or opts['enable_build_rpath']:
         conf.env.RPATH.append('$ORIGIN/../lib')
+        conf.env.RPATH.append('$ORIGIN/../deps/optimizers/lib')
     
     if opts['enable_rpath'] or opts['enable_install_rpath']:
         conf.env.RPATH.append('$ORIGIN/../lib')

@@ -70,7 +70,7 @@ shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in, size_t dir)
         throw std::invalid_argument("Input direction is outside range of "
                 "input dimensions in\n" + __FUNCTION_STR__);
 
-    auto out = in->copy();
+    auto out = dynamic_pointer_cast<MRImage>(in->copy());
 
     vector<int64_t> index(in->ndim());
     NDConstAccess<double> inGet(in);
@@ -80,16 +80,34 @@ shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in, size_t dir)
         // get index
         oit.index(index.size(), index.data());
 
+        double dx = 0;
+        double dy = 0;
+        
         // before
-        index[dir]--;
-        double der = -inGet[index];
+        if(index[dir] == 0) {
+            dy -= inGet[index];
+            index[dir]++;
+        } else {
+            index[dir]--;
+            dy -= inGet[index];
+            dx++;
+            index[dir]++;
+        }
 
         // after
-        index[dir] += 2;
-        der += inGet[index];
+        if(index[dir] == in->dim(dir)-1) {
+            dy += inGet[index];
+        } else {
+            index[dir]++;
+            dy += inGet[index];
+            dx++;
+        }
 
         // set
-        oit.set(dir, der/2.);
+        if(fabs(dy) < 0.00000000001)
+            oit.set(dir, 0);
+        else
+            oit.set(dir, dy/dx);
     }
 
     return out;
@@ -112,7 +130,8 @@ shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in)
 {
     vector<size_t> osize(in->dim(), in->dim()+in->ndim());
     osize.push_back(in->ndim());
-    auto out = in->copyCast(osize.size(), osize.data());
+    auto out = dynamic_pointer_cast<MRImage>(
+            in->copyCast(osize.size(), osize.data()));
 
     vector<int64_t> index(in->ndim());
     NDConstAccess<double> inGet(in);
@@ -124,16 +143,34 @@ shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in)
 
         // compute derivative in each direction
         for(size_t dd=0; dd<in->ndim(); dd++) {
+            double dx = 0;
+            double dy = 0;
+
             // before
-            index[dd]--;
-            double der = -inGet[index];
+            if(index[dd] == 0) {
+                dy -= inGet[index];
+                index[dd]++;
+            } else {
+                index[dd]--;
+                dy -= inGet[index];
+                dx++;
+                index[dd]++;
+            }
 
             // after
-            index[dd] += 2;
-            der += inGet[index];
+            if(index[dd] == in->dim(dd)-1) {
+                dy += inGet[index];
+            } else {
+                index[dd]++;
+                dy += inGet[index];
+                dx++;
+            }
 
             // set
-            oit.set(dd, der/2.);
+            if(fabs(dy) < 0.00000000001)
+                oit.set(dd, 0);
+            else
+                oit.set(dd, dy/dx);
         }
     }
 
