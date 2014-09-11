@@ -18,13 +18,10 @@
  *
  *****************************************************************************/
 
-#include <version.h>
 #include <string>
 #include <stdexcept>
 
 #include <Eigen/Geometry> 
-
-#define DEBUG 1
 
 #include "mrimage.h"
 #include "mrimage_utils.h"

@@ -61,6 +61,32 @@ class MRImage;
  */
 
 /**
+ * @brief Casts an NDArray pointer to an MRImage pointer
+ *
+ * @param in NDarray pointer
+ *
+ * @return MRImage Pointer (with proper reference counts)
+ */
+inline
+shared_ptr<MRImage> toMRImage(shared_ptr<NDArray> in)
+{
+    return std::dynamic_pointer_cast<MRImage>(in);
+}
+
+/**
+ * @brief Casts an NDArray pointer to an MRImage pointer
+ *
+ * @param in NDarray pointer
+ *
+ * @return MRImage Pointer (with proper reference counts)
+ */
+inline
+shared_ptr<const MRImage> toMRImage(shared_ptr<const NDArray> in)
+{
+    return std::dynamic_pointer_cast<const MRImage>(in);
+}
+
+/**
  * @brief Creates a new MRImage with dimensions set by ndim, and size set by
  * size. Output pixel type is decided by type variable.
  *

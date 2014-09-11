@@ -109,16 +109,34 @@ shared_ptr<MRImage> derivative(shared_ptr<const MRImage> in, size_t dir)
         // get index
         oit.index(index.size(), index.data());
 
+        double dx = 0;
+        double dy = 0;
+        
         // before
-        index[dir]--;
-        double der = -inGet[index];
+        if(index[dir] == 0) {
+            dy -= inGet[index];
+            index[dir]++;
+        } else {
+            index[dir]--;
+            dy -= inGet[index];
+            dx++;
+            index[dir]++;
+        }
 
         // after
-        index[dir] += 2;
-        der += inGet[index];
+        if(index[dir] == in->dim(dir)-1) {
+            dy += inGet[index];
+        } else {
+            index[dir]++;
+            dy += inGet[index];
+            dx++;
+        }
 
         // set
-        oit.set(dir, der/(in->spacing()[dir]*2));
+        if(fabs(dy) < 0.00000000001)
+            oit.set(dir, 0);
+        else
+            oit.set(dir, dy/(in->spacing()[dir]*dx));
     }
 
     return out;
@@ -154,16 +172,34 @@ shared_ptr<MRImage> derivative(shared_ptr<const MRImage> in)
 
         // compute derivative in each direction
         for(size_t dd=0; dd<in->ndim(); dd++) {
+            double dx = 0;
+            double dy = 0;
+
             // before
-            index[dd]--;
-            double der = -inGet[index];
+            if(index[dd] == 0) {
+                dy -= inGet[index];
+                index[dd]++;
+            } else {
+                index[dd]--;
+                dy -= inGet[index];
+                dx++;
+                index[dd]++;
+            }
 
             // after
-            index[dd] += 2;
-            der += inGet[index];
+            if(index[dd] == in->dim(dd)-1) {
+                dy += inGet[index];
+            } else {
+                index[dd]++;
+                dy += inGet[index];
+                dx++;
+            }
 
             // set
-            oit.set(dd, der/(in->spacing()[dd]*2));
+            if(fabs(dy) < 0.00000000001)
+                oit.set(dd, 0);
+            else
+                oit.set(dd, dy/(in->spacing()[dd]*dx));
         }
     }
 
