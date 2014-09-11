@@ -3,6 +3,10 @@ def build(bld):
     bld(name = 'kdtree', export_includes = ['.'])
     bld(name = 'basic_functions', export_includes = ['.'])
     
+    bld.shlib(target = 'registration',
+            source = 'registration.cpp',
+            use='mrimage mrimage_utils accessors iterators lbfgs',
+            export_includes = ['.'])
     bld.shlib(target = 'statistics',
             source = 'statistics.cpp',
             use='EIGEN',

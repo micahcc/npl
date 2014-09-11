@@ -33,6 +33,31 @@
 
 namespace npl {
 
+/** \defgroup Accessors 
+ *
+ * Accessors are used to get and set pixel data. Since
+ * the pixel type is hidden in images and arrays, accessors perform the
+ * necessary casting.
+ * Thus 
+ *
+ * \code{.cpp}
+ * NDaccess<double> dacc(img);
+ * double v = dacc[index];
+ *
+ * NDaccess<std::complex<double>> cacc(img);
+ * std::complex<double> c = cacc[index];
+ * \endcode
+ *
+ * Can both be used to access the same data. Of course upon writing or if
+ * you need a particular precision you should cast the image to ensure 
+ * that you aren't losing anything. While this may seem convoluted it allowes
+ * for general purpose coding of functions without having to maintain the 
+ * type in every single function declaration. This is what you would
+ * effectively do in C if you had a void*.
+ *
+ * @{
+ */
+
 /**
  * @brief This is a basic accessor class, which allows for accessing
  * array data in the type specified by the template.
@@ -1063,6 +1088,10 @@ protected:
 	T operator[](const std::vector<int64_t>& i) { (void)(i); return T(); };
 	size_t m_radius;
 };
+
+/**
+ * @}
+ */
 
 } // namespace npl
 

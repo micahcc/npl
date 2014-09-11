@@ -29,6 +29,34 @@
 
 namespace npl {
 
+ /** \defgroup Iterators
+ *
+ * Iterators are similar to accessors in that they perform casting, however 
+ * they also advance through pixels. Thus they are designed to walk over the 
+ * image or array space. 
+ *
+ * A simple example:
+ * \code{.cpp}
+ * double sum = 0;
+ * for(FlatIter<double> it(img); !it.isEnd(); ++it) {
+ *   sum += *it;
+ * }
+ * \endcode
+ *
+ * FlatIter doesn't maintain an ND-index however, so if you need index
+ * information try NDIter. So for instance the code below would set pixels
+ * to their x index:
+ * \code{.cpp}
+ * vector<int64_t> ind(img->ndim());
+ * for(NDIter<double> it(img); !it.eof(); ++it) {
+ *    it.index(ind);
+ *    it.set(ind[0]);
+ * }
+ * \endcode
+ *
+ * @{
+ */
+
 /**
  * @brief Flat iterator for NDArray. No information is kept about
  * the current ND index. Just goes through all data. This casts the output to the
@@ -527,15 +555,15 @@ private:
 
 
 /**
- * @brief Constant iterator for NDArray. Typical usage calls for OrderConstIter it(array); it++; *it
+ * @brief Constant iterator for NDArray. Typical usage calls for NDConstIter it(array); it++; *it
  *
  * @tparam T
  */
 template <typename T = double>
-class OrderConstIter : public Slicer
+class NDConstIter : public Slicer
 {
 public:
-	OrderConstIter(std::shared_ptr<const NDArray> in) :
+	NDConstIter(std::shared_ptr<const NDArray> in) :
 		Slicer(in->ndim(), in->dim()), parent(in)
 	{
 		switch(in->type()) {
@@ -590,7 +618,7 @@ public:
 			case UNKNOWN_TYPE:
 			default:
 				castget = castgetStatic<uint8_t>;
-				throw std::invalid_argument("Unknown type to OrderConstIter");
+				throw std::invalid_argument("Unknown type to NDConstIter");
 				break;
 		}
 	};
@@ -600,7 +628,7 @@ public:
 	 *
 	 * @return new value
 	 */
-	OrderConstIter& operator++()
+	NDConstIter& operator++()
 	{
 		Slicer::operator++();
 		return *this;
@@ -611,7 +639,7 @@ public:
 	 *
 	 * @return new value
 	 */
-	OrderConstIter& operator--()
+	NDConstIter& operator--()
 	{
 		Slicer::operator--();
 		return *this;
@@ -669,7 +697,7 @@ public:
 	 *
 	 * @return
 	 */
-	bool operator==(const OrderConstIter& other) const
+	bool operator==(const NDConstIter& other) const
 	{
 		return parent == other.parent && m_linpos == other.m_linpos;
 	};
@@ -681,7 +709,7 @@ public:
 	 *
 	 * @return
 	 */
-	bool operator!=(const OrderConstIter& other) const
+	bool operator!=(const NDConstIter& other) const
 	{
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
@@ -694,7 +722,7 @@ public:
 	 *
 	 * @return
 	 */
-	bool operator<(const OrderConstIter& other) const
+	bool operator<(const NDConstIter& other) const
 	{
 		if(parent != other.parent)
 			return false;
@@ -715,7 +743,7 @@ public:
 	 *
 	 * @return
 	 */
-	bool operator>(const OrderConstIter& other) const
+	bool operator>(const NDConstIter& other) const
 	{
 		if(parent != other.parent)
 			return false;
@@ -736,7 +764,7 @@ public:
 	 *
 	 * @return
 	 */
-	bool operator<=(const OrderConstIter& other) const
+	bool operator<=(const NDConstIter& other) const
 	{
 		if(parent != other.parent)
 			return false;
@@ -755,7 +783,7 @@ public:
 	 *
 	 * @return
 	 */
-	bool operator>=(const OrderConstIter& other) const
+	bool operator>=(const NDConstIter& other) const
 	{
 		if(parent != other.parent)
 			return false;
@@ -784,10 +812,10 @@ private:
  * @tparam T
  */
 template <typename T = double>
-class OrderIter : public Slicer
+class NDIter : public Slicer
 {
 public:
-	OrderIter(std::shared_ptr<NDArray> in) : Slicer(in->ndim(), in->dim()), parent(in)
+	NDIter(std::shared_ptr<NDArray> in) : Slicer(in->ndim(), in->dim()), parent(in)
 
 	{
 		switch(in->type()) {
@@ -859,7 +887,7 @@ public:
 			case UNKNOWN_TYPE:
 				castget = castgetStatic<uint8_t>;
 				castset = castsetStatic<uint8_t>;
-				throw std::invalid_argument("Unknown type to OrderIter");
+				throw std::invalid_argument("Unknown type to NDIter");
 				break;
 		}
 	};
@@ -869,7 +897,7 @@ public:
 	 *
 	 * @return new value
 	 */
-	OrderIter& operator++()
+	NDIter& operator++()
 	{
 		Slicer::operator++();
 		return *this;
@@ -880,7 +908,7 @@ public:
 	 *
 	 * @return new value
 	 */
-	OrderIter& operator--()
+	NDIter& operator--()
 	{
 		Slicer::operator--();
 		return *this;
@@ -948,7 +976,7 @@ public:
 	 *
 	 * @return
 	 */
-	bool operator==(const OrderIter& other) const
+	bool operator==(const NDIter& other) const
 	{
 		return parent == other.parent && m_linpos == other.m_linpos;
 	};
@@ -960,7 +988,7 @@ public:
 	 *
 	 * @return
 	 */
-	bool operator!=(const OrderIter& other) const
+	bool operator!=(const NDIter& other) const
 	{
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
@@ -973,7 +1001,7 @@ public:
 	 *
 	 * @return
 	 */
-	bool operator<(const OrderIter& other) const
+	bool operator<(const NDIter& other) const
 	{
 		if(parent != other.parent)
 			return false;
@@ -994,7 +1022,7 @@ public:
 	 *
 	 * @return
 	 */
-	bool operator>(const OrderIter& other) const
+	bool operator>(const NDIter& other) const
 	{
 		if(parent != other.parent)
 			return false;
@@ -1015,7 +1043,7 @@ public:
 	 *
 	 * @return
 	 */
-	bool operator<=(const OrderIter& other) const
+	bool operator<=(const NDIter& other) const
 	{
 		if(parent != other.parent)
 			return false;
@@ -1034,7 +1062,7 @@ public:
 	 *
 	 * @return
 	 */
-	bool operator>=(const OrderIter& other) const
+	bool operator>=(const NDIter& other) const
 	{
 		if(parent != other.parent)
 			return false;
@@ -1064,6 +1092,22 @@ private:
 	T (*castget)(void* ptr);
 	void (*castset)(void* ptr, const T& val);
 };
+
+/**
+ * @brief To maintain backward compatability, I have saved the OrderIter
+ * and OrderConstIter name, but eventually they may be deprecated.
+ *
+ * @tparam T PixelType to read out
+ */
+template<class T> using OrderIter = NDIter<T>;
+
+/**
+ * @brief To maintain backward compatability, I have saved the OrderIter
+ * and OrderConstIter name, but eventually they may be deprecated.
+ *
+ * @tparam T PixelType to read out
+ */
+template<class T> using OrderConstIter = NDConstIter<T>;
 
 /**
  * @brief Constant iterator for NDArray. This is slightly different from order 
@@ -1360,6 +1404,7 @@ private:
 
 	T (*castget)(void* ptr);
 };
+
 
 /**
  * @brief This class is used to iterate through an N-Dimensional array.
@@ -1749,7 +1794,7 @@ public:
 			case UNKNOWN_TYPE:
 			default:
 				castget = castgetStatic<uint8_t>;
-				throw std::invalid_argument("Unknown type to OrderConstIter");
+				throw std::invalid_argument("Unknown type to NDConstIter");
 				break;
 		}
 	};
@@ -2031,7 +2076,7 @@ public:
 			case UNKNOWN_TYPE:
 				castget = castgetStatic<uint8_t>;
 				castset = castsetStatic<uint8_t>;
-				throw std::invalid_argument("Unknown type to OrderIter");
+				throw std::invalid_argument("Unknown type to NDIter");
 				break;
 		}
 	};
@@ -2340,7 +2385,7 @@ public:
 			default:
 			case UNKNOWN_TYPE:
 				castget = castgetStatic<uint8_t>;
-				throw std::invalid_argument("Unknown type to OrderIter");
+				throw std::invalid_argument("Unknown type to NDIter");
 				break;
 		}
 	};
@@ -2539,6 +2584,8 @@ private:
 
 	T (*castget)(void* ptr);
 };
+
+/** @} */
 
 }
 
