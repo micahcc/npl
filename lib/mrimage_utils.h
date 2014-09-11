@@ -39,6 +39,11 @@ using std::vector;
 using std::shared_ptr;
 
 /**
+ * \defgroup MRImageUtilities
+ * @{
+ */
+
+/**
  * @brief Reads an MRI image. Right now only nift images are supported. later
  * on, it will try to load image using different reader functions until one
  * suceeds.
@@ -185,5 +190,6 @@ shared_ptr<MRImage> fft_forward(shared_ptr<const MRImage> in,
 shared_ptr<MRImage> fft_backward(shared_ptr<const MRImage> in,
         const std::vector<size_t>& in_osize);
 
+/** @}  MRImageUtilities */
 } // npl
 #endif  //MRIMAGE_UTILS_H
