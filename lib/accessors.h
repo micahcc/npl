@@ -33,7 +33,7 @@
 
 namespace npl {
 
-/** \defgroup Accessors 
+/** \defgroup Accessors NDArray/Image Accessors
  *
  * Accessors are used to get and set pixel data. Since
  * the pixel type is hidden in images and arrays, accessors perform the

@@ -29,7 +29,7 @@
 
 namespace npl {
 
- /** \defgroup Iterators
+ /** \defgroup Iterators NDarray/Image Iterators
  *
  * Iterators are similar to accessors in that they perform casting, however 
  * they also advance through pixels. Thus they are designed to walk over the 
