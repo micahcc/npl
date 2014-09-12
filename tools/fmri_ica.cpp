@@ -38,7 +38,7 @@ using namespace npl;
 MatrixXd reduce(shared_ptr<const MRImage> in)
 {
     if(in->ndim() != 4)
-        throw std::invalid_argument("Input mmust be 4D!");
+        throw std::invalid_argument(__STR_FUNCTION+": Input mmust be 4D!");
     
     // fill Matrix with values from input
     size_t T = in->tlen();
@@ -72,7 +72,23 @@ MatrixXd reduce(shared_ptr<const MRImage> in)
     return X_ic;
 }
 
+struct RegrResult
+{
+    shared_ptr<MRImage> rsqr;
+    shared_ptr<MRImage> T;
+    shared_ptr<MRImage> p;
+    shared_ptr<MRImage> beta;
+};
 
+RegrResult regress(shared_ptr<MRImage> in, const VectorXd& x)
+{
+    if(in->ndim() != 4) {
+        throw std::invalid_argument(__S"Input image must be 4D!");
+    }
+
+    // solve y = bx + b_0
+
+}
 
 int main(int argc, char** argv)
 {
@@ -109,15 +125,22 @@ int main(int argc, char** argv)
 	}
 
     // 
-	MatrixXd regr = reduce(inimg);
-    
+	MatrixXd regressors = reduce(inimg);
     for(size_t cc = 0; cc < regr.cols(); cc++) {
         // perform regression
-        //imageRegress();
+        RegrResult tmp = regress(inimg, regressors.row(cc));
+
+        // write out each of the images
+        tmp.rsqr.write("rsqr_"+to_string(cc)+".nii.gz");
+        tmp.T.write("T_"+to_string(cc)+".nii.gz");
+        tmp.p.write("p_"+to_string(cc)+".nii.gz");
+        tmp.beta.write("beta_"+to_string(cc)+".nii.gz");
     }
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
+
+    return 0;
 }
 
 
