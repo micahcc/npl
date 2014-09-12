@@ -284,6 +284,8 @@ int rotationValue(
  * that the two volumes should have identical sampling and identical
  * orientation. If that is not the case, an exception will be thrown.
  *
+ * \todo make it v = Ru + s, then u = INV(R)*(v - s)
+ *
  * @param fixed     Image which will be the target of registration. 
  * @param moving    Image which will be rotated then shifted to match fixed.
  *
@@ -307,18 +309,18 @@ Matrix4d corReg3D(shared_ptr<const MRImage> fixed,
 
     for(size_t ii=0; ii<sigma_schedule.size(); ii++) {
         // smooth and downsample input images
-        auto tmpfixed = smoothDownsample(fixed, sigma_schedule[ii]);
-        auto tmpmoving = smoothDownsample(moving, sigma_schedule[ii]);
-        DEBUGWRITE(tmpfixed->write("smooth_fixed.nii.gz"));
-        DEBUGWRITE(tmpmoving->write("smooth_moving.nii.gz"));
+        auto sm_fixed = smoothDownsample(fixed, sigma_schedule[ii]);
+        auto sm_moving = smoothDownsample(moving, sigma_schedule[ii]);
+        DEBUGWRITE(sm_fixed->write("smooth_fixed.nii.gz"));
+        DEBUGWRITE(sm_moving->write("smooth_moving.nii.gz"));
 
         // compute derivatives
-        auto deriv = toMRImage(derivative(tmpmoving));
+        auto deriv = toMRImage(derivative(sm_moving));
         DEBUGWRITE(deriv->write("movderiv.nii.gz"));
         
         // create value and gradient functions
-        auto vfunc = std::bind(rotationValue, fixed, moving, _1, _2);
-        auto gfunc = std::bind(rotationGrad, fixed, moving, deriv, _1, _2);
+        auto vfunc = std::bind(rotationValue, sm_fixed, sm_moving, _1, _2);
+        auto gfunc = std::bind(rotationGrad, sm_fixed, sm_moving, deriv, _1, _2);
 #ifdef VERYDEBUG
         double error = 0;
         double tol = 0.01;
