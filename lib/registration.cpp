@@ -115,6 +115,7 @@ int rotationGrad(
 	rotation = AngleAxisd(-rz,Vector3d::UnitZ())*
                 AngleAxisd(-ry,Vector3d::UnitY())*
                 AngleAxisd(-rx,Vector3d::UnitX());
+    Matrix3d rInv = rotation.inverse();
 	Vector3d shift(sx, sy, sz);
 
     DEBUGWRITE(cerr << "Params: " << params.transpose() << "\nRotation:\n" 
@@ -138,7 +139,10 @@ int rotationGrad(
     grad.setZero();
     for(NDConstIter<double> it(fixed); !it.eof(); ++it) {
 		it.index(3, ind.array().data());
-		cind = rotation*(ind-center)+center+shift;
+        // u = c + R^-1(v - s - c)
+        // where u is the output index, v the input, c the center of rotation
+        // and s the shift
+		cind = center + rInv*(ind-shift-center); 
         
         // Here we compute dg(v(u,p))/dp, where g is the image, u is the
         // coordinate in the fixed image, and p is the param. 
@@ -154,29 +158,46 @@ int rotationGrad(
         double dg_dy = get_dmove(cind[0], cind[1], cind[2], 1);
         double dg_dz = get_dmove(cind[0], cind[1], cind[2], 2);
 
-        double dx_dRx = 0;
-        double dx_dRy = -(sin(rx)*(y*cos(rz) + x*sin(rz))) - cos(rx)*(z*cos(ry)
-                + sin(ry)*(-(x*cos(rz)) + y*sin(rz)));
-        double dx_dRz = cos(rx)*(y*cos(rz) + x*sin(rz)) - sin(rx)*(z*cos(ry) +
-                sin(ry)*(-(x*cos(rz)) + y*sin(rz)));
+        double dx_dRx = cos(rz)*((-sy + y)*cos(rx) + (-sz + z)*sin(rx))*sin(ry)
+                    + ((-sz + z)*cos(rx) + (sy - y)*sin(rx))*sin(rz);
+        double dy_dRx = cos(rz)*((-sz + z)*cos(rx) + (sy - y)*sin(rx)) + ((sy -
+                    y)*cos(rx) + (sz - z)*sin(rx))*sin(ry)*sin(rz);
+        double dz_dRx = cos(ry)*((sy - y)*cos(rx) + (sz - z)*sin(rx));
 
-        double dy_dRx = z*cos(ry) + sin(ry)*(-(x*cos(rz)) + y*sin(rz));
-        double dy_dRy = sin(rx)*(z*sin(ry) + cos(ry)*(x*cos(rz) - y*sin(rz)));
-        double dy_dRz = -(cos(rx)*(z*sin(ry) + cos(ry)*(x*cos(rz) - y*sin(rz))));
+        double dx_dRy = cos(rz)*((sz - z)*cos(rx)*cos(ry) + (-sy +
+                    y)*cos(ry)*sin(rx) + (sx - x)*sin(ry));
+        double dy_dRy = ((-sz + z)*cos(rx)*cos(ry) + (sy - y)*cos(ry)*sin(rx) +
+                    (-sx + x)*sin(ry))*sin(rz);
+        double dz_dRy = (-sx + x)*cos(ry) + ((sz - z)*cos(rx) + (-sy +
+                    y)*sin(rx))*sin(ry);
         
-        double dz_dRx = -(cos(ry)*(y*cos(rz) + x*sin(rz)));
-        double dz_dRy = -(sin(rx)*sin(ry)*(y*cos(rz) + x*sin(rz))) +
-                cos(rx)*(x*cos(rz) - y*sin(rz));
-        double dz_dRz = cos(rx)*sin(ry)*(y*cos(rz) + x*sin(rz)) +
-                sin(rx)*(x*cos(rz) - y*sin(rz));
+        double dx_dRz = cos(rz)*((-sy + y)*cos(rx) + (-sz + z)*sin(rx)) + (sx -
+                    x)*cos(ry)*sin(rz) + ((-sz + z)*cos(rx) + (sy -
+                        y)*sin(rx))*sin(ry)*sin(rz);
+        double dy_dRz = (sx - x)*cos(ry)*cos(rz) + cos(rz)*((-sz + z)*cos(rx) +
+                    (sy - y)*sin(rx))*sin(ry) + ((sy - y)*cos(rx) + (sz -
+                    z)*sin(rx))*sin(rz);
+        double dz_dRz = 0;
+
+        double dx_dSx = -(cos(ry)*cos(rz));
+        double dy_dSx = cos(ry)*sin(rz);
+        double dz_dSx = -sin(ry);
+        
+        double dx_dSy = -(cos(rz)*sin(rx)*sin(ry)) - cos(rx)*sin(rz);
+        double dy_dSy = -(cos(rx)*cos(rz)) + sin(rx)*sin(ry)*sin(rz);
+        double dz_dSy = cos(ry)*sin(rx);
+        
+        double dx_dSz = cos(rx)*cos(rz)*sin(ry) - sin(rx)*sin(rz);
+        double dy_dSz = -(cos(rz)*sin(rx)) - cos(rx)*sin(ry)*sin(rz);
+        double dz_dSz = -(cos(rx)*cos(ry));
 
         // compute SUM_i dg/dv_i dv_i/dp
         double dCdRx = dg_dx*dx_dRx + dg_dy*dy_dRx + dg_dz*dz_dRx;
         double dCdRy = dg_dx*dx_dRy + dg_dy*dy_dRy + dg_dz*dz_dRy;
         double dCdRz = dg_dx*dx_dRz + dg_dy*dy_dRz + dg_dz*dz_dRz;
-        double dCdSx = dg_dx;
-        double dCdSy = dg_dy;
-        double dCdSz = dg_dz;
+        double dCdSx = dg_dx*dx_dSx + dg_dy*dy_dSx + dg_dz*dz_dSx;
+        double dCdSy = dg_dx*dx_dSy + dg_dy*dy_dSy + dg_dz*dz_dSy;
+        double dCdSz = dg_dx*dx_dSz + dg_dy*dy_dSz + dg_dz*dz_dSz;
 
 #ifdef VERYDEBUG
         d_ang_x.set(dCdRx, ind[0], ind[1], ind[2]);
@@ -239,6 +260,7 @@ int rotationValue(
                 AngleAxisd(-ry,Vector3d::UnitY())*
                 AngleAxisd(-rx,Vector3d::UnitX());
     Vector3d shift(sx, sy, sz);
+    Matrix3d rInv = rotation.inverse();
 
     DEBUGWRITE(cerr << "Params: " << params.transpose() << "\nRotation:\n" 
             << rotation << "\nShift: " << shift.transpose() << endl;);
@@ -260,7 +282,11 @@ int rotationValue(
     double corr = 0;
 	for(NDConstIter<double> it(fixed); !it.eof(); ++it) {
 		it.index(3, ind.array().data());
-		cind = rotation*(ind-center)+center+shift;
+
+        // u = c + R^-1(v - s - c)
+        // where u is the output index, v the input, c the center of rotation
+        // and s the shift
+		cind = center + rInv*(ind-shift-center); 
         
         double a = lin(cind[0], cind[1], cind[2]);
 #ifdef VERYDEBUG
