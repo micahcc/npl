@@ -307,7 +307,7 @@ void _copyCast_help(shared_ptr<const NDArray> in, shared_ptr<NDArray> out)
 	for(size_t ii=0; ii<roi.size(); ii++) {
 		if(ii < min(out->ndim(), in->ndim())) {
 			roi[ii].first = 0;
-			roi[ii].second = min(out->dim(ii), in->dim(ii));
+			roi[ii].second = min(out->dim(ii), in->dim(ii))-1;
 		} else {
 			roi[ii].first = 0;
 			roi[ii].second = 0;
