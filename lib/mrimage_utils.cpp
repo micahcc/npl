@@ -264,6 +264,7 @@ shared_ptr<MRImage> fft_backward(shared_ptr<const MRImage> in,
  */
 shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
 {
+
     size_t ndim = in->ndim();
 
     // convert mm to indices
@@ -365,7 +366,6 @@ shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
         // update ROI
         roi[dd] = osize[dd];
         cerr << isize[dd] << "->" << osize[dd] << endl;
-        DEBUGWRITE(writeComplex("win"+to_string(dd), working));
     }
 
     // copy roi into output
