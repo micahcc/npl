@@ -83,33 +83,6 @@ std::ostream& operator<<(std::ostream &out, const MRImage& img);
  ****************************************************************************/
 
 /**
- * @brief Computes the derivative of the image in the specified direction. 
- * This is identical to the NDArray version, but it scales by the spacing.
- *
- * @param in    Input image/NDarray 
- * @param dir   Specify the dimension
- *
- * @return      Image storing the directional derivative of in
- */
-shared_ptr<MRImage> derivative(shared_ptr<const MRImage> in, size_t dir);
-
-/**
- * @brief Computes the derivative of the image. Computes all
- * directional derivatives of the input image and the output
- * image will have 1 higher dimension with derivative of 0 in the first volume
- * 1 in the second and so on.
- *
- * Thus a 2D image will produce a [X,Y,2] image and a 3D image will produce a 
- * [X,Y,Z,3] sized image.
- *
- * @param in    Input image/NDarray 
- *
- * @return 
- */
-shared_ptr<MRImage> derivative(shared_ptr<const MRImage> in);
-
-
-/**
  * @brief Gaussian smooths an image in 1 direction.
  *
  * @param inout Input/Output image
