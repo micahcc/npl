@@ -40,6 +40,8 @@ namespace npl {
 using std::vector;
 using std::shared_ptr;
 
+#define VERYDEBUG
+
 #ifdef VERYDEBUG
 #define DEBUGWRITE(FOO) FOO 
 #else
@@ -82,128 +84,6 @@ void writeComplex(std::string basename, shared_ptr<const MRImage> in,
         img1->write(basename + "_re.nii.gz");
         img2->write(basename + "_im.nii.gz");
     }
-}
-
-/**
- * @brief Computes the derivative of the image in the specified direction. 
- * This is identical to the NDArray version, but it scales by the spacing.
- *
- * @param in    Input image/NDarray 
- * @param dir   Specify the dimension
- *
- * @return      Image storing the directional derivative of in
- */
-shared_ptr<MRImage> derivative(shared_ptr<const MRImage> in, size_t dir)
-{
-    if(dir >= in->ndim())
-        throw std::invalid_argument("Input direction is outside range of "
-                "input dimensions in\n" + __FUNCTION_STR__);
-
-    auto out = dynamic_pointer_cast<MRImage>(in->copy());
-
-    vector<int64_t> index(in->ndim());
-    NDConstAccess<double> inGet(in);
-
-    Vector3DIter<double> oit(out);
-    for(oit.goBegin(); !oit.eof(); ++oit) {
-        // get index
-        oit.index(index.size(), index.data());
-
-        double dx = 0;
-        double dy = 0;
-        
-        // before
-        if(index[dir] == 0) {
-            dy -= inGet[index];
-            index[dir]++;
-        } else {
-            index[dir]--;
-            dy -= inGet[index];
-            dx++;
-            index[dir]++;
-        }
-
-        // after
-        if(index[dir] == in->dim(dir)-1) {
-            dy += inGet[index];
-        } else {
-            index[dir]++;
-            dy += inGet[index];
-            dx++;
-        }
-
-        // set
-        if(fabs(dy) < 0.00000000001)
-            oit.set(dir, 0);
-        else
-            oit.set(dir, dy/(in->spacing()[dir]*dx));
-    }
-
-    return out;
-}
-
-/**
- * @brief Computes the derivative of the image. Computes all
- * directional derivatives of the input image and the output
- * image will have 1 higher dimension with derivative of 0 in the first volume
- * 1 in the second and so on.
- *
- * Thus a 2D image will produce a [X,Y,2] image and a 3D image will produce a 
- * [X,Y,Z,3] sized image.
- *
- * @param in    Input image/NDarray 
- *
- * @return 
- */
-shared_ptr<MRImage> derivative(shared_ptr<const MRImage> in)
-{
-    vector<size_t> osize(in->dim(), in->dim()+in->ndim());
-    osize.push_back(in->ndim());
-    auto out = dynamic_pointer_cast<MRImage>(
-            in->copyCast(osize.size(), osize.data()));
-
-    vector<int64_t> index(in->ndim());
-    NDConstAccess<double> inGet(in);
-
-    Vector3DIter<double> oit(out);
-    for(oit.goBegin(); !oit.eof(); ++oit) {
-        // get index
-        oit.index(index.size(), index.data());
-
-        // compute derivative in each direction
-        for(size_t dd=0; dd<in->ndim(); dd++) {
-            double dx = 0;
-            double dy = 0;
-
-            // before
-            if(index[dd] == 0) {
-                dy -= inGet[index];
-                index[dd]++;
-            } else {
-                index[dd]--;
-                dy -= inGet[index];
-                dx++;
-                index[dd]++;
-            }
-
-            // after
-            if(index[dd] == in->dim(dd)-1) {
-                dy += inGet[index];
-            } else {
-                index[dd]++;
-                dy += inGet[index];
-                dx++;
-            }
-
-            // set
-            if(fabs(dy) < 0.00000000001)
-                oit.set(dd, 0);
-            else
-                oit.set(dd, dy/(in->spacing()[dd]*dx));
-        }
-    }
-
-    return out;
 }
 
 /**
@@ -387,77 +267,115 @@ shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
     size_t ndim = in->ndim();
 
     // convert mm to indices
+    cerr << "StdDev: " << sigma << "\n, Smoothing in Index Space:\n";
     vector<double> sd(ndim, sigma);
-    for(size_t ii=0; ii<ndim; ii++)
+    for(size_t ii=0; ii<ndim; ii++) {
         sd[ii] /= in->spacing()[ii];
+        cerr << ii << ": FWHM: " << sd_to_fwhm(sd[ii]) << " SD: " 
+            << sd[ii] << endl;
+    }
+
 
     // create downsampled image
-    size_t padpixels = 1;
-    size_t downpixels = 1;
-    vector<size_t> paddim(ndim, 0);
-    vector<size_t> downdim(ndim, 0);
-    vector<size_t> odim(ndim, 0);
-    for(size_t ii=0; ii<odim.size(); ii++) {
+    vector<size_t> isize(in->dim(), in->dim()+ndim);
+    vector<size_t> psize(ndim);
+    vector<size_t> dsize(ndim);
+    vector<size_t> osize(ndim);
+    size_t linelen = 0;
+    for(size_t dd=0; dd<ndim; dd++) {
         // compute ratio
         double ratio;
-        if(sd_to_fwhm(sd[ii]) < 1)
+        if(sd_to_fwhm(sd[dd]) < 2)
             ratio = 1;
         else
-            ratio = 2/sd_to_fwhm(sd[ii]);
+            ratio = 2/sd_to_fwhm(sd[dd]);
 
-        paddim[ii] = round2(in->dim(ii));
-        odim[ii] = ceil(ratio*in->dim(ii));
-        downdim[ii] = round2(odim[ii]);
+        psize[dd] = round2(isize[dd]*2);
+        dsize[dd] = round2(psize[dd]*ratio);
+        double pratio = ((double)psize[dd])/((double)isize[dd]);
+        osize[dd] = round(dsize[dd]/pratio);
+        
+        if(psize[dd] > linelen)
+            linelen = psize[dd];
 
-        padpixels *= paddim[ii];
-        downpixels *= downdim[ii];
-
-        assert(paddim[ii] >= downdim[ii]);
-        assert(odim[ii] <= in->dim(ii));
+        assert(psize[dd] >= dsize[dd]);
+        assert(osize[dd] <= isize[dd]);
     }
 
-    DEBUGWRITE(writeComplex("in", in);)
-    auto tmpimg = fft_forward(in, paddim);
-    DEBUGWRITE(writeComplex("freq", tmpimg);)
+    vector<size_t> roi(in->dim(), in->dim()+ndim);
+    auto working = toMRImage(in->copy());
+    auto buffer1 = fftw_alloc_complex(linelen*2);
+    auto buffer2 = &buffer1[linelen];
+    for(size_t dd=0; dd<ndim; dd++) {
+        auto fwd = fftw_plan_dft_1d((int)psize[dd], buffer1, buffer2,
+                FFTW_FORWARD, FFTW_MEASURE);
+        auto bwd = fftw_plan_dft_1d((int)dsize[dd], buffer1, buffer2,
+                FFTW_BACKWARD, FFTW_MEASURE);
 
-    // window
-    OrderIter<cdouble_t> it(tmpimg);
-    vector<int64_t> index(ndim); 
-    for(it.goBegin(); !it.eof(); ++it) {
-        it.index(index);
+        // extract line
+        ChunkIter<cdouble_t> it(working);
+        it.setROI(roi.size(), roi.data());
+        it.setLineChunk(dd);
+        for(it.goBegin(); !it.eof(); it.nextChunk()) {
+            int64_t ii=0;
+            for(it.goChunkBegin(), ii=0; !it.eoc(); ++it, ++ii) {
+                buffer1[ii][0] = (*it).real();
+                buffer1[ii][1] = (*it).imag();
+            }
+            for(; ii<psize[dd]; ii++){
+                buffer1[ii][0] = 0;
+                buffer1[ii][1] = 0;
+            }
 
-        // window in each dimension
-        double w = 1;
-        for(size_t dd=0; dd<ndim; dd++) {
-            double ff = index[dd]/(double)paddim[dd];
-            if(ff > .5) ff = 1-ff; // negative frequencies
-            w *= exp(-M_PI*M_PI*ff*ff*2*sd[dd]*sd[dd]);
+            // fourier tansform line
+            fftw_execute(fwd);
+
+            double normf = 1./sqrt(psize[dd]*dsize[dd]);
+            // positive frequencies
+            for(ii=0; ii<dsize[dd]/2; ii++) {
+                double ff = ii/(double)psize[dd];
+                double w = exp(-M_PI*M_PI*ff*ff*2*sd[dd]*sd[dd]);
+                buffer1[ii][0] = buffer2[ii][0]*w*normf;
+                buffer1[ii][1] = buffer2[ii][1]*w*normf;
+            }
+
+            // negative frequencies
+            for(ii=dsize[dd]/2; ii<dsize[dd]; ii++) {
+                int64_t jj = psize[dd]-(dsize[dd]-ii);
+                double ff = -(dsize[dd]-ii)/(double)psize[dd];
+                double w = exp(-M_PI*M_PI*ff*ff*2*sd[dd]*sd[dd]);
+                buffer1[ii][0] = buffer2[jj][0]*w*normf;
+                buffer1[ii][1] = buffer2[jj][1]*w*normf;
+            }
+
+            // inverse fourier tansform
+            fftw_execute(bwd);
+
+            // write out (and zero extra area)
+            for(it.goChunkBegin(), ii=0; ii<dsize[dd]; ++it, ++ii) {
+                cdouble_t tmp(buffer2[ii][0], buffer2[ii][1]);
+                it.set(tmp);
+            }
+            for(; !it.eoc(); ++it){
+                cdouble_t tmp(0, 0);
+                it.set(tmp);
+            }
         }
 
-        it.set((*it)*w);
+        // update ROI
+        roi[dd] = osize[dd];
+        cerr << isize[dd] << "->" << osize[dd] << endl;
+        DEBUGWRITE(writeComplex("win"+to_string(dd), working));
     }
 
-    // Downsample and ifft
-    DEBUGWRITE(writeComplex("windowed", tmpimg));
-    tmpimg = fft_backward(tmpimg, downdim);
-    DEBUGWRITE(writeComplex("ifreq", tmpimg));
-    
-    // create output image, and crop
-    auto out = dynamic_pointer_cast<MRImage>(
-            in->copyCast(odim.size(), odim.data()));
-    DEBUGWRITE(writeComplex("cropped", tmpimg));
-    
-    OrderConstIter<cdouble_t> iit(tmpimg);
-    OrderIter<cdouble_t> oit(out);
-    iit.setROI(out->ndim(), out->dim());
-    iit.setOrder(oit.getOrder());
-    for(iit.goBegin(), oit.goBegin(); !iit.eof(); ++iit, ++oit) 
-        oit.set(*iit);
+    // copy roi into output
+    auto out = toMRImage(working->copyCast(osize.size(), osize.data()));
 
     // set spacing
     for(size_t dd=0; dd<in->ndim(); dd++) 
-        out->spacing()[dd] = in->spacing()[dd]*paddim[dd]/downdim[dd];
-    
+        out->spacing()[dd] *= ((double)psize[dd])/((double)dsize[dd]);
+
+    fftw_free(buffer1);
     return out;
 }
 

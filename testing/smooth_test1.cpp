@@ -45,7 +45,7 @@ shared_ptr<MRImage> testimage()
 	OrderIter<double> sit(in);
 	while(!sit.eof()) {
 		sit.index(3, index);
-		if(index[0] > sz[0]/4 && index[0] < sz[0]/3 && 
+		if(index[0] > sz[0]/10 && index[0] < sz[0]/3 && 
 				index[1] > sz[1]/5 && index[1] < sz[1]/2 && 
 				index[2] > sz[2]/3 && index[2] < 2*sz[2]/3) {
 			sit.set(1);
