@@ -35,6 +35,39 @@
 using namespace std;
 using namespace npl;
 
+double gaussGen(double x, double y, double z, double xsz, double ysz, double zsz)
+{
+    double v = exp(-pow(xsz/2-x,2)/9)*exp(-pow(ysz/2-y,2)/16)*exp(-pow(zsz/2-z,2)/64);
+    if(v > 0.00001)
+        return v;
+    else 
+        return 0;
+}
+
+shared_ptr<MRImage> gaussianImage()
+{
+    // create an image
+    size_t sz[] = {64,64,64};
+    int64_t index[3];
+    auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, COMPLEX128);
+
+    // fill with a shape that is somewhat unique when rotated. 
+    OrderIter<double> sit(in);
+    double sum = 0;
+    while(!sit.eof()) {
+        sit.index(3, index);
+        double v= gaussGen(index[0], index[1], index[2], sz[0], sz[1], sz[2]);
+        sit.set(v);
+        sum += v;
+        ++sit;
+    }
+
+    for(sit.goBegin(); !sit.eof(); ++sit) 
+        sit.set(sit.get()/sum);
+
+    return in;
+}
+
 shared_ptr<MRImage> squareImage()
 {
     // create test image
@@ -62,20 +95,25 @@ shared_ptr<MRImage> squareImage()
 int main()
 {
     // create test image
-    auto img = squareImage();
+    auto img = gaussianImage();
 
     // rotate it
     auto moved = toMRImage(img->copy());
-    rotateImageShearFFT(moved, .3, .1, .2);
+    rotateImageShearFFT(moved, .1, .1, .2);
 
     shiftImageFFT(moved, 0, 5);
     shiftImageFFT(moved, 1, 7);
     shiftImageFFT(moved, 2, -2);
-
-    // perform registration
-    img->write("regtest1_init.nii.gz");
-    moved->write("regtest1_moved.nii.gz");
-    auto result = corReg3D(img, moved);
-
-    (void)result;
+    
+    std::vector<double> sigma_schedule({3,2});
+    for(size_t ii=0; ii<sigma_schedule.size(); ii++) {
+        // smooth and downsample input images
+        auto sm_fixed = smoothDownsample(img, sigma_schedule[ii]);
+        auto sm_moving = smoothDownsample(moved, sigma_schedule[ii]);
+    
+        // perform test of gradient
+        if(cor3DDerivTest(0.0001, 0.01, sm_fixed, sm_moving) != 0)
+            return -1;
+    }
+    return 0;
 }
