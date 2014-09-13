@@ -21,14 +21,31 @@
 #define REGISTRATION_H
 
 #include "mrimage.h"
+#include "accessors.h"
+#include "iterators.h"
 #include <Eigen/Dense>
 
 #include <memory>
 
+#define VERYDEBUG 1
+
+
 using std::shared_ptr;
-using Eigen::Matrix4d;
 
 namespace npl {
+
+/** \defgroup ImageRegistration Image registration algorithms
+ *
+ * Registration functions are implemented with classes linked to optimization
+ * functions. All registration algorithms ultimately may be performed with
+ * a simple function call, but the Computer classes (of which there is
+ * currently just RigidCorrComputer) are exposed in case you want to use them
+ * for your own registration algorithms.
+ *
+ * A computer is needed for every pair of Metric and Transform type.
+ *
+ * @{
+ */
 
 /**
  * @brief Performs motion correction on a set of volumes. Each 3D volume is
@@ -55,10 +72,107 @@ shared_ptr<MRImage> motionCorrect(shared_ptr<const MRImage> input, size_t ref);
  *                  shift. Rotation matrix is the first 3x3 and shift is the
  *                  4th column.
  */
-Matrix4d corReg3D(shared_ptr<const MRImage> fixed, 
+Eigen::Matrix4d corReg3D(shared_ptr<const MRImage> fixed, 
         shared_ptr<const MRImage> moving);
 
+
+/**
+ * @brief This function checks the validity of the derivative functions used
+ * to optimize between-image corrlation.
+ *
+ * @param step Test step size
+ * @param tol Tolerance in error between analytical and Numeric gratient
+ * @param in1 Image 1
+ * @param in2 Image 2
+ *
+ * @return 0 if success, -1 if failure
+ */
+int cor3DDerivTest(double step, double tol, shared_ptr<const MRImage> in1,
+        shared_ptr<const MRImage> in2);
+
+/**
+ * @brief The Rigid Corr Computer is used to compute the correlation
+ * and gradient of correlation between two images. As the name implies, it 
+ * is designed for 6 parameter rigid transforms.
+ */
+class RigidCorrComputer
+{
+    public:
+
+    /**
+     * @brief Constructor for the rigid correlation class. Note that 
+     * rigid rotation is assumed to be about the center of the fixed 
+     * image space. If necessary the input moving image will be resampled.
+     * To the same space as the fixed image.
+     *
+     * @param fixed Fixed image. A copy of this will be made.
+     * @param moving Moving image. A copy of this will be made.
+     */
+    RigidCorrComputer(shared_ptr<const MRImage> fixed,
+            shared_ptr<const MRImage> moving);
+
+    /**
+     * @brief Computes the gradient and value of the correlation. 
+     *
+     * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
+     * @param val Value at the given rotation
+     * @param grad Gradient at the given rotation
+     *
+     * @return 0 if successful
+     */
+    int valueGrad(const Eigen::VectorXd& params, double& val, 
+            Eigen::VectorXd& grad);
+    
+    /**
+     * @brief Computes the gradient of the correlation. Note that this
+     * function just calls valueGrad because computing the
+     * additional values are trivial
+     *
+     * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
+     * @param grad Gradient at the given rotation
+     *
+     * @return 0 if successful
+     */
+    int grad(const Eigen::VectorXd& params, Eigen::VectorXd& grad);
+
+    /**
+     * @brief Computes the correlation. 
+     *
+     * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
+     * @param value Value at the given rotation
+     *
+     * @return 0 if successful
+     */
+    int value(const Eigen::VectorXd& params, double& val);
+
+    private:
+
+    shared_ptr<MRImage> m_fixed;
+    shared_ptr<MRImage> m_moving;
+    shared_ptr<MRImage> m_dmoving;
+
+    // for interpolating moving image, and iterating fixed
+    LinInterp3DView<double> m_move_get;
+    LinInterp3DView<double> m_dmove_get;
+    NDConstIter<double> m_fit;
+
+	double m_center[3];
+    
+#ifdef VERYDEBUG
+    shared_ptr<MRImage> d_theta_x;
+    shared_ptr<MRImage> d_theta_y;
+    shared_ptr<MRImage> d_theta_z;
+    shared_ptr<MRImage> d_shift_x;
+    shared_ptr<MRImage> d_shift_y;
+    shared_ptr<MRImage> d_shift_z;
+    shared_ptr<MRImage> interpolated;
+#endif
+
+};
+
+/** @} */
+
 } // npl
-#endif  //MRIMAGE_UTILS_H
+#endif  //REGISTRATION_H
 
 
