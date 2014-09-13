@@ -48,6 +48,9 @@ using std::endl;
 
 namespace npl {
 
+/******************************************************************
+ * Registration Functions
+ *****************************************************************/
 /**
  * @brief Performs motion correction on a set of volumes. Each 3D volume is
  * extracted and linearly registered with the ref volume.
@@ -65,6 +68,92 @@ shared_ptr<MRImage> motionCorrect(shared_ptr<const MRImage> input, size_t ref)
     (void)input;
     (void)ref;
     return NULL;
+};
+
+/**
+ * @brief This function checks the validity of the derivative functions used
+ * to optimize between-image corrlation.
+ *
+ * @param step Test step size
+ * @param tol Tolerance in error between analytical and Numeric gratient
+ * @param in1 Image 1
+ * @param in2 Image 2
+ *
+ * @return 0 if success, -1 if failure
+ */
+int cor3DDerivTest(double step, double tol, 
+        shared_ptr<const MRImage> in1, shared_ptr<const MRImage> in2)
+{
+    using namespace std::placeholders;
+    RigidCorrComputer comp(in1, in2);
+
+    auto vfunc = std::bind(&RigidCorrComputer::value, &comp, _1, _2);
+    auto gfunc = std::bind(&RigidCorrComputer::grad, &comp, _1, _2);
+
+    double error = 0;
+    VectorXd x = VectorXd::Ones(6);
+    if(testgrad(error, x, step, tol, vfunc, gfunc) != 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+/**
+ * @brief Performs correlation based registration between two 3D volumes. note
+ * that the two volumes should have identical sampling and identical
+ * orientation. If that is not the case, an exception will be thrown.
+ *
+ * \todo make it v = Ru + s, then u = INV(R)*(v - s)
+ *
+ * @param fixed     Image which will be the target of registration. 
+ * @param moving    Image which will be rotated then shifted to match fixed.
+ *
+ * @return          4x4 Matrix, indicating rotation about the center then 
+ *                  shift. Rotation matrix is the first 3x3 and shift is the
+ *                  4th column.
+ */
+Eigen::Matrix4d corReg3D(shared_ptr<const MRImage> fixed, 
+        shared_ptr<const MRImage> moving)
+{
+    using namespace std::placeholders;
+    using std::bind;
+
+    Matrix4d output;
+
+    // make sure the input image has matching properties
+    if(!fixed->matchingOrient(moving, true))
+        throw std::invalid_argument("Input images have mismatching pixels "
+                "in\n" + __FUNCTION_STR__);
+
+    std::vector<double> sigma_schedule({3, 2, 1});
+    for(size_t ii=0; ii<sigma_schedule.size(); ii++) {
+        // smooth and downsample input images
+        auto sm_fixed = smoothDownsample(fixed, sigma_schedule[ii]);
+        auto sm_moving = smoothDownsample(moving, sigma_schedule[ii]);
+        DEBUGWRITE(sm_fixed->write("smooth_fixed.nii.gz"));
+        DEBUGWRITE(sm_moving->write("smooth_moving.nii.gz"));
+
+        RigidCorrComputer comp(sm_fixed, sm_moving);
+        
+        // create value and gradient functions
+        auto vfunc = bind(&RigidCorrComputer::value, &comp, _1, _2);
+        auto vgfunc = bind(&RigidCorrComputer::valueGrad, &comp, _1, _2, _3);
+        auto gfunc = bind(&RigidCorrComputer::grad, &comp, _1, _2);
+
+        // initialize optimizer
+        LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
+        opt.state_x = VectorXd::Zero(6);
+        opt.stop_Its = 10000;
+        opt.stop_X = 0;
+        opt.stop_G = 0.0000000001;
+        StopReason stopr = opt.optimize();
+        cerr << Optimizer::explainStop(stopr) << endl;
+    }
+
+    // TODO set output
+    output.setZero();
+    return output; 
 };
 
 
@@ -365,92 +454,6 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
     return 0;
 };
 
-
-/**
- * @brief This function checks the validity of the derivative functions used
- * to optimize between-image corrlation.
- *
- * @param step Test step size
- * @param tol Tolerance in error between analytical and Numeric gratient
- * @param in1 Image 1
- * @param in2 Image 2
- *
- * @return 0 if success, -1 if failure
- */
-int cor3DDerivTest(double step, double tol, 
-        shared_ptr<const MRImage> in1, shared_ptr<const MRImage> in2)
-{
-    using namespace std::placeholders;
-    RigidCorrComputer comp(in1, in2);
-
-    auto vfunc = std::bind(&RigidCorrComputer::value, &comp, _1, _2);
-    auto gfunc = std::bind(&RigidCorrComputer::grad, &comp, _1, _2);
-
-    double error = 0;
-    VectorXd x = VectorXd::Ones(6);
-    if(testgrad(error, x, step, tol, vfunc, gfunc) != 0) {
-        return -1;
-    }
-
-    return 0;
-}
-
-/**
- * @brief Performs correlation based registration between two 3D volumes. note
- * that the two volumes should have identical sampling and identical
- * orientation. If that is not the case, an exception will be thrown.
- *
- * \todo make it v = Ru + s, then u = INV(R)*(v - s)
- *
- * @param fixed     Image which will be the target of registration. 
- * @param moving    Image which will be rotated then shifted to match fixed.
- *
- * @return          4x4 Matrix, indicating rotation about the center then 
- *                  shift. Rotation matrix is the first 3x3 and shift is the
- *                  4th column.
- */
-Eigen::Matrix4d corReg3D(shared_ptr<const MRImage> fixed, 
-        shared_ptr<const MRImage> moving)
-{
-    using namespace std::placeholders;
-    using std::bind;
-
-    Matrix4d output;
-
-    // make sure the input image has matching properties
-    if(!fixed->matchingOrient(moving, true))
-        throw std::invalid_argument("Input images have mismatching pixels "
-                "in\n" + __FUNCTION_STR__);
-
-    std::vector<double> sigma_schedule({3, 2, 1});
-    for(size_t ii=0; ii<sigma_schedule.size(); ii++) {
-        // smooth and downsample input images
-        auto sm_fixed = smoothDownsample(fixed, sigma_schedule[ii]);
-        auto sm_moving = smoothDownsample(moving, sigma_schedule[ii]);
-        DEBUGWRITE(sm_fixed->write("smooth_fixed.nii.gz"));
-        DEBUGWRITE(sm_moving->write("smooth_moving.nii.gz"));
-
-        RigidCorrComputer comp(sm_fixed, sm_moving);
-        
-        // create value and gradient functions
-        auto vfunc = bind(&RigidCorrComputer::value, &comp, _1, _2);
-        auto vgfunc = bind(&RigidCorrComputer::valueGrad, &comp, _1, _2, _3);
-        auto gfunc = bind(&RigidCorrComputer::grad, &comp, _1, _2);
-
-        // initialize optimizer
-        LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
-        opt.state_x = VectorXd::Zero(6);
-        opt.stop_Its = 10000;
-        opt.stop_X = 0;
-        opt.stop_G = 0.0000000001;
-        StopReason stopr = opt.optimize();
-        cerr << Optimizer::explainStop(stopr) << endl;
-    }
-
-    // TODO set output
-    output.setZero();
-    return output; 
-};
 
 }
 
