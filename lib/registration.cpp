@@ -146,7 +146,7 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
         // initialize optimizer
         LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
         opt.stop_Its = 10000;
-        opt.stop_X = 0;
+        opt.stop_X = 0.0001;
         opt.stop_G = 0;
         opt.stop_F = 0;
         
