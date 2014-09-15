@@ -54,8 +54,16 @@ int main()
 	}
 	
 	// compare metadata
-	if(img1->affine().det() != img2->affine().det()) {
-		cerr << "Error, mismatch of affine matrices between version1 "
+	if(img1->getDirection() != img2->getDirection()) {
+		cerr << "Error, mismatch of direction matrices between version1 "
+			"and version2" << endl;
+	}
+	if(img1->getSpacing().norm() != img2->getSpacing().norm()) {
+		cerr << "Error, mismatch of spacing vector between version1 "
+			"and version2" << endl;
+	}
+	if(img1->getOrigin().norm() != img2->getOrigin().norm()) {
+		cerr << "Error, mismatch of origin vectors between version1 "
 			"and version2" << endl;
 	}
 
@@ -102,8 +110,16 @@ int main()
 	}
 	
 	// compare metadata
-	if(img1->affine().det() != img3->affine().det()) {
-		cerr << "Error, mismatch of affine matrices between version1 "
+	if(img1->getDirection() != img3->getDirection()) {
+		cerr << "Error, mismatch of direction matrices between version1 "
+			"and version2" << endl;
+	}
+	if(img1->getOrigin() != img3->getOrigin()) {
+		cerr << "Error, mismatch of origin vectors between version1 "
+			"and version2" << endl;
+	}
+	if(img1->getSpacing() != img3->getSpacing()) {
+		cerr << "Error, mismatch of spacing vectors between version1 "
 			"and version2" << endl;
 	}
 

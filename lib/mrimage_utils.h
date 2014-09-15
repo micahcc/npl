@@ -25,7 +25,6 @@
 
 #include "ndarray.h"
 #include "npltypes.h"
-#include "matrix.h"
 
 #include <string>
 #include <iostream>

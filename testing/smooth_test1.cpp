@@ -76,9 +76,9 @@ int main()
 //    img2->write("smooth_large.nii.gz");
 //
     // adjust the spacing
-    img->spacing()[0] = 1;
-    img->spacing()[1] = 5;
-    img->spacing()[2] = 10;
+    img->spacing(0) = 1;
+    img->spacing(1) = 5;
+    img->spacing(2) = 10;
 
     img->write("original2.nii.gz");
 //    // smooth again, should be non-isotropic now

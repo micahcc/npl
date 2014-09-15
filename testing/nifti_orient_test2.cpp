@@ -34,21 +34,36 @@ int main()
 		return -1;
 	}
 
-	std::vector<double> aff({
-				-0.480000,  -33.037640,  	-8.316368,  	0,	1.3,
-				-0.051215,  -32.900002,  	8.567265,  		0,	75,
-				2.960908, 	-5.924880,  	-1.199999, 		0,	9,
-				0.000000, 	0,				0,				3,	0,
-				0.000000, 	0,				0,				0,	1});
-	Matrix<5,5> corraff(aff);
+    Eigen::Vector4d corrorigin;
+    corrorigin << 1.3, 75, 9, 0;
+    
+    Eigen::Vector4d corrspacing;
+    corrspacing << 3, 47, 12, 3;
 
-	cerr << "Correct Affine: " << endl << corraff << endl;
-	cerr << "Image Affine: " << img->affine() << endl;
+    Eigen::Matrix4d corrdir;
+    corrdir << -0.16000,   -0.70293,     -0.69303, 0,
+               -0.01707,   -0.70000,      0.71394, 0,
+                0.98697,   -0.12606,     -0.10000, 0,
+                      0,          0,      0.00000, 1;
 
-	for(size_t ii=0; ii < img->ndim()+1; ii++) {
-		for(size_t jj=0; jj < img->ndim()+1; jj++) {
-			if(fabs(img->affine()(ii,jj) - corraff(ii,jj)) > 0.00001) {
-				cerr << "Error, affine matrix mismatches" << endl;
+	cerr << "Correct Direction:\n" << corrdir << endl;
+	cerr << "Image Direction:\n" << img->getDirection() << endl;
+
+    cerr << "Correct Spacing:\n" << corrspacing << endl;
+	cerr << "Image Spacing:\n" << img->getSpacing() << endl;
+    
+    cerr << "Correct Origin:\n" << corrorigin << endl;
+	cerr << "Image Origin:\n" << img->getOrigin() << endl;
+
+	for(size_t ii=0; ii < img->ndim(); ii++) {
+        if(fabs(img->origin(ii) - corrorigin[ii]) > 0.000001) 
+            cerr << "Error, origin vector mismatches" << endl;
+        if(fabs(img->spacing(ii) - corrspacing[ii]) > 0.000001) 
+            cerr << "Error, origin vector mismatches" << endl;
+
+		for(size_t jj=0; jj < img->ndim(); jj++) {
+			if(fabs(img->direction(ii,jj) - corrdir(ii,jj)) > 0.0001) {
+				cerr << "Error, direction matrix mismatches" << endl;
 				return -1;
 			}
 		}
@@ -56,6 +71,4 @@ int main()
 
 	return 0;
 }
-
-
 

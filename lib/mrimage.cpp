@@ -420,9 +420,8 @@ shared_ptr<MRImage> _copyCast(shared_ptr<const MRImage> in, size_t newdims,
 	out->m_slice_end = in->m_slice_end;
 	out->m_slice_timing = in->m_slice_timing;
 	out->m_slice_order = in->m_slice_order;
-	out->setOrient(in->origin(), in->spacing(), in->direction(), 1);
+	out->setOrient(in->getOrigin(), in->getSpacing(), in->getDirection(), true);
 
-	
 	switch(newtype) {
 		case UINT8:
 			_copyCast_help<uint8_t>(in, out);
@@ -935,14 +934,14 @@ shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose)
 		 * set spacing
 		 */
 		for(size_t ii=0; ii<out->ndim(); ii++)
-			out->spacing()[ii] = pixdim[ii];
+			out->spacing(ii) = pixdim[ii];
 		
 		/*
 		 * set origin
 		 */
 		// x,y,z
 		for(size_t ii=0; ii<out->ndim(); ii++) {
-			out->origin()[ii] = offset[ii];
+			out->origin(ii) = offset[ii];
 		}
 		
 		// calculate a, copy others
@@ -952,35 +951,30 @@ shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose)
 		double a = sqrt(1.0-(b*b+c*c+d*d));
 
 		// calculate R, (was already identity)
-		out->direction()(0, 0) = a*a+b*b-c*c-d*d;
+        MatrixXd tmpdirection = out->getDirection();
+		tmpdirection(0,0) = a*a+b*b-c*c-d*d;
 
 		if(out->ndim() > 1) {
-			out->direction()(0,1) = 2*b*c-2*a*d;
-			out->direction()(1,0) = 2*b*c+2*a*d;
-			out->direction()(1,1) = a*a+c*c-b*b-d*d;
+			tmpdirection(0,1) = 2*b*c-2*a*d;
+			tmpdirection(1,0) = 2*b*c+2*a*d;
+			tmpdirection(1,1) = a*a+c*c-b*b-d*d;
 		}
 
 		if(qfac != -1)
 			qfac = 1;
 		
 		if(out->ndim() > 2) {
-			out->direction()(0,2) = qfac*(2*b*d+2*a*c);
-			out->direction()(1,2) = qfac*(2*c*d-2*a*b);
-			out->direction()(2,2) = qfac*(a*a+d*d-c*c-b*b);
-			out->direction()(2,1) = 2*c*d+2*a*b;
-			out->direction()(2,0) = 2*b*d-2*a*c;
+			tmpdirection(0,2) = qfac*(2*b*d+2*a*c);
+			tmpdirection(1,2) = qfac*(2*c*d-2*a*b);
+			tmpdirection(2,2) = qfac*(a*a+d*d-c*c-b*b);
+			tmpdirection(2,1) = 2*c*d+2*a*b;
+			tmpdirection(2,0) = 2*b*d-2*a*c;
 		}
 		
+        out->setDirection(tmpdirection, true);
 		if(verbose) {
 			std::cerr << "Direction:" << std::endl;
-			std::cerr << out->direction() << endl;;
-		}
-
-		// finally update affine, but scale pixdim[z] by qfac temporarily
-		out->updateAffine();
-		if(verbose) {
-			std::cerr << "Affine:" << std::endl;
-			std::cerr << out->affine() << endl;;
+			std::cerr << out->getDirection() << endl;;
 		}
 //	} else if(header.sform_code > 0) {
 //		/* use the sform, since no qform exists */
@@ -1018,8 +1012,7 @@ shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose)
 	} else {
 		// only spacing changes
 		for(size_t ii=0; ii<dim.size(); ii++)
-			out->spacing()[ii] = pixdim[ii];
-		out->updateAffine();
+			out->spacing(ii) = pixdim[ii];
 	}
 
 	/**************************************************************************
@@ -1190,7 +1183,7 @@ void MRImage::copyMetadata(shared_ptr<const MRImage> in)
 	this->m_slice_end = in->m_slice_end;
 	this->m_slice_timing = in->m_slice_timing;
 	this->m_slice_order = in->m_slice_order;
-	this->setOrient(in->origin(), in->spacing(), in->direction(), 1);
+	this->setOrient(in->getOrigin(), in->getSpacing(), in->getDirection(), 1);
 };
 
 /**
@@ -1215,14 +1208,14 @@ bool MRImage::matchingOrient(shared_ptr<const MRImage> other, bool checksize) co
     // check spacing
     err = 0;
     for(size_t dd=0; dd<ndim(); dd++) 
-        err += pow(spacing()[dd]-other->spacing()[dd],2);
+        err += pow(spacing(dd)-other->spacing(dd),2);
     if(err > THRESH)
         return false;
 
     // Check Origin
     err = 0;
     for(size_t dd=0; dd<ndim(); dd++) 
-        err += pow(origin()[dd]-other->origin()[dd],2);
+        err += pow(origin(dd)-other->origin(dd),2);
     if(err > THRESH)
         return false;
     
@@ -1230,7 +1223,7 @@ bool MRImage::matchingOrient(shared_ptr<const MRImage> other, bool checksize) co
     err = 0;
     for(size_t dd=0; dd<ndim(); dd++) {
         for(size_t ee=0; ee<ndim(); ee++) {
-            err += pow(direction()(dd,ee)-other->direction()(dd,ee),2);
+            err += pow(direction(dd,ee)-other->direction(dd,ee),2);
         }
     }
     if(err > THRESH)

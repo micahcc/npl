@@ -150,9 +150,8 @@ int main(int argc, char** argv)
 		// create output the size of atlas, with 3 volumes in the 4th dimension
 		auto idef = createMRImage({atlas->dim(0), atlas->dim(1),
 					atlas->dim(2), 3}, FLOAT64);
-		idef->setDirection(atlas->direction(), true);
-		idef->setSpacing(atlas->spacing(), true);
-		idef->setOrigin(atlas->origin(), true);
+        idef->setOrient(atlas->getOrigin(), atlas->getSpacing(),
+                atlas->getDirection(), true);
 		invert(mask, defimg, idef, a_iters.getValue(),
 				a_improve.getValue(), a_radius.getValue());
 		idef->write("inversedef.nii.gz");

@@ -43,7 +43,8 @@ def build(bld):
 #            use='FFTW utility basic_plot')
     bld.shlib( target = 'npltypes', 
             source = 'npltypes.cpp ', 
-            export_includes = ['.'])
+            export_includes = ['.'],
+            use = 'EIGEN')
     bld.shlib( target = 'iterators', 
             source = 'iterators.cpp', 
             use='ndarray slicer kslicer',

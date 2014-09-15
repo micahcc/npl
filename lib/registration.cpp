@@ -113,13 +113,13 @@ int cor3DDerivTest(double step, double tol,
  *                  shift. Rotation matrix is the first 3x3 and shift is the
  *                  4th column.
  */
-Eigen::Matrix4d corReg3D(shared_ptr<const MRImage> fixed, 
+Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed, 
         shared_ptr<const MRImage> moving)
 {
     using namespace std::placeholders;
     using std::bind;
 
-    Matrix4d output;
+    Rigid3DTrans rigid;
 
     // make sure the input image has matching properties
     if(!fixed->matchingOrient(moving, true))
@@ -143,17 +143,33 @@ Eigen::Matrix4d corReg3D(shared_ptr<const MRImage> fixed,
 
         // initialize optimizer
         LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
-        opt.state_x = VectorXd::Zero(6);
         opt.stop_Its = 10000;
         opt.stop_X = 0;
         opt.stop_G = 0.0000000001;
+
+        // grab the parameters from the previous iteration (or initialized)
+        rigid.toIndexCoords(sm_moving);
+        for(size_t ii=0; ii<3; ii++) {
+            opt.state_x[ii] = rigid.rotation[ii];
+            opt.state_x[ii+3] = rigid.shift[ii];
+            assert(rigid.center[ii] == (sm_moving->dim(ii)-1.)/2.);
+        }
+
+        // run the optimizer
         StopReason stopr = opt.optimize();
         cerr << Optimizer::explainStop(stopr) << endl;
+
+        // set values from parameters, and convert to RAS coordinate so that no
+        // matter the sampling after smoothing the values remain
+        for(size_t ii=0; ii<3; ii++) {
+            rigid.rotation[ii] = opt.state_x[ii];
+            rigid.shift[ii] = opt.state_x[ii+3];
+            rigid.center[ii] = (sm_moving->dim(ii)-1)/2.;
+        }
+        rigid.toRASCoords(sm_moving);
     }
 
-    // TODO set output
-    output.setZero();
-    return output; 
+    return rigid; 
 };
 
 
@@ -395,8 +411,8 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
     Pixel3DView<double> acc(interpolated);
 #endif 
 
-    assert(fixed->ndim() == 3);
-    assert(moving->ndim() == 3);
+    assert(m_fixed->ndim() == 3);
+    assert(m_moving->ndim() == 3);
 
     double rx = params[0];
     double ry = params[1];
@@ -454,6 +470,102 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
     return 0;
 };
 
+/*********************************************************************
+ * Rigid Transform Struct
+ *********************************************************************/
+
+/**
+ * @brief Inverts rigid transform, where: 
+ *
+ * Original:
+ * y = R(x-c)+s+c
+ *
+ * Inverse:
+ * x = R^-1(y - s - c) + c
+ *
+ * So the new parameters, interms of the old are:
+ * New c = s+c
+ * New s = -s
+ * New R = R^-1
+ * 
+ */
+void Rigid3DTrans::invert() 
+{
+        auto tmp_shift = shift;
+        auto tmp_center = center;
+        auto tmp_rotation = rotation;
+        shift = -tmp_shift;
+        center = tmp_center+tmp_shift;
+        rotation[2] = -tmp_rotation[0];
+        rotation[1] = -tmp_rotation[1];
+        rotation[0] = -tmp_rotation[2];
+}
+
+/**
+ * @brief Constructs and returns rotation Matrix.
+ *
+ * @return Rotation matrix
+ */
+Matrix3d Rigid3DTrans::rotMatrix() 
+{
+    Matrix3d ret;
+    ret = AngleAxisd(rotation[0], Vector3d::UnitX())*
+        AngleAxisd(rotation[1], Vector3d::UnitY())*
+        AngleAxisd(rotation[2], Vector3d::UnitZ());
+    return ret;
+};
+    
+/**
+ * @brief Converts to world coordinates based on the orientation stored in
+ * input image.
+ *
+ * For a rotation in RAS coordinates, with rotation \f$Q\f$, shift \f$t\f$ and
+ * center \f$d\f$:
+ *
+ * \f[
+ *   \hat u = Q(A\hat x + \hat b - \hat d) + \hat t + \hat d 
+ * \f]
+ *
+ * From a rotation in index space with rotation \f$R\f$, shift \f$s\f$ and
+ * center \f$c\f$:
+ * \f{eqnarray*}{
+ *  Q &=& A^{-1}AR \\
+ *  \hat t &=& -Q\hat b + Q\hat d - \hat d - AR\hat c A\hat s + A\hat c + \hat b \\
+ *  \f}
+ *
+ * @param in Source of index->world transform
+ */
+void Rigid3DTrans::toRASCoords(shared_ptr<const MRImage> in)
+{
+    // TODO
+
+};
+
+/**
+ * @brief Converts from world coordinates to index coordinates based on the
+ * orientation stored in input image.
+ *
+ * The center of rotation is assumed to be the center of the grid which is 
+ * (SIZE-1)/2 in each dimension.
+ *
+ * The Rotation (\f$R\f$) and Shift(\f$ \hat s \f$) are given by:
+ * \f{eqnarray*}{
+ * R &=& A^{-1}QA \\
+ * \hat s &=& R\hat c -\hat c - A^{-1}(\hat b + Q\hat b - Q\hat d + \hat t + \hat d ) 
+ * \f}
+ *
+ * where \f$A\f$ is the rotation of the grid, \f$\hat c\f$ is the center of the
+ * grid, \f$\hat b \f$ is the origin of the grid, \f$ Q \f$ is the rotation
+ * matrix in RAS coordinate space, \f$ \hat d \f$ is the given center of roation
+ * (in RAS coordinates), and \f$ \hat t \f$ is the original shift in RAS
+ * coordinates.
+ *
+ * @param in Source of index->world transform
+ */
+void Rigid3DTrans::toIndexCoords(shared_ptr<const MRImage> in)
+{
+    // TODO  
+};
 
 }
 

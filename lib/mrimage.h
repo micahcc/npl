@@ -26,9 +26,8 @@
 #ifndef NDIMAGE_H
 #define NDIMAGE_H
 
-#include "ndarray.h"
 #include "npltypes.h"
-#include "matrix.h"
+#include "ndarray.h"
 #include "nifti.h"
 
 #include "zlib.h"
@@ -191,110 +190,144 @@ public:
 	MRImage() : m_freqdim(-1), m_phasedim(-1), m_slicedim(-1),
 				m_slice_duration(0), m_slice_start(-1),
 				m_slice_end(-1), m_slice_order(UNKNOWN_SLICE) {} ;
-	
-	shared_ptr<MRImage> getPtr()  {
-		return std::dynamic_pointer_cast<MRImage>(shared_from_this());
-	};
-	
-	shared_ptr<const MRImage> getConstPtr() const {
-		return std::dynamic_pointer_cast<const MRImage>(shared_from_this());
-	};
-
-
-	virtual MatrixP& spacing() = 0;
-	virtual MatrixP& origin() = 0;
-	virtual MatrixP& direction() = 0;
-	virtual const MatrixP& spacing() const = 0;
-	virtual const MatrixP& origin() const  = 0;
-	virtual const MatrixP& direction() const = 0;
-	virtual const MatrixP& affine() const = 0;
-	virtual const MatrixP& iaffine() const = 0;
-
-	virtual void setOrient(const MatrixP& orig, const MatrixP& space,
-			const MatrixP& dir, bool reinit) = 0;
-	virtual void setOrigin(const MatrixP& orig, bool reinit = false) = 0;
-	virtual void setSpacing(const MatrixP& space, bool reinit = false) = 0;
-	virtual void setDirection(const MatrixP& dir, bool reinit = false) = 0;
-	
-	virtual int write(std::string filename, double version = 1) const = 0;
-	
-	virtual std::shared_ptr<MRImage> cloneImage() const = 0;
-	
-
-	/**
-	 * @brief Performs a deep copy of the entire image and all metadata.
-	 *
-	 * @return Copied image.
-	 */
-	virtual shared_ptr<NDArray> copy() const = 0;
-
-	/**
-	 * @brief Create a new image that is a copy of the input, possibly with new
-	 * dimensions and pixeltype. The new image will have all overlapping pixels
-	 * copied from the old image.
-	 *
-	 * This function just calls the outside copyCast, the reason for this
-	 * craziness is that making a template function nested in the already
-	 * huge number of templates I have kills the compiler, so we call an
-	 * outside function that calls templates that has all combinations of D,T.
-	 *
-	 * @param newdims Number of dimensions in output image
-	 * @param newsize Size of output image
-	 * @param newtype Type of pixels in output image
-	 *
-	 * @return Image with overlapping sections cast and copied from 'in'
-	 */
-	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize,
-			PixelT newtype) const = 0;
-
-	/**
-	 * @brief Create a new image that is a copy of the input, with same dimensions
-	 * but pxiels cast to newtype. The new image will have all overlapping pixels
-	 * copied from the old image.
-	 *
-	 * This function just calls the outside copyCast, the reason for this
-	 * craziness is that making a template function nested in the already
-	 * huge number of templates I have kills the compiler, so we call an
-	 * outside function that calls templates that has all combinations of D,T.
-	 *
-	 * @param newtype Type of pixels in output image
-	 *
-	 * @return Image with overlapping sections cast and copied from 'in'
-	 */
-	virtual shared_ptr<NDArray> copyCast(PixelT newtype) const = 0;
-
-	/**
-	 * @brief Create a new image that is a copy of the input, possibly with new
-	 * dimensions or size. The new image will have all overlapping pixels
-	 * copied from the old image. The new image will have the same pixel type as
-	 * the input image
-	 *
-	 * This function just calls the outside copyCast, the reason for this
-	 * craziness is that making a template function nested in the already
-	 * huge number of templates I have kills the compiler, so we call an
-	 * outside function that calls templates that has all combinations of D,T.
-	 *
-	 * @param newdims Number of dimensions in output image
-	 * @param newsize Size of output image
-	 *
-	 * @return Image with overlapping sections cast and copied from 'in'
-	 */
-	virtual shared_ptr<NDArray> copyCast(size_t newdims,
-				const size_t* newsize) const = 0;
+    
+    /********************************************
+     * Orientation Functions/Variables
+     *******************************************/
+    
+    /**
+     * @brief Default orientation (dir=ident, space=1 and origin=0), also resizes
+     * them. So this could be called without first initializing size.
+     */
+    void orientDefault();
+    
+    /**
+     * @brief Update the orientation of the pixels in RAS space.
+     *
+     * @param neworig New Origin.
+     * @param newspace New Spacing.
+     * @param newdir New Direction
+     * @param reinit Whether to reset everything to Identity/0 before applying.
+     * You may want to do this if theinput matrices/vectors differ in dimension
+     * from this image.
+     */
+	void setOrient(const VectorXd& neworig, const VectorXd& newspace,
+            const MatrixXd& newdir, bool reinit = true);
 
     /**
-     * @brief Copies metadata from another image. This includes slice timing,
-     * anything read from nifti files, spacing, orientation etc, but NOT 
-     * pixel data, size, and dimensionality. 
+     * @brief Returns reference to a value in the direction matrix.  
+     * Each row indicates the direction of the grid in
+     * RAS coordinates. This is the rotation of the Index grid. 
      *
-     * @param src Other image to copy from
+     * @param row Row to access
+     * @param col Column to access
+     * 
+     * @return Element in direction matrix
      */
-    virtual void copyMetadata(shared_ptr<const MRImage> src);
+    const double& direction(int64_t row, int64_t col) const;
 
+    /**
+     * @brief Returns reference to the direction matrix.
+     * Each row indicates the direction of the grid in
+     * RAS coordinates. This is the rotation of the Index grid. 
+     * 
+     * @return Direction matrix
+     */
+    const MatrixXd& getDirection() const;
 
-	//////////////////////////////////
-	// coordinate system conversion
-	//////////////////////////////////
+    /**
+     * @brief Updates orientation information. If reinit is given then it will first
+     * set direction to the identity. otherwise old values will be left. After this
+     * the first min(DIMENSION,dir.rows()) columns and min(DIMENSION,dir.cols())
+     * columns will be copies into the image direction matrix.
+     *
+     * @param newdir Input direction/rotation
+     * @param reinit Whether to reset everything to Identity/0 before applying.
+     * You may want to do this if theinput matrices/vectors differ in dimension
+     * from this image.
+     */
+    void setDirection(const MatrixXd& newdir, bool reinit);
+
+    /**
+     * @brief Returns reference to a value in the origin vector. This is the
+     * physical point that corresponds to index 0.
+     *
+     * @param row Row to access
+     * 
+     * @return Element in origin vector 
+     */
+    double& origin(int64_t row);
+
+    /**
+     * @brief Returns reference to a value in the origin vector. This is the
+     * physical point that corresponds to index 0.
+     * 
+     * @param row Row to access
+     *
+     * @return Element in origin vector 
+     */
+    const double& origin(int64_t row) const;
+
+    /**
+     * @brief Returns const reference to the origin vector. This is the physical
+     * point that corresponds to index 0.
+     * 
+     * @return Origin vector 
+     */
+    const VectorXd& getOrigin() const;
+
+    /**
+     * @brief Sets the origin vector. This is the physical
+     * point that corresponds to index 0. Note that min(current, new) elements 
+     * will be copied
+     *
+     * @param neworigin the new origin vector to copy.
+     * @param reinit Whether to reset everything to Identity/0 before applying.
+     * You may want to do this if theinput matrices/vectors differ in dimension
+     * from this image.
+     * 
+     */
+    void setOrigin(const VectorXd& neworigin, bool reinit);
+
+    /**
+     * @brief Returns reference to a value in the spacing vector. This is the
+     * physical distance between adjacent indexes. 
+     * 
+     * @param row Row to access
+     * 
+     * @return Element in spacing vector 
+     */
+    double& spacing(int64_t row);
+
+    /**
+     * @brief Returns reference to a value in the spacing vector. This is the
+     * physical distance between adjacent indexes. 
+     * 
+     * @param row Row to access
+     * 
+     * @return Element in spacing vector 
+     */
+    const double& spacing(int64_t row) const;
+
+    /**
+     * @brief Returns const reference to the spacing vector. This is the
+     * physical distance between adjacent indexes. 
+     * 
+     * @return Spacing vector 
+     */
+    const VectorXd& getSpacing() const;
+
+    /**
+     * @brief Sets the spacing vector. This is the physical
+     * point that corresponds to index 0. Note that min(current, new) elements 
+     * will be copied
+     *
+     * @param newspacing the new spacing vector to copy.
+     * @param reinit Set the whole vector to 1s first. This might be useful if you
+     * are setting fewer elements than dimensions
+     * 
+     */
+    void setSpacing(const VectorXd& newspacing, bool reinit);
 	
 	/**
 	 * @brief Converts an index in pixel space to RAS, physical/time coordinates.
@@ -422,15 +455,7 @@ public:
 	 * @return Whether the index is inside the image
 	 */
 	virtual bool indexInsideFOV(size_t len, const int64_t* xyz) const=0;
-
-//	virtual int unary(double(*func)(double,double)) const = 0;
-//	virtual int binOp(const MRImage* right, double(*func)(double,double), bool elevR) const = 0;
-
-	/*
-	 * medical image specific stuff, eventually these should be moved to a
-	 * medical image subclass
-	 */
-
+    
     /**
      * @brief Returns true of the other image has matching orientation as this.
      * If checksize = true, then it will also check the size of the two images
@@ -445,6 +470,132 @@ public:
     virtual 
     bool matchingOrient(shared_ptr<const MRImage> other, bool checksize) const;
 	
+    /********************************************
+     * Output Functions
+     *******************************************/
+
+    /**
+     * @brief Write the image to a nifti file.
+     *
+     * @param filename Filename
+     * @param version Version of nifti to use
+     *
+     * @return 0 if successful
+     */
+	virtual int write(std::string filename, double version = 1) const = 0;
+
+	friend std::ostream& operator<<(std::ostream &out, const MRImage& img);
+    
+    /********************************************
+     * Copying/Pointer Functions
+     *******************************************/
+	
+    /**
+     * @brief Returns a pointer to self
+     *
+     * @return this
+     */
+	shared_ptr<MRImage> getPtr()  {
+		return std::dynamic_pointer_cast<MRImage>(shared_from_this());
+	};
+	
+    /**
+     * @brief Returns a constant pointer to self
+     *
+     * @return this
+     */
+	shared_ptr<const MRImage> getConstPtr() const {
+		return std::dynamic_pointer_cast<const MRImage>(shared_from_this());
+	};
+    
+	
+    /**
+     * @brief Create a copy of this image. This is identical to copy() but will
+     * return a pointer to an image rather than an NDArray.
+     *
+     * @return  Pointer to deep-copied image.
+     */
+	virtual std::shared_ptr<MRImage> cloneImage() const = 0;
+	
+
+	/**
+	 * @brief Performs a deep copy of the entire image and all metadata.
+	 *
+	 * @return Copied image (as NDarray pointer)
+	 */
+	virtual shared_ptr<NDArray> copy() const = 0;
+
+	/**
+	 * @brief Create a new image that is a copy of the input, possibly with new
+	 * dimensions and pixeltype. The new image will have all overlapping pixels
+	 * copied from the old image.
+	 *
+	 * This function just calls the outside copyCast, the reason for this
+	 * craziness is that making a template function nested in the already
+	 * huge number of templates I have kills the compiler, so we call an
+	 * outside function that calls templates that has all combinations of D,T.
+	 *
+	 * @param newdims Number of dimensions in output image
+	 * @param newsize Size of output image
+	 * @param newtype Type of pixels in output image
+	 *
+	 * @return Image with overlapping sections cast and copied from 'in'
+	 */
+	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize,
+			PixelT newtype) const = 0;
+
+	/**
+	 * @brief Create a new image that is a copy of the input, with same dimensions
+	 * but pxiels cast to newtype. The new image will have all overlapping pixels
+	 * copied from the old image.
+	 *
+	 * This function just calls the outside copyCast, the reason for this
+	 * craziness is that making a template function nested in the already
+	 * huge number of templates I have kills the compiler, so we call an
+	 * outside function that calls templates that has all combinations of D,T.
+	 *
+	 * @param newtype Type of pixels in output image
+	 *
+	 * @return Image with overlapping sections cast and copied from 'in'
+	 */
+	virtual shared_ptr<NDArray> copyCast(PixelT newtype) const = 0;
+
+	/**
+	 * @brief Create a new image that is a copy of the input, possibly with new
+	 * dimensions or size. The new image will have all overlapping pixels
+	 * copied from the old image. The new image will have the same pixel type as
+	 * the input image
+	 *
+	 * This function just calls the outside copyCast, the reason for this
+	 * craziness is that making a template function nested in the already
+	 * huge number of templates I have kills the compiler, so we call an
+	 * outside function that calls templates that has all combinations of D,T.
+	 *
+	 * @param newdims Number of dimensions in output image
+	 * @param newsize Size of output image
+	 *
+	 * @return Image with overlapping sections cast and copied from 'in'
+	 */
+	virtual shared_ptr<NDArray> copyCast(size_t newdims,
+				const size_t* newsize) const = 0;
+
+    /**
+     * @brief Copies metadata from another image. This includes slice timing,
+     * anything read from nifti files, spacing, orientation etc, but NOT 
+     * pixel data, size, and dimensionality. 
+     *
+     * @param src Other image to copy from
+     */
+    virtual void copyMetadata(shared_ptr<const MRImage> src);
+
+
+//	virtual int unary(double(*func)(double,double)) const = 0;
+//	virtual int binOp(const MRImage* right, double(*func)(double,double), bool elevR) const = 0;
+
+	/**********************************************************************
+	 * Medical Image Specific 
+	 *********************************************************************/
+
 	// < 0 indicate unset variables
 	int m_freqdim;
 	int m_phasedim;
@@ -478,15 +629,36 @@ public:
 	// each slice is given its relative time, with 0 as the first
 	std::map<int64_t,double> m_slice_timing;
 
-	friend std::ostream& operator<<(std::ostream &out, const MRImage& img);
-
 protected:
 	virtual int writeNifti1Image(gzFile file) const = 0;
 	virtual int writeNifti2Image(gzFile file) const = 0;
-	
-	virtual void updateAffine() = 0;
 
-	
+    /**
+     * @brief Direction Matrix. Each row indicates the direction of the grid in
+     * RAS coordinates. This is the rotation of the Index grid. 
+     * Note that you should not set this directly, 
+     */
+	MatrixXd m_direction;
+    
+    /**
+     * @brief Inverse of Direction Matrix. 
+     */
+	MatrixXd m_inv_direction;
+    
+    /**
+     * @brief Spacing vector. Indicates distance between adjacent pixels in
+     * each dimension. Note that you should not set this directly, use
+     * setSpacing() instead because it will update the affine Matrix.
+     */
+	VectorXd m_spacing;
+
+    /**
+     * @brief Origin vector. Indicates the RAS coordinates of index [0,0,0,..]
+     * Note that you should not set this directly, use setOrigin() instead
+     * because it will update the affine Matrix.
+     */
+	VectorXd m_origin;
+
 	friend shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose);
 };
 
@@ -505,6 +677,9 @@ class MRImageStore :  public virtual NDArrayStore<D,T>, public virtual MRImage
 
 public:
 
+    /*****************************************
+     * Constructors
+     ****************************************/
 	/**
 	 * @brief Constructor with initializer list. Orientation will be default
 	 * (direction = identity, spacing = 1, origin = 0).
@@ -553,79 +728,10 @@ public:
 	MRImageStore(size_t len, const size_t* size, T* ptr, 
             const std::function<void(void*)>& deleter) ;
 	
-	/**
-	 * @brief Performs a deep copy of the entire image and all metadata.
-	 *
-	 * @return Copied image.
-	 */
-	virtual shared_ptr<NDArray> copy() const;
-
-	/**
-	 * @brief Create a new image that is a copy of the input, possibly with new
-	 * dimensions and pixeltype. The new image will have all overlapping pixels
-	 * copied from the old image.
-	 *
-	 * This function just calls the outside copyCast, the reason for this
-	 * craziness is that making a template function nested in the already
-	 * huge number of templates I have kills the compiler, so we call an
-	 * outside function that calls templates that has all combinations of D,T.
-	 *
-	 * @param newdims Number of dimensions in output image
-	 * @param newsize Size of output image
-	 * @param newtype Type of pixels in output image
-	 *
-	 * @return Image with overlapping sections cast and copied from 'in'
-	 */
-	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize,
-			PixelT newtype) const;
-
-	/**
-	 * @brief Create a new image that is a copy of the input, with same dimensions
-	 * but pxiels cast to newtype. The new image will have all overlapping pixels
-	 * copied from the old image.
-	 *
-	 * This function just calls the outside copyCast, the reason for this
-	 * craziness is that making a template function nested in the already
-	 * huge number of templates I have kills the compiler, so we call an
-	 * outside function that calls templates that has all combinations of D,T.
-	 *
-	 * @param newtype Type of pixels in output image
-	 *
-	 * @return Image with overlapping sections cast and copied from 'in'
-	 */
-	virtual shared_ptr<NDArray> copyCast(PixelT newtype) const;
-
-	/**
-	 * @brief Create a new image that is a copy of the input, possibly with new
-	 * dimensions or size. The new image will have all overlapping pixels
-	 * copied from the old image. The new image will have the same pixel type as
-	 * the input image
-	 *
-	 * This function just calls the outside copyCast, the reason for this
-	 * craziness is that making a template function nested in the already
-	 * huge number of templates I have kills the compiler, so we call an
-	 * outside function that calls templates that has all combinations of D,T.
-	 *
-	 * @param newdims Number of dimensions in output image
-	 * @param newsize Size of output image
-	 *
-	 * @return Image with overlapping sections cast and copied from 'in'
-	 */
-	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize) const;
-
-	/*************************************************************************
+    /*************************************************************************
 	 * Coordinate Transform Functions
 	 ************************************************************************/
-	void orientDefault();
-	void updateAffine();
-	void setOrient(const MatrixP& orig, const MatrixP& space,
-			const MatrixP& dir, bool reinit);
-	void setOrigin(const MatrixP& orig, bool reinit = false);
-	void setSpacing(const MatrixP& space, bool reinit = false);
-	void setDirection(const MatrixP& dir, bool reinit = false);
-	
-	void printSelf();
-	
+    
 	/**
 	 * @brief Converts an index in pixel space to RAS, physical/time coordinates.
 	 * If len < dimensions, additional dimensions are assumed to be 0. If len >
@@ -754,77 +860,6 @@ public:
 	virtual bool indexInsideFOV(size_t len, const int64_t* xyz) const;
 
 	/**
-	 * @brief Returns a matrix (single column) with spacing information. The
-	 * number of rows is equal to the number of dimensions in the image.
-	 *
-	 * @return Reference to spacing matrix
-	 */
-	MatrixP& spacing() {return *((MatrixP*)&m_space); };
-	
-	/**
-	 * @brief Returns a matrix (single column) with origin (RAS coordinate of
-	 * index 0,0,0). The number of rows is equal to the number of dimensions in
-	 * the image.
-	 *
-	 * @return Reference to origin matrix
-	 */
-	MatrixP& origin() {return *((MatrixP*)&m_origin); };
-	
-	/**
-	 * @brief Returns a square matrix with direction, which is the rotation off
-	 * the indices to +R +A +S.
-	 *
-	 * @return Reference to direction matrix
-	 */
-	MatrixP& direction() {return *((MatrixP*)&m_dir); };
-
-
-//	MatrixP& affine() {return *((MatrixP*)&m_affine); };
-//	MatrixP& iaffine() {return *((MatrixP*)&m_inv_affine); };
-	
-	/**
-	 * @brief Returns a matrix (single column) with spacing information. The
-	 * number of rows is equal to the number of dimensions in the image.
-	 *
-	 * @return Reference to spacing matrix
-	 */
-	const MatrixP& spacing() const {return *((MatrixP*)&m_space); };
-	
-	/**
-	 * @brief Returns a matrix (single column) with origin (RAS coordinate of
-	 * index 0,0,0). The number of rows is equal to the number of dimensions in
-	 * the image.
-	 *
-	 * @return Reference to origin matrix
-	 */
-	const MatrixP& origin() const {return *((MatrixP*)&m_origin); };
-	
-	/**
-	 * @brief Returns a square matrix with direction, which is the rotation off
-	 * the indices to +R +A +S.
-	 *
-	 * @return Reference to direction matrix
-	 */
-	const MatrixP& direction() const {return *((MatrixP*)&m_dir); };
-	
-	/**
-	 * @brief Returns a square matrix that may be used to convert an index to
-	 * a point in the coordinate system of real RAS space (rather than index
-	 * space).
-	 *
-	 * @return Reference to affine matrix
-	 */
-	const MatrixP& affine() const {return *((MatrixP*)&m_affine); };
-
-	/**
-	 * @brief Returns a square matrix that may be used to convert a point in
-	 * the coordinate system of real RAS space to index space.
-	 *
-	 * @return Reference to inverse affine matrix
-	 */
-	const MatrixP& iaffine() const {return *((MatrixP*)&m_inv_affine); };
-
-	/**
 	 * @brief Returns units of given dimension, note that this is prior to the
 	 * direction matrix, so if there is oblique orientation you are really
 	 * looking at a mix of units.
@@ -835,6 +870,9 @@ public:
 	 */
 	std::string getUnits(size_t d) { return m_units[d]; };
 
+    /********************************************
+     * Output Functions
+     *******************************************/
 	/**
 	 * @brief Write out nifti image with the current images data.
 	 *
@@ -846,7 +884,76 @@ public:
 	 */
 	int write(std::string filename, double version) const;
 	
+    /**
+     * @brief Print information about the image
+     */
+    void printSelf();
+	
+    /********************************************
+     * Copying/Pointer Functions
+     *******************************************/
+	
 	/**
+	 * @brief Performs a deep copy of the entire image and all metadata.
+	 *
+	 * @return Copied image.
+	 */
+	virtual shared_ptr<NDArray> copy() const;
+
+	/**
+	 * @brief Create a new image that is a copy of the input, possibly with new
+	 * dimensions and pixeltype. The new image will have all overlapping pixels
+	 * copied from the old image.
+	 *
+	 * This function just calls the outside copyCast, the reason for this
+	 * craziness is that making a template function nested in the already
+	 * huge number of templates I have kills the compiler, so we call an
+	 * outside function that calls templates that has all combinations of D,T.
+	 *
+	 * @param newdims Number of dimensions in output image
+	 * @param newsize Size of output image
+	 * @param newtype Type of pixels in output image
+	 *
+	 * @return Image with overlapping sections cast and copied from 'in'
+	 */
+	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize,
+			PixelT newtype) const;
+
+	/**
+	 * @brief Create a new image that is a copy of the input, with same dimensions
+	 * but pxiels cast to newtype. The new image will have all overlapping pixels
+	 * copied from the old image.
+	 *
+	 * This function just calls the outside copyCast, the reason for this
+	 * craziness is that making a template function nested in the already
+	 * huge number of templates I have kills the compiler, so we call an
+	 * outside function that calls templates that has all combinations of D,T.
+	 *
+	 * @param newtype Type of pixels in output image
+	 *
+	 * @return Image with overlapping sections cast and copied from 'in'
+	 */
+	virtual shared_ptr<NDArray> copyCast(PixelT newtype) const;
+
+	/**
+	 * @brief Create a new image that is a copy of the input, possibly with new
+	 * dimensions or size. The new image will have all overlapping pixels
+	 * copied from the old image. The new image will have the same pixel type as
+	 * the input image
+	 *
+	 * This function just calls the outside copyCast, the reason for this
+	 * craziness is that making a template function nested in the already
+	 * huge number of templates I have kills the compiler, so we call an
+	 * outside function that calls templates that has all combinations of D,T.
+	 *
+	 * @param newdims Number of dimensions in output image
+	 * @param newsize Size of output image
+	 *
+	 * @return Image with overlapping sections cast and copied from 'in'
+	 */
+	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize) const;
+	
+    /**
 	 * @brief Create an exact copy of the current image object, and return
 	 * a pointer to it.
 	 *
@@ -855,39 +962,12 @@ public:
 	std::shared_ptr<MRImage> cloneImage() const;
 
 protected:
-	// used to transform index to RAS (Right Handed Coordinate System)
 
-	/**
-	 * @brief Raw direction matrix
-	 */
-	Matrix<D,D> m_dir;
+    /**
+     * @brief Vector of units for each dimension
+     */
+    std::string m_units[D];
 
-	/**
-	 * @brief Raw spacing matrix
-	 */
-	Matrix<D,1> m_space;
-
-	/**
-	 * @brief Raw origin
-	 */
-	Matrix<D,1> m_origin;
-
-	/**
-	 * @brief String indicating units
-	 */
-	std::string m_units[D];
-	
-	/**
-	 * @brief Matrix which transforms an index vector into a point vector
-	 */
-	Matrix<D+1,D+1> m_affine;
-
-
-	/**
-	 * @brief Matrix which transforms a space vector to an index vector.
-	 */
-	Matrix<D+1,D+1> m_inv_affine;
-	
 	int writeNifti1Image(gzFile file) const;
 	int writeNifti2Image(gzFile file) const;
 	int writeNifti1Header(gzFile file) const;

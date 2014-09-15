@@ -26,7 +26,6 @@
 #include "ndarray_utils.h"
 #include "ndarray.h"
 #include "npltypes.h"
-#include "matrix.h"
 #include "utility.h"
 #include "iterators.h"
 #include "basic_functions.h"
