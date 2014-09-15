@@ -144,12 +144,14 @@ shared_ptr<MRImage> fft_forward(shared_ptr<const MRImage> in,
     // fourier transform
     fftw_execute(fwd);
 
+#ifndef NDEBUG
     OrderIter<cdouble_t> it(output);;
     for(size_t ii=0; !it.eof(); ii++, ++it) {
         cdouble_t tmp(*it);
         assert(tmp.real() == outbuff[ii][0]);
         assert(tmp.imag() == outbuff[ii][1]);
     }
+#endif 
 
     // normalize
     double normf = 1./opixels;
