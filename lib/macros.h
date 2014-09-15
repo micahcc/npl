@@ -26,4 +26,22 @@
 #define INVALID_ARGUMENT(EXP) \
 std::invalid_argument(__PRETTY_FUNCTION__+std::string(" -> ")+std::string(EXP))
 
+#ifdef VERYDEBUG
+#define DBG3(EXP) EXP
+#else
+#define DBG3(EXP) 
+#endif
+
+#ifdef DEBUG
+#define DBG2(EXP) EXP
+#else
+#define DBG2(EXP) 
+#endif
+
+#ifndef NDEBUG
+#define DBG1(EXP) EXP
+#else
+#define DBG1(EXP) 
+#endif 
+
 #endif 

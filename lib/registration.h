@@ -29,7 +29,6 @@
 
 #define VERYDEBUG 1
 
-
 using std::shared_ptr;
 
 namespace npl {
@@ -52,6 +51,9 @@ namespace npl {
  * @brief The Rigid Corr Computer is used to compute the correlation
  * and gradient of correlation between two images. As the name implies, it 
  * is designed for 6 parameter rigid transforms.
+ *
+ * Note that it computes the NEGATIVE of the correlation, and gradient,
+ * so that most gradient descent methods will work.
  */
 class RigidCorrComputer
 {
@@ -65,9 +67,11 @@ class RigidCorrComputer
      *
      * @param fixed Fixed image. A copy of this will be made.
      * @param moving Moving image. A copy of this will be made.
+     * @param negate Whether to use negative correlation (for instance to
+     * minimize negative correlation using a gradient descent).
      */
     RigidCorrComputer(shared_ptr<const MRImage> fixed,
-            shared_ptr<const MRImage> moving);
+            shared_ptr<const MRImage> moving, bool negate);
 
     /**
      * @brief Computes the gradient and value of the correlation. 
@@ -124,7 +128,14 @@ class RigidCorrComputer
     shared_ptr<MRImage> d_shift_y;
     shared_ptr<MRImage> d_shift_z;
     shared_ptr<MRImage> interpolated;
+    int callcount;
 #endif
+
+    /**
+     * @brief Negative of correlation (which will make it work with most
+     * optimizers)
+     */
+    bool m_negate;
 
 };
 
@@ -141,18 +152,19 @@ struct Rigid3DTrans
     Vector3d rotation; //Rx, Ry, Rz
     Vector3d shift;
     Vector3d center;
-
-    Rigid3DTrans() {
-        rotation.setZero();
-        shift.setZero();
-        center.setZero();
-    };
-
+   
     /**
      * @brief Indicates the stored transform is relative to physical coordintes
      * rather than index coordinates
      */
     bool ras_coord;
+
+    Rigid3DTrans() {
+        ras_coord = false;
+        rotation.setZero();
+        shift.setZero();
+        center.setZero();
+    };
 
     /**
      * @brief Inverts rigid transform, where: 
@@ -220,8 +232,10 @@ struct Rigid3DTrans
      * coordinates.
      *
      * @param in Source of index->world transform
+     * @param forcegridcenter Force the center to be the center of the grid
+     * rather than using the location corresponding to the current center 
      */
-    void toIndexCoords(shared_ptr<const MRImage> in);
+    void toIndexCoords(shared_ptr<const MRImage> in, bool forcegridcenter);
 
 };
 
@@ -245,13 +259,12 @@ shared_ptr<MRImage> motionCorrect(shared_ptr<const MRImage> input, size_t ref);
  *
  * @param fixed     Image which will be the target of registration. 
  * @param moving    Image which will be rotated then shifted to match fixed.
+ * @param sigmas    Standard deviation of smoothing kernel at each level
  *
- * @return          4x4 Matrix, indicating rotation about the center then 
- *                  shift. Rotation matrix is the first 3x3 and shift is the
- *                  4th column.
+ * @return          Rigid transform.
  */
 Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed, 
-        shared_ptr<const MRImage> moving);
+        shared_ptr<const MRImage> moving, const std::vector<double>& sigmas);
 
 
 /**
@@ -279,6 +292,12 @@ int cor3DDerivTest(double step, double tol, shared_ptr<const MRImage> in1,
  */
 std::ostream& operator<< (std::ostream& stream, const Rigid3DTrans& rigid)
 {
+    stream << "Rigid3DTransform ";
+    if(rigid.ras_coord)
+        stream << "(In RAS)\n";
+    else 
+        stream << "(In Index)\n";
+
     stream << "Rotation: ";
     for(size_t ii=0; ii<2; ii++)
         stream << rigid.rotation[ii] << ", ";

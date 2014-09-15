@@ -38,7 +38,7 @@ using std::vector;
 using std::shared_ptr;
 
 /**
- * \defgroup MRImageUtilities General Purpose MRImage Functions
+ * \defgroup MRImageUtilities MRImage Functions
  * @{
  */
 

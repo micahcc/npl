@@ -26,6 +26,7 @@
 #include <memory>
 #include <stdexcept>
 #include <functional>
+#include <algorithm>
 
 #include <Eigen/Dense>
 
@@ -85,7 +86,7 @@ int cor3DDerivTest(double step, double tol,
         shared_ptr<const MRImage> in1, shared_ptr<const MRImage> in2)
 {
     using namespace std::placeholders;
-    RigidCorrComputer comp(in1, in2);
+    RigidCorrComputer comp(in1, in2, false);
 
     auto vfunc = std::bind(&RigidCorrComputer::value, &comp, _1, _2);
     auto gfunc = std::bind(&RigidCorrComputer::grad, &comp, _1, _2);
@@ -114,7 +115,8 @@ int cor3DDerivTest(double step, double tol,
  *                  4th column.
  */
 Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed, 
-        shared_ptr<const MRImage> moving)
+        shared_ptr<const MRImage> moving, 
+        const std::vector<double>& sigmas)
 {
     using namespace std::placeholders;
     using std::bind;
@@ -126,15 +128,15 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
         throw std::invalid_argument("Input images have mismatching pixels "
                 "in\n" + __FUNCTION_STR__);
 
-    std::vector<double> sigma_schedule({3, 2, 1});
-    for(size_t ii=0; ii<sigma_schedule.size(); ii++) {
+    
+    for(size_t ii=0; ii<sigmas.size(); ii++) {
         // smooth and downsample input images
-        auto sm_fixed = smoothDownsample(fixed, sigma_schedule[ii]);
-        auto sm_moving = smoothDownsample(moving, sigma_schedule[ii]);
-        DEBUGWRITE(sm_fixed->write("smooth_fixed.nii.gz"));
-        DEBUGWRITE(sm_moving->write("smooth_moving.nii.gz"));
+        auto sm_fixed = smoothDownsample(fixed, sigmas[ii]);
+        auto sm_moving = smoothDownsample(moving, sigmas[ii]);
+        DEBUGWRITE(sm_fixed->write("smooth_fixed_"+to_string(ii)+".nii.gz"));
+        DEBUGWRITE(sm_moving->write("smooth_moving_"+to_string(ii)+".nii.gz"));
 
-        RigidCorrComputer comp(sm_fixed, sm_moving);
+        RigidCorrComputer comp(sm_fixed, sm_moving, true);
         
         // create value and gradient functions
         auto vfunc = bind(&RigidCorrComputer::value, &comp, _1, _2);
@@ -145,7 +147,8 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
         LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
         opt.stop_Its = 10000;
         opt.stop_X = 0;
-        opt.stop_G = 0.0000000001;
+        opt.stop_G = 0;
+        opt.stop_F = 0;
         
         cerr << "Init Rigid: " << ii << endl;
         cerr << "Rotation: " << rigid.rotation.transpose() << endl;
@@ -153,7 +156,7 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
         cerr << "Shift : " << rigid.shift.transpose() << endl;
 
         // grab the parameters from the previous iteration (or initialized)
-        rigid.toIndexCoords(sm_moving);
+        rigid.toIndexCoords(sm_moving, true);
         for(size_t ii=0; ii<3; ii++) {
             opt.state_x[ii] = rigid.rotation[ii];
             opt.state_x[ii+3] = rigid.shift[ii];
@@ -206,15 +209,19 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
  *
  * @param fixed Fixed image. A copy of this will be made.
  * @param moving Moving image. A copy of this will be made.
+ * @param negate Whether to use negative correlation (for instance to
+ * minimize negative correlation using a gradient descent).
  */
 RigidCorrComputer::RigidCorrComputer(
-        shared_ptr<const MRImage> fixed, shared_ptr<const MRImage> moving) :
+        shared_ptr<const MRImage> fixed, shared_ptr<const MRImage> moving,
+        bool negate) :
     m_fixed(dynamic_pointer_cast<MRImage>(fixed->copy())),
     m_moving(dynamic_pointer_cast<MRImage>(moving->copy())),
     m_dmoving(dynamic_pointer_cast<MRImage>(derivative(moving))),
     m_move_get(m_moving),
     m_dmove_get(m_dmoving),
-    m_fit(m_fixed)
+    m_fit(m_fixed),
+    m_negate(negate)
 {
     if(fixed->ndim() != 3)
         throw INVALID_ARGUMENT("Fixed image is not 3D!");
@@ -222,13 +229,17 @@ RigidCorrComputer::RigidCorrComputer(
         throw INVALID_ARGUMENT("Moving image is not 3D!");
 
 #ifdef VERYDEBUG
+    m_moving->write("init_moving.nii.gz");
+    m_fixed->write("init_fixed.nii.gz");
     d_theta_x = dynamic_pointer_cast<MRImage>(moving->copy());
     d_theta_y = dynamic_pointer_cast<MRImage>(moving->copy());
     d_theta_z = dynamic_pointer_cast<MRImage>(moving->copy());
     d_shift_x = dynamic_pointer_cast<MRImage>(moving->copy());
     d_shift_y = dynamic_pointer_cast<MRImage>(moving->copy());
     d_shift_z = dynamic_pointer_cast<MRImage>(moving->copy());
-    interpolated = dynamic_pointer_cast<MRImage>(fixed->copy());
+    interpolated = dynamic_pointer_cast<MRImage>(moving->copy());
+    interpolated->write("init_interpolated.nii.gz");
+    callcount = 0;
 #endif
 	
     for(size_t ii=0; ii<3 && ii<moving->ndim(); ii++) 
@@ -255,12 +266,14 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
     double sz = params[5];
 
 #ifdef VERYDEBUG
+    cerr << "ValGrad()" << endl;
     Pixel3DView<double> d_ang_x(d_theta_x);
     Pixel3DView<double> d_ang_y(d_theta_y);
     Pixel3DView<double> d_ang_z(d_theta_z);
     Pixel3DView<double> d_shi_x(d_shift_x);
     Pixel3DView<double> d_shi_y(d_shift_y);
     Pixel3DView<double> d_shi_z(d_shift_z);
+    Pixel3DView<double> acc(interpolated);
 #endif
 
     // for computing roted indices
@@ -373,6 +386,8 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
         d_shi_x.set(dCdSx, ind[0], ind[1], ind[2]);
         d_shi_y.set(dCdSy, ind[0], ind[1], ind[2]);
         d_shi_z.set(dCdSz, ind[0], ind[1], ind[2]);
+        acc.set(g, ind[0], ind[1], ind[2]);
+        assert(acc(ind[0], ind[1], ind[2]) == g);
 #endif
      
         grad[0] += (*m_fit)*dCdRx;
@@ -385,18 +400,28 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
     }
 
     count = m_fixed->elements();
-    val = sample_corr(count, mov_sum, fix_sum, mov_ss, fix_sum, corr);
+    val = sample_corr(count, mov_sum, fix_sum, mov_ss, fix_ss, corr);
     double sd1 = sqrt(sample_var(count, mov_sum, mov_ss));
     double sd2 = sqrt(sample_var(count, fix_sum, fix_ss));
     grad /= (count-1)*sd1*sd2;
 
+    if(m_negate) {
+        grad = -grad;
+        val = -val;
+    }
+
 #ifdef VERYDEBUG
-    d_theta_x->write("d_theta_x.nii.gz");
-    d_theta_y->write("d_theta_y.nii.gz");
-    d_theta_z->write("d_theta_z.nii.gz");
-    d_shift_x->write("d_shift_x.nii.gz");
-    d_shift_y->write("d_shift_y.nii.gz");
-    d_shift_z->write("d_shift_z.nii.gz");
+    cerr << "Value: " << val << endl;
+    cerr << "Gradient: " << grad.transpose() << endl;
+    string sc = "_"+to_string(callcount);
+    d_theta_x->write("d_theta_x"+sc+".nii.gz");
+    d_theta_y->write("d_theta_y"+sc+".nii.gz");
+    d_theta_z->write("d_theta_z"+sc+".nii.gz");
+    d_shift_x->write("d_shift_x"+sc+".nii.gz");
+    d_shift_y->write("d_shift_y"+sc+".nii.gz");
+    d_shift_z->write("d_shift_z"+sc+".nii.gz");
+    interpolated->write("interp"+sc+".nii.gz");
+    callcount++;
 #endif
 
     return 0;
@@ -429,6 +454,7 @@ int RigidCorrComputer::grad(const VectorXd& params, VectorXd& grad)
 int RigidCorrComputer::value(const VectorXd& params, double& val)
 {
 #ifdef VERYDEBUG
+    cerr << "Val()" << endl;
     Pixel3DView<double> acc(interpolated);
 #endif 
 
@@ -488,6 +514,15 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
     }
 
     val = sample_corr(m_fixed->elements(), sum1, sum2, ss1, ss2, corr);
+    if(m_negate)
+        val = -val;
+
+#ifdef VERYDEBUG
+    DEBUGWRITE(cerr << "Value: " << val << endl);
+    string sc = "_"+to_string(callcount);
+    interpolated->write("interp"+sc+".nii.gz");
+    callcount++;
+#endif 
     return 0;
 };
 
@@ -540,6 +575,8 @@ Matrix3d Rigid3DTrans::rotMatrix()
  * @brief Converts to world coordinates based on the orientation stored in
  * input image.
  *
+ * The image center is just converted from index space to RAS space.
+ *
  * For a rotation in RAS coordinates, with orientation \f$A\f$, origin \f$b\f$
  * rotation \f$Q\f$, shift \f$t\f$ and center \f$d\f$:
  *
@@ -568,32 +605,53 @@ Matrix3d Rigid3DTrans::rotMatrix()
  */
 void Rigid3DTrans::toRASCoords(shared_ptr<const MRImage> in)
 {
-    // change center to be the phsyical center
-    Vector3d rascenter;
-    in->indexToPoint(3, center.data(), rascenter.data());
+    bool ras_coord = true;
 
+    Matrix3d R, Q, A;
+    Vector3d c, s, d, t, b;
+    
+    ////////////////////
+    // Orientation 
+    ////////////////////
+    A = in->getDirection(); // direction*spacing
     // premultiply direction matrix with spacing
-    Matrix3d A = in->getDirection();
     for(size_t rr=0; rr<A.rows(); rr++) {
         for(size_t cc=0; cc<A.cols(); cc++) {
             A(rr,cc) *= in->spacing(cc);
         }
     }
-    const Vector3d& origin = in->getOrigin();
+    b = in->getOrigin(); // origin
 
-    Matrix3d rasrotation = A*rotation*A.inverse();
-    Matrix3d rasshift = rasrotation*(rascenter-origin)-rascenter+
-        (shift+center-rotation*center) - origin;
+    ////////////////////////
+    // Index Space Rotation
+    ////////////////////////
+    R = AngleAxisd(rotation[0], Vector3d::UnitX())*
+        AngleAxisd(rotation[1], Vector3d::UnitY())*
+        AngleAxisd(rotation[2], Vector3d::UnitZ());
+    s = shift; // shift in index space
+    c = center; // center in index space
+
+    ////////////////////////
+    // RAS Space Rotation
+    ////////////////////////
+    in->indexToPoint(3, c.data(), d.data()); // center
+    Q = A*R*A.inverse(); // rotation in RAS
     
-
+    // compute shift in RAS
+    t = Q*(d-b)+A*(s+c-R*c)+b-d;
+    
+    shift = t;
+    center = d;
+    rotation = Q.eulerAngles(0,1,2);
 };
 
 /**
  * @brief Converts from world coordinates to index coordinates based on the
  * orientation stored in input image.
- *
- * The center of rotation is assumed to be the center of the grid which is 
- * (SIZE-1)/2 in each dimension.
+ * 
+ * The image center is either converted from RAS space to index space or, if
+ * forcegridcenter is true, then the center of rotation is set to the center of
+ * the grid ((SIZE-1)/2 in each dimension).
  *
  * \f{eqnarray*}{
  *      R &=& Rotation matrix in index space \\
@@ -619,10 +677,58 @@ void Rigid3DTrans::toRASCoords(shared_ptr<const MRImage> in)
  * coordinates.
  *
  * @param in Source of index->world transform
+ * @param forcegridcenter Force the center to be the center of the grid rather
+ * than using the location corresponding to the current center 
  */
-void Rigid3DTrans::toIndexCoords(shared_ptr<const MRImage> in)
+void Rigid3DTrans::toIndexCoords(shared_ptr<const MRImage> in, 
+        bool forcegridcenter)
 {
-    // TODO  
+    bool ras_coord = false;
+
+    Matrix3d R, Q, A;
+    Vector3d c, s, d, t, b;
+    
+    ////////////////////
+    // Orientation 
+    ////////////////////
+    A = in->getDirection(); // direction*spacing
+    // premultiply direction matrix with spacing
+    for(size_t rr=0; rr<A.rows(); rr++) {
+        for(size_t cc=0; cc<A.cols(); cc++) {
+            A(rr,cc) *= in->spacing(cc);
+        }
+    }
+    b = in->getOrigin(); // origin
+
+    ////////////////////////
+    // RAS Space Rotation
+    ////////////////////////
+    Q = AngleAxisd(rotation[0], Vector3d::UnitX())*
+        AngleAxisd(rotation[1], Vector3d::UnitY())*
+        AngleAxisd(rotation[2], Vector3d::UnitZ());
+    t = shift; // shift in ras space
+    d = center; // center in ras space
+
+    ////////////////////////
+    // Index Space Rotation
+    ////////////////////////
+    if(forcegridcenter) {
+        // make center the image center
+        for(size_t dd=0; dd < 3; dd++)
+            c[dd] = (in->dim(dd)-1.)/2.;
+    } else {
+        // change center to index space
+        in->pointToIndex(3, d.data(), c.data());
+    }
+
+    R = A.inverse()*Q*A; // rotation in RAS
+    
+    // compute shift in RAS
+    s = A.inverse()*(Q*(b+A*c-d) + t+d-b) - c;
+    
+    shift = s;
+    center = c;
+    rotation = R.eulerAngles(0,1,2);
 };
 
 }
