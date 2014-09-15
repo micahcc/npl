@@ -49,7 +49,7 @@ shared_ptr<MRImage> gaussianImage()
     // create an image
     size_t sz[] = {64,64,64};
     int64_t index[3];
-    auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, COMPLEX128);
+    auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, FLOAT64);
 
     // fill with a shape that is somewhat unique when rotated. 
     OrderIter<double> sit(in);
@@ -96,6 +96,7 @@ int main()
 {
     // create test image
     auto img = gaussianImage();
+    //auto img = squareImage();
 
     // rotate it
     auto moved = toMRImage(img->copy());
@@ -105,15 +106,13 @@ int main()
     shiftImageFFT(moved, 1, 7);
     shiftImageFFT(moved, 2, -2);
     
-    std::vector<double> sigma_schedule({3,2});
-    for(size_t ii=0; ii<sigma_schedule.size(); ii++) {
-        // smooth and downsample input images
-        auto sm_fixed = smoothDownsample(img, sigma_schedule[ii]);
-        auto sm_moving = smoothDownsample(moved, sigma_schedule[ii]);
-    
-        corReg3D(sm_fixed, sm_moving);
+    cerr << "Input Image:\n" << *img << endl;
+    cerr << "Rigidly Transformed Image:\n" << *moved << endl;
 
-    }
+    std::vector<double> sigma_schedule({4,2});
+    auto out = corReg3D(img, moved, sigma_schedule);
+
+    cerr << "Final Parameters: " << out << endl;
     return 0;
 }
 

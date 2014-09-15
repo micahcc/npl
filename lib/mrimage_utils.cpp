@@ -25,6 +25,7 @@
 #include "ndarray_utils.h"
 #include "mrimage_utils.h"
 #include "byteswap.h"
+#include "macros.h"
 
 #include "fftw3.h"
 
@@ -270,12 +271,12 @@ shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
     size_t ndim = in->ndim();
 
     // convert mm to indices
-    cerr << "StdDev: " << sigma << "\n, Smoothing in Index Space:\n";
+    DBG3(cerr << "StdDev: " << sigma << "\n, Smoothing in Index Space:\n");
     vector<double> sd(ndim, sigma);
     for(size_t ii=0; ii<ndim; ii++) {
         sd[ii] /= in->spacing(ii);
-        cerr << ii << ": FWHM: " << sd_to_fwhm(sd[ii]) << " SD: " 
-            << sd[ii] << endl;
+        DBG3(cerr << ii << ": FWHM: " << sd_to_fwhm(sd[ii]) << " SD: " 
+            << sd[ii] << endl);
     }
 
 
@@ -367,7 +368,7 @@ shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
 
         // update ROI
         roi[dd] = osize[dd];
-        cerr << isize[dd] << "->" << osize[dd] << endl;
+        DBG3(cerr << isize[dd] << "->" << osize[dd] << endl);
     }
 
     // copy roi into output
