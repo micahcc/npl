@@ -605,7 +605,7 @@ Matrix3d Rigid3DTrans::rotMatrix()
  */
 void Rigid3DTrans::toRASCoords(shared_ptr<const MRImage> in)
 {
-    bool ras_coord = true;
+    ras_coord = true;
 
     Matrix3d R, Q, A;
     Vector3d c, s, d, t, b;
@@ -683,7 +683,7 @@ void Rigid3DTrans::toRASCoords(shared_ptr<const MRImage> in)
 void Rigid3DTrans::toIndexCoords(shared_ptr<const MRImage> in, 
         bool forcegridcenter)
 {
-    bool ras_coord = false;
+    ras_coord = false;
 
     Matrix3d R, Q, A;
     Vector3d c, s, d, t, b;
