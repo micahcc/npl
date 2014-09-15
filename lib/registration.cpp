@@ -146,6 +146,11 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
         opt.stop_Its = 10000;
         opt.stop_X = 0;
         opt.stop_G = 0.0000000001;
+        
+        cerr << "Init Rigid: " << ii << endl;
+        cerr << "Rotation: " << rigid.rotation.transpose() << endl;
+        cerr << "Center : " << rigid.center.transpose() << endl;
+        cerr << "Shift : " << rigid.shift.transpose() << endl;
 
         // grab the parameters from the previous iteration (or initialized)
         rigid.toIndexCoords(sm_moving);
@@ -154,6 +159,11 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
             opt.state_x[ii+3] = rigid.shift[ii];
             assert(rigid.center[ii] == (sm_moving->dim(ii)-1.)/2.);
         }
+
+        cerr << "Init Rigid (Index Coord): " << ii << endl;
+        cerr << "Rotation: " << rigid.rotation.transpose() << endl;
+        cerr << "Center : " << rigid.center.transpose() << endl;
+        cerr << "Shift : " << rigid.shift.transpose() << endl;
 
         // run the optimizer
         StopReason stopr = opt.optimize();
@@ -166,7 +176,18 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
             rigid.shift[ii] = opt.state_x[ii+3];
             rigid.center[ii] = (sm_moving->dim(ii)-1)/2.;
         }
+
+        cerr << "Finished Rigid (Index Coord): " << ii << endl;
+        cerr << "Rotation: " << rigid.rotation.transpose() << endl;
+        cerr << "Center : " << rigid.center.transpose() << endl;
+        cerr << "Shift : " << rigid.shift.transpose() << endl;
+        
         rigid.toRASCoords(sm_moving);
+
+        cerr << "Finished Rigid (RAS Coord): " << ii << endl;
+        cerr << "Rotation: " << rigid.rotation.transpose() << endl;
+        cerr << "Center : " << rigid.center.transpose() << endl;
+        cerr << "Shift : " << rigid.shift.transpose() << endl;
     }
 
     return rigid; 
@@ -519,25 +540,51 @@ Matrix3d Rigid3DTrans::rotMatrix()
  * @brief Converts to world coordinates based on the orientation stored in
  * input image.
  *
- * For a rotation in RAS coordinates, with rotation \f$Q\f$, shift \f$t\f$ and
- * center \f$d\f$:
+ * For a rotation in RAS coordinates, with orientation \f$A\f$, origin \f$b\f$
+ * rotation \f$Q\f$, shift \f$t\f$ and center \f$d\f$:
  *
  * \f[
  *   \hat u = Q(A\hat x + \hat b - \hat d) + \hat t + \hat d 
  * \f]
  *
- * From a rotation in index space with rotation \f$R\f$, shift \f$s\f$ and
- * center \f$c\f$:
  * \f{eqnarray*}{
- *  Q &=& A^{-1}AR \\
- *  \hat t &=& -Q\hat b + Q\hat d - \hat d - AR\hat c A\hat s + A\hat c + \hat b \\
+ *      R &=& Rotation matrix in index space \\
+ * \hat c &=& center of rotation in index space \\
+ * \hat s &=& shift vector in index space \\
+ *      Q &=& Rotation matrix in RAS (physical) space \\
+ * \hat d &=& center of rotation in RAS (physical) space \\
+ * \hat t &=& shift in index space \\
+ *      A &=& Direction matrix of input image * spacing \\
+ *      b &=& Origin of input image.
+ * }
+ *
+ * From a rotation in index space 
+ * \f{eqnarray*}{
+ *  Q &=& ARA^{-1} \\
+ *  \hat t &=& -Q\hat b + Q\hat d - \hat d - AR\hat c + A\hat s + A\hat c + \hat b \\
  *  \f}
  *
  * @param in Source of index->world transform
  */
 void Rigid3DTrans::toRASCoords(shared_ptr<const MRImage> in)
 {
-    // TODO
+    // change center to be the phsyical center
+    Vector3d rascenter;
+    in->indexToPoint(3, center.data(), rascenter.data());
+
+    // premultiply direction matrix with spacing
+    Matrix3d A = in->getDirection();
+    for(size_t rr=0; rr<A.rows(); rr++) {
+        for(size_t cc=0; cc<A.cols(); cc++) {
+            A(rr,cc) *= in->spacing(cc);
+        }
+    }
+    const Vector3d& origin = in->getOrigin();
+
+    Matrix3d rasrotation = A*rotation*A.inverse();
+    Matrix3d rasshift = rasrotation*(rascenter-origin)-rascenter+
+        (shift+center-rotation*center) - origin;
+    
 
 };
 
@@ -547,6 +594,17 @@ void Rigid3DTrans::toRASCoords(shared_ptr<const MRImage> in)
  *
  * The center of rotation is assumed to be the center of the grid which is 
  * (SIZE-1)/2 in each dimension.
+ *
+ * \f{eqnarray*}{
+ *      R &=& Rotation matrix in index space \\
+ * \hat c &=& center of rotation in index space \\
+ * \hat s &=& shift vector in index space \\
+ *      Q &=& Rotation matrix in RAS (physical) space \\
+ * \hat d &=& center of rotation in RAS (physical) space \\
+ * \hat t &=& shift in index space \\
+ *      A &=& Direction matrix of input image * spacing \\
+ *      b &=& Origin of input image.
+ * }
  *
  * The Rotation (\f$R\f$) and Shift(\f$ \hat s \f$) are given by:
  * \f{eqnarray*}{
