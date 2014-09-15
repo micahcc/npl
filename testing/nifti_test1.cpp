@@ -30,9 +30,14 @@ using namespace npl;
 int main()
 {
 	std::map<int64_t,double> slice_timing;
-	Matrix<3,3> direction({.36,.48,-.8,-.8,.6,0,.48,.64,.6});
-	Matrix<3,1> spacing({1.1,1.2,1.3});
-	Matrix<3,1> origin({12,32,-3});
+	Matrix3d direction;
+    direction << .36,.48,-.8,-.8,.6,0,.48,.64,.6;
+	
+    Vector3d spacing; 
+    spacing << 1.1,1.2,1.3;
+	
+    Vector3d origin;
+    origin << 12,32,-3;
 
 	{
 	/* Create an image with: 0.5+x+y*100+z*10000*/
@@ -199,18 +204,18 @@ int main()
 
 	double diff = 0;
 	for(size_t ii=0; ii<spacing.rows(); ii++){
-		diff += pow(spacing[ii] - dblversion->spacing()[ii],2);
+		diff += pow(spacing(ii) - dblversion->spacing(ii),2);
 	}
 	if(diff > 1e-5) {
 		cerr << "Diffrence in Spacng!" << endl;
-		cerr << "dblversion loaded:" << endl << dblversion->spacing() << endl;
+		cerr << "dblversion loaded:" << endl << dblversion->getSpacing() << endl;
 		cerr << "Original:" << endl << spacing << endl;
 		return -1;
 	}
 	
 	diff=0;
 	for(size_t ii=0; ii<origin.rows(); ii++){
-		diff += pow(origin[ii] - dblversion->origin()[ii],2);
+		diff += pow(origin(ii) - dblversion->origin(ii),2);
 	}
 	if(diff > 1e-5){
 		cerr << "Diffrence in Origin!" << endl;
@@ -220,7 +225,7 @@ int main()
 	diff=0;
 	for(size_t ii=0; ii<direction.rows(); ii++){
 		for(size_t jj=0; jj<direction.cols(); jj++){
-			diff += pow(direction(ii,jj) - dblversion->direction()(ii,jj),2);
+			diff += pow(direction(ii,jj) - dblversion->direction(ii,jj),2);
 		}
 	}
 	if(diff > 1e-5) {

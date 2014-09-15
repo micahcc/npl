@@ -34,21 +34,45 @@ int main()
 		return -1;
 	}
 
-	std::vector<double> aff({
-			-0.688,	-4.625922,	0.090391,	0,	1.3,
-			2.684227,	-0.752000,	-0.917609,	0,	75.000000,	
-			3.288097,	-0.354033,	0.768000,	0,	9.000000,
-					0,			0,			0,	0.3,	0,	
-					0,			0,			0,	0,	1});
-	Matrix<5,5> corraff(aff);
+    Eigen::Vector4d corrorigin;
+    corrorigin << 1.3, 75, 9, 0;
+    
+    Eigen::Vector4d corrspacing;
+    corrspacing << 4.3, 4.7, 1.2, .3;
 
-	cerr << "Correct Affine: " << endl << corraff << endl;
-	cerr << "Image Affine: " << img->affine() << endl;
+    Eigen::Matrix4d corrdir;
+    corrdir << 
+            -0.16000, -0.98424,  0.07533, 0,
+            0.62424, -0.16000, -0.76467, 0,
+            0.76467, -0.07533,  0.64000, 0, 
+                  0,        0,        0, 1;
 
-	for(size_t ii=0; ii < img->ndim()+1; ii++) {
-		for(size_t jj=0; jj < img->ndim()+1; jj++) {
-			if(fabs(img->affine()(ii,jj) - corraff(ii,jj)) > 0.000001) {
-				cerr << "Error, affine matrix mismatches" << endl;
+	cerr << "Correct Direction:\n" << corrdir << endl;
+	cerr << "Image Direction:\n" << img->getDirection() << endl;
+
+    cerr << "Correct Spacing:\n" << corrspacing << endl;
+	cerr << "Image Spacing:\n" << img->getSpacing() << endl;
+    
+    cerr << "Correct Origin:\n" << corrorigin << endl;
+	cerr << "Image Origin:\n" << img->getOrigin() << endl;
+
+	for(size_t ii=0; ii < img->ndim(); ii++) {
+        if(fabs(img->origin(ii) - corrorigin[ii]) > 0.001) {
+            cerr << "Error, origin vector mismatches" << endl;
+            cerr << "Correct: " << corrorigin.transpose() << endl;
+            cerr << "Image's: " << img->getOrigin().transpose() << endl;
+            return -1;
+        }
+        if(fabs(img->spacing(ii) - corrspacing[ii]) > 0.001)  {
+            cerr << "Error, Spacing vector mismatches" << endl;
+            cerr << "Correct: " << corrspacing.transpose() << endl;
+            cerr << "Image's: " << img->getSpacing().transpose() << endl;
+            return -1;
+        }
+
+		for(size_t jj=0; jj < img->ndim(); jj++) {
+			if(fabs(img->direction(ii,jj) - corrdir(ii,jj)) > 0.001) {
+				cerr << "Error, direction matrix mismatches" << endl;
 				return -1;
 			}
 		}
@@ -56,6 +80,4 @@ int main()
 
 	return 0;
 }
-
-
 

@@ -73,7 +73,7 @@ int main(int argc, char** argv)
 	}
 	assert(fmri->tlen() == fmri->dim(3));
 	int tlen = fmri->tlen();
-	double TR = fmri->spacing()[3];
+	double TR = fmri->spacing(3);
 
 	// read the event-related designs, will have rows to match time, and cols
 	// to match number of regressors

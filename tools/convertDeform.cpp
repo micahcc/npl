@@ -75,9 +75,8 @@ shared_ptr<MRImage> invertForwardBack(shared_ptr<MRImage> deform,
 	// create output the size of atlas, with 3 volumes in the 4th dimension
 	auto atldef = createMRImage({atlas->dim(0), atlas->dim(1),
 				atlas->dim(2), 3}, FLOAT64);
-	atldef->setDirection(atlas->direction(), true);
-	atldef->setSpacing(atlas->spacing(), true);
-	atldef->setOrigin(atlas->origin(), true);
+    atldef->setOrient(atlas->getOrigin(), atlas->getSpacing(), 
+            atlas->getDirection(), true);
 
 	LinInterp3DView<double> definterp(deform);
 	const double LAMBDA = 0.1;
@@ -224,7 +223,7 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
 	std::vector<int64_t> index(inout->ndim(), 0);
 	std::vector<double> cindex(inout->ndim(), 0);
 	std::vector<double> point(inout->ndim(), 0);
-	stddev /= inout->spacing()[dim];
+	stddev /= inout->spacing(dim);
 	std::vector<double> buff(inout->dim(dim));
 
 	// for reading have the kernel iterator
@@ -355,9 +354,8 @@ shared_ptr<MRImage> invertMedianSmooth(shared_ptr<MRImage> deform,
 	// create output the size of atlas, with 3 volumes in the 4th dimension
 	auto atldef = createMRImage({atlas->dim(0), atlas->dim(1),
 				atlas->dim(2), 3}, FLOAT64);
-	atldef->setDirection(atlas->direction(), true);
-	atldef->setSpacing(atlas->spacing(), true);
-	atldef->setOrigin(atlas->origin(), true);
+    atldef->setOrient(atlas->getOrigin(), atlas->getSpacing(),
+            atlas->getDirection(), true);
 
 	const double MINNORM = 0.000001;
 	int64_t index[3];
@@ -826,9 +824,8 @@ int main(int argc, char** argv)
 				"orientation than the deformation. We are going to alter the "
 				"orientation of the mask to match the deform. THIS IS BAD. You "
 				"should fix your input mask." << endl;
-			mask->setOrigin(deform->origin());
-			mask->setSpacing(deform->spacing());
-			mask->setDirection(deform->direction());
+            mask->setOrient(deform->getOrigin(), deform->getSpacing(),
+                    deform->getDirection(), true);
 		} else if(overlap < 0.5) {
 			cerr << "Error there is not a large enough overlap between the "
 				"input  deform and the mask. You should provide a mask that "

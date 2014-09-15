@@ -44,51 +44,9 @@ namespace npl {
  *
  * A computer is needed for every pair of Metric and Transform type.
  *
- * @{
  */
-
-/**
- * @brief Performs motion correction on a set of volumes. Each 3D volume is
- * extracted and linearly registered with the ref volume.
- *
- * @param input 3+D volume (set of 3D volumes, all higher dimensions are
- *              treated equally as separate volumes).
- * @param ref   Reference t, all images will be registered to the specified
- *              timepoint
- *
- * @return      Motion corrected volume.
- */
-shared_ptr<MRImage> motionCorrect(shared_ptr<const MRImage> input, size_t ref);
-
-/**
- * @brief Performs correlation based registration between two 3D volumes. note
- * that the two volumes should have identical sampling and identical
- * orientation. If that is not the case, an exception will be thrown.
- *
- * @param fixed     Image which will be the target of registration. 
- * @param moving    Image which will be rotated then shifted to match fixed.
- *
- * @return          4x4 Matrix, indicating rotation about the center then 
- *                  shift. Rotation matrix is the first 3x3 and shift is the
- *                  4th column.
- */
-Eigen::Matrix4d corReg3D(shared_ptr<const MRImage> fixed, 
-        shared_ptr<const MRImage> moving);
-
-
-/**
- * @brief This function checks the validity of the derivative functions used
- * to optimize between-image corrlation.
- *
- * @param step Test step size
- * @param tol Tolerance in error between analytical and Numeric gratient
- * @param in1 Image 1
- * @param in2 Image 2
- *
- * @return 0 if success, -1 if failure
- */
-int cor3DDerivTest(double step, double tol, shared_ptr<const MRImage> in1,
-        shared_ptr<const MRImage> in2);
+ 
+/** @{ */
 
 /**
  * @brief The Rigid Corr Computer is used to compute the correlation
@@ -169,6 +127,175 @@ class RigidCorrComputer
 #endif
 
 };
+
+/**
+ * @brief Struct for holding information about a rigid transform. Note that
+ * rotation R = Rx*Ry*Rz, where Rx, Ry, and Rz are the rotations about x, y and
+ * z aaxes, and the angles are stored (in radians) in the rotation member. 
+ *
+ * \f$ \hat y = R(\hat x- \hat c)+ \hat s+ \hat c \f$
+ *
+ */
+struct Rigid3DTrans
+{
+    Vector3d rotation; //Rx, Ry, Rz
+    Vector3d shift;
+    Vector3d center;
+
+    Rigid3DTrans() {
+        rotation.setZero();
+        shift.setZero();
+        center.setZero();
+    };
+
+    /**
+     * @brief Indicates the stored transform is relative to physical coordintes
+     * rather than index coordinates
+     */
+    bool ras_coord;
+
+    /**
+     * @brief Inverts rigid transform, where: 
+     *
+     * Original:
+     * \f$ \hat y = R(\hat x- \hat c)+ \hat s+ \hat c \f$
+     *
+     * Inverse:
+     * \f$ \hat x = R^{-1}(\hat y - \hat s - \hat c) + \hat c \f$
+     *
+     * So the new parameters, interms of the old are:
+     * \f[ \hat c' = \hat s+ \hat c \f]
+     * \f[ \hat s' = -\hat s \f]
+     * \f[ \hat R' = R^{-1} \f]
+     * 
+     */
+    void invert();
+
+    /**
+     * @brief Constructs and returns rotation Matrix.
+     *
+     * @return Rotation matrix
+     */
+    Matrix3d rotMatrix();
+
+    /**
+     * @brief Converts to world coordinates based on the orientation stored in
+     * input image.
+     *
+     * For a rotation in RAS coordinates, with rotation \f$Q\f$, shift \f$t\f$ and
+     * center \f$d\f$:
+     *
+     * \f[
+     *   \hat u = Q(A\hat x + \hat b - \hat d) + \hat t + \hat d 
+     * \f]
+     *
+     * From a rotation in index space with rotation \f$R\f$, shift \f$s\f$ and
+     * center \f$c\f$:
+     * \f{eqnarray*}{
+     *  Q &=& A^{-1}AR \\
+     *  \hat t &=& -Q\hat b + Q\hat d - \hat d - AR\hat c + A\hat s + A\hat c + \hat b \\
+     * \f}
+     *
+     * @param in Source of index->world transform
+     */
+    void toRASCoords(shared_ptr<const MRImage> in);
+    
+    /**
+     * @brief Converts from world coordinates to index coordinates based on the
+     * orientation stored in input image.
+     *
+     * The center of rotation is assumed to be the center of the grid which is 
+     * (SIZE-1)/2 in each dimension.
+     *
+     * The Rotation (\f$R\f$) and Shift(\f$ \hat s \f$) are given by:
+     * \f{eqnarray*}{
+     * R &=& A^{-1}QA \\
+     * \hat s &=& R\hat c -\hat c - A^{-1}(\hat b + Q\hat b - Q\hat d + \hat t + \hat d ) 
+     * \f}
+     *
+     * where \f$A\f$ is the rotation of the grid, \f$\hat c\f$ is the center of the
+     * grid, \f$\hat b \f$ is the origin of the grid, \f$ Q \f$ is the rotation
+     * matrix in RAS coordinate space, \f$ \hat d \f$ is the given center of roation
+     * (in RAS coordinates), and \f$ \hat t \f$ is the original shift in RAS
+     * coordinates.
+     *
+     * @param in Source of index->world transform
+     */
+    void toIndexCoords(shared_ptr<const MRImage> in);
+
+};
+
+/**
+ * @brief Performs motion correction on a set of volumes. Each 3D volume is
+ * extracted and linearly registered with the ref volume.
+ *
+ * @param input 3+D volume (set of 3D volumes, all higher dimensions are
+ *              treated equally as separate volumes).
+ * @param ref   Reference t, all images will be registered to the specified
+ *              timepoint
+ *
+ * @return      Motion corrected volume.
+ */
+shared_ptr<MRImage> motionCorrect(shared_ptr<const MRImage> input, size_t ref);
+
+/**
+ * @brief Performs correlation based registration between two 3D volumes. note
+ * that the two volumes should have identical sampling and identical
+ * orientation. If that is not the case, an exception will be thrown.
+ *
+ * @param fixed     Image which will be the target of registration. 
+ * @param moving    Image which will be rotated then shifted to match fixed.
+ *
+ * @return          4x4 Matrix, indicating rotation about the center then 
+ *                  shift. Rotation matrix is the first 3x3 and shift is the
+ *                  4th column.
+ */
+Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed, 
+        shared_ptr<const MRImage> moving);
+
+
+/**
+ * @brief This function checks the validity of the derivative functions used
+ * to optimize between-image corrlation.
+ *
+ * @param step Test step size
+ * @param tol Tolerance in error between analytical and Numeric gratient
+ * @param in1 Image 1
+ * @param in2 Image 2
+ *
+ * @return 0 if success, -1 if failure
+ */
+int cor3DDerivTest(double step, double tol, shared_ptr<const MRImage> in1,
+        shared_ptr<const MRImage> in2);
+
+
+/**
+ * @brief Prints a rigid transform
+ *
+ * @param stream Output stream
+ * @param rigid Rigid transform
+ *
+ * @return after this is inserted, stream
+ */
+std::ostream& operator<< (std::ostream& stream, const Rigid3DTrans& rigid)
+{
+    stream << "Rotation: ";
+    for(size_t ii=0; ii<2; ii++)
+        stream << rigid.rotation[ii] << ", ";
+    stream << rigid.rotation[2] << "\n";
+
+    stream << "Center: ";
+    for(size_t ii=0; ii<2; ii++)
+        stream << rigid.center[ii] << ", ";
+    stream << rigid.center[2] << "\n";
+
+    stream << "Shift : ";
+    for(size_t ii=0; ii<2; ii++)
+        stream << rigid.shift[ii] << ", ";
+    stream << rigid.shift[2] << "\n";
+
+    return stream;
+}
 
 /** @} */
 

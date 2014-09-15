@@ -21,6 +21,8 @@
 
 namespace npl {
 
+using std::abs;
+
 /**
  * @brief Clamps value to range of [inf, sup]. Values outside will be pulled
  * to either sup or inf, whichever is closer.
@@ -356,59 +358,59 @@ cquad_t& cquad_t::operator=(const cfloat_t& v)
 /// rgb_t
 //////////////////////////////////////////////////////
 rgb_t::operator float() const {
-	return ((fabs(red)+fabs(green)+fabs(blue)));
+	return ((abs(red)+abs(green)+abs(blue)));
 };
 
 rgb_t::operator double() const {
-	return ((fabs(red)+fabs(green)+fabs(blue)));
+	return ((abs(red)+abs(green)+abs(blue)));
 };
 
 rgb_t::operator long double() const {
-	return ((fabs(red)+fabs(green)+fabs(blue)));
+	return ((abs(red)+abs(green)+abs(blue)));
 };
 
 rgb_t::operator int64_t() const {
-	return (int64_t)((fabs(red)+fabs(green)+fabs(blue)));
+	return (int64_t)((abs(red)+abs(green)+abs(blue)));
 };
 
 rgb_t::operator uint64_t() const {
-	return (uint64_t)((fabs(red)+fabs(green)+fabs(blue)));
+	return (uint64_t)((abs(red)+abs(green)+abs(blue)));
 };
 
 rgb_t::operator int32_t() const {
-	return (int32_t)((fabs(red)+fabs(green)+fabs(blue)));
+	return (int32_t)((abs(red)+abs(green)+abs(blue)));
 };
 
 rgb_t::operator uint32_t() const {
-	return (uint32_t)((fabs(red)+fabs(green)+fabs(blue)));
+	return (uint32_t)((abs(red)+abs(green)+abs(blue)));
 };
 
 rgb_t::operator int16_t() const {
-	return (int16_t)((fabs(red)+fabs(green)+fabs(blue)));
+	return (int16_t)((abs(red)+abs(green)+abs(blue)));
 };
 
 rgb_t::operator uint16_t() const {
-	return (uint16_t)((fabs(red)+fabs(green)+fabs(blue)));
+	return (uint16_t)((abs(red)+abs(green)+abs(blue)));
 };
 
 rgb_t::operator int8_t() const {
-	return (int8_t)((fabs(red)+fabs(green)+fabs(blue)));
+	return (int8_t)((abs(red)+abs(green)+abs(blue)));
 };
 
 rgb_t::operator uint8_t() const {
-	return (uint8_t)((fabs(red)+fabs(green)+fabs(blue)));
+	return (uint8_t)((abs(red)+abs(green)+abs(blue)));
 };
 
 rgb_t::operator cquad_t() const {
-	return (fabs(red)+fabs(green)+fabs(blue));
+	return (abs(red)+abs(green)+abs(blue));
 };
 
 rgb_t::operator cdouble_t() const {
-	return ((fabs(red)+fabs(green)+fabs(blue)));
+	return ((abs(red)+abs(green)+abs(blue)));
 };
 
 rgb_t::operator cfloat_t() const {
-	return (cfloat_t)((fabs(red)+fabs(green)+fabs(blue)));
+	return (cfloat_t)((abs(red)+abs(green)+abs(blue)));
 };
 
 
@@ -586,59 +588,59 @@ rgb_t& rgb_t::operator=(uint8_t v)
 /// rgba_t
 //////////////////////////////////////////////////////
 rgba_t::operator float() const {
-	return fabs(alpha)*((fabs(red)+fabs(green)+fabs(blue)));
+	return abs(alpha)*((abs(red)+abs(green)+abs(blue)));
 };
 
 rgba_t::operator double() const {
-	return fabs(alpha)*((fabs(red)+fabs(green)+fabs(blue)));
+	return abs(alpha)*((abs(red)+abs(green)+abs(blue)));
 };
 
 rgba_t::operator long double() const {
-	return fabs(alpha)*((fabs(red)+fabs(green)+fabs(blue)));
+	return abs(alpha)*((abs(red)+abs(green)+abs(blue)));
 };
 
 rgba_t::operator int64_t() const {
-	return (int64_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue)));
+	return (int64_t)(abs(alpha)*(abs(red)+abs(green)+abs(blue)));
 };
 
 rgba_t::operator uint64_t() const {
-	return (uint64_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue)));
+	return (uint64_t)(abs(alpha)*(abs(red)+abs(green)+abs(blue)));
 };
 
 rgba_t::operator int32_t() const {
-	return (int32_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue)));
+	return (int32_t)(abs(alpha)*(abs(red)+abs(green)+abs(blue)));
 };
 
 rgba_t::operator uint32_t() const {
-	return (uint32_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue)));
+	return (uint32_t)(abs(alpha)*(abs(red)+abs(green)+abs(blue)));
 };
 
 rgba_t::operator int16_t() const {
-	return (int16_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue)));
+	return (int16_t)(abs(alpha)*(abs(red)+abs(green)+abs(blue)));
 };
 
 rgba_t::operator uint16_t() const {
-	return (uint16_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue)));
+	return (uint16_t)(abs(alpha)*(abs(red)+abs(green)+abs(blue)));
 };
 
 rgba_t::operator int8_t() const {
-	return (int8_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue)));
+	return (int8_t)(abs(alpha)*(abs(red)+abs(green)+abs(blue)));
 };
 
 rgba_t::operator uint8_t() const {
-	return (uint8_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue)));
+	return (uint8_t)(abs(alpha)*(abs(red)+abs(green)+abs(blue)));
 };
 
 rgba_t::operator cquad_t() const {
-	return (fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue)));
+	return (abs(alpha)*(abs(red)+abs(green)+abs(blue)));
 };
 
 rgba_t::operator cdouble_t() const {
-	return (fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue)));
+	return (abs(alpha)*(abs(red)+abs(green)+abs(blue)));
 };
 
 rgba_t::operator cfloat_t() const {
-	return (cfloat_t)(fabs(alpha)*(fabs(red)+fabs(green)+fabs(blue)));
+	return (cfloat_t)(abs(alpha)*(abs(red)+abs(green)+abs(blue)));
 };
 
 rgba_t::rgba_t(long double v) :

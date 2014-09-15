@@ -38,9 +38,6 @@ int main()
 		return -1;
 	}
 	
-	cerr << "Affine: " << endl << img->affine() << endl;
-	cerr << "Inverse Affine: " << endl << img->iaffine() << endl;
-
 	std::vector<std::vector<double>> correct({
 			{1.3, 		75, 		9, 	0},
 			{-42.044, 	244.106, 	216.15, 0},

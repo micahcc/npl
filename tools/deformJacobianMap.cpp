@@ -67,7 +67,7 @@ int main(int argc, char** argv)
 	Vector3DView<double> dview(deform);
 	int64_t index[3];
 	int64_t tmpindex[3];
-	Matrix<3,3> jac;
+	Matrix3d jac;
 	auto jacobian = dynamic_pointer_cast<MRImage>(deform->copyCast(3, deform->dim()));
 	auto dfxdx = dynamic_pointer_cast<MRImage>(deform->copyCast(3, deform->dim()));
 	auto dfxdy = dynamic_pointer_cast<MRImage>(deform->copyCast(3, deform->dim()));
@@ -120,7 +120,7 @@ int main(int argc, char** argv)
 		view_dfzdy.set(jac(2,1), index[0], index[1], index[2]);
 		view_dfzdz.set(jac(2,2), index[0], index[1], index[2]);
 
-		it.set(det(jac));
+		it.set(jac.determinant());
 	}
 	
 	dfxdx->write("dfxdx.nii.gz");

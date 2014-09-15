@@ -20,12 +20,20 @@
 #ifndef NPLTYPES_H
 #define NPLTYPES_H
 
+#include <Eigen/Dense>
 #include <complex>
 #include <memory>
 
 using std::shared_ptr;
 
 namespace npl {
+
+
+using Eigen::MatrixXd;
+using Eigen::VectorXd;
+using Eigen::Matrix3d;
+using Eigen::Vector3d;
+using Eigen::Matrix;
 
 struct rgba_t;
 struct rgb_t;

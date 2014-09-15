@@ -271,7 +271,7 @@ shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
     cerr << "StdDev: " << sigma << "\n, Smoothing in Index Space:\n";
     vector<double> sd(ndim, sigma);
     for(size_t ii=0; ii<ndim; ii++) {
-        sd[ii] /= in->spacing()[ii];
+        sd[ii] /= in->spacing(ii);
         cerr << ii << ": FWHM: " << sd_to_fwhm(sd[ii]) << " SD: " 
             << sd[ii] << endl;
     }
@@ -373,7 +373,7 @@ shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
 
     // set spacing
     for(size_t dd=0; dd<in->ndim(); dd++) 
-        out->spacing()[dd] *= ((double)psize[dd])/((double)dsize[dd]);
+        out->spacing(dd) *= ((double)psize[dd])/((double)dsize[dd]);
 
     fftw_free(buffer1);
     return out;
@@ -404,7 +404,7 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
 	}
 
 	std::vector<int64_t> index(dim, 0);
-	stddev /= inout->spacing()[dim];
+	stddev /= inout->spacing(dim);
 	std::vector<double> buff(inout->dim(dim));
 
 	// for reading have the kernel iterator
@@ -532,7 +532,7 @@ ostream& operator<<(ostream &out, const MRImage& img)
 	for(size_t ii=0; ii<img.ndim(); ii++) {
 		cerr << "[ ";
 		for(size_t jj=0; jj<img.ndim(); jj++) {
-			cerr << std::setw(10) << std::setprecision(3) << img.direction()(ii,jj);
+			cerr << std::setw(10) << std::setprecision(3) << img.direction(ii,jj);
 		}
 		cerr << "] " << endl;
 	}
@@ -540,25 +540,16 @@ ostream& operator<<(ostream &out, const MRImage& img)
 	out << "Spacing: " << endl;
 	for(size_t ii=0; ii<img.ndim(); ii++) {
 		out << "[ " << std::setw(10) << std::setprecision(3)
-			<< img.spacing()[ii] << "] ";
+			<< img.spacing(ii) << "] ";
 	}
 	out << endl;
 
 	out << "Origin: " << endl;
 	for(size_t ii=0; ii<img.ndim(); ii++) {
 		out << "[ " << std::setw(10) << std::setprecision(3)
-			<< img.origin()[ii] << "] ";
+			<< img.origin(ii) << "] ";
 	}
 	out << endl;
-	
-	out << "Affine: " << endl;
-	for(size_t ii=0; ii<img.ndim()+1; ii++) {
-		cerr << "[ ";
-		for(size_t jj=0; jj<img.ndim()+1; jj++) {
-			cerr << std::setw(10) << std::setprecision(3) << img.affine()(ii,jj);
-		}
-		cerr << "] " << endl;
-	}
 
 	switch(img.type()) {
 		case UNKNOWN_TYPE:
