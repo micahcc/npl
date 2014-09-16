@@ -480,6 +480,17 @@ shared_ptr<NDArray> NDArrayStore<D,T>::copy() const
 
 	return out;
 }
+
+/**
+ * @brief Creates an identical array, but does not initialize pixel values.
+ *
+ * @return New array.
+ */
+template <size_t D, typename T>
+shared_ptr<NDArray> NDArrayStore<D,T>::createAnother() const
+{
+    return createNDArray(D, this->dim(), type());
+}
 	
 /**
  * @brief Create a new array that is a copy of the input, possibly with new
@@ -548,6 +559,143 @@ shared_ptr<NDArray> NDArrayStore<D,T>::copyCast(size_t newdims,
 		const size_t* newsize) const
 {
 	return _copyCast(getConstPtr(), newdims, newsize);
+}
+
+/**
+ * @brief Create a new array that is a copy of the input, possibly with new
+ * dimensions or size. The new array will have all overlapping pixels
+ * copied from the old array. The new array will have the same pixel type as
+ * the input array. If len > ndim(), then the output may have more dimensions 
+ * then the input, and in fact the extra dimensions may be larger than the
+ * input image. If this happens, then data will still be extracted, but only
+ * the overlapping segments of the new and old image will be copied. Also note
+ * that index[] will not be accessed above ndim()
+ *
+ * @param len     Length of index/newsize arrays
+ * @param index   ROI Index to start copying from.
+ * @param size    ROI size. Note length 0 dimensions will be removed, while
+ * length 1 dimensions will be left. 
+ *
+ * @return Image with overlapping sections cast and copied from 'in'
+ */
+template <size_t D, typename T>
+shared_ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, const int64_t* index,
+        const size_t* size) const
+{
+    return extractCast(len, index, size, type());
+}
+
+/**
+ * @brief Create a new array that is a copy of the input, possibly with new
+ * dimensions or size. The new array will have all overlapping pixels
+ * copied from the old array. The new array will have the same pixel type as
+ * the input array. If len > ndim(), then the output may have more dimensions 
+ * then the input, and in fact the extra dimensions may be larger than the
+ * input image. If this happens, then data will still be extracted, but only
+ * the overlapping segments of the new and old image will be copied.
+ *
+ * @param len     Length of index/size arrays
+ * @param index   Index to start copying from.
+ * @param size Size of output image. Note length 0 dimensions will be
+ * removed, while length 1 dimensions will be left. 
+ *
+ * @return Image with overlapping sections cast and copied from 'in'
+ */
+template <size_t D, typename T>
+shared_ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, 
+        const size_t* size) const
+{
+    return extractCast(len, NULL, size, type());
+}
+
+/**
+ * @brief Create a new array that is a copy of the input, possibly with new
+ * dimensions or size. The new array will have all overlapping pixels
+ * copied from the old array. The new array will have the same pixel type as
+ * the input array
+ *
+ * @param len     Length of index/size arrays
+ * @param index   Index to start copying from.
+ * @param size Size of output image. Note length 0 dimensions will be
+ * removed, while length 1 dimensions will be left. 
+ * @param newtype Pixel type of output image.
+ *
+ * @return Image with overlapping sections cast and copied from 'in'
+ */
+template <size_t D, typename T>
+shared_ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, const int64_t* index,
+        const size_t* size, PixelT newtype) const
+{
+    assert(size);
+    assert(len < 10);
+    
+    int64_t ilower[D];
+    int64_t iupper[D];
+    
+    size_t newdim = 0;
+    size_t newsize[10];
+    int64_t olower[10];
+    int64_t oupper[10];
+
+    // determine output size
+    for(size_t dd=0; dd<len; dd++) {
+        if(size[dd] > 0) {
+            newsize[newdim] = size[dd];
+            olower[newdim] = 0;
+            oupper[newdim] = size[dd]-1;
+            newdim++;
+        }
+    }
+    
+    // create ROI in input image
+    for(size_t dd=0; dd<D; dd++) {
+        if(dd < len) {
+            if(index)
+                ilower[dd] = index[dd];
+            else
+                ilower[dd] = 0;
+
+            if(size[dd] > 0) 
+                iupper[dd] = ilower[dd]+size[dd]-1;
+            else
+                iupper[dd] = ilower[dd];
+        } else {
+            ilower[dd] = 0;
+            iupper[dd] = 0;
+        }
+
+        if(iupper[dd] >= dim(dd)) {
+            throw INVALID_ARGUMENT("Extracted Region is outside the input "
+                    "image FOV");
+        }
+    }
+    
+    // create output
+    auto out = createNDArray(newdim, newsize, newtype);
+    copyROI(getConstPtr(), ilower, iupper, out, olower, oupper, newtype);
+
+    return out;
+}
+
+/**
+ * @brief Create a new array that is a copy of the input, possibly with new
+ * dimensions or size. The new array will have all overlapping pixels
+ * copied from the old array. The new array will have the same pixel type as
+ * the input array. Index assumed to be [0,0,...], so the output image will 
+ * start at the origin of this image.
+ *
+ * @param len     Length of index/size arrays
+ * @param size Size of output image. Note length 0 dimensions will be
+ * removed, while length 1 dimensions will be left. 
+ * @param newtype Pixel type of output image.
+ *
+ * @return Image with overlapping sections cast and copied from 'in'
+ */
+template <size_t D, typename T>
+shared_ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, 
+        const size_t* size, PixelT newtype) const
+{
+    return extractCast(len, NULL, size, newtype);
 }
 
 /*

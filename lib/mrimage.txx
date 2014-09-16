@@ -23,6 +23,7 @@
 
 #include "nifti.h"
 #include "slicer.h"
+#include "macros.h"
 
 namespace npl {
 
@@ -129,6 +130,21 @@ void MRImage::setOrient(const VectorXd& neworigin,
 	}
 
     m_inv_direction = m_direction.inverse();
+}
+
+/**
+ * @brief Returns reference to a value in the direction matrix.  
+ * Each row indicates the direction of the grid in
+ * RAS coordinates. This is the rotation of the Index grid. 
+ *
+ * @param row Row to access
+ * @param col Column to access
+ * 
+ * @return Element in direction matrix
+ */
+double& MRImage::direction(int64_t row, int64_t col) 
+{
+    return m_direction(row, col);
 }
 
 /**
@@ -1092,6 +1108,19 @@ shared_ptr<NDArray> MRImageStore<D,T>::copy() const
 {
 	return _copyCast(getConstPtr(), D, this->_m_dim, type());
 }
+
+/**
+ * @brief Creates an identical array, but does not initialize pixel values.
+ *
+ * @return New array.
+ */
+template <size_t D, typename T>
+shared_ptr<NDArray> MRImageStore<D,T>::createAnother() const
+{
+	auto out = dynamic_pointer_cast<MRImage>(createMRImage(D, dim(), type()));
+	out->copyMetadata(getConstPtr());
+	return out;
+}
 	
 /**
  * @brief Create a new image that is a copy of the input, possibly with new
@@ -1161,5 +1190,162 @@ shared_ptr<NDArray> MRImageStore<D,T>::copyCast(size_t newdims,
 {
 	return _copyCast(getConstPtr(), newdims, newsize);
 }
+
+/**
+ * @brief Create a new array that is a copy of the input, possibly with new
+ * dimensions or size. The new array will have all overlapping pixels
+ * copied from the old array. The new array will have the same pixel type as
+ * the input array. If len > ndim(), then the output may have more dimensions 
+ * then the input, and in fact the extra dimensions may be larger than the
+ * input image. If this happens, then data will still be extracted, but only
+ * the overlapping segments of the new and old image will be copied. Also note
+ * that index[] will not be accessed above ndim()
+ *
+ * @param len     Length of index/newsize arrays
+ * @param index   ROI Index to start copying from.
+ * @param size    ROI size. Note length 0 dimensions will be removed, while
+ * length 1 dimensions will be left. 
+ *
+ * @return Image with overlapping sections cast and copied from 'in'
+ */
+template <size_t D, typename T>
+shared_ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
+        const size_t* size) const
+{
+    return extractCast(len, index, size, type());
+}
+
+/**
+ * @brief Create a new array that is a copy of the input, possibly with new
+ * dimensions or size. The new array will have all overlapping pixels
+ * copied from the old array. The new array will have the same pixel type as
+ * the input array. If len > ndim(), then the output may have more dimensions 
+ * then the input, and in fact the extra dimensions may be larger than the
+ * input image. If this happens, then data will still be extracted, but only
+ * the overlapping segments of the new and old image will be copied.
+ *
+ * @param len     Length of index/size arrays
+ * @param index   Index to start copying from.
+ * @param size Size of output image. Note length 0 dimensions will be
+ * removed, while length 1 dimensions will be left. 
+ *
+ * @return Image with overlapping sections cast and copied from 'in'
+ */
+template <size_t D, typename T>
+shared_ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, 
+        const size_t* size) const
+{
+    return extractCast(len, NULL, size, type());
+}
+
+/**
+ * @brief Copy a region of the input image. Note that the output must be 
+ * smaller in each dimension, an have less than or equal to the number of input
+ * dimensions.
+ *
+ * @param len     Length of index/size arrays
+ * @param index   Index to start copying from.
+ * @param size Size of output image. Note length 0 dimensions will be
+ * removed, while length 1 dimensions will be left. 
+ * @param newtype Pixel type of output image.
+ *
+ * @return Image with overlapping sections cast and copied from 'in'
+ */
+template <size_t D, typename T>
+shared_ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
+        const size_t* size, PixelT newtype) const
+{
+    assert(size);
+    assert(len < 10);
+    
+    int64_t ilower[D];
+    int64_t iupper[D];
+    
+    size_t newdim = 0;
+    size_t newsize[10];
+    int64_t olower[10];
+    int64_t oupper[10];
+
+    // determine output size
+    for(size_t dd=0; dd<len && dd<D; dd++) {
+        if(size[dd] > 0) {
+            newsize[newdim] = size[dd];
+            olower[newdim] = 0;
+            oupper[newdim] = size[dd]-1;
+            newdim++;
+        }
+    }
+    
+    // create ROI in input image
+    for(size_t dd=0; dd<D; dd++) {
+        if(dd < len) {
+            if(index)
+                ilower[dd] = index[dd];
+            else
+                ilower[dd] = 0;
+
+            if(size[dd] > 0) 
+                iupper[dd] = ilower[dd]+size[dd]-1;
+            else
+                iupper[dd] = ilower[dd];
+        } else {
+            ilower[dd] = 0;
+            iupper[dd] = 0;
+        }
+
+        if(iupper[dd] >= dim(dd)) {
+            throw INVALID_ARGUMENT("Extracted Region is outside the input "
+                    "image FOV");
+        }
+    }
+    
+    // create output
+    auto out = dynamic_pointer_cast<MRImage>(
+			createMRImage(newdim, newsize, newtype));
+    copyROI(getConstPtr(), ilower, iupper, out, olower, oupper, newtype);
+
+	// copy spacing, origin and direction to out
+	size_t odim1=0;
+	for(size_t d1=0; d1<len && d1<D; d1++) {
+		if(size[d1] > 0) {
+			out->spacing(odim1) = spacing(d1);
+			out->origin(odim1) = origin(d1);
+
+			// second dimension, for direction
+			size_t odim2=0;
+			for(size_t d2=0; d2<len; d2++) {
+				if(size[d2] > 0) {
+					out->direction(odim1, odim2) = direction(d1, d2);
+					odim2++;
+				}
+			}
+			odim1++;
+		}
+	}
+
+    return out;
+}
+
+/**
+ * @brief Create a new array that is a copy of the input, possibly with new
+ * dimensions or size. The new array will have all overlapping pixels
+ * copied from the old array. The new array will have the same pixel type as
+ * the input array. Index assumed to be [0,0,...], so the output image will 
+ * start at the origin of this image.
+ *
+ * @param len     Length of index/size arrays
+ * @param size Size of output image. Note length 0 dimensions will be
+ * removed, while length 1 dimensions will be left. 
+ * @param newtype Pixel type of output image.
+ *
+ * @return Image with overlapping sections cast and copied from 'in'
+ */
+template <size_t D, typename T>
+shared_ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, 
+        const size_t* size, PixelT newtype) const
+{
+    return extractCast(len, NULL, size, newtype);
+}
+
 
 } //npl
