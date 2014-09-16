@@ -224,6 +224,18 @@ public:
      * 
      * @return Element in direction matrix
      */
+    double& direction(int64_t row, int64_t col) ;
+
+    /**
+     * @brief Returns reference to a value in the direction matrix.  
+     * Each row indicates the direction of the grid in
+     * RAS coordinates. This is the rotation of the Index grid. 
+     *
+     * @param row Row to access
+     * @param col Column to access
+     * 
+     * @return Element in direction matrix
+     */
     const double& direction(int64_t row, int64_t col) const;
 
     /**
@@ -524,16 +536,18 @@ public:
 	 * @return Copied image (as NDarray pointer)
 	 */
 	virtual shared_ptr<NDArray> copy() const = 0;
+    
+    /**
+     * @brief Creates an identical array, but does not initialize pixel values.
+	 *
+	 * @return New array.
+	 */
+	virtual shared_ptr<NDArray> createAnother() const = 0;
 
 	/**
 	 * @brief Create a new image that is a copy of the input, possibly with new
 	 * dimensions and pixeltype. The new image will have all overlapping pixels
 	 * copied from the old image.
-	 *
-	 * This function just calls the outside copyCast, the reason for this
-	 * craziness is that making a template function nested in the already
-	 * huge number of templates I have kills the compiler, so we call an
-	 * outside function that calls templates that has all combinations of D,T.
 	 *
 	 * @param newdims Number of dimensions in output image
 	 * @param newsize Size of output image
@@ -549,11 +563,6 @@ public:
 	 * but pxiels cast to newtype. The new image will have all overlapping pixels
 	 * copied from the old image.
 	 *
-	 * This function just calls the outside copyCast, the reason for this
-	 * craziness is that making a template function nested in the already
-	 * huge number of templates I have kills the compiler, so we call an
-	 * outside function that calls templates that has all combinations of D,T.
-	 *
 	 * @param newtype Type of pixels in output image
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
@@ -566,11 +575,6 @@ public:
 	 * copied from the old image. The new image will have the same pixel type as
 	 * the input image
 	 *
-	 * This function just calls the outside copyCast, the reason for this
-	 * craziness is that making a template function nested in the already
-	 * huge number of templates I have kills the compiler, so we call an
-	 * outside function that calls templates that has all combinations of D,T.
-	 *
 	 * @param newdims Number of dimensions in output image
 	 * @param newsize Size of output image
 	 *
@@ -578,6 +582,63 @@ public:
 	 */
 	virtual shared_ptr<NDArray> copyCast(size_t newdims,
 				const size_t* newsize) const = 0;
+    
+	/**
+     * @Brief extracts a region of this image. Zeros in the size variable
+     * indicate dimension to be removed.
+     *
+     * @param len     Length of index/newsize arrays
+     * @param index   Index to start copying from.
+     * @param size Size of output image. Note length 0 dimensions will be
+     * removed, while length 1 dimensions will be left. 
+     *
+     * @return Image with overlapping sections cast and copied from 'in'
+     */
+    virtual shared_ptr<NDArray> extractCast(size_t len, const int64_t* index,
+            const size_t* size) const = 0;
+
+    /**
+     * @Brief extracts a region of this image. Zeros in the size variable
+     * indicate dimension to be removed.
+     *
+     * @param len     Length of index/size arrays
+     * @param size Size of output image. Note length 0 dimensions will be
+     * removed, while length 1 dimensions will be left. 
+     *
+     * @return Image with overlapping sections cast and copied from 'in'
+     */
+    virtual shared_ptr<NDArray> extractCast(size_t len, const size_t* size) const = 0;
+
+    /**
+     * @Brief extracts a region of this image. Zeros in the size variable
+     * indicate dimension to be removed.
+     *
+     * @param len     Length of index/size arrays
+     * @param index   Index to start copying from.
+     * @param size Size of output image. Note length 0 dimensions will be
+     * removed, while length 1 dimensions will be left. 
+     * @param newtype Pixel type of output image.
+     *
+     * @return Image with overlapping sections cast and copied from 'in'
+     */
+    virtual shared_ptr<NDArray> extractCast(size_t len,
+            const int64_t* index, const size_t* size, PixelT newtype) const = 0;
+
+    /**
+     * @Brief extracts a region of this image. Zeros in the size variable
+     * indicate dimension to be removed.
+     *
+     * @param len     Length of index/size arrays
+     * @param size Size of output image. Note length 0 dimensions will be
+     * removed, while length 1 dimensions will be left. 
+     * @param newtype Pixel type of output image.
+     *
+     * @return Image with overlapping sections cast and copied from 'in'
+     */
+    virtual shared_ptr<NDArray> extractCast(size_t len, const size_t* size, 
+            PixelT newtype) const = 0;
+
+	
 
     /**
      * @brief Copies metadata from another image. This includes slice timing,
@@ -899,16 +960,18 @@ public:
 	 * @return Copied image.
 	 */
 	virtual shared_ptr<NDArray> copy() const;
+	
+    /**
+     * @brief Creates an identical array, but does not initialize pixel values.
+	 *
+	 * @return New array.
+	 */
+	virtual shared_ptr<NDArray> createAnother() const;
 
 	/**
 	 * @brief Create a new image that is a copy of the input, possibly with new
 	 * dimensions and pixeltype. The new image will have all overlapping pixels
 	 * copied from the old image.
-	 *
-	 * This function just calls the outside copyCast, the reason for this
-	 * craziness is that making a template function nested in the already
-	 * huge number of templates I have kills the compiler, so we call an
-	 * outside function that calls templates that has all combinations of D,T.
 	 *
 	 * @param newdims Number of dimensions in output image
 	 * @param newsize Size of output image
@@ -924,11 +987,6 @@ public:
 	 * but pxiels cast to newtype. The new image will have all overlapping pixels
 	 * copied from the old image.
 	 *
-	 * This function just calls the outside copyCast, the reason for this
-	 * craziness is that making a template function nested in the already
-	 * huge number of templates I have kills the compiler, so we call an
-	 * outside function that calls templates that has all combinations of D,T.
-	 *
 	 * @param newtype Type of pixels in output image
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
@@ -941,11 +999,6 @@ public:
 	 * copied from the old image. The new image will have the same pixel type as
 	 * the input image
 	 *
-	 * This function just calls the outside copyCast, the reason for this
-	 * craziness is that making a template function nested in the already
-	 * huge number of templates I have kills the compiler, so we call an
-	 * outside function that calls templates that has all combinations of D,T.
-	 *
 	 * @param newdims Number of dimensions in output image
 	 * @param newsize Size of output image
 	 *
@@ -953,6 +1006,72 @@ public:
 	 */
 	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize) const;
 	
+    /**
+     * @brief Create a new array that is a copy of the input, possibly with new
+     * dimensions or size. The new array will have all overlapping pixels
+     * copied from the old array. The new array will have the same pixel type as
+     * the input array
+     *
+     * @param len     Length of index/newsize arrays
+     * @param index   Index to start copying from.
+     * @param size Size of output image. Note length 0 dimensions will be
+     * removed, while length 1 dimensions will be left. 
+     *
+     * @return Image with overlapping sections cast and copied from 'in'
+     */
+    virtual shared_ptr<NDArray> extractCast(size_t len, const int64_t* index,
+            const size_t* size) const;
+
+    /**
+     * @brief Create a new array that is a copy of the input, possibly with new
+     * dimensions or size. The new array will have all overlapping pixels
+     * copied from the old array. The new array will have the same pixel type as
+     * the input array. Index assumed to be [0,0,...], so the output image will 
+     * start at the origin of this image.
+     *
+     * @param len     Length of index/size arrays
+     * @param size Size of output image. Note length 0 dimensions will be
+     * removed, while length 1 dimensions will be left. 
+     *
+     * @return Image with overlapping sections cast and copied from 'in'
+     */
+    virtual shared_ptr<NDArray> extractCast(size_t len, const size_t* size) const;
+
+    /**
+     * @brief Create a new array that is a copy of the input, possibly with new
+     * dimensions or size. The new array will have all overlapping pixels
+     * copied from the old array. The new array will have the same pixel type as
+     * the input array
+     *
+     * @param len     Length of index/size arrays
+     * @param index   Index to start copying from.
+     * @param size Size of output image. Note length 0 dimensions will be
+     * removed, while length 1 dimensions will be left. 
+     * @param newtype Pixel type of output image.
+     *
+     * @return Image with overlapping sections cast and copied from 'in'
+     */
+
+    virtual shared_ptr<NDArray> extractCast(size_t len,
+            const int64_t* index, const size_t* size, PixelT newtype) const;
+
+    /**
+     * @brief Create a new array that is a copy of the input, possibly with new
+     * dimensions or size. The new array will have all overlapping pixels
+     * copied from the old array. The new array will have the same pixel type as
+     * the input array. Index assumed to be [0,0,...], so the output image will 
+     * start at the origin of this image.
+     *
+     * @param len     Length of index/size arrays
+     * @param size Size of output image. Note length 0 dimensions will be
+     * removed, while length 1 dimensions will be left. 
+     * @param newtype Pixel type of output image.
+     *
+     * @return Image with overlapping sections cast and copied from 'in'
+     */
+    virtual shared_ptr<NDArray> extractCast(size_t len, const size_t* size, 
+            PixelT newtype) const;
+
     /**
 	 * @brief Create an exact copy of the current image object, and return
 	 * a pointer to it.

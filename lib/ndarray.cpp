@@ -16,10 +16,11 @@
  * @file ndarray.cpp
  *
  *****************************************************************************/
+#include <iostream>
 
 #include "ndarray.h"
 #include "iterators.h"
-#include <iostream>
+#include "macros.h"
 
 #include "npltypes.h"
 #include "utility.h"
@@ -346,7 +347,7 @@ shared_ptr<NDArray> _copyCast(shared_ptr<const NDArray> in, size_t newdims,
 		const size_t* newsize, PixelT newtype)
 {
 	auto out = createNDArray(newdims, newsize, newtype);
-	
+
 	switch(newtype) {
 		case UINT8:
 			_copyCast_help<uint8_t>(in, out);
@@ -397,8 +398,8 @@ shared_ptr<NDArray> _copyCast(shared_ptr<const NDArray> in, size_t newdims,
 			_copyCast_help<rgba_t>(in, out);
 			break;
 		default:
-            throw std::invalid_argument("Unsupported pixel type: " +
-                    to_string(newtype) + " in\n" + __FUNCTION_STR__);
+			throw INVALID_ARGUMENT("Unsupported pixel type: " +
+					to_string(newtype));
 	}
 	return out;
 }
@@ -434,6 +435,124 @@ shared_ptr<NDArray> _copyCast(shared_ptr<const NDArray> in, size_t newdims,
 		const size_t* newsize)
 {
 	return _copyCast(in, newdims, newsize, in->type());
+}
+
+/**
+ * @brief Helper function that casts all the elements as the given type then uses
+ * the same type to set all the elements of the output array. Only overlapping
+ * sections of the arrays are copied.
+ *
+ * @tparam T Type to cast to
+ * @param in Input array to copy
+ * @param roi Region of interest in input image to copy
+ * @param out Output array to write to
+ */
+template <typename T>
+void copyROI_help(shared_ptr<const NDArray> in, const int64_t* inROIL, const
+        int64_t* inROIU, shared_ptr<NDArray> out, const int64_t* oROIL, 
+        const int64_t* oROIU)
+{
+    // Set up slicers to iterate through the input and output arrays. Only
+    // common dimensions are iterated over, and only the minimum of the two
+    // sizes are used for ROI. so a 10x10x10 array cast to a 20x5 array will
+    // iterator copy ROI 10x5x1
+    OrderConstIter<T> iit(in);
+    OrderIter<T> oit(out);
+
+    // perform copy/cast
+    iit.setROI(in->ndim(), inROIL, inROIU);
+    oit.setROI(out->ndim(), oROIL, oROIU);
+    for(iit.goBegin(), oit.goBegin(); !oit.eof() && !iit.eof(); ++oit, ++iit)
+        oit.set(*iit);
+
+    if(!oit.eof() || !iit.eof())
+        throw INVALID_ARGUMENT("Input image/target have differenct sizes");
+}
+
+/**
+ * @Brief extracts a region of this image. Zeros in the size variable
+ * indicate dimension to be removed.
+ *
+ * @param len     Length of index/size arrays
+ * @param index   Index to start copying from.
+ * @param size Size of output image. Note length 0 dimensions will be
+ * removed, while length 1 dimensions will be left. 
+ * @param newtype Pixel type of output image.
+ *
+ * @return Image with overlapping sections cast and copied from 'in'
+ */
+
+
+/**
+ * @brief Copy an roi from one image to another image. ROI's must be the same
+ * size. 
+ *
+ * @param in Input image (copy pixels from this image)
+ * @param inROIL Input ROI, lower bound 
+ * @param inROIU Input ROI, upper bound
+ * @param out Copy to copy pixels to
+ * @param oROIL Output ROI, lower bound
+ * @param oROIU Output ROI, upper bound
+ * @param newtype Type to cast pixels to during copy
+ *
+ */
+void copyROI(shared_ptr<const NDArray> in, 
+        const int64_t* inROIL, const int64_t* inROIU, shared_ptr<NDArray> out,
+        const int64_t* oROIL, const int64_t* oROIU, PixelT newtype)
+{
+	switch(newtype) {
+		case UINT8:
+			copyROI_help<uint8_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			break;
+		case INT16:
+			copyROI_help<int16_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			break;
+		case INT32:
+			copyROI_help<int32_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			break;
+		case FLOAT32:
+			copyROI_help<float>(in, inROIL, inROIU, out, oROIL, oROIU);
+			break;
+		case COMPLEX64:
+			copyROI_help<cfloat_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			break;
+		case FLOAT64:
+			copyROI_help<double>(in, inROIL, inROIU, out, oROIL, oROIU);
+			break;
+		case RGB24:
+			copyROI_help<rgb_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			break;
+		case INT8:
+			copyROI_help<int8_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			break;
+		case UINT16:
+			copyROI_help<uint16_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			break;
+		case UINT32:
+			copyROI_help<uint32_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			break;
+		case INT64:
+			copyROI_help<int64_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			break;
+		case UINT64:
+			copyROI_help<uint64_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			break;
+		case FLOAT128:
+			copyROI_help<long double>(in, inROIL, inROIU, out, oROIL, oROIU);
+			break;
+		case COMPLEX128:
+			copyROI_help<cdouble_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			break;
+		case COMPLEX256:
+			copyROI_help<cquad_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			break;
+		case RGBA32:
+			copyROI_help<rgba_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			break;
+		default:
+            throw INVALID_ARGUMENT("Unsupported pixel type: " +
+                    to_string(newtype));
+	}
 }
 
 }
