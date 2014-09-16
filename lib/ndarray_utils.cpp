@@ -18,7 +18,7 @@
  * of N-dimensional arrays and their derived counterparts (MRImage for
  * example). All of these functions return pointers to NDArray types, however
  * if an image is passed in, then the output will also be an image, you just
- * need to cast the output using std::dynamic_pointer_cast<MRImage>(out).
+ * need to cast the output using dptrcast<MRImage>(out).
  * mrimage_utils.h is for more specific image-processing algorithm, this if for
  * generally data of any dimension, without regard to orientation.
  ******************************************************************************/
@@ -49,7 +49,6 @@
 namespace npl {
 
 using std::vector;
-using std::shared_ptr;
 
 using Eigen::Matrix3d;
 using Eigen::Vector3d;
@@ -63,13 +62,13 @@ using Eigen::AngleAxisd;
  *
  * @return      Image storing the directional derivative of in
  */
-shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in, size_t dir)
+ptr<NDArray> derivative(ptr<const NDArray> in, size_t dir)
 {
     if(dir >= in->ndim())
         throw std::invalid_argument("Input direction is outside range of "
                 "input dimensions in\n" + __FUNCTION_STR__);
 
-    auto out = dynamic_pointer_cast<MRImage>(in->copy());
+    auto out = dptrcast<MRImage>(in->copy());
 
     vector<int64_t> index(in->ndim());
     NDConstAccess<double> inGet(in);
@@ -124,11 +123,11 @@ shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in, size_t dir)
  *
  * @return 
  */
-shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in)
+ptr<NDArray> derivative(ptr<const NDArray> in)
 {
     vector<size_t> osize(in->dim(), in->dim()+in->ndim());
     osize.push_back(in->ndim());
-    auto out = dynamic_pointer_cast<MRImage>(
+    auto out = dptrcast<MRImage>(
             in->copyCast(osize.size(), osize.data()));
 
     vector<int64_t> index(in->ndim());
@@ -175,7 +174,7 @@ shared_ptr<NDArray> derivative(shared_ptr<const NDArray> in)
     return out;
 }
 
-//shared_ptr<NDArray> ppfft(shared_ptr<NDArray> in, size_t len, size_t* dims)
+//ptr<NDArray> ppfft(ptr<NDArray> in, size_t len, size_t* dims)
 //{
 //	// compute the 3D foureir transform for the entire image (or at least the
 //	// dimensions specified)
@@ -278,7 +277,7 @@ bool comparable(const NDArray* left, const NDArray* right, bool* elL, bool* elR)
  * @param stddev standard deviation in physical units index*spacing
  *
  */
-void gaussianSmooth1D(shared_ptr<NDArray> inout, size_t dim,
+void gaussianSmooth1D(ptr<NDArray> inout, size_t dim,
 		double stddev)
 {
     const auto gaussKern = [](double x) 
@@ -349,7 +348,7 @@ void gaussianSmooth1D(shared_ptr<NDArray> inout, size_t dim,
  *
  * @return Eroded Image
  */
-shared_ptr<NDArray> erode(shared_ptr<NDArray> in, size_t reps)
+ptr<NDArray> erode(ptr<NDArray> in, size_t reps)
 {
 	std::vector<int64_t> index1(in->ndim(), 0);
 	std::vector<int64_t> index2(in->ndim(), 0);
@@ -391,7 +390,7 @@ shared_ptr<NDArray> erode(shared_ptr<NDArray> in, size_t reps)
  *
  * @return Dilated Image
  */
-shared_ptr<NDArray> dilate(shared_ptr<NDArray> in, size_t reps)
+ptr<NDArray> dilate(ptr<NDArray> in, size_t reps)
 {
 	std::vector<int64_t> index1(in->ndim(), 0);
 	std::vector<int64_t> index2(in->ndim(), 0);
@@ -445,7 +444,7 @@ shared_ptr<NDArray> dilate(shared_ptr<NDArray> in, size_t reps)
  *
  * @return shifted image
  */
-void shiftImageKern(shared_ptr<NDArray> inout, size_t dd, double dist)
+void shiftImageKern(ptr<NDArray> inout, size_t dd, double dist)
 {
 	assert(dd < inout->ndim());
 
@@ -491,7 +490,7 @@ void shiftImageKern(shared_ptr<NDArray> inout, size_t dd, double dist)
  *
  * @return shifted image
  */
-void shiftImageFFT(shared_ptr<NDArray> inout, size_t dim, double dist,
+void shiftImageFFT(ptr<NDArray> inout, size_t dim, double dist,
 		double(*window)(double, double))
 {
 	assert(dim < inout->ndim());
@@ -572,7 +571,7 @@ void shiftImageFFT(shared_ptr<NDArray> inout, size_t dim, double dist,
  * @param dist Distance terms to travel. Shift[dim] = x0*dist[0]+x1*dist[1] ...
  * @param kern 1D interpolation kernel
  */
-void shearImageKern(shared_ptr<NDArray> inout, size_t dim, size_t len, 
+void shearImageKern(ptr<NDArray> inout, size_t dim, size_t len, 
         double* dist, double(*kern)(double,double))
 {
 	assert(dim < inout->ndim());
@@ -633,7 +632,7 @@ void shearImageKern(shared_ptr<NDArray> inout, size_t dim, size_t len,
  * @param dist Distance terms to travel. Shift[dim] = x0*dist[0]+x1*dist[1] ...
  * @param window Windowing function of fourier domain (default sinc)
  */
-void shearImageFFT(shared_ptr<NDArray> inout, size_t dim, size_t len, double* dist,
+void shearImageFFT(ptr<NDArray> inout, size_t dim, size_t len, double* dist,
 		double(*window)(double,double))
 {
 	assert(dim < inout->ndim());
@@ -1484,8 +1483,8 @@ int shearTest(double Rx, double Ry, double Rz)
  *
  * @return 
  */
-shared_ptr<NDArray> linearRotate(double rx, double ry, double rz, 
-		shared_ptr<const NDArray> in)
+ptr<NDArray> linearRotate(double rx, double ry, double rz, 
+		ptr<const NDArray> in)
 {
 	Matrix3d m;
 	// negate because we are starting from the destination and mapping from
@@ -1524,7 +1523,7 @@ shared_ptr<NDArray> linearRotate(double rx, double ry, double rz,
  * @param ry Rotation about y axis
  * @param rz Rotation about z axis
  */
-int rotateImageShearKern(shared_ptr<NDArray> inout, double rx, double ry, double rz,
+int rotateImageShearKern(ptr<NDArray> inout, double rx, double ry, double rz,
 		double(*kern)(double,double))
 {
 	const double PI = acos(-1);
@@ -1583,7 +1582,7 @@ int rotateImageShearKern(shared_ptr<NDArray> inout, double rx, double ry, double
  * @param rz Rotation about z axis
  * @param window Window function to apply in fourier domain
  */
-int rotateImageShearFFT(shared_ptr<NDArray> inout, double rx, double ry, double rz,
+int rotateImageShearFFT(ptr<NDArray> inout, double rx, double ry, double rz,
 		double(*window)(double,double))
 {
 	const double PI = acos(-1);
@@ -1635,7 +1634,7 @@ int rotateImageShearFFT(shared_ptr<NDArray> inout, double rx, double ry, double 
  *********************************/
 
 // upsample in anglular directions
-shared_ptr<NDArray> pphelp_padFFT(shared_ptr<const NDArray> in, 
+ptr<NDArray> pphelp_padFFT(ptr<const NDArray> in, 
 		const std::vector<double>& upsamp)
 {
 	std::vector<size_t> osize(in->ndim(), 0);
@@ -1703,18 +1702,18 @@ shared_ptr<NDArray> pphelp_padFFT(shared_ptr<const NDArray> in,
  *
  * @return 		Pseudo-polar sample fourier transform
  */
-shared_ptr<NDArray> pseudoPolarZoom(shared_ptr<const NDArray> inimg, size_t prdim)
+ptr<NDArray> pseudoPolarZoom(ptr<const NDArray> inimg, size_t prdim)
 {
 	// create output
 	std::vector<double> upsample(inimg->ndim(), 2);
 	upsample[prdim] = 1;
 
-	shared_ptr<NDArray> out = pphelp_padFFT(inimg, upsample);
+	ptr<NDArray> out = pphelp_padFFT(inimg, upsample);
 	
 	// write out padded/FFT image
 	{
-		auto absimg = dynamic_pointer_cast<MRImage>(out->copyCast(FLOAT64));
-		auto angimg = dynamic_pointer_cast<MRImage>(out->copyCast(FLOAT64));
+		auto absimg = dptrcast<MRImage>(out->copyCast(FLOAT64));
+		auto angimg = dptrcast<MRImage>(out->copyCast(FLOAT64));
 
 		OrderIter<double> rit(absimg);
 		OrderIter<double> iit(angimg);
@@ -1798,13 +1797,13 @@ shared_ptr<NDArray> pseudoPolarZoom(shared_ptr<const NDArray> inimg, size_t prdi
  *
  * @return 		Pseudo-polar sample fourier transform
  */
-shared_ptr<NDArray> pseudoPolar(shared_ptr<const NDArray> in, size_t prdim)
+ptr<NDArray> pseudoPolar(ptr<const NDArray> in, size_t prdim)
 {
 	// create output
 	std::vector<double> upsample(in->ndim(), 2);
 	upsample[prdim] = 1;
 
-	shared_ptr<NDArray> out = pphelp_padFFT(in, upsample);
+	ptr<NDArray> out = pphelp_padFFT(in, upsample);
 
 	// declare variables
 	std::vector<int64_t> index(out->ndim()); 
@@ -1900,9 +1899,9 @@ shared_ptr<NDArray> pseudoPolar(shared_ptr<const NDArray> in, size_t prdim)
  * @return 		Vector of Pseudo-polar sample fourier transforms, one for each
  * dimension
  */
-vector<shared_ptr<NDArray>> pseudoPolar(shared_ptr<const NDArray> in)
+vector<ptr<NDArray>> pseudoPolar(ptr<const NDArray> in)
 {
-	std::vector<shared_ptr<NDArray>> out(in->ndim());
+	std::vector<ptr<NDArray>> out(in->ndim());
 	for(size_t dd=0; dd < in->ndim(); dd++) {
 		out[dd] = pseudoPolar(in, dd);
 	}

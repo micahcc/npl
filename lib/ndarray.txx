@@ -440,7 +440,7 @@ T& NDArrayStore<D,T>::operator[](int64_t pixel)
 //}
 //
 //template <size_t D, typename T>
-//std::shared_ptr<NDArray> NDArrayStore<D,T>::opnew(const NDArray* right,
+//ptr<NDArray> NDArrayStore<D,T>::opnew(const NDArray* right,
 //		double(*func)(double,double), bool elevR)
 //{
 //	auto out = clone();
@@ -450,7 +450,7 @@ T& NDArrayStore<D,T>::operator[](int64_t pixel)
 //}
 //
 //template <size_t D, typename T>
-//std::shared_ptr<NDArray> NDArrayStore<D,T>::clone() const
+//ptr<NDArray> NDArrayStore<D,T>::clone() const
 //{
 //	std::vector<size_t> newdims(_m_dim, _m_dim+D);
 //	auto out = std::make_shared<NDArrayStore<D,T>>(newdims);
@@ -472,9 +472,9 @@ T& NDArrayStore<D,T>::operator[](int64_t pixel)
  * @return Copied array.
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> NDArrayStore<D,T>::copy() const
+ptr<NDArray> NDArrayStore<D,T>::copy() const
 {
-	shared_ptr<NDArrayStore> out(new NDArrayStore<D,T>(D, this->_m_dim));
+	ptr<NDArrayStore> out(new NDArrayStore<D,T>(D, this->_m_dim));
 	for(size_t ii=0; ii<elements(); ii++)
 		out->_m_data[ii] = this->_m_data[ii];
 
@@ -487,7 +487,7 @@ shared_ptr<NDArray> NDArrayStore<D,T>::copy() const
  * @return New array.
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> NDArrayStore<D,T>::createAnother() const
+ptr<NDArray> NDArrayStore<D,T>::createAnother() const
 {
     return createNDArray(D, this->dim(), type());
 }
@@ -510,7 +510,7 @@ shared_ptr<NDArray> NDArrayStore<D,T>::createAnother() const
  * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> NDArrayStore<D,T>::copyCast(size_t newdims,
+ptr<NDArray> NDArrayStore<D,T>::copyCast(size_t newdims,
 		const size_t* newsize, PixelT newtype) const
 {
 	return _copyCast(getConstPtr(), newdims, newsize, newtype);
@@ -532,7 +532,7 @@ shared_ptr<NDArray> NDArrayStore<D,T>::copyCast(size_t newdims,
  * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> NDArrayStore<D,T>::copyCast(PixelT newtype) const
+ptr<NDArray> NDArrayStore<D,T>::copyCast(PixelT newtype) const
 {
 	return _copyCast(getConstPtr(), newtype);
 }
@@ -555,7 +555,7 @@ shared_ptr<NDArray> NDArrayStore<D,T>::copyCast(PixelT newtype) const
  * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> NDArrayStore<D,T>::copyCast(size_t newdims,
+ptr<NDArray> NDArrayStore<D,T>::copyCast(size_t newdims,
 		const size_t* newsize) const
 {
 	return _copyCast(getConstPtr(), newdims, newsize);
@@ -579,7 +579,7 @@ shared_ptr<NDArray> NDArrayStore<D,T>::copyCast(size_t newdims,
  * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, const int64_t* index,
+ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, const int64_t* index,
         const size_t* size) const
 {
     return extractCast(len, index, size, type());
@@ -602,7 +602,7 @@ shared_ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, const int64_t* in
  * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, 
+ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, 
         const size_t* size) const
 {
     return extractCast(len, NULL, size, type());
@@ -623,7 +623,7 @@ shared_ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len,
  * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, const int64_t* index,
+ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, const int64_t* index,
         const size_t* size, PixelT newtype) const
 {
     assert(size);
@@ -692,7 +692,7 @@ shared_ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, const int64_t* in
  * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, 
+ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, 
         const size_t* size, PixelT newtype) const
 {
     return extractCast(len, NULL, size, newtype);

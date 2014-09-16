@@ -24,16 +24,36 @@
 #include <complex>
 #include <memory>
 
-using std::shared_ptr;
-
 namespace npl {
-
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 using Eigen::Matrix3d;
 using Eigen::Vector3d;
 using Eigen::Matrix;
+
+/**
+ * @brief Make the shared_ptr name shorter...
+ *
+ * @tparam T Type we are pointing at
+ */
+template <typename T>
+using ptr = std::shared_ptr<T>;
+
+/**
+ * @brief Shorter name for dynamic_pointer_cast 
+ *
+ * @tparam F Cast from this type
+ * @tparam T Cast to this type
+ * @param in Input pointer (type F*)
+ *
+ * @return Output pointer (type T*)
+ */
+template <typename T, typename F>
+ptr<T> dptrcast(const ptr<F>& in)
+{
+    return dptrcast<T>(in);
+}
 
 struct rgba_t;
 struct rgb_t;

@@ -40,8 +40,6 @@
 
 namespace npl {
 
-using std::shared_ptr;
-
 /******************************************************************************
  * Define Types
  *****************************************************************************/
@@ -71,7 +69,7 @@ class NDArray;
  *
  * @return New image, default orientation
  */
-shared_ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype);
+ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype);
 
 /**
  * @brief Creates a new NDArray with dimensions set by ndim, and size set by
@@ -83,7 +81,7 @@ shared_ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype)
  *
  * @return New image, default orientation
  */
-shared_ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype);
+ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype);
 
 /**
  * @brief Creates a new NDArray with dimensions set by ndim, and size set by
@@ -97,7 +95,7 @@ shared_ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype);
  *
  * @return New image, default orientation
  */
-shared_ptr<NDArray> createNDArray(size_t ndim, const size_t* size, 
+ptr<NDArray> createNDArray(size_t ndim, const size_t* size, 
         PixelT ptype, void* ptr, std::function<void(void*)> deleter);
 
 /**
@@ -112,7 +110,7 @@ shared_ptr<NDArray> createNDArray(size_t ndim, const size_t* size,
  *
  * @return New image, default orientation
  */
-shared_ptr<NDArray> createNDArray(const std::vector<size_t>& dim, 
+ptr<NDArray> createNDArray(const std::vector<size_t>& dim, 
         PixelT ptype, void* ptr, std::function<void(void*)> deleter);
 
 /**
@@ -128,8 +126,8 @@ shared_ptr<NDArray> createNDArray(const std::vector<size_t>& dim,
  * @param newtype Type to cast pixels to during copy
  *
  */
-void copyROI(shared_ptr<const NDArray> in, 
-        const int64_t* inROIL, const int64_t* inROIU, shared_ptr<NDArray> out,
+void copyROI(ptr<const NDArray> in, 
+        const int64_t* inROIL, const int64_t* inROIU, ptr<NDArray> out,
         const int64_t* oROIL, const int64_t* oROIU, PixelT newtype);
 
 /** @} NDArrayUtilities */
@@ -158,11 +156,11 @@ public:
 	// return type of stored value
 	virtual PixelT type() const = 0;
 	
-	shared_ptr<NDArray> getPtr()  {
+	ptr<NDArray> getPtr()  {
 		return shared_from_this();
 	};
 	
-	shared_ptr<const NDArray> getConstPtr() const {
+	ptr<const NDArray> getConstPtr() const {
 		return shared_from_this();
 	};
 
@@ -174,14 +172,14 @@ public:
 	 *
 	 * @return Copied array.
 	 */
-	virtual shared_ptr<NDArray> copy() const = 0;
+	virtual ptr<NDArray> copy() const = 0;
     
     /**
      * @brief Creates an identical array, but does not initialize pixel values.
 	 *
 	 * @return New array.
 	 */
-	virtual shared_ptr<NDArray> createAnother() const = 0;
+	virtual ptr<NDArray> createAnother() const = 0;
 
 	/**
 	 * @brief Create a new array that is a copy of the input, possibly with new
@@ -194,7 +192,7 @@ public:
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
 	 */
-	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize,
+	virtual ptr<NDArray> copyCast(size_t newdims, const size_t* newsize,
 			PixelT newtype) const = 0;
 
 	/**
@@ -206,7 +204,7 @@ public:
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
 	 */
-	virtual shared_ptr<NDArray> copyCast(PixelT newtype) const = 0;
+	virtual ptr<NDArray> copyCast(PixelT newtype) const = 0;
 
 	/**
 	 * @brief Create a new array that is a copy of the input, possibly with new
@@ -220,7 +218,7 @@ public:
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
 	 */
-	virtual shared_ptr<NDArray> copyCast(size_t newdims,
+	virtual ptr<NDArray> copyCast(size_t newdims,
 				const size_t* newsize) const = 0;
 
     /**
@@ -234,7 +232,7 @@ public:
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
-    virtual shared_ptr<NDArray> extractCast(size_t len, const int64_t* index,
+    virtual ptr<NDArray> extractCast(size_t len, const int64_t* index,
             const size_t* size) const = 0;
 
     /**
@@ -247,7 +245,7 @@ public:
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
-    virtual shared_ptr<NDArray> extractCast(size_t len, const size_t* size) const = 0;
+    virtual ptr<NDArray> extractCast(size_t len, const size_t* size) const = 0;
 
     /**
      * @Brief extracts a region of this image. Zeros in the size variable
@@ -261,7 +259,7 @@ public:
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
-    virtual shared_ptr<NDArray> extractCast(size_t len,
+    virtual ptr<NDArray> extractCast(size_t len,
             const int64_t* index, const size_t* size, PixelT newtype) const = 0;
 
     /**
@@ -275,13 +273,13 @@ public:
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
-    virtual shared_ptr<NDArray> extractCast(size_t len, const size_t* size, 
+    virtual ptr<NDArray> extractCast(size_t len, const size_t* size, 
             PixelT newtype) const = 0;
 
 	
 //	virtual int opself(const NDArray* right, double(*func)(double,double),
 //			bool elevR) = 0;
-//	virtual std::shared_ptr<NDArray> opnew(const NDArray* right,
+//	virtual ptr<NDArray> opnew(const NDArray* right,
 //			double(*func)(double,double), bool elevR) = 0;
 
 	virtual void* __getAddr(std::initializer_list<int64_t> index) const = 0;
@@ -433,14 +431,14 @@ public:
 	 *
 	 * @return Copied array.
 	 */
-	virtual shared_ptr<NDArray> copy() const;
+	virtual ptr<NDArray> copy() const;
 	
     /**
      * @brief Creates an identical array, but does not initialize pixel values.
 	 *
 	 * @return New array.
 	 */
-	virtual shared_ptr<NDArray> createAnother() const;
+	virtual ptr<NDArray> createAnother() const;
 
 	/**
 	 * @brief Create a new array that is a copy of the input, possibly with new
@@ -454,7 +452,7 @@ public:
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
 	 */
-	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize,
+	virtual ptr<NDArray> copyCast(size_t newdims, const size_t* newsize,
 			PixelT newtype) const;
 
 	/**
@@ -466,7 +464,7 @@ public:
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
 	 */
-	virtual shared_ptr<NDArray> copyCast(PixelT newtype) const;
+	virtual ptr<NDArray> copyCast(PixelT newtype) const;
 
 	/**
 	 * @brief Create a new array that is a copy of the input, possibly with new
@@ -479,7 +477,7 @@ public:
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
 	 */
-	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize) const;
+	virtual ptr<NDArray> copyCast(size_t newdims, const size_t* newsize) const;
 
     /**
      * @brief Create a new array that is a copy of the input, possibly with new
@@ -494,7 +492,7 @@ public:
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
-    virtual shared_ptr<NDArray> extractCast(size_t len, const int64_t* index,
+    virtual ptr<NDArray> extractCast(size_t len, const int64_t* index,
             const size_t* size) const;
 
     /**
@@ -510,7 +508,7 @@ public:
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
-    virtual shared_ptr<NDArray> extractCast(size_t len, const size_t* size) const;
+    virtual ptr<NDArray> extractCast(size_t len, const size_t* size) const;
 
     /**
      * @brief Create a new array that is a copy of the input, possibly with new
@@ -527,7 +525,7 @@ public:
      * @return Image with overlapping sections cast and copied from 'in'
      */
 
-    virtual shared_ptr<NDArray> extractCast(size_t len,
+    virtual ptr<NDArray> extractCast(size_t len,
             const int64_t* index, const size_t* size, PixelT newtype) const;
 
     /**
@@ -544,14 +542,14 @@ public:
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
-    virtual shared_ptr<NDArray> extractCast(size_t len, const size_t* size, 
+    virtual ptr<NDArray> extractCast(size_t len, const size_t* size, 
             PixelT newtype) const;
 	/*
 	 * Higher Level Operations
 	 */
 //	virtual int opself(const NDArray* right, double(*func)(double,double),
 //			bool elevR);
-//	virtual std::shared_ptr<NDArray> opnew(const NDArray* right,
+//	virtual ptr<NDArray> opnew(const NDArray* right,
 //			double(*func)(double,double), bool elevR);
 	
 	inline virtual void* __getAddr(std::initializer_list<int64_t> index) const

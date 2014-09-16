@@ -50,7 +50,7 @@ namespace npl {
  * @return New MRImage with defaults set
  */
 template <typename T>
-shared_ptr<MRImage> createMRImageHelp(size_t len, const size_t* dim)
+ptr<MRImage> createMRImageHelp(size_t len, const size_t* dim)
 {
 	switch(len) {
 		case 1:
@@ -87,7 +87,7 @@ shared_ptr<MRImage> createMRImageHelp(size_t len, const size_t* dim)
  *
  * @return New image, default orientation
  */
-shared_ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type)
+ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type)
 {
 	switch(type) {
          case UINT8:
@@ -154,7 +154,7 @@ shared_ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type)
  *
  * @return New image, default orientation
  */
-shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type)
+ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type)
 {
 	return createMRImage(dim.size(), dim.data(), type);
 }
@@ -171,7 +171,7 @@ shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type)
  * @return New MRImage with defaults set
  */
 template <typename T>
-shared_ptr<MRImage> createMRImageHelp(size_t len, const size_t* dim,
+ptr<MRImage> createMRImageHelp(size_t len, const size_t* dim,
         void* ptr, std::function<void(void*)> deleter)
 {
 	switch(len) {
@@ -211,7 +211,7 @@ shared_ptr<MRImage> createMRImageHelp(size_t len, const size_t* dim,
  *
  * @return New image, default orientation
  */
-shared_ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type,
+ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type,
         void* ptr, std::function<void(void*)> deleter)
 {
 	switch(type) {
@@ -281,7 +281,7 @@ shared_ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type,
  *
  * @return New image, default orientation
  */
-shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type,
+ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type,
         void* ptr, std::function<void(void*)> deleter)
 {
     return createMRImage(dim.size(), dim.data(), type, ptr, deleter);
@@ -357,7 +357,7 @@ void MRImage::updateSliceTiming(double duration, int start, int end, SliceOrderT
  * @param out Output image to write to
  */
 template <typename T>
-void _copyCast_help(shared_ptr<const MRImage> in, shared_ptr<MRImage> out)
+void _copyCast_help(ptr<const MRImage> in, ptr<MRImage> out)
 {
 
 	// Set up slicers to iterate through the input and output images. Only
@@ -406,7 +406,7 @@ void _copyCast_help(shared_ptr<const MRImage> in, shared_ptr<MRImage> out)
  *
  * @return Image with overlapping sections cast and copied from 'in'
  */
-shared_ptr<MRImage> _copyCast(shared_ptr<const MRImage> in, size_t newdims,
+ptr<MRImage> _copyCast(ptr<const MRImage> in, size_t newdims,
 		const size_t* newsize, PixelT newtype)
 {
 	auto out = createMRImage(newdims, newsize, newtype);
@@ -487,7 +487,7 @@ shared_ptr<MRImage> _copyCast(shared_ptr<const MRImage> in, size_t newdims,
  *
  * @return Image with overlapping sections cast and copied from 'in'
  */
-shared_ptr<MRImage> _copyCast(shared_ptr<const MRImage> in, PixelT newtype)
+ptr<MRImage> _copyCast(ptr<const MRImage> in, PixelT newtype)
 {
 	return _copyCast(in, in->ndim(), in->dim(), newtype);
 }
@@ -504,7 +504,7 @@ shared_ptr<MRImage> _copyCast(shared_ptr<const MRImage> in, PixelT newtype)
  *
  * @return Image with overlapping sections cast and copied from 'in'
  */
-shared_ptr<MRImage> _copyCast(shared_ptr<const MRImage> in, size_t newdims,
+ptr<MRImage> _copyCast(ptr<const MRImage> in, size_t newdims,
 		const size_t* newsize)
 {
 	return _copyCast(in, newdims, newsize, in->type());
@@ -526,7 +526,7 @@ shared_ptr<MRImage> _copyCast(shared_ptr<const MRImage> in, size_t newdims,
  * @return New MRImage with loaded pixels
  */
 template <typename T>
-shared_ptr<MRImage> readPixels(gzFile file, size_t vox_offset,
+ptr<MRImage> readPixels(gzFile file, size_t vox_offset,
 		const std::vector<size_t>& dim, size_t pixsize, bool doswap)
 {
 	// jump to voxel offset
@@ -541,7 +541,7 @@ shared_ptr<MRImage> readPixels(gzFile file, size_t vox_offset,
 	slicer.setOrder({}, true);
 
 	T tmp(0);
-	shared_ptr<MRImage> out;
+	ptr<MRImage> out;
 
 	// someday this all might be simplify by using MRImage* and the
 	// dbl or int64 functions, as long as we trust that the type is
@@ -765,7 +765,7 @@ int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap,
  *
  * @return New MRImage with values from header and pixels set
  */
-shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose)
+ptr<MRImage> readNiftiImage(gzFile file, bool verbose)
 {
 	bool doswap = false;
 	int16_t datatype = 0;
@@ -860,7 +860,7 @@ shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose)
 		qfac = header2.qfac;
 	}
 
-	shared_ptr<MRImage> out;
+	ptr<MRImage> out;
 
 	// create image
 	switch(datatype) {
@@ -1172,7 +1172,7 @@ int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap,
  *
  * @param in Other image to copy from
  */
-void MRImage::copyMetadata(shared_ptr<const MRImage> in)
+void MRImage::copyMetadata(ptr<const MRImage> in)
 {
 	// copy image metadata
 	this->m_freqdim = in->m_freqdim;
@@ -1197,7 +1197,7 @@ void MRImage::copyMetadata(shared_ptr<const MRImage> in)
  *
  * @return True if the two images have matching orientation information.
  */
-bool MRImage::matchingOrient(shared_ptr<const MRImage> other, bool checksize) const
+bool MRImage::matchingOrient(ptr<const MRImage> other, bool checksize) const
 {
     if(ndim() != other->ndim())
         return false;

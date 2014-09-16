@@ -35,7 +35,6 @@
 namespace npl {
 
 using std::vector;
-using std::shared_ptr;
 
 /**
  * \defgroup MRImageUtilities MRImage Functions
@@ -52,7 +51,7 @@ using std::shared_ptr;
  *
  * @return Loaded image
  */
-shared_ptr<MRImage> readMRImage(std::string filename, bool verbose = false);
+ptr<MRImage> readMRImage(std::string filename, bool verbose = false);
 
 
 /**
@@ -88,7 +87,7 @@ std::ostream& operator<<(std::ostream &out, const MRImage& img);
  * @param dim Direction to smooth in
  * @param stddev in real space, for example millimeters.
  */
-void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, double stddev);
+void gaussianSmooth1D(ptr<MRImage> inout, size_t dim, double stddev);
 
 
 /******************************************************
@@ -104,7 +103,7 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim, double stddev);
  *
  * @return  Smoothed and downsampled image
  */
-shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, 
+ptr<MRImage> smoothDownsample(ptr<const MRImage> in, 
         double sigma);
 
 /******************************************************
@@ -120,7 +119,7 @@ shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in,
  *
  * @return shifted image
  */
-shared_ptr<MRImage> shiftImage(shared_ptr<MRImage> in, size_t len, double* vect);
+ptr<MRImage> shiftImage(ptr<MRImage> in, size_t len, double* vect);
 
 /**
  * @brief Writes a pair of images, one real, one imaginary or if absPhase is
@@ -132,7 +131,7 @@ shared_ptr<MRImage> shiftImage(shared_ptr<MRImage> in, size_t len, double* vect)
  * @param absPhase Whether the break up into absolute and phase rather than
  * re/imaginary
  */
-void writeComplex(std::string basename, shared_ptr<const MRImage> in, 
+void writeComplex(std::string basename, ptr<const MRImage> in, 
         bool absPhase = false);
 
 /**
@@ -145,7 +144,7 @@ void writeComplex(std::string basename, shared_ptr<const MRImage> in,
  * @return Frequency domain of input. Note the output will be
  * COMPLEX128/CDOUBLE type
  */
-shared_ptr<MRImage> fft_forward(shared_ptr<const MRImage> in, 
+ptr<MRImage> fft_forward(ptr<const MRImage> in, 
         const std::vector<size_t>& in_osize);
 
 /**
@@ -159,7 +158,7 @@ shared_ptr<MRImage> fft_forward(shared_ptr<const MRImage> in,
  * @return Frequency domain of input. Note the output will be
  * COMPLEX128/CDOUBLE type
  */
-shared_ptr<MRImage> fft_backward(shared_ptr<const MRImage> in,
+ptr<MRImage> fft_backward(ptr<const MRImage> in,
         const std::vector<size_t>& in_osize);
 
 /** @}  MRImageUtilities */
