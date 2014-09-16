@@ -42,7 +42,6 @@
 namespace npl {
 
 using std::vector;
-using std::shared_ptr;
 
 enum SliceOrderT {UNKNOWN_SLICE=0, SEQ=1, RSEQ=2, ALT=3, RALT=4, ALT_SHFT=5,
 	RALT_SHFT=6};
@@ -67,9 +66,9 @@ class MRImage;
  * @return MRImage Pointer (with proper reference counts)
  */
 inline
-shared_ptr<MRImage> toMRImage(shared_ptr<NDArray> in)
+ptr<MRImage> toMRImage(ptr<NDArray> in)
 {
-    return std::dynamic_pointer_cast<MRImage>(in);
+    return dptrcast<MRImage>(in);
 }
 
 /**
@@ -80,9 +79,9 @@ shared_ptr<MRImage> toMRImage(shared_ptr<NDArray> in)
  * @return MRImage Pointer (with proper reference counts)
  */
 inline
-shared_ptr<const MRImage> toMRImage(shared_ptr<const NDArray> in)
+ptr<const MRImage> toMRImage(ptr<const NDArray> in)
 {
-    return std::dynamic_pointer_cast<const MRImage>(in);
+    return dptrcast<const MRImage>(in);
 }
 
 /**
@@ -95,7 +94,7 @@ shared_ptr<const MRImage> toMRImage(shared_ptr<const NDArray> in)
  *
  * @return New image, default orientation
  */
-shared_ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type);
+ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type);
 
 /**
  * @brief Creates a new MRImage with dimensions set by ndim, and size set by
@@ -107,7 +106,7 @@ shared_ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type);
  *
  * @return New image, default orientation
  */
-shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type);
+ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type);
 
 /**
  * @brief Creates a new MRImage with dimensions set by ndim, and size set by
@@ -121,7 +120,7 @@ shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type);
  *
  * @return New image, default orientation
  */
-shared_ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type,
+ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type,
         void* ptr, std::function<void(void*)> deleter);
 
 /**
@@ -136,7 +135,7 @@ shared_ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type,
  *
  * @return New image, default orientation
  */
-shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type,
+ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type,
         void* ptr, std::function<void(void*)> deleter);
 
 /**
@@ -147,7 +146,7 @@ shared_ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type,
  *
  * @return New MRImage with values from header and pixels set
  */
-shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose);
+ptr<MRImage> readNiftiImage(gzFile file, bool verbose);
 
 /**
  * @brief Reads a nifti2 header from an already-open gzFile. End users should
@@ -480,7 +479,7 @@ public:
      * @return True if the two images have matching orientation information.
      */
     virtual 
-    bool matchingOrient(shared_ptr<const MRImage> other, bool checksize) const;
+    bool matchingOrient(ptr<const MRImage> other, bool checksize) const;
 	
     /********************************************
      * Output Functions
@@ -507,8 +506,8 @@ public:
      *
      * @return this
      */
-	shared_ptr<MRImage> getPtr()  {
-		return std::dynamic_pointer_cast<MRImage>(shared_from_this());
+	ptr<MRImage> getPtr()  {
+		return dptrcast<MRImage>(shared_from_this());
 	};
 	
     /**
@@ -516,8 +515,8 @@ public:
      *
      * @return this
      */
-	shared_ptr<const MRImage> getConstPtr() const {
-		return std::dynamic_pointer_cast<const MRImage>(shared_from_this());
+	ptr<const MRImage> getConstPtr() const {
+		return dptrcast<const MRImage>(shared_from_this());
 	};
     
 	
@@ -527,7 +526,7 @@ public:
      *
      * @return  Pointer to deep-copied image.
      */
-	virtual std::shared_ptr<MRImage> cloneImage() const = 0;
+	virtual ptr<MRImage> cloneImage() const = 0;
 	
 
 	/**
@@ -535,14 +534,14 @@ public:
 	 *
 	 * @return Copied image (as NDarray pointer)
 	 */
-	virtual shared_ptr<NDArray> copy() const = 0;
+	virtual ptr<NDArray> copy() const = 0;
     
     /**
      * @brief Creates an identical array, but does not initialize pixel values.
 	 *
 	 * @return New array.
 	 */
-	virtual shared_ptr<NDArray> createAnother() const = 0;
+	virtual ptr<NDArray> createAnother() const = 0;
 
 	/**
 	 * @brief Create a new image that is a copy of the input, possibly with new
@@ -555,7 +554,7 @@ public:
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
 	 */
-	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize,
+	virtual ptr<NDArray> copyCast(size_t newdims, const size_t* newsize,
 			PixelT newtype) const = 0;
 
 	/**
@@ -567,7 +566,7 @@ public:
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
 	 */
-	virtual shared_ptr<NDArray> copyCast(PixelT newtype) const = 0;
+	virtual ptr<NDArray> copyCast(PixelT newtype) const = 0;
 
 	/**
 	 * @brief Create a new image that is a copy of the input, possibly with new
@@ -580,7 +579,7 @@ public:
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
 	 */
-	virtual shared_ptr<NDArray> copyCast(size_t newdims,
+	virtual ptr<NDArray> copyCast(size_t newdims,
 				const size_t* newsize) const = 0;
     
 	/**
@@ -594,7 +593,7 @@ public:
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
-    virtual shared_ptr<NDArray> extractCast(size_t len, const int64_t* index,
+    virtual ptr<NDArray> extractCast(size_t len, const int64_t* index,
             const size_t* size) const = 0;
 
     /**
@@ -607,7 +606,7 @@ public:
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
-    virtual shared_ptr<NDArray> extractCast(size_t len, const size_t* size) const = 0;
+    virtual ptr<NDArray> extractCast(size_t len, const size_t* size) const = 0;
 
     /**
      * @Brief extracts a region of this image. Zeros in the size variable
@@ -621,7 +620,7 @@ public:
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
-    virtual shared_ptr<NDArray> extractCast(size_t len,
+    virtual ptr<NDArray> extractCast(size_t len,
             const int64_t* index, const size_t* size, PixelT newtype) const = 0;
 
     /**
@@ -635,7 +634,7 @@ public:
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
-    virtual shared_ptr<NDArray> extractCast(size_t len, const size_t* size, 
+    virtual ptr<NDArray> extractCast(size_t len, const size_t* size, 
             PixelT newtype) const = 0;
 
 	
@@ -647,7 +646,7 @@ public:
      *
      * @param src Other image to copy from
      */
-    virtual void copyMetadata(shared_ptr<const MRImage> src);
+    virtual void copyMetadata(ptr<const MRImage> src);
 
 
 //	virtual int unary(double(*func)(double,double)) const = 0;
@@ -720,7 +719,7 @@ protected:
      */
 	VectorXd m_origin;
 
-	friend shared_ptr<MRImage> readNiftiImage(gzFile file, bool verbose);
+	friend ptr<MRImage> readNiftiImage(gzFile file, bool verbose);
 };
 
 /**
@@ -959,14 +958,14 @@ public:
 	 *
 	 * @return Copied image.
 	 */
-	virtual shared_ptr<NDArray> copy() const;
+	virtual ptr<NDArray> copy() const;
 	
     /**
      * @brief Creates an identical array, but does not initialize pixel values.
 	 *
 	 * @return New array.
 	 */
-	virtual shared_ptr<NDArray> createAnother() const;
+	virtual ptr<NDArray> createAnother() const;
 
 	/**
 	 * @brief Create a new image that is a copy of the input, possibly with new
@@ -979,7 +978,7 @@ public:
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
 	 */
-	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize,
+	virtual ptr<NDArray> copyCast(size_t newdims, const size_t* newsize,
 			PixelT newtype) const;
 
 	/**
@@ -991,7 +990,7 @@ public:
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
 	 */
-	virtual shared_ptr<NDArray> copyCast(PixelT newtype) const;
+	virtual ptr<NDArray> copyCast(PixelT newtype) const;
 
 	/**
 	 * @brief Create a new image that is a copy of the input, possibly with new
@@ -1004,7 +1003,7 @@ public:
 	 *
 	 * @return Image with overlapping sections cast and copied from 'in'
 	 */
-	virtual shared_ptr<NDArray> copyCast(size_t newdims, const size_t* newsize) const;
+	virtual ptr<NDArray> copyCast(size_t newdims, const size_t* newsize) const;
 	
     /**
      * @brief Create a new array that is a copy of the input, possibly with new
@@ -1019,7 +1018,7 @@ public:
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
-    virtual shared_ptr<NDArray> extractCast(size_t len, const int64_t* index,
+    virtual ptr<NDArray> extractCast(size_t len, const int64_t* index,
             const size_t* size) const;
 
     /**
@@ -1035,7 +1034,7 @@ public:
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
-    virtual shared_ptr<NDArray> extractCast(size_t len, const size_t* size) const;
+    virtual ptr<NDArray> extractCast(size_t len, const size_t* size) const;
 
     /**
      * @brief Create a new array that is a copy of the input, possibly with new
@@ -1052,7 +1051,7 @@ public:
      * @return Image with overlapping sections cast and copied from 'in'
      */
 
-    virtual shared_ptr<NDArray> extractCast(size_t len,
+    virtual ptr<NDArray> extractCast(size_t len,
             const int64_t* index, const size_t* size, PixelT newtype) const;
 
     /**
@@ -1069,7 +1068,7 @@ public:
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
-    virtual shared_ptr<NDArray> extractCast(size_t len, const size_t* size, 
+    virtual ptr<NDArray> extractCast(size_t len, const size_t* size, 
             PixelT newtype) const;
 
     /**
@@ -1078,7 +1077,7 @@ public:
 	 *
 	 * @return Pointer to exact duplicate of current image.
 	 */
-	std::shared_ptr<MRImage> cloneImage() const;
+	ptr<MRImage> cloneImage() const;
 
 protected:
 

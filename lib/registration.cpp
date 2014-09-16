@@ -30,8 +30,6 @@
 
 #include <Eigen/Dense>
 
-using std::dynamic_pointer_cast;
-
 using Eigen::VectorXd;
 using Eigen::Vector3d;
 using Eigen::Matrix3d;
@@ -215,9 +213,9 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
 RigidCorrComputer::RigidCorrComputer(
         shared_ptr<const MRImage> fixed, shared_ptr<const MRImage> moving,
         bool negate) :
-    m_fixed(dynamic_pointer_cast<MRImage>(fixed->copy())),
-    m_moving(dynamic_pointer_cast<MRImage>(moving->copy())),
-    m_dmoving(dynamic_pointer_cast<MRImage>(derivative(moving))),
+    m_fixed(dptrcast<MRImage>(fixed->copy())),
+    m_moving(dptrcast<MRImage>(moving->copy())),
+    m_dmoving(dptrcast<MRImage>(derivative(moving))),
     m_move_get(m_moving),
     m_dmove_get(m_dmoving),
     m_fit(m_fixed),
@@ -231,13 +229,13 @@ RigidCorrComputer::RigidCorrComputer(
 #ifdef VERYDEBUG
     m_moving->write("init_moving.nii.gz");
     m_fixed->write("init_fixed.nii.gz");
-    d_theta_x = dynamic_pointer_cast<MRImage>(moving->copy());
-    d_theta_y = dynamic_pointer_cast<MRImage>(moving->copy());
-    d_theta_z = dynamic_pointer_cast<MRImage>(moving->copy());
-    d_shift_x = dynamic_pointer_cast<MRImage>(moving->copy());
-    d_shift_y = dynamic_pointer_cast<MRImage>(moving->copy());
-    d_shift_z = dynamic_pointer_cast<MRImage>(moving->copy());
-    interpolated = dynamic_pointer_cast<MRImage>(moving->copy());
+    d_theta_x = dptrcast<MRImage>(moving->copy());
+    d_theta_y = dptrcast<MRImage>(moving->copy());
+    d_theta_z = dptrcast<MRImage>(moving->copy());
+    d_shift_x = dptrcast<MRImage>(moving->copy());
+    d_shift_y = dptrcast<MRImage>(moving->copy());
+    d_shift_z = dptrcast<MRImage>(moving->copy());
+    interpolated = dptrcast<MRImage>(moving->copy());
     interpolated->write("init_interpolated.nii.gz");
     callcount = 0;
 #endif

@@ -731,7 +731,7 @@ int MRImageStore<D,T>::writePixels(gzFile file) const
 }
 
 template <size_t D, typename T>
-std::shared_ptr<MRImage> MRImageStore<D,T>::cloneImage() const
+ptr<MRImage> MRImageStore<D,T>::cloneImage() const
 {
 	std::vector<size_t> newdims(this->_m_dim, this->_m_dim+D);
 	auto out = std::make_shared<MRImageStore<D,T>>(newdims);
@@ -1104,7 +1104,7 @@ bool MRImageStore<D,T>::indexInsideFOV(size_t len, const int64_t* xyz) const
  * @return Copied image.
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> MRImageStore<D,T>::copy() const
+ptr<NDArray> MRImageStore<D,T>::copy() const
 {
 	return _copyCast(getConstPtr(), D, this->_m_dim, type());
 }
@@ -1115,9 +1115,9 @@ shared_ptr<NDArray> MRImageStore<D,T>::copy() const
  * @return New array.
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> MRImageStore<D,T>::createAnother() const
+ptr<NDArray> MRImageStore<D,T>::createAnother() const
 {
-	auto out = dynamic_pointer_cast<MRImage>(createMRImage(D, dim(), type()));
+	auto out = dptrcast<MRImage>(createMRImage(D, dim(), type()));
 	out->copyMetadata(getConstPtr());
 	return out;
 }
@@ -1140,7 +1140,7 @@ shared_ptr<NDArray> MRImageStore<D,T>::createAnother() const
  * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> MRImageStore<D,T>::copyCast(size_t newdims,
+ptr<NDArray> MRImageStore<D,T>::copyCast(size_t newdims,
 		const size_t* newsize, PixelT newtype) const
 {
 	return _copyCast(getConstPtr(), newdims, newsize, newtype);
@@ -1162,7 +1162,7 @@ shared_ptr<NDArray> MRImageStore<D,T>::copyCast(size_t newdims,
  * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> MRImageStore<D,T>::copyCast(PixelT newtype) const
+ptr<NDArray> MRImageStore<D,T>::copyCast(PixelT newtype) const
 {
 	return _copyCast(getConstPtr(), newtype);
 }
@@ -1185,7 +1185,7 @@ shared_ptr<NDArray> MRImageStore<D,T>::copyCast(PixelT newtype) const
  * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> MRImageStore<D,T>::copyCast(size_t newdims,
+ptr<NDArray> MRImageStore<D,T>::copyCast(size_t newdims,
 		const size_t* newsize) const
 {
 	return _copyCast(getConstPtr(), newdims, newsize);
@@ -1209,7 +1209,7 @@ shared_ptr<NDArray> MRImageStore<D,T>::copyCast(size_t newdims,
  * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
+ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
         const size_t* size) const
 {
     return extractCast(len, index, size, type());
@@ -1232,7 +1232,7 @@ shared_ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* in
  * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, 
+ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, 
         const size_t* size) const
 {
     return extractCast(len, NULL, size, type());
@@ -1252,7 +1252,7 @@ shared_ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len,
  * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
+ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
         const size_t* size, PixelT newtype) const
 {
     assert(size);
@@ -1300,7 +1300,7 @@ shared_ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* in
     }
     
     // create output
-    auto out = dynamic_pointer_cast<MRImage>(
+    auto out = dptrcast<MRImage>(
 			createMRImage(newdim, newsize, newtype));
     copyROI(getConstPtr(), ilower, iupper, out, olower, oupper, newtype);
 
@@ -1341,7 +1341,7 @@ shared_ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* in
  * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
-shared_ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, 
+ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, 
         const size_t* size, PixelT newtype) const
 {
     return extractCast(len, NULL, size, newtype);

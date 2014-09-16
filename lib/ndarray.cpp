@@ -45,7 +45,7 @@ namespace npl {
  * @return New NDArray with defaults set
  */
 template <typename T>
-shared_ptr<NDArray> createNDArrayHelp(size_t ndim, const size_t* dim)
+ptr<NDArray> createNDArrayHelp(size_t ndim, const size_t* dim)
 {
 	switch(ndim) {
 		case 1:
@@ -82,7 +82,7 @@ shared_ptr<NDArray> createNDArrayHelp(size_t ndim, const size_t* dim)
  *
  * @return New image, default orientation
  */
-shared_ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype)
+ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype)
 {
 	switch(ptype) {
          case UINT8:
@@ -150,7 +150,7 @@ shared_ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype)
  *
  * @return New image, default orientation
  */
-shared_ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype)
+ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype)
 {
 	return createNDArray(dim.size(), dim.data(), ptype);
 }
@@ -167,7 +167,7 @@ shared_ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype)
  * @return New NDArray with defaults set
  */
 template <typename T>
-shared_ptr<NDArray> createNDArrayHelp(size_t ndim, const size_t* dim,
+ptr<NDArray> createNDArrayHelp(size_t ndim, const size_t* dim,
         void* ptr, std::function<void(void*)> deleter)
 {
 	switch(ndim) {
@@ -207,7 +207,7 @@ shared_ptr<NDArray> createNDArrayHelp(size_t ndim, const size_t* dim,
  *
  * @return New image, default orientation
  */
-shared_ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype,
+ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype,
         void* ptr, std::function<void(void*)> deleter)
 {
 	switch(ptype) {
@@ -278,7 +278,7 @@ shared_ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype,
  *
  * @return New image, default orientation
  */
-shared_ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype,
+ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype,
         void* ptr, std::function<void(void*)> deleter)
 {
 	return createNDArray(dim.size(), dim.data(), ptype, ptr, deleter);
@@ -294,7 +294,7 @@ shared_ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype,
  * @param out Output array to write to
  */
 template <typename T>
-void _copyCast_help(shared_ptr<const NDArray> in, shared_ptr<NDArray> out)
+void _copyCast_help(ptr<const NDArray> in, ptr<NDArray> out)
 {
 
 	// Set up slicers to iterate through the input and output arrays. Only
@@ -343,7 +343,7 @@ void _copyCast_help(shared_ptr<const NDArray> in, shared_ptr<NDArray> out)
  *
  * @return Image with overlapping sections cast and copied from 'in'
  */
-shared_ptr<NDArray> _copyCast(shared_ptr<const NDArray> in, size_t newdims,
+ptr<NDArray> _copyCast(ptr<const NDArray> in, size_t newdims,
 		const size_t* newsize, PixelT newtype)
 {
 	auto out = createNDArray(newdims, newsize, newtype);
@@ -414,7 +414,7 @@ shared_ptr<NDArray> _copyCast(shared_ptr<const NDArray> in, size_t newdims,
  *
  * @return Image with overlapping sections cast and copied from 'in'
  */
-shared_ptr<NDArray> _copyCast(shared_ptr<const NDArray> in, PixelT newtype)
+ptr<NDArray> _copyCast(ptr<const NDArray> in, PixelT newtype)
 {
 	return _copyCast(in, in->ndim(), in->dim(), newtype);
 }
@@ -431,7 +431,7 @@ shared_ptr<NDArray> _copyCast(shared_ptr<const NDArray> in, PixelT newtype)
  *
  * @return Image with overlapping sections cast and copied from 'in'
  */
-shared_ptr<NDArray> _copyCast(shared_ptr<const NDArray> in, size_t newdims,
+ptr<NDArray> _copyCast(ptr<const NDArray> in, size_t newdims,
 		const size_t* newsize)
 {
 	return _copyCast(in, newdims, newsize, in->type());
@@ -448,8 +448,8 @@ shared_ptr<NDArray> _copyCast(shared_ptr<const NDArray> in, size_t newdims,
  * @param out Output array to write to
  */
 template <typename T>
-void copyROI_help(shared_ptr<const NDArray> in, const int64_t* inROIL, const
-        int64_t* inROIU, shared_ptr<NDArray> out, const int64_t* oROIL, 
+void copyROI_help(ptr<const NDArray> in, const int64_t* inROIL, const
+        int64_t* inROIU, ptr<NDArray> out, const int64_t* oROIL, 
         const int64_t* oROIU)
 {
     // Set up slicers to iterate through the input and output arrays. Only
@@ -496,8 +496,8 @@ void copyROI_help(shared_ptr<const NDArray> in, const int64_t* inROIL, const
  * @param newtype Type to cast pixels to during copy
  *
  */
-void copyROI(shared_ptr<const NDArray> in, 
-        const int64_t* inROIL, const int64_t* inROIU, shared_ptr<NDArray> out,
+void copyROI(ptr<const NDArray> in, 
+        const int64_t* inROIL, const int64_t* inROIU, ptr<NDArray> out,
         const int64_t* oROIL, const int64_t* oROIU, PixelT newtype)
 {
 	switch(newtype) {

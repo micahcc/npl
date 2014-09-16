@@ -39,7 +39,6 @@
 namespace npl {
 
 using std::vector;
-using std::shared_ptr;
 
 #define VERYDEBUG
 
@@ -59,11 +58,11 @@ using std::shared_ptr;
  * @param absPhase Whether the break up into absolute and phase rather than
  * re/imaginary
  */
-void writeComplex(std::string basename, shared_ptr<const MRImage> in, 
+void writeComplex(std::string basename, ptr<const MRImage> in, 
         bool absPhase)
 {
-    auto img1 = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
-    auto img2 = dynamic_pointer_cast<MRImage>(in->copyCast(FLOAT64));
+    auto img1 = dptrcast<MRImage>(in->copyCast(FLOAT64));
+    auto img2 = dptrcast<MRImage>(in->copyCast(FLOAT64));
 
     OrderIter<double> it1(img1);
     OrderIter<double> it2(img2);
@@ -97,7 +96,7 @@ void writeComplex(std::string basename, shared_ptr<const MRImage> in,
  * @return Frequency domain of input. Note the output will be
  * COMPLEX128/CDOUBLE type
  */
-shared_ptr<MRImage> fft_forward(shared_ptr<const MRImage> in, 
+ptr<MRImage> fft_forward(ptr<const MRImage> in, 
         const std::vector<size_t>& in_osize)
 {
 
@@ -177,7 +176,7 @@ shared_ptr<MRImage> fft_forward(shared_ptr<const MRImage> in,
  * @return Frequency domain of input. Note the output will be
  * COMPLEX128/CDOUBLE type
  */
-shared_ptr<MRImage> fft_backward(shared_ptr<const MRImage> in,
+ptr<MRImage> fft_backward(ptr<const MRImage> in,
         const std::vector<size_t>& in_osize)
 {
 
@@ -265,7 +264,7 @@ shared_ptr<MRImage> fft_backward(shared_ptr<const MRImage> in,
  *
  * @return  Smoothed and downsampled image
  */
-shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
+ptr<MRImage> smoothDownsample(ptr<const MRImage> in, double sigma)
 {
 
     size_t ndim = in->ndim();
@@ -391,7 +390,7 @@ shared_ptr<MRImage> smoothDownsample(shared_ptr<const MRImage> in, double sigma)
  * @param stddev standard deviation in physical units index*spacing
  *
  */
-void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
+void gaussianSmooth1D(ptr<MRImage> inout, size_t dim,
 		double stddev)
 {
     const auto gaussKern = [](double x) 
@@ -466,7 +465,7 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
  *
  * @return Loaded image
  */
-shared_ptr<MRImage> readMRImage(std::string filename, bool verbose)
+ptr<MRImage> readMRImage(std::string filename, bool verbose)
 {
 	const size_t BSIZE = 1024*1024; //1M
 	auto gz = gzopen(filename.c_str(), "rb");
@@ -477,7 +476,7 @@ shared_ptr<MRImage> readMRImage(std::string filename, bool verbose)
 	}
 	gzbuffer(gz, BSIZE);
 	
-	shared_ptr<MRImage> out;
+	ptr<MRImage> out;
 
 	if((out = readNiftiImage(gz, verbose))) {
 		gzclose(gz);
@@ -659,10 +658,10 @@ ostream& operator<<(ostream &out, const MRImage& img)
 // *
 // * @return shifted image
 // */
-//shared_ptr<MRImage> shiftImageFFT(shared_ptr<MRImage> in, size_t len, double* dx)
+//ptr<MRImage> shiftImageFFT(ptr<MRImage> in, size_t len, double* dx)
 //{
 //
-//	auto out = dynamic_pointer_cast<MRImage>(in->copy());
+//	auto out = dptrcast<MRImage>(in->copy());
 //	std::vector<double> shift(len);
 //	in->disOrientVector(len, dx, shift.data());
 //
