@@ -99,6 +99,11 @@ def build(bld):
             source='img_kernel_test.cpp', 
             use='mrimage_utils iterators')
 
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='extract_test1', 
+            source='extract_test1.cpp', 
+            use='mrimage iterators')
+
     # test KDTree functionality
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='kdtree_test',
