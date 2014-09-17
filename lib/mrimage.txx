@@ -1117,7 +1117,7 @@ ptr<NDArray> MRImageStore<D,T>::copy() const
 template <size_t D, typename T>
 ptr<NDArray> MRImageStore<D,T>::createAnother() const
 {
-	auto out = dptrcast<MRImage>(createMRImage(D, dim(), type()));
+	auto out = dPtrCast<MRImage>(createMRImage(D, dim(), type()));
 	out->copyMetadata(getConstPtr());
 	return out;
 }
@@ -1300,7 +1300,7 @@ ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
     }
     
     // create output
-    auto out = dptrcast<MRImage>(
+    auto out = dPtrCast<MRImage>(
 			createMRImage(newdim, newsize, newtype));
     copyROI(getConstPtr(), ilower, iupper, out, olower, oupper, newtype);
 
