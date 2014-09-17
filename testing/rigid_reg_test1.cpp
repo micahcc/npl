@@ -98,7 +98,7 @@ int main()
     auto img = gaussianImage();
 
     // rotate it
-    auto moved = toMRImage(img->copy());
+    auto moved = dPtrCast<MRImage>(img->copy());
     rotateImageShearFFT(moved, .1, .1, .2);
 
     shiftImageFFT(moved, 0, 5);

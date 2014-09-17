@@ -52,16 +52,10 @@ int main(int argc, char** argv)
 			true, "", "*.nii.gz", cmd);
 	TCLAP::MultiArg<string> a_events("e", "event-reg", "Event-related regression "
 			"variable. Three columns, ONSET DURATION VALUE. If these overlap, "
-			"an error will be thrown. ", false, "*.txt", cmd);
-	TCLAP::MultiArg<string> a_tscore("t", "t-score", "Output statistics, there "
-			"may be one of these for each variable passed through '-e'",
-			false, "*.nii.gz", cmd);
-	TCLAP::MultiArg<string> a_pval("p", "p-val", "Output statistics, there "
-			"may be one of these for each variable passed through '-e'",
-			false, "*.nii.gz", cmd);
-	TCLAP::MultiArg<string> a_response("b", "response", "Output response, there "
-			"may be one of these for each variable passed through '-e'",
-			false, "*.nii.gz", cmd);
+			"an error will be thrown. ", true, "*.txt", cmd);
+
+    TCLAP::ValueArg<string> a_odir("o", "outdir", "Output directory.", false,
+            ".", "dir", cmd);
 
 	cmd.parse(argc, argv);
 	
@@ -84,18 +78,66 @@ int main(int argc, char** argv)
 		auto v = getRegressor(events, TR, tlen, 0);
 
 		// draw
-		writePlot(dirname(*it)+"/ev1.svg", v);
+		writePlot(odir.getValue()+"/ev1.svg", v);
 
 		// copy to output
 		for(size_t ii=0; ii<tlen; ii++) 
 			X(ii, regnum) = v[ii];
 	}
 
-	Eigen::VectorXd y(tlen);
-	// for each voxel
-	//    fill y
-	//    perform regression
-	//    write to out volumes
+    // create output images
+    std::list<ptr<MRImage>> tImgs;
+    std::list<ptr<MRImage>> pImgs;
+    std::list<NDAccess<double>> tAccs;
+    std::list<NDAccess<double>> pAccs;
+    for(size_t ii=0; ii<X.cols(); ii++) {
+        tImgs.push_back(dPtrCast<MRImage>(fmri->extractCast(3, fmri->dim(), FLOAT64)));
+        tAccs.push_back(NDAccess<double>(tImgs.back()));
+        pImgs.push_back(dPtrCast<MRImage>(fmri->extractCast(3, fmri->dim(), FLOAT64)));
+        pAccs.push_back(NDAccess<double>(pImgs.back()));
+    }
+
+    
+
+    vector<int64_t> ind(3);
+
+    // Cache Reused Vectors
+    auto Xinv = pseudoInverse(X);
+    auto covInv = pseudoInverse(X.transpose()*X);
+
+    const double MAX_T = 100;
+    const double STEP_T = 0.1;
+    auto student_cdf = students_t_cdf(out.dof, STEP_T, MAX_T);
+
+    // regress each timesereies
+    ChunkIter<double> it(fmri);
+    it.setLineChunk(3);
+    Eigen::VectorXd signal(tlen);
+    for(it.goBegin(); !it.eof(); it.nextChunk()) {
+
+        // copy to signal
+        it.goChunkBegin();
+        for(size_t tt=0; !it.eoc(); ++tt, ++it) 
+            signal[tt] = *it;
+
+        RegrResult ret = regress(signal, X, covInv, Xinv, student_cdf);
+
+        auto t_it = tAccs.begin();
+        auto p_it = pAccs.begin();
+        for(size_t ii=0; ii<X.cols(); ii++) {
+            (*t_it).set(ret.t, 3, ind.data());
+            (*p_it).set(ret.p, 3, ind.data());
+            ++t_it;
+            ++p_it;
+        }
+    }
+
+    auto t_it = tImgs.begin();
+    auto p_it = pImgs.begin();
+    for(size_t ii=0; ii<X.cols(); ii++) {
+        (t_it)->write(a_odir.getValue()+"/t_"+to_string(ii)+".nii.gz");
+        (p_it)->write(a_odir.getValue()+"/p_"+to_string(ii)+".nii.gz");
+    }
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }

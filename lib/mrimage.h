@@ -59,32 +59,6 @@ class MRImage;
  */
 
 /**
- * @brief Casts an NDArray pointer to an MRImage pointer
- *
- * @param in NDarray pointer
- *
- * @return MRImage Pointer (with proper reference counts)
- */
-inline
-ptr<MRImage> toMRImage(ptr<NDArray> in)
-{
-    return dptrcast<MRImage>(in);
-}
-
-/**
- * @brief Casts an NDArray pointer to an MRImage pointer
- *
- * @param in NDarray pointer
- *
- * @return MRImage Pointer (with proper reference counts)
- */
-inline
-ptr<const MRImage> toMRImage(ptr<const NDArray> in)
-{
-    return dptrcast<const MRImage>(in);
-}
-
-/**
  * @brief Creates a new MRImage with dimensions set by ndim, and size set by
  * size. Output pixel type is decided by type variable.
  *
@@ -507,7 +481,7 @@ public:
      * @return this
      */
 	ptr<MRImage> getPtr()  {
-		return dptrcast<MRImage>(shared_from_this());
+		return dPtrCast<MRImage>(shared_from_this());
 	};
 	
     /**
@@ -516,7 +490,7 @@ public:
      * @return this
      */
 	ptr<const MRImage> getConstPtr() const {
-		return dptrcast<const MRImage>(shared_from_this());
+		return dPtrCast<const MRImage>(shared_from_this());
 	};
     
 	

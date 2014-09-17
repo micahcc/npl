@@ -18,7 +18,7 @@
  * of N-dimensional arrays and their derived counterparts (MRImage for
  * example). All of these functions return pointers to NDArray types, however
  * if an image is passed in, then the output will also be an image, you just
- * need to cast the output using dptrcast<MRImage>(out).
+ * need to cast the output using dPtrCast<MRImage>(out).
  * mrimage_utils.h is for more specific image-processing algorithm, this if for
  * generally data of any dimension, without regard to orientation.
  ******************************************************************************/
@@ -68,7 +68,7 @@ ptr<NDArray> derivative(ptr<const NDArray> in, size_t dir)
         throw std::invalid_argument("Input direction is outside range of "
                 "input dimensions in\n" + __FUNCTION_STR__);
 
-    auto out = dptrcast<MRImage>(in->copy());
+    auto out = dPtrCast<MRImage>(in->copy());
 
     vector<int64_t> index(in->ndim());
     NDConstAccess<double> inGet(in);
@@ -127,7 +127,7 @@ ptr<NDArray> derivative(ptr<const NDArray> in)
 {
     vector<size_t> osize(in->dim(), in->dim()+in->ndim());
     osize.push_back(in->ndim());
-    auto out = dptrcast<MRImage>(
+    auto out = dPtrCast<MRImage>(
             in->copyCast(osize.size(), osize.data()));
 
     vector<int64_t> index(in->ndim());
@@ -1712,8 +1712,8 @@ ptr<NDArray> pseudoPolarZoom(ptr<const NDArray> inimg, size_t prdim)
 	
 	// write out padded/FFT image
 	{
-		auto absimg = dptrcast<MRImage>(out->copyCast(FLOAT64));
-		auto angimg = dptrcast<MRImage>(out->copyCast(FLOAT64));
+		auto absimg = dPtrCast<MRImage>(out->copyCast(FLOAT64));
+		auto angimg = dPtrCast<MRImage>(out->copyCast(FLOAT64));
 
 		OrderIter<double> rit(absimg);
 		OrderIter<double> iit(angimg);
