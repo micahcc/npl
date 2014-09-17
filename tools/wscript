@@ -22,6 +22,8 @@ def build(bld):
             use = 'mrimage_utils statistics tclap');
     bld.program(target = 'niiHeader', 
             source = 'niiHeader.cpp', use = 'mrimage mrimage_utils')
+    bld.program(target = 'nplTxtToNifti', 
+            source = 'txtToNifti.cpp', use = 'mrimage mrimage_utils')
 #    bld.program(target = 'indexMapToOffsetMap', 
 #            source = 'indexMapToOffsetMap.cpp', use = 'mrimage tclap kdtree kslicer')
 #    

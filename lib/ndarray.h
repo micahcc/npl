@@ -130,6 +130,24 @@ void copyROI(ptr<const NDArray> in,
         const int64_t* inROIL, const int64_t* inROIU, ptr<NDArray> out,
         const int64_t* oROIL, const int64_t* oROIU, PixelT newtype);
 
+/**
+ * @brief Returns a string that is a descrption of the pixel type.
+ *
+ * @param type Pixel type to convert to string
+ *
+ * @return String describing the pixel type
+ */
+std::string pixelTtoString(PixelT type);
+
+/**
+ * @brief Returns a pixeltype as described by the string. 
+ *
+ * @param type string to look up as a pixel type
+ *
+ * @return PixelType described by string.
+ */
+PixelT stringToPixelT(PixelT type);
+
 /** @} NDArrayUtilities */
 
 /******************************************************************************
