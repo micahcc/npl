@@ -21,6 +21,7 @@
 #include <Eigen/SVD>
 #include "statistics.h"
 #include "basic_functions.h"
+#include "macros.h"
 
 #include <random>
 #include <cmath>
@@ -147,6 +148,8 @@ MatrixXd pca(const MatrixXd& X, double varth)
  */
 MatrixXd ica(const MatrixXd& Xin, double varth)
 {
+    (void)varth;
+
     // remove mean/variance
     MatrixXd X(Xin.rows(), Xin.cols());
     for(size_t cc=0; cc<X.cols(); cc++)  {
@@ -260,9 +263,9 @@ MatrixXd ica(const MatrixXd& Xin, double varth)
  *
  * @return 
  */
-vector<double> students_t_cdf(double nu, double dt, double maxt)
+std::vector<double> students_t_cdf(double nu, double dt, double maxt)
 {
-    vector<double> out;
+    std::vector<double> out;
     out.reserve(ceil(maxt/dt));
 
     double sum = 0.5;
@@ -270,7 +273,7 @@ vector<double> students_t_cdf(double nu, double dt, double maxt)
     for(size_t ii = 0; ii*dt < maxt; ii++) {
         double t = ii*dt;
         out.push_back(sum);
-        sum += dt*dy/pow(1+t*t/nu, (nu+1)/2);
+        sum += dt*dp/pow(1+t*t/nu, (nu+1)/2);
     }
 
     return out;
@@ -279,7 +282,6 @@ vector<double> students_t_cdf(double nu, double dt, double maxt)
 // need to compute the CDF for students_t_cdf
 const double MAX_T = 100;
 const double STEP_T = 0.1;
-const vector<double> cdf = students_t_cdf(dof, STEP_T, MAX_T);
 
 /**
  * @brief Computes the Ordinary Least Square predictors, beta for 
@@ -296,8 +298,8 @@ const vector<double> cdf = students_t_cdf(dof, STEP_T, MAX_T);
  *
  * @return Struct with Regression Results. 
  */
-RegrResult regress(const VectorXd& y, const Matrix& X, const MatrixXd& covInv,
-        const MatrixXd& Xinv)
+RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
+        const MatrixXd& Xinv, std::vector<double> student_cdf)
 {
     if(y.rows() != X.rows()) 
         throw INVALID_ARGUMENT("y and X matrices row mismatch");
@@ -305,30 +307,35 @@ RegrResult regress(const VectorXd& y, const Matrix& X, const MatrixXd& covInv,
         throw INVALID_ARGUMENT("X and pseudo inverse of X row mismatch");
     
     RegrResult out;
-    out.bhat = Xinv*signal;
-    out.yhat = beta*X;
-    out.ssres = (yhat - y).squaredNorm();
-    out.sstot = (y-y.mean()).squaredNorm();
-    out.rsqr = 1-ssres/sstot;
-    out.adj_rsqr = rsqr - (1-rsqr)*X.cols()/(X.cols()-X.rows()-1);
+    out.bhat = Xinv*y;
+    out.yhat = out.bhat*X;
+    out.ssres = (out.yhat - y).squaredNorm();
+
+    // compute total sum of squares
+    double mean = y.mean();
+    out.sstot = 0;
+    for(size_t rr=0; rr<y.rows(); rr++)
+        out.sstot += (y[rr]-mean)*(y[rr]-mean);
+    out.rsqr = 1-out.ssres/out.sstot;
+    out.adj_rsqr = out.rsqr - (1-out.rsqr)*X.cols()/(X.cols()-X.rows()-1);
     
-    double sigmahat = ssres/(X.rows()-X.cols()+2);
+    double sigmahat = out.ssres/(X.rows()-X.cols()+2);
     out.std_err.resize(X.cols());
     out.t.resize(X.cols());
     out.p.resize(X.cols());
     out.dof = X.rows()-1;
 
     for(size_t ii=0; ii<X.cols(); ii++) {
-        out.std_err[ii] = sqrt(ssres*convInv(ii,ii)/X.cols());
+        out.std_err[ii] = sqrt(sigmahat*covInv(ii,ii)/X.cols());
         double t = out.bhat[ii]/out.std_err[ii];
         out.t[ii] = t;
         
-        t = abs(t);
+        t = fabs(t);
         size_t t_index = round(t/STEP_T);
-        if(t_index >= cdf.size())
+        if(t_index >= student_cdf.size())
             out.p[ii] = 0;
         else
-            out.p[ii] = cdf[t_index];
+            out.p[ii] = student_cdf[t_index];
     }
 
     return out;
@@ -347,47 +354,54 @@ RegrResult regress(const VectorXd& y, const Matrix& X, const MatrixXd& covInv,
  *
  * @return Struct with Regression Results. 
  */
-RegrResult regress(const VectorXd& y, const Matrix& X)
+RegrResult regress(const VectorXd& y, const MatrixXd& X)
 {
     if(y.rows() != X.rows()) 
         throw INVALID_ARGUMENT("y and X matrices row mismatch");
-    if(X.rows() != Xinv.cols()) 
-        throw INVALID_ARGUMENT("X and pseudo inverse of X row mismatch");
-
-    // compute the inverse of the covariance matrix (for statistical tests)
-    MatrixXd covInv = pseudoInverse(X.transpose()*X);
-
-    // need Xinv compute beta
-    MatrixXd Xinv = pseudoInverse(X);
+  
+    auto Xinv = pseudoInverse(X);
+    auto covInv = pseudoInverse(X.transpose()*X);
 
     RegrResult out;
-    out.bhat = Xinv*signal;
-    out.yhat = beta*X;
-    out.ssres = (yhat - y).squaredNorm();
-    out.sstot = (y-y.mean()).squaredNorm();
-    out.rsqr = 1-ssres/sstot;
-    out.adj_rsqr = rsqr - (1-rsqr)*X.cols()/(X.cols()-X.rows()-1);
+    out.bhat = Xinv*y;
+    out.yhat = out.bhat*X;
+    out.ssres = (out.yhat - y).squaredNorm();
+
+    // compute total sum of squares
+    double mean = y.mean();
+    out.sstot = 0;
+    for(size_t rr=0; rr<y.rows(); rr++)
+        out.sstot += (y[rr]-mean)*(y[rr]-mean);
+    out.rsqr = 1-out.ssres/out.sstot;
+    out.adj_rsqr = out.rsqr - (1-out.rsqr)*X.cols()/(X.cols()-X.rows()-1);
     
-    double sigmahat = ssres/(X.rows()-X.cols()+2);
+    // estimate the standard deviation of the error term
+    double sigmahat = out.ssres/(X.rows()-X.cols()+2);
+
     out.std_err.resize(X.cols());
     out.t.resize(X.cols());
+    out.p.resize(X.cols());
     out.dof = X.rows()-1;
-    
+
+    auto student_cdf = students_t_cdf(out.dof, STEP_T, MAX_T);
+
     for(size_t ii=0; ii<X.cols(); ii++) {
-        out.std_err[ii] = sqrt(ssres*convInv(ii,ii)/X.cols());
+        out.std_err[ii] = sqrt(sigmahat*covInv(ii,ii)/X.cols());
+
         double t = out.bhat[ii]/out.std_err[ii];
         out.t[ii] = t;
         
-        t = abs(t);
+        t = fabs(t);
         size_t t_index = round(t/STEP_T);
-        if(t_index >= cdf.size())
+        if(t_index >= student_cdf.size())
             out.p[ii] = 0;
         else
-            out.p[ii] = cdf[t_index];
+            out.p[ii] = student_cdf[t_index];
     }
 
     return out;
 }
+
 
 /**
  * @brief Computes the pseudoinverse of the input matrix
