@@ -213,9 +213,9 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
 RigidCorrComputer::RigidCorrComputer(
         shared_ptr<const MRImage> fixed, shared_ptr<const MRImage> moving,
         bool negate) :
-    m_fixed(dptrcast<MRImage>(fixed->copy())),
-    m_moving(dptrcast<MRImage>(moving->copy())),
-    m_dmoving(dptrcast<MRImage>(derivative(moving))),
+    m_fixed(dPtrCast<MRImage>(fixed->copy())),
+    m_moving(dPtrCast<MRImage>(moving->copy())),
+    m_dmoving(dPtrCast<MRImage>(derivative(moving))),
     m_move_get(m_moving),
     m_dmove_get(m_dmoving),
     m_fit(m_fixed),
@@ -229,13 +229,13 @@ RigidCorrComputer::RigidCorrComputer(
 #ifdef VERYDEBUG
     m_moving->write("init_moving.nii.gz");
     m_fixed->write("init_fixed.nii.gz");
-    d_theta_x = dptrcast<MRImage>(moving->copy());
-    d_theta_y = dptrcast<MRImage>(moving->copy());
-    d_theta_z = dptrcast<MRImage>(moving->copy());
-    d_shift_x = dptrcast<MRImage>(moving->copy());
-    d_shift_y = dptrcast<MRImage>(moving->copy());
-    d_shift_z = dptrcast<MRImage>(moving->copy());
-    interpolated = dptrcast<MRImage>(moving->copy());
+    d_theta_x = dPtrCast<MRImage>(moving->copy());
+    d_theta_y = dPtrCast<MRImage>(moving->copy());
+    d_theta_z = dPtrCast<MRImage>(moving->copy());
+    d_shift_x = dPtrCast<MRImage>(moving->copy());
+    d_shift_y = dPtrCast<MRImage>(moving->copy());
+    d_shift_z = dPtrCast<MRImage>(moving->copy());
+    interpolated = dPtrCast<MRImage>(moving->copy());
     interpolated->write("init_interpolated.nii.gz");
     callcount = 0;
 #endif

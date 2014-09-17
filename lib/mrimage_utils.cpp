@@ -61,8 +61,8 @@ using std::vector;
 void writeComplex(std::string basename, ptr<const MRImage> in, 
         bool absPhase)
 {
-    auto img1 = dptrcast<MRImage>(in->copyCast(FLOAT64));
-    auto img2 = dptrcast<MRImage>(in->copyCast(FLOAT64));
+    auto img1 = dPtrCast<MRImage>(in->copyCast(FLOAT64));
+    auto img2 = dPtrCast<MRImage>(in->copyCast(FLOAT64));
 
     OrderIter<double> it1(img1);
     OrderIter<double> it2(img2);
@@ -306,7 +306,7 @@ ptr<MRImage> smoothDownsample(ptr<const MRImage> in, double sigma)
     }
 
     vector<size_t> roi(in->dim(), in->dim()+ndim);
-    auto working = toMRImage(in->copy());
+    auto working = dPtrCast<MRImage>(in->copy());
     auto buffer1 = fftw_alloc_complex(linelen*2);
     auto buffer2 = &buffer1[linelen];
     for(size_t dd=0; dd<ndim; dd++) {
@@ -371,7 +371,7 @@ ptr<MRImage> smoothDownsample(ptr<const MRImage> in, double sigma)
     }
 
     // copy roi into output
-    auto out = toMRImage(working->copyCast(osize.size(), osize.data()));
+    auto out = dPtrCast<MRImage>(working->copyCast(osize.size(), osize.data()));
 
     // set spacing
     for(size_t dd=0; dd<in->ndim(); dd++) 
@@ -661,7 +661,7 @@ ostream& operator<<(ostream &out, const MRImage& img)
 //ptr<MRImage> shiftImageFFT(ptr<MRImage> in, size_t len, double* dx)
 //{
 //
-//	auto out = dptrcast<MRImage>(in->copy());
+//	auto out = dPtrCast<MRImage>(in->copy());
 //	std::vector<double> shift(len);
 //	in->disOrientVector(len, dx, shift.data());
 //
