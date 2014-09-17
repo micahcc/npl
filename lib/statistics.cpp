@@ -21,6 +21,7 @@
 #include <Eigen/SVD>
 #include "statistics.h"
 #include "basic_functions.h"
+#include "macros.h"
 
 #include <random>
 #include <cmath>
@@ -28,6 +29,7 @@
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
+using Eigen::JacobiSVD;
 
 namespace npl {
 
@@ -83,7 +85,7 @@ MatrixXd pca(const MatrixXd& X, double varth)
 #ifndef NDEBUG
     std::cout << "Computing SVD" << std::endl;
 #endif //DEBUG
-    Eigen::JacobiSVD<MatrixXd> svd(X, Eigen::ComputeThinU);
+    JacobiSVD<MatrixXd> svd(X, Eigen::ComputeThinU);
 #ifndef NDEBUG
     std::cout << "Done" << std::endl;
 #endif //DEBUG
@@ -146,6 +148,8 @@ MatrixXd pca(const MatrixXd& X, double varth)
  */
 MatrixXd ica(const MatrixXd& Xin, double varth)
 {
+    (void)varth;
+
     // remove mean/variance
     MatrixXd X(Xin.rows(), Xin.cols());
     for(size_t cc=0; cc<X.cols(); cc++)  {
@@ -250,5 +254,176 @@ MatrixXd ica(const MatrixXd& Xin, double varth)
 	
 }
 
+/**
+ * @brief Computes cdf at a particular number of degrees of freedom. 
+ * Note, this only computes +t values, for negative values invert then use.
+ *
+ * @param nu
+ * @param x
+ *
+ * @return 
+ */
+std::vector<double> students_t_cdf(double nu, double dt, double maxt)
+{
+    std::vector<double> out;
+    out.reserve(ceil(maxt/dt));
 
+    double sum = 0.5;
+    double dp = tgamma((nu+1)/2)/(tgamma(nu/2)*sqrt(nu*M_PI));
+    for(size_t ii = 0; ii*dt < maxt; ii++) {
+        double t = ii*dt;
+        out.push_back(sum);
+        sum += dt*dp/pow(1+t*t/nu, (nu+1)/2);
+    }
+
+    return out;
 }
+    
+// need to compute the CDF for students_t_cdf
+const double MAX_T = 100;
+const double STEP_T = 0.1;
+
+/**
+ * @brief Computes the Ordinary Least Square predictors, beta for 
+ *
+ * \f$ y = \hat \beta X \f$
+ *
+ * Returning beta. This is the same as the other regress function, but allows
+ * for cacheing of pseudoinverse of X
+ *
+ * @param y response variables
+ * @param X independent variables
+ * @param covInv Inverse of covariance matrix, to compute us pseudoinverse(X^TX)
+ * @param Xinv Pseudo inverse of X. Compute with pseudoInverse(X)
+ *
+ * @return Struct with Regression Results. 
+ */
+RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
+        const MatrixXd& Xinv, std::vector<double> student_cdf)
+{
+    if(y.rows() != X.rows()) 
+        throw INVALID_ARGUMENT("y and X matrices row mismatch");
+    if(X.rows() != Xinv.cols()) 
+        throw INVALID_ARGUMENT("X and pseudo inverse of X row mismatch");
+    
+    RegrResult out;
+    out.bhat = Xinv*y;
+    out.yhat = out.bhat*X;
+    out.ssres = (out.yhat - y).squaredNorm();
+
+    // compute total sum of squares
+    double mean = y.mean();
+    out.sstot = 0;
+    for(size_t rr=0; rr<y.rows(); rr++)
+        out.sstot += (y[rr]-mean)*(y[rr]-mean);
+    out.rsqr = 1-out.ssres/out.sstot;
+    out.adj_rsqr = out.rsqr - (1-out.rsqr)*X.cols()/(X.cols()-X.rows()-1);
+    
+    double sigmahat = out.ssres/(X.rows()-X.cols()+2);
+    out.std_err.resize(X.cols());
+    out.t.resize(X.cols());
+    out.p.resize(X.cols());
+    out.dof = X.rows()-1;
+
+    for(size_t ii=0; ii<X.cols(); ii++) {
+        out.std_err[ii] = sqrt(sigmahat*covInv(ii,ii)/X.cols());
+        double t = out.bhat[ii]/out.std_err[ii];
+        out.t[ii] = t;
+        
+        t = fabs(t);
+        size_t t_index = round(t/STEP_T);
+        if(t_index >= student_cdf.size())
+            out.p[ii] = 0;
+        else
+            out.p[ii] = student_cdf[t_index];
+    }
+
+    return out;
+}
+
+/**
+ * @brief Computes the Ordinary Least Square predictors, beta for 
+ *
+ * \f$ y = \hat \beta X \f$
+ *
+ * Returning beta. This is the same as the other regress function, but allows
+ * for cacheing of pseudoinverse of X
+ *
+ * @param y response variables
+ * @param X independent variables
+ *
+ * @return Struct with Regression Results. 
+ */
+RegrResult regress(const VectorXd& y, const MatrixXd& X)
+{
+    if(y.rows() != X.rows()) 
+        throw INVALID_ARGUMENT("y and X matrices row mismatch");
+  
+    auto Xinv = pseudoInverse(X);
+    auto covInv = pseudoInverse(X.transpose()*X);
+
+    RegrResult out;
+    out.bhat = Xinv*y;
+    out.yhat = out.bhat*X;
+    out.ssres = (out.yhat - y).squaredNorm();
+
+    // compute total sum of squares
+    double mean = y.mean();
+    out.sstot = 0;
+    for(size_t rr=0; rr<y.rows(); rr++)
+        out.sstot += (y[rr]-mean)*(y[rr]-mean);
+    out.rsqr = 1-out.ssres/out.sstot;
+    out.adj_rsqr = out.rsqr - (1-out.rsqr)*X.cols()/(X.cols()-X.rows()-1);
+    
+    // estimate the standard deviation of the error term
+    double sigmahat = out.ssres/(X.rows()-X.cols()+2);
+
+    out.std_err.resize(X.cols());
+    out.t.resize(X.cols());
+    out.p.resize(X.cols());
+    out.dof = X.rows()-1;
+
+    auto student_cdf = students_t_cdf(out.dof, STEP_T, MAX_T);
+
+    for(size_t ii=0; ii<X.cols(); ii++) {
+        out.std_err[ii] = sqrt(sigmahat*covInv(ii,ii)/X.cols());
+
+        double t = out.bhat[ii]/out.std_err[ii];
+        out.t[ii] = t;
+        
+        t = fabs(t);
+        size_t t_index = round(t/STEP_T);
+        if(t_index >= student_cdf.size())
+            out.p[ii] = 0;
+        else
+            out.p[ii] = student_cdf[t_index];
+    }
+
+    return out;
+}
+
+
+/**
+ * @brief Computes the pseudoinverse of the input matrix
+ *
+ * \f$ P = UE^-1V^* \f$
+ *
+ * @return Psueodinverse 
+ */
+MatrixXd pseudoInverse(const MatrixXd& X)
+{
+    double THRESH = 0.000001;
+    JacobiSVD<MatrixXd> svd(X, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    VectorXd singular_values = svd.singularValues();
+
+    for(size_t ii=0; ii<svd.singularValues().rows(); ii++) {
+        if(singular_values[ii] > THRESH)
+            singular_values[ii] = 1./singular_values[ii];
+        else
+            singular_values[ii] = 0;
+    }
+    return svd.matrixV()*singular_values.asDiagonal()*
+            svd.matrixU().transpose();
+}
+
+} // NPL

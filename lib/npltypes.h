@@ -50,9 +50,9 @@ using ptr = std::shared_ptr<T>;
  * @return Output pointer (type T*)
  */
 template <typename T, typename F>
-ptr<T> dptrcast(const ptr<F>& in)
+ptr<T> dPtrCast(const ptr<F>& in)
 {
-    return dptrcast<T>(in);
+    return std::dynamic_pointer_cast<T>(in);
 }
 
 struct rgba_t;

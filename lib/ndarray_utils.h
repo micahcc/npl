@@ -18,7 +18,7 @@
  * of N-dimensional arrays and their derived counterparts (MRImage for
  * example). All of these functions return pointers to NDArray types, however
  * if an image is passed in, then the output will also be an image, you just
- * need to cast the output using dptrcast<MRImage>(out).
+ * need to cast the output using dPtrCast<MRImage>(out).
  * mrimage_utils.h is for more specific image-processing algorithm, this if for
  * generally data of any dimension, without regard to orientation.
  ******************************************************************************/

@@ -22,8 +22,14 @@
 #define STATISTICS_H
 
 #include <Eigen/Dense>
+#include "npltypes.h"
 
 namespace npl {
+
+/** \defgroup StatFunctions Statistical Functions
+ *
+ * @{
+ */
 
 /**
  * @brief Computes the Principal Components of input matrix X
@@ -38,7 +44,7 @@ namespace npl {
  *
  * @return 		RxP matrix, where P is the number of principal components
  */
-Eigen::MatrixXd pca(const Eigen::MatrixXd& X, double varth);
+MatrixXd pca(const Eigen::MatrixXd& X, double varth);
 
 /**
  * @brief Computes the Independent Components of input matrix X. Note that
@@ -69,7 +75,117 @@ Eigen::MatrixXd pca(const Eigen::MatrixXd& X, double varth);
  *
  * @return 		RxP matrix, where P is the number of independent components
  */
-Eigen::MatrixXd ica(const Eigen::MatrixXd& X, double varth);
+MatrixXd ica(const Eigen::MatrixXd& X, double varth);
+
+/**
+ * @brief Computes the Ordinary Least Square predictors, beta for 
+ *
+ * \f$ y = \hat \beta X \f$
+ *
+ * Returning beta
+ *
+ * @return beta value, the weights of the independent variables to produce the
+ * least squares predictor for y.
+ */
+VectorXd regress(const MatrixXd& y, const MatrixXd& X);
+
+struct RegrResult
+{
+    /**
+     * @brief Predicted y values, based on estimate of Beta
+     */
+    VectorXd yhat;
+    
+    /**
+     * @brief Estimated Beta
+     */
+    VectorXd bhat;
+
+    /**
+     * @brief Sum of square of the residuals
+     */
+    double ssres;
+
+    /**
+     * @brief Total sum of square of y values
+     */
+    double sstot;
+
+    /**
+     * @brief Coefficient of determination (Rsqr)
+     */
+    double rsqr;
+   
+    /**
+     * @brief Coefficient of determination, corrected for the number of
+     * regressors. 
+     */
+    double adj_rsqr;
+
+    /**
+     * @brief Standard errors for each of the regressors
+     */
+    VectorXd std_err;
+
+    /**
+     * @brief Degrees of freedom in the regression
+     */
+    double dof;
+
+    /**
+     * @brief Students t score of each of the regressors
+     */
+    VectorXd t;
+    
+    /**
+     * @brief Significance of each of the regressors. 
+     */
+    VectorXd p;
+};
+
+/**
+ * @brief Computes the Ordinary Least Square predictors, beta for 
+ *
+ * \f$ y = \hat \beta X \f$
+ *
+ * Returning beta. This is the same as the other regress function, but allows
+ * for cacheing of pseudoinverse of X
+ *
+ * @param y response variables
+ * @param X independent variables
+ * @param covInv Inverse of covariance matrix, to compute us pseudoinverse(X^TX)
+ * @param Xinv Pseudo inverse of X. Compute with pseudoInverse(X)
+ *
+ * @return Struct with Regression Results. 
+ */
+RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
+        const MatrixXd& Xinv);
+
+/**
+ * @brief Computes the Ordinary Least Square predictors, beta for 
+ *
+ * \f$ y = \hat \beta X \f$
+ *
+ * Returning beta. This is the same as the other regress function, but allows
+ * for cacheing of pseudoinverse of X
+ *
+ * @param y response variables
+ * @param X independent variables
+ *
+ * @return Struct with Regression Results. 
+ */
+RegrResult regress(const VectorXd& y, const MatrixXd& X);
+
+/**
+ * @brief Computes the pseudoinverse of the input matrix
+ *
+ * \f$ P = UE^-1V^* \f$
+ *
+ * @return Psueodinverse 
+ */
+MatrixXd pseudoInverse(const MatrixXd& X);
+
+/** @} */
 
 }
 

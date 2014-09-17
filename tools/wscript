@@ -24,6 +24,9 @@ def build(bld):
             source = 'niiHeader.cpp', use = 'mrimage mrimage_utils')
     bld.program(target = 'nplTxtToNifti', 
             source = 'txtToNifti.cpp', use = 'mrimage mrimage_utils')
+    bld.program(target = 'nplRemoveRegressors', 
+            source = 'remove_regressors.cpp', 
+            use = 'tclap mrimage mrimage_utils statistics')
 #    bld.program(target = 'indexMapToOffsetMap', 
 #            source = 'indexMapToOffsetMap.cpp', use = 'mrimage tclap kdtree kslicer')
 #    
