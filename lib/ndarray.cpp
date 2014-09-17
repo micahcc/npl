@@ -36,6 +36,102 @@ namespace npl {
  ******************************************************************************/
 
 /**
+ * @brief Returns a string that is a descrption of the pixel type.
+ *
+ * @param type Pixel type to convert to string
+ *
+ * @return String describing the pixel type
+ */
+std::string pixelTtoString(PixelT type)
+{
+	switch(type) {
+        case UINT8:
+            return "uint8";
+            break;
+        case INT16:
+            return "int16";
+            break;
+        case INT32:
+            return "int32";
+            break;
+        case FLOAT32:
+            return "float";
+        break;
+         case COMPLEX64:
+            return "cfloat";
+        break;
+         case FLOAT64:
+            return "double";
+        break;
+         case RGB24:
+            return "RGB";
+        break;
+         case INT8:
+            return "int8";
+        break;
+         case UINT16:
+			return "uint16";
+        break;
+         case UINT32:
+			return "uint32";
+        break;
+         case INT64:
+			return "int64";
+        break;
+         case UINT64:
+			return "uint64";
+        break;
+         case FLOAT128:
+			return "quad";
+        break;
+         case COMPLEX128:
+			return "cdouble";
+        break;
+         case COMPLEX256:
+			return "cquad";
+        break;
+         case RGBA32:
+			return "RGBA";
+        break;
+		 default:
+            throw std::invalid_argument("Unsupported pixel type: " +
+                    to_string(ptype) + " in\n" + __FUNCTION_STR__);
+	}
+};
+
+/**
+ * @brief Returns a pixeltype as described by the string. 
+ *
+ * @param type string to look up as a pixel type
+ *
+ * @return PixelType described by string.
+ */
+PixelT stringToPixelT(std::string type)
+{
+    if(type == "uint8") return UINT8;
+    else if(type == "int16") return INT16;
+    else if(type == "int32") return INT32;
+    else if(type == "float") return FLOAT32;
+    else if(type == "cfloat") return COMPLEX64;
+    else if(type == "double") return FLOAT64;
+    else if(type == "RGB") return RGB24;
+    else if(type == "int8") return INT8;
+    else if(type == "uint16") return UINT16;
+    else if(type == "uint32") return UINT32;
+    else if(type == "int64") return INT64;
+    else if(type == "uint64") return UINT64;
+    else if(type == "quad") return FLOAT128;
+    else if(type == "cdouble") return COMPLEX128;
+    else if(type == "cquad") return COMPLEX256;
+    else if(type == "RGBA") return RGBA32;
+    else {
+        throw std::invalid_argument("Unsupported pixel type: " +
+                to_string(ptype) + " in\n" + __FUNCTION_STR__);
+    }
+    return UNKNOWN_TYPE;
+};
+
+/**
  * @brief Template helper for creating new images.
  *
  * @tparam T Type of voxels

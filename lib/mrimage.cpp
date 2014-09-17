@@ -757,6 +757,12 @@ int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap,
 	return 0;
 }
 
+ptr<MRImage> readJSONImage(gzFile file)
+{
+
+
+}
+
 /**
  * @brief Reads a nifti image, given an already open gzFile.
  *
