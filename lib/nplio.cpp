@@ -344,10 +344,14 @@ int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap,
  *
  * @param file gzFile to read from
  * @param verbose whether to print out information during header parsing
+ * @param makearray Rather than making an image, make and NDArray
+ * @param nopixeldata Don't actually read the pixel data, but still create
+ * the NDArray
  *
  * @return New MRImage with values from header and pixels set
  */
-ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray)
+ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray,
+        bool nopixeldata = false)
 {
 	bool doswap = false;
 	PixelT datatype = UNKNOWN_TYPE;
@@ -570,67 +574,68 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray)
 
     }
 
-    // create image
-	switch(datatype) {
-		// 8 bit
-		case INT8:
-			readPixels<int8_t>(out, file, start, psize, doswap);
-		break;
-		case UINT8:
-			readPixels<uint8_t>(out, file, start, psize, doswap);
-		break;
-		// 16  bit
-		case INT16:
-			readPixels<int16_t>(out, file, start, psize, doswap);
-		break;
-		case UINT16:
-			readPixels<uint16_t>(out, file, start, psize, doswap);
-		break;
-		// 32 bit
-		case INT32:
-			readPixels<int32_t>(out, file, start, psize, doswap);
-		break;
-		case UINT32:
-			readPixels<uint32_t>(out, file, start, psize, doswap);
-		break;
-		// 64 bit int
-		case INT64:
-			readPixels<int64_t>(out, file, start, psize, doswap);
-		break;
-		case UINT64:
-			readPixels<uint64_t>(out, file, start, psize, doswap);
-		break;
-		// floats
-		case FLOAT32:
-			readPixels<float>(out, file, start, psize, doswap);
-		break;
-		case FLOAT64:
-			readPixels<double>(out, file, start, psize, doswap);
-		break;
-		case FLOAT128:
-			readPixels<long double>(out, file, start, psize, doswap);
-		break;
-		// RGB
-		case RGB24:
-			readPixels<rgb_t>(out, file, start, psize, doswap);
-		break;
-		case RGBA32:
-			readPixels<rgba_t>(out, file, start, psize, doswap);
-		break;
-		case COMPLEX256:
-			readPixels<cquad_t>(out, file, start, psize, doswap);
-		break;
-		case COMPLEX128:
-			readPixels<cdouble_t>(out, file, start, psize, doswap);
-		break;
-		case COMPLEX64:
-			readPixels<cfloat_t>(out, file, start, psize, doswap);
-		break;
-        default:
-        case UNKNOWN_TYPE:
-            throw RUNTIME_ERROR("Unknown Pixel Type in input Nifti Image");
-	}
-
+    if(!nopixeldata) {
+        // copy pixels
+        switch(datatype) {
+            // 8 bit
+            case INT8:
+                readPixels<int8_t>(out, file, start, psize, doswap);
+                break;
+            case UINT8:
+                readPixels<uint8_t>(out, file, start, psize, doswap);
+                break;
+                // 16  bit
+            case INT16:
+                readPixels<int16_t>(out, file, start, psize, doswap);
+                break;
+            case UINT16:
+                readPixels<uint16_t>(out, file, start, psize, doswap);
+                break;
+                // 32 bit
+            case INT32:
+                readPixels<int32_t>(out, file, start, psize, doswap);
+                break;
+            case UINT32:
+                readPixels<uint32_t>(out, file, start, psize, doswap);
+                break;
+                // 64 bit int
+            case INT64:
+                readPixels<int64_t>(out, file, start, psize, doswap);
+                break;
+            case UINT64:
+                readPixels<uint64_t>(out, file, start, psize, doswap);
+                break;
+                // floats
+            case FLOAT32:
+                readPixels<float>(out, file, start, psize, doswap);
+                break;
+            case FLOAT64:
+                readPixels<double>(out, file, start, psize, doswap);
+                break;
+            case FLOAT128:
+                readPixels<long double>(out, file, start, psize, doswap);
+                break;
+                // RGB
+            case RGB24:
+                readPixels<rgb_t>(out, file, start, psize, doswap);
+                break;
+            case RGBA32:
+                readPixels<rgba_t>(out, file, start, psize, doswap);
+                break;
+            case COMPLEX256:
+                readPixels<cquad_t>(out, file, start, psize, doswap);
+                break;
+            case COMPLEX128:
+                readPixels<cdouble_t>(out, file, start, psize, doswap);
+                break;
+            case COMPLEX64:
+                readPixels<cfloat_t>(out, file, start, psize, doswap);
+                break;
+            default:
+            case UNKNOWN_TYPE:
+                throw RUNTIME_ERROR("Unknown Pixel Type in input Nifti Image");
+        }
+    }
 	return out;
 }
 
@@ -841,6 +846,17 @@ int readNumArray(gzFile file, vector<T>& oarray)
     return 0;
 }
 
+/**
+ * @brief Reads an MRI image. Right now only nift images are supported. later
+ * on, it will try to load image using different reader functions until one
+ * suceeds.
+ *
+ * @param file File to read from
+ * @param verbose Whether to print out information as the file is read
+ * @param makearray Whether to make an array, as opposed to an MRImage
+ *
+ * @return Loaded image
+ */
 shared_ptr<NDArray> readJSONImage(gzFile file, bool verbose, bool makearray) 
 {
     // read to opening brace
@@ -1025,10 +1041,14 @@ shared_ptr<NDArray> readJSONImage(gzFile file, bool verbose, bool makearray)
  *
  * @param filename Name of input file to read
  * @param verbose Whether to print out information as the file is read
+ * @param nopixeldata Don't actually read the pixel data, just the header and
+ * create the image. So if you want to copy an image's orientation and
+ * structure, this would be the way to do it without wasting time actually
+ * reading.
  *
  * @return Loaded image
  */
-ptr<MRImage> readMRImage(std::string filename, bool verbose)
+ptr<MRImage> readMRImage(std::string filename, bool verbose, bool nopixeldata)
 {
 	const size_t BSIZE = 1024*1024; //1M
 	auto gz = gzopen(filename.c_str(), "rb");
@@ -1050,7 +1070,7 @@ ptr<MRImage> readMRImage(std::string filename, bool verbose)
         //////////////////////////
         // Read Nifti Data
         //////////////////////////
-        if((out = readNiftiImage(gz, verbose, false))) {
+        if((out = readNiftiImage(gz, verbose, false, nopixeldata))) {
             gzclose(gz);
             return dPtrCast<MRImage>(out);
         }
@@ -1077,10 +1097,15 @@ ptr<MRImage> readMRImage(std::string filename, bool verbose)
  * @brief Reads an array. Can read nifti's but orientation won't be read.
  *
  * @param filename Name of input file to read
+ * @param verbose Whether to print out information as the file is read
+ * @param nopixeldata Don't actually read the pixel data, just the header and
+ * create the image. So if you want to copy an image's orientation and
+ * structure, this would be the way to do it without wasting time actually
+ * reading.
  *
  * @return Loaded image
  */
-ptr<NDArray> readNDArray(std::string filename, bool verbose)
+ptr<NDArray> readNDArray(std::string filename, bool verbose, bool nopixeldata)
 {
 	const size_t BSIZE = 1024*1024; //1M
 	auto gz = gzopen(filename.c_str(), "rb");
@@ -1099,7 +1124,7 @@ ptr<NDArray> readNDArray(std::string filename, bool verbose)
 	}
 	
 	if(filename.substr(filename.size()-4, 4) == ".nii") {
-        if((out = readNiftiImage(gz, verbose, true))) {
+        if((out = readNiftiImage(gz, verbose, true, nopixeldata))) {
             gzclose(gz);
             return out;
         }
