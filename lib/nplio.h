@@ -53,10 +53,16 @@ int writeNDArray(ptr<const NDArray> img, std::string fn, bool nifti2 = false);
  * @brief Reads an array. Can read nifti's but orientation won't be read.
  *
  * @param filename Name of input file to read
+ * @param verbose Whether to print out information as the file is read
+ * @param nopixeldata Don't actually read the pixel data, just the header and
+ * create the image. So if you want to copy an image's orientation and
+ * structure, this would be the way to do it without wasting time actually
+ * reading.
  *
  * @return Loaded image
  */
-ptr<NDArray> readNDArray(std::string filename, bool verbose = false);
+ptr<NDArray> readNDArray(std::string filename, bool verbose = false, 
+        bool nopixeldata = false);
 
 /**
  * @brief Reads an MRI image. Right now only nift images are supported. later
@@ -65,10 +71,15 @@ ptr<NDArray> readNDArray(std::string filename, bool verbose = false);
  *
  * @param filename Name of input file to read
  * @param verbose Whether to print out information as the file is read
+ * @param nopixeldata Don't actually read the pixel data, just the header and
+ * create the image. So if you want to copy an image's orientation and
+ * structure, this would be the way to do it without wasting time actually
+ * reading.
  *
  * @return Loaded image
  */
-ptr<MRImage> readMRImage(std::string filename, bool verbose = false);
+ptr<MRImage> readMRImage(std::string filename, bool verbose = false, 
+        bool nopixeldata = false);
 
 /** @} */
 
