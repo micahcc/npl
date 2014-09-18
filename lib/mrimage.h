@@ -14,11 +14,6 @@
  * limitations under the License.
  *
  * @file mrimage.h
- *
- *****************************************************************************/
-
-/******************************************************************************
- * @file mrimage.h
  * @brief This file contains the definition for MRImage and its derived types.
  * The derived types are templated over dimensionality and pixel type.
  ******************************************************************************/
