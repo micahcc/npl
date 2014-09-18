@@ -22,6 +22,7 @@
 #include <typeinfo>
 
 #include "nifti.h"
+#include "version.h"
 #include "slicer.h"
 #include "macros.h"
 #include "ndarray.h"
@@ -411,7 +412,10 @@ template <size_t D, typename T>
 int MRImageStore<D,T>::writeJSONImage(gzFile file) const
 {
     ostringstream oss;
-    oss << "{\n\"type\": " << '"' << pixelTtoString(type()) << "\",\n";
+    oss << "{\n\"version\" : \"" << __version__<< "\",\n\"comment\" : \"supported "
+        "type variables: uint8, int16, int32, float, cfloat, double, RGB, "
+        "int8, uint16, uint32, int64, uint64, quad, cdouble, cquad, RGBA\",\n";
+    oss << "\"type\": " << '"' << pixelTtoString(type()) << "\",\n";
     oss << "\"size\": [";
     for(size_t ii=0; ii<D; ii++) {
         if(ii) oss << ", ";
@@ -433,26 +437,6 @@ int MRImageStore<D,T>::writeJSONImage(gzFile file) const
     }
     oss << "],\n";
     
-//    oss << "\"direction\": [";;
-//    for(size_t ii=0; ii<D; ii++) {
-//        for(size_t jj=0; jj<D; jj++) {
-//            if(ii || jj) oss << ", ";
-//            oss << direction(ii, jj);
-//        }
-//    }
-//    oss << "],\n";
-//
-//    bool first = true;
-//    oss << "\"values: \"[";
-//    for(NDConstIter<T> it(getConstPtr()); !it.eof(); ++it) {
-//        if(!first)
-//            oss << " ,";
-//        else
-//            first = false;
-//        oss << *it;
-//    }
-//    oss << "],\n}\n";
-    // nested version
     oss << "\"direction\":\n[";;
     for(size_t ii=0; ii<D; ii++) {
         if(ii) oss << ",\n";

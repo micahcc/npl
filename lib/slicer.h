@@ -682,8 +682,10 @@ public:
 	 * @brief Set the sizes of chunks for each dimension. Chunks will end every
 	 * N steps in each of the provided dimension, with the caveout that 0
 	 * indicates no breaks in the given dimension. So size = {0, 2, 2} will
-	 * cause chunks to after {XLEN-1, 1, 1}. {0,0,0} (the default) indicate
-	 * that the entire image will be iterated and only one chunk will be used. 
+	 * cause chunks to after \f$\{N_x-1, 1, 1\}\f$. \f$\{0,0,0\}\f$ (the default)
+	 * indicate * that the entire image will be iterated and only one chunk
+	 * will be used. Defunity will cause the default to be 1 for non-specified
+	 * dimensions.
 	 *
 	 * @param len Length of sizes array
 	 * @param sizes Size of chunk in each dimension. If you multiply together

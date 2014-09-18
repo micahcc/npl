@@ -30,18 +30,7 @@
 #include "iterators.h"
 #include "accessors.h"
 
-std::string example = 
-"{\n"
-" \"type\": \"double\""
-" \"size\" : [3,2,9],\n"
-" \"values\": [0,1,2,3,4,5,6,7,8,9,\n"
-"          11,12,13,14,15,16,17,18,19,20\n"
-"          21,22,23,24,25,26,27,28,29,30\n"
-"          31,32,33,34,35,36],\n"
-" \"spacing\" : [1,3,5],\n"
-" \"direction\": [[1,0,0],[0,1,0],[0,0,1],\n"
-" \"origin\": [3.2, 32.1, 1]\n"
-"}";
+using namespace npl;
 
 int main(int argc, char** argv)
 {
@@ -50,34 +39,48 @@ int main(int argc, char** argv)
 	 * Command Line
 	 */
 
-	TCLAP::CmdLine cmd("Creates a Nifti Image from a text description file. "
-            "The text description file should be a json file with at minimum "
-            "size and values keys.", ' ', __version__ );
+	TCLAP::CmdLine cmd("Reads an image (supported types are .json[.gz] and "
+            ".nii[.gz]) then rewrites it, if no input is provided then "
+            "an example image is generated and written. Useful for conversion "
+            "between json and nii, or for seeing what the json format looks like",
+            ' ', __version__ );
 
-	TCLAP::ValueArg<string> a_in("i", "input", "Input json description.",
-			false, "", "*.json", cmd);
+	TCLAP::ValueArg<string> a_in("i", "input", "Input image.",
+			false, "", "*.json[.gz]/.nii[.gz]", cmd);
 	TCLAP::ValueArg<string> a_out("o", "output", "Output image.",
-			false, "", "*.nii.gz", cmd);
-	TCLAP::SwitchArg a_example("E", "example", "print an example file and exit", 
-            cmd);
+			true, "", "*.nii.gz", cmd);
 
     cmd.parse(argc, argv);
 
-    if(a_example.isSet()) {
-        cout << example << endl;
-        return 0;
-    }
-
     if(!a_in.isSet()) {
-        throw TCLAP::ArgException("Need to provide an input image descrption file.");
-        return -1;
-    }
-    if(!a_out.isSet()) {
-        throw TCLAP::ArgException("Need to provide an output image file.");
-        return -1;
-    }
+        // create an image
+        size_t sz[] = {2, 1, 4, 3};
+        Eigen::VectorXd neworigin(4);
+        neworigin << 1.3, 75, 9, 0;
 
-    // read json
+        Eigen::VectorXd newspacing(4);
+        newspacing << 4.3, 4.7, 1.2, .3;
+
+        Eigen::MatrixXd newdir(4,4);
+        newdir << 
+            -0.16000, -0.98424,  0.07533, 0,
+            0.62424, -0.16000, -0.76467, 0,
+            0.76467, -0.07533,  0.64000, 0, 
+            0,        0,        0, 1;
+
+        auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, FLOAT64);
+
+        NDIter<double> sit(in);
+        for(int ii=0; !sit.eof(); ++sit, ++ii) {
+            sit.set(ii);
+        }
+        in->setOrient(neworigin, newspacing, newdir);
+        in->write(a_out.getValue());
+        return 0;
+    } else {
+        auto img = dPtrCast<MRImage>(readMRImage(a_in.getValue()));
+        img->write(a_out.getValue());
+    }
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }

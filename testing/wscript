@@ -1,5 +1,9 @@
 
 def build(bld):
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='regex_test', 
+            source='regex_test.cpp')
+
     # test underlying slicer library
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='slicer_test', 
@@ -155,6 +159,11 @@ def build(bld):
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='json_write1', 
             source='json_write1.cpp', 
+            use='mrimage_utils')
+
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='json_write2', 
+            source='json_write2.cpp', 
             use='mrimage_utils')
 
     # Test Fourier Domain
