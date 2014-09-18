@@ -25,6 +25,7 @@
 #include "nifti.h"
 #include "byteswap.h"
 #include "slicer.h"
+#include "macros.h"
 
 #include "zlib.h"
 
@@ -510,9 +511,80 @@ ptr<MRImage> _copyCast(ptr<const MRImage> in, size_t newdims,
 	return _copyCast(in, newdims, newsize, in->type());
 }
 
-/****************************************************************************
- * Input Functions
- ****************************************************************************/
+/*******************************************************************
+ * Input/Output Functions
+ ******************************************************************/
+
+/**
+ * @brief Reads an MRI image. Right now only nift images are supported. later
+ * on, it will try to load image using different reader functions until one
+ * suceeds.
+ *
+ * @param filename Name of input file to read
+ * @param verbose Whether to print out information as the file is read
+ *
+ * @return Loaded image
+ */
+ptr<MRImage> readMRImage(std::string filename, bool verbose)
+{
+	const size_t BSIZE = 1024*1024; //1M
+	auto gz = gzopen(filename.c_str(), "rb");
+
+	if(!gz) {
+		throw std::ios_base::failure("Could not open " + filename + " for readin");
+		return NULL;
+	}
+	gzbuffer(gz, BSIZE);
+	
+	ptr<MRImage> out;
+	
+    // remove .gz to find the "real" format,
+	if(filename.substr(filename.size()-3, 3) == ".gz") {
+		filename = filename.substr(0, filename.size()-3);
+	}
+	
+	if(filename.substr(filename.size()-4, 4) == ".nii") {
+        if((out = readNiftiImage(gz, verbose))) {
+            gzclose(gz);
+            return out;
+        }
+    } else if(filename.substr(filename.size()-5, 5) == ".json") {
+        if((out = readJSONImage(gz))) {
+            gzclose(gz);
+            return out;
+        }
+	} else {
+		std::cerr << "Unknown filetype: " << filename.substr(filename.rfind('.'))
+			<< std::endl;
+		gzclose(gz);
+        throw std::ios_base::failure("Error reading " + filename );
+	}
+
+    throw std::ios_base::failure("Error reading " + filename );
+	return NULL;
+}
+
+/**
+ * @brief Writes out an MRImage to the file fn. Bool indicates whether to use
+ * nifti2 (rather than nifti1) format.
+ *
+ * @param img Image to write.
+ * @param fn Filename
+ * @param nifti2 Whether the use nifti2 format
+ *
+ * @return 0 if successful
+ */
+int writeMRImage(MRImage* img, std::string fn, bool nifti2)
+{
+	if(!img)
+		return -1;
+	double version = 1;
+	if(nifti2)
+		version = 2;
+	return img->write(fn, version);
+}
+
+
 /**
  * @brief Helper function for readNiftiImage. End users should use readMRImage
  *

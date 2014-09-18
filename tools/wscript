@@ -24,7 +24,7 @@ def build(bld):
             use = 'mrimage_utils statistics tclap');
     bld.program(target = 'niiHeader', 
             source = 'niiHeader.cpp', use = 'mrimage mrimage_utils')
-    bld.program(target = 'nplReWrite', 
+    bld.program(target = 'nplTouch', 
             source = 'touch.cpp', use = 'tclap mrimage mrimage_utils')
     bld.program(target = 'nplRemoveRegressors', 
             source = 'remove_regressors.cpp', 

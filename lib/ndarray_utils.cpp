@@ -1726,8 +1726,8 @@ ptr<NDArray> pseudoPolarZoom(ptr<const NDArray> inimg, size_t prdim)
 			++iit;
 		}
 
-		absimg->write("fft"+to_string(prdim)+"_abs.nii.gz");
-		angimg->write("fft"+to_string(prdim)+"_ang.nii.gz");
+		DBG3(absimg->write("fft"+to_string(prdim)+"_abs.nii.gz"));
+		DBG3(angimg->write("fft"+to_string(prdim)+"_ang.nii.gz"));
 	}
 
 	// declare variables
