@@ -358,6 +358,45 @@ int64_t NDArrayStore<D,T>::getLinIndex(int64_t x, int64_t y, int64_t z,
 };
 
 template <size_t D, typename T>
+int NDArrayStore<D,T>::write(std::string filename) const
+{
+	std::string mode = "wb";
+	const size_t BSIZE = 1024*1024; //1M
+	gzFile gz;
+
+	// remove .gz to find the "real" format,
+	std::string nogz;
+	if(filename.substr(filename.size()-3, 3) == ".gz") {
+		nogz = filename.substr(0, filename.size()-3);
+	} else {
+		// if no .gz, then make encoding "transparent" (plain)
+		nogz = filename;
+		mode += 'T';
+	}
+	
+	// go ahead and open
+	gz = gzopen(filename.c_str(), mode.c_str());
+	if(!gz) {
+		std::cerr << "Could not open " << filename << " for writing!" << std::endl;
+		return -1;
+	}
+
+	gzbuffer(gz, BSIZE);
+
+    if(nogz.substr(nogz.size()-5, 5) == ".json") {
+        writeJSONArray(gz);
+	} else {
+		std::cerr << "Unknown filetype: " << nogz.substr(nogz.rfind('.'))
+			<< std::endl;
+		gzclose(gz);
+		return -1;
+	}
+
+	gzclose(gz);
+	return 0;
+}
+
+template <size_t D, typename T>
 int NDArrayStore<D,T>::writeJSONArray(gzFile file) const
 {
     ostringstream oss;

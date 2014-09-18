@@ -17,7 +17,7 @@ def build(bld):
             export_includes = ['.'])
     bld.shlib(target = 'ndarray',
             source = 'ndarray.cpp', 
-            use='npltypes slicer',
+            use='npltypes ZLIB slicer',
             export_includes = ['.'])
     bld.shlib(target = 'ndarray_utils',
             source = 'ndarray_utils.cpp', 
