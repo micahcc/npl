@@ -111,6 +111,15 @@ ptr<NDArray> createNDArray(const std::vector<size_t>& dim,
         PixelT ptype, void* ptr, std::function<void(void*)> deleter);
 
 /**
+ * @brief Reads an array. Can read nifti's but orientation won't be read.
+ *
+ * @param filename Name of input file to read
+ *
+ * @return Loaded image
+ */
+ptr<NDArray> readNDArray(std::string filename);
+
+/**
  * @brief Reads a JSON image from a gzip file
  *
  * @param file Input file to read from

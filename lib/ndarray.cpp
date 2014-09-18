@@ -1003,7 +1003,7 @@ ptr<NDArray> readJSONArray(gzFile file)
  *
  * @return Loaded image
  */
-ptr<MRImage> readNDArray(std::string filename)
+ptr<NDArray> readNDArray(std::string filename)
 {
 	const size_t BSIZE = 1024*1024; //1M
 	auto gz = gzopen(filename.c_str(), "rb");
@@ -1014,19 +1014,14 @@ ptr<MRImage> readNDArray(std::string filename)
 	}
 	gzbuffer(gz, BSIZE);
 	
-	ptr<MRImage> out;
+	ptr<NDArray> out;
 	
     // remove .gz to find the "real" format,
 	if(filename.substr(filename.size()-3, 3) == ".gz") {
 		filename = filename.substr(0, filename.size()-3);
 	}
 	
-	if(filename.substr(filename.size()-4, 4) == ".nii") {
-        if((out = readNiftiImage(gz, verbose))) {
-            gzclose(gz);
-            return out;
-        }
-    } else if(filename.substr(filename.size()-5, 5) == ".json") {
+    if(filename.substr(filename.size()-5, 5) == ".json") {
         if((out = readJSONArray(gz))) {
             gzclose(gz);
             return out;

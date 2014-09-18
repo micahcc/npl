@@ -45,6 +45,7 @@
 
 #include "mrimage.h"
 #include "accessors.h"
+#include "macros.h"
 
 namespace npl {
 
