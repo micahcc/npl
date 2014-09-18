@@ -359,7 +359,7 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray)
 	std::vector<double> pixdim;
 	std::vector<double> offset;
 	std::vector<double> quatern(3,0);
-	std::vector<double> saffine(16,0);
+	std::vector<double> saffine(12,0);
 	double qfac;
 	double slice_duration = 0;
 	int slice_code = 0;
@@ -409,7 +409,7 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray)
 		qfac = header1.qfac;
         
         // saffine
-        for(size_t ii=0; ii<16; ii++)
+        for(size_t ii=0; ii<12; ii++)
             saffine[ii] = header1.saffine[ii];
 	}
 
@@ -450,7 +450,7 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray)
 		qfac = header2.qfac;
 
         // saffine
-        for(size_t ii=0; ii<16; ii++)
+        for(size_t ii=0; ii<12; ii++)
             saffine[ii] = header2.saffine[ii];
 	}
 
