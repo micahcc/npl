@@ -22,7 +22,7 @@
 
 #include "mrimage.h"
 #include "accessors.h"
-#include "mrimage_utils.h"
+#include "nplio.h"
 
 using namespace std;
 using namespace npl;

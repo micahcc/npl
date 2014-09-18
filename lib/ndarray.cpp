@@ -102,6 +102,87 @@ std::string pixelTtoString(PixelT type)
 };
 
 /**
+ * @brief Writes out information about an MRImage
+ *
+ * @param out Output ostream
+ * @param img Image to write information about
+ *
+ * @return More ostream
+ */
+std::ostream& operator<<(std::ostream &out, const NDArray& img)
+{
+	out << "---------------------------" << endl;
+	out << img.ndim() << "D Array" << endl;
+    out << "Size: [";
+	for(int64_t ii=0; ii<(int64_t)img.ndim(); ii++) {
+        if(ii) out << ", ";
+		out << img.dim(ii);
+	}
+    out << "]\n";
+
+    out << "Type: ";
+	switch(img.type()) {
+		case UNKNOWN_TYPE:
+		case UINT8:
+			out << "UINT8" << endl;
+			break;
+		case INT16:
+			out << "INT16" << endl;
+			break;
+		case INT32:
+			out << "INT32" << endl;
+			break;
+		case FLOAT32:
+			out << "FLOAT32" << endl;
+			break;
+		case COMPLEX64:
+			out << "COMPLEX64" << endl;
+			break;
+		case FLOAT64:
+			out << "FLOAT64" << endl;
+			break;
+		case RGB24:
+			out << "RGB24" << endl;
+			break;
+		case INT8:
+			out << "INT8" << endl;
+			break;
+		case UINT16:
+			out << "UINT16" << endl;
+			break;
+		case UINT32:
+			out << "UINT32" << endl;
+			break;
+		case INT64:
+			out << "INT64" << endl;
+			break;
+		case UINT64:
+			out << "UINT64" << endl;
+			break;
+		case FLOAT128:
+			out << "FLOAT128" << endl;
+			break;
+		case COMPLEX128:
+			out << "COMPLEX128" << endl;
+			break;
+		case COMPLEX256:
+			out << "COMPLEX256" << endl;
+			break;
+		case RGBA32:
+			out << "RGBA32" << endl;
+			break;
+		default:
+			out << "UNKNOWN" << endl;
+			break;
+	}
+
+	out << endl;
+	out << "---------------------------" << endl;
+	return out;
+}
+
+
+/**
  * @brief Returns a pixeltype as described by the string. 
  *
  * @param type string to look up as a pixel type
@@ -566,20 +647,6 @@ void copyROI_help(ptr<const NDArray> in, const int64_t* inROIL, const
     if(!oit.eof() || !iit.eof())
         throw INVALID_ARGUMENT("Input image/target have differenct sizes");
 }
-
-/**
- * @Brief extracts a region of this image. Zeros in the size variable
- * indicate dimension to be removed.
- *
- * @param len     Length of index/size arrays
- * @param index   Index to start copying from.
- * @param size Size of output image. Note length 0 dimensions will be
- * removed, while length 1 dimensions will be left. 
- * @param newtype Pixel type of output image.
- *
- * @return Image with overlapping sections cast and copied from 'in'
- */
-
 
 /**
  * @brief Copy an roi from one image to another image. ROI's must be the same

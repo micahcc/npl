@@ -23,7 +23,7 @@
 #include <stdexcept>
 
 #include "mrimage.h"
-#include "mrimage_utils.h"
+#include "nplio.h"
 
 using std::string;
 using namespace npl;

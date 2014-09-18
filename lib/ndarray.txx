@@ -20,6 +20,8 @@
 #include "npltypes.h"
 #include "slicer.h"
 #include "version.h"
+#include "nifti.h"
+#include "zlib.h"
 
 #include <iostream>
 
@@ -270,25 +272,6 @@ int64_t NDArrayStore<D,T>::getLinIndex(std::initializer_list<int64_t> index) con
 	return out;
 }
 
-//template <size_t D, typename T>
-//inline
-//int64_t NDArrayStore<D,T>::getLinIndex(const int64_t* index) const
-//{
-//	int64_t out = 0;
-//
-//	// copy the dimensions
-//	for(size_t ii = 0; ii<D; ii++) {
-//		assert(index[ii] >= 0);
-//		assert(index[ii] < _m_dim[ii]);
-//
-//		// set position
-//		out += _m_stride[ii]*index[ii];
-//	}
-//
-//	assert(out < elements());
-//	return out;
-//}
-
 template <size_t D, typename T>
 inline
 int64_t NDArrayStore<D,T>::getLinIndex(size_t len, const int64_t* index) const
@@ -358,7 +341,7 @@ int64_t NDArrayStore<D,T>::getLinIndex(int64_t x, int64_t y, int64_t z,
 };
 
 template <size_t D, typename T>
-int NDArrayStore<D,T>::write(std::string filename) const
+int NDArrayStore<D,T>::write(std::string filename, double version) const
 {
 	std::string mode = "wb";
 	const size_t BSIZE = 1024*1024; //1M
@@ -383,8 +366,22 @@ int NDArrayStore<D,T>::write(std::string filename) const
 
 	gzbuffer(gz, BSIZE);
 
-    if(nogz.substr(nogz.size()-5, 5) == ".json") {
-        writeJSONArray(gz);
+	if(nogz.substr(nogz.size()-4, 4) == ".nii") {
+		if(version >= 2) {
+			if(writeNifti2Image(gz) != 0) {
+				std::cerr << "Error writing" << std::endl;
+				gzclose(gz);
+				return -1;
+			}
+		} else {
+			if(writeNifti1Image(gz) != 0) {
+				std::cerr << "Error writing" << std::endl;
+				gzclose(gz);
+				return -1;
+			}
+		}
+    } else if(nogz.substr(nogz.size()-5, 5) == ".json") {
+        writeJSON(gz);
 	} else {
 		std::cerr << "Unknown filetype: " << nogz.substr(nogz.rfind('.'))
 			<< std::endl;
@@ -397,7 +394,7 @@ int NDArrayStore<D,T>::write(std::string filename) const
 }
 
 template <size_t D, typename T>
-int NDArrayStore<D,T>::writeJSONArray(gzFile file) const
+int NDArrayStore<D,T>::writeJSON(gzFile file) const
 {
     ostringstream oss;
     oss << "{\n\"version\" : \"" << __version__<< "\",\n\"comment\" : \"supported "
@@ -440,6 +437,105 @@ int NDArrayStore<D,T>::writeJSONArray(gzFile file) const
         return 0;
 	return -1;
 }
+
+template <size_t D, typename T>
+int NDArrayStore<D,T>::writeNifti1Image(gzFile file) const
+{
+	int ret = writeNifti1Header(file);
+	if(ret != 0)
+		return ret;
+	ret = writePixels(file);
+	return ret;
+}
+
+template <size_t D, typename T>
+int NDArrayStore<D,T>::writeNifti2Image(gzFile file) const
+{
+	int ret = writeNifti2Header(file);
+	if(ret != 0)
+		return ret;
+	ret = writePixels(file);
+	return ret;
+}
+
+template <size_t D, typename T>
+int NDArrayStore<D,T>::writeNifti1Header(gzFile file) const
+{
+	static_assert(sizeof(nifti1_header) == 348, "Error, nifti header packing failed");
+	nifti1_header header;
+	std::fill((char*)&header, ((char*)&header)+sizeof(nifti1_header), 0);
+
+	header.sizeof_hdr = 348;
+
+	// dimensions
+	header.ndim = (short)ndim();
+	for(size_t ii=0; ii<ndim(); ii++) {
+		assert(dim(ii) <= SHRT_MAX);
+		header.dim[ii] = (short)dim(ii);
+	}
+
+	header.datatype = type();
+	header.bitpix = sizeof(T)*8;
+
+	//magic
+	strncpy(header.magic,"n+1\0", 4);
+	header.vox_offset = 352;
+
+	// write over extension
+	char ext[4] = {0,0,0,0};
+	
+	gzwrite(file, &header, sizeof(header));
+	gzwrite(file, ext, sizeof(ext));
+
+	return 0;
+}
+
+template <size_t D, typename T>
+int NDArrayStore<D,T>::writeNifti2Header(gzFile file) const
+{
+	static_assert(sizeof(nifti2_header) == 540, "Error, nifti header packing failed");
+	nifti2_header header;
+	std::fill((char*)&header, ((char*)&header)+sizeof(nifti2_header), 0);
+
+	header.sizeof_hdr = 540;
+
+	// dimensions
+	header.ndim = ndim();
+	for(size_t ii=0; ii<ndim(); ii++) {
+		header.dim[ii] = dim(ii);
+	}
+
+	header.datatype = type();
+	header.bitpix = sizeof(T)*8;
+
+	//magic
+	strncpy(header.magic,"n+2\0", 4);
+	header.vox_offset = 544;
+
+	// write over extension
+	char ext[4] = {0,0,0,0};
+	
+	gzwrite(file, &header, sizeof(header));
+	gzwrite(file, ext, sizeof(ext));
+	
+	return 0;
+}
+
+template <size_t D, typename T>
+int NDArrayStore<D,T>::writePixels(gzFile file) const
+{
+	// x is the fastest in nifti, for us it is the slowest
+	std::vector<size_t> order;
+	for(size_t ii=0 ; ii<ndim(); ii++)
+		order.push_back(ii);
+
+	Slicer it(ndim(), dim());
+	it.setOrder(order);
+	for(it.goBegin(); !it.isEnd(); ++it) {
+		gzwrite(file, &this->_m_data[*it], sizeof(T));
+	}
+	return 0;
+}
 	
 template <size_t D, typename T>
 const T& NDArrayStore<D,T>::operator[](std::initializer_list<int64_t> index) const
@@ -452,12 +548,6 @@ const T& NDArrayStore<D,T>::operator[](const std::vector<int64_t>& index) const
 {
 	return _m_data[getLinIndex(index)];
 }
-//
-//template <size_t D, typename T>
-//const T& NDArrayStore<D,T>::operator[](const int64_t* index) const
-//{
-//	return _m_data[getLinIndex(index)];
-//}
 
 template <size_t D, typename T>
 const T& NDArrayStore<D,T>::operator[](int64_t pixel) const
@@ -477,80 +567,11 @@ T& NDArrayStore<D,T>::operator[](const std::vector<int64_t>& index)
 	return _m_data[getLinIndex(index)];
 }
 
-//template <size_t D, typename T>
-//T& NDArrayStore<D,T>::operator[](const int64_t* index)
-//{
-//	return _m_data[getLinIndex(index)];
-//}
-//
 template <size_t D, typename T>
 T& NDArrayStore<D,T>::operator[](int64_t pixel)
 {
 	return _m_data[pixel];
 }
-
-//template <size_t D, typename T>
-//int NDArrayStore<D,T>::opself(const NDArray* right,
-//		double(*func)(double,double), bool elevR)
-//{
-//	bool canElev = false;
-//	bool comp = comparable(this, right, NULL, &canElev);
-//	if(comp) {
-//		for(size_t ii=0; ii<elements(); ii++) {
-//			double result = func(get_dbl(ii), right->get_dbl(ii));
-//			set_dbl(ii, result);
-//		}
-//	} else if(canElev && elevR) {
-//		// match dimensions, to make this work, we need to iterate through the
-//		// common dimensions fastest, the unique dimensions slowest, the way
-//		// iterators work, if you specify an order, you specify the fastest
-//		std::list<size_t> commondim;
-//		for(size_t ii=0; ii < ndim() && ii < right->ndim(); ii++) {
-//			if(right->dim(ii) != 1)
-//				commondim.push_front(ii);
-//		}
-//		for(Slicer lit(ndim(), dim(), commondim); !lit.isEnd() ; ) {
-//			// iterate together until right hits the end, then restart
-//			for(Slicer rit(ndim(), dim(), commondim);
-//						!lit.isEnd() && !rit.isEnd(); ++lit, ++rit) {
-//				double result = func(get_dbl(*rit), get_dbl(*rit));
-//				set_dbl(*lit, result);
-//			}
-//		}
-//	} else {
-//		std::cerr << "Input Images are not conformable, failing" << endl;
-//		return -1;
-//	}
-//
-//	return 0;
-//}
-//
-//template <size_t D, typename T>
-//ptr<NDArray> NDArrayStore<D,T>::opnew(const NDArray* right,
-//		double(*func)(double,double), bool elevR)
-//{
-//	auto out = clone();
-//	if(out->opself(right, func, elevR) != 0)
-//		return NULL;
-//	return out;
-//}
-//
-//template <size_t D, typename T>
-//ptr<NDArray> NDArrayStore<D,T>::clone() const
-//{
-//	std::vector<size_t> newdims(_m_dim, _m_dim+D);
-//	auto out = std::make_shared<NDArrayStore<D,T>>(newdims);
-//
-//	size_t total = 1;
-//	for(size_t ii=0; ii<D; ii++)
-//		total *= _m_dim[ii];
-//
-//	std::copy(_m_data, _m_data+total, out->_m_data);
-//	std::copy(_m_dim, _m_dim+D, out->_m_dim);
-//	std::copy(_m_stride, _m_stride+D, out->_m_stride);
-//
-//	return out;
-//}
 
 /**
  * @brief Performs a deep copy of the entire array and all metadata.

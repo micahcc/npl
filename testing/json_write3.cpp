@@ -20,6 +20,7 @@
 #include <iostream>
 
 #include "mrimage.h"
+#include "nplio.h"
 #include "mrimage_utils.h"
 #include "iterators.h"
 

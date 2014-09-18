@@ -18,9 +18,21 @@
  *****************************************************************************/
 
 #include "mrimage.h"
-#include "ndarrah.h"
+#include "mrimage_utils.h"
+#include "ndarray.h"
+#include "ndarray_utils.h"
+#include "macros.h"
+#include "iterators.h"
+#include "byteswap.h"
 
-#include <zlib>
+#include "zlib.h"
+
+#include <string>
+#include <iostream>
+using std::string;
+using std::to_string;
+using std::cerr;
+using std::endl;
 
 namespace npl 
 {
@@ -45,16 +57,20 @@ void readPixels(ptr<NDArray> arr, gzFile file, size_t vox_offset,
         size_t pixsize, bool doswap)
 {
     if(pixsize != sizeof(T)) {
-        throw INVALID_ARGUMENT("Pixel size in file ("+pixsize
+        throw INVALID_ARGUMENT("Pixel size in file ("+to_string(pixsize)
                 +")does not match actual size of "+typeid(T).name());
     }
 
 	// jump to voxel offset
 	gzseek(file, vox_offset, SEEK_SET);
-    for(NDIter<T> it(arr); !it.eof(); ++it) {
+
+    // need to reverse order from nifti
+    NDIter<T> it(arr);
+    it.setOrder({}, true); 
+    for(it.goBegin(); !it.eof(); ++it) {
         T tmp; 
-        if(gzread(file, &tmp, sizeo(T)) <= 0)
-            throw SYSTEM_ERROR("Input file ended abruptly");
+        if(gzread(file, &tmp, sizeof(T)) <= 0)
+            throw RUNTIME_ERROR("Input file ended abruptly");
         if(doswap) swap<T>(&tmp);
         it.set(tmp);
     }
@@ -331,17 +347,19 @@ int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap,
  *
  * @return New MRImage with values from header and pixels set
  */
-ptr<MRImage> readNiftiImage(gzFile file, bool verbose, bool makearray)
+ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray)
 {
 	bool doswap = false;
-	int16_t datatype = 0;
+	PixelT datatype = UNKNOWN_TYPE;
 	size_t start;
 	std::vector<size_t> dim;
 	size_t psize;
 	int qform_code = 0;
+	int sform_code = 0;
 	std::vector<double> pixdim;
 	std::vector<double> offset;
 	std::vector<double> quatern(3,0);
+	std::vector<double> saffine(16,0);
 	double qfac;
 	double slice_duration = 0;
 	int slice_code = 0;
@@ -362,7 +380,8 @@ ptr<MRImage> readNiftiImage(gzFile file, bool verbose, bool makearray)
 		}
 		psize = (header1.bitpix >> 3);
 		qform_code = header1.qform_code;
-		datatype = header1.datatype;
+		sform_code = header1.sform_code;
+		datatype = (PixelT)header1.datatype;
 
 		slice_code = header1.slice_code;
 		slice_duration = header1.slice_duration;
@@ -388,6 +407,10 @@ ptr<MRImage> readNiftiImage(gzFile file, bool verbose, bool makearray)
 		for(int64_t ii=0; ii<3 && ii<header1.ndim; ii++)
 			quatern[ii] = header1.quatern[ii];
 		qfac = header1.qfac;
+        
+        // saffine
+        for(size_t ii=0; ii<16; ii++)
+            saffine[ii] = header1.saffine[ii];
 	}
 
 	if(ret!=0 && (ret = readNifti2Header(file, &header2, &doswap, verbose)) == 0) {
@@ -398,7 +421,8 @@ ptr<MRImage> readNiftiImage(gzFile file, bool verbose, bool makearray)
 		}
 		psize = (header2.bitpix >> 3);
 		qform_code = header2.qform_code;
-		datatype = header2.datatype;
+		sform_code = header2.sform_code;
+		datatype = (PixelT)header2.datatype;
 		
 		slice_code = header2.slice_code;
 		slice_duration = header2.slice_duration;
@@ -424,6 +448,10 @@ ptr<MRImage> readNiftiImage(gzFile file, bool verbose, bool makearray)
 		for(int64_t ii=0; ii<3 && ii<header2.ndim; ii++)
 			quatern[ii] = header2.quatern[ii];
 		qfac = header2.qfac;
+
+        // saffine
+        for(size_t ii=0; ii<16; ii++)
+            saffine[ii] = header2.saffine[ii];
 	}
 
     ptr<NDArray> out;
@@ -431,24 +459,28 @@ ptr<MRImage> readNiftiImage(gzFile file, bool verbose, bool makearray)
         // just create an array, not an image
         out = createNDArray(dim.size(), dim.data(), datatype);
 
+        if(verbose) 
+            std::cerr << (*out) << std::endl;
+
     } else {
         // create an image, get orientation
         out = createMRImage(dim.size(), dim.data(), datatype);
+        auto oimage = dPtrCast<MRImage>(out);
 	
         // figure out orientation
         if(qform_code > 0) {
             /*
              * set spacing
              */
-            for(size_t ii=0; ii<out->ndim(); ii++)
-                out->spacing(ii) = pixdim[ii];
+            for(size_t ii=0; ii<oimage->ndim(); ii++)
+                oimage->spacing(ii) = pixdim[ii];
 
             /*
              * set origin
              */
             // x,y,z
-            for(size_t ii=0; ii<out->ndim(); ii++) {
-                out->origin(ii) = offset[ii];
+            for(size_t ii=0; ii<oimage->ndim(); ii++) {
+                oimage->origin(ii) = offset[ii];
             }
 
             // calculate a, copy others
@@ -458,10 +490,10 @@ ptr<MRImage> readNiftiImage(gzFile file, bool verbose, bool makearray)
             double a = sqrt(1.0-(b*b+c*c+d*d));
 
             // calculate R, (was already identity)
-            MatrixXd tmpdirection = out->getDirection();
+            MatrixXd tmpdirection = oimage->getDirection();
             tmpdirection(0,0) = a*a+b*b-c*c-d*d;
 
-            if(out->ndim() > 1) {
+            if(oimage->ndim() > 1) {
                 tmpdirection(0,1) = 2*b*c-2*a*d;
                 tmpdirection(1,0) = 2*b*c+2*a*d;
                 tmpdirection(1,1) = a*a+c*c-b*b-d*d;
@@ -470,7 +502,7 @@ ptr<MRImage> readNiftiImage(gzFile file, bool verbose, bool makearray)
             if(qfac != -1)
                 qfac = 1;
 
-            if(out->ndim() > 2) {
+            if(oimage->ndim() > 2) {
                 tmpdirection(0,2) = qfac*(2*b*d+2*a*c);
                 tmpdirection(1,2) = qfac*(2*c*d-2*a*b);
                 tmpdirection(2,2) = qfac*(a*a+d*d-c*c-b*b);
@@ -478,124 +510,126 @@ ptr<MRImage> readNiftiImage(gzFile file, bool verbose, bool makearray)
                 tmpdirection(2,0) = 2*b*d-2*a*c;
             }
 
-            out->setDirection(tmpdirection, true);
-        } else if(header.sform_code > 0) {
+            oimage->setDirection(tmpdirection, true);
+        } else if(sform_code > 0) {
             /* use the sform, since no qform exists */
 
             // origin, last column
             double di = 0, dj = 0, dk = 0;
-            for(size_t ii=0; ii<3 && ii<out->ndim(); ii++) {
-                di += pow(header.saffine[4*ii+0],2); //column 0
-                dj += pow(header.saffine[4*jj+1],2); //column 1
-                dk += pow(header.saffine[4*kk+2],2); //column 2
-                out->origin(ii) = header.saffine[4*ii+3]; //column 3
+            for(size_t ii=0; ii<3 && ii<oimage->ndim(); ii++) {
+                di += pow(saffine[4*ii+0],2); //column 0
+                dj += pow(saffine[4*ii+1],2); //column 1
+                dk += pow(saffine[4*ii+2],2); //column 2
+                oimage->origin(ii) = saffine[4*ii+3]; //column 3
             }
+            di = sqrt(di);
+            dj = sqrt(dj);
+            dk = sqrt(dk);
 
             // set direction and spacing
-            out->spacing(0) = sqrt(di);
-            out->direction(0,0) = header.saffine[4*0+0]/di;
+            oimage->spacing(0) = sqrt(di);
+            oimage->direction(0,0) = saffine[4*0+0]/di;
 
-            if(out->ndim() > 1) {
-                out->spacing(1) = sqrt(dj);
-                out->direction(0,1) = header.saffine[4*0+1]/dj;
-                out->direction(1,1) = header.saffine[4*1+1]/dj;
-                out->direction(1,0) = header.saffine[4*1+0]/di;
+            if(oimage->ndim() > 1) {
+                oimage->spacing(1) = sqrt(dj);
+                oimage->direction(0,1) = saffine[4*0+1]/dj;
+                oimage->direction(1,1) = saffine[4*1+1]/dj;
+                oimage->direction(1,0) = saffine[4*1+0]/di;
             }
-            if(out->ndim() > 2) {
-                out->spacing(2) = sqrt(dk);
-                out->direction(0,2) = header.saffine[4*0+2]/dk;
-                out->direction(1,2) = header.saffine[4*1+2]/dk;
-                out->direction(2,2) = header.saffine[4*2+2]/dk;
-                out->direction(2,1) = header.saffine[4*2+1]/dj;
-                out->direction(2,0) = header.saffine[4*2+0]/di;
+            if(oimage->ndim() > 2) {
+                oimage->spacing(2) = sqrt(dk);
+                oimage->direction(0,2) = saffine[4*0+2]/dk;
+                oimage->direction(1,2) = saffine[4*1+2]/dk;
+                oimage->direction(2,2) = saffine[4*2+2]/dk;
+                oimage->direction(2,1) = saffine[4*2+1]/dj;
+                oimage->direction(2,0) = saffine[4*2+0]/di;
             }
 
         } else {
             // only spacing changes
             for(size_t ii=0; ii<dim.size(); ii++)
-                out->spacing(ii) = pixdim[ii];
+                oimage->spacing(ii) = pixdim[ii];
         }
-            
+
+        /**************************************************************************
+         * Medical Imaging Varaibles Variables
+         **************************************************************************/
+
+        // direct copies
+        oimage->m_freqdim = freqdim;
+        oimage->m_phasedim = phasedim;
+        oimage->m_slicedim = slicedim;
+
+        // slice timing
+        oimage->updateSliceTiming(slice_duration,  slice_start, slice_end,
+                (SliceOrderT)slice_code);
+
+
         if(verbose) 
-            std::cerr << *dPtrCast<MRImage>(out)  << std::endl;
+            std::cerr << *oimage  << std::endl;
 
     }
 
-	// create image
+    // create image
 	switch(datatype) {
 		// 8 bit
-		case NIFTI_TYPE_INT8:
+		case INT8:
 			readPixels<int8_t>(out, file, start, psize, doswap);
 		break;
-		case NIFTI_TYPE_UINT8:
+		case UINT8:
 			readPixels<uint8_t>(out, file, start, psize, doswap);
 		break;
 		// 16  bit
-		case NIFTI_TYPE_INT16:
+		case INT16:
 			readPixels<int16_t>(out, file, start, psize, doswap);
 		break;
-		case NIFTI_TYPE_UINT16:
+		case UINT16:
 			readPixels<uint16_t>(out, file, start, psize, doswap);
 		break;
 		// 32 bit
-		case NIFTI_TYPE_INT32:
+		case INT32:
 			readPixels<int32_t>(out, file, start, psize, doswap);
 		break;
-		case NIFTI_TYPE_UINT32:
+		case UINT32:
 			readPixels<uint32_t>(out, file, start, psize, doswap);
 		break;
 		// 64 bit int
-		case NIFTI_TYPE_INT64:
+		case INT64:
 			readPixels<int64_t>(out, file, start, psize, doswap);
 		break;
-		case NIFTI_TYPE_UINT64:
+		case UINT64:
 			readPixels<uint64_t>(out, file, start, psize, doswap);
 		break;
 		// floats
-		case NIFTI_TYPE_FLOAT32:
+		case FLOAT32:
 			readPixels<float>(out, file, start, psize, doswap);
 		break;
-		case NIFTI_TYPE_FLOAT64:
+		case FLOAT64:
 			readPixels<double>(out, file, start, psize, doswap);
 		break;
-		case NIFTI_TYPE_FLOAT128:
+		case FLOAT128:
 			readPixels<long double>(out, file, start, psize, doswap);
 		break;
 		// RGB
-		case NIFTI_TYPE_RGB24:
+		case RGB24:
 			readPixels<rgb_t>(out, file, start, psize, doswap);
 		break;
-		case NIFTI_TYPE_RGBA32:
+		case RGBA32:
 			readPixels<rgba_t>(out, file, start, psize, doswap);
 		break;
-		case NIFTI_TYPE_COMPLEX256:
+		case COMPLEX256:
 			readPixels<cquad_t>(out, file, start, psize, doswap);
 		break;
-		case NIFTI_TYPE_COMPLEX128:
+		case COMPLEX128:
 			readPixels<cdouble_t>(out, file, start, psize, doswap);
 		break;
-		case NIFTI_TYPE_COMPLEX64:
+		case COMPLEX64:
 			readPixels<cfloat_t>(out, file, start, psize, doswap);
 		break;
+        default:
+        case UNKNOWN_TYPE:
+            throw RUNTIME_ERROR("Unknown Pixel Type in input Nifti Image");
 	}
-
-	/*
-	 * Now that we have an Image*, we can fill in the remaining values from
-	 * the header
-	 */
-
-	/**************************************************************************
-	 * Medical Imaging Varaibles Variables
-	 **************************************************************************/
-	
-	// direct copies
-	out->m_freqdim = freqdim;
-	out->m_phasedim = phasedim;
-	out->m_slicedim = slicedim;
-	
-	// slice timing
-	out->updateSliceTiming(slice_duration,  slice_start, slice_end,
-			(SliceOrderT)slice_code);
 
 	return out;
 }
@@ -807,7 +841,7 @@ int readNumArray(gzFile file, vector<T>& oarray)
     return 0;
 }
 
-shared_ptr<NDArray> readJSONImage(gzFile file, bool makearray) 
+shared_ptr<NDArray> readJSONImage(gzFile file, bool verbose, bool makearray) 
 {
     // read to opening brace
     stringstream oss;
@@ -836,7 +870,8 @@ shared_ptr<NDArray> readJSONImage(gzFile file, bool makearray)
             return NULL;
         }
 
-        cerr << "Found key:" << key << endl;
+        if(verbose)
+            cerr << "Parsing key:" << key << endl;
         if(key == "type") {
             // read a string
             string value;
@@ -925,15 +960,19 @@ shared_ptr<NDArray> readJSONImage(gzFile file, bool makearray)
         out = createNDArray(size.size(), size.data(), type);
     } else {
         out = createMRImage(size.size(), size.data(), type);
+        auto oimg= dPtrCast<MRImage>(out);
 
         // copy spacing
         if(spacing.size() > 0) {
-            cerr << "Incorrect number of spacing values (" << spacing.size() 
-                << " vs " << ndim << ") given" << endl;
-            return NULL;
+            if(spacing.size() != ndim) {
+                cerr << "Incorrect number of spacing values (" << spacing.size() 
+                    << " vs " << ndim << ") given" << endl;
+                return NULL;
+            } else {
+                for(size_t ii=0; ii<ndim; ii++)
+                    oimg->spacing(ii) = spacing[ii];
+            }
         }
-        for(size_t ii=0; ii<ndim; ii++)
-            out->spacing(ii) = spacing[ii];
 
         // copy origin  
         if(origin.size() > 0) {
@@ -941,9 +980,10 @@ shared_ptr<NDArray> readJSONImage(gzFile file, bool makearray)
                 cerr << "Incorrect number of origin values (" << origin.size() 
                     << " vs " << ndim << ") given" << endl;
                 return NULL;
+            } else {
+                for(size_t ii=0; ii<ndim; ii++)
+                    oimg->origin(ii) = origin[ii];
             }
-            for(size_t ii=0; ii<ndim; ii++)
-                out->origin(ii) = origin[ii];
         }
 
         // copy direction
@@ -955,7 +995,7 @@ shared_ptr<NDArray> readJSONImage(gzFile file, bool makearray)
             }
             for(size_t ii=0; ii<ndim; ii++) {
                 for(size_t jj=0; jj<ndim; jj++) {
-                    out->direction(ii,jj) = direction[ii*ndim+jj];
+                    oimg->direction(ii,jj) = direction[ii*ndim+jj];
                 }
             }
         }
@@ -963,7 +1003,7 @@ shared_ptr<NDArray> readJSONImage(gzFile file, bool makearray)
 
     // copy values
     if(values.size() != out->elements()) {
-        throw SYSTEM_ERROR("Incorrect number of values ("+
+        throw RUNTIME_ERROR("Incorrect number of values ("+
                 to_string(values.size())+" vs "+to_string(ndim)+") given");
     }
     size_t ii=0;
@@ -994,13 +1034,12 @@ ptr<MRImage> readMRImage(std::string filename, bool verbose)
 	auto gz = gzopen(filename.c_str(), "rb");
 
 	if(!gz) {
-		throw std::ios_base::failure("Could not open " + filename + " for readin");
+		throw std::ios_base::failure("Could not open " + filename + " for reading");
 		return NULL;
 	}
 	gzbuffer(gz, BSIZE);
 	
-	ptr<MRImage> out;
-    size_t ndim;
+	ptr<NDArray> out;
 	
     // remove .gz to find the "real" format,
 	if(filename.substr(filename.size()-3, 3) == ".gz") {
@@ -1013,80 +1052,16 @@ ptr<MRImage> readMRImage(std::string filename, bool verbose)
         //////////////////////////
         if((out = readNiftiImage(gz, verbose, false))) {
             gzclose(gz);
-            return out;
+            return dPtrCast<MRImage>(out);
         }
     } else if(filename.substr(filename.size()-5, 5) == ".json") {
         //////////////////////////
         // Read JSON data
         //////////////////////////
-        JSONOut json = readJSON(fgz);
-
-        ndim = size.size();
-
-        // create MRImage from JSON data
-        if(ndim == 0) {
-            cerr << "No \"size\" tag found!" << endl; 
-            return NULL;
+        if((out = readJSONImage(gz, verbose, false))) {
+            gzclose(gz);
+            return dPtrCast<MRImage>(out);
         }
-        if(json.type == UNKNOWN_TYPE) {
-            cerr << "No type, or unknown type specified!" << endl; 
-            return NULL;
-        }
-
-        auto out = dPtrCast<MRImage>(createMRImage(size.size(), 
-                    size.data(), json.type));
-
-        // copy values
-        if(json.values.size() > 0) {
-            if(json.values.size() != out->elements()) {
-                cerr << "Incorrect number of values (" << json.values.size() 
-                    << " vs " << ndim << ") given" << endl;
-                return NULL;
-            }
-
-            size_t ii=0;
-            for(NDIter<float> it(out); !it.eof(); ++it, ++ii) 
-                it.set(json.values[ii]);
-        }
-
-        // copy spacing
-        if(json.spacing.size() > 0) {
-            if(json.spacing.size() != ndim) {
-                cerr << "Incorrect number of spacing values (" << json.spacing.size() 
-                    << " vs " << ndim << ") given" << endl;
-                return NULL;
-            }
-            for(size_t ii=0; ii<ndim; ii++)
-                out->spacing(ii) = json.spacing[ii];
-        }
-
-        // copy origin  
-        if(json.origin.size() > 0) {
-            if(json.origin.size() != ndim) {
-                cerr << "Incorrect number of origin values (" << json.origin.size() 
-                    << " vs " << ndim << ") given" << endl;
-                return NULL;
-            }
-            for(size_t ii=0; ii<ndim; ii++)
-                out->origin(ii) = json.origin[ii];
-        }
-
-        // copy direction
-        if(json.direction.size() > 0) {
-            if(json.direction.size() != ndim*ndim) {
-                cerr << "Incorrect number of origin values (" << json.direction.size() 
-                    << " vs " << ndim << ") given" << endl;
-                return NULL;
-            }
-            for(size_t ii=0; ii<ndim; ii++) {
-                for(size_t jj=0; jj<ndim; jj++) {
-                    out->direction(ii,jj) = json.direction[ii*ndim+jj];
-                }
-            }
-        }
-
-        gzclose(gz);
-        return out;
 	} else {
 		std::cerr << "Unknown filetype: " << filename.substr(filename.rfind('.'))
 			<< std::endl;
@@ -1105,7 +1080,7 @@ ptr<MRImage> readMRImage(std::string filename, bool verbose)
  *
  * @return Loaded image
  */
-ptr<NDArray> readNDArray(std::string filename)
+ptr<NDArray> readNDArray(std::string filename, bool verbose)
 {
 	const size_t BSIZE = 1024*1024; //1M
 	auto gz = gzopen(filename.c_str(), "rb");
@@ -1124,7 +1099,7 @@ ptr<NDArray> readNDArray(std::string filename)
 	}
 	
 	if(filename.substr(filename.size()-4, 4) == ".nii") {
-        if((out = readNiftiArray(gz, verbose, true))) {
+        if((out = readNiftiImage(gz, verbose, true))) {
             gzclose(gz);
             return out;
         }
@@ -1132,38 +1107,10 @@ ptr<NDArray> readNDArray(std::string filename)
         //////////////////////////
         // Read JSON data
         //////////////////////////
-        JSONOut json = readJSON(fgz);
-
-        ndim = size.size();
-
-        // create MRImage from JSON data
-        if(ndim == 0) {
-            cerr << "No \"size\" tag found!" << endl; 
-            return NULL;
+        if((out = readJSONImage(gz, verbose, true))) {
+            gzclose(gz);
+            return out;
         }
-        if(json.type == UNKNOWN_TYPE) {
-            cerr << "No type, or unknown type specified!" << endl; 
-            return NULL;
-        }
-
-        auto out = dPtrCast<MRImage>(createNDArray(size.size(), 
-                    size.data(), json.type));
-
-        // copy values
-        if(json.values.size() > 0) {
-            if(json.values.size() != out->elements()) {
-                cerr << "Incorrect number of values (" << json.values.size() 
-                    << " vs " << ndim << ") given" << endl;
-                return NULL;
-            }
-
-            size_t ii=0;
-            for(NDIter<float> it(out); !it.eof(); ++it, ++ii) 
-                it.set(json.values[ii]);
-        }
-
-        gzclose(gz);
-        return out;
 	} else {
 		std::cerr << "Unknown filetype: " << filename.substr(filename.rfind('.'))
 			<< std::endl;

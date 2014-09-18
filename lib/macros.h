@@ -26,8 +26,8 @@
 #define INVALID_ARGUMENT(EXP) \
 std::invalid_argument(__PRETTY_FUNCTION__+std::string(" -> ")+std::string(EXP))
 
-#define SYSTEM_ERROR(EXP) \
-std::system_error(__PRETTY_FUNCTION__+std::string(" -> ")+std::string(EXP))
+#define RUNTIME_ERROR(EXP) \
+std::runtime_error(__PRETTY_FUNCTION__+std::string(" -> ")+std::string(EXP))
 
 #ifdef VERYDEBUG
 #define DBG3(EXP) EXP

@@ -24,13 +24,11 @@
 #include <stdexcept>
 
 #include "mrimage.h"
-#include "mrimage_utils.h"
-#include "kernel_slicer.h"
-#include "kdtree.h"
+#include "nplio.h"
 #include "iterators.h"
-#include "accessors.h"
 
 using namespace npl;
+using namespace std;
 
 int main(int argc, char** argv)
 {

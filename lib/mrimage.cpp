@@ -289,6 +289,151 @@ ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type,
 }
 
 /**
+ * @brief Writes out information about an MRImage
+ *
+ * @param out Output ostream
+ * @param img Image to write information about
+ *
+ * @return More ostream
+ */
+std::ostream& operator<<(std::ostream &out, const MRImage& img)
+{
+	out << "---------------------------" << endl;
+	out << img.ndim() << "D Image" << endl;
+    out << "Size: [";
+	for(int64_t ii=0; ii<(int64_t)img.ndim(); ii++) {
+        if(ii) out << ", ";
+		out << img.dim(ii);
+	}
+    out << "]\n";
+    out << "Frequency Encode Dimension: " << img.m_freqdim << endl;
+    out << "Phase Encode Dimension: " << img.m_phasedim << endl;
+    out << "Slice Encode Dimension: " << img.m_slicedim << endl;
+
+	out << "Direction: " << endl;
+	for(size_t ii=0; ii<img.ndim(); ii++) {
+		out << "[ ";
+		for(size_t jj=0; jj<img.ndim(); jj++) {
+            if(jj) out << ",";
+			out << std::setw(4) << std::setprecision(3) << img.direction(ii,jj);
+		}
+		out << "] " << endl;
+	}
+	
+	out << "Spacing: [";
+	for(size_t ii=0; ii<img.ndim(); ii++) {
+        if(ii) out << ", ";
+		out << std::setw(4) << std::setprecision(3)
+			<< img.spacing(ii);
+	}
+	out << "]\n";
+
+	out << "Origin: [";
+	for(size_t ii=0; ii<img.ndim(); ii++) {
+        if(ii) out << ", ";
+		out << std::setw(4) << std::setprecision(3)
+			<< img.origin(ii);
+	}
+	out << "]\n"; 
+
+    out << "Type: ";
+	switch(img.type()) {
+		case UNKNOWN_TYPE:
+		case UINT8:
+			out << "UINT8" << endl;
+			break;
+		case INT16:
+			out << "INT16" << endl;
+			break;
+		case INT32:
+			out << "INT32" << endl;
+			break;
+		case FLOAT32:
+			out << "FLOAT32" << endl;
+			break;
+		case COMPLEX64:
+			out << "COMPLEX64" << endl;
+			break;
+		case FLOAT64:
+			out << "FLOAT64" << endl;
+			break;
+		case RGB24:
+			out << "RGB24" << endl;
+			break;
+		case INT8:
+			out << "INT8" << endl;
+			break;
+		case UINT16:
+			out << "UINT16" << endl;
+			break;
+		case UINT32:
+			out << "UINT32" << endl;
+			break;
+		case INT64:
+			out << "INT64" << endl;
+			break;
+		case UINT64:
+			out << "UINT64" << endl;
+			break;
+		case FLOAT128:
+			out << "FLOAT128" << endl;
+			break;
+		case COMPLEX128:
+			out << "COMPLEX128" << endl;
+			break;
+		case COMPLEX256:
+			out << "COMPLEX256" << endl;
+			break;
+		case RGBA32:
+			out << "RGBA32" << endl;
+			break;
+		default:
+			out << "UNKNOWN" << endl;
+			break;
+	}
+
+	out << "Slice Duration: " << img.m_slice_duration << endl;
+	out << "Slice Start: " << img.m_slice_start << endl;
+	out << "Slice End: " << img.m_slice_end << endl;
+	switch(img.m_slice_order) {
+		case SEQ:
+			out << "Slice Order: Increasing Sequential" << endl;
+			break;
+		case RSEQ:
+			out << "Slice Order: Decreasing Sequential" << endl;
+			break;
+		case ALT:
+			out << "Slice Order: Increasing Alternating" << endl;
+			break;
+		case RALT:
+			out << "Slice Order: Decreasing Alternating" << endl;
+			break;
+		case ALT_SHFT:
+			out << "Slice Order: Alternating Starting at "
+				<< img.m_slice_start+1 << " (not "
+				<< img.m_slice_start << ")" << endl;
+			break;
+		case RALT_SHFT:
+			out << "Slice Order: Decreasing Alternating Starting at "
+				<< img.m_slice_end-1 << " not ( " << img.m_slice_end << endl;
+			break;
+		case UNKNOWN_SLICE:
+		default:
+			out << "Slice Order: Not Set" << endl;
+			break;
+	}
+	out << "Slice Timing: " << endl;
+	for(auto it=img.m_slice_timing.begin(); it != img.m_slice_timing.end(); ++it) {
+		out << std::setw(10) << it->first << std::setw(10) << std::setprecision(3)
+			<< it->second << ",";
+	}
+	out << endl;
+	out << "---------------------------" << endl;
+	return out;
+}
+
+
+/**
  * @brief Sets slice timing from duration, start, and end order variables.
  *
  * @param duration Duration of data collection for each slice (same unit as TR)

@@ -396,7 +396,7 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 			}
 		}
     } else if(nogz.substr(nogz.size()-5, 5) == ".json") {
-        writeJSONImage(gz);
+        writeJSON(gz);
 	} else {
 		std::cerr << "Unknown filetype: " << nogz.substr(nogz.rfind('.'))
 			<< std::endl;
@@ -409,7 +409,7 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 }
 
 template <size_t D, typename T>
-int MRImageStore<D,T>::writeJSONImage(gzFile file) const
+int MRImageStore<D,T>::writeJSON(gzFile file) const
 {
     ostringstream oss;
     oss << "{\n\"version\" : \"" << __version__<< "\",\n\"comment\" : \"supported "
@@ -729,64 +729,6 @@ int MRImageStore<D,T>::writeNifti2Header(gzFile file) const
 	
 	return 0;
 }
-//
-//template<>
-//int MRImage::writePixels<cfloat_t>(gzFile file) const
-//{
-//	// x is the fastest in nifti, for us it is the slowest
-//	list<size_t> order;
-//	for(size_t ii=0 ; ii<order.size(); ii++)
-//		order.push_back(ii);
-//
-//	cdouble_t tmp;
-//	for(auto it = cbegin_cdbl(order); !it.isEnd(); ++it) {
-//		double re = it.get().real();
-//		double im = it.get().imag();
-//		gzwrite(file, &re, sizeof(double));
-//		gzwrite(file, &im, sizeof(double));
-//	}
-//	return 0;
-//}
-//
-//template<>
-//int MRImage::writePixels<cdouble_t>(gzFile file) const
-//{
-//	// x is the fastest in nifti, for us it is the slowest
-//	list<size_t> order;
-//	for(size_t ii=0 ; ii<order.size(); ii++)
-//		order.push_back(ii);
-//
-//	cdouble_t tmp;
-//	for(auto it = cbegin_cdbl(order); !it.isEnd(); ++it) {
-//		float re = it.get().real();
-//		float im = it.get().imag();
-//		gzwrite(file, &re, sizeof(float));
-//		gzwrite(file, &im, sizeof(float));
-//	}
-//	return 0;
-//}
-//
-//template <>
-//int MRImage::writePixels<rgba_t>(gzFile file) const
-//{
-//
-//	// x is the fastest in nifti, for us it is the slowest
-//	list<size_t> order;
-//	for(size_t ii=0 ; ii<order.size(); ii++)
-//		order.push_back(ii);
-//
-//	for(auto it = cbegin_rgba(order); !it.isEnd(); ++it) {
-//		char r = it.get().red;
-//		char g = it.get().green;
-//		char b = it.get().blue;
-//		char a = it.get().alpha;
-//		gzwrite(file, &r, sizeof(char));
-//		gzwrite(file, &g, sizeof(char));
-//		gzwrite(file, &b, sizeof(char));
-//		gzwrite(file, &a, sizeof(char));
-//	}
-//	return 0;
-//}
 
 template <size_t D, typename T>
 int MRImageStore<D,T>::writePixels(gzFile file) const
@@ -802,7 +744,6 @@ int MRImageStore<D,T>::writePixels(gzFile file) const
 		gzwrite(file, &this->_m_data[*it], sizeof(T));
 	}
 	return 0;
-
 }
 
 template <size_t D, typename T>
