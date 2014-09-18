@@ -379,7 +379,9 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 		return -1;
 	}
 
+#if ZLIB_VERNUM >= 0x1280
 	gzbuffer(gz, BSIZE);
+#endif
 
 	if(nogz.substr(nogz.size()-4, 4) == ".nii") {
 		if(version >= 2) {

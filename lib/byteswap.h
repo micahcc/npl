@@ -20,6 +20,7 @@
 #ifndef BYTESWAP_H
 #define BYTESWAP_H
 
+#include <stdexcept>
 #include "npltypes.h"
 
 namespace npl {
@@ -41,9 +42,28 @@ void swap(T* val)
 	*val = tmp.iv;
 }
 
+template <>
+void swap<signed char>(signed char* val)
+{
+	(void)val;
+}
+
+
+template <>
+void swap<char>(char* val)
+{
+	(void)val;
+}
+
+template <>
+void swap<uint8_t>(uint8_t* val)
+{
+	(void)val;
+}
+
 // swap the real and imaginary parts individualy
 template <>
-void swap(cquad_t* val)
+void swap<cquad_t>(cquad_t* val)
 {
 	Bytes<long double> real;
 	Bytes<long double> imag;
@@ -62,7 +82,7 @@ void swap(cquad_t* val)
 
 // swap the real and imaginary parts individualy
 template <>
-void swap(cdouble_t* val)
+void swap<cdouble_t>(cdouble_t* val)
 {
 	Bytes<double> real;
 	Bytes<double> imag;
@@ -81,7 +101,7 @@ void swap(cdouble_t* val)
 
 // swap the real and imaginary parts individualy
 template <>
-void swap(cfloat_t* val)
+void swap<cfloat_t>(cfloat_t* val)
 {
 	Bytes<float> real;
 	Bytes<float> imag;
@@ -100,15 +120,15 @@ void swap(cfloat_t* val)
 
 // do no byte swapping
 template <>
-void swap(rgba_t* val)
+void swap<rgba_t>(rgba_t* val)
 {
-	(void)(val);
+	(void)val;
 }
 
 template <>
-void swap(rgb_t* val)
+void swap<rgb_t>(rgb_t* val)
 {
-	(void)(val);
+	(void)val;
 }
 
 } // npl
