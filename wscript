@@ -53,7 +53,6 @@ def configure(conf):
         conf.env.CXXFLAGS.extend(['-O3', '-march=native'])
     
     conf.check(header_name='stdio.h', features='cxx cxxprogram', mandatory=True)
-
         
     ############################### 
     # Library Configuration

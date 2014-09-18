@@ -1454,15 +1454,19 @@ shared_ptr<MRImage> readJSONImage(gzFile file)
                     endl;
                 return NULL;
             }
+        } else if(key == "version" || key == "comment") {
+            string value;
+            ret = readstring(file, value);
         } else {
-            cerr << "Ignoring unknown key:" << key << endl;
+            cerr << "Error, Unknown key:" << key << endl;
+            return NULL;
         }
 
         // should find a comma or closing brace
         oss.str("");
         ret = read(file, oss, true, 
                 [](char c){return c==',' || c=='}';},
-                [](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
+                [](char c){return isspace(c);},
                 [](char c){(void)c; return false;});
 
         if(ret != 0) {
