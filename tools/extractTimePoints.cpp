@@ -33,6 +33,9 @@
 #include <tclap/CmdLine.h>
 
 #include "version.h"
+#include "mrimage.h"
+#include "mrimage_utils.h"
+#include "iterators.h"
 
 using namespace npl;
 using namespace std;
@@ -66,7 +69,7 @@ ptr<MRImage> copyHelp(ptr<MRImage> in, string re_str, const vector<string>& look
         size_t time_out = 0;
         for(size_t time_in=0; time_in<lookup.size(); time_in++) {
             // copy lines conditionally
-            if(regex_match(lookup[ii], re)) 
+            if(regex_match(lookup[time_in], re)) 
                 oit.set(time_out++, iit[time_in]);
         }
     }
@@ -94,8 +97,8 @@ int main(int argc, char* argv[])
 			"Lookup file. There should be 1 value (whitespace separated) for "
             "each volume.", true,"","*.txt", cmd);
 	
-	TCLAP::MultiArg<std::string> a_regex("r","regex", "Regular expression to "
-            "match values in the lookup file.", true,".*", cmd);
+	TCLAP::ValueArg<std::string> a_regex("r","regex", "Regular expression to "
+            "match values in the lookup file.", true, ".*", "regex", cmd);
 
 	// parse arguments
 	cmd.parse(argc, argv);
@@ -106,10 +109,10 @@ int main(int argc, char* argv[])
     vector<string> lookup;
     ifstream ifs(a_lookup.getValue());
     string v;
-    v << ifs;
+    ifs >> v;
     while(ifs.good()) {
         lookup.push_back(v);
-        v << ifs;
+        ifs >> v;
     }
 
     // perform
@@ -169,11 +172,12 @@ int main(int argc, char* argv[])
             copyHelp<rgba_t>(img, a_regex.getValue(), lookup);
             break;
         default:
-            return NULL;
+            return -1;
     }
 
 	// done, catch all argument errors
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
+    return 0;
 }
 
