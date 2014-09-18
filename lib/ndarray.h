@@ -146,7 +146,7 @@ std::string pixelTtoString(PixelT type);
  *
  * @return PixelType described by string.
  */
-PixelT stringToPixelT(PixelT type);
+PixelT stringToPixelT(std::string type);
 
 /** @} NDArrayUtilities */
 

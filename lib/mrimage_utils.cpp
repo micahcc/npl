@@ -477,13 +477,30 @@ ptr<MRImage> readMRImage(std::string filename, bool verbose)
 	gzbuffer(gz, BSIZE);
 	
 	ptr<MRImage> out;
-
-	if((out = readNiftiImage(gz, verbose))) {
+	
+    // remove .gz to find the "real" format,
+	if(filename.substr(filename.size()-3, 3) == ".gz") {
+		filename = filename.substr(0, filename.size()-3);
+	}
+	
+	if(filename.substr(filename.size()-4, 4) == ".nii") {
+        if((out = readNiftiImage(gz, verbose))) {
+            gzclose(gz);
+            return out;
+        }
+    } else if(filename.substr(filename.size()-5, 5) == ".json") {
+        if((out = readJSONImage(gz))) {
+            gzclose(gz);
+            return out;
+        }
+	} else {
+		std::cerr << "Unknown filetype: " << filename.substr(filename.rfind('.'))
+			<< std::endl;
 		gzclose(gz);
-		return out;
+        throw std::ios_base::failure("Error reading " + filename );
 	}
 
-	throw std::ios_base::failure("Error reading " + filename );
+    throw std::ios_base::failure("Error reading " + filename );
 	return NULL;
 }
 

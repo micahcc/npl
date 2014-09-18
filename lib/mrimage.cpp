@@ -757,12 +757,6 @@ int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap,
 	return 0;
 }
 
-ptr<MRImage> readJSONImage(gzFile file)
-{
-
-
-}
-
 /**
  * @brief Reads a nifti image, given an already open gzFile.
  *
@@ -1166,6 +1160,386 @@ int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap,
 	
 	return 0;
 }
+
+/****************************************************************************
+ * Read JSON Image and helper functions
+ ****************************************************************************/
+
+/**
+ * @brief Runs until stop character is found, end of file, error, or
+ * if a character does return true from stop/ignore/keep.
+ *
+ * @param file Input file
+ * @param oss stream to write to
+ * @param keeplast whether to keep the character that returns true for stop
+ * @param stop stops if this returns true
+ * @param ignore neither fails nor writes to oss if this returns true
+ * @param keep writes character to oss if this returns true
+ *
+ * @return -2: error, -1 unexpected character, 1: eof, 0: OK
+ */
+int read(gzFile file, stringstream& oss, bool keeplast,
+        std::function<bool(char)> stop,
+        std::function<bool(char)> ignore,
+        std::function<bool(char)> keep)
+{
+    int c;
+    while((c = gzgetc(file)) >= 0) {
+        if(stop(c)) {
+            if(keeplast)
+                oss << (char)c;
+            return 0;
+        } else if(ignore(c)) {
+            continue;
+        } else if(keep(c)) {
+            oss << (char)c;
+        } else {
+            return -1;
+        }
+    }
+
+    if(gzeof(file))
+        return 1;
+    else
+        return -2;
+}
+
+/**
+ * @brief Reads a string from a json file
+ *
+ * @param file
+ * @param out
+ *
+ * @return 
+ */
+int readstring(gzFile file, std::string& out)
+{
+    // read key, find "
+    stringstream oss;
+    int ret = read(file, oss, false, 
+            [&](char c){return c=='"';},
+            [&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
+            [&](char c){(void)c; return false;});
+
+    if(ret != 0) {
+        return -1;
+    }
+
+    assert(oss.str() == "");
+    // find closing "
+    bool backslash = false;
+    ret = read(file, oss, false, 
+            [&](char c){return !backslash && c=='"';},
+            [&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
+            [&](char c){backslash = (c=='\\'); return true;});
+
+    if(ret != 0) {
+        return -1;
+    }
+
+    out = oss.str();
+
+    return 0;
+}
+
+/**
+ * @brief Reads a "blah" : OR } 
+ *
+ * @param file File to read from
+ * @param key either a key or ""
+ *
+ * @return 0 if key found, -1 if error occurred
+ */
+int readKey(gzFile file, string& key)
+{
+    // read key, find "
+    stringstream oss;
+    int ret = read(file, oss, false, 
+            [&](char c){return c=='"';},
+            [&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
+            [&](char c){(void)c; return false;});
+
+    if(ret != 0) {
+        return -1;
+    }
+
+    // find closing "
+    bool backslash = false;
+    ret = read(file, oss, false, 
+            [&](char c){return !backslash && c=='"';},
+            [&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
+            [&](char c){backslash = (c=='\\'); return true;});
+
+    if(ret != 0) {
+        return -1;
+    }
+    key = oss.str();
+        
+    // find colon
+    ret = read(file, oss, false, 
+            [&](char c){return c==':';},
+            [&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
+            [&](char c){(void)c; return false;});
+    if(ret != 0) {
+        cerr << "Could not find : for key: " << oss.str() << endl;
+        return -1;
+    }
+
+    return 0;
+}
+
+bool isspace(char c)
+{
+    return (c==' '||c=='\r'||c=='\n'||c=='\v'||c=='\f'||c=='\t');
+}
+
+bool isnumeric(char c)
+{
+    return isdigit(c) || c=='.' || c=='-' || c=='e' || c=='E' || c==',';
+}
+
+/**
+ * @brief Reads an array of numbers from a json file
+ *
+ * @tparam T
+ * @param file
+ * @param oarray
+ *
+ * @return 
+ */
+template <typename T>
+int readNumArray(gzFile file, vector<T>& oarray)
+{
+    stringstream ss;
+    // find [
+    int ret = read(file, ss, false, 
+            [&](char c){return c=='[';},
+            [&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
+            [&](char c){(void)c; return false;});
+
+    if(ret != 0) {
+        return -1;
+    }
+
+    // iterate through and try to find the end bracket that matches the
+    // initial. We also ignore any middle [] and save all the spaces/numbers
+    assert(ss.str() == "");
+    int stack = 1;
+    // find closing ]
+    ret = read(file, ss, false, 
+            [&](char c)
+            {
+                stack += (c=='['); 
+                stack -= (c==']'); 
+                return stack==0;
+            }, 
+            [](char c){return c=='[' || c==']';},
+            [](char c){return isnumeric(c) || isspace(c);});
+
+    if(ret != 0) 
+        return -1;
+
+#ifdef DEBUG
+    cerr << "Array String:\n" << ss.str() << endl;
+#endif 
+
+    // now that we have the character, break them up
+    string token;
+    istringstream iss;
+    T val;
+    while(ss.good()) {
+        std::getline(ss, token, ',');
+        iss.clear();
+        iss.str(token);
+        iss >> val;
+
+        if(iss.bad()) {
+            cerr << "Invalid type foudn in string before: "<< ss.str() <<endl;
+            return -1;
+        }
+        oarray.push_back(val);       
+    }
+
+    if(ss.bad()) {
+        cerr << "Array ending not found!" << endl;
+        return -1;
+    }
+    return 0;
+}
+
+
+/**
+ * @brief Reads a JSON image from a gzip file
+ *
+ * @param file Input file to read from
+ *
+ * @return NULL if there is an error, otherwise the image.
+ */
+shared_ptr<MRImage> readJSONImage(gzFile file) 
+{
+    // read to opening brace
+    stringstream oss;
+    int ret = read(file, oss, false, 
+            [](char c){return c=='{';},
+            [](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
+            [](char c){(void)c; return false;});
+
+    if(ret != 0) {
+        cerr << "Expected Opening { but did not find one" << endl;
+    }
+
+    PixelT type = UNKNOWN_TYPE;
+    vector<double> values;
+    vector<double> spacing;
+    vector<double> origin;
+    vector<double> direction;
+    vector<size_t> size;
+
+    while(true) {
+        string key;
+        ret = readKey(file, key);
+
+        if(ret < 0) {
+            cerr << "Looking for key, but couldn't find one!" << endl;
+            return NULL;
+        }
+
+        cerr << "Found key:" << key << endl;
+        if(key == "type") {
+            // read a string
+            string value;
+            ret = readstring(file, value);
+            if(ret != 0) {
+                cerr << "Expected string for key: " << key << 
+                    " but could not parse" << endl;
+                return NULL;
+            }
+
+            type = stringToPixelT(value);
+            if(type == UNKNOWN_TYPE)
+                return NULL;
+
+        } else if(key == "size") { 
+            ret = readNumArray<size_t>(file, size);
+            if(ret != 0)  {
+                cerr << "Expected array of non-negative integers for size!" <<
+                    endl;
+                return NULL;
+            }
+        } else if(key == "values") {
+            ret = readNumArray(file, values);
+            if(ret != 0)  {
+                cerr << "Expected array of floats for values!" <<
+                    endl;
+                return NULL;
+            }
+        } else if(key == "spacing") {
+            ret = readNumArray(file, spacing);
+            if(ret != 0)  {
+                cerr << "Expected array of floats for spacing!" <<
+                    endl;
+                return NULL;
+            }
+        } else if(key == "direction") {
+            ret = readNumArray(file, direction);
+            if(ret != 0)  {
+                cerr << "Expected array of floats for direction!" <<
+                    endl;
+                return NULL;
+            }
+        } else if(key == "origin") {
+            ret = readNumArray(file, origin);
+            if(ret != 0)  {
+                cerr << "Expected array of floats for origin!" <<
+                    endl;
+                return NULL;
+            }
+        } else {
+            cerr << "Ignoring unknown key:" << key << endl;
+        }
+
+        // should find a comma or closing brace
+        oss.str("");
+        ret = read(file, oss, true, 
+                [](char c){return c==',' || c=='}';},
+                [](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
+                [](char c){(void)c; return false;});
+
+        if(ret != 0) {
+            cerr << "After a Key:Value Pair there should be either a } or ," 
+                << endl;
+            return NULL;
+        }
+        if(oss.str()[0] == '}')
+            break;
+    }
+
+    size_t ndim = size.size();
+    if(ndim == 0) {
+        cerr << "No \"size\" tag found!" << endl; 
+        return NULL;
+    }
+    if(type == UNKNOWN_TYPE) {
+        cerr << "No type, or unknown type specified!" << endl; 
+        return NULL;
+    }
+
+    auto out = dPtrCast<MRImage>(createMRImage(size.size(), 
+                size.data(), type));
+
+    // copy values
+    if(values.size() > 0) {
+        if(values.size() != out->elements()) {
+            cerr << "Incorrect number of values (" << values.size() 
+                << " vs " << ndim << ") given" << endl;
+            return NULL;
+        }
+
+        size_t ii=0;
+        for(NDIter<float> it(out); !it.eof(); ++it, ++ii) 
+            it.set(values[ii]);
+    }
+
+    // copy spacing
+    if(spacing.size() > 0) {
+        if(spacing.size() != ndim) {
+            cerr << "Incorrect number of spacing values (" << spacing.size() 
+                << " vs " << ndim << ") given" << endl;
+            return NULL;
+        }
+        for(size_t ii=0; ii<ndim; ii++)
+            out->spacing(ii) = spacing[ii];
+    }
+
+    // copy origin  
+    if(origin.size() > 0) {
+        if(origin.size() != ndim) {
+            cerr << "Incorrect number of origin values (" << origin.size() 
+                << " vs " << ndim << ") given" << endl;
+            return NULL;
+        }
+        for(size_t ii=0; ii<ndim; ii++)
+            out->origin(ii) = origin[ii];
+    }
+
+    // copy direction
+    if(direction.size() > 0) {
+        if(direction.size() != ndim*ndim) {
+            cerr << "Incorrect number of origin values (" << direction.size() 
+                << " vs " << ndim << ") given" << endl;
+            return NULL;
+        }
+        for(size_t ii=0; ii<ndim; ii++) {
+            for(size_t jj=0; jj<ndim; jj++) {
+                out->direction(ii,jj) = direction[ii*ndim+jj];
+            }
+        }
+    }
+
+	return out;
+}
+
+
 
 /****************************************************************************
  * MRImage (Base Class) Function Implementations

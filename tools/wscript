@@ -12,18 +12,20 @@ def build(bld):
     bld.program(target = 'copyOrientation', 
             source = 'copyOrientation.cpp', 
             use = 'mrimage_utils tclap')
+
     bld.program(target = 'nplGLM', 
             install_path='${PREFIX}/tools_incomplete', 
             source = 'generalLinearModel.cpp', 
-            use = 'mrimage_utils EIGEN tclap utility basic_plot')
+            use = 'mrimage_utils statistics EIGEN tclap utility basic_plot')
+
     bld.program(target = 'nplICA',
             install_path='${PREFIX}/tools_incomplete', 
             source = 'fmri_ica.cpp',
             use = 'mrimage_utils statistics tclap');
     bld.program(target = 'niiHeader', 
             source = 'niiHeader.cpp', use = 'mrimage mrimage_utils')
-    bld.program(target = 'nplTxtToNifti', 
-            source = 'txtToNifti.cpp', use = 'mrimage mrimage_utils')
+    bld.program(target = 'nplReWrite', 
+            source = 'touch.cpp', use = 'tclap mrimage mrimage_utils')
     bld.program(target = 'nplRemoveRegressors', 
             source = 'remove_regressors.cpp', 
             use = 'tclap mrimage mrimage_utils statistics')

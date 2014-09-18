@@ -23,6 +23,7 @@
 #include <stdexcept>
 
 #include <Eigen/Dense>
+#include "statistics.h"
 #include "mrimage.h"
 #include "mrimage_utils.h"
 #include "kernel_slicer.h"
@@ -78,7 +79,7 @@ int main(int argc, char** argv)
 		auto v = getRegressor(events, TR, tlen, 0);
 
 		// draw
-		writePlot(odir.getValue()+"/ev1.svg", v);
+		writePlot(a_odir.getValue()+"/ev1.svg", v);
 
 		// copy to output
 		for(size_t ii=0; ii<tlen; ii++) 
@@ -107,7 +108,7 @@ int main(int argc, char** argv)
 
     const double MAX_T = 100;
     const double STEP_T = 0.1;
-    auto student_cdf = students_t_cdf(out.dof, STEP_T, MAX_T);
+    auto student_cdf = students_t_cdf(X.rows()-1, STEP_T, MAX_T);
 
     // regress each timesereies
     ChunkIter<double> it(fmri);
@@ -125,8 +126,8 @@ int main(int argc, char** argv)
         auto t_it = tAccs.begin();
         auto p_it = pAccs.begin();
         for(size_t ii=0; ii<X.cols(); ii++) {
-            (*t_it).set(ret.t, 3, ind.data());
-            (*p_it).set(ret.p, 3, ind.data());
+            (*t_it).set(ret.t[ii], ind);
+            (*p_it).set(ret.p[ii], ind);
             ++t_it;
             ++p_it;
         }
@@ -135,8 +136,8 @@ int main(int argc, char** argv)
     auto t_it = tImgs.begin();
     auto p_it = pImgs.begin();
     for(size_t ii=0; ii<X.cols(); ii++) {
-        (t_it)->write(a_odir.getValue()+"/t_"+to_string(ii)+".nii.gz");
-        (p_it)->write(a_odir.getValue()+"/p_"+to_string(ii)+".nii.gz");
+        (*t_it)->write(a_odir.getValue()+"/t_"+to_string(ii)+".nii.gz");
+        (*p_it)->write(a_odir.getValue()+"/p_"+to_string(ii)+".nii.gz");
     }
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions

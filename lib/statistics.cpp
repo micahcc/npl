@@ -295,11 +295,13 @@ const double STEP_T = 0.1;
  * @param X independent variables
  * @param covInv Inverse of covariance matrix, to compute us pseudoinverse(X^TX)
  * @param Xinv Pseudo inverse of X. Compute with pseudoInverse(X)
+ * @param student_cdf Pre-computed students' T distribution. Example:
+ * auto v = students_t_cdf(X.rows()-1, .1, 1000);
  *
  * @return Struct with Regression Results. 
  */
 RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
-        const MatrixXd& Xinv, std::vector<double> student_cdf)
+        const MatrixXd& Xinv, std::vector<double>& student_cdf)
 {
     if(y.rows() != X.rows()) 
         throw INVALID_ARGUMENT("y and X matrices row mismatch");

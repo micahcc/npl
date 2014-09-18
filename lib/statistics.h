@@ -155,11 +155,13 @@ struct RegrResult
  * @param X independent variables
  * @param covInv Inverse of covariance matrix, to compute us pseudoinverse(X^TX)
  * @param Xinv Pseudo inverse of X. Compute with pseudoInverse(X)
+ * @param student_cdf Pre-computed students' T distribution. Example:
+ * auto v = students_t_cdf(X.rows()-1, .1, 1000);
  *
  * @return Struct with Regression Results. 
  */
 RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
-        const MatrixXd& Xinv);
+        const MatrixXd& Xinv, std::vector<double>& student_cdf);
 
 /**
  * @brief Computes the Ordinary Least Square predictors, beta for 
@@ -184,6 +186,17 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X);
  * @return Psueodinverse 
  */
 MatrixXd pseudoInverse(const MatrixXd& X);
+
+/**
+ * @brief Computes cdf at a particular number of degrees of freedom. 
+ * Note, this only computes +t values, for negative values invert then use.
+ *
+ * @param nu
+ * @param x
+ *
+ * @return 
+ */
+std::vector<double> students_t_cdf(double nu, double dt, double maxt);
 
 /** @} */
 

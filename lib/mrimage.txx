@@ -24,6 +24,7 @@
 #include "nifti.h"
 #include "slicer.h"
 #include "macros.h"
+#include "ndarray.h"
 
 namespace npl {
 
@@ -393,7 +394,7 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 				return -1;
 			}
 		}
-    } else if(nogz.substr(nogz.size()-4, 4) == ".json") {
+    } else if(nogz.substr(nogz.size()-5, 5) == ".json") {
         writeJSONImage(gz);
 	} else {
 		std::cerr << "Unknown filetype: " << nogz.substr(nogz.rfind('.'))
@@ -406,355 +407,6 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 	return 0;
 }
 
-char readChar(gzFile file, size_t& linecount, size_t& linepos)
-{
-    while((c = gzgetc(file)) != expect) {
-        if(c == -1) {
-            return -1;
-        } else if(c == ' ' || c == '\t' || c == '\r') {
-            linepos++;
-            continue;
-        } else if(c == '\n') {
-            linecount++;
-            linepos = 0;
-        } else {
-            return c;
-        }
-    }
-}
-
-int readChar(gzFile file, char expect, size_t& linecount, size_t& linepos)
-{
-    int c;
-    while((c = gzgetc(file)) != expect) {
-        if(c == -1)  {
-            return -1;
-        } else if(c == ' ' || c == '\t' || c == '\r') {
-            linepos++;
-            continue;
-        } else if(c == '\n') {
-            linecount++;
-            linepos = 0;
-        } else if(c != expect) {
-            cerr << "Expected: " << expect << ", got: " << c << " on line " <<
-                linecount << " at " << linepos << endl;
-            return -1;
-        } else  {
-            return c;
-        }
-    }
-}
-
-int readKey(gzFile file, string key, size_t& linecount, size_t& linepos)
-{
-    int c;
-    // read until we hit ""
-    while((c = gzgetc(file)) != '"') {
-        if(c == -1)
-            return -1;
-    }
-
-    std::list<char> 
-
-    while((c = gzgetc(file)) != '"') {
-        if(c == -1)
-            return -1;
-    }
-
-        if(c == -1)  {
-            return -1;
-        } else if(c == ' ' || c == '\t' || c == '\r') {
-            linepos++;
-            continue;
-        } else if(c == '\n') {
-            linecount++;
-            linepos = 0;
-        } else if(c != expect) {
-            cerr << "Expected: " << expect << ", got: " << c << " on line " <<
-                linecount << " at " << linepos << endl;
-            return -1;
-        } else  {
-            return c;
-        }
-    }
-}
-
-/**
- * @brief Just reads a string : so , "hello" : 
- *
- * @param iss
- * @param key
- *
- * @return 
- */
-int readKey(istream& iss, string& key)
-{
-    char c;
-    iss << c;
-    if(c != '"') {
-        cerr << "Looking for \", but found " << c << endl;
-        return -1;
-    }
-
-    istringstream word;
-    iss.get(word, '"');
-    word >> key;
-    cerr << "key found: " << key;
-
-    iss >> c;
-    if(c != ':') {
-        cerr << "Looking for :, but found " << c << endl;
-        return -1;
-    }
-
-    return 0;
-};
-
-/**
- * @brief just reads a string must be " blah "
- *
- * @param iss
- * @param key
- *
- * @return 
- */
-template <typename T>
-int readArray(istream& iss, std::vector<T>& arr)
-{
-    char c;
-    iss << c;
-    if(c != '[') {
-        cerr << "Looking for \", but found " << c << endl;
-        return -1;
-    }
-
-    istringstream word;
-    iss.get(word, ']');
-    word >> key;
-    cerr << "string found: " << key << endl;
-
-    // convert to array
-    T tmp;
-    word >> tmp;
-    while(!word.eof()) {
-        cerr << "Read: " << tmp << endl;
-        arr.push_back(tmp);
-        word >> tmp;
-    }
-    return 0;
-};
-
-/**
- * @brief just reads a string must be " blah "
- *
- * @param iss
- * @param key
- *
- * @return 
- */
-int readStr(istream& iss, string& key)
-{
-    char c;
-    iss << c;
-    if(c != '"') {
-        cerr << "Looking for \", but found " << c << endl;
-        return -1;
-    }
-
-    istringstream word;
-    iss.get(word, '"');
-    word >> key;
-    cerr << "string found: " << key;
-
-    return 0;
-};
-
-int readStrStr(istream& iss, string& key, string& value)
-{
-    if(readKey(iss, key) < 0)
-        return -1;
-    if(readStr(iss, value) < 0)
-        return -1;
-    return 0;
-}
-
-template <typename T>
-int readStrArray(istream& iss, string& key, vector<T>& arr)
-{
-    if(readKey(iss, key) < 0)
-        return -1;
-    if(readArray(iss, arr) < 0)
-        return -1;
-    return 0;
-}
-
-int readUntil(gzFile file, ostringstream& oss, 
-        bool keepend,
-        std::function<bool(char)> find,
-        std::function<bool(char)> ignore)
-{
-    int c;
-    while((c = gzgetc(file)) > 0) {
-        if(find(c)) {
-            if(keepend)
-                oss << c;
-        } else if(ignore(c)) {
-            continue;
-        } else {
-            return -1;
-        }
-    }
-}
-
-template <size_t D, typename T>
-int MRImageStore<D,T>::readJSONImage(gzFile file) const
-{
-    vector<char> fullfile;
-    char buffer[1024];
-    // read the entire file into a buffer
-    int read = gzread(file, buffer, 1024);
-    do {
-        // resize then copy to fullfile
-        fullfile.resize(fullfile.size()+read);
-        std::copy(buffer, buffer+read, fullfile.data()+fullfile.size()-read);
-    } while((read = gzread(file, buffer, 1024)) > 0)
-
-    // return on errro
-    if(read < 0)
-        return -1;
-
-    // copy data form fullfile
-    fullfile.push_back(0);
-    istringstream iss.str(fullfile.data());
-    istringstream word;
-    fullfile.clear();
-
-    string key;
-    char c ;
-    iss >> c;
-    if(c != '{') {
-        cerr << "Input should start with '{'" << endl;
-        return -1;
-    }
-    
-    while(iss.good() && !iss.eof()) {
-        // read key
-        iss << c;
-        if(c == '}')
-            break;
-
-        if(c != '"') {
-            cerr << "Looking for \", but found " << c << endl;
-            return -1;
-        }
-
-        word.str("");
-        iss.get(word, '"');
-        word >> key;
-        cerr << "key found: " << key;
-
-        iss >> c;
-        if(c != ':') {
-            cerr << "Looking for :, but found " << c << endl;
-            return -1;
-        }
-
-        if(key == "type") {
-            iss >> c;
-            if(c != '"') {
-                cerr << "Looking for \", but found " << c << endl;
-                return -1;
-            }
-            word.str("");
-            iss.get(word, '"');
-            word >> key;
-
-            iss >> c;
-            if(c != ':') {
-                cerr << "Looking for :, but found " << c << endl;
-                return -1;
-            }
-
-
-
-        } else if(key == "size") { 
-
-        } else if(key == "values") {
-
-        } else if(key == "spacing") {
-
-        } else if(key == "direction") {
-
-        } else if(key == "origin") {
-
-        } else {
-            cerr << "Unrecognized key!" << endl;
-            return -2;
-        }
-    }
-
-    }
-    ostringstream oss;
-    oss << "{\n\"type\": " << '"' << pixelTtoString(type()) << "\",\n";
-    oss << "\"size\": [";
-    for(size_t ii=0; ii<D; ii++) {
-        if(ii) oss << ", ";
-        oss << dim(ii)
-    }
-    oss << "],\n";
-
-    oss << "\"spacing\": [";
-    for(size_t ii=0; ii<D; ii++) {
-        if(ii) oss << ", ";
-        oss << spacing(ii);
-    }
-    oss << "],\n";
-
-    oss << "\"origin\": [";
-    for(size_t ii=0; ii<D; ii++) {
-        if(ii) oss << ", ";
-        oss << origin(ii);
-    }
-    oss << "],\n";
-    
-    gzprintf("\"direction\": [");
-    for(size_t ii=0; ii<D; ii++) {
-        if(ii) oss << ", ";
-        oss << "[";
-        for(size_t jj=0; jj<D; jj++) {
-            if(jj) oss << ", ";
-            oss << direction(ii, jj);
-        }
-        oss << "]";
-    }
-    oss << "]";
-    
-    int64_t index[D]; 
-    for(NDConstIter<T> it(getConstPtr()); !it.eof(); ++it) {
-        it.index(D, index);
-        for(int64_t dd=D-1; dd>=0; dd--) {
-            if(index[dd] == 0) {
-                oss << "[";
-            } else {
-                break;
-            }
-        }
-        oss << *it << endl;
-        for(int64_t dd=D-1; dd>=0; dd--) {
-            if(index[dd] == dim(dd)-1) {
-                oss << "]";
-            } else {
-                oss << ", ";
-                break;
-            }
-        }
-    }
-
-    gzwrite(file, oss.str().c_str(), oss.len());
-
-	return ret;
-}
-
 template <size_t D, typename T>
 int MRImageStore<D,T>::writeJSONImage(gzFile file) const
 {
@@ -763,7 +415,7 @@ int MRImageStore<D,T>::writeJSONImage(gzFile file) const
     oss << "\"size\": [";
     for(size_t ii=0; ii<D; ii++) {
         if(ii) oss << ", ";
-        oss << dim(ii)
+        oss << dim(ii);
     }
     oss << "],\n";
 
@@ -781,9 +433,29 @@ int MRImageStore<D,T>::writeJSONImage(gzFile file) const
     }
     oss << "],\n";
     
-    gzprintf("\"direction\": [");
+//    oss << "\"direction\": [";;
+//    for(size_t ii=0; ii<D; ii++) {
+//        for(size_t jj=0; jj<D; jj++) {
+//            if(ii || jj) oss << ", ";
+//            oss << direction(ii, jj);
+//        }
+//    }
+//    oss << "],\n";
+//
+//    bool first = true;
+//    oss << "\"values: \"[";
+//    for(NDConstIter<T> it(getConstPtr()); !it.eof(); ++it) {
+//        if(!first)
+//            oss << " ,";
+//        else
+//            first = false;
+//        oss << *it;
+//    }
+//    oss << "],\n}\n";
+    // nested version
+    oss << "\"direction\":\n[";;
     for(size_t ii=0; ii<D; ii++) {
-        if(ii) oss << ", ";
+        if(ii) oss << ",\n";
         oss << "[";
         for(size_t jj=0; jj<D; jj++) {
             if(jj) oss << ", ";
@@ -791,11 +463,14 @@ int MRImageStore<D,T>::writeJSONImage(gzFile file) const
         }
         oss << "]";
     }
-    oss << "]";
+    oss << "],\n";
     
     int64_t index[D]; 
+    oss << "\"values\" : ";
     for(NDConstIter<T> it(getConstPtr()); !it.eof(); ++it) {
         it.index(D, index);
+        if(index[D-1] == 0)
+            oss << "\n";
         for(int64_t dd=D-1; dd>=0; dd--) {
             if(index[dd] == 0) {
                 oss << "[";
@@ -803,7 +478,7 @@ int MRImageStore<D,T>::writeJSONImage(gzFile file) const
                 break;
             }
         }
-        oss << *it << endl;
+        oss << *it;;
         for(int64_t dd=D-1; dd>=0; dd--) {
             if(index[dd] == dim(dd)-1) {
                 oss << "]";
@@ -813,10 +488,11 @@ int MRImageStore<D,T>::writeJSONImage(gzFile file) const
             }
         }
     }
+    oss << "\n}\n";
 
-    gzwrite(file, oss.str().c_str(), oss.len());
-
-	return ret;
+    if(gzwrite(file, oss.str().c_str(), oss.str().length()) > 0)
+        return 0;
+	return -1;
 }
 
 template <size_t D, typename T>

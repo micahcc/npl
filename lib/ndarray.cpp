@@ -17,6 +17,7 @@
  *
  *****************************************************************************/
 #include <iostream>
+#include <string>
 
 #include "ndarray.h"
 #include "iterators.h"
@@ -26,6 +27,7 @@
 #include "utility.h"
 
 using std::make_shared;
+using std::to_string;
 
 namespace npl {
 
@@ -95,7 +97,7 @@ std::string pixelTtoString(PixelT type)
         break;
 		 default:
             throw std::invalid_argument("Unsupported pixel type: " +
-                    to_string(ptype) + " in\n" + __FUNCTION_STR__);
+                    to_string(type) + " in\n" + __FUNCTION_STR__);
 	}
 };
 
@@ -126,7 +128,7 @@ PixelT stringToPixelT(std::string type)
     else if(type == "RGBA") return RGBA32;
     else {
         throw std::invalid_argument("Unsupported pixel type: " +
-                to_string(ptype) + " in\n" + __FUNCTION_STR__);
+                type + " in\n" + __FUNCTION_STR__);
     }
     return UNKNOWN_TYPE;
 };
