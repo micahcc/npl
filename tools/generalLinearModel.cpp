@@ -31,6 +31,7 @@
 #include "iterators.h"
 #include "accessors.h"
 #include "utility.h"
+#include "nplio.h"
 #include "basic_plot.h"
 
 using std::string;

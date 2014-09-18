@@ -42,31 +42,6 @@ using std::vector;
  */
 
 /**
- * @brief Reads an MRI image. Right now only nift images are supported. later
- * on, it will try to load image using different reader functions until one
- * suceeds.
- *
- * @param filename Name of input file to read
- * @param verbose Whether to print out information as the file is read
- *
- * @return Loaded image
- */
-ptr<MRImage> readMRImage(std::string filename, bool verbose = false);
-
-
-/**
- * @brief Writes out a MRImage to the given file. If specified it will be a
- * nifti version 2 file, rather than version 1.
- *
- * @param img MRImage to write to disk
- * @param fn Filename to write to
- * @param nifti2 whether to write version 2 of the nifti standard
- *
- * @return 0 if successful
- */
-int writeMRImage(MRImage* img, std::string fn, bool nifti2 = false);
-
-/**
  * @brief Writes out information about an MRImage
  *
  * @param out Output ostream

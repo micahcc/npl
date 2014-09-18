@@ -25,6 +25,7 @@
 #include "basic_functions.h"
 #include "mrimage.h"
 #include "mrimage_utils.h"
+#include "nplio.h"
 #include "kernel_slicer.h"
 #include "kdtree.h"
 #include "iterators.h"

@@ -20,7 +20,7 @@
 #include <iostream>
 
 #include "mrimage.h"
-#include "mrimage_utils.h"
+#include "nplio.h"
 #include "accessors.h"
 
 using namespace std;

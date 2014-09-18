@@ -20,7 +20,7 @@
 #include <iostream>
 
 #include "mrimage.h"
-#include "mrimage_utils.h"
+#include "nplio.h"
 
 using namespace std;
 using namespace npl;
@@ -28,7 +28,7 @@ using namespace npl;
 int main()
 {
 	/* Read the Image */
-	shared_ptr<MRImage> img = readMRImage("../../testing/test_nifti2.nii.gz", true);
+	shared_ptr<MRImage> img = readMRImage("../../data/test_nifti2.nii.gz", true);
 	if(!img) {
 		std::cerr << "Failed to open image!" << std::endl;
 		return -1;

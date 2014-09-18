@@ -17,7 +17,7 @@ def build(bld):
             export_includes = ['.'])
     bld.shlib(target = 'ndarray',
             source = 'ndarray.cpp', 
-            use='npltypes ZLIB slicer',
+            use='npltypes slicer ZLIB',
             export_includes = ['.'])
     bld.shlib(target = 'ndarray_utils',
             source = 'ndarray_utils.cpp', 
@@ -29,10 +29,14 @@ def build(bld):
     bld.shlib( target = 'kslicer',
             source = 'kernel_slicer.cpp', 
             export_includes = ['.'])
+    bld.shlib( target = 'nplio', 
+            source = 'nplio.cpp', 
+            export_includes = ['.'],
+            use='ZLIB mrimage ndarray_utils mrimage_utils ndarray') 
     bld.shlib( target = 'mrimage', 
             source = 'mrimage.cpp', 
             export_includes = ['.'],
-            use='ZLIB ndarray slicer') 
+            use='ndarray slicer') 
     bld.shlib( target = 'mrimage_utils', 
             source = 'mrimage_utils.cpp', 
             export_includes = ['.'],

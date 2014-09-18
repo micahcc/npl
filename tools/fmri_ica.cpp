@@ -25,7 +25,7 @@
 #include <Eigen/Dense>
 
 #include "mrimage.h"
-#include "mrimage_utils.h"
+#include "nplio.h"
 #include "iterators.h"
 #include "statistics.h"
 #include "macros.h"

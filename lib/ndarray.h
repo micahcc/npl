@@ -111,24 +111,6 @@ ptr<NDArray> createNDArray(const std::vector<size_t>& dim,
         PixelT ptype, void* ptr, std::function<void(void*)> deleter);
 
 /**
- * @brief Reads an array. Can read nifti's but orientation won't be read.
- *
- * @param filename Name of input file to read
- *
- * @return Loaded image
- */
-ptr<NDArray> readNDArray(std::string filename);
-
-/**
- * @brief Reads a JSON image from a gzip file
- *
- * @param file Input file to read from
- *
- * @return NULL if there is an error, otherwise the image.
- */
-ptr<NDArray> readJSONArray(gzFile file);
-
-/**
  * @brief Copy an roi from one image to another image. ROI's must be the same
  * size. 
  *
@@ -144,6 +126,16 @@ ptr<NDArray> readJSONArray(gzFile file);
 void copyROI(ptr<const NDArray> in, 
         const int64_t* inROIL, const int64_t* inROIU, ptr<NDArray> out,
         const int64_t* oROIL, const int64_t* oROIU, PixelT newtype);
+
+/**
+ * @brief Writes out information about an MRImage
+ *
+ * @param out Output ostream
+ * @param img Image to write information about
+ *
+ * @return More ostream
+ */
+std::ostream& operator<<(std::ostream &out, const NDArray& img);
 
 /**
  * @brief Returns a string that is a descrption of the pixel type.
@@ -308,6 +300,10 @@ public:
      */
     virtual ptr<NDArray> extractCast(size_t len, const size_t* size, 
             PixelT newtype) const = 0;
+    
+    /********************************************
+     * Output Functions
+     *******************************************/
 
     /**
      * @brief Write the image to a nifti file.
@@ -317,7 +313,11 @@ public:
      *
      * @return 0 if successful
      */
-	virtual int write(std::string filename) const = 0;
+	virtual int write(std::string filename, double version = 1) const = 0;
+    
+    /********************************************
+     * Helper Functions
+     *******************************************/
 	
 //	virtual int opself(const NDArray* right, double(*func)(double,double),
 //			bool elevR) = 0;
@@ -472,7 +472,7 @@ public:
      *
      * @return 0 if successful
      */
-	virtual int write(std::string filename) const;
+	virtual int write(std::string filename, double version = 1) const;
 	
 	/**************************************************************************
 	 * Duplication Functions
@@ -653,7 +653,13 @@ public:
 	protected:
 
 	void updateStrides();
-    int writeJSONArray(gzFile file) const;
+
+	int writeNifti1Image(gzFile file) const;
+	int writeNifti2Image(gzFile file) const;
+	int writeNifti1Header(gzFile file) const;
+	int writeNifti2Header(gzFile file) const;
+	int writePixels(gzFile file) const;
+    int writeJSON(gzFile file) const;
 };
 
 

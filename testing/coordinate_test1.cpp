@@ -19,7 +19,7 @@
 
 #include <iostream>
 #include "mrimage.h"
-#include "mrimage_utils.h"
+#include "nplio.h"
 
 using namespace std;
 using namespace npl;
@@ -32,7 +32,7 @@ ostream& operator<<(ostream& os, const std::vector<double>& vec);
 int main()
 {
 	/* Read the Image */
-	shared_ptr<MRImage> img = readMRImage("../../testing/test_nifti1.nii.gz", true);
+	shared_ptr<MRImage> img = readMRImage("../../data/test_nifti1.nii.gz", true);
 	if(!img) {
 		std::cerr << "Failed to open image!" << std::endl;
 		return -1;
