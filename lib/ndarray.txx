@@ -19,6 +19,8 @@
 
 #include "npltypes.h"
 #include "slicer.h"
+#include "version.h"
+
 #include <iostream>
 
 namespace npl {
@@ -354,6 +356,51 @@ int64_t NDArrayStore<D,T>::getLinIndex(int64_t x, int64_t y, int64_t z,
 	out += t;
 	return out;
 };
+
+template <size_t D, typename T>
+int NDArrayStore<D,T>::writeJSONArray(gzFile file) const
+{
+    ostringstream oss;
+    oss << "{\n\"version\" : \"" << __version__<< "\",\n\"comment\" : \"supported "
+        "type variables: uint8, int16, int32, float, cfloat, double, RGB, "
+        "int8, uint16, uint32, int64, uint64, quad, cdouble, cquad, RGBA\",\n";
+    oss << "\"type\": " << '"' << pixelTtoString(type()) << "\",\n";
+    oss << "\"size\": [";
+    for(size_t ii=0; ii<D; ii++) {
+        if(ii) oss << ", ";
+        oss << dim(ii);
+    }
+    oss << "],\n";
+
+    int64_t index[D]; 
+    oss << "\"values\" : ";
+    for(NDConstIter<T> it(getConstPtr()); !it.eof(); ++it) {
+        it.index(D, index);
+        if(index[D-1] == 0)
+            oss << "\n";
+        for(int64_t dd=D-1; dd>=0; dd--) {
+            if(index[dd] == 0) {
+                oss << "[";
+            } else {
+                break;
+            }
+        }
+        oss << *it;;
+        for(int64_t dd=D-1; dd>=0; dd--) {
+            if(index[dd] == dim(dd)-1) {
+                oss << "]";
+            } else {
+                oss << ", ";
+                break;
+            }
+        }
+    }
+    oss << "\n}\n";
+
+    if(gzwrite(file, oss.str().c_str(), oss.str().length()) > 0)
+        return 0;
+	return -1;
+}
 	
 template <size_t D, typename T>
 const T& NDArrayStore<D,T>::operator[](std::initializer_list<int64_t> index) const

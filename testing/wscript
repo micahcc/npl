@@ -166,6 +166,11 @@ def build(bld):
             source='json_write2.cpp', 
             use='mrimage_utils')
 
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='json_write3', 
+            source='json_write3.cpp', 
+            use='mrimage_utils')
+
     # Test Fourier Domain
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='fft_test', 

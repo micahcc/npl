@@ -14,11 +14,6 @@
  * limitations under the License.
  *
  * @file ndarray.h
- *
- *****************************************************************************/
-
-/******************************************************************************
- * @file ndarray.h
  * @brief This file contains the definition for NDarray and its derived types.
  * The derived types are templated over dimensionality and pixel type.
  ******************************************************************************/
@@ -27,6 +22,8 @@
 #define NDARRAY_H
 
 #include "npltypes.h"
+
+#include "zlib.h"
 
 #include <cstddef>
 #include <cmath>
@@ -112,6 +109,15 @@ ptr<NDArray> createNDArray(size_t ndim, const size_t* size,
  */
 ptr<NDArray> createNDArray(const std::vector<size_t>& dim, 
         PixelT ptype, void* ptr, std::function<void(void*)> deleter);
+
+/**
+ * @brief Reads a JSON image from a gzip file
+ *
+ * @param file Input file to read from
+ *
+ * @return NULL if there is an error, otherwise the image.
+ */
+ptr<NDArray> readJSONArray(gzFile file);
 
 /**
  * @brief Copy an roi from one image to another image. ROI's must be the same
@@ -294,6 +300,15 @@ public:
     virtual ptr<NDArray> extractCast(size_t len, const size_t* size, 
             PixelT newtype) const = 0;
 
+    /**
+     * @brief Write the image to a nifti file.
+     *
+     * @param filename Filename
+     * @param version Version of nifti to use
+     *
+     * @return 0 if successful
+     */
+	virtual int write(std::string filename) const = 0;
 	
 //	virtual int opself(const NDArray* right, double(*func)(double,double),
 //			bool elevR) = 0;
@@ -439,6 +454,16 @@ public:
 	 */
 	void graft(const size_t dim[D], T* ptr, const
             std::function<void(void*)>& deleter);
+
+    /**
+     * @brief Write the image to a nifti file.
+     *
+     * @param filename Filename
+     * @param version Version of nifti to use
+     *
+     * @return 0 if successful
+     */
+	virtual int write(std::string filename) const;
 	
 	/**************************************************************************
 	 * Duplication Functions
@@ -619,7 +644,7 @@ public:
 	protected:
 
 	void updateStrides();
-	
+    int writeJSONArray(gzFile file) const;
 };
 
 

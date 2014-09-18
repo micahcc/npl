@@ -46,9 +46,9 @@ int main(int argc, char** argv)
             ' ', __version__ );
 
 	TCLAP::ValueArg<string> a_in("i", "input", "Input image.",
-			false, "", "*.json[.gz]/.nii[.gz]", cmd);
+			false, "", "input", cmd);
 	TCLAP::ValueArg<string> a_out("o", "output", "Output image.",
-			true, "", "*.nii.gz", cmd);
+			true, "", "out", cmd);
 
     cmd.parse(argc, argv);
 
