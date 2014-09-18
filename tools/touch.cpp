@@ -61,6 +61,8 @@ int main(int argc, char** argv)
 	TCLAP::SwitchArg a_example("E", "example", "print an example file and exit", 
             cmd);
 
+    cmd.parse(argc, argv);
+
     if(a_example.isSet()) {
         cout << example << endl;
         return 0;

@@ -147,6 +147,15 @@ int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap, bool verb
  */
 int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap, bool verbose);
 
+/**
+ * @brief Reads a JSON image from a gzip file
+ *
+ * @param file Input file to read from
+ *
+ * @return NULL if there is an error, otherwise the image.
+ */
+ptr<MRImage> readJSONImage(gzFile file);
+
 /** @} MRImageUtilities */
 
 /******************************************************************************
@@ -1065,6 +1074,7 @@ protected:
 	int writeNifti1Header(gzFile file) const;
 	int writeNifti2Header(gzFile file) const;
 	int writePixels(gzFile file) const;
+    int writeJSONImage(gzFile file) const;
 };
 } // npl
 #endif
