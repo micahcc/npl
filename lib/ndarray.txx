@@ -344,7 +344,9 @@ template <size_t D, typename T>
 int NDArrayStore<D,T>::write(std::string filename, double version) const
 {
 	std::string mode = "wb";
+#if ZLIB_VERNUM >= 0x1280
 	const size_t BSIZE = 1024*1024; //1M
+#endif
 	gzFile gz;
 
 	// remove .gz to find the "real" format,
@@ -364,7 +366,9 @@ int NDArrayStore<D,T>::write(std::string filename, double version) const
 		return -1;
 	}
 
+#if ZLIB_VERNUM >= 0x1280
 	gzbuffer(gz, BSIZE);
+#endif
 
 	if(nogz.substr(nogz.size()-4, 4) == ".nii") {
 		if(version >= 2) {

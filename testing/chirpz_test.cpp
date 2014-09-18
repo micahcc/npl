@@ -45,11 +45,11 @@ int testChirpz(size_t length, double alpha, bool debug = false)
 	ostringstream oss;
 	oss << "test_" << length << "_" << alpha;
 
-	auto line = fftw_alloc_complex(length);
-	auto line_brute = fftw_alloc_complex(length);
-	auto line_brute2 = fftw_alloc_complex(length);
-	auto line_fft = fftw_alloc_complex(length);
-	auto line_zoom = fftw_alloc_complex(length);
+	auto line = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*length);
+	auto line_brute = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*length);
+	auto line_brute2 = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*length);
+	auto line_fft = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*length);
+	auto line_zoom = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*length);
 	
 	// fill with a noisy square
 	double sum = 0;

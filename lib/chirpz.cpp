@@ -23,7 +23,9 @@
 #include <complex>
 #include <iostream>
 #include <algorithm>
+#include <stdexcept>
 
+#include "fftw3.h"
 #include "basic_functions.h"
 #include "basic_plot.h"
 
@@ -222,7 +224,7 @@ void chirpzFT_brute2(size_t isize, fftw_complex* in, fftw_complex* out, double a
 	int64_t usize = round2(isize*approxratio);
 
 	size_t bsz = isize+usize;
-	fftw_complex* buffer = fftw_alloc_complex(bsz);
+	auto buffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*bsz);
 	fftw_complex* current = &buffer[0];
 	
 	// copy input to buffer, must shift because of chirp being centered
@@ -290,7 +292,7 @@ void zoom(size_t isize, fftw_complex* in, fftw_complex* out, double a)
 void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out, 
 		double a)
 {
- 	fftw_complex* buffer = fftw_alloc_complex(isize);
+ 	auto buffer = (fftw_complex* )fftw_malloc(sizeof(fftw_complex)*isize);
 	chirpzFT_zoom(isize, in, out, buffer, a);
  	fftw_free(buffer);
 }
@@ -356,11 +358,11 @@ void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	double upratio = (double)usize/(double)isize;
 
 	size_t bsz = isize+4*uppadsize;
-	fftw_complex* buffer = fftw_alloc_complex(bsz);
-	fftw_complex* current = &buffer[0];
-	fftw_complex* prechirp = &buffer[isize+uppadsize];
-	fftw_complex* postchirp = &buffer[isize+2*uppadsize];
-	fftw_complex* convchirp = &buffer[isize+3*uppadsize];
+	auto buffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*bsz);
+	auto current = &buffer[0];
+	auto prechirp = &buffer[isize+uppadsize];
+	auto postchirp = &buffer[isize+2*uppadsize];
+	auto convchirp = &buffer[isize+3*uppadsize];
 	
 	createChirp(uppadsize, prechirp, isize, upratio, a, false, false);
 	createChirp(uppadsize, postchirp, isize, upratio, a, true, false);

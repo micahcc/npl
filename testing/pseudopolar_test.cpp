@@ -160,7 +160,7 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, double* upsamp)
 
 	// fourier transform
 	for(size_t dd = 0; dd < 3; dd++) {
-		auto buffer = fftw_alloc_complex((int)osize[dd]);
+		auto buffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*(int)osize[dd]);
 		fftw_plan fwd = fftw_plan_dft_1d((int)osize[dd], buffer, buffer, 
 				FFTW_FORWARD, FFTW_MEASURE);
 		
@@ -294,7 +294,7 @@ shared_ptr<MRImage> createTestImageFreq(size_t sz1)
 		sit.set(sit.get()/sum);
 
 	// perform inverse fourier transform
-	auto buffer = fftw_alloc_complex((int)sz1);
+	auto buffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*(int)sz1);
 	fftw_plan fwd = fftw_plan_dft_1d((int)sz1, buffer, buffer, 
 			FFTW_BACKWARD, FFTW_MEASURE);
 	for(size_t dd = 0; dd < 3; dd++) {
