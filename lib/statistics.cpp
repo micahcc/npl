@@ -263,17 +263,67 @@ MatrixXd ica(const MatrixXd& Xin, double varth)
  *
  * @return 
  */
-std::vector<double> students_t_cdf(double nu, double dt, double maxt)
+std::vector<pair<double,double>> students_t_pdf(int nu, double dt, double maxt)
 {
     std::vector<double> out;
     out.reserve(ceil(maxt/dt));
 
     double sum = 0.5;
-    double dp = tgamma((nu+1)/2)/(tgamma(nu/2)*sqrt(nu*M_PI));
+    
+    double coeff;
+    if(nu%2 == 0) {
+        coeff = 1./(2*sqrt((double)nu));
+        for(int ii = nu-1; ii >= 3; ii-=2) 
+            coeff *= ((double)ii)/(ii-1.);
+    } else {
+        coeff = 1./(M_PI*sqrt((double)nu));
+        for(int ii = nu-1; ii >= 2; ii-=2) 
+            coeff *= ((double)ii)/(ii-1.);
+    }
+
     for(size_t ii = 0; ii*dt < maxt; ii++) {
         double t = ii*dt;
-        out.push_back(sum);
-        sum += dt*dp/pow(1+t*t/nu, (nu+1)/2);
+        double p = dt*coeff/pow(1+t*t/nu, (nu+1)/2);
+        out.push_back(make_pair(t,p));
+    }
+
+    return out;
+}
+
+/**
+ * @brief Computes cdf at a particular number of degrees of freedom. 
+ * Note, this only computes +t values, for negative values invert then use.
+ *
+ * @param nu
+ * @param x
+ *
+ * @return 
+ */
+std::vector<pair<double,double>> students_t_cdf(int nu, double dt, double maxt)
+{
+    std::vector<double> out;
+    out.reserve(ceil(maxt/dt));
+
+    double sum = 0.5;
+    
+    double coeff;
+    if(nu%2 == 0) {
+        coeff = 1./(2*sqrt((double)nu));
+        for(int ii = nu-1; ii >= 3; ii-=2) 
+            coeff *= ((double)ii)/(ii-1.);
+    } else {
+        coeff = 1./(M_PI*sqrt((double)nu));
+        for(int ii = nu-1; ii >= 2; ii-=2) 
+            coeff *= ((double)ii)/(ii-1.);
+    }
+
+    for(size_t ii = 0; ii*dt < maxt; ii++) {
+        double t = ii*dt;
+        out.push_back(make_pair(t,sum));
+        double p = dt*coeff/pow(1+t*t/nu, (nu+1)/2);
+        std::cerr << dt<<"*"<<coeff<<"/"<<pow(1+t*t/nu, (nu+1)/2)<<"="<<p<<std::endl;
+        sum += p;
+        std::cerr << t << " -> " << p << " -> " << out.back() << std::endl;
     }
 
     return out;
@@ -282,6 +332,17 @@ std::vector<double> students_t_cdf(double nu, double dt, double maxt)
 // need to compute the CDF for students_t_cdf
 const double MAX_T = 100;
 const double STEP_T = 0.1;
+
+pair<double, double> findDist(double t, const vector<pair<double, double>>& cdf)
+{
+    vector<pair<double,double>>::iterator it;
+    it = std::binary_search(cdf.begin(), cdf.end(), t, 
+            [](const pair<double,double>& lhs, const pair<double,double>& rhs) {
+                return lhs.first < rhs.first;
+            };
+    );
+    return *it;
+}
 
 /**
  * @brief Computes the Ordinary Least Square predictors, beta for 
@@ -301,7 +362,7 @@ const double STEP_T = 0.1;
  * @return Struct with Regression Results. 
  */
 RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
-        const MatrixXd& Xinv, std::vector<double>& student_cdf)
+        const MatrixXd& Xinv, std::vector<pair<double,double>>& student_cdf)
 {
     if(y.rows() != X.rows()) 
         throw INVALID_ARGUMENT("y and X matrices row mismatch");
@@ -333,6 +394,9 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
         out.t[ii] = t;
         
         t = fabs(t);
+        binary_search(student_cdf.begin(), student_cdf.end(), t, 
+                [](const pair<double,double>& left, const pair<double,double>& left, 
+                    ) {t_p.first 
         size_t t_index = round(t/STEP_T);
         if(t_index >= student_cdf.size())
             out.p[ii] = 0;

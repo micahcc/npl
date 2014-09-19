@@ -188,6 +188,17 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X);
 MatrixXd pseudoInverse(const MatrixXd& X);
 
 /**
+ * @brief Computes pdf at a particular number of degrees of freedom. 
+ * Note, this only computes +t values, for negative values invert then use.
+ *
+ * @param nu
+ * @param x
+ *
+ * @return 
+ */
+std::vector<double> students_t_pdf(int nu, double dt, double maxt);
+
+/**
  * @brief Computes cdf at a particular number of degrees of freedom. 
  * Note, this only computes +t values, for negative values invert then use.
  *
@@ -196,7 +207,7 @@ MatrixXd pseudoInverse(const MatrixXd& X);
  *
  * @return 
  */
-std::vector<double> students_t_cdf(double nu, double dt, double maxt);
+std::vector<double> students_t_cdf(int nu, double dt, double maxt);
 
 /** @} */
 
