@@ -22,7 +22,7 @@ def build(bld):
             install_path='${PREFIX}/tools_incomplete', 
             source = 'fmri_ica.cpp',
             use = 'mrimage_utils nplio statistics tclap');
-    bld.program(target = 'niiHeader', 
+    bld.program(target = 'nplhd', 
             source = 'niiHeader.cpp', 
             use = 'mrimage nplio')
     bld.program(target = 'nplTouch', 
@@ -31,7 +31,7 @@ def build(bld):
     bld.program(target = 'nplRemoveRegressors', 
             source = 'remove_regressors.cpp', 
             use = 'tclap mrimage nplio statistics')
-    bld.program(target = 'nplRemoveVolumes', 
+    bld.program(target = 'nplSelectVolumes', 
             source = 'extractTimePoints.cpp', 
             use = 'tclap mrimage nplio statistics')
 #    bld.program(target = 'indexMapToOffsetMap', 
