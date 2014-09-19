@@ -21,6 +21,7 @@
 #include <tclap/CmdLine.h>
 #include <string>
 #include <stdexcept>
+#include <random>
 
 #include <Eigen/Dense>
 #include "statistics.h"
@@ -35,57 +36,66 @@
 #include "basic_plot.h"
 
 using std::string;
-using namespace npl;
-using std::shared_ptr;
 using Eigen::MatrixXd;
 
-int main(int argc, char** argv)
-{
-	try {
-	/*
-	 * Command Line
-	 */
+using namespace npl;
 
-	TCLAP::CmdLine cmd("Performs a General Linear Model statistical test on "
-			"an fMRI image. ",
-			' ', __version__ );
+int main()
+{   
+    // TODO add intercept
+    
+    /* 
+     * Create Test Image: 4 Images
+     */
+    double intercept = 0;
+    vector<size_t> voldim({64,64,36});
+    vector<size_t> betadim({64,64,36,4});
+    vector<size_t> fdim({64,64,36,1024});
 
-	TCLAP::ValueArg<string> a_fmri("i", "input", "fMRI image.",
-			true, "", "*.nii.gz", cmd);
-	TCLAP::MultiArg<string> a_events("e", "event-reg", "Event-related regression "
-			"variable. Three columns, ONSET DURATION VALUE. If these overlap, "
-			"an error will be thrown. ", true, "*.txt", cmd);
+    // make array
+    {
+        vector<ptr<MRImage>> prebeta;
+        prebeta.push_back(createMRImage(voldim.size(), voldim.data(), FLOAT32));
+        prebeta.push_back(createMRImage(voldim.size(), voldim.data(), FLOAT32));
+        prebeta.push_back(createMRImage(voldim.size(), voldim.data(), FLOAT32));
+        prebeta.push_back(createMRImage(voldim.size(), voldim.data(), FLOAT32));
 
-    TCLAP::ValueArg<string> a_odir("o", "outdir", "Output directory.", false,
-            ".", "dir", cmd);
+        fillLinear(beta[0]);
+        fillCircle(beta[1], 5, 1);
+        fillCircle(beta[2], 5, 10);
+        fillGaussian(beta[3]);
+        auto beta = concat(prebeta);
+    }
 
-	cmd.parse(argc, argv);
-	
-	// read fMRI image
-	shared_ptr<MRImage> fmri = readMRImage(a_fmri.getValue());
-	if(fmri->ndim() != 4) {
-		cerr << "Input should be 4D!" << endl;
-		return -1;
-	}
-	assert(fmri->tlen() == fmri->dim(3));
+    auto fmri = createMRImage(fdim.size(), fdim.data(), FLOAT32);
+    fillGaussian(fmri);
+ 
+    // create X and fill it with random values
+    MatrixXd X(fdim[3], 4);
+    std::random_device rd;
+    std::default_random_engine rng(rd());
+    std::normal_distribution<double> gauss(0, 1);
+    for(size_t rr=0; rr<X.rows(); rr++ ) {
+        for(size_t cc=0; cc<X.cols(); cc++) 
+            X(rr,cc) = gauss(rng);
+    }
+
+    // add values from beta*X
+    for(size_t cc=0; cc<X.cols(); cc++) {
+        // create iterator
+        NDIter<double> bit(beta[cc]);
+        Vector3DIter<double> it(fmri);
+        for(it.goBegin(); !it.eof(); ++it, ++bit) {
+            for(size_t rr=0; rr<X.rows(); rr++) 
+                it.set(rr, it[rr] + (*bit)*X(cc,rr));
+        }
+    }
+
+    writeMRImage("signal_noise.nii.gz", fmri);
+
+    /* Perform Regression */
 	int tlen = fmri->tlen();
 	double TR = fmri->spacing(3);
-
-	// read the event-related designs, will have rows to match time, and cols
-	// to match number of regressors
-	MatrixXd X(tlen, a_events.getValue().size());
-	size_t regnum = 0;
-	for(auto it=a_events.begin(); it != a_events.end(); it++, regnum++) {
-		auto events = readNumericCSV(*it);
-		auto v = getRegressor(events, TR, tlen, 0);
-
-		// draw
-		writePlot(a_odir.getValue()+"/ev1.svg", v);
-
-		// copy to output
-		for(size_t ii=0; ii<tlen; ii++) 
-			X(ii, regnum) = v[ii];
-	}
 
     // create output images
     std::list<ptr<MRImage>> tImgs;
@@ -132,6 +142,9 @@ int main(int argc, char** argv)
         }
     }
 
+
+    /* Test Results */
+
     auto t_it = tImgs.begin();
     auto p_it = pImgs.begin();
     for(size_t ii=0; ii<X.cols(); ii++) {
@@ -142,5 +155,6 @@ int main(int argc, char** argv)
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
 }
+
 
 
