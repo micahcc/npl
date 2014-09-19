@@ -34,6 +34,7 @@
 
 #include "version.h"
 #include "mrimage.h"
+#include "ndarray.h"
 #include "nplio.h"
 #include "iterators.h"
 
@@ -42,7 +43,7 @@ using namespace std;
 
 
 template <typename T>
-ptr<MRImage> copyHelp(ptr<MRImage> in, string re_str, const vector<string>& lookup)
+ptr<NDArray> copyHelp(ptr<const NDArray> in, string re_str, const vector<string>& lookup)
 {
     // figure out size
     size_t odim = 0;
@@ -52,7 +53,7 @@ ptr<MRImage> copyHelp(ptr<MRImage> in, string re_str, const vector<string>& look
             cerr << "Keeping " << ii << endl;
             odim++;
         } else {
-            cerr << "Removign " << ii << endl;
+            cerr << "Removing " << ii << endl;
         }
     }
 
@@ -62,7 +63,7 @@ ptr<MRImage> copyHelp(ptr<MRImage> in, string re_str, const vector<string>& look
     }
     osize[3] = odim;
  
-    auto out = dPtrCast<MRImage>(createMRImage(4, osize.data(), in->type()));
+    auto out = in->copyCast(4, osize.data(), in->type());
     Vector3DConstIter<T> iit(in);
     Vector3DIter<T> oit(out);
     for(iit.goBegin(), oit.goBegin(); !iit.eof() && !oit.eof(); ++iit, ++oit) {
@@ -92,6 +93,8 @@ int main(int argc, char* argv[])
 	// arguments
 	TCLAP::ValueArg<std::string> a_input("i","in","Input 4D Image",true,"",
 			"4D Image", cmd);
+	TCLAP::ValueArg<std::string> a_out("o","out","Output 4D Image, only the "
+			"selected volumes will be kept.",true,"", "4D Image", cmd);
 	
 	TCLAP::ValueArg<std::string> a_lookup("l","lookup",
 			"Lookup file. There should be 1 value (whitespace separated) for "
@@ -103,7 +106,7 @@ int main(int argc, char* argv[])
 	// parse arguments
 	cmd.parse(argc, argv);
 
-    auto img = dPtrCast<MRImage>(readMRImage(a_input.getValue()));
+    auto img = dPtrCast<NDArray>(readMRImage(a_input.getValue()));
     
     // read lookup
     vector<string> lookup;
@@ -124,56 +127,58 @@ int main(int argc, char* argv[])
 
     switch(img->type()) {
         case UINT8:
-            copyHelp<uint8_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<uint8_t>(img, a_regex.getValue(), lookup);
             break;
         case INT16:
-            copyHelp<int16_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<int16_t>(img, a_regex.getValue(), lookup);
             break;
         case INT32:
-            copyHelp<int32_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<int32_t>(img, a_regex.getValue(), lookup);
             break;
         case FLOAT32:
-            copyHelp<float>(img, a_regex.getValue(), lookup);
+            img = copyHelp<float>(img, a_regex.getValue(), lookup);
             break;
         case COMPLEX64:
-            copyHelp<cfloat_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<cfloat_t>(img, a_regex.getValue(), lookup);
             break;
         case FLOAT64:
-            copyHelp<double>(img, a_regex.getValue(), lookup);
+            img = copyHelp<double>(img, a_regex.getValue(), lookup);
             break;
         case RGB24:
-            copyHelp<rgb_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<rgb_t>(img, a_regex.getValue(), lookup);
             break;
         case INT8:
-            copyHelp<int8_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<int8_t>(img, a_regex.getValue(), lookup);
             break;
         case UINT16:
-            copyHelp<uint16_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<uint16_t>(img, a_regex.getValue(), lookup);
             break;
         case UINT32:
-            copyHelp<uint32_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<uint32_t>(img, a_regex.getValue(), lookup);
             break;
         case INT64:
-            copyHelp<int64_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<int64_t>(img, a_regex.getValue(), lookup);
             break;
         case UINT64:
-            copyHelp<uint64_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<uint64_t>(img, a_regex.getValue(), lookup);
             break;
         case FLOAT128:
-            copyHelp<long double>(img, a_regex.getValue(), lookup);
+            img = copyHelp<long double>(img, a_regex.getValue(), lookup);
             break;
         case COMPLEX128:
-            copyHelp<cdouble_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<cdouble_t>(img, a_regex.getValue(), lookup);
             break;
         case COMPLEX256:
-            copyHelp<cquad_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<cquad_t>(img, a_regex.getValue(), lookup);
             break;
         case RGBA32:
-            copyHelp<rgba_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<rgba_t>(img, a_regex.getValue(), lookup);
             break;
         default:
             return -1;
     }
+
+	img->write(a_out.getValue());
 
 	// done, catch all argument errors
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
