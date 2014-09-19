@@ -37,7 +37,7 @@ int64_t clamp(int64_t inf, int64_t sup, int64_t val)
 KSlicer::KSlicer()
 {
 	size_t tmp = 1;
-	initialize(1, &tmp);
+	setDim(1, &tmp);
 };
 
 /**
@@ -48,7 +48,7 @@ KSlicer::KSlicer()
  */
 KSlicer::KSlicer(size_t ndim, const size_t* dim)
 {
-	initialize(ndim, dim);
+	setDim(ndim, dim);
 }
 	
 /**
@@ -349,7 +349,7 @@ void KSlicer::setROI(std::vector<std::pair<int64_t, int64_t>> roi)
  * @param ndim 		Number of dimensions (rank) of image. 
  * @param dim 		Dimension (size) of memory block.
  */
-void KSlicer::initialize(size_t ndim, const size_t* dim)
+void KSlicer::setDim(size_t ndim, const size_t* dim)
 {
 	m_dim = ndim;
 	m_size.assign(dim, dim+ndim);

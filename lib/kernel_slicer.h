@@ -341,15 +341,15 @@ public:
 		return m_numoffs;
 	};
 
-protected:
-
 	/**
 	 * @brief All around intializer. Sets all internal variables.
 	 *
 	 * @param ndim 	Rank (number of dimensions), also length of dim array
      * @param dim Dimension (size) of memory block.
 	 */
-	void initialize(size_t ndim, const size_t* dim);
+	void setDim(size_t ndim, const size_t* dim);
+
+protected:
 
 	// order of traversal, constructor initializes
 	size_t m_dim; // constructor

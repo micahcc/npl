@@ -29,6 +29,7 @@
 
 namespace npl {
 
+
  /** \defgroup Iterators NDarray/Image Iterators
  *
  * Iterators are similar to accessors in that they perform casting, however 
@@ -68,10 +69,21 @@ template <typename T = double>
 class FlatIter
 {
 public:
-	FlatIter(std::shared_ptr<NDArray> in)
-				: parent(in), m_linpos(0)
+    /**
+     * @brief Default constructor. Note, this will segfault if you don't use
+     * setArray to set the target NDArray/Image.
+     */
+    FlatIter() {};
 
+	FlatIter(std::shared_ptr<NDArray> in)
 	{
+        setArray(in);
+	};
+
+    void setArray(ptr<NDArray> in) 
+    {
+        parent = in;
+        m_linpos = 0;
 		switch(in->type()) {
 			case UINT8:
 				castget = castgetStatic<uint8_t>;
@@ -144,7 +156,7 @@ public:
 				throw std::invalid_argument("Unknown type to FlatIter");
 				break;
 		}
-	};
+    }
 
 	/**
 	 * @brief Prefix increment operator
@@ -301,7 +313,6 @@ public:
 	};
 
 private:
-	FlatIter();
 	template <typename U>
 	static T castgetStatic(void* ptr)
 	{
@@ -334,10 +345,21 @@ template <typename T = double>
 class FlatConstIter
 {
 public:
-	FlatConstIter(std::shared_ptr<const NDArray> in)
-				: parent(in), m_linpos(0)
+    /**
+     * @brief Default constructor. Note, this will segfault if you don't use
+     * setArray to set the target NDArray/Image.
+     */
+    FlatConstIter() {};
 
+	FlatConstIter(std::shared_ptr<const NDArray> in)
 	{
+        setArray(in);
+	};
+
+    void setArray(ptr<const NDArray> in) 
+    {
+        parent = in;
+        m_linpos = 0;
 		switch(in->type()) {
 			case UINT8:
 				castget = castgetStatic<uint8_t>;
@@ -393,7 +415,7 @@ public:
 				throw std::invalid_argument("Unknown type to FlatIter");
 				break;
 		}
-	};
+    }
 
 	/**
 	 * @brief Prefix increment operator
@@ -563,9 +585,21 @@ template <typename T = double>
 class NDConstIter : public Slicer
 {
 public:
-	NDConstIter(std::shared_ptr<const NDArray> in) :
-		Slicer(in->ndim(), in->dim()), parent(in)
+    /**
+     * @brief Default constructor. Note, this will segfault if you don't use
+     * setArray to set the target NDArray/Image.
+     */
+    NDConstIter() {};
+
+	NDConstIter(std::shared_ptr<const NDArray> in) 
 	{
+        setArray(in);
+	};
+
+    void setArray(ptr<const NDArray> in) 
+    {
+		setDim(in->ndim(), in->dim());
+        parent = in;
 		switch(in->type()) {
 			case UINT8:
 				castget = castgetStatic<uint8_t>;
@@ -621,7 +655,7 @@ public:
 				throw std::invalid_argument("Unknown type to NDConstIter");
 				break;
 		}
-	};
+    };
 
 	/**
 	 * @brief Prefix increment operator
@@ -815,9 +849,21 @@ template <typename T = double>
 class NDIter : public Slicer
 {
 public:
-	NDIter(std::shared_ptr<NDArray> in) : Slicer(in->ndim(), in->dim()), parent(in)
+    /**
+     * @brief Default constructor. Note, this will segfault if you don't use
+     * setArray to set the target NDArray/Image.
+     */
+    NDIter() {};
 
+	NDIter(std::shared_ptr<NDArray> in) 
 	{
+        setArray(in);
+	};
+
+    void setArray(ptr<NDArray> in) 
+    {
+        parent = in;
+        setDim(in->ndim(), in->dim());
 		switch(in->type()) {
 			case UINT8:
 				castget = castgetStatic<uint8_t>;
@@ -890,7 +936,7 @@ public:
 				throw std::invalid_argument("Unknown type to NDIter");
 				break;
 		}
-	};
+    };
 
 	/**
 	 * @brief Prefix increment operator
@@ -1140,9 +1186,22 @@ template <typename T = double>
 class ChunkConstIter : public ChunkSlicer 
 {
 public:
-	ChunkConstIter(std::shared_ptr<const NDArray> in) :
-		ChunkSlicer(in->ndim(), in->dim()), parent(in)
+	
+    /**
+     * @brief Default constructor. Note, this will segfault if you don't use
+     * setArray to set the target NDArray/Image.
+     */
+    ChunkConstIter() {};
+
+	ChunkConstIter(std::shared_ptr<const NDArray> in) 
 	{
+        setArray(in);
+	};
+
+    void setArray(ptr<const NDArray> in)
+    {
+		setDim(in->ndim(), in->dim());
+        parent = in;
 		switch(in->type()) {
 			case UINT8:
 				castget = castgetStatic<uint8_t>;
@@ -1198,7 +1257,7 @@ public:
 				throw std::invalid_argument("Unknown type to ChunkConstIter");
 				break;
 		}
-	};
+    };
 
 	/**
 	 * @brief Prefix increment operator
@@ -1415,9 +1474,22 @@ template <typename T = double>
 class ChunkIter : public ChunkSlicer
 {
 public:
-	ChunkIter(std::shared_ptr<NDArray> in) : ChunkSlicer(in->ndim(), in->dim()), parent(in)
+	
+    /**
+     * @brief Default constructor. Note, this will segfault if you don't use
+     * setArray to set the target NDArray/Image.
+     */
+    ChunkIter() {};
 
+	ChunkIter(std::shared_ptr<NDArray> in) 
 	{
+        setArray(in);
+	};
+
+    void setArray(ptr<NDArray> in)
+    {
+        parent = in;
+        setDim(in->ndim(), in->dim());
 		switch(in->type()) {
 			case UINT8:
 				castget = castgetStatic<uint8_t>;
@@ -1490,7 +1562,7 @@ public:
 				throw std::invalid_argument("Unknown type to ChunkIter");
 				break;
 		}
-	};
+    };
 
 	/**
 	 * @brief Prefix increment operator
@@ -1739,9 +1811,22 @@ template <typename T = double>
 class KernelIter : public KSlicer
 {
 public:
-	KernelIter(std::shared_ptr<const NDArray> in)
-				: KSlicer(in->ndim(), in->dim()), parent(in)
+
+    /**
+     * @brief Default constructor. Note, this will segfault if you don't use
+     * setArray to set the target NDArray/Image.
+     */
+    KernelIter() {};
+	
+    KernelIter(std::shared_ptr<const NDArray> in)
 	{
+        setArray(in);
+	};
+
+    void setArray(ptr<const NDArray> in) 
+    {
+		setDim(in->ndim(), in->dim());
+        parent = in;
 		switch(in->type()) {
 			case UINT8:
 				castget = castgetStatic<uint8_t>;
@@ -1797,7 +1882,7 @@ public:
 				throw std::invalid_argument("Unknown type to NDConstIter");
 				break;
 		}
-	};
+    };
 
 	/**
 	 * @brief Prefix increment operator
@@ -1990,9 +2075,23 @@ template <typename T = double>
 class Vector3DIter : public Slicer
 {
 public:
-	Vector3DIter(std::shared_ptr<NDArray> in) : Slicer(in->ndim(), in->dim()), parent(in)
+	
+    /**
+     * @brief Default constructor. Note, this will segfault if you don't use
+     * setArray to set the target NDArray/Image.
+     */
+    Vector3DIter() {};
 
+	Vector3DIter(std::shared_ptr<NDArray> in) 
 	{
+        setArray(in);
+	};
+
+    void setArray(ptr<NDArray> in) 
+    {
+		setDim(in->ndim(), in->dim());
+        parent = in;
+
 		// iterate through the first 3 dimensions
 		std::vector<std::pair<int64_t,int64_t>> roi(in->ndim());
 		for(size_t ii=0; ii<3 && ii<in->ndim(); ii++) {
@@ -2079,7 +2178,7 @@ public:
 				throw std::invalid_argument("Unknown type to NDIter");
 				break;
 		}
-	};
+    };
 
 	/**
 	 * @brief Prefix increment operator
@@ -2315,10 +2414,23 @@ template <typename T = double>
 class Vector3DConstIter : public Slicer
 {
 public:
-	Vector3DConstIter(std::shared_ptr<const NDArray> in) : Slicer(in->ndim(), in->dim()),
-				parent(in)
 
+    /**
+     * @brief Default constructor. Note, this will segfault if you don't use
+     * setArray to set the target NDArray/Image.
+     */
+	Vector3DConstIter() {};
+
+	Vector3DConstIter(std::shared_ptr<const NDArray> in) 
 	{
+        setArray(in);
+	};
+    
+    void setArray(ptr<const NDArray> in) 
+    {
+		setDim(in->ndim(), in->dim());
+        parent = in;
+
 		// iterate through the first 3 dimensions
 		std::vector<std::pair<int64_t,int64_t>> roi(in->ndim());
 		for(size_t ii=0; ii<3 && ii<in->ndim(); ii++) {
@@ -2388,7 +2500,7 @@ public:
 				throw std::invalid_argument("Unknown type to NDIter");
 				break;
 		}
-	};
+    };
 
 	/**
 	 * @brief Prefix increment operator

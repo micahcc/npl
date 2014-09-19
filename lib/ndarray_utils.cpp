@@ -58,7 +58,7 @@ using Eigen::AngleAxisd;
 /**
  * @brief Computes the derivative of the image in the specified direction. 
  *
- * @param in    Input image/NDarray 
+ * @param in    Input image/NDArray 
  * @param dir   Specify the dimension
  *
  * @return      Image storing the directional derivative of in
@@ -120,7 +120,7 @@ ptr<NDArray> derivative(ptr<const NDArray> in, size_t dir)
  * Thus a 2D image will produce a [X,Y,2] image and a 3D image will produce a 
  * [X,Y,Z,3] sized image.
  *
- * @param in    Input image/NDarray 
+ * @param in    Input image/NDArray 
  *
  * @return 
  */
@@ -1921,13 +1921,13 @@ vector<ptr<NDArray>> pseudoPolar(ptr<const NDArray> in)
  */
 void fillCircle(ptr<NDArray> inout, double radius, double alpha)
 {
-    double rsq = radius*radius;
-    vector<size_t> index(inout->ndim(), 0);
+    double rsqr = radius*radius;
+    vector<int64_t> index(inout->ndim(), 0);
     for(NDIter<double> it(inout); !it.eof(); ++it) {
         it.index(index.size(), index.data());
         double dist = 0;
-        for(size_t dd=0; dd<in->ndim() dd++) {
-            dist += fabs(pow(index[dd]-(in->dim(dd)-1.)/2.,alpha));
+        for(size_t dd=0; dd<inout->ndim(); dd++) {
+            dist += fabs(pow(index[dd]-(inout->dim(dd)-1.)/2.,alpha));
         }
         if(dist <= rsqr) 
             it.set(1);
@@ -1942,13 +1942,12 @@ void fillCircle(ptr<NDArray> inout, double radius, double alpha)
  * @param inout input/output image, will be filled with linear index
  *
  */
-void fillLinear(ptr<NDarray> inout)
+void fillLinear(ptr<NDArray> inout)
 {
     FlatIter<float> it(inout);
     for(size_t ii=0; !it.eof(); ii++, ++it) {
         it.set(ii);
     }
-    return out;
 }
 
 /**
@@ -1957,7 +1956,7 @@ void fillLinear(ptr<NDarray> inout)
  * @param inout input/output image, will be filled with gaussian white noise
  *
  */
-void fillGaussian(ptr<NDarray> inout)
+void fillGaussian(ptr<NDArray> inout)
 {
     std::random_device rd;
     std::default_random_engine rng(rd());
@@ -1969,58 +1968,154 @@ void fillGaussian(ptr<NDarray> inout)
 }
 
 /**
+ * @brief Concatinates image in the direction specified by dir. So if dir
+ * is 0, and two images, sized [32, 32, 34] and [12, 32, 34] were passed
+ * in the input vector, then the output would be [44, 32, 34].
+ *
+ * @param images Input images, will be placed in order of input vector
+ * @param dir Direction to concatinate, all dimesnions other than dir
+ * must match in size
+ *
+ * @return New image that has had the images pasted together
+ */
+ptr<NDArray> concat(const vector<ptr<const NDArray>>& images, size_t dir)
+{
+    if(images.size() == 0) 
+        throw INVALID_ARGUMENT("Input image array had size zero!");
+
+    if(images[0]->type() == RGBA32 || images[0]->type() == RGB24 ||
+            images[0]->type() == COMPLEX128 || images[0]->type() == COMPLEX64
+            || images[0]->type() == COMPLEX256) {
+        throw INVALID_ARGUMENT("Concatination of tuple-types has not yet "
+                "been implemented");
+    }
+    
+    if(dir >= images[0]->ndim()) {
+        throw INVALID_ARGUMENT("Input direction dim is greater than input "
+                "images dimensions!");
+    }
+    
+    size_t ndim = images[0]->ndim();
+    vector<size_t> osize(images[0]->dim(), images[0]->dim()+ndim);
+
+    // figure output size
+    osize[dir] = 0;
+    for(const auto& v: images) {
+        // check sizes
+        for(size_t dd=0; dd<ndim; dd++) {
+            if(dd != dir && v->dim(dd) != osize[dd]) 
+                throw INVALID_ARGUMENT("Input image have different sizes!");
+        }
+        osize[dir] += v->dim(dir);
+    }
+
+    // create output image
+    ptr<NDArray> oimg = images[0]->copyCast(osize.size(), osize.data());
+    
+    // iterate through, make highest dimension slowest
+    NDIter<double> oit(oimg);
+    vector<size_t> order;
+    for(int64_t ii=ndim; ii>= 0; ii--) {
+        if(ii != dir)
+            order.push_back(ii);
+    }
+    order.push_back(dir);
+    oit.setOrder(order);
+    oit.goBegin();
+
+    // that dimension doesn't exist in these images
+    size_t imgii = 0;
+    NDConstIter<double> iit;
+
+    // go through input images one by one
+    while(!oit.eof()) {
+        // switch to the next input image
+        iit.setArray(images[imgii++]);
+        iit.setOrder(order);
+        iit.goBegin();
+
+        while(!iit.eof() && !oit.eof()) {
+            oit.set(*iit);
+            ++oit;
+            ++iit;
+        }
+    }
+
+    assert(imgii == images.size());
+    assert(iit.eof());
+
+    return oimg;
+}
+
+/**
  * @brief Concatinates images/arrays. 1 Extra dimension will be added, all the
  * lower dimensions of the images must match. An example with lastdim = false
  * would be 3 [32,32,32] images, which would result in 1 [32,32,32,3] image
  * with the orienation matching from the first image.
  *
  * @param images Array of images to concatinate
- * @param lastdim Instead of creating a new dimension beyond the existing to
- * concatinate in, concatinate in the last dimension. The total size of that 
- * dimension will be the sum of the existing sizes in that dimension.
  *
- * @return 
+ * @return New image with 1 extra dimension
  */
-ptr<NDArray> concat(const vector<ptr<const NDArray>>& images, bool lastdim)
+ptr<NDArray> concatElevate(const vector<ptr<const NDArray>>& images)
 {
     if(images.size() == 0) 
         throw INVALID_ARGUMENT("Input image array had size zero!");
-    
-    vector<size_t> osize(image.first())
-    if(lastdim) {
 
-        // concatinate in the last dimension of the first image
-        size_t ndim = images[0].ndim();
-        vector<size_t> odim(images[0]->dim(), images[0]->dim()+ndim);
-        
-        // figure output size
-        odim[ndim-1] = 0;
-        for(const auto& v: images) {
-            // check sizes
-            for(size_t dd=0; dd<ndim-1; dd++) {
-                if(v->dim(dd) != odim[dd]) 
-                    throw INVALID_ARGUMENT("Input image have different sizes!");
-            }
-            odim[ndim-1] += v->dim(ndim-1);
-        }
-
-        // concat
-    } else {
-        // concatinate in a new dimension
-        size_t ndim = images[0].ndim()+1;
-        vector<size_t> odim(images[0]->dim(), images[0]->dim()+images[0]->ndim());
-        odim.push_back(images.size());
-        
-        // check sizes
-        for(const auto& v: images) {
-            for(size_t dd=0; dd<ndim-1; dd++) {
-                if(v->dim(dd) != odim[dd]) 
-                    throw INVALID_ARGUMENT("Input image have different sizes!");
-            }
-        }
-
-        // concat
+    if(images[0]->type() == RGBA32 || images[0]->type() == RGB24 ||
+            images[0]->type() == COMPLEX128 || images[0]->type() == COMPLEX64
+            || images[0]->type() == COMPLEX256) {
+        throw INVALID_ARGUMENT("Concatination of tuple-types has not yet "
+                "been implemented");
     }
+    
+    // concatinate in a new dimension
+    size_t ndim = images[0]->ndim()+1;
+    vector<size_t> osize(images[0]->dim(), images[0]->dim()+images[0]->ndim());
+    osize.push_back(images.size());
+
+    // check sizes
+    for(const auto& v: images) {
+        for(size_t dd=0; dd<ndim-1; dd++) {
+            if(v->dim(dd) != osize[dd]) 
+                throw INVALID_ARGUMENT("Input image have different sizes!");
+        }
+    }
+    
+    // create output image
+    ptr<NDArray> oimg = images[0]->copyCast(osize.size(), osize.data());
+
+    // iterate through, make highest dimension slowest
+    NDIter<double> oit(oimg);
+    vector<size_t> order;
+    for(int64_t ii=ndim-2; ii>= 0; ii--)
+        order.push_back(ii);
+    order.push_back(ndim-1);
+
+    oit.setOrder(order);
+    oit.goBegin();
+
+    // that dimension doesn't exist in these images
+    size_t imgii = 0;
+    NDConstIter<double> iit;
+
+    // go through input images one by one
+    while(!oit.eof()) {
+        // switch to the next input image
+        iit.setArray(images[imgii++]);
+        iit.goBegin();
+
+        while(!iit.eof() && !oit.eof()) {
+            oit.set(*iit);
+            ++oit;
+            ++iit;
+        }
+    }
+    
+    assert(imgii == images.size());
+    assert(iit.eof());
+
+    return oimg;
 }
 
 } // npl
