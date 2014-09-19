@@ -355,16 +355,16 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray,
 {
 	bool doswap = false;
 	PixelT datatype = UNKNOWN_TYPE;
-	size_t start;
+	size_t start = SIZE_MAX;
 	std::vector<size_t> dim;
-	size_t psize;
+	size_t psize = 0;
 	int qform_code = 0;
 	int sform_code = 0;
 	std::vector<double> pixdim;
 	std::vector<double> offset;
 	std::vector<double> quatern(3,0);
 	std::vector<double> saffine(12,0);
-	double qfac;
+	double qfac = -1;
 	double slice_duration = 0;
 	int slice_code = 0;
 	int slice_start = 0;
@@ -1050,14 +1050,18 @@ shared_ptr<NDArray> readJSONImage(gzFile file, bool verbose, bool makearray)
  */
 ptr<MRImage> readMRImage(std::string filename, bool verbose, bool nopixeldata)
 {
+#if ZLIB_VERNUM >= 0x1280
 	const size_t BSIZE = 1024*1024; //1M
+#endif
 	auto gz = gzopen(filename.c_str(), "rb");
 
 	if(!gz) {
 		throw std::ios_base::failure("Could not open " + filename + " for reading");
 		return NULL;
 	}
+#if ZLIB_VERNUM >= 0x1280
 	gzbuffer(gz, BSIZE);
+#endif
 	
 	ptr<NDArray> out;
 	
@@ -1107,14 +1111,18 @@ ptr<MRImage> readMRImage(std::string filename, bool verbose, bool nopixeldata)
  */
 ptr<NDArray> readNDArray(std::string filename, bool verbose, bool nopixeldata)
 {
+#if ZLIB_VERNUM >= 0x1280
 	const size_t BSIZE = 1024*1024; //1M
+#endif
 	auto gz = gzopen(filename.c_str(), "rb");
 
 	if(!gz) {
 		throw std::ios_base::failure("Could not open " + filename + " for readin");
 		return NULL;
 	}
+#if ZLIB_VERNUM >= 0x1280
 	gzbuffer(gz, BSIZE);
+#endif
 	
 	ptr<NDArray> out;
 	

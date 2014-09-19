@@ -117,7 +117,7 @@ ptr<MRImage> fft_forward(ptr<const MRImage> in,
                     " In\n" + __FUNCTION_STR__);
     }
 
-    auto outbuff = fftw_alloc_complex(opixels);
+    auto outbuff = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*opixels);
     auto output = createMRImage(osize.size(), osize.data(), CDOUBLE,
             outbuff, [](void* ptr) {fftw_free(ptr);});
     output->copyMetadata(in);
@@ -193,7 +193,7 @@ ptr<MRImage> fft_backward(ptr<const MRImage> in,
         osize32[ii] = osize[ii];
     }
 
-    auto outbuff = fftw_alloc_complex(opixels);
+    auto outbuff = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*opixels);
     auto output = createMRImage(osize.size(), osize.data(), CDOUBLE,
             outbuff, [](void* ptr) {fftw_free(ptr);});
     output->copyMetadata(in);
@@ -307,7 +307,7 @@ ptr<MRImage> smoothDownsample(ptr<const MRImage> in, double sigma)
 
     vector<size_t> roi(in->dim(), in->dim()+ndim);
     auto working = dPtrCast<MRImage>(in->copy());
-    auto buffer1 = fftw_alloc_complex(linelen*2);
+    auto buffer1 = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*linelen*2);
     auto buffer2 = &buffer1[linelen];
     for(size_t dd=0; dd<ndim; dd++) {
         auto fwd = fftw_plan_dft_1d((int)psize[dd], buffer1, buffer2,

@@ -26,6 +26,8 @@
 #ifndef ACCESSORS_H
 #define ACCESSORS_H
 
+#include <stdexcept>
+
 #include "ndarray.h"
 #include "mrimage.h"
 #include "basic_functions.h"

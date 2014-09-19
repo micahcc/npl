@@ -500,7 +500,7 @@ void shiftImageFFT(ptr<NDArray> inout, size_t dim, double dist,
 	const double PI = acos(-1);
 	size_t padsize = round2(inout->dim(dim));
 	size_t paddiff = padsize-inout->dim(dim);
-	auto buffer = fftw_alloc_complex(padsize);
+	auto buffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*padsize);
 	fftw_plan fwd = fftw_plan_dft_1d((int)padsize, buffer, buffer, 
 			FFTW_FORWARD, FFTW_MEASURE);
 	fftw_plan rev = fftw_plan_dft_1d((int)padsize, buffer, buffer, 
@@ -642,7 +642,7 @@ void shearImageFFT(ptr<NDArray> inout, size_t dim, size_t len, double* dist,
 	const double PI = acos(-1);
 	size_t padsize = round2(2*inout->dim(dim));
 	size_t paddiff = padsize-inout->dim(dim);
-	auto buffer = fftw_alloc_complex(padsize);
+	auto buffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*padsize);
 	fftw_plan fwd = fftw_plan_dft_1d((int)padsize, buffer, buffer, 
 			FFTW_FORWARD, FFTW_MEASURE);
 	fftw_plan rev = fftw_plan_dft_1d((int)padsize, buffer, buffer, 
@@ -1645,7 +1645,7 @@ ptr<NDArray> pphelp_padFFT(ptr<const NDArray> in,
 		maxbsize = std::max(maxbsize, osize[ii]);
 	}
 
-	auto buffer = fftw_alloc_complex(maxbsize);
+	auto buffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*maxbsize);
 	auto oimg = in->copyCast(osize.size(), osize.data(), COMPLEX128);
 	std::vector<int64_t> index(in->ndim());
 
@@ -1745,7 +1745,7 @@ ptr<NDArray> pseudoPolarZoom(ptr<const NDArray> inimg, size_t prdim)
 		return m*2;
 	}();
 
-	fftw_complex* buffer = fftw_alloc_complex(buffsize);
+	auto buffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*buffsize);
 
 
 	for(size_t dd=0; dd<out->ndim(); dd++) {
@@ -1820,7 +1820,7 @@ ptr<NDArray> pseudoPolar(ptr<const NDArray> in, size_t prdim)
 		return m*30;
 	}();
 
-	fftw_complex* buffer = fftw_alloc_complex(buffsize);
+	auto buffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*buffsize);
 
 	for(size_t dd=0; dd<out->ndim(); dd++) {
 		if(dd == prdim)
