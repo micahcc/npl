@@ -33,7 +33,7 @@ def build(bld):
             use = 'tclap mrimage nplio statistics')
     bld.program(target = 'nplSelectVolumes', 
             source = 'extractTimePoints.cpp', 
-            use = 'tclap mrimage nplio statistics')
+            use = 'tclap mrimage nplio')
 #    bld.program(target = 'indexMapToOffsetMap', 
 #            source = 'indexMapToOffsetMap.cpp', use = 'mrimage tclap kdtree kslicer')
 #    
