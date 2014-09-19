@@ -102,8 +102,8 @@ int main(int argc, char* argv[])
 	cmd.parse(argc, argv);
 	
 	regex re;
-	try {
-		re.assign(a_regex.getValue(), std::regex::grep);
+	try {//std::regex::egrep
+		re.assign(a_regex.getValue());
 	} catch(regex_error e) {
 		cerr << "Error in regular expression: '" << a_regex.getValue() << "'" << endl;
 		switch(e.code()) {
@@ -163,7 +163,6 @@ int main(int argc, char* argv[])
     }
     
 	// figure out size
-    size_t odim = 0;
 	cerr << "Regex: " << a_regex.getValue() << endl;
     for(size_t ii=0; ii<lookup.size(); ii++) {
         if(regex_match(lookup[ii], re)) {
