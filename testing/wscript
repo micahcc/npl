@@ -236,22 +236,22 @@ def build(bld):
             target='pseudopolar_axis_test1', 
             source='pseudopolar_axis_test1.cpp', 
             use='ndarray_utils utility mrimage_utils iterators EIGEN') 
-
-    bld.program(install_path='${PREFIX}/tests', features='test',
-            target='pca_test', 
-            source='pca_test.cpp', 
-            use='statistics basic_plot') 
     
+    # Statistics tests
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='ica_test', 
             source='ica_test.cpp', 
             use='statistics basic_plot')
 
-    # Test Basic Image Processing Functions
     bld.program(install_path='${PREFIX}/tests', features='test',
-            target='smooth_test1', 
-            source='smooth_test1.cpp', 
-            use='mrimage_utils')
+            target='pca_test', 
+            source='pca_test.cpp', 
+            use='statistics basic_plot') 
+
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='glm_test1', 
+            source='glm_test1.cpp', 
+            use='statistics nplio ndarray_utils') 
 
     # Registration Testing
     bld.program(install_path='${PREFIX}/tests', features='test',
@@ -264,7 +264,12 @@ def build(bld):
             source='rigid_reg_test2.cpp', 
             use='registration')
 
-    # NDArray Utilities Tests
+    # Test Basic Image Processing Functions
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='smooth_test1', 
+            source='smooth_test1.cpp', 
+            use='mrimage_utils')
+
     bld.program(install_path='${PREFIX}/tests',  features='test',
             target='concat_test1', 
             source='concat_test1.cpp', 

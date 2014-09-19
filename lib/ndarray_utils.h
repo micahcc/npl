@@ -333,6 +333,33 @@ ptr<NDArray> pseudoPolarZoom(ptr<const NDArray> inimg,
         size_t prdim);
 
 /**
+ * @brief Sets the middle of the image += radius (in index space) to 1,
+ * everything else to 0
+ *
+ * @param inout Input/output image.
+ * @param radius Radius (distance from center) to set to 1
+ * @param alphis the what the distance is raised to in each dimension (2 is
+ * euclidian distance)
+ */
+void fillCircle(ptr<NDArray> inout, double radius, double alpha);
+
+/**
+ * @brief Fills image with the linear index at each pixel
+ *
+ * @param inout input/output image, will be filled with linear index
+ *
+ */
+void fillLinear(ptr<NDArray> inout);
+
+/**
+ * @brief Fills image with the linear index at each pixel
+ *
+ * @param inout input/output image, will be filled with gaussian white noise
+ *
+ */
+void fillGaussian(ptr<NDArray> inout);
+
+/**
  * @brief Concatinates image in the direction specified by dir. So if dir
  * is 0, and two images, sized [32, 32, 34] and [12, 32, 34] were passed
  * in the input vector, then the output would be [44, 32, 34].
@@ -343,7 +370,7 @@ ptr<NDArray> pseudoPolarZoom(ptr<const NDArray> inimg,
  *
  * @return New image that has had the images pasted together
  */
-ptr<NDArray> concat(const vector<ptr<const NDArray>>& images, size_t dir);
+ptr<NDArray> concat(const vector<ptr<NDArray>>& images, size_t dir);
 
 /**
  * @brief Concatinates images/arrays. 1 Extra dimension will be added, all the
@@ -355,7 +382,7 @@ ptr<NDArray> concat(const vector<ptr<const NDArray>>& images, size_t dir);
  *
  * @return New image with 1 extra dimension
  */
-ptr<NDArray> concatElevate(const vector<ptr<const NDArray>>& images);
+ptr<NDArray> concatElevate(const vector<ptr<NDArray>>& images);
 
 /** @}  NDArrayUtilities */
 
