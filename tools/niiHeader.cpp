@@ -29,6 +29,6 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	npl::readMRImage(argv[1], true);
+	npl::readMRImage(argv[1], true, true);
 }
 
