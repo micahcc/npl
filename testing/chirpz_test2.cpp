@@ -125,10 +125,10 @@ int testChirpz(double alpha)
 	ostringstream oss;
 	oss << "test_" << length << "_" << alpha;
 
-	auto line_brute = fftw_alloc_complex(length);
-	auto line_brute2 = fftw_alloc_complex(length);
-	auto line_fft = fftw_alloc_complex(length);
-	auto line_zoom = fftw_alloc_complex(length);
+	auto line_brute = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*length);
+	auto line_brute2 = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*length);
+	auto line_fft = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*length);
+	auto line_zoom = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*length);
 	
 	if(debug) {
 		cerr << "Test Signal:\n";
