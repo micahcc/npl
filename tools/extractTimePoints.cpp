@@ -43,18 +43,13 @@ using namespace std;
 
 
 template <typename T>
-ptr<NDArray> copyHelp(ptr<const NDArray> in, string re_str, const vector<string>& lookup)
+ptr<NDArray> copyHelp(ptr<const NDArray> in, regex re, const vector<string>& lookup)
 {
     // figure out size
     size_t odim = 0;
-    regex re(re_str);
     for(size_t ii=0; ii<lookup.size(); ii++) {
-        if(regex_match(lookup[ii], re)) {
-            cerr << "Keeping " << ii << endl;
+        if(regex_match(lookup[ii], re)) 
             odim++;
-        } else {
-            cerr << "Removing " << ii << endl;
-        }
     }
 
     vector<size_t> osize(4);
@@ -105,9 +100,58 @@ int main(int argc, char* argv[])
 
 	// parse arguments
 	cmd.parse(argc, argv);
+	
+	regex re;
+	try {
+		re.assign(a_regex.getValue(), std::regex::grep);
+	} catch(regex_error e) {
+		cerr << "Error in regular expression: '" << a_regex.getValue() << "'" << endl;
+		switch(e.code()) {
+			case std::regex_constants::error_collate:
+				cerr << "The expression contained an invalid collating element name." << endl;
+				break;
+			case std::regex_constants::error_ctype:
+				cerr << "The expression contained an invalid character class name." << endl;
+				break;
+			case std::regex_constants::error_escape:
+				cerr << "The expression contained an invalid escaped character, or a trailing escape." << endl;
+				break;
+			case std::regex_constants::error_backref:
+				cerr << "The expression contained an invalid back reference." << endl;
+				break;
+			case std::regex_constants::error_brack:
+				cerr << "The expression contained mismatched brackets ([ and ])." << endl;
+				break;
+			case std::regex_constants::error_paren:
+				cerr << "The expression contained mismatched parentheses (( and ))." << endl;
+				break;
+			case std::regex_constants::error_brace:
+				cerr << "The expression contained mismatched braces ({ and })." << endl;
+				break;
+			case std::regex_constants::error_badbrace:
+				cerr << "The expression contained an invalid range between braces ({ and })." << endl;
+				break;
+			case std::regex_constants::error_range:
+				cerr << "The expression contained an invalid character range." << endl;
+				break;
+			case std::regex_constants::error_space:
+				cerr << "There was insufficient memory to convert the expression into a finite state machine." << endl;
+				break;
+			case std::regex_constants::error_badrepeat:
+				cerr << "The expression contained a repeat specifier (one of *?+{) that was not preceded by a valid regular expression." << endl;
+				break;
+			case std::regex_constants::error_complexity:
+				cerr << "The complexity of an attempted match against a regular expression exceeded a pre-set level." << endl;
+				break;
+			case std::regex_constants::error_stack:
+				cerr << "There was insufficient memory to determine whether the regular expression could match the specified character sequence." << endl;
+				break;
+			default:
+				cerr << "Unknown regex error occurred" << endl;
+		}
+		return -1;
+	}
 
-    auto img = dPtrCast<NDArray>(readMRImage(a_input.getValue()));
-    
     // read lookup
     vector<string> lookup;
     ifstream ifs(a_lookup.getValue());
@@ -117,8 +161,20 @@ int main(int argc, char* argv[])
         lookup.push_back(v);
         ifs >> v;
     }
+    
+	// figure out size
+    size_t odim = 0;
+	cerr << "Regex: " << a_regex.getValue() << endl;
+    for(size_t ii=0; ii<lookup.size(); ii++) {
+        if(regex_match(lookup[ii], re)) {
+			cerr << left << setw(10) << lookup[ii] << " Matches, keeping" << endl;
+        } else {
+			cerr << left << setw(10) << lookup[ii] << " Does not match, Removing" << endl;
+        }
+    }
 
     // perform
+    auto img = dPtrCast<NDArray>(readMRImage(a_input.getValue()));
 	if(lookup.size() != img->tlen()) {
         cerr << "Error, number of volumes does not match number of values in "
             "lookup (" << a_lookup.getValue() << endl;
@@ -127,52 +183,52 @@ int main(int argc, char* argv[])
 
     switch(img->type()) {
         case UINT8:
-            img = copyHelp<uint8_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<uint8_t>(img, re, lookup);
             break;
         case INT16:
-            img = copyHelp<int16_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<int16_t>(img, re, lookup);
             break;
         case INT32:
-            img = copyHelp<int32_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<int32_t>(img, re, lookup);
             break;
         case FLOAT32:
-            img = copyHelp<float>(img, a_regex.getValue(), lookup);
+            img = copyHelp<float>(img, re, lookup);
             break;
         case COMPLEX64:
-            img = copyHelp<cfloat_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<cfloat_t>(img, re, lookup);
             break;
         case FLOAT64:
-            img = copyHelp<double>(img, a_regex.getValue(), lookup);
+            img = copyHelp<double>(img, re, lookup);
             break;
         case RGB24:
-            img = copyHelp<rgb_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<rgb_t>(img, re, lookup);
             break;
         case INT8:
-            img = copyHelp<int8_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<int8_t>(img, re, lookup);
             break;
         case UINT16:
-            img = copyHelp<uint16_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<uint16_t>(img, re, lookup);
             break;
         case UINT32:
-            img = copyHelp<uint32_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<uint32_t>(img, re, lookup);
             break;
         case INT64:
-            img = copyHelp<int64_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<int64_t>(img, re, lookup);
             break;
         case UINT64:
-            img = copyHelp<uint64_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<uint64_t>(img, re, lookup);
             break;
         case FLOAT128:
-            img = copyHelp<long double>(img, a_regex.getValue(), lookup);
+            img = copyHelp<long double>(img, re, lookup);
             break;
         case COMPLEX128:
-            img = copyHelp<cdouble_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<cdouble_t>(img, re, lookup);
             break;
         case COMPLEX256:
-            img = copyHelp<cquad_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<cquad_t>(img, re, lookup);
             break;
         case RGBA32:
-            img = copyHelp<rgba_t>(img, a_regex.getValue(), lookup);
+            img = copyHelp<rgba_t>(img, re, lookup);
             break;
         default:
             return -1;
