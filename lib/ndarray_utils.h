@@ -332,6 +332,22 @@ std::vector<ptr<NDArray>> pseudoPolar(ptr<const NDArray> in);
 ptr<NDArray> pseudoPolarZoom(ptr<const NDArray> inimg, 
         size_t prdim);
 
+
+/**
+ * @brief Concatinates images/arrays. 1 Extra dimension will be added, all the
+ * lower dimensions of the images must match. An example with lastdim = false
+ * would be 3 [32,32,32] images, which would result in 1 [32,32,32,3] image
+ * with the orienation matching from the first image.
+ *
+ * @param images Array of images to concatinate
+ * @param lastdim Instead of creating a new dimension beyond the existing to
+ * concatinate in, concatinate in the last dimension. The total size of that 
+ * dimension will be the sum of the existing sizes in that dimension.
+ *
+ * @return 
+ */
+ptr<NDArray> concat(const vector<ptr<const NDArray>>& images, bool lastdim=false);
+
 /** @}  NDArrayUtilities */
 
 } // npl

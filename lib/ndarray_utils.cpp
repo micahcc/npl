@@ -1910,6 +1910,118 @@ vector<ptr<NDArray>> pseudoPolar(ptr<const NDArray> in)
 	return out;
 }
 
+/**
+ * @brief Sets the middle of the image += radius (in index space) to 1,
+ * everything else to 0
+ *
+ * @param inout Input/output image.
+ * @param radius Radius (distance from center) to set to 1
+ * @param alphis the what the distance is raised to in each dimension (2 is
+ * euclidian distance)
+ */
+void fillCircle(ptr<NDArray> inout, double radius, double alpha)
+{
+    double rsq = radius*radius;
+    vector<size_t> index(inout->ndim(), 0);
+    for(NDIter<double> it(inout); !it.eof(); ++it) {
+        it.index(index.size(), index.data());
+        double dist = 0;
+        for(size_t dd=0; dd<in->ndim() dd++) {
+            dist += fabs(pow(index[dd]-(in->dim(dd)-1.)/2.,alpha));
+        }
+        if(dist <= rsqr) 
+            it.set(1);
+        else 
+            it.set(0);
+    }
+}
+
+/**
+ * @brief Fills image with the linear index at each pixel
+ *
+ * @param inout input/output image, will be filled with linear index
+ *
+ */
+void fillLinear(ptr<NDarray> inout)
+{
+    FlatIter<float> it(inout);
+    for(size_t ii=0; !it.eof(); ii++, ++it) {
+        it.set(ii);
+    }
+    return out;
+}
+
+/**
+ * @brief Fills image with the linear index at each pixel
+ *
+ * @param inout input/output image, will be filled with gaussian white noise
+ *
+ */
+void fillGaussian(ptr<NDarray> inout)
+{
+    std::random_device rd;
+    std::default_random_engine rng(rd());
+    std::normal_distribution<double> gauss(0, 1);
+
+    for(FlatIter<float> it(inout); !it.eof(); ++it) {
+        it.set(gauss(rng));
+    }
+}
+
+/**
+ * @brief Concatinates images/arrays. 1 Extra dimension will be added, all the
+ * lower dimensions of the images must match. An example with lastdim = false
+ * would be 3 [32,32,32] images, which would result in 1 [32,32,32,3] image
+ * with the orienation matching from the first image.
+ *
+ * @param images Array of images to concatinate
+ * @param lastdim Instead of creating a new dimension beyond the existing to
+ * concatinate in, concatinate in the last dimension. The total size of that 
+ * dimension will be the sum of the existing sizes in that dimension.
+ *
+ * @return 
+ */
+ptr<NDArray> concat(const vector<ptr<const NDArray>>& images, bool lastdim)
+{
+    if(images.size() == 0) 
+        throw INVALID_ARGUMENT("Input image array had size zero!");
+    
+    vector<size_t> osize(image.first())
+    if(lastdim) {
+
+        // concatinate in the last dimension of the first image
+        size_t ndim = images[0].ndim();
+        vector<size_t> odim(images[0]->dim(), images[0]->dim()+ndim);
+        
+        // figure output size
+        odim[ndim-1] = 0;
+        for(const auto& v: images) {
+            // check sizes
+            for(size_t dd=0; dd<ndim-1; dd++) {
+                if(v->dim(dd) != odim[dd]) 
+                    throw INVALID_ARGUMENT("Input image have different sizes!");
+            }
+            odim[ndim-1] += v->dim(ndim-1);
+        }
+
+        // concat
+    } else {
+        // concatinate in a new dimension
+        size_t ndim = images[0].ndim()+1;
+        vector<size_t> odim(images[0]->dim(), images[0]->dim()+images[0]->ndim());
+        odim.push_back(images.size());
+        
+        // check sizes
+        for(const auto& v: images) {
+            for(size_t dd=0; dd<ndim-1; dd++) {
+                if(v->dim(dd) != odim[dd]) 
+                    throw INVALID_ARGUMENT("Input image have different sizes!");
+            }
+        }
+
+        // concat
+    }
+}
 
 } // npl
 
