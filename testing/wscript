@@ -263,6 +263,22 @@ def build(bld):
             target='rigid_reg_test2', 
             source='rigid_reg_test2.cpp', 
             use='registration')
+
+    # NDArray Utilities Tests
+    bld.program(install_path='${PREFIX}/tests',  features='test',
+            target='concat_test1', 
+            source='concat_test1.cpp', 
+            use='mrimage ndarray_utils')
+    
+    bld.program(install_path='${PREFIX}/tests',  features='test',
+            target='concat_test2', 
+            source='concat_test2.cpp', 
+            use='mrimage ndarray_utils')
+    
+    bld.program(install_path='${PREFIX}/tests',  features='test',
+            target='concat_test3', 
+            source='concat_test3.cpp', 
+            use='mrimage ndarray_utils')
 #
 #    bld.program(install_path='${PREFIX}/tests', features='test',
 #            target='fract_fft_test', 
