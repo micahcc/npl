@@ -52,7 +52,7 @@ int main()
         it.set(2+3*(ii++));
 
     // concat/elevent
-    vector<ptr<const NDArray>> v({img1, img2, img3});
+    vector<ptr<NDArray>> v({img1, img2, img3});
     auto out = concatElevate(v);
 
     for(size_t dd=0; dd<imgsize.size(); dd++) {

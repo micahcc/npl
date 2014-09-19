@@ -1921,7 +1921,7 @@ vector<ptr<NDArray>> pseudoPolar(ptr<const NDArray> in)
  */
 void fillCircle(ptr<NDArray> inout, double radius, double alpha)
 {
-    double rsqr = radius*radius;
+    double rsqr = pow(radius, alpha);
     vector<int64_t> index(inout->ndim(), 0);
     for(NDIter<double> it(inout); !it.eof(); ++it) {
         it.index(index.size(), index.data());
@@ -1978,7 +1978,7 @@ void fillGaussian(ptr<NDArray> inout)
  *
  * @return New image that has had the images pasted together
  */
-ptr<NDArray> concat(const vector<ptr<const NDArray>>& images, size_t dir)
+ptr<NDArray> concat(const vector<ptr<NDArray>>& images, size_t dir)
 {
     if(images.size() == 0) 
         throw INVALID_ARGUMENT("Input image array had size zero!");
@@ -2057,7 +2057,7 @@ ptr<NDArray> concat(const vector<ptr<const NDArray>>& images, size_t dir)
  *
  * @return New image with 1 extra dimension
  */
-ptr<NDArray> concatElevate(const vector<ptr<const NDArray>>& images)
+ptr<NDArray> concatElevate(const vector<ptr<NDArray>>& images)
 {
     if(images.size() == 0) 
         throw INVALID_ARGUMENT("Input image array had size zero!");

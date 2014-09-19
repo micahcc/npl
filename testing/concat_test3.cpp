@@ -69,7 +69,7 @@ int main()
     }
     
     // concat/elevent
-    vector<ptr<const NDArray>> v({img1, img2, img3});
+    vector<ptr<NDArray>> v({img1, img2, img3});
     auto out = concat(v, 2);
 
     // check output
