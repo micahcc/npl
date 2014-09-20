@@ -23,10 +23,12 @@
 #include "basic_functions.h"
 #include "macros.h"
 
+#include <algorithm>
 #include <random>
 #include <cmath>
 #include <iostream>
 
+using namespace std;
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 using Eigen::JacobiSVD;
@@ -254,95 +256,129 @@ MatrixXd ica(const MatrixXd& Xin, double varth)
 	
 }
 
-/**
- * @brief Computes cdf at a particular number of degrees of freedom. 
- * Note, this only computes +t values, for negative values invert then use.
- *
- * @param nu
- * @param x
- *
- * @return 
- */
-std::vector<pair<double,double>> students_t_pdf(int nu, double dt, double maxt)
+StudentsT::StudentsT(int dof, double dt, double tmax) : 
+            m_dt(dt), m_tmax(tmax), m_dof(dof)
 {
-    std::vector<double> out;
-    out.reserve(ceil(maxt/dt));
+    init();
+};
+
+void StudentsT::setDOF(double dof)
+{
+    m_dof = dof;
+    init();
+};
+    
+void StudentsT::setStepT(double dt)
+{
+    m_dt = dt;
+    init();
+};
+
+void StudentsT::setMaxT(double tmax)
+{
+    m_tmax = tmax;
+    init();
+};
+
+double StudentsT::cumulative(double t) const
+{
+    bool negative = false;
+    if(t < 0) {
+        negative = true;
+        t = fabs(t);
+    }
+
+    double out = 0;
+    vector<double>::const_iterator it = 
+        std::lower_bound(m_tvals.begin(), m_tvals.end(), t);
+
+    if(it == m_tvals.end()) {
+        cerr << "Warning, effectively 0 p-value returned!" << endl;
+        return 0;
+    }
+
+    int ii = distance(m_tvals.begin(), it);
+    if(ii > 0) {
+        double tp = m_tvals[ii-1];
+        double tn = m_tvals[ii];
+
+        double prev = m_cdf[ii-1];
+        double next = m_cdf[ii];
+        out = prev*(tn-t)/(tn-tp) + next*(t-tp)/(tn-tp);
+    } else {
+        assert(m_cdf[ii] == 0.5);
+        out = m_cdf[ii];
+    }
+
+    if(negative)
+        return 1-out;
+    else
+        return out;
+};
+
+double StudentsT::density(double t) const
+{
+    bool negative = false;
+    if(t < 0) {
+        negative = true;
+        t = fabs(t);
+    }
+
+    double out = 0;
+    vector<double>::const_iterator it = std::lower_bound(m_tvals.begin(),
+            m_tvals.end(), t);
+    if(it == m_tvals.end()) {
+#ifndef NDEBUG
+        cerr << "Warning, effectively 0 p-value returned!" << endl;
+#endif
+        return 0;
+    }
+
+    int ii = distance(m_tvals.begin(), it);
+    if(ii > 0) {
+        double tp = m_tvals[ii-1];
+        double tn = m_tvals[ii];
+
+        double prev = m_pdf[ii-1];
+        double next = m_pdf[ii];
+        out = prev*(tn-t)/(tn-tp) + next*(t-tp)/(tn-tp);
+    } else {
+        assert(m_pdf[ii] == 0.5);
+        out = m_pdf[ii];
+    }
+
+    if(negative)
+        return 1-out;
+    else
+        return out;
+};
+
+void StudentsT::init()
+{
+    m_cdf.resize(m_tmax/m_dt);
+    m_pdf.resize(m_tmax/m_dt);
+    m_tvals.resize(m_tmax/m_dt);
 
     double sum = 0.5;
-    
     double coeff;
-    if(nu%2 == 0) {
-        coeff = 1./(2*sqrt((double)nu));
-        for(int ii = nu-1; ii >= 3; ii-=2) 
+    if(m_dof%2 == 0) {
+        coeff = 1./(2*sqrt((double)m_dof));
+        for(int ii = m_dof-1; ii >= 3; ii-=2) 
             coeff *= ((double)ii)/(ii-1.);
     } else {
-        coeff = 1./(M_PI*sqrt((double)nu));
-        for(int ii = nu-1; ii >= 2; ii-=2) 
+        coeff = 1./(M_PI*sqrt((double)m_dof));
+        for(int ii = m_dof-1; ii >= 2; ii-=2) 
             coeff *= ((double)ii)/(ii-1.);
     }
 
-    for(size_t ii = 0; ii*dt < maxt; ii++) {
-        double t = ii*dt;
-        double p = dt*coeff/pow(1+t*t/nu, (nu+1)/2);
-        out.push_back(make_pair(t,p));
+    for(size_t ii = 0; ii*m_dt < m_tmax; ii++) {
+        double t = ii*m_dt;
+        m_tvals[ii] = t;
+        m_pdf[ii] = coeff*pow(1+t*t/m_dof, -(m_dof+1)/2);
+        m_cdf[ii] = sum;
+        sum += m_dt*m_pdf[ii];
     }
-
-    return out;
-}
-
-/**
- * @brief Computes cdf at a particular number of degrees of freedom. 
- * Note, this only computes +t values, for negative values invert then use.
- *
- * @param nu
- * @param x
- *
- * @return 
- */
-std::vector<pair<double,double>> students_t_cdf(int nu, double dt, double maxt)
-{
-    std::vector<double> out;
-    out.reserve(ceil(maxt/dt));
-
-    double sum = 0.5;
-    
-    double coeff;
-    if(nu%2 == 0) {
-        coeff = 1./(2*sqrt((double)nu));
-        for(int ii = nu-1; ii >= 3; ii-=2) 
-            coeff *= ((double)ii)/(ii-1.);
-    } else {
-        coeff = 1./(M_PI*sqrt((double)nu));
-        for(int ii = nu-1; ii >= 2; ii-=2) 
-            coeff *= ((double)ii)/(ii-1.);
-    }
-
-    for(size_t ii = 0; ii*dt < maxt; ii++) {
-        double t = ii*dt;
-        out.push_back(make_pair(t,sum));
-        double p = dt*coeff/pow(1+t*t/nu, (nu+1)/2);
-        std::cerr << dt<<"*"<<coeff<<"/"<<pow(1+t*t/nu, (nu+1)/2)<<"="<<p<<std::endl;
-        sum += p;
-        std::cerr << t << " -> " << p << " -> " << out.back() << std::endl;
-    }
-
-    return out;
-}
-    
-// need to compute the CDF for students_t_cdf
-const double MAX_T = 100;
-const double STEP_T = 0.1;
-
-pair<double, double> findDist(double t, const vector<pair<double, double>>& cdf)
-{
-    vector<pair<double,double>>::iterator it;
-    it = std::binary_search(cdf.begin(), cdf.end(), t, 
-            [](const pair<double,double>& lhs, const pair<double,double>& rhs) {
-                return lhs.first < rhs.first;
-            };
-    );
-    return *it;
-}
+};
 
 /**
  * @brief Computes the Ordinary Least Square predictors, beta for 
@@ -362,7 +398,7 @@ pair<double, double> findDist(double t, const vector<pair<double, double>>& cdf)
  * @return Struct with Regression Results. 
  */
 RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
-        const MatrixXd& Xinv, std::vector<pair<double,double>>& student_cdf)
+        const MatrixXd& Xinv, const StudentsT& distrib)
 {
     if(y.rows() != X.rows()) 
         throw INVALID_ARGUMENT("y and X matrices row mismatch");
@@ -371,7 +407,7 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
     
     RegrResult out;
     out.bhat = Xinv*y;
-    out.yhat = out.bhat*X;
+    out.yhat = X*out.bhat;
     out.ssres = (out.yhat - y).squaredNorm();
 
     // compute total sum of squares
@@ -392,16 +428,7 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
         out.std_err[ii] = sqrt(sigmahat*covInv(ii,ii)/X.cols());
         double t = out.bhat[ii]/out.std_err[ii];
         out.t[ii] = t;
-        
-        t = fabs(t);
-        binary_search(student_cdf.begin(), student_cdf.end(), t, 
-                [](const pair<double,double>& left, const pair<double,double>& left, 
-                    ) {t_p.first 
-        size_t t_index = round(t/STEP_T);
-        if(t_index >= student_cdf.size())
-            out.p[ii] = 0;
-        else
-            out.p[ii] = student_cdf[t_index];
+        out.p[ii] = distrib.cumulative(t);
     }
 
     return out;
@@ -449,20 +476,17 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X)
     out.p.resize(X.cols());
     out.dof = X.rows()-1;
 
-    auto student_cdf = students_t_cdf(out.dof, STEP_T, MAX_T);
+    // need to compute the CDF for students_t_cdf
+    const double MAX_T = 100;
+    const double STEP_T = 0.1;
+    StudentsT distrib(out.dof, STEP_T, MAX_T);
 
     for(size_t ii=0; ii<X.cols(); ii++) {
         out.std_err[ii] = sqrt(sigmahat*covInv(ii,ii)/X.cols());
 
         double t = out.bhat[ii]/out.std_err[ii];
         out.t[ii] = t;
-        
-        t = fabs(t);
-        size_t t_index = round(t/STEP_T);
-        if(t_index >= student_cdf.size())
-            out.p[ii] = 0;
-        else
-            out.p[ii] = student_cdf[t_index];
+        out.p[ii] = distrib.cdf(t);
     }
 
     return out;

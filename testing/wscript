@@ -251,6 +251,11 @@ def build(bld):
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='glm_test1', 
             source='glm_test1.cpp', 
+            use='statistics basic_plot') 
+
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='glm_test2', 
+            source='glm_test2.cpp', 
             use='statistics nplio ndarray_utils') 
 
     # Registration Testing

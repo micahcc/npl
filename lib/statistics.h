@@ -144,6 +144,99 @@ struct RegrResult
 };
 
 /**
+ * @brief Student's T-distribution. A cache of the Probability Density Function and 
+ * cumulative density function is created using the analytical PDF.
+ */
+class StudentsT
+{
+public:
+    /**
+     * @brief Defualt constructor takes the degrees of freedom (Nu), step size
+     * for numerical CDF computation and Maximum T to sum to for numerical CDF
+     *
+     * @param dof Degrees of freedom (shape parameter)
+     * @param dt step size in x or t to take 
+     * @param tmax Maximum t to consider
+     */
+    StudentsT(int dof = 2, double dt = 0.1, double tmax = 20);
+
+    /**
+     * @brief Change the degress of freedom, update cache
+     *
+     * @param dof Shape parameter, higher values make the distribution more
+     * gaussian
+     */
+    void setDOF(double dof);
+    
+    /**
+     * @brief Step in t to use for computing the CDF, smaller means more
+     * precision although in reality the distribution is quite smooth, and
+     * linear interpolation should be very good.
+     *
+     * @param dt Step size for numerical integration
+     */
+    void setStepT(double dt);
+
+    /**
+     * @brief Set the maximum t for numerical integration, and recompute the
+     * cdf/pdf caches.
+     *
+     * @param tmax CDF and PDF are stored as arrays, this is the maximum
+     * acceptable t value. Its RARE (like 10^-10 rare) to have a value higher
+     * than 20.
+     */
+    void setMaxT(double tmax);
+
+    /**
+     * @brief Get the cumulative probability at some t value.
+     *
+     * @param t T (or x, distance from center) value to query
+     *
+     * @return Cumulative probability (probability value of value < t)
+     */
+    double cumulative(double t) const;
+
+    /**
+     * @brief Get the cumulative probability at some t value.
+     *
+     * @param t T (or x, distance from center) value to query
+     *
+     * @return Cumulative probability (probability value of value < t)
+     */
+    double cdf(double t) const { return cumulative(t); };
+
+
+    /**
+     * @brief Get the probability density at some t value.
+     *
+     * @param t T value to query
+     *
+     * @return Probability density at t. 
+     */
+    double density(double t) const;
+
+    /**
+     * @brief Get the probability density at some t value.
+     *
+     * @param t T value to query
+     *
+     * @return Probability density at t. 
+     */
+    double pdf(double t) const { return density(t); };
+
+private:
+    void init();
+
+    double m_dt;
+    double m_tmax;
+    int m_dof;
+    std::vector<double> m_cdf;
+    std::vector<double> m_pdf;
+    std::vector<double> m_tvals;
+};
+
+
+/**
  * @brief Computes the Ordinary Least Square predictors, beta for 
  *
  * \f$ y = \hat \beta X \f$
@@ -161,7 +254,7 @@ struct RegrResult
  * @return Struct with Regression Results. 
  */
 RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
-        const MatrixXd& Xinv, std::vector<double>& student_cdf);
+        const MatrixXd& Xinv, const StudentsT& distrib);
 
 /**
  * @brief Computes the Ordinary Least Square predictors, beta for 
@@ -186,28 +279,6 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X);
  * @return Psueodinverse 
  */
 MatrixXd pseudoInverse(const MatrixXd& X);
-
-/**
- * @brief Computes pdf at a particular number of degrees of freedom. 
- * Note, this only computes +t values, for negative values invert then use.
- *
- * @param nu
- * @param x
- *
- * @return 
- */
-std::vector<double> students_t_pdf(int nu, double dt, double maxt);
-
-/**
- * @brief Computes cdf at a particular number of degrees of freedom. 
- * Note, this only computes +t values, for negative values invert then use.
- *
- * @param nu
- * @param x
- *
- * @return 
- */
-std::vector<double> students_t_cdf(int nu, double dt, double maxt);
 
 /** @} */
 
