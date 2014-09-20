@@ -107,7 +107,7 @@ int main(int argc, char** argv)
 
     const double MAX_T = 100;
     const double STEP_T = 0.1;
-    auto student_cdf = students_t_cdf(X.rows()-1, STEP_T, MAX_T);
+    StudentsT student_cdf(X.rows()-1, STEP_T, MAX_T);
 
     // regress each timesereies
     ChunkIter<double> it(fmri);
