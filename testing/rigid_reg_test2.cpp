@@ -109,7 +109,7 @@ int main()
     cerr << "Input Image:\n" << *img << endl;
     cerr << "Rigidly Transformed Image:\n" << *moved << endl;
 
-    std::vector<double> sigma_schedule({4,2});
+    std::vector<double> sigma_schedule({4,2,0});
     auto out = corReg3D(img, moved, sigma_schedule);
 
     cerr << "Final Parameters: " << out << endl;

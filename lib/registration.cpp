@@ -302,14 +302,14 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
         double cy = m_center[1];
         double cz = m_center[2];
         
-        cind[0] = cx - (cx + sx - x)*cos(ry)*cos(rz) + cos(rz)*((cz + sz -
-                    z)*cos(rx) - (cy + sy - y)*sin(rx))*sin(ry) - ((cy + sy -
-                    y)*cos(rx) + (cz + sz - z)*sin(rx))*sin(rz);
-        cind[1] = cy + cos(rz)*((-cy - sy + y)*cos(rx) - (cz + sz - z)*sin(rx))
-                    + (cx + sx - x)*cos(ry)*sin(rz) + ((-cz - sz + z)*cos(rx) +
-                    (cy + sy - y)*sin(rx))*sin(ry)*sin(rz);
-        cind[2] = cz - (cz + sz - z)*cos(rx)*cos(ry) + (cy + sy -
-                    y)*cos(ry)*sin(rx) - (cx + sx - x)*sin(ry);
+        cind[0] = cx + sx + (-cz + z)*sin(ry) + cos(ry)*((-cx + x)*cos(rz) +
+                (cy - y)*sin(rz));
+        cind[1] = cy + sy + (cz - z)*cos(ry)*sin(rx) + (-cx +
+                x)*(cos(rz)*sin(rx)*sin(ry) + cos(rx)*sin(rz)) + (-cy +
+                y)*(cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz));
+        cind[2] = cz + sz + (-cz + z)*cos(rx)*cos(ry) + (cx -
+                x)*(cos(rx)*cos(rz)*sin(ry) - sin(rx)*sin(rz)) + (-cy +
+                y)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
 
         // Here we compute dg(v(u,p))/dp, where g is the image, u is the
         // coordinate in the fixed image, and p is the param. 
@@ -321,51 +321,45 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
         double dg_dy = m_dmove_get(cind[0], cind[1], cind[2], 1);
         double dg_dz = m_dmove_get(cind[0], cind[1], cind[2], 2);
 
-        double dx_dRx = -(cos(rz)*((cy + sy - y)*cos(rx) + (cz + sz -
-                    z)*sin(rx))*sin(ry)) + ((-cz - sz + z)*cos(rx) + (cy +
-                    sy - y)*sin(rx))*sin(rz);
-        double dy_dRx =  cos(rz)*((-cz - sz + z)*cos(rx) + (cy + sy -
-                    y)*sin(rx)) + ((cy + sy - y)*cos(rx) + (cz + sz -
-                    z)*sin(rx))*sin(ry)*sin(rz);
-        double dz_dRx = cos(ry)*((cy + sy - y)*cos(rx) + (cz + sz -
-                    z)*sin(rx));
+        double dx_dRx = 0;
+        double dy_dRx = (cz - z)*cos(rx)*cos(ry) + 
+            (-cx + x)*(cos(rx)*cos(rz)*sin(ry) - sin(rx)*sin(rz)) + 
+            (cy - y)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
+        double dz_dRx = (cz - z)*cos(ry)*sin(rx) + 
+            (-cx + x)*(cos(rz)*sin(rx)*sin(ry) + cos(rx)*sin(rz)) +
+            (-cy + y)*(cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz));
 
-        double dx_dRy = cos(rz)*((cz + sz - z)*cos(rx)*cos(ry) - (cy + sy -
-                    y)*cos(ry)*sin(rx) + (cx + sx - x)*sin(ry));
-        double dy_dRy = (-((cz + sz - z)*cos(rx)*cos(ry)) + (cy + sy -
-                    y)*cos(ry)*sin(rx) - (cx + sx - x)*sin(ry))*sin(rz);
-        double dz_dRy = (-cx - sx + x)*cos(ry) + ((cz + sz - z)*cos(rx) - (cy +
-                    sy - y)*sin(rx))*sin(ry);
+        double dx_dRy = (-cz + z)*cos(ry) + sin(ry)*((cx - x)*cos(rz) + (-cy + y)*sin(rz));
+        double dy_dRy = sin(rx)*((-cz + z)*sin(ry) + cos(ry)*((-cx + x)*cos(rz) + (cy - y)*sin(rz)));
+        double dz_dRy = cos(rx)*((cz - z)*sin(ry) + cos(ry)*((cx - x)*cos(rz) + (-cy + y)*sin(rz)));
 
-        double dx_dRz = (-cz - sz + z)*cos(rz)*sin(rx) + ((cx + sx - x)*cos(ry)
-                    + (cy + sy - y)*sin(rx)*sin(ry))*sin(rz) - cos(rx)*((cy +
-                    sy - y)*cos(rz) + (cz + sz - z)*sin(ry)*sin(rz));
-        double dy_dRz = (cx + sx - x)*cos(ry)*cos(rz) + cos(rz)*((-cz - sz +
-                    z)*cos(rx) + (cy + sy - y)*sin(rx))*sin(ry) + ((cy + sy -
-                    y)*cos(rx) + (cz + sz - z)*sin(rx))*sin(rz);
-        double dz_dRz = 0;
+        double dx_dRz = cos(ry)*((cy - y)*cos(rz) + (cx - x)*sin(rz));
+        double dy_dRz = (cy - y)*(cos(rz)*sin(rx)*sin(ry) + cos(rx)*sin(rz)) +
+            (-cx + x)*(cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz));
+        double dz_dRz =  (-cy + y)*(cos(rx)*cos(rz)*sin(ry) - sin(rx)*sin(rz))
+            + (-cx + x)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
 
         // derivative of coordinate system due 
-        double dx_dSx = -(cos(ry)*cos(rz));
-        double dy_dSx = cos(ry)*sin(rz);
-        double dz_dSx = -sin(ry);
+        double dx_dSx = 1;
+        double dy_dSx = 0;
+        double dz_dSx = 0;
         
-        double dx_dSy = -(cos(rz)*sin(rx)*sin(ry)) - cos(rx)*sin(rz);
-        double dy_dSy = -(cos(rx)*cos(rz)) + sin(rx)*sin(ry)*sin(rz);
-        double dz_dSy = cos(ry)*sin(rx);
+        double dx_dSy = 0;
+        double dy_dSy = 1;
+        double dz_dSy = 0;
         
-        double dx_dSz = cos(rx)*cos(rz)*sin(ry) - sin(rx)*sin(rz);
-        double dy_dSz = -(cos(rz)*sin(rx)) - cos(rx)*sin(ry)*sin(rz);
-        double dz_dSz = -(cos(rx)*cos(ry));
+        double dx_dSz = 0;
+        double dy_dSz = 0;
+        double dz_dSz = 1;
 
         // compute SUM_i dg/dv_i dv_i/dp
-        double dCdRx = dg_dx*dx_dRx + dg_dy*dy_dRx + dg_dz*dz_dRx;
-        double dCdRy = dg_dx*dx_dRy + dg_dy*dy_dRy + dg_dz*dz_dRy;
-        double dCdRz = dg_dx*dx_dRz + dg_dy*dy_dRz + dg_dz*dz_dRz;
+        double dgdRx = dg_dx*dx_dRx + dg_dy*dy_dRx + dg_dz*dz_dRx;
+        double dgdRy = dg_dx*dx_dRy + dg_dy*dy_dRy + dg_dz*dz_dRy;
+        double dgdRz = dg_dx*dx_dRz + dg_dy*dy_dRz + dg_dz*dz_dRz;
 
-        double dCdSx = dg_dx*dx_dSx + dg_dy*dy_dSx + dg_dz*dz_dSx;
-        double dCdSy = dg_dx*dx_dSy + dg_dy*dy_dSy + dg_dz*dz_dSy;
-        double dCdSz = dg_dx*dx_dSz + dg_dy*dy_dSz + dg_dz*dz_dSz;
+        double dgdSx = dg_dx*dx_dSx + dg_dy*dy_dSx + dg_dz*dz_dSx;
+        double dgdSy = dg_dx*dx_dSy + dg_dy*dy_dSy + dg_dz*dz_dSy;
+        double dgdSz = dg_dx*dx_dSz + dg_dy*dy_dSz + dg_dz*dz_dSz;
         
         // compute correlation, since it requires almost no additional work
         double g = m_move_get(cind[0], cind[1], cind[2]);
@@ -378,22 +372,22 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
         corr += g*f;
 
 #ifdef VERYDEBUG
-        d_ang_x.set(dCdRx, ind[0], ind[1], ind[2]);
-        d_ang_y.set(dCdRy, ind[0], ind[1], ind[2]);
-        d_ang_z.set(dCdRz, ind[0], ind[1], ind[2]);
-        d_shi_x.set(dCdSx, ind[0], ind[1], ind[2]);
-        d_shi_y.set(dCdSy, ind[0], ind[1], ind[2]);
-        d_shi_z.set(dCdSz, ind[0], ind[1], ind[2]);
+        d_ang_x.set(dgdRx, ind[0], ind[1], ind[2]);
+        d_ang_y.set(dgdRy, ind[0], ind[1], ind[2]);
+        d_ang_z.set(dgdRz, ind[0], ind[1], ind[2]);
+        d_shi_x.set(dgdSx, ind[0], ind[1], ind[2]);
+        d_shi_y.set(dgdSy, ind[0], ind[1], ind[2]);
+        d_shi_z.set(dgdSz, ind[0], ind[1], ind[2]);
         acc.set(g, ind[0], ind[1], ind[2]);
         assert(acc(ind[0], ind[1], ind[2]) == g);
 #endif
      
-        grad[0] += (*m_fit)*dCdRx;
-        grad[1] += (*m_fit)*dCdRy;
-        grad[2] += (*m_fit)*dCdRz;
-        grad[3] += (*m_fit)*dCdSx;
-        grad[4] += (*m_fit)*dCdSy;
-        grad[5] += (*m_fit)*dCdSz;
+        grad[0] += (*m_fit)*dgdRx;
+        grad[1] += (*m_fit)*dgdRy;
+        grad[2] += (*m_fit)*dgdRz;
+        grad[3] += (*m_fit)*dgdSx;
+        grad[4] += (*m_fit)*dgdSy;
+        grad[5] += (*m_fit)*dgdSz;
      
     }
 
@@ -490,14 +484,14 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
         double cy = m_center[1];
         double cz = m_center[2];
         
-        cind[0] = cx - (cx + sx - x)*cos(ry)*cos(rz) + cos(rz)*((cz + sz -
-                    z)*cos(rx) - (cy + sy - y)*sin(rx))*sin(ry) - ((cy + sy -
-                    y)*cos(rx) + (cz + sz - z)*sin(rx))*sin(rz);
-        cind[1] = cy + cos(rz)*((-cy - sy + y)*cos(rx) - (cz + sz - z)*sin(rx))
-                    + (cx + sx - x)*cos(ry)*sin(rz) + ((-cz - sz + z)*cos(rx) +
-                    (cy + sy - y)*sin(rx))*sin(ry)*sin(rz);
-        cind[2] = cz - (cz + sz - z)*cos(rx)*cos(ry) + (cy + sy -
-                    y)*cos(ry)*sin(rx) - (cx + sx - x)*sin(ry);
+        cind[0] = cx + sx + (-cz + z)*sin(ry) + cos(ry)*((-cx + x)*cos(rz) +
+                (cy - y)*sin(rz));
+        cind[1] = cy + sy + (cz - z)*cos(ry)*sin(rx) + (-cx +
+                x)*(cos(rz)*sin(rx)*sin(ry) + cos(rx)*sin(rz)) + (-cy +
+                y)*(cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz));
+        cind[2] = cz + sz + (-cz + z)*cos(rx)*cos(ry) + (cx -
+                x)*(cos(rx)*cos(rz)*sin(ry) - sin(rx)*sin(rz)) + (-cy +
+                y)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
         
         double a = m_move_get(cind[0], cind[1], cind[2]);
 #ifdef VERYDEBUG

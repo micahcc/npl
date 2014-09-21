@@ -112,7 +112,7 @@ int main()
         auto sm_moving = smoothDownsample(moved, sigma_schedule[ii]);
     
         // perform test of gradient
-        if(cor3DDerivTest(0.0001, 0.01, sm_fixed, sm_moving) != 0)
+        if(cor3DDerivTest(0.0000001, 0.05, sm_fixed, sm_moving) != 0)
             return -1;
     }
     return 0;
