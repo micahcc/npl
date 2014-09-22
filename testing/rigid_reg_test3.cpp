@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file rigid_reg_test1.cpp Tests correlation based rigid registration
+ * @file rigid_reg_test2.cpp Tests mutual information based rigid registration
  *
  *****************************************************************************/
 
@@ -49,7 +49,7 @@ shared_ptr<MRImage> gaussianImage()
     // create an image
     size_t sz[] = {64,64,64};
     int64_t index[3];
-    auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, COMPLEX128);
+    auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, FLOAT64);
 
     // fill with a shape that is somewhat unique when rotated. 
     OrderIter<double> sit(in);
@@ -96,6 +96,7 @@ int main()
 {
     // create test image
     auto img = gaussianImage();
+    //auto img = squareImage();
 
     // rotate it
     auto moved = dPtrCast<MRImage>(img->copy());
@@ -105,15 +106,17 @@ int main()
     shiftImageFFT(moved, 1, 7);
     shiftImageFFT(moved, 2, -2);
     
-    std::vector<double> sigma_schedule({3,2});
-    for(size_t ii=0; ii<sigma_schedule.size(); ii++) {
-        // smooth and downsample input images
-        auto sm_fixed = smoothDownsample(img, sigma_schedule[ii]);
-        auto sm_moving = smoothDownsample(moved, sigma_schedule[ii]);
+    // invert
+    for(NDIter<double> it(moved); !it.eof(); ++it) 
+        it.set(-it.get());
     
-        // perform test of gradient
-        if(cor3DDerivTest(0.0000001, 0.05, sm_fixed, sm_moving) != 0)
-            return -1;
-    }
+    cerr << "Input Image:\n" << *img << endl;
+    cerr << "Rigidly Transformed Image:\n" << *moved << endl;
+
+    std::vector<double> sigma_schedule({4,2,0});
+    auto out = informationReg3D(img, moved, sigma_schedule);
+
+    cerr << "Final Parameters: " << out << endl;
     return 0;
 }
+
