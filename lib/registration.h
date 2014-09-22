@@ -392,6 +392,19 @@ shared_ptr<MRImage> motionCorrect(shared_ptr<const MRImage> input, size_t ref);
 Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed, 
         shared_ptr<const MRImage> moving, const std::vector<double>& sigmas);
 
+/**
+ * @brief Performs information-based registration between two 3D volumes. note
+ * that the two volumes should have identical sampling and identical
+ * orientation. If that is not the case, an exception will be thrown.
+ *
+ * @param fixed     Image which will be the target of registration. 
+ * @param moving    Image which will be rotated then shifted to match fixed.
+ * @param sigmas    Standard deviation of smoothing kernel at each level
+ *
+ * @return          Rigid transform.
+ */
+Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed, 
+        shared_ptr<const MRImage> moving, const std::vector<double>& sigmas);
 
 /**
  * @brief This function checks the validity of the derivative functions used

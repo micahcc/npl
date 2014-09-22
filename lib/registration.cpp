@@ -716,16 +716,16 @@ RigidInformationComputer::RigidInformationComputer(
     //////////////////////////////////////
     // compute ranges, and bin widths
     //////////////////////////////////////
-    m_rangefix[0] = 0;
-    m_rangefix[1] = 0;
+    m_rangefix[0] = INFINITY; 
+    m_rangefix[1] = -INFINITY;
     for(NDIter<double> it(m_fixed); !it.eof(); ++it) {
         m_rangefix[0] = std::min(m_rangefix[0], *it);
         m_rangefix[1] = std::max(m_rangefix[1], *it);
     }
 	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-2*m_krad-1);
     
-    m_rangemove[0] = 0;
-    m_rangemove[1] = 0;
+    m_rangemove[0] = INFINITY;
+    m_rangemove[1] = -INFINITY;
     for(NDIter<double> it(m_moving); !it.eof(); ++it) {
         m_rangemove[0] = std::min(m_rangemove[0], *it);
         m_rangemove[1] = std::max(m_rangemove[1], *it);
