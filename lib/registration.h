@@ -400,7 +400,8 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
  * @return          Rigid transform.
  */
 Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed, 
-        shared_ptr<const MRImage> moving, const std::vector<double>& sigmas);
+        shared_ptr<const MRImage> moving, const std::vector<double>& sigmas,
+        size_t nbins = 128, size_t binradius = 4);
 
 /**
  * @brief This function checks the validity of the derivative functions used
@@ -415,7 +416,6 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
  */
 int cor3DDerivTest(double step, double tol, shared_ptr<const MRImage> in1,
         shared_ptr<const MRImage> in2);
-
 
 /**
  * @brief This function checks the validity of the derivative functions used
