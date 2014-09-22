@@ -180,8 +180,8 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
  *                  4th column.
  */
 Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed, 
-        shared_ptr<const MRImage> moving, 
-        const std::vector<double>& sigmas)
+        shared_ptr<const MRImage> moving, const std::vector<double>& sigmas,
+        size_t nbins, size_t binradius)
 {
     using namespace std::placeholders;
     using std::bind;
@@ -201,7 +201,7 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
         DEBUGWRITE(sm_fixed->write("smooth_fixed_"+to_string(ii)+".nii.gz"));
         DEBUGWRITE(sm_moving->write("smooth_moving_"+to_string(ii)+".nii.gz"));
 
-        RigidInformationComputer comp(sm_fixed, sm_moving, 128, 8, true);
+        RigidInformationComputer comp(sm_fixed, sm_moving, nbins, binradius, true);
         
         // create value and gradient functions
         auto vfunc = bind(&RigidInformationComputer::value, &comp, _1, _2);
@@ -948,6 +948,9 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 
 
 #ifdef VERYDEBUG
+    cerr << "Fixed  Entropy: " << m_Hfix << endl;
+    cerr << "Moving Entropy: " << m_Hmove<< endl;
+    cerr << "Joint  Entropy: " << m_Hjoint << endl;
     cerr << "ValueGrad() = " << val << " / " << grad.transpose() << endl;
 #endif
 
@@ -1071,6 +1074,9 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
     val = m_Hfix+m_Hmove-m_Hjoint;
 
 #ifdef VERYDEBUG
+    cerr << "Fixed  Entropy: " << m_Hfix << endl;
+    cerr << "Moving Entropy: " << m_Hmove<< endl;
+    cerr << "Joint  Entropy: " << m_Hjoint << endl;
     cerr << "Value() = " << val << endl;
 #endif
    
