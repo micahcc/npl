@@ -149,20 +149,16 @@ class RigidInformationComputer
     shared_ptr<MRImage> interpolated;
     int callcount;
 #endif
-
-    vector<double> m_kernel_dmove;
-    vector<double> m_kernel_move;
-	vector<double> m_kernel_fix;
     
-    vector<double> m_pdfmove;
-    vector<double> m_pdffix;
+    NDArrayStore<1, double> m_pdfmove;
+    NDArrayStore<1, double> m_pdffix;
     
     NDArrayStore<2, double> m_pdfjoint;
     NDArrayStore<3, double> m_dpdfjoint;
-//    NDArrayStore<2, double> m_dpmove;
+    NDArrayStore<2, double> m_dpdfmove;
 
+    vector<double> m_gradHmove;
     vector<double> m_gradHjoint;
-//    vector<double> m_gradHmove;
     double m_Hfix;
     double m_Hmove;
     double m_Hjoint;
