@@ -57,7 +57,7 @@ void interp(int64_t isize, fftw_complex* in, int64_t osize, fftw_complex* out)
 		for(int64_t ii=center-radius; ii<=center+radius; ii++) {
 			if(ii>=0 && ii<isize) {
 				complex<double> tmp(in[ii][0], in[ii][1]);
-				sum += lanczosKernel(ii-cii, radius)*tmp;
+				sum += lanczosKern(ii-cii, radius)*tmp;
 			}
 		}
 		out[oo][0] = sum.real();
@@ -272,7 +272,7 @@ void zoom(size_t isize, fftw_complex* in, fftw_complex* out, double a)
 		for(int64_t ii=center-radius; ii<=center+radius; ii++) {
 			if(ii>=0 && ii<isize) {
 				complex<double> tmp(in[ii][0], in[ii][1]);
-				sum += lanczosKernel(ii-cii, radius)*tmp;
+				sum += lanczosKern(ii-cii, radius)*tmp;
 			}
 		}
 		out[oo][0] = sum.real();
