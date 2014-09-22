@@ -208,6 +208,11 @@ def build(bld):
             use='ndarray_utils utility mrimage_utils iterators EIGEN') 
 
     bld.program(install_path='${PREFIX}/tests', features='test',
+            target='shear_decompose_test', 
+            source='shear_decompose_test.cpp', 
+            use='ndarray_utils utility mrimage_utils iterators EIGEN') 
+
+    bld.program(install_path='${PREFIX}/tests', features='test',
             target='chirpz_test', 
             source='chirpz_test.cpp', 
             use='chirpz') 
