@@ -754,7 +754,7 @@ RigidInformationComputer::RigidInformationComputer(
     m_Hfix = 0;
     for(size_t ii=0; ii<m_bins; ii++) {
         m_pdffix[ii] *= Nrecip;
-        m_Hfix += m_pdffix[ii] > 0 ? m_pdffix[ii]*log(m_pdffix[ii]) : 0;
+        m_Hfix -= m_pdffix[ii] > 0 ? m_pdffix[ii]*log(m_pdffix[ii]) : 0;
     }
     
     // moving
@@ -774,7 +774,7 @@ RigidInformationComputer::RigidInformationComputer(
     m_Hmove = 0;
     for(size_t ii=0; ii<m_bins; ii++) {
         m_pdfmove[ii] *= Nrecip;
-        m_Hmove += m_pdfmove[ii] > 0 ? m_pdfmove[ii]*log(m_pdfmove[ii]) : 0;
+        m_Hmove -= m_pdfmove[ii] > 0 ? m_pdfmove[ii]*log(m_pdfmove[ii]) : 0;
     }
 }
 
@@ -882,20 +882,10 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
         assert(binfix+m_krad >= 0);
         assert(binmove+m_krad >= 0);
 		
-		//pre-calculate kernels
-		for(int ii = -m_krad; ii <= m_krad; ii++) 
-			m_kernel_fix[ii+m_krad] = B3kern(binfix+ii-cbinfix, m_krad);
-
-		for(int ii = -m_krad; ii <= m_krad; ii++) {
-			m_kernel_dmove[ii+m_krad] = dB3kern(binmove+ii-cbinmove, m_krad);
-			m_kernel_move[ii+m_krad] = B3kern(binmove+ii-cbinmove, m_krad);
-        }
-
-        //sum up kernel bins
+        // joint
         for(int ii = binfix-m_krad; ii <= binfix+m_krad; ii++) {
             for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++) {
-                m_pdfjoint[{ii,jj}] += m_kernel_fix[ii-binfix+m_krad]*
-                    m_kernel_move[jj-binmove+m_krad];
+                m_pdfjoint[{ii,jj}] += B3kern(ii-cbinfix)*B3kern(jj-cbinmove);
             }
         }
         
@@ -903,8 +893,8 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
         for(int phi = 0; phi < 6; phi++) {
             for(int ii = binfix-m_krad; ii <= binfix+m_krad; ii++) {
                 for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++) {
-                    m_dpdfjoint[{phi,ii,jj}] += m_kernel_fix[ii-binfix+m_krad]*
-                        m_kernel_dmove[jj-binmove+m_krad]*dgdPhi[phi];
+                    m_dpdfjoint[{phi,ii,jj}] += B3kern(ii-cbinfix)*
+                        dB3kern(jj-cbinmove)*dgdPhi[phi];
                 }
             }
         }
@@ -933,7 +923,7 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
     for(int ii=0; ii<m_bins; ii++) {
         for(int jj=0; jj<m_bins; jj++) {
             double p = m_pdfjoint[{ii,jj}];
-            m_Hjoint += p > 0 ? p*log(p) : 0;
+            m_Hjoint -= p > 0 ? p*log(p) : 0;
         }
     }
     
@@ -944,7 +934,7 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
             for(int jj=0; jj<m_bins; jj++) {
                 double p = m_pdfjoint[{ii,jj}];
                 double dp = m_dpdfjoint[{pp,ii,jj}];
-                m_gradHjoint[pp] += p > 0 ? dp*log(p) : 0;
+                m_gradHjoint[pp] -= p > 0 ? dp*log(p) : 0;
             }
         }
     }
@@ -1049,17 +1039,10 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
         assert(binfix+m_krad >= 0);
         assert(binmove+m_krad >= 0);
 		
-		//pre-calculate kernels
-		for(int ii = -m_krad; ii <= m_krad; ii++) {
-			m_kernel_fix[ii+m_krad] = B3kern(binfix+ii-cbinfix, m_krad);
-			m_kernel_move[ii+m_krad] = B3kern(binmove+ii-cbinmove, m_krad);
-        }
-
         //sum up kernel bins
         for(int ii = binfix-m_krad; ii <= binfix+m_krad; ii++) {
             for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++) {
-                m_pdfjoint[{ii,jj}] += m_kernel_fix[ii-binfix+m_krad]*
-                    m_kernel_move[jj-binmove+m_krad];
+                m_pdfjoint[{ii,jj}] += B3kern(ii-cbinfix)*B3kern(jj-cbinmove);
             }
         }
     }
@@ -1083,7 +1066,7 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
     for(int ii=0; ii<m_bins; ii++) {
         for(int jj=0; jj<m_bins; jj++) {
             double p = m_pdfjoint[{ii,jj}];
-            m_Hjoint += p > 0 ? p*log(p) : 0;
+            m_Hjoint -= p > 0 ? p*log(p) : 0;
         }
     }
 
