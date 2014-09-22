@@ -4,6 +4,11 @@ def build(bld):
             target='regex_test', 
             source='regex_test.cpp')
 
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='bspline_kernel_test', 
+            source='bspline_kernel_test.cpp',
+            use='basic_plot')
+
     # test underlying slicer library
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='slicer_test', 

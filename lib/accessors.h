@@ -1022,7 +1022,7 @@ public:
 			for(int64_t ii=-radius; ii<=radius; ii++){
 				int64_t i = round(cindex[dd])+ii;
 				indarray[dd][ii+m_radius] = i;
-				karray[dd][ii+m_radius] = lanczosKernel(i-cindex[dd], m_radius);
+				karray[dd][ii+m_radius] = lanczosKern(i-cindex[dd], m_radius);
 			}
 		}
 

@@ -450,11 +450,11 @@ int Plotter::writeSVG(size_t xres, size_t yres, std::string fname)
 	
 	// functions
 	for(auto& func: funcs) {
-//		auto& sty = std::get<0>(func);
+		auto& sty = std::get<0>(func);
 		auto& foo = std::get<1>(func);
 
 		double xx = xrange[0];
-		o << "<polyline fill=\"none\" stroke=\"blue\" points=\"";
+		o << "<polyline fill=\"none\" points=\"";
 		while(xx < xrange[1]) {
 			double dx = xstep;
 			double yy = foo(xx);
@@ -463,7 +463,10 @@ int Plotter::writeSVG(size_t xres, size_t yres, std::string fname)
 			xx += dx;
 			o << xi << "," << yi << " ";
 		}
-		o << "\"></polyline>" << endl;
+		o << "\" stroke=\"#";
+		for(size_t ii=0; ii<3; ii++)
+			o << hex << setfill('0') << setw(2) << (int)sty.rgba[ii];
+		o << dec << "\"></polyline>"<< endl;
 	}
 
 	// create axis
