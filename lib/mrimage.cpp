@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file mrimage.cpp
+ * @file mrimage.cpp Compilation for MRImage variants and non-class core
+ * functions
  *
  *****************************************************************************/
 

@@ -20,7 +20,9 @@
 #ifndef BASIC_FUNCTIONS_H
 #define BASIC_FUNCTIONS_H
 
+#include <cstdlib>
 #include <cmath>
+#include <cassert>
 #include <list>
 
 namespace npl {
@@ -140,35 +142,187 @@ double rectWindow(double x, double a)
 inline
 double sincWindow(double x, double a)
 {
-	const double PI = acos(-1);
-
 	if(x == 0)
 		return 1;
 	else if(fabs(x) < a)
-		return sin(PI*x/a)/(PI*x/a);
+		return sin(M_PI*x/a)/(M_PI*x/a);
 	else
 		return 0;
 }
 
 /**
- * @brief Lanczos kernel function
+ * @brief Derivative of lanczos kernel with respect to x
  *
- * @param x distance from center
- * @param a radius of kernel
+ * @param x Distance from center (0)
+ * @param a Radius
  *
- * @return weight
+ * @return Weight
+ */
+double lanczosKern(double x, double a)
+{
+       if(x == 0)
+               return 1;
+       // a*Sin[Pi*x]*Sin[Pi*x/a]/(Pi*Pi*x*x)
+       double v = a*sin(M_PI*x)*sin(M_PI*x/a)/(M_PI*M_PI*x*x);
+       assert(v <= 1.001 && v >= -1.0001);
+       return v;
+}
+
+/**
+ * @brief Derivative of lanczos kernel with respect to x
+ *
+ * @param x Distance from center (0)
+ * @param a Radius
+ *
+ * @return Weight
+ */
+double dLanczosKern(double x, double a)
+{
+       if(x == 0)
+               return 0;
+       double v = (M_PI*x*((cos((M_PI*x)/a)*sin(M_PI*x)) +
+                   (a*sin((M_PI*x)/a)*cos(M_PI*x))) -
+               (2*a*sin((M_PI*x)/a)*sin(M_PI*x)))/(M_PI*M_PI*x*x*x);
+       assert(v >= -2 && v <= 10);
+       return v;
+
+}
+
+/* Linear Kernel Sampling */
+double linKern(double x, double a)
+{
+	return fabs(1-fmin(1,fabs(x/a)))/a;
+}
+
+/* Linear Kernel Sampling */
+double dLinKern(double x, double a)
+{
+	if(x < -a || x > a)
+		return 0;
+	if(x < 0)
+		return 1/a;
+	else
+		return -1/a; 
+}
+
+/****************************************************** 
+ * Third Order BSpline kernel. X is distance from 0
+ ****************************************************/
+
+/**
+ * @brief 3rd order B-Spline, radius 2 [-2,2]
+ *
+ * @param x Distance from center
+ *
+ * @return Weight
  */
 inline
-double lanczosKernel(double x, double a)
+double B3kern(double x)
 {
-	const double PI = acos(-1);
+    switch((int)floor(x)) {
+        case -2:
+            return pow(2 + x,3)/6.;
+        case -1:
+            return (4 - 3*pow(x,2)*(2 + x))/6.;
+        case 0:
+            return (4 + 3*(-2 + x)*pow(x,2))/6.;
+        case 1:
+            return -pow(-2 + x,3)/6.;
+        default:
+            return 0;
+    }
+}
 
-	if(x == 0)
-		return 1;
-	else if(fabs(x) < a)
-		return a*sin(PI*x)*sin(PI*x/a)/(PI*PI*x*x);
-	else
-		return 0;
+/**
+ * @brief 3rd order B-Spline, variable radius (w)
+ *
+ * @param x Distance from center
+ * @param r Radius
+ *
+ * @return Weight
+ */
+inline
+double B3kern(double x, double r)
+{
+    return B3kern(x*2/r)*2/r;
+}
+
+/**
+ * @brief 3rd order B-Spline derivative, radius 2 [-2,2]
+ *
+ * @param x Distance from center
+ *
+ * @return Weight
+ */
+inline
+double dB3kern(double x)
+{
+	switch((int)floor(x)) {
+		case -2:
+            return pow(2 + x,2)/2.;
+		case -1:
+            return -(x*(4 + 3*x))/2.;
+        case 0:
+            return (x*(-4 + 3*x))/2.;
+		case 1:
+            return -pow(-2 + x,2)/2.;
+		default:
+			return 0;
+	}
+	return 0;
+}
+
+/**
+ * @brief 3rd order B-Spline, variable radius (w)
+ *
+ * @param x Distance from center
+ * @param r Radius
+ *
+ * @return Weight
+ */
+inline
+double dB3kern(double x, double r)
+{
+    return dB3kern(x*2/r)*2/r;
+}
+
+/**
+ * @brief 3rd order B-Spline, 2nd derivative, radius 2 [-2,2]
+ *
+ * @param x Distance from center
+ *
+ * @return Weight
+ */
+inline
+double ddB3kern(double x)
+{
+	switch((int)floor(x)) {
+		case -2:
+			return 2 + x;
+		case -1:
+            return -2 - 3*x;
+		case 0:
+			return -2 + 3*x;
+		case 1:
+			return 2 - x;
+		default:
+			return 0;
+	}
+	return 0;
+}
+
+/**
+ * @brief 3rd order B-Spline, variable radius (w)
+ *
+ * @param x Distance from center
+ * @param r Radius
+ *
+ * @return Weight
+ */
+inline
+double ddB3kern(double x, double r)
+{
+    return ddB3kern(x*2/r)*2/r;
 }
 
 /**

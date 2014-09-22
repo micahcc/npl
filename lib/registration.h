@@ -120,6 +120,7 @@ class RigidInformationComputer
     NDConstIter<double> m_fit;
 
 	double m_center[3];
+
     
 #ifdef VERYDEBUG
     shared_ptr<MRImage> d_theta_x;
@@ -138,6 +139,30 @@ class RigidInformationComputer
      */
     bool m_negate;
 
+    // Histogram
+    size_t m_krad;
+	
+    vector<double> m_kernel_dmov;
+    vector<double> m_kernel_mov;
+	vector<double> m_kernel_fix;
+    
+    vector<double> m_pmove;
+    vector<double> m_pfix;
+    
+    NDArrayStore<2, double> m_pjoint;
+    NDArrayStore<3, double> m_dpjoint;
+//    NDArrayStore<2, double> m_dpmove;
+
+    double m_rangemove[2];
+    double m_rangefix[2];
+    double m_wmove;
+    double m_wfix;
+
+    vector<double> m_gradHjoint;
+//    vector<double> m_gradHmove;
+    double m_Hfix;
+    double m_Hmove;
+    double m_Hjoint;
 };
 
 /**

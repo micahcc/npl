@@ -187,7 +187,7 @@ void shiftImageFFT(ptr<NDArray> inout, size_t dim, double dist,
  * @param kern 1D interpolation kernel
  */
 void shearImageKern(ptr<NDArray> inout, size_t dim, size_t len, 
-        double* dist, double(*kern)(double,double) = npl::lanczosKernel);
+        double* dist, double(*kern)(double,double) = npl::lanczosKern);
 
 /**
  * @brief Performs a shear on the image where the sheared dimension (dim) will
@@ -273,7 +273,7 @@ void rotateImageKern(ptr<NDArray> inout, double rx, double ry, double rz);
  * @param kern Kernel to perform 1D interpolation with. 
  */
 int rotateImageShearKern(ptr<NDArray> inout, double rx, double ry, double rz,
-		double(*kern)(double,double) = npl::lanczosKernel);
+		double(*kern)(double,double) = npl::lanczosKern);
 
 /**
  * @brief Performs a rotation using fourier shift and shears, using FFT for 
