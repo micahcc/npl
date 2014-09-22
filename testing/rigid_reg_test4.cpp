@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file rigid_reg_test3.cpp Tests mutual information derivative
+ * @file rigid_reg_test4.cpp Tests mutual information based rigid registration
  *
  *****************************************************************************/
 
@@ -110,8 +110,14 @@ int main()
     for(NDIter<double> it(moved); !it.eof(); ++it) 
         it.set(-it.get());
     
-    if(information3DDerivTest(0.001, 0.001, img, moved) != 0)
-        return -1;
+    cerr << "Input Image:\n" << *img << endl;
+    cerr << "Rigidly Transformed Image:\n" << *moved << endl;
+
+    std::vector<double> sigma_schedule({4,2,0});
+    auto out = informationReg3D(img, moved, sigma_schedule);
+
+    cerr << "Final Parameters: " << out << endl;
     return 0;
 }
+
 

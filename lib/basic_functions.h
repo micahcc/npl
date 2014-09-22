@@ -283,7 +283,7 @@ double dB3kern(double x)
 inline
 double dB3kern(double x, double r)
 {
-    return dB3kern(x*2/r)*2/r;
+    return dB3kern(x*2/r)*4/(r*r);
 }
 
 /**
@@ -322,7 +322,7 @@ double ddB3kern(double x)
 inline
 double ddB3kern(double x, double r)
 {
-    return ddB3kern(x*2/r)*2/r;
+    return ddB3kern(x*2/r)*8/(r*r*r);
 }
 
 /**
