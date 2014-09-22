@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file rigid_reg_test1.cpp Tests correlation based rigid registration
+ * @file rigid_reg_test1.cpp Tests correlation derivative
  *
  *****************************************************************************/
 
@@ -104,16 +104,9 @@ int main()
     shiftImageFFT(moved, 0, 5);
     shiftImageFFT(moved, 1, 7);
     shiftImageFFT(moved, 2, -2);
+
+    if(cor3DDerivTest(0.00001, 0.01, img, moved) != 0)
+        return -1;
     
-    std::vector<double> sigma_schedule({3,2});
-    for(size_t ii=0; ii<sigma_schedule.size(); ii++) {
-        // smooth and downsample input images
-        auto sm_fixed = smoothDownsample(img, sigma_schedule[ii]);
-        auto sm_moving = smoothDownsample(moved, sigma_schedule[ii]);
-    
-        // perform test of gradient
-        if(cor3DDerivTest(0.0000001, 0.05, sm_fixed, sm_moving) != 0)
-            return -1;
-    }
     return 0;
 }

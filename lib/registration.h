@@ -422,6 +422,20 @@ int cor3DDerivTest(double step, double tol, shared_ptr<const MRImage> in1,
 
 
 /**
+ * @brief This function checks the validity of the derivative functions used
+ * to optimize between-image corrlation.
+ *
+ * @param step Test step size
+ * @param tol Tolerance in error between analytical and Numeric gratient
+ * @param in1 Image 1
+ * @param in2 Image 2
+ *
+ * @return 0 if success, -1 if failure
+ */
+int information3DDerivTest(double step, double tol, 
+        shared_ptr<const MRImage> in1, shared_ptr<const MRImage> in2);
+
+/**
  * @brief Prints a rigid transform
  *
  * @param stream Output stream
