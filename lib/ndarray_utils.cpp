@@ -732,9 +732,7 @@ double getMaxShear(const Matrix3d& in)
 int shearYZXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double x, double y, double z)
 {
-#ifndef NDEBUG
-	cerr << "Shear YZXY" << endl;
-#endif //DEBUG
+	DBG3(cerr << "Shear YZXY" << endl);
 	Matrix3d sy1 = Matrix3d::Identity();
 	Matrix3d sz = Matrix3d::Identity();
 	Matrix3d sx = Matrix3d::Identity();
@@ -759,9 +757,7 @@ int shearYZXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
-#ifndef NDEBUG
-			cerr << "Shear:\n" << v << endl;
-#endif //DEBUG
+			DBG3(cerr << "Shear:\n" << v << endl);
 			shearProduct *= v;
 			double mv = getMaxShear(v);
 			if(mv > *maxshear)
@@ -775,11 +771,9 @@ int shearYZXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				AngleAxisd(y, Vector3d::UnitY())*
 				AngleAxisd(z, Vector3d::UnitZ());
 
-#ifndef NDEBUG
-	cerr << "Rotation:\n" << rotation << endl;
-	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
-	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
-#endif //DEBUG
+	DBG3(cerr << "Rotation:\n" << rotation << endl);
+	DBG3(cerr << "Sheared Rotation:\n" << shearProduct<< endl);
+	DBG3(cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl);
 	if(err)
 		*err = (rotation-shearProduct).cwiseAbs().sum();
 
@@ -789,9 +783,7 @@ int shearYZXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 int shearXYZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double x, double y, double z)
 {
-#ifndef NDEBUG
-	cerr << "Shear XYZX" << endl;
-#endif //DEBUG
+	DBG3(cerr << "Shear XYZX" << endl);
 	Matrix3d sx1 = Matrix3d::Identity();
 	Matrix3d sy = Matrix3d::Identity();
 	Matrix3d sz = Matrix3d::Identity();
@@ -816,9 +808,7 @@ int shearXYZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
-#ifndef NDEBUG
-			cerr << "Shear:\n" << v << endl;
-#endif //DEBUG
+			DBG3(cerr << "Shear:\n" << v << endl);
 			shearProduct *= v;
 			double mv = getMaxShear(v);
 			if(mv > *maxshear)
@@ -832,11 +822,9 @@ int shearXYZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				AngleAxisd(y, Vector3d::UnitY())*
 				AngleAxisd(z, Vector3d::UnitZ());
 
-#ifndef NDEBUG
-	cerr << "Rotation:\n" << rotation << endl;
-	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
-	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
-#endif //DEBUG
+	DBG3(cerr << "Rotation:\n" << rotation << endl);
+	DBG3(cerr << "Sheared Rotation:\n" << shearProduct<< endl);
+	DBG3(cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl);
 	if(err)
 		*err = (rotation-shearProduct).cwiseAbs().sum();
 
@@ -846,9 +834,7 @@ int shearXYZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 int shearXZYX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double x, double y, double z)
 {
-#ifndef NDEBUG
-	cerr << "Shear XZYX" << endl;
-#endif //DEBUG
+	DBG3(cerr << "Shear XZYX" << endl);
 	Matrix3d sx1 = Matrix3d::Identity();
 	Matrix3d sz = Matrix3d::Identity();
 	Matrix3d sy = Matrix3d::Identity();
@@ -873,9 +859,7 @@ int shearXZYX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
-#ifndef NDEBUG
-			cerr << "Shear:\n" << v << endl;
-#endif //DEBUG
+			DBG3(cerr << "Shear:\n" << v << endl);
 			shearProduct *= v;
 			double mv = getMaxShear(v);
 			if(mv > *maxshear)
@@ -889,11 +873,9 @@ int shearXZYX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				AngleAxisd(y, Vector3d::UnitY())*
 				AngleAxisd(z, Vector3d::UnitZ());
 
-#ifndef NDEBUG
-	cerr << "Rotation:\n" << rotation << endl;
-	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
-	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
-#endif //DEBUG
+	DBG3(cerr << "Rotation:\n" << rotation << endl);
+	DBG3(cerr << "Sheared Rotation:\n" << shearProduct<< endl);
+	DBG3(cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl);
 	if(err)
 		*err = (rotation-shearProduct).cwiseAbs().sum();
 
@@ -903,9 +885,7 @@ int shearXZYX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 int shearZXYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double x, double y, double z)
 {
-#ifndef NDEBUG
-	cerr << "Shear ZXYZ" << endl;
-#endif //DEBUG
+	DBG3(cerr << "Shear ZXYZ" << endl);
 	Matrix3d sz1 = Matrix3d::Identity();
 	Matrix3d sx = Matrix3d::Identity();
 	Matrix3d sy = Matrix3d::Identity();
@@ -930,9 +910,7 @@ int shearZXYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
-#ifndef NDEBUG
-			cerr << "Shear:\n" << v << endl;
-#endif //DEBUG
+			DBG3(cerr << "Shear:\n" << v << endl);
 			shearProduct *= v;
 			double mv = getMaxShear(v);
 			if(mv > *maxshear)
@@ -946,11 +924,9 @@ int shearZXYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				AngleAxisd(y, Vector3d::UnitY())*
 				AngleAxisd(z, Vector3d::UnitZ());
 
-#ifndef NDEBUG
-	cerr << "Rotation:\n" << rotation << endl;
-	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
-	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
-#endif //DEBUG
+	DBG3(cerr << "Rotation:\n" << rotation << endl);
+	DBG3(cerr << "Sheared Rotation:\n" << shearProduct<< endl);
+	DBG3(cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl);
 	if(err)
 		*err = (rotation-shearProduct).cwiseAbs().sum();
 
@@ -960,9 +936,7 @@ int shearZXYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 int shearZYXZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double x, double y, double z)
 {
-#ifndef NDEBUG
-	cerr << "Shear ZYXZ" << endl;
-#endif //DEBUG
+	DBG3(cerr << "Shear ZYXZ" << endl);
 	Matrix3d sz1 = Matrix3d::Identity();
 	Matrix3d sy = Matrix3d::Identity();
 	Matrix3d sx = Matrix3d::Identity();
@@ -987,9 +961,7 @@ int shearZYXZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
-#ifndef NDEBUG
-			cerr << "Shear:\n" << v << endl;
-#endif //DEBUG
+			DBG3(cerr << "Shear:\n" << v << endl);
 			shearProduct *= v;
 			double mv = getMaxShear(v);
 			if(mv > *maxshear)
@@ -1003,11 +975,9 @@ int shearZYXZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				AngleAxisd(y, Vector3d::UnitY())*
 				AngleAxisd(z, Vector3d::UnitZ());
 
-#ifndef NDEBUG
-	cerr << "Rotation:\n" << rotation << endl;
-	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
-	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
-#endif //DEBUG
+	DBG3(cerr << "Rotation:\n" << rotation << endl);
+	DBG3(cerr << "Sheared Rotation:\n" << shearProduct<< endl);
+	DBG3(cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl);
 	if(err)
 		*err = (rotation-shearProduct).cwiseAbs().sum();
 
@@ -1017,9 +987,7 @@ int shearZYXZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 int shearYXZY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double x, double y, double z)
 {
-#ifndef NDEBUG
-	cerr << "Shear YXZY" << endl;
-#endif //DEBUG
+	DBG3(cerr << "Shear YXZY" << endl);
 	Matrix3d sy1 = Matrix3d::Identity();
 	Matrix3d sx = Matrix3d::Identity();
 	Matrix3d sz = Matrix3d::Identity();
@@ -1044,9 +1012,7 @@ int shearYXZY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
-#ifndef NDEBUG
-			cerr << "Shear:\n" << v << endl;
-#endif //DEBUG
+			DBG3(cerr << "Shear:\n" << v << endl);
 			shearProduct *= v;
 			double mv = getMaxShear(v);
 			if(mv > *maxshear)
@@ -1060,11 +1026,9 @@ int shearYXZY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				AngleAxisd(y, Vector3d::UnitY())*
 				AngleAxisd(z, Vector3d::UnitZ());
 
-#ifndef NDEBUG
-	cerr << "Rotation:\n" << rotation << endl;
-	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
-	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
-#endif //DEBUG
+	DBG3(cerr << "Rotation:\n" << rotation << endl);
+	DBG3(cerr << "Sheared Rotation:\n" << shearProduct<< endl);
+	DBG3(cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl);
 	if(err)
 		*err = (rotation-shearProduct).cwiseAbs().sum();
 
@@ -1078,9 +1042,7 @@ int shearYXZY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 int shearYXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double Rx, double Ry, double Rz)
 {
-#ifndef NDEBUG
-	cerr << "Shear YXY" << endl;
-#endif //DEBUG
+	DBG3(cerr << "Shear YXY" << endl);
 
 	double MINANG = 0.00000001;
 	if(fabs(Rx) > MINANG || fabs(Ry) > MINANG) {
@@ -1117,9 +1079,7 @@ int shearYXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
-#ifndef NDEBUG
-			cerr << "Shear:\n" << v << endl;
-#endif //DEBUG
+			DBG3(cerr << "Shear:\n" << v << endl);
 			shearProduct *= v;
 			double mv = getMaxShear(v);
 			if(mv > *maxshear)
@@ -1127,11 +1087,9 @@ int shearYXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		}
 	}
 
-#ifndef NDEBUG
-	cerr << "Rotation:\n" << rotation << endl;
-	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
-	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
-#endif //DEBUG
+	DBG3(cerr << "Rotation:\n" << rotation << endl);
+	DBG3(cerr << "Sheared Rotation:\n" << shearProduct<< endl);
+	DBG3(cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl);
 	if(err)
 		*err = (rotation-shearProduct).cwiseAbs().sum();
 
@@ -1142,9 +1100,7 @@ int shearYXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 int shearXZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double Rx, double Ry, double Rz)
 {
-#ifndef NDEBUG
-	cerr << "Shear XZX" << endl;
-#endif //DEBUG
+	DBG3(cerr << "Shear XZX" << endl);
 
 	double MINANG = 0.00000001;
 	if(fabs(Rx) > MINANG || fabs(Rz) > MINANG) {
@@ -1175,9 +1131,7 @@ int shearXZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
-#ifndef NDEBUG
-			cerr << "Shear:\n" << v << endl;
-#endif //DEBUG
+			DBG3(cerr << "Shear:\n" << v << endl);
 			shearProduct *= v;
 			double mv = getMaxShear(v);
 			if(mv > *maxshear)
@@ -1191,11 +1145,9 @@ int shearXZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				AngleAxisd(Ry, Vector3d::UnitY())*
 				AngleAxisd(Rz, Vector3d::UnitZ());
 
-#ifndef NDEBUG
-	cerr << "Rotation:\n" << rotation << endl;
-	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
-	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
-#endif //DEBUG
+	DBG3(cerr << "Rotation:\n" << rotation << endl);
+	DBG3(cerr << "Sheared Rotation:\n" << shearProduct<< endl);
+	DBG3(cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl);
 	if(err)
 		*err = (rotation-shearProduct).cwiseAbs().sum();
 	
@@ -1205,9 +1157,7 @@ int shearXZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 int shearZYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 		double Rx, double Ry, double Rz)
 {
-#ifndef NDEBUG
-	cerr << "Shear ZYZ" << endl;
-#endif //DEBUG
+	DBG3(cerr << "Shear ZYZ" << endl);
 
 	double MINANG = 0.00000001;
 	if(fabs(Ry) > MINANG || fabs(Rz) > MINANG) {
@@ -1238,9 +1188,7 @@ int shearZYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
-#ifndef NDEBUG
-			cerr << "Shear:\n" << v << endl;
-#endif //DEBUG
+			DBG3(cerr << "Shear:\n" << v << endl);
 			shearProduct *= v;
 			double mv = getMaxShear(v);
 			if(mv > *maxshear)
@@ -1254,11 +1202,9 @@ int shearZYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				AngleAxisd(Ry, Vector3d::UnitY())*
 				AngleAxisd(Rz, Vector3d::UnitZ());
 
-#ifndef NDEBUG
-	cerr << "Rotation:\n" << rotation << endl;
-	cerr << "Sheared Rotation:\n" << shearProduct<< endl;
-	cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl;
-#endif //DEBUG
+	DBG3(cerr << "Rotation:\n" << rotation << endl);
+	DBG3(cerr << "Sheared Rotation:\n" << shearProduct<< endl);
+	DBG3(cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl);
 	if(err)
 		*err = (rotation-shearProduct).cwiseAbs().sum();
 
@@ -1291,9 +1237,7 @@ int shearDecompose(std::list<Matrix3d>& bestshears, double Rx, double Ry, double
 	
 	// single angles first
 	if(fabs(Rx) < ANGMIN && fabs(Ry) < ANGMIN) {
-#ifndef NDEBUG
-			cerr << "Chose YXY" << endl;
-#endif
+        DBG3(cerr << "Chose YXY" << endl);
 		shearYXY(bestshears, &err, &maxshear, Rx, Ry, Rz);
 		if(err < ERRTOL && maxshear < SHEARMAX) {
 			return 0;
@@ -1302,27 +1246,23 @@ int shearDecompose(std::list<Matrix3d>& bestshears, double Rx, double Ry, double
 		}
 	}
 
-	if(fabs(Rx) < ANGMIN && fabs(Rz) < ANGMIN) {
-#ifndef NDEBUG
-			cerr << "Chose XZX" << endl;
-#endif
-		shearXZX(bestshears, &err, &maxshear, Rx, Ry, Rz);
-		if(err < ERRTOL && maxshear < SHEARMAX) {
-			return 0;
-		} else {
-			return -1;
-		}
-	}
-	
-	if(fabs(Rz) < ANGMIN && fabs(Ry) < ANGMIN) {
-#ifndef NDEBUG
-			cerr << "Chose ZYZ" << endl;
-#endif
-		shearZYZ(bestshears, &err, &maxshear, Rx, Ry, Rz);
-		if(err < ERRTOL && maxshear < SHEARMAX) {
-			return 0;
-		} else {
-			return -1;
+    if(fabs(Rx) < ANGMIN && fabs(Rz) < ANGMIN) {
+        DBG3(cerr << "Chose XZX" << endl);
+        shearXZX(bestshears, &err, &maxshear, Rx, Ry, Rz);
+        if(err < ERRTOL && maxshear < SHEARMAX) {
+            return 0;
+        } else {
+            return -1;
+        }
+    }
+
+    if(fabs(Rz) < ANGMIN && fabs(Ry) < ANGMIN) {
+        DBG3(cerr << "Chose ZYZ" << endl);
+        shearZYZ(bestshears, &err, &maxshear, Rx, Ry, Rz);
+        if(err < ERRTOL && maxshear < SHEARMAX) {
+            return 0;
+        } else {
+            return -1;
 		}
 	}
 
@@ -1369,12 +1309,7 @@ int shearDecompose(std::list<Matrix3d>& bestshears, double Rx, double Ry, double
 	}
 	
 	if(bestmshear <= SHEARMAX) {
-#ifndef NDEBUG
-		cerr << "Best Shear:" << bestmshear << endl;
-		for(auto& v : bestshears) {
-			cerr << v << "\n\n";
-		}
-#endif
+		DBG3(cerr << "Best Shear:" << bestmshear << endl);
 		return 0;
 	}
 
@@ -1543,9 +1478,7 @@ int rotateImageShearKern(ptr<NDArray> inout, double rx, double ry, double rz,
 	}
 	c = clock() - c;
     shears.reverse();
-#ifndef NDEBUG
-	cerr << "Shear Decompose took " << c << " ticks " << endl;
-#endif 
+	DBG3(cerr << "Shear Decompose took " << c << " ticks " << endl);
 
 	// perform shearing
 	double shearvals[3];
@@ -1602,9 +1535,7 @@ int rotateImageShearFFT(ptr<NDArray> inout, double rx, double ry, double rz,
 	}
 	c = clock() - c;
     shears.reverse();
-#ifndef NDEBUG
-	cerr << "Shear Decompose took " << c << " ticks " << endl;
-#endif
+	DBG3(cerr << "Shear Decompose took " << c << " ticks " << endl);
 
 	// perform shearing
 	double shearvals[3];

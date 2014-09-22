@@ -86,58 +86,32 @@ int main()
 		++sit;
 	}
 
-	in->write("original.nii.gz");
-
-    const double Rx = -3.14159/7;
-    const double Ry = 3.14159/4;
-    const double Rz = 3.14159/10;
-
-    // linear ntperolation
-	cerr << "!Rotating manually" << endl;
-	clock_t c = clock();
-	auto out1 = dynamic_pointer_cast<MRImage>(linearRotate(Rx, Ry, Rz, in));
-	c = clock() - c;
-	cerr << "!Linear Rotate took " << c/(double)CLOCKS_PER_SEC << "s" << endl;
-	out1->write("brute_rotated.nii.gz");
-	cerr << "Done" << endl;
-	
-    // Shear/FFT Rotation 
-	cerr << "!Rotating with shears/FFT" << endl;
-    auto out2 = dynamic_pointer_cast<MRImage>(in->copy());
-    c = clock();
-	rotateImageShearFFT(out2, Rx, Ry, Rz);
-	c = clock() - c;
-	out2->write("fft_rotated.nii.gz");
-	cerr << "!Shear FFT Rotate took " << c/(double)CLOCKS_PER_SEC << "s" << endl;
-	
-    // Shear/FFT Rotation  using the rectangular window
-    cerr << "!Rotating with shears/FFT/Rect Window" << endl;
-    auto out3 = dynamic_pointer_cast<MRImage>(in->copy());
-    c = clock();
-	rotateImageShearFFT(out3, Rx, Ry, Rz, npl::rectWindow);
-	c = clock() - c;
-	out3->write("fft_rect_rotated.nii.gz");
-	cerr << "!Shear FFT Rect Rotate took " << c/(double)CLOCKS_PER_SEC << "s" << endl;
-	
-    cerr << "!Rotating with shears/kernel" << endl;
-    auto out4 = dynamic_pointer_cast<MRImage>(in->copy());
-    c = clock();
-	rotateImageShearKern(out4, Rx, Ry, Rz);
-	c = clock() - c;
-	out4->write("kshear_rotated.nii.gz");
-	cerr << "!Shear Kernel Rotate took " << c/(double)CLOCKS_PER_SEC << "s" << endl;
-    
-    cerr << "Testing Linear/Sinc Window FFT" << endl;
-    if(closeCompare(out1, out2, 0.5) != 0)
-        return -1;
-    cerr << "Testing Linear/Kernel Shearing" << endl;
-    if(closeCompare(out1, out4, 0.5) != 0)
-        return -1;
-    cerr << "Testing Linear/Rectangular Window FFT" << endl;
-    if(closeCompare(out1, out3, 0.5) != 0)
-        return -1;
-
+	cerr << "Testing Shear Decompositions" << endl;
+	std::list<Matrix3d> terms;
+	const double PI = acos(-1);
+	int64_t iters = 10;
+	for(int64_t ii=-iters/2; ii<iters/2; ii++) {
+		for(int64_t jj=-iters/2; jj<iters/2; jj++) {
+			for(int64_t kk=-iters/2; kk<iters/2; kk++) {
+				double rx = (PI/2.)*ii/(double)iters;
+				double ry = (PI/2.)*jj/(double)iters;
+				double rz = (PI/2.)*kk/(double)iters;
+				cerr << rx << "," << ry << "," << rz << endl;
+				if(shearTest(rx,ry,rz) != 0) {
+					cerr << "Failed Shear Test for " <<
+						rx << ", " << ry << ", " << rz << endl;
+					return -1;
+				}
+				if(shearDecompose(terms, rx, ry, rz) != 0) {
+					cerr << "Failure!" << endl;
+					return -1;
+				}
+			}
+		}
+	}
+	cerr << "Success" << endl;
 	return 0;
 }
+
 
 
