@@ -201,7 +201,7 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
         DEBUGWRITE(sm_fixed->write("smooth_fixed_"+to_string(ii)+".nii.gz"));
         DEBUGWRITE(sm_moving->write("smooth_moving_"+to_string(ii)+".nii.gz"));
 
-        RigidInformationComputer(sm_fixed, sm_moving, true);
+        RigidInformationComputer comp(sm_fixed, sm_moving, 128, 8, true);
         
         // create value and gradient functions
         auto vfunc = bind(&RigidInformationComputer::value, &comp, _1, _2);
@@ -310,7 +310,7 @@ int information3DDerivTest(double step, double tol,
         shared_ptr<const MRImage> in1, shared_ptr<const MRImage> in2)
 {
     using namespace std::placeholders;
-    RigidInformationComputer comp(in1, in2, false);
+    RigidInformationComputer comp(in1, in2, 128, 4, false);
 
     auto vfunc = std::bind(&RigidInformationComputer::value, &comp, _1, _2);
     auto gfunc = std::bind(&RigidInformationComputer::grad, &comp, _1, _2);
@@ -669,22 +669,30 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
  */
 RigidInformationComputer::RigidInformationComputer(
         shared_ptr<const MRImage> fixed, shared_ptr<const MRImage> moving,
-        size_t kernrad, bool negate) :
+        int bins, int kernrad, bool negate) :
+    m_negate(negate), m_bins(bins), m_krad(kernrad),
     m_fixed(dPtrCast<MRImage>(fixed->copy())),
     m_moving(dPtrCast<MRImage>(moving->copy())),
     m_dmoving(dPtrCast<MRImage>(derivative(moving))),
     m_move_get(m_moving), m_dmove_get(m_dmoving), m_fit(m_fixed),
-    m_negate(negate), m_krad(kernrad),
-    m_pjoint(m_bins*m_bins), m_pmove(m_bins), m_pfix(m_bins),
-    m_kern_move(m_krad*2+1), m_kernel_fix(m_krad*2+1),
-    m_dpjoint({6, m_bins, m_bins}), m_dpmove({6, m_bins}),
-    m_gradHjoint(6)
+    m_pdfmove(m_bins), m_pdffix(m_bins), 
+    m_pdfjoint({(size_t)m_bins,(size_t)m_bins}), 
+    m_dpdfjoint({6, (size_t)m_bins, (size_t)m_bins}), m_gradHjoint(6)
 {
     if(fixed->ndim() != 3)
         throw INVALID_ARGUMENT("Fixed image is not 3D!");
     if(moving->ndim() != 3)
         throw INVALID_ARGUMENT("Moving image is not 3D!");
 
+    // center
+    for(size_t ii=0; ii<3 && ii<moving->ndim(); ii++) 
+		m_center[ii] = (m_moving->dim(ii)-1)/2.;
+
+    // Kernel Caches
+    m_kernel_dmove.resize(2*m_krad+1);
+    m_kernel_move.resize(2*m_krad+1);
+    m_kernel_fix.resize(2*m_krad+1);
+    
 #ifdef VERYDEBUG
     m_moving->write("init_moving.nii.gz");
     m_fixed->write("init_fixed.nii.gz");
@@ -698,12 +706,18 @@ RigidInformationComputer::RigidInformationComputer(
     interpolated->write("init_interpolated.nii.gz");
     callcount = 0;
 #endif
-	
-    for(size_t ii=0; ii<3 && ii<moving->ndim(); ii++) 
-		m_center[ii] = (m_moving->dim(ii)-1)/2.;
 
+    ///////////////////////////
+    // Accessors
+    //////////////////////////
+//    m_move_get.m_boundmethod = CONSTZERO;
+//    m_dmove_get.m_boundmethod = CONSTZERO;
+	
+    //////////////////////////////////////
+    // compute ranges, and bin widths
+    //////////////////////////////////////
     m_rangefix[0] = 0;
-    m_rangefix[1] = -INFINITY;
+    m_rangefix[1] = 0;
     for(NDIter<double> it(m_fixed); !it.eof(); ++it) {
         m_rangefix[0] = std::min(m_rangefix[0], *it);
         m_rangefix[1] = std::max(m_rangefix[1], *it);
@@ -711,8 +725,8 @@ RigidInformationComputer::RigidInformationComputer(
 	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-2*m_krad-1);
     
     m_rangemove[0] = 0;
-    m_rangemove[1] = -INFINITY;
-    for(NDIter<double> it(m_fixed); !it.eof(); ++it) {
+    m_rangemove[1] = 0;
+    for(NDIter<double> it(m_moving); !it.eof(); ++it) {
         m_rangemove[0] = std::min(m_rangemove[0], *it);
         m_rangemove[1] = std::max(m_rangemove[1], *it);
     }
@@ -722,41 +736,41 @@ RigidInformationComputer::RigidInformationComputer(
     // compute marginals, entropies
     //////////////////////////////////
 
-    // fixed marginal
+    // fixed marginal pdf
     for(NDIter<double> it(m_fixed); !it.eof(); ++it) {
         // compute bins
-		cbin = ((*it)-m_rangefix[0])/m_wfix + m_krad;
-		bin = round(cbin);
+		double cbin = ((*it)-m_rangefix[0])/m_wfix + m_krad;
+		int bin = round(cbin);
 
         assert(bin+m_krad < m_bins);
         assert(bin-m_krad >= 0);
 		
         for(int ii = bin-m_krad; ii <= bin+m_krad; ii++) 
-            m_pfix[ii] += B3kern(ii-cbin);
+            m_pdffix[ii] += B3kern(ii-cbin);
     }
     
     // fixed entropy
     m_Hfix = 0;
     for(size_t ii=0; ii<m_bins; ii++) 
-        m_Hfix += m_pfix[ii] > 0 ? m_pfix[ii]*log(m_pfix[ii]) : 0;
+        m_Hfix += m_pdffix[ii] > 0 ? m_pdffix[ii]*log(m_pdffix[ii]) : 0;
     
     // moving
     for(NDIter<double> it(m_moving); !it.eof(); ++it) {
         // compute bins
-		cbin = ((*it)-m_rangemove[0])/m_wmove + m_krad;
-		bin = round(cbin);
+		double cbin = ((*it)-m_rangemove[0])/m_wmove + m_krad;
+		int bin = round(cbin);
 
         assert(bin+m_krad < m_bins);
         assert(bin-m_krad >= 0);
 		
         for(int ii = bin-m_krad; ii <= bin+m_krad; ii++) 
-            m_pmove[ii] += B3kern(ii-cbin);
+            m_pdfmove[ii] += B3kern(ii-cbin);
     }
     
     // moving entropy
-    m_Hmov = 0;
+    m_Hmove = 0;
     for(size_t ii=0; ii<m_bins; ii++) 
-        m_Hmov += m_pmov[ii] > 0 ? m_pmov[ii]*log(m_pmov[ii]) : 0;
+        m_Hmove += m_pdfmove[ii] > 0 ? m_pdfmove[ii]*log(m_pdfmove[ii]) : 0;
 }
 
 /**
@@ -780,21 +794,22 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 
 #ifdef VERYDEBUG
     cerr << "ValGrad()" << endl;
-    Pixel3DView<double> d_ang_x(d_theta_x);
-    Pixel3DView<double> d_ang_y(d_theta_y);
-    Pixel3DView<double> d_ang_z(d_theta_z);
-    Pixel3DView<double> d_shi_x(d_shift_x);
-    Pixel3DView<double> d_shi_y(d_shift_y);
-    Pixel3DView<double> d_shi_z(d_shift_z);
-    Pixel3DView<double> acc(interpolated);
+//    Pixel3DView<double> d_ang_x(d_theta_x);
+//    Pixel3DView<double> d_ang_y(d_theta_y);
+//    Pixel3DView<double> d_ang_z(d_theta_z);
+//    Pixel3DView<double> d_shi_x(d_shift_x);
+//    Pixel3DView<double> d_shi_y(d_shift_y);
+//    Pixel3DView<double> d_shi_z(d_shift_z);
+//    Pixel3DView<double> acc(interpolated);
 #endif
 
     // Zero Everything
-    for(size_t ii=0; ii<m_dP_jnt.elements(); ii++)
-        m_dP_jnt[ii] = 0;
-    std::fill_n(m_pjoint, m_bins*m_bins, 0);
-    std::fill_n(m_pmove, m_bins, 0);
-    std::fill_n(m_pfix, m_bins, 0);
+    for(size_t ii=0; ii<m_dpdfjoint.elements(); ii++)
+        m_dpdfjoint[ii] = 0;
+    for(size_t ii=0; ii<m_pdfjoint.elements(); ii++)
+        m_pdfjoint[ii] = 0;
+    std::fill_n(m_pdfmove.begin(), m_bins, 0);
+    std::fill_n(m_pdffix.begin(), m_bins, 0);
 
     // for computing rotated indices
 	double cbinmove, cbinfix; //continuous
@@ -861,19 +876,19 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
         dgdPhi[5] = dg_dz;
         
         // get actual values
-        double valmov = m_move_get(cind[0], cind[1], cind[2]);
+        double valmove = m_move_get(cind[0], cind[1], cind[2]);
         double valfix = *m_fit;
         
-#ifdef VERYDEBUG
-        d_ang_x.set(dgdRx, ind[0], ind[1], ind[2]);
-        d_ang_y.set(dgdRy, ind[0], ind[1], ind[2]);
-        d_ang_z.set(dgdRz, ind[0], ind[1], ind[2]);
-        d_shi_x.set(dgdSx, ind[0], ind[1], ind[2]);
-        d_shi_y.set(dgdSy, ind[0], ind[1], ind[2]);
-        d_shi_z.set(dgdSz, ind[0], ind[1], ind[2]);
-        acc.set(g, ind[0], ind[1], ind[2]);
-        assert(acc(ind[0], ind[1], ind[2]) == g);
-#endif
+//#ifdef VERYDEBUG
+//        d_ang_x.set(dgdRx, ind[0], ind[1], ind[2]);
+//        d_ang_y.set(dgdRy, ind[0], ind[1], ind[2]);
+//        d_ang_z.set(dgdRz, ind[0], ind[1], ind[2]);
+//        d_shi_x.set(dgdSx, ind[0], ind[1], ind[2]);
+//        d_shi_y.set(dgdSy, ind[0], ind[1], ind[2]);
+//        d_shi_z.set(dgdSz, ind[0], ind[1], ind[2]);
+//        acc.set(g, ind[0], ind[1], ind[2]);
+//        assert(acc(ind[0], ind[1], ind[2]) == g);
+//#endif
  
         // compute bins
 		cbinfix = (valfix-m_rangefix[0])/m_wfix + m_krad;
@@ -890,7 +905,7 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 		for(int ii = -m_krad; ii <= m_krad; ii++) 
 			m_kernel_fix[ii+m_krad] = B3kern(binfix+ii-cbinfix, m_krad);
 
-		for(int jj = -m_krad; jj <= m_krad; jj++) {
+		for(int ii = -m_krad; ii <= m_krad; ii++) {
 			m_kernel_dmove[ii+m_krad] = dB3kern(binmove+ii-cbinmove, m_krad);
 			m_kernel_move[ii+m_krad] = B3kern(binmove+ii-cbinmove, m_krad);
         }
@@ -898,17 +913,17 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
         //sum up kernel bins
         for(int ii = binfix-m_krad; ii <= binfix+m_krad; ii++) {
             for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++) {
-                m_pjoint[{ii,jj}] += m_kernel_fix[ii-binfix+m_krad]*
+                m_pdfjoint[{ii,jj}] += m_kernel_fix[ii-binfix+m_krad]*
                     m_kernel_move[jj-binmove+m_krad];
             }
         }
         
         // sum up derivative bins
-        for(size_t phi = 0; phi < 6; phi++) {
+        for(int phi = 0; phi < 6; phi++) {
             for(int ii = binfix-m_krad; ii <= binfix+m_krad; ii++) {
                 for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++) {
-                    m_dpjoint[{phi,ii,jj}] += m_kernel_fix[ii-binfix+m_krad]*
-                        m_kernel_dmove[jj-binmove+m_krad];
+                    m_dpdfjoint[{phi,ii,jj}] += m_kernel_fix[ii-binfix+m_krad]*
+                        m_kernel_dmove[jj-binmove+m_krad]*dgdPhi[phi];
                 }
             }
         }
@@ -917,28 +932,28 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
     // divide by constants
     double scale = 1./(m_fixed->elements());
     for(size_t ii=0; ii<m_bins*m_bins; ii++) 
-        m_pjoint[ii] *= scale;
+        m_pdfjoint[ii] *= scale;
 
     double dscale = -1./(m_wmove*m_fixed->elements());
-    for(size_t ii=0; ii<m_dpjoint.elements(); ii++)
-        m_dpjoint[ii] *= dscale;
+    for(size_t ii=0; ii<m_dpdfjoint.elements(); ii++)
+        m_dpdfjoint[ii] *= dscale;
 
     // update m_Hjoint
     m_Hjoint = 0;
-    for(size_t ii=0; ii<m_bins; ii++) {
-        for(size_t jj=0; jj<m_bins; jj++) {
-            double p = m_joint[{ii,jj}];
+    for(int ii=0; ii<m_bins; ii++) {
+        for(int jj=0; jj<m_bins; jj++) {
+            double p = m_pdfjoint[{ii,jj}];
             m_Hjoint += p > 0 ? p*log(p) : 0;
         }
     }
     
     // gradient
-    for(size_t pp=0; pp<6; pp++) {
+    for(int pp=0; pp<6; pp++) {
         m_gradHjoint[pp] = 0;
-        for(size_t ii=0; ii<m_bins; ii++) {
-            for(size_t jj=0; jj<m_bins; jj++) {
-                double p = m_joint[{ii,jj}];
-                double dp = m_dpjoint[{pp,ii,jj}];
+        for(int ii=0; ii<m_bins; ii++) {
+            for(int jj=0; jj<m_bins; jj++) {
+                double p = m_pdfjoint[{ii,jj}];
+                double dp = m_dpdfjoint[{pp,ii,jj}];
                 m_gradHjoint[pp] += p > 0 ? dp*log(p) : 0;
             }
         }
@@ -946,7 +961,7 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 
 
     // update value
-    value = m_Hfix+m_Hmove-m_Hjoint;
+    val = m_Hfix+m_Hmove-m_Hjoint;
    
     // go from grad H to grad I
     for(size_t ii=0; ii<6; ii++)
@@ -956,7 +971,7 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
     // negate
     if(m_negate) {
         grad = -grad;
-        value = -value;
+        val = -val;
     }
 
     return 0;
@@ -988,137 +1003,9 @@ int RigidInformationComputer::grad(const VectorXd& params, VectorXd& grad)
  */
 int RigidInformationComputer::value(const VectorXd& params, double& val)
 {
-#ifdef VERYDEBUG
-    cerr << "Val()" << endl;
-    Pixel3DView<double> acc(interpolated);
-#endif 
-
-    assert(m_fixed->ndim() == 3);
-    assert(m_moving->ndim() == 3);
-
-    double rx = params[0];
-    double ry = params[1];
-    double rz = params[2];
-    double sx = params[3];
-    double sy = params[4];
-    double sz = params[5];
-
-	double ind[3];
-	double cind[3];
-	
-    // zero probs
-    std::fill(m_pjnt.begin(), m_pjnt.end(), 0);
-    std::fill(m_pmov.begin(), m_pmov.end(), 0);
-    std::fill(m_pfix.begin(), m_pfix.end(), 0);
-	
-    //continuous bin locations
-	double binfix, binmove;
-
-	for(m_fit.goBegin(); !m_fit.eof(); ++m_fit) {
-		m_fit.index(3, ind);
-
-        // u = c + R^-1(v - s - c)
-        // where u is the output index, v the input, c the center of rotation
-        // and s the shift
-        double x = ind[0];
-        double y = ind[1];
-        double z = ind[2];
-
-        double cx = m_center[0];
-        double cy = m_center[1];
-        double cz = m_center[2];
-        
-        cind[0] = cx + sx + (-cz + z)*sin(ry) + cos(ry)*((-cx + x)*cos(rz) +
-                (cy - y)*sin(rz));
-        cind[1] = cy + sy + (cz - z)*cos(ry)*sin(rx) + (-cx +
-                x)*(cos(rz)*sin(rx)*sin(ry) + cos(rx)*sin(rz)) + (-cy +
-                y)*(cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz));
-        cind[2] = cz + sz + (-cz + z)*cos(rx)*cos(ry) + (cx -
-                x)*(cos(rx)*cos(rz)*sin(ry) - sin(rx)*sin(rz)) + (-cy +
-                y)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
-        
-        double valmove = m_move_get(cind[0], cind[1], cind[2]);
-        double valfix = *m_fit;
-#ifdef VERYDEBUG
-        acc.set(fmove, ind[0], ind[1], ind[2]);
-#endif
-		
-        // compute bins
-		binfix = (valfix-m_rangefix[0])/m_wfix + m_krad;
-		binmove = (valmove-m_rangemove[0])/m_wmove + m_krad;
-        assert(binfix < m_bins);
-        assert(binmove< m_bins);
-
-//		TODO better kernel than B3Kern?
-		//pre-calculate kernels
-		for(int ii = ((int)cbinA)-m_krad; ii <= ((int)cbinA)+m_krad; ii++) 
-			m_kernel_mov[m_krad-(int)cbinM+ii] = B3kern((ii+0.5 - cbinM)*2/m_krad)*2/m_krad;
-
-		for(int jj = ((int)cbinC)-m_krad; jj <= ((int)cbinC)+m_krad; jj++) 
-			m_kernel_fix[m_krad-(int)cbinF+jj] = B3kern((jj+0.5 - cbinF)*2/m_krad)*2/m_krad;
-			
-		//sum up kernel bins
-		for(int ii = ((int)cbinF)-m_krad; ii <= ((int)cbinF)+m_krad; ii++) {
-			assert(ii >= 0);
-			assert(ii < m_bins);
-			for(int jj = ((int)cbinM)-m_krad; jj <= ((int)cbinM)+m_krad; jj++) {
-				assert(jj >= 0);
-				assert(jj < m_bins);
-				m_pjnt[ii*m_bins+jj] += m_kernel_mov[m_krad-(int)cbinM+jj]*
-					m_kernel_fix[m_krad-(int)cbinF+ii];
-			}
-		}
-    }
-        
-    // TODO, precompute marginal entropies, not really worth it, basically 0
-    // time spent on this
-    //calculate total, and marginals
-    for(int ii = 0 ; ii < m_bins; ii++) {
-        for(int jj = 0 ; jj < m_bins; jj++) {
-            m_pjnt[ii*m_bins+jj] /= m_fixed->elements();
-            m_pmov[ii] += m_pjnt[ii*m_bins+jj];
-            m_pfix[jj] += m_pjnt[ii*m_bins+jj];
-        }
-    }
-
-    /////////////////////
-    // compute entropy
-    /////////////////////
-    
-    // marginals
-    double Hfix = 0;
-    double Hmov = 0;
-    for(size_t ii = 0 ; ii < m_bins; ii++) {
-        assert(m_pmov[ii] <= 1);
-        assert(m_pfix[ii] <= 1);
-        Hfix -= m_pfix[ii] > 0 ? m_pfix[ii]*log(m_pfix[ii]) : 0;
-        Hmov -= m_pmov[ii] > 0 ? m_pmov[ii]*log(m_pmov[ii]) : 0;
-    }
-
-    // joint
-    double Hjnt = 0;
-    for(size_t ii=0; ii<m_bins; ii++) {
-        for(size_t jj=0; jj<m_bins; jj++) {
-            assert(m_pjnt[ii]>0);
-            Hjnt -= m_pjnt[ii] > 0 ? m_pjnt[ii]*log(m_pjnt[ii]) : 0;
-        }
-    }
-    
-    //////////////////
-    // compute MI
-    //////////////////
-    double val = Hfix + Hmov - Hjnt;
-
-    if(m_negate)
-        val = -val;
-
-#ifdef VERYDEBUG
-    DEBUGWRITE(cerr << "Value: " << val << endl);
-    string sc = "_"+to_string(callcount);
-    interpolated->write("interp"+sc+".nii.gz");
-    callcount++;
-#endif 
-    return 0;
+    VectorXd grad(6);
+    // temporarily just use the gradient version
+    return valueGrad(params, val, grad);
 };
 
 

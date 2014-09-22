@@ -473,7 +473,7 @@ void shiftImageKern(ptr<NDArray> inout, size_t dd, double dist)
 			int64_t isource = round(source);
 			for(int64_t oo = -RADIUS; oo <= RADIUS; oo++) {
 				int64_t ind = clamp<int64_t>(0, inout->dim(dd)-1, isource+oo);
-				tmp += lanczosKernel(oo+isource-source, RADIUS)*buf[ind];
+				tmp += lanczosKern(oo+isource-source, RADIUS)*buf[ind];
 			}
 
 			oit.set(tmp);
