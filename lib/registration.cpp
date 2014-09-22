@@ -774,10 +774,10 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
     double sz = params[5];
 
     // Zero Everything
-    for(size_t ii=0; ii<m_dpdfjoint.elements(); ii++)
-        m_dpdfjoint[ii] = 0;
-    for(size_t ii=0; ii<m_pdfjoint.elements(); ii++)
-        m_pdfjoint[ii] = 0;
+    m_pdfmove.zero();
+    m_pdfjoint.zero();
+    m_dpdfmove.zero();
+    m_dpdfjoint.zero();
 
     // for computing rotated indices
 	double cbinmove, cbinfix; //continuous
@@ -855,17 +855,16 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 
         assert(binfix+m_krad < m_bins);
         assert(binmove+m_krad < m_bins);
-        assert(binfix+m_krad >= 0);
-        assert(binmove+m_krad >= 0);
+        assert(binfix-m_krad >= 0);
+        assert(binmove-m_krad >= 0);
 		
         // Value PDF
         for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++) 
             m_pdfmove[jj] += B3kern(jj-cbinmove);
 
         for(int ii = binfix-m_krad; ii <= binfix+m_krad; ii++) {
-            for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++) {
+            for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++) 
                 m_pdfjoint[{ii,jj}] += B3kern(ii-cbinfix)*B3kern(jj-cbinmove);
-            }
         }
         
         // Derivatives
@@ -885,44 +884,49 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
         }
     }
     
-    // divide by constants
+    ///////////////////////
+    // Update Entropies 
+    ///////////////////////
+
+    // pdf's
     double scale = 1./(m_fixed->elements());
-    for(size_t ii=0; ii<m_bins*m_bins; ii++) 
+    for(size_t ii=0; ii<m_pdfmove.elements(); ii++) 
+        m_pdfmove[ii] *= scale;
+    for(size_t ii=0; ii<m_pdfjoint.elements(); ii++) 
         m_pdfjoint[ii] *= scale;
 
-#ifndef NDEBUG
-    double sum = 0;
-    for(size_t ii=0; ii<m_bins*m_bins; ii++) 
-        sum += m_pdfjoint[ii];
-    if(fabs(sum - 1) > 0.01) {
-        cerr << "Warning, sums to " << sum << " rather than 1" << endl;
-    }
-#endif
+    // update m_Hmove
+    m_Hmove = 0;
+    for(int ii=0; ii<m_pdfmove.elements(); ii++) 
+        m_Hmove -= m_pdfmove[ii] > 0 ? m_pdfmove[ii]*log(m_pdfmove[ii]) : 0;
 
+    // update m_Hjoint
+    m_Hjoint = 0;
+    for(int ii=0; ii<m_pdfjoint.elements(); ii++) 
+        m_Hjoint -= m_pdfjoint[ii] > 0 ? m_pdfjoint[ii]*log(m_pdfjoint[ii]) : 0;
+
+    //////////////////////////////
+    // Update Gradient Entropies
+    //////////////////////////////
+    
+    // pdf's
     double dscale = -1./(m_wmove*m_fixed->elements());
     for(size_t ii=0; ii<m_dpdfmove.elements(); ii++)
         m_dpdfmove[ii] *= dscale;
     for(size_t ii=0; ii<m_dpdfjoint.elements(); ii++)
         m_dpdfjoint[ii] *= dscale;
-
-    // update m_Hjoint
-    m_Hjoint = 0;
-    for(int ii=0; ii<m_bins; ii++) {
-        for(int jj=0; jj<m_bins; jj++) {
-            double p = m_pdfjoint[{ii,jj}];
-            m_Hjoint -= p > 0 ? p*log(p) : 0;
-        }
-    }
     
-    // gradient
+    // Hmove
     for(int pp=0; pp<6; pp++) {
         m_gradHmove[pp] = 0;
         for(int jj=0; jj<m_bins; jj++) {
-            double p = m_pdfmove[{jj}];
+            double p = m_pdfmove[jj];
             double dp = m_dpdfmove[{pp,jj}];
             m_gradHmove[pp] -= p > 0 ? dp*log(p) : 0;
         }
     }
+    
+    // Hjoint
     for(int pp=0; pp<6; pp++) {
         m_gradHjoint[pp] = 0;
         for(int ii=0; ii<m_bins; ii++) {
@@ -990,10 +994,8 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
     double sz = params[5];
 
     // Zero 
-    for(size_t ii=0; ii<m_pdfmove.elements(); ii++)
-        m_pdfmove[ii] = 0;
-    for(size_t ii=0; ii<m_pdfjoint.elements(); ii++)
-        m_pdfjoint[ii] = 0;
+    m_pdfmove.zero();
+    m_pdfjoint.zero();
 
     // for computing rotated indices
 	double cbinmove, cbinfix; //continuous
@@ -1033,8 +1035,8 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
 
         assert(binfix+m_krad < m_bins);
         assert(binmove+m_krad < m_bins);
-        assert(binfix+m_krad >= 0);
-        assert(binmove+m_krad >= 0);
+        assert(binfix-m_krad >= 0);
+        assert(binmove-m_krad >= 0);
 		
         //sum up kernel bins
         for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++) 
@@ -1052,15 +1054,6 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
         m_pdfmove[ii] *= scale;
     for(size_t ii=0; ii<m_pdfjoint.elements(); ii++) 
         m_pdfjoint[ii] *= scale;
-
-#ifndef NDEBUG
-    double sum = 0;
-    for(size_t ii=0; ii<m_bins*m_bins; ii++) 
-        sum += m_pdfjoint[ii];
-    if(fabs(sum - 1) > 0.01) {
-        cerr << "Warning, sums to " << sum << " rather than 1" << endl;
-    }
-#endif
 
     // update m_Hmove
     m_Hmove = 0;

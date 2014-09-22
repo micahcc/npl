@@ -809,6 +809,17 @@ ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len,
     return extractCast(len, NULL, size, newtype);
 }
 
+
+/**
+ * @brief Sets all elements to zero
+ */
+template <size_t D, typename T>
+void NDArrayStore<D,T>::zero()
+{
+    for(size_t ii=0; ii<elements(); ii++)
+        _m_data[ii] = (T)0;
+}
+
 /*
  * type() Function specialized for all available types
  */

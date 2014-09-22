@@ -318,7 +318,12 @@ public:
     /********************************************
      * Helper Functions
      *******************************************/
-	
+
+    /**
+     * @brief Sets all elements to zero
+     */
+	virtual void zero() = 0;
+
 //	virtual int opself(const NDArray* right, double(*func)(double,double),
 //			bool elevR) = 0;
 //	virtual ptr<NDArray> opnew(const NDArray* right,
@@ -599,6 +604,12 @@ public:
 	/*
 	 * Higher Level Operations
 	 */
+    
+    /**
+     * @brief Sets all elements to zero
+     */
+	virtual void zero();
+
 //	virtual int opself(const NDArray* right, double(*func)(double,double),
 //			bool elevR);
 //	virtual ptr<NDArray> opnew(const NDArray* right,
