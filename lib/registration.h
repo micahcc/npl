@@ -71,8 +71,9 @@ class RigidInformationComputer
      * @param negate Whether to use negative correlation (for instance to
      * minimize negative correlation using a gradient descent).
      */
-    RigidInformationComputer(shared_ptr<const MRImage> fixed,
-            shared_ptr<const MRImage> moving, bool negate);
+    RigidInformationComputer(shared_ptr<const MRImage> fixed, 
+            shared_ptr<const MRImage> moving,
+            int bins, int kernrad, bool negate = false);
 
     /**
      * @brief Computes the gradient and value of the correlation. 
@@ -108,7 +109,23 @@ class RigidInformationComputer
      */
     int value(const Eigen::VectorXd& params, double& val);
 
+    /**
+     * @brief Negative of correlation (which will make it work with most
+     * optimizers)
+     */
+    bool m_negate;
+
     private:
+
+    /**
+     * @brief Number of bins in marginal
+     */
+    int m_bins;
+
+    /**
+     * @brief Parzen Window (kernel) radius
+     */
+    int m_krad;
 
     shared_ptr<MRImage> m_fixed;
     shared_ptr<MRImage> m_moving;
@@ -133,36 +150,27 @@ class RigidInformationComputer
     int callcount;
 #endif
 
-    /**
-     * @brief Negative of correlation (which will make it work with most
-     * optimizers)
-     */
-    bool m_negate;
-
-    // Histogram
-    size_t m_krad;
-	
-    vector<double> m_kernel_dmov;
-    vector<double> m_kernel_mov;
+    vector<double> m_kernel_dmove;
+    vector<double> m_kernel_move;
 	vector<double> m_kernel_fix;
     
-    vector<double> m_pmove;
-    vector<double> m_pfix;
+    vector<double> m_pdfmove;
+    vector<double> m_pdffix;
     
-    NDArrayStore<2, double> m_pjoint;
-    NDArrayStore<3, double> m_dpjoint;
+    NDArrayStore<2, double> m_pdfjoint;
+    NDArrayStore<3, double> m_dpdfjoint;
 //    NDArrayStore<2, double> m_dpmove;
-
-    double m_rangemove[2];
-    double m_rangefix[2];
-    double m_wmove;
-    double m_wfix;
 
     vector<double> m_gradHjoint;
 //    vector<double> m_gradHmove;
     double m_Hfix;
     double m_Hmove;
     double m_Hjoint;
+
+    double m_rangemove[2];
+    double m_rangefix[2];
+    double m_wmove;
+    double m_wfix;
 };
 
 /**
