@@ -133,7 +133,6 @@ int main()
     tit.goBegin(); 
     pit.goBegin();
     bit.goBegin();
-    bool first = true;
     size_t count=0;
     for(Vector3DConstIter<double> fit(fmri); !fit.eof() && !bit.eof(); ++fit, ++tit, ++pit, ++bit) {
 
@@ -180,7 +179,6 @@ int main()
 //            plt2.addArray(X.rows(), x2.data());
 //            plt2.addArray(X.rows(), x3.data());
             plt2.write("y_vs_yht.svg");
-            first = false;
         }
 
         for(size_t ii=0; ii<X.cols(); ii++) {

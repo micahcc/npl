@@ -375,7 +375,7 @@ protected:
 /**
  * @brief K-means classifier.
  */
-class KMeans : Classifier
+class KMeans : public Classifier
 {
 public:
     /**
@@ -443,6 +443,13 @@ public:
      */
     void update(const MatrixXd& samples, bool reinit = false);
 
+    /**
+     * @brief Returns the current mean matrix
+     *
+     * @return The current mean matrix
+     */
+    const MatrixXd& getMeans() { return m_mu; };
+
 private:
     /**
      * @brief Number of groups to classify samples into
@@ -458,7 +465,7 @@ private:
 /**
  * @brief K-means classifier.
  */
-class ExpMax : Classifier
+class ExpMax : public Classifier
 {
 public:
     /**
