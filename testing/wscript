@@ -268,6 +268,11 @@ def build(bld):
             source='glm_test2.cpp', 
             use='statistics nplio ndarray_utils') 
 
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='kmeans_test', 
+            source='kmeans_test.cpp', 
+            use='statistics') 
+
     # Registration Testing
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='rigid_reg_test1', 
