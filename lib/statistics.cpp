@@ -19,6 +19,7 @@
  *****************************************************************************/
 
 #include <Eigen/SVD>
+#include <Eigen/QR>
 #include "statistics.h"
 #include "basic_functions.h"
 #include "macros.h"
@@ -515,5 +516,455 @@ MatrixXd pseudoInverse(const MatrixXd& X)
     return svd.matrixV()*singular_values.asDiagonal()*
             svd.matrixU().transpose();
 }
+
+/******************************************************
+ * Classifiers
+ *****************************************************/
+
+/**
+ * @brief Approximates k-means using the algorithm of:
+ *
+ * 'Fast Approximate k-Means via Cluster Closures' by Wang et al
+ *
+ * @param samples Matrix of samples, one sample per row, 
+ * @param nclass Number of classes to break samples up into
+ * @param means Estimated mid-points/means
+ */
+void approxKMeans(const MatrixXd& samples, size_t nclass, MatrixXd& means)
+{
+	size_t ndim = samples.cols();
+	size_t npoints = samples.rows();
+	double norm = 0;
+
+	means.resize(nclass, ndim);
+    std::vector<double> dists(npoints);
+    std::vector<int> indices(npoints);
+	
+	// Select Point
+    std::default_random_engine rng;
+    std::uniform_int_distribution<int> randi(0, npoints-1);
+    std::uniform_real_distribution<double> randf(0, 1);
+    int tmp = randi(rng);
+    size_t pp;
+	means.row(0) = samples.row(tmp);
+
+	//set the rest of the centers
+	for(int cc = 1; cc < nclass; cc++) { 
+		norm = 0;
+
+		//create list of distances
+		for(pp = 0 ; pp < npoints ; pp++) {
+			dists[pp] = INFINITY;
+			for(int tt = 0 ; tt < cc; tt++) {
+                double v = (samples.row(pp)-means.row(tt)).squaredNorm();
+                dists[pp] = std::min(dists[pp], v);
+			}
+
+			//keep normalization factor for later
+			norm += dists[pp];
+		}
+
+		//set target pp^th greatest distance
+		double pct = norm*randf(rng);
+
+        // fill indices
+        for(size_t ii=0; ii<npoints; ii++)
+            indices[ii] = ii;
+
+        // sort, while keeping indices
+        std::sort(indices.begin(), indices.end(), 
+                [&dists](size_t i, size_t j){
+                    return dists[i] < dists[j]; 
+                });
+
+		//go through sorted list to find matching location in CDF
+        for(pp = 0; pp < npoints && pct > 0 ; pp++) {
+            double d = dists[indices[pp]]; 
+            pct -= d;
+        }
+
+		//copy randomly selected  point into middle
+		means.row(cc) = samples.row(pp);
+	}
+}
+
+
+/**
+ * @brief Constructor for k-means class
+ *
+ * @param rank Number of dimensions in input samples.
+ * @param k Number of groups to classify samples into
+ */
+KMeans::KMeans(size_t rank, size_t k) : Classifier(rank), m_k(k), m_mu(k, ndim)
+{ }
+
+void KMeans::setk(size_t ngroups) 
+{
+    m_k = ngroups;
+    m_mu.resize(m_k, ndim);
+    m_valid = false;
+}
+
+/**
+ * @brief Sets the mean matrix. Each row of the matrix is a ND-mean, where
+ * N is the number of columns.
+ *
+ * @param newmeans Matrix with new mean
+ */
+void KMeans::updateMeans(const MatrixXd& newmeans)
+{
+    if(newmeans.rows() != m_mu.rows() || newmeans.cols() != m_mu.cols()) {
+        throw RUNTIME_ERROR("new mean must have matching size with old!");
+    }
+    m_mu = newmeans;
+    m_valid = true;
+}
+
+/**
+ * @brief Updates the mean coordinates by providing a set of labeled samples.
+ *
+ * @param samples Matrix of samples, where each row is an ND-sample.
+ * @param classes Classes, where rows match the rows of the samples matrix.
+ * Classes should be integers 0 <= c < K where K is the number of classes
+ * in this.
+ */
+void KMeans::updateMeans(const MatrixXd samples, const Eigen::VectorXi classes)
+{
+    if(classes.rows() != samples.rows()){
+        throw RUNTIME_ERROR("Rows in sample and group membership vectors "
+                "must match, but do not!");
+    }
+    if(ndim != samples.cols()){
+        throw RUNTIME_ERROR("Columns in sample vector must match number of "
+                "dimensions, but do not!");
+    }
+    for(size_t ii=0; ii<classes.rows(); ii++) {
+        if(classes[ii] < 0 || classes[ii] >= m_k) {
+            throw RUNTIME_ERROR("Invalid class: "+to_string(classes[ii])+
+                    " class must be > 0 and < "+to_string(m_k));
+        }
+    }
+
+    m_mu.setZero();
+    vector<size_t> counts(m_k, 0);
+
+    // sum up samples by group
+    for(size_t rr = 0; rr < samples.rows(); rr++ ){
+        assert(classes[rr] < m_k);
+        m_mu.row(classes[rr]) += samples.row(rr);
+        counts[classes[rr]]++;
+    }
+
+    // normalize
+    for(size_t cc=0; cc<m_k; cc++) {
+        m_mu.row(cc) /= counts[cc];
+    }
+    m_valid = true;
+}
+
+/**
+ * @brief Given a matrix of samples (Samples x Dims, sample on each row),
+ * apply the classifier to each sample and return a vector of the classes.
+ *
+ * @param samples Set of samples, 1 per row
+ *
+ * @return Vector of classes, rows match up with input sample rows
+ */
+Eigen::VectorXi KMeans::classify(const MatrixXd& samples)
+{   
+    Eigen::VectorXi out;
+    classify(samples, out);
+    return out;
+}
+
+/**
+ * @brief Given a matrix of samples (Samples x Dims, sample on each row),
+ * apply the classifier to each sample and return a vector of the classes.
+ *
+ * @param samples Set of samples, 1 per row
+ * @param classes input/output samples. Returned value indicates number that
+ * changed.
+ *
+ * @return Number of classes that changed
+ */
+size_t KMeans::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
+{ 
+    if(!m_valid) {
+        throw RUNTIME_ERROR("Error, cannot classify samples because "
+                "classifier has not been run on any samples yet. Call "
+                "compute on a samples matrix first!");
+    }
+    if(samples.cols() != ndim) {
+        throw RUNTIME_ERROR("Number of columns does in samples matrix should "
+                "match KMeans classifier, but doesn't");
+    }
+    classes.resize(samples.size());
+
+    size_t change = 0;
+    for(size_t rr=0; rr<samples.rows(); rr++) {
+
+        // check all the means, to find the minimum distance
+        double bestdist = INFINITY;
+        int bestc = -1;
+        for(size_t kk=0; kk<m_k; kk++) {
+            double dist = (samples.row(rr)-m_mu.row(kk)).squaredNorm();
+            if(dist < bestdist) {
+                bestdist = dist;
+                bestc = kk;
+            }
+        }
+        
+        if(classes[rr] != bestc)
+            change++;
+
+        // assign the min squared distance
+        classes[rr] = bestc;
+    }
+
+    return change;
+}
+
+/**
+ * @brief Updates the classifier with new samples, if reinit is true then
+ * no prior information will be used. If reinit is false then any existing
+ * information will be left intact. In Kmeans that would mean that the
+ * means will be left at their previous state.
+ * 
+ * @param samples Samples, S x D matrix with S is the number of samples and
+ * D is the dimensionality. This must match the internal dimension count.
+ */
+void KMeans::update(const MatrixXd& samples, bool reinit)
+{
+    Eigen::VectorXi classes(samples.rows());
+
+    // initialize with approximate k-means
+    if(reinit || !m_valid) 
+        approxKMeans(samples, m_k, m_mu);
+    m_valid = true;
+
+    // now for the 'real' k-means
+    size_t change = SIZE_MAX;
+    while(change > 0) {
+        change = classify(samples, classes);
+        updateMeans(samples, classes);
+    }
+}
+
+/**
+ * @brief Constructor for k-means class
+ *
+ * @param rank Number of dimensions in input samples.
+ * @param k Number of groups to classify samples into
+ */
+ExpMax::ExpMax(size_t rank, size_t k) : Classifier(rank), m_k(k), m_mu(k, ndim),
+    m_cov(k*ndim, ndim)
+{ }
+
+void ExpMax::setk(size_t ngroups) 
+{
+    m_k = ngroups;
+    m_mu.resize(m_k, ndim);
+    m_cov.resize(ndim*m_k, ndim);
+    m_valid = false;
+}
+
+/**
+ * @brief Sets the mean matrix. Each row of the matrix is a ND-mean, where
+ * N is the number of columns.
+ *
+ * @param newmeans Matrix with new mean
+ */
+void ExpMax::updateMeanCov(const MatrixXd& newmeans, const MatrixXd& newcov)
+{
+    if(newmeans.rows() != m_mu.rows() || newmeans.cols() != m_mu.cols()) {
+        throw RUNTIME_ERROR("new mean must have matching size with old!"
+                " Expected: " + to_string(m_mu.rows())+"x" +
+                to_string(m_mu.cols()) + ", but got "+
+                to_string(newmeans.rows()) + "x" + to_string(newmeans.cols()));
+    }
+    if(newcov.rows() != m_cov.rows() || newcov.cols() != m_cov.cols()) {
+        throw RUNTIME_ERROR("new covariance must have matching size with old!"
+                " Expected: " + to_string(m_cov.rows())+"x" +
+                to_string(m_cov.cols()) + ", but got "+
+                to_string(newcov.rows()) + "x" + to_string(newcov.cols()));
+    }
+    m_mu = newmeans;
+    m_cov = newcov;
+    m_valid = true;
+}
+
+/**
+ * @brief Updates the mean coordinates by providing a set of labeled samples.
+ *
+ * @param samples Matrix of samples, where each row is an ND-sample.
+ * @param classes Classes, where rows match the rows of the samples matrix.
+ * Classes should be integers 0 <= c < K where K is the number of classes
+ * in this.
+ */
+void ExpMax::updateMeanCov(const MatrixXd samples, const Eigen::VectorXi classes)
+{
+    if(classes.rows() != samples.rows()){
+        throw RUNTIME_ERROR("Rows in sample and group membership vectors "
+                "must match, but do not!");
+    }
+    if(ndim != samples.cols()){
+        throw RUNTIME_ERROR("Columns in sample vector must match number of "
+                "dimensions, but do not!");
+    }
+    for(size_t ii=0; ii<classes.rows(); ii++) {
+        if(classes[ii] < 0 || classes[ii] >= m_k) {
+            throw RUNTIME_ERROR("Invalid class: "+to_string(classes[ii])+
+                    " class must be > 0 and < "+to_string(m_k));
+        }
+    }
+
+    VectorXd x(ndim);
+    m_mu.setZero();
+    vector<size_t> counts(m_k, 0);
+
+    // sum up samples by group
+    for(size_t rr = 0; rr < samples.rows(); rr++ ){
+        assert(classes[rr] < m_k);
+        size_t c = classes[rr]; 
+        x = samples.row(rr);
+        m_mu.row(c) += x;
+        m_cov.block(c*ndim,0, ndim, ndim) += x*x.transpose();
+        counts[c]++;
+    }
+
+    // normalize
+    for(size_t cc=0; cc<m_k; cc++) {
+        m_mu.row(cc) /= counts[cc];
+        m_cov.block(cc*ndim,0, ndim, ndim) /= counts[cc];
+        m_tau[cc] = 1./counts[cc];
+    }
+    m_valid = true;
+}
+
+/**
+ * @brief Given a matrix of samples (Samples x Dims, sample on each row),
+ * apply the classifier to each sample and return a vector of the classes.
+ *
+ * @param samples Set of samples, 1 per row
+ *
+ * @return Vector of classes, rows match up with input sample rows
+ */
+Eigen::VectorXi ExpMax::classify(const MatrixXd& samples)
+{   
+    Eigen::VectorXi out;
+    classify(samples, out);
+    return out;
+}
+
+/**
+ * @brief Given a matrix of samples (Samples x Dims, sample on each row),
+ * apply the classifier to each sample and return a vector of the classes.
+ *
+ * @param samples Set of samples, 1 per row
+ * @param classes input/output samples. Returned value indicates number that
+ * changed.
+ *
+ * @return Number of classes that changed
+ */
+size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
+{ 
+    if(!m_valid) {
+        throw RUNTIME_ERROR("Error, cannot classify samples because "
+                "classifier has not been run on any samples yet. Call "
+                "compute on a samples matrix first!");
+    }
+    if(samples.cols() != ndim) {
+        throw RUNTIME_ERROR("Number of columns does in samples matrix should "
+                "match ExpMax classifier, but doesn't");
+    }
+    classes.resize(samples.size());
+
+    Eigen::FullPivHouseholderQR<MatrixXd> qr(ndim, ndim);
+    MatrixXd prob(samples.rows(), m_k);
+    VectorXd x;
+    MatrixXd Cinv;
+    double det = 0;
+    size_t change = 0;
+	
+    //compute Cholesky decomp, then determinant and inverse covariance matrix
+	for(int cc = 0; cc < m_k; cc++) {
+		if(m_tau[cc] > 0) {
+			if(ndim == 1) {
+				det = m_cov(0,0);
+				m_covinv(cc*ndim,0) = 1./m_cov(cc*ndim,0);
+			} else {
+                qr.compute(m_cov.block(cc*ndim,0,ndim,ndim));
+                Cinv = qr.inverse();
+                det = qr.absDeterminant();
+			}
+		} else {
+			//no points in this sample, make inverse covariance matrix infinite
+			//dist will be nan or inf, prob will be nan, (dist > max) -> false
+            m_cov.fill(INFINITY);
+			det = 1;
+		}
+
+		//calculate probable location of each point
+		for(int pp = 0; pp < samples.rows(); pp++) {
+            x = samples.row(pp) - m_mu.row(cc);
+			
+            //log likelihood = (note that last part is ignored because it is
+            // constant for all points)
+            //log(tau) - log(sigma)/2 - (x-mu)^Tsigma^-1(x-mu) - dlog(2pi)/2 
+            double llike = (x*Cinv*x)(0,0);
+            llike += log(m_tau[cc]) - .5*log(det);
+
+			if(std::isinf(llike) || std::isnan(llike))
+				llike = -INFINITY;
+
+			prob(pp, cc) = llike;
+		}
+	}
+
+	//place every point in its most probable group
+	for(int pp = 0 ; pp < samples.rows(); pp++) {
+		double max = -INFINITY;
+		int max_class = -1;
+		for(int cc = 0 ; cc < m_k; cc++) {
+			if(prob(pp, cc) > max) {
+				max = prob(pp,cc);
+				max_class = cc;
+			}
+		}
+
+        if(classes[pp] != max_class)
+            change++;
+		classes[pp] = max_class;
+	}
+
+    return change;
+}
+
+/**
+ * @brief Updates the classifier with new samples, if reinit is true then
+ * no prior information will be used. If reinit is false then any existing
+ * information will be left intact. In Kmeans that would mean that the
+ * means will be left at their previous state.
+ * 
+ * @param samples Samples, S x D matrix with S is the number of samples and
+ * D is the dimensionality. This must match the internal dimension count.
+ */
+void ExpMax::update(const MatrixXd& samples, bool reinit)
+{
+    Eigen::VectorXi classes(samples.rows());
+
+    // initialize with approximate k-means
+    if(reinit || !m_valid) 
+        approxKMeans(samples, m_k, m_mu);
+    m_valid = true;
+
+    // now for the 'real' k-means
+    size_t change = SIZE_MAX;
+    while(change > 0) {
+        change = classify(samples, classes);
+        updateMeanCov(samples, classes);
+    }
+}
+
 
 } // NPL
