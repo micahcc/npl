@@ -21,6 +21,8 @@
 #ifndef STATISTICS_H
 #define STATISTICS_H
 
+#include <Eigen/LU>
+#include <Eigen/QR>
 #include <Eigen/Dense>
 #include "npltypes.h"
 
@@ -279,6 +281,294 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X);
  * @return Psueodinverse 
  */
 MatrixXd pseudoInverse(const MatrixXd& X);
+
+/*
+ * \defgroup Clustering algorithms
+ * @{
+ */
+
+/**
+ * @brief Approximates k-means using the algorithm of:
+ *
+ * 'Fast Approximate k-Means via Cluster Closures' by Wang et al
+ *
+ * This is not really meant to be used by outside users, but as an initializer
+ *
+ * @param samples Matrix of samples, one sample per row, 
+ * @param nclass Number of classes to break samples up into
+ * @param means Estimated mid-points/means
+ */
+void approxKMeans(const MatrixXd& samples, size_t nclass, MatrixXd& means);
+
+/**
+ * @brief Base class for all ND classifiers.
+ */
+class Classifier
+{
+public:
+    /**
+     * @brief Initializes the classifier
+     *
+     * @param rank Number of dimensions of samples
+     */
+    Classifier(size_t rank) : ndim(rank), m_valid(false) {};
+
+    /**
+     * @brief Given a matrix of samples (Samples x Dims, sample on each row),
+     * apply the classifier to each sample and return a vector of the classes.
+     *
+     * @param samples Set of samples, 1 per row
+     *
+     * @return Vector of classes, rows match up with input sample rows
+     */
+    virtual 
+    Eigen::VectorXi classify(const MatrixXd& samples) = 0;
+
+    /**
+     * @brief Given a matrix of samples (Samples x Dims, sample on each row),
+     * apply the classifier to each sample and return a vector of the classes.
+     *
+     * @param samples Set of samples, 1 per row
+     * @param oclass Output classes. This vector will be resized to have the
+     * same number of rows as samples matrix.
+     *
+     * @return the number of changed classifications
+     */
+    virtual 
+    size_t classify(const MatrixXd& samples, Eigen::VectorXi& oclass) = 0;
+
+    /**
+     * @brief Updates the classifier with new samples, if reinit is true then
+     * no prior information will be used. If reinit is false then any existing
+     * information will be left intact. In Kmeans that would mean that the
+     * means will be left at their previous state.
+     * 
+     * @param samples Samples, S x D matrix with S is the number of samples and
+     * D is the dimensionality. This must match the internal dimension count.
+     */
+    virtual
+    void update(const MatrixXd& samples, bool reinit = false) = 0;
+
+    /**
+     * @brief Alias for updateClasses with reinit = true. This will perform 
+     * a classification scheme on all the input samples.
+     *
+     * @param samples Samples, S x D matrix with S is the number of samples and
+     * D is the dimensionality. This must match the internal dimension count.
+     */
+    void compute(const MatrixXd& samples) { update(samples, true); };
+
+    /**
+     * @brief Number of dimensions, must be set at construction. This is the
+     * number of columns in input samples.
+     */
+    const int ndim;
+    
+protected:
+    /**
+     * @brief Whether the classifier has been initialized yet
+     */
+    bool m_valid;
+
+};
+
+/**
+ * @brief K-means classifier.
+ */
+class KMeans : public Classifier
+{
+public:
+    /**
+     * @brief Constructor for k-means class
+     *
+     * @param rank Number of dimensions in input samples.
+     * @param k Number of groups to classify samples into
+     */
+    KMeans(size_t rank, size_t k = 2);
+
+    /**
+     * @brief Update the number of groups. Note that this invalidates any
+     * current information
+     *
+     * @param groups Number of groups to classify
+     */
+    void setk(size_t ngroups);
+    
+    /**
+     * @brief Sets the mean matrix. Each row of the matrix is a ND-mean, where
+     * N is the number of columns.
+     *
+     * @param newmeans Matrix with new mean
+     */
+    void updateMeans(const MatrixXd& newmeans);
+
+    /**
+     * @brief Updates the mean coordinates by providing a set of labeled samples.
+     *
+     * @param samples Matrix of samples, where each row is an ND-sample.
+     * @param classes Classes, where rows match the rows of the samples matrix.
+     * Classes should be integers 0 <= c < K where K is the number of classes
+     * in this.
+     */
+    void updateMeans(const MatrixXd samples, const Eigen::VectorXi classes);
+
+    /**
+     * @brief Given a matrix of samples (Samples x Dims, sample on each row),
+     * apply the classifier to each sample and return a vector of the classes.
+     *
+     * @param samples Set of samples, 1 per row
+     *
+     * @return Vector of classes, rows match up with input sample rows
+     */
+    Eigen::VectorXi classify(const MatrixXd& samples);
+
+    /**
+     * @brief Given a matrix of samples (Samples x Dims, sample on each row),
+     * apply the classifier to each sample and return a vector of the classes.
+     *
+     * @param samples Set of samples, 1 per row
+     * @param oclass Output classes. This vector will be resized to have the
+     * same number of rows as samples matrix.
+     */
+    size_t classify(const MatrixXd& samples, Eigen::VectorXi& oclass);
+
+    /**
+     * @brief Updates the classifier with new samples, if reinit is true then
+     * no prior information will be used. If reinit is false then any existing
+     * information will be left intact. In Kmeans that would mean that the
+     * means will be left at their previous state.
+     * 
+     * @param samples Samples, S x D matrix with S is the number of samples and
+     * D is the dimensionality. This must match the internal dimension count.
+     */
+    void update(const MatrixXd& samples, bool reinit = false);
+
+    /**
+     * @brief Returns the current mean matrix
+     *
+     * @return The current mean matrix
+     */
+    const MatrixXd& getMeans() { return m_mu; };
+
+private:
+    /**
+     * @brief Number of groups to classify samples into
+     */
+    size_t m_k;
+
+    /**
+     * @brief The means of each group, K x D, where each row is an N-D mean.
+     */
+    MatrixXd m_mu;
+};
+
+/**
+ * @brief K-means classifier.
+ */
+class ExpMax : public Classifier
+{
+public:
+    /**
+     * @brief Constructor for k-means class
+     *
+     * @param rank Number of dimensions in input samples.
+     * @param k Number of groups to classify samples into
+     */
+    ExpMax(size_t rank, size_t k = 2);
+
+    /**
+     * @brief Update the number of groups. Note that this invalidates any
+     * current information
+     *
+     * @param groups Number of groups to classify
+     */
+    void setk(size_t ngroups);
+    
+    /**
+     * @brief Sets the mean matrix. Each row of the matrix is a ND-mean, where
+     * N is the number of columns.
+     *
+     * @param newmeans Matrix with new mean, means are stacked so that each row
+     * represents a group mean 
+     * @param newmeans Matrix with new coviance matrices. Covariance matrices
+     * are stacked so that row ndim*k gets the first element of the k'th
+     * covance matrix.
+     */
+    void updateMeanCov(const MatrixXd& newmeans, const MatrixXd& newcovs);
+
+    /**
+     * @brief Updates the mean and covariance matrices by using a set of
+     * classified points.
+     *
+     * @param samples Matrix of samples, where each row is an ND-sample.
+     * @param classes Classes, where rows match the rows of the samples matrix.
+     * Classes should be integers 0 <= c < K where K is the number of classes
+     * in this.
+     */
+    void updateMeanCov(const MatrixXd samples, const Eigen::VectorXi classes);
+
+    /**
+     * @brief Given a matrix of samples (Samples x Dims, sample on each row),
+     * apply the classifier to each sample and return a vector of the classes.
+     *
+     * @param samples Set of samples, 1 per row
+     *
+     * @return Vector of classes, rows match up with input sample rows
+     */
+    Eigen::VectorXi classify(const MatrixXd& samples);
+
+    /**
+     * @brief Given a matrix of samples (Samples x Dims, sample on each row),
+     * apply the classifier to each sample and return a vector of the classes.
+     *
+     * @param samples Set of samples, 1 per row
+     * @param oclass Output classes. This vector will be resized to have the
+     * same number of rows as samples matrix.
+     */
+    size_t classify(const MatrixXd& samples, Eigen::VectorXi& oclass);
+
+    /**
+     * @brief Updates the classifier with new samples, if reinit is true then
+     * no prior information will be used. If reinit is false then any existing
+     * information will be left intact. In Kmeans that would mean that the
+     * means will be left at their previous state.
+     * 
+     * @param samples Samples, S x D matrix with S is the number of samples and
+     * D is the dimensionality. This must match the internal dimension count.
+     */
+    void update(const MatrixXd& samples, bool reinit = false);
+
+private:
+    /**
+     * @brief Number of groups to classify samples into
+     */
+    size_t m_k;
+
+    /**
+     * @brief The means of each group, K x D, where each row is an N-D mean.
+     */
+    MatrixXd m_mu;
+
+    /**
+     * @brief The covariance of each group, Covariances are stacked vertically,
+     * with covariance c starting at (ndim*c, 0) and running to 
+     * (ndim*(c+1)-1, ndim-1).
+     */
+    MatrixXd m_cov;
+
+    /**
+     * @brief Inverse of covariance matrix
+     */
+    MatrixXd m_covinv;
+
+    /**
+     * @brief Prior probabilities of each distribution based on percent of
+     * points that lie within the group
+     */
+    VectorXd m_tau;
+};
+
+/** @} */
 
 /** @} */
 
