@@ -20,6 +20,8 @@
 #include <algorithm>
 #include <cstring>
 #include <typeinfo>
+#include <Eigen/SVD>
+#include <Eigen/Core>
 
 #include "nifti.h"
 #include "version.h"
@@ -540,8 +542,10 @@ int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 	}
 
 	header.qform_code = 1;
-
-	// orientation
+	/***************************
+	 * Orientation
+	 **************************/
+	// offsets
 	if(D > 3)
 		header.toffset = origin(3);
 	for(size_t ii=0; ii<3 && ii<D; ii++)
@@ -550,18 +554,26 @@ int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 	for(size_t ii=0; ii<7 && ii<D; ii++)
 		header.pixdim[ii] = spacing(ii);
 	
+	// Direction Matrix
 	Matrix3d rotate;
+	rotate.setIdentity();
 	for(size_t rr=0; rr<3 && rr<D; rr++) {
 		for(size_t cc=0; cc<3 && cc<D; cc++) {
 			rotate(rr,cc) = direction(rr,cc);
 		}
 	}
-
 	double det = rotate.determinant();
-	if(fabs(det)-1 > 0.0001) {
-		std::cerr << "Non-orthogonal direction set! This may not end well" << std::endl;
+	if(fabs(det) < 1e-10) {
+		std::cerr << "Non-invertible direction! Setting to identity\n"; 
+		rotate.setIdentity();
 	}
 
+	// use SVD to orthogonalize, we basically just remove all scaling (make
+	// eigenvalues 1)
+	Eigen::JacobiSVD<Matrix3d> svd(rotate, Eigen::ComputeThinU|Eigen::ComputeThinV);
+	rotate = svd.matrixU()*svd.matrixV().transpose();
+
+	det = rotate.determinant();
 	if(det > 0)
 		header.qfac = 1;
 	 else {
@@ -570,7 +582,6 @@ int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 		rotate(1,2) = -rotate(1,2);
 		rotate(2,2) = -rotate(2,2);
 	 }
-
 
 	 double a = 0.5*sqrt(rotate(0,0)+rotate(1,1)+rotate(2,2)+1);
 	 double b = 0.5*sqrt(rotate(0,0)-(rotate(1,1)+rotate(2,2))+1);

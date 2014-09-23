@@ -78,6 +78,11 @@ def build(bld):
             use='nplio')
 
     bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='nifti_orient_test3', 
+            source='nifti_orient_test3.cpp', 
+            use='nplio')
+
+    bld.program(install_path='${PREFIX}/tests', features='test', 
             target='coordinate_test1', 
             source='coordinate_test1.cpp', 
             use='nplio iterators')
