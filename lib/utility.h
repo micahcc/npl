@@ -94,12 +94,13 @@ std::vector<std::string> parseLine(std::string line, std::string delim);
  * out
  *
  * @param filename file to read
+ * @param delim Output: Delimiter found (this gets set).
  * @param comment lines with this first non-white space character will be ignored
  *
  * @return out vector of rows (stored in vectors)
  */
-std::vector<std::vector<std::string>> readStrCSV(std::string filename,
-			char comment = '#');
+std::vector<std::vector<std::string>> readStrCSV(std::string filename, 
+        char& delim, char comment = '#');
 
 /**
  * @brief This function parses an input and returns a list of rows
