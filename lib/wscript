@@ -36,7 +36,7 @@ def build(bld):
     bld.shlib( target = 'mrimage', 
             source = 'mrimage.cpp', 
             export_includes = ['.'],
-            use='ndarray slicer') 
+            use='ndarray slicer EIGEN') 
     bld.shlib( target = 'mrimage_utils', 
             source = 'mrimage_utils.cpp', 
             export_includes = ['.'],
