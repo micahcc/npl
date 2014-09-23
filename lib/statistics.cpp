@@ -698,7 +698,7 @@ size_t KMeans::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
         throw RUNTIME_ERROR("Number of columns does in samples matrix should "
                 "match KMeans classifier, but doesn't");
     }
-    classes.resize(samples.size());
+    classes.resize(samples.rows());
 
     size_t change = 0;
     for(size_t rr=0; rr<samples.rows(); rr++) {
