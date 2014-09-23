@@ -491,7 +491,8 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray,
             double b = quatern[0];
             double c = quatern[1];
             double d = quatern[2];
-            double a = sqrt(1.0-(b*b+c*c+d*d));
+			double a = 1.0-(b*b+c*c+d*d);
+			a = a < 0 ? 0 : sqrt(a); 
 
             // calculate R, (was already identity)
             MatrixXd tmpdirection = oimage->getDirection();

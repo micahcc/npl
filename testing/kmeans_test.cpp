@@ -111,7 +111,7 @@ int main()
     cerr << misscount << "/" << NSAMPLES << " (" << 
         (double)misscount/NSAMPLES << ") Incorrect" << endl;
 
-    if(err > 0.1) {
+    if(err/(NDIM*NCLUSTER) > 0.1) {
         cerr << "Fail" << endl;
         return -1;
     }
