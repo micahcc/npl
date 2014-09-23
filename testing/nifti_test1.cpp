@@ -230,6 +230,8 @@ int main()
 	}
 	if(diff > 1e-5) {
 		cerr << "Difference in Direction!" << endl;
+		cerr << "Original: " << direction << "\nvs.\n" <<
+			dblversion->getDirection() << endl;
 		return -1;
 	}
 

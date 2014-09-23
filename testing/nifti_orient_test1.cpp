@@ -73,6 +73,8 @@ int main()
 		for(size_t jj=0; jj < img->ndim(); jj++) {
 			if(fabs(img->direction(ii,jj) - corrdir(ii,jj)) > 0.001) {
 				cerr << "Error, direction matrix mismatches" << endl;
+				cerr << "\n" << img->getDirection() << "\nvs.";
+				cerr << "\n" << img->getDirection() << "\n";
 				return -1;
 			}
 		}

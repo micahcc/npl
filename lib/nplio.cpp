@@ -492,7 +492,17 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray,
             double c = quatern[1];
             double d = quatern[2];
 			double a = 1.0-(b*b+c*c+d*d);
-			a = a < 0 ? 0 : sqrt(a); 
+			
+			// if a is extremeley small (or negative), renormalize, make a=0
+			if(a < 1e-7) {
+				a = 1./sqrt(b*b+c*c+d*d);
+				b *= a;
+				c *= a;
+				d *= a;
+				a = 0;
+			} else {
+				a = sqrt(a);
+			}
 
             // calculate R, (was already identity)
             MatrixXd tmpdirection = oimage->getDirection();
