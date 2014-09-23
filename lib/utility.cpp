@@ -191,7 +191,7 @@ vector<string> parseLine(std::string line, string delim)
  *
  * @return Vector of vectors, where outer vectors are rows, inner are columns
  */
-vector<vector<string>> readStrCSV(string filename, char comment)
+vector<vector<string>> readStrCSV(string filename, char& delim, char comment)
 {
     std::ifstream fin(filename.c_str());
 
@@ -210,7 +210,7 @@ vector<vector<string>> readStrCSV(string filename, char comment)
 	int maxwidth = 0;
 	int priority = 2;
 
-	string delims[3] = {";", "\t ", ","};
+    std::string delims[] = {";", " \t", ","};
 
 	/* Start trying delimiters. Priority is in reverse order so the last that
 	 * grants the same number of outputs on a line and isn't 1 is given the
@@ -249,8 +249,10 @@ vector<vector<string>> readStrCSV(string filename, char comment)
 			priority = ii;
 		}
 	}
+
+    if(delims[priority].length() > 0)
+        delim = delims[priority][0];
 			
-	
 	//re-process first 10 lines using the proper delimiter
 	list<string>::iterator it = firstlines.begin();
 	minwidth = numeric_limits<int>::max();
