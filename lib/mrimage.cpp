@@ -65,12 +65,12 @@ ptr<MRImage> createMRImageHelp(size_t len, const size_t* dim)
 			return make_shared<MRImageStore<4, T>>(len, dim);
 		case 5:
 			return make_shared<MRImageStore<5, T>>(len, dim);
-		case 6:
-			return make_shared<MRImageStore<6, T>>(len, dim);
-		case 7:
-			return make_shared<MRImageStore<7, T>>(len, dim);
-		case 8:
-			return make_shared<MRImageStore<8, T>>(len, dim);
+//		case 6:
+//			return make_shared<MRImageStore<6, T>>(len, dim);
+//		case 7:
+//			return make_shared<MRImageStore<7, T>>(len, dim);
+//		case 8:
+//			return make_shared<MRImageStore<8, T>>(len, dim);
 		default:
 			std::cerr << "Unsupported len, dimension: " << len << std::endl;
 			return NULL;
@@ -187,12 +187,12 @@ ptr<MRImage> createMRImageHelp(size_t len, const size_t* dim,
 			return make_shared<MRImageStore<4, T>>(len, dim, (T*)ptr, deleter);
 		case 5:
 			return make_shared<MRImageStore<5, T>>(len, dim, (T*)ptr, deleter);
-		case 6:
-			return make_shared<MRImageStore<6, T>>(len, dim, (T*)ptr, deleter);
-		case 7:
-			return make_shared<MRImageStore<7, T>>(len, dim, (T*)ptr, deleter);
-		case 8:
-			return make_shared<MRImageStore<8, T>>(len, dim, (T*)ptr, deleter);
+//		case 6:
+//			return make_shared<MRImageStore<6, T>>(len, dim, (T*)ptr, deleter);
+//		case 7:
+//			return make_shared<MRImageStore<7, T>>(len, dim, (T*)ptr, deleter);
+//		case 8:
+//			return make_shared<MRImageStore<8, T>>(len, dim, (T*)ptr, deleter);
 		default:
 			std::cerr << "Unsupported len, dimension: " << len << std::endl;
 			return NULL;
@@ -824,56 +824,56 @@ template class MRImageStore<5, uint8_t>;
 template class MRImageStore<5, rgba_t>;
 template class MRImageStore<5, rgb_t>;
 
-template class MRImageStore<6, double>;
-template class MRImageStore<6, long double>;
-template class MRImageStore<6, cdouble_t>;
-template class MRImageStore<6, cquad_t>;
-template class MRImageStore<6, float>;
-template class MRImageStore<6, cfloat_t>;
-template class MRImageStore<6, int64_t>;
-template class MRImageStore<6, uint64_t>;
-template class MRImageStore<6, int32_t>;
-template class MRImageStore<6, uint32_t>;
-template class MRImageStore<6, int16_t>;
-template class MRImageStore<6, uint16_t>;
-template class MRImageStore<6, int8_t>;
-template class MRImageStore<6, uint8_t>;
-template class MRImageStore<6, rgba_t>;
-template class MRImageStore<6, rgb_t>;
-
-template class MRImageStore<7, double>;
-template class MRImageStore<7, long double>;
-template class MRImageStore<7, cdouble_t>;
-template class MRImageStore<7, cquad_t>;
-template class MRImageStore<7, float>;
-template class MRImageStore<7, cfloat_t>;
-template class MRImageStore<7, int64_t>;
-template class MRImageStore<7, uint64_t>;
-template class MRImageStore<7, int32_t>;
-template class MRImageStore<7, uint32_t>;
-template class MRImageStore<7, int16_t>;
-template class MRImageStore<7, uint16_t>;
-template class MRImageStore<7, int8_t>;
-template class MRImageStore<7, uint8_t>;
-template class MRImageStore<7, rgba_t>;
-template class MRImageStore<7, rgb_t>;
-
-template class MRImageStore<8, double>;
-template class MRImageStore<8, long double>;
-template class MRImageStore<8, cdouble_t>;
-template class MRImageStore<8, cquad_t>;
-template class MRImageStore<8, float>;
-template class MRImageStore<8, cfloat_t>;
-template class MRImageStore<8, int64_t>;
-template class MRImageStore<8, uint64_t>;
-template class MRImageStore<8, int32_t>;
-template class MRImageStore<8, uint32_t>;
-template class MRImageStore<8, int16_t>;
-template class MRImageStore<8, uint16_t>;
-template class MRImageStore<8, int8_t>;
-template class MRImageStore<8, uint8_t>;
-template class MRImageStore<8, rgba_t>;
-template class MRImageStore<8, rgb_t>;
+//template class MRImageStore<6, double>;
+//template class MRImageStore<6, long double>;
+//template class MRImageStore<6, cdouble_t>;
+//template class MRImageStore<6, cquad_t>;
+//template class MRImageStore<6, float>;
+//template class MRImageStore<6, cfloat_t>;
+//template class MRImageStore<6, int64_t>;
+//template class MRImageStore<6, uint64_t>;
+//template class MRImageStore<6, int32_t>;
+//template class MRImageStore<6, uint32_t>;
+//template class MRImageStore<6, int16_t>;
+//template class MRImageStore<6, uint16_t>;
+//template class MRImageStore<6, int8_t>;
+//template class MRImageStore<6, uint8_t>;
+//template class MRImageStore<6, rgba_t>;
+//template class MRImageStore<6, rgb_t>;
+//
+//template class MRImageStore<7, double>;
+//template class MRImageStore<7, long double>;
+//template class MRImageStore<7, cdouble_t>;
+//template class MRImageStore<7, cquad_t>;
+//template class MRImageStore<7, float>;
+//template class MRImageStore<7, cfloat_t>;
+//template class MRImageStore<7, int64_t>;
+//template class MRImageStore<7, uint64_t>;
+//template class MRImageStore<7, int32_t>;
+//template class MRImageStore<7, uint32_t>;
+//template class MRImageStore<7, int16_t>;
+//template class MRImageStore<7, uint16_t>;
+//template class MRImageStore<7, int8_t>;
+//template class MRImageStore<7, uint8_t>;
+//template class MRImageStore<7, rgba_t>;
+//template class MRImageStore<7, rgb_t>;
+//
+//template class MRImageStore<8, double>;
+//template class MRImageStore<8, long double>;
+//template class MRImageStore<8, cdouble_t>;
+//template class MRImageStore<8, cquad_t>;
+//template class MRImageStore<8, float>;
+//template class MRImageStore<8, cfloat_t>;
+//template class MRImageStore<8, int64_t>;
+//template class MRImageStore<8, uint64_t>;
+//template class MRImageStore<8, int32_t>;
+//template class MRImageStore<8, uint32_t>;
+//template class MRImageStore<8, int16_t>;
+//template class MRImageStore<8, uint16_t>;
+//template class MRImageStore<8, int8_t>;
+//template class MRImageStore<8, uint8_t>;
+//template class MRImageStore<8, rgba_t>;
+//template class MRImageStore<8, rgb_t>;
 
 
 } // npl

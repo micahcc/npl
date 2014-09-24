@@ -494,7 +494,8 @@ public:
      * are stacked so that row ndim*k gets the first element of the k'th
      * covance matrix.
      */
-    void updateMeanCov(const MatrixXd& newmeans, const MatrixXd& newcovs);
+    void updateMeanCovTau(const MatrixXd& newmeans, const MatrixXd& newcovs, 
+            const VectorXd& tau);
 
     /**
      * @brief Updates the mean and covariance matrices by using a set of
@@ -505,7 +506,7 @@ public:
      * Classes should be integers 0 <= c < K where K is the number of classes
      * in this.
      */
-    void updateMeanCov(const MatrixXd samples, const Eigen::VectorXi classes);
+    void updateMeanCovTau(const MatrixXd samples, const Eigen::VectorXi classes);
 
     /**
      * @brief Given a matrix of samples (Samples x Dims, sample on each row),
@@ -538,6 +539,21 @@ public:
      */
     void update(const MatrixXd& samples, bool reinit = false);
 
+
+    /**
+     * @brief Returns the current mean matrix
+     *
+     * @return The current mean matrix
+     */
+    const MatrixXd& getMeans() { return m_mu; };
+    
+    /**
+     * @brief Returns the current mean matrix
+     *
+     * @return The current covariance matrix, with each covariance matrix
+     * stacked on top of the next.
+     */
+    const MatrixXd& getCovs() { return m_cov; };
 private:
     /**
      * @brief Number of groups to classify samples into

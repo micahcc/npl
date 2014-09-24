@@ -570,7 +570,7 @@ int MRImageStore<D,T>::writeNifti1Header(gzFile file) const
 
 	// use SVD to orthogonalize, we basically just remove all scaling (make
 	// eigenvalues 1)
-	Eigen::JacobiSVD<Matrix3d> svd(rotate, Eigen::ComputeThinU|Eigen::ComputeThinV);
+	Eigen::JacobiSVD<Matrix3d> svd(rotate, Eigen::ComputeFullU|Eigen::ComputeFullV);
 	rotate = svd.matrixU()*svd.matrixV().transpose();
 
 	det = rotate.determinant();

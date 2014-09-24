@@ -278,6 +278,11 @@ def build(bld):
             source='kmeans_test.cpp', 
             use='statistics') 
 
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='expmax_test1', 
+            source='expmax_test1.cpp', 
+            use='statistics') 
+
     # Registration Testing
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='rigid_reg_test1', 
