@@ -584,39 +584,6 @@ ptr<NDArray> _copyCast(ptr<const NDArray> in, size_t newdims,
 }
 
 /**
- * @brief Create a new array that is a copy of the input, with same dimensions
- * but pxiels cast to newtype. The new array will have all overlapping pixels
- * copied from the old array.
- *
- * @param in Input array, anything that can be copied will be
- * @param newtype Type of pixels in output array
- *
- * @return Image with overlapping sections cast and copied from 'in'
- */
-ptr<NDArray> _copyCast(ptr<const NDArray> in, PixelT newtype)
-{
-	return _copyCast(in, in->ndim(), in->dim(), newtype);
-}
-
-/**
- * @brief Create a new array that is a copy of the input, possibly with new
- * dimensions or size. The new array will have all overlapping pixels
- * copied from the old array. The new array will have the same pixel type as
- * the input array
- *
- * @param in Input array, anything that can be copied will be
- * @param newdims Number of dimensions in output array
- * @param newsize Size of output array
- *
- * @return Image with overlapping sections cast and copied from 'in'
- */
-ptr<NDArray> _copyCast(ptr<const NDArray> in, size_t newdims,
-		const size_t* newsize)
-{
-	return _copyCast(in, newdims, newsize, in->type());
-}
-
-/**
  * @brief Helper function that casts all the elements as the given type then uses
  * the same type to set all the elements of the output array. Only overlapping
  * sections of the arrays are copied.

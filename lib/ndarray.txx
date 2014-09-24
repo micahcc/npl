@@ -602,6 +602,58 @@ ptr<NDArray> NDArrayStore<D,T>::createAnother() const
 {
     return createNDArray(D, this->dim(), type());
 }
+
+/**
+ * @brief Create a new array that is the same underlying type as this.
+ * If this is an image then it will also copy the metdata, but NOT the
+ * pixels.
+ *
+ * @param newdims Number of dimensions in copied output
+ * @param newsize Size of output, this array should be of size newdims
+ * @param newtype Type of pixels in output array
+ *
+ * @return Image with identical orientation but different size and pixeltype
+ */
+template <size_t D, typename T>
+ptr<NDArray> NDArrayStore<D,T>::createAnother(size_t newdims,
+		const size_t* newsize, PixelT newtype) const
+{
+	return createNDArray(newdims, newsize, newtype);
+}
+
+/**
+ * @brief Create a new array that is the same underlying type as this, but
+ * with a different pixel type. 
+ *
+ * @param newtype Type of pixels in output array
+ *
+ * @return Image with identical orientation and size but different pixel
+ * type
+ */
+template <size_t D, typename T>
+ptr<NDArray> NDArrayStore<D,T>::createAnother(PixelT newtype) const
+{
+	return createNDArray(D, dim(), newtype);
+}
+
+/**
+ * @brief Create a new array that is the same underlying type as this,
+ * and same pixel type and orientation as this, but with a different
+ * size.
+ *
+ * @param newdims Number of dimensions in output array
+ * @param newsize Input array of length newdims that gives the size of
+ *                output array,
+ *
+ * @return Image with identical orientation and pixel type but different
+ * size from this
+ */
+template <size_t D, typename T>
+ptr<NDArray> NDArrayStore<D,T>::createAnother(size_t newdims,
+		const size_t* newsize) const
+{
+	return createNDArray(newdims, newsize, type());
+}
 	
 /**
  * @brief Create a new array that is a copy of the input, possibly with new
@@ -645,7 +697,7 @@ ptr<NDArray> NDArrayStore<D,T>::copyCast(size_t newdims,
 template <size_t D, typename T>
 ptr<NDArray> NDArrayStore<D,T>::copyCast(PixelT newtype) const
 {
-	return _copyCast(getConstPtr(), newtype);
+	return _copyCast(getConstPtr(), ndim(), dim(), newtype);
 }
 
 /**
@@ -669,7 +721,7 @@ template <size_t D, typename T>
 ptr<NDArray> NDArrayStore<D,T>::copyCast(size_t newdims,
 		const size_t* newsize) const
 {
-	return _copyCast(getConstPtr(), newdims, newsize);
+	return _copyCast(getConstPtr(), newdims, newsize, type());
 }
 
 /**

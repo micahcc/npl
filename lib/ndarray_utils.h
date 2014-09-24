@@ -394,7 +394,18 @@ ptr<NDArray> concatElevate(const vector<ptr<NDArray>>& images);
  *
  * @return Output image N+1D
  */
-ptr<NDArray> cannyEdge(ptr<const NDArray> img);
+ptr<NDArray> sobelEdge(ptr<const NDArray> img);
+
+/**
+ * @brief Creates a new image with the specified dimension collapsed and the
+ * values in each output point set to the sum of the values in the collapsed
+ * dimension
+ *
+ * @param img Input image
+ *
+ * @return 
+ */
+ptr<NDArray> collapseSum(ptr<const NDArray> img, size_t dim);
 
 /** @}  NDArrayUtilities */
 

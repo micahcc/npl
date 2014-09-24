@@ -52,7 +52,7 @@ int test1d(std::vector<size_t>& size, size_t bytes, size_t elements)
 		T val = dist(rangen);
 
 		mapcomp[index] = val;
-		arrA.set(val, index);
+		arrA.set(index, val);
 	}
 
 	if(count != size[0]) {
@@ -97,7 +97,7 @@ int test2d(std::vector<size_t>& size, size_t bytes, size_t elements)
 			T val = dist(rangen);
 
 			mapcomp[index] = val;
-			arrA.set(val, index);
+			arrA.set(index, val);
 		}
 	}
 
@@ -147,7 +147,7 @@ int test3d(std::vector<size_t>& size, size_t bytes, size_t elements)
 				T val = dist(rangen);
 
 				mapcomp[index] = val;
-				arrA.set(val, index);
+				arrA.set(index, val);
 			}
 		}
 	}
@@ -202,7 +202,7 @@ int test5d(std::vector<size_t>& size, size_t bytes, size_t elements)
 						T val = dist(rangen);
 
 						mapcomp[index] = val;
-						arrA.set(val, index);
+						arrA.set(index, val);
 					}
 				}
 			}

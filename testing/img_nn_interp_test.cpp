@@ -48,7 +48,7 @@ int main()
 					for(index[4] = 0; index[4] < sz[4] ; index[4]++) {
 						val = index[0]+index[1]*10 + index[2]*100
 									+ index[3]*1000+index[4]*10000;
-						view.set(val, index);
+						view.set(index, val);
 					}
 				}
 			}

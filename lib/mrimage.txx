@@ -1152,7 +1152,65 @@ ptr<NDArray> MRImageStore<D,T>::createAnother() const
 	out->copyMetadata(getConstPtr());
 	return out;
 }
-	
+
+/**
+ * @brief Create a new array that is the same underlying type as this.
+ * If this is an image then it will also copy the metdata, but NOT the
+ * pixels.
+ *
+ * @param newdims Number of dimensions in copied output
+ * @param newsize Size of output, this array should be of size newdims
+ * @param newtype Type of pixels in output array
+ *
+ * @return Image with identical orientation but different size and pixeltype
+ */
+template <size_t D, typename T>
+ptr<NDArray> MRImageStore<D,T>::createAnother(size_t newdims,
+        const size_t* newsize, PixelT newtype) const
+{
+	auto out = dPtrCast<MRImage>(createMRImage(newdims, newsize, newtype));
+	out->copyMetadata(getConstPtr());
+	return out;
+}
+
+/**
+ * @brief Create a new array that is the same underlying type as this, but
+ * with a different pixel type.
+ *
+ * @param newtype Type of pixels in output array
+ *
+ * @return Image with identical orientation and size but different pixel
+ * type
+ */
+template <size_t D, typename T>
+ptr<NDArray> MRImageStore<D,T>::createAnother(PixelT newtype) const
+{
+	auto out = dPtrCast<MRImage>(createMRImage(D, dim(), newtype));
+	out->copyMetadata(getConstPtr());
+	return out;
+}
+
+/**
+ * @brief Create a new array that is the same underlying type as this,
+ * and same pixel type and orientation as this, but with a different
+ * size.
+ *
+ * @param newdims Number of dimensions in output array
+ * @param newsize Input array of length newdims that gives the size of
+ *                output array,
+ *
+ * @return Image with identical orientation and pixel type but different
+ * size from this
+ */
+template <size_t D, typename T>
+ptr<NDArray> MRImageStore<D,T>::createAnother(size_t newdims,
+		const size_t* newsize) const
+{
+	auto out = dPtrCast<MRImage>(createMRImage(newdims, newsize, type()));
+	out->copyMetadata(getConstPtr());
+	return out;
+}
+
 /**
  * @brief Create a new image that is a copy of the input, possibly with new
  * dimensions and pixeltype. The new image will have all overlapping pixels

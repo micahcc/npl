@@ -59,7 +59,7 @@ def build(bld):
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='kernel_slicer_test', 
             source='kernel_slicer_test.cpp',
-            use='kslicer')
+            use='slicer')
     
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='ndarray_accessor_test1', 

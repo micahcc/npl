@@ -790,7 +790,7 @@ int main()
 	for(int64_t xx=0; xx<10; xx++) {
 		for(int64_t yy=0; yy<10; yy++) {
 			for(int64_t zz=0; zz<10; zz++) {
-				acc.set(xx*100+yy*10+zz, xx,yy,zz);
+				acc.set( xx,yy,zz, xx*100+yy*10+zz);
 			}
 		}
 	}

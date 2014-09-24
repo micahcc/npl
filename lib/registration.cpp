@@ -506,13 +506,13 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
         corr += g*f;
 
 #ifdef VERYDEBUG
-        d_ang_x.set(dgdRx, ind[0], ind[1], ind[2]);
-        d_ang_y.set(dgdRy, ind[0], ind[1], ind[2]);
-        d_ang_z.set(dgdRz, ind[0], ind[1], ind[2]);
-        d_shi_x.set(dgdSx, ind[0], ind[1], ind[2]);
-        d_shi_y.set(dgdSy, ind[0], ind[1], ind[2]);
-        d_shi_z.set(dgdSz, ind[0], ind[1], ind[2]);
-        acc.set(g, ind[0], ind[1], ind[2]);
+        d_ang_x.set(ind[0], ind[1], ind[2], dgdRx);
+        d_ang_y.set(ind[0], ind[1], ind[2], dgdRy);
+        d_ang_z.set(ind[0], ind[1], ind[2], dgdRz);
+        d_shi_x.set(ind[0], ind[1], ind[2], dgdSx);
+        d_shi_y.set(ind[0], ind[1], ind[2], dgdSy);
+        d_shi_z.set(ind[0], ind[1], ind[2], dgdSz);
+        acc.set(ind[0], ind[1], ind[2], g);
         assert(acc(ind[0], ind[1], ind[2]) == g);
 #endif
      
@@ -629,7 +629,7 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
         
         double a = m_move_get(cind[0], cind[1], cind[2]);
 #ifdef VERYDEBUG
-        acc.set(a, ind[0], ind[1], ind[2]);
+        acc.set(ind[0], ind[1], ind[2], a);
 #endif
         double b = *m_fit;
         sum1 += a;

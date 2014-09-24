@@ -21,6 +21,7 @@
  * need to cast the output using dPtrCast<MRImage>(out).
  * mrimage_utils.h is for more specific image-processing algorithm, this if for
  * generally data of any dimension, without regard to orientation.
+ * 
  ******************************************************************************/
 
 #include "ndarray_utils.h"
@@ -2059,13 +2060,18 @@ ptr<NDArray> concatElevate(const vector<ptr<NDArray>>& images)
  *
  * @return Output image N+1D
  */
-ptr<NDArray> cannyEdge(ptr<const NDArray> img)
+ptr<NDArray> sobelEdge(ptr<const NDArray> img)
 {
     // create output
     size_t ndim = img->ndim();
     vector<size_t> osize(img->dim(), img->dim()+1);
     osize.push_back(ndim);
     auto out = img->copyCast(osize.size(), osize.data());
+
+    // sobel is the combination of 1 derivative with averaging in the other
+    // dimensions
+    vector<double> der_profile({-1, 0, 1});
+    vector<double> avg_profile({ 1, 2, 1});
 
     //////////////////
     // iterate through
@@ -2074,15 +2080,80 @@ ptr<NDArray> cannyEdge(ptr<const NDArray> img)
     // kernel iterator to get neighbors of the coordesponding output point
     KernelIter<double> kit(img);
     kit.setRadius(1);
-    kit.goBegin();
     
     // chunk up by volumes
     ChunkIter<double> oit(out);
     oit.setChunkSize(ndim, img->dim()); 
-    for(oit.goBegin(), kit.goBegin(); !oit.eof(); oit.nextChunk()) {
-        for{
-        
+    vector<int64_t> index(ndim+1);
+    for(oit.goBegin(); !oit.eof(); oit.nextChunk()) {
+        oit.index(index);
+        size_t graddir = index[ndim];
+
+        // apply kernel in dimension of graddir
+        for(kit.goBegin(); !kit.eof() && !oit.eoc(); ++kit, ++oit) {
+            double sum = 0;
+            for(size_t kk=0; kk<kit.ksize(); kk++) {
+                kit.offset_index(kk, index.size(), index.data());
+
+                // compute weight of kernel element
+                double w = 1;
+                for(size_t dd=0; dd<ndim; dd++) {
+                    if(dd == graddir)
+                        w *= der_profile[index[dd]];
+                    else
+                        w *= avg_profile[index[dd]];
+                }
+
+                sum += w*kit[kk];
+            }
+
+            oit.set(sum);
+        }
     }
+
+    return out;
+}
+
+/**
+ * @brief Creates a new image with the specified dimension collapsed and the
+ * values in each output point set to the sum of the values in the collapsed
+ * dimension
+ *
+ * @param img Input image
+ *
+ * @return 
+ */
+ptr<NDArray> collapseSum(ptr<const NDArray> img, size_t dim)
+{
+    vector<size_t> osize(img->ndim()-1);
+    for(size_t ii=0, jj=0; ii<img->ndim(); ii++) {
+        if(ii != dim) 
+            osize[jj++] = img->dim(ii);
+    }
+
+    auto out = img->createAnother(img->ndim()-1, osize.data());
+
+    vector<int64_t> index1(img->ndim());
+    vector<int64_t> index2(img->ndim()-1);
+    NDAccess<double> oac(out);
+    ChunkConstIter<double> iit(img);
+    iit.setLineChunk(dim);
+    for(iit.goBegin(); !iit.eof(); iit.nextChunk()) {
+        double sum = 0;
+        for(; !iit.eoc(); ++iit) 
+            sum += *iit;
+
+        iit.index(index1);
+        
+        // convert index
+        for(size_t ii=0, jj=0; ii<img->ndim(); ii++) {
+            if(ii != dim) 
+                index2[jj++] = index1[ii];
+        }
+        oac.set(index2, sum);
+    }
+
+    return out;
 }
 
 } // npl
