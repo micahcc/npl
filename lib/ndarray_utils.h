@@ -384,6 +384,18 @@ ptr<NDArray> concat(const vector<ptr<NDArray>>& images, size_t dir);
  */
 ptr<NDArray> concatElevate(const vector<ptr<NDArray>>& images);
 
+/**
+ * @brief Increases the number of dimensions by 1 then places the edges
+ * in each dimension at indexes matching the direction of edge detection.
+ * So an input 3D image will produce a 4D image with volume 0 the x edges,
+ * volume 1 the y edges and volume 2 the z edges.
+ *
+ * @param img Input image ND
+ *
+ * @return Output image N+1D
+ */
+ptr<NDArray> cannyEdge(ptr<const NDArray> img);
+
 /** @}  NDArrayUtilities */
 
 } // npl
