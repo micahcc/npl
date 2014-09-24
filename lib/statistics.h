@@ -311,7 +311,7 @@ public:
      *
      * @param rank Number of dimensions of samples
      */
-    Classifier(size_t rank) : ndim(rank), m_valid(false) {};
+    Classifier(size_t rank) : ndim(rank), maxit(-1), m_valid(false) {};
 
     /**
      * @brief Given a matrix of samples (Samples x Dims, sample on each row),
@@ -345,9 +345,11 @@ public:
      * 
      * @param samples Samples, S x D matrix with S is the number of samples and
      * D is the dimensionality. This must match the internal dimension count.
+     *
+     * return -1 if maximum number of iterations hit, 0 otherwise (converged)
      */
     virtual
-    void update(const MatrixXd& samples, bool reinit = false) = 0;
+    int update(const MatrixXd& samples, bool reinit = false) = 0;
 
     /**
      * @brief Alias for updateClasses with reinit = true. This will perform 
@@ -364,6 +366,10 @@ public:
      */
     const int ndim;
     
+    /**
+     * @brief Maximum number of iterations. Set below 0 for infinite.
+     */
+    int maxit;
 protected:
     /**
      * @brief Whether the classifier has been initialized yet
@@ -440,8 +446,10 @@ public:
      * 
      * @param samples Samples, S x D matrix with S is the number of samples and
      * D is the dimensionality. This must match the internal dimension count.
+     *
+     * @return -1 if maximum number of iterations hit, 0 otherwise
      */
-    void update(const MatrixXd& samples, bool reinit = false);
+    int update(const MatrixXd& samples, bool reinit = false);
 
     /**
      * @brief Returns the current mean matrix
@@ -536,8 +544,10 @@ public:
      * 
      * @param samples Samples, S x D matrix with S is the number of samples and
      * D is the dimensionality. This must match the internal dimension count.
+     *
+     * return 0 if converged, -1 otherwise
      */
-    void update(const MatrixXd& samples, bool reinit = false);
+    int update(const MatrixXd& samples, bool reinit = false);
 
 
     /**
