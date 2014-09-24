@@ -748,14 +748,15 @@ int KMeans::update(const MatrixXd& samples, bool reinit)
     // now for the 'real' k-means
     size_t change = SIZE_MAX;
     int ii = 0;
-    for(ii=0; ii<maxit && change > 0; ii++) {
+    for(ii=0; ii != maxit && change > 0; maxit++, ii++) {
         change = classify(samples, classes);
         updateMeans(samples, classes);
     }
 
-    if(ii == maxit)
+    if(ii == maxit) {
+        cerr << "K-Means Failed to Converge" << endl;
         return -1;
-    else 
+    } else 
         return 0;
 }
 
@@ -1023,7 +1024,7 @@ int ExpMax::update(const MatrixXd& samples, bool reinit)
     // now for the 'real' k-means
     size_t change = SIZE_MAX;
     int ii = 0;
-    for(ii=0; ii<maxit && change > 0; ++ii) {
+    for(ii=0; ii != maxit && change > 0; ++ii, ++maxit) {
         change = classify(samples, classes);
         updateMeanCovTau(samples, classes);
 
@@ -1041,9 +1042,11 @@ int ExpMax::update(const MatrixXd& samples, bool reinit)
 #endif
     }
     
-    if(ii == maxit)
+    if(ii == maxit) {
+        cerr << "Expectation Maximization of Gaussian Mixture Model Failed "
+            "to Converge" << endl;
         return -1;
-    else 
+    } else 
         return 0;
 }
 
