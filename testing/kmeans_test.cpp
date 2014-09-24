@@ -89,6 +89,10 @@ int main()
                 bi = jj;
             }
         }
+        if(bi < 0) {
+            cerr << "No pair found for cluster " << ii << endl;
+            return -1;
+        }
         err += best;
         cmap[bi] = ii;
     }
