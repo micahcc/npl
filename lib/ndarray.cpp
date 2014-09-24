@@ -237,12 +237,12 @@ ptr<NDArray> createNDArrayHelp(size_t ndim, const size_t* dim)
 			return std::make_shared<NDArrayStore<4, T>>(ndim, dim);
 		case 5:
 			return std::make_shared<NDArrayStore<5, T>>(ndim, dim);
-		case 6:
-			return std::make_shared<NDArrayStore<6, T>>(ndim, dim);
-		case 7:
-			return std::make_shared<NDArrayStore<7, T>>(ndim, dim);
-		case 8:
-			return std::make_shared<NDArrayStore<8, T>>(ndim, dim);
+//		case 6:
+//			return std::make_shared<NDArrayStore<6, T>>(ndim, dim);
+//		case 7:
+//			return std::make_shared<NDArrayStore<7, T>>(ndim, dim);
+//		case 8:
+//			return std::make_shared<NDArrayStore<8, T>>(ndim, dim);
 		default:
             throw std::invalid_argument("Unsupported len, dimension: " +
                     to_string(ndim) + " in\n" + __FUNCTION_STR__);
@@ -360,12 +360,12 @@ ptr<NDArray> createNDArrayHelp(size_t ndim, const size_t* dim,
 			return make_shared<NDArrayStore<4, T>>(ndim, dim, (T*)ptr, deleter);
 		case 5:
 			return make_shared<NDArrayStore<5, T>>(ndim, dim, (T*)ptr, deleter);
-		case 6:
-			return make_shared<NDArrayStore<6, T>>(ndim, dim, (T*)ptr, deleter);
-		case 7:
-			return make_shared<NDArrayStore<7, T>>(ndim, dim, (T*)ptr, deleter);
-		case 8:
-			return make_shared<NDArrayStore<8, T>>(ndim, dim, (T*)ptr, deleter);
+//		case 6:
+//			return make_shared<NDArrayStore<6, T>>(ndim, dim, (T*)ptr, deleter);
+//		case 7:
+//			return make_shared<NDArrayStore<7, T>>(ndim, dim, (T*)ptr, deleter);
+//		case 8:
+//			return make_shared<NDArrayStore<8, T>>(ndim, dim, (T*)ptr, deleter);
 		default:
             throw std::invalid_argument("Unsupported len, dimension: " +
                     to_string(ndim) + " in\n" + __FUNCTION_STR__);
@@ -814,56 +814,56 @@ template class NDArrayStore<5, uint8_t>;
 template class NDArrayStore<5, rgba_t>;
 template class NDArrayStore<5, rgb_t>;
 
-template class NDArrayStore<6, double>;
-template class NDArrayStore<6, long double>;
-template class NDArrayStore<6, cdouble_t>;
-template class NDArrayStore<6, cquad_t>;
-template class NDArrayStore<6, float>;
-template class NDArrayStore<6, cfloat_t>;
-template class NDArrayStore<6, int64_t>;
-template class NDArrayStore<6, uint64_t>;
-template class NDArrayStore<6, int32_t>;
-template class NDArrayStore<6, uint32_t>;
-template class NDArrayStore<6, int16_t>;
-template class NDArrayStore<6, uint16_t>;
-template class NDArrayStore<6, int8_t>;
-template class NDArrayStore<6, uint8_t>;
-template class NDArrayStore<6, rgba_t>;
-template class NDArrayStore<6, rgb_t>;
-
-template class NDArrayStore<7, double>;
-template class NDArrayStore<7, long double>;
-template class NDArrayStore<7, cdouble_t>;
-template class NDArrayStore<7, cquad_t>;
-template class NDArrayStore<7, float>;
-template class NDArrayStore<7, cfloat_t>;
-template class NDArrayStore<7, int64_t>;
-template class NDArrayStore<7, uint64_t>;
-template class NDArrayStore<7, int32_t>;
-template class NDArrayStore<7, uint32_t>;
-template class NDArrayStore<7, int16_t>;
-template class NDArrayStore<7, uint16_t>;
-template class NDArrayStore<7, int8_t>;
-template class NDArrayStore<7, uint8_t>;
-template class NDArrayStore<7, rgba_t>;
-template class NDArrayStore<7, rgb_t>;
-
-template class NDArrayStore<8, double>;
-template class NDArrayStore<8, long double>;
-template class NDArrayStore<8, cdouble_t>;
-template class NDArrayStore<8, cquad_t>;
-template class NDArrayStore<8, float>;
-template class NDArrayStore<8, cfloat_t>;
-template class NDArrayStore<8, int64_t>;
-template class NDArrayStore<8, uint64_t>;
-template class NDArrayStore<8, int32_t>;
-template class NDArrayStore<8, uint32_t>;
-template class NDArrayStore<8, int16_t>;
-template class NDArrayStore<8, uint16_t>;
-template class NDArrayStore<8, int8_t>;
-template class NDArrayStore<8, uint8_t>;
-template class NDArrayStore<8, rgba_t>;
-template class NDArrayStore<8, rgb_t>;
+//template class NDArrayStore<6, double>;
+//template class NDArrayStore<6, long double>;
+//template class NDArrayStore<6, cdouble_t>;
+//template class NDArrayStore<6, cquad_t>;
+//template class NDArrayStore<6, float>;
+//template class NDArrayStore<6, cfloat_t>;
+//template class NDArrayStore<6, int64_t>;
+//template class NDArrayStore<6, uint64_t>;
+//template class NDArrayStore<6, int32_t>;
+//template class NDArrayStore<6, uint32_t>;
+//template class NDArrayStore<6, int16_t>;
+//template class NDArrayStore<6, uint16_t>;
+//template class NDArrayStore<6, int8_t>;
+//template class NDArrayStore<6, uint8_t>;
+//template class NDArrayStore<6, rgba_t>;
+//template class NDArrayStore<6, rgb_t>;
+//
+//template class NDArrayStore<7, double>;
+//template class NDArrayStore<7, long double>;
+//template class NDArrayStore<7, cdouble_t>;
+//template class NDArrayStore<7, cquad_t>;
+//template class NDArrayStore<7, float>;
+//template class NDArrayStore<7, cfloat_t>;
+//template class NDArrayStore<7, int64_t>;
+//template class NDArrayStore<7, uint64_t>;
+//template class NDArrayStore<7, int32_t>;
+//template class NDArrayStore<7, uint32_t>;
+//template class NDArrayStore<7, int16_t>;
+//template class NDArrayStore<7, uint16_t>;
+//template class NDArrayStore<7, int8_t>;
+//template class NDArrayStore<7, uint8_t>;
+//template class NDArrayStore<7, rgba_t>;
+//template class NDArrayStore<7, rgb_t>;
+//
+//template class NDArrayStore<8, double>;
+//template class NDArrayStore<8, long double>;
+//template class NDArrayStore<8, cdouble_t>;
+//template class NDArrayStore<8, cquad_t>;
+//template class NDArrayStore<8, float>;
+//template class NDArrayStore<8, cfloat_t>;
+//template class NDArrayStore<8, int64_t>;
+//template class NDArrayStore<8, uint64_t>;
+//template class NDArrayStore<8, int32_t>;
+//template class NDArrayStore<8, uint32_t>;
+//template class NDArrayStore<8, int16_t>;
+//template class NDArrayStore<8, uint16_t>;
+//template class NDArrayStore<8, int8_t>;
+//template class NDArrayStore<8, uint8_t>;
+//template class NDArrayStore<8, rgba_t>;
+//template class NDArrayStore<8, rgb_t>;
 
 
 } // npl

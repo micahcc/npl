@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file array_test1.cpp
+ * @file kmeans_test.cpp Test of the KMeans class.
  *
  *****************************************************************************/
 
