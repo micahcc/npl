@@ -1,6 +1,10 @@
 
 def build(bld):
     # todo rename
+    bld.program(target = 'skullstrip', 
+            install_path='${PREFIX}/tools_incomplete', 
+            source = 'skullstrip.cpp', 
+            use = 'mrimage_utils tclap nplio iterators accessors')
     bld.program(target = 'deformJacobianMap', 
             install_path='${PREFIX}/tools_incomplete', 
             source = 'deformJacobianMap.cpp', 

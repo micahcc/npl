@@ -25,7 +25,6 @@
 #include "mrimage.h"
 #include "mrimage_utils.h"
 #include "nplio.h"
-#include "kernel_slicer.h"
 #include "kdtree.h"
 #include "iterators.h"
 #include "accessors.h"
@@ -596,7 +595,7 @@ shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def,
 			// mark this pixel as valid, set value in deform
 			cmit.set(1);
 			for(size_t ii=0; ii<3; ++ii) {
-				odview.set(offset[ii], index[0], index[1], index[2], ii);
+				odview.set(index[0], index[1], index[2], ii, offset[ii]);
 			}
 		}
 

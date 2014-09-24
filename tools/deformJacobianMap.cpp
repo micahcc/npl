@@ -26,7 +26,6 @@
 #include "mrimage.h"
 #include "mrimage_utils.h"
 #include "nplio.h"
-#include "kernel_slicer.h"
 #include "kdtree.h"
 #include "iterators.h"
 #include "accessors.h"
@@ -111,15 +110,15 @@ int main(int argc, char** argv)
 				jac(d1, d2) -= .5*dview(tmpindex[0], tmpindex[1], tmpindex[2], d1);
 			}
 		}
-		view_dfxdx.set(jac(0,0), index[0], index[1], index[2]);
-		view_dfxdy.set(jac(0,1), index[0], index[1], index[2]);
-		view_dfxdz.set(jac(0,2), index[0], index[1], index[2]);
-		view_dfydx.set(jac(1,0), index[0], index[1], index[2]);
-		view_dfydy.set(jac(1,1), index[0], index[1], index[2]);
-		view_dfydz.set(jac(1,2), index[0], index[1], index[2]);
-		view_dfzdx.set(jac(2,0), index[0], index[1], index[2]);
-		view_dfzdy.set(jac(2,1), index[0], index[1], index[2]);
-		view_dfzdz.set(jac(2,2), index[0], index[1], index[2]);
+		view_dfxdx.set(index[0], index[1], index[2], 0, jac(0,0));
+		view_dfxdy.set(index[0], index[1], index[2], 0, jac(0,1));
+		view_dfxdz.set(index[0], index[1], index[2], 0, jac(0,2));
+		view_dfydx.set(index[0], index[1], index[2], 0, jac(1,0));
+		view_dfydy.set(index[0], index[1], index[2], 0, jac(1,1));
+		view_dfydz.set(index[0], index[1], index[2], 0, jac(1,2));
+		view_dfzdx.set(index[0], index[1], index[2], 0, jac(2,0));
+		view_dfzdy.set(index[0], index[1], index[2], 0, jac(2,1));
+		view_dfzdz.set(index[0], index[1], index[2], 0, jac(2,2));
 
 		it.set(jac.determinant());
 	}

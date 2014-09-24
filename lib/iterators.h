@@ -25,7 +25,6 @@
 #include "npltypes.h"
 #include "ndarray.h"
 #include "slicer.h"
-#include "kernel_slicer.h"
 
 namespace npl {
 

@@ -27,7 +27,6 @@
 #include "mrimage.h"
 #include "mrimage_utils.h"
 #include "ndarray_utils.h"
-#include "kernel_slicer.h"
 #include "kdtree.h"
 #include "iterators.h"
 #include "accessors.h"

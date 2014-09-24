@@ -18,7 +18,7 @@
  *****************************************************************************/
 #include <cassert>
 #include <iostream>
-#include "kernel_slicer.h"
+#include "slicer.h"
 
 using namespace std;
 

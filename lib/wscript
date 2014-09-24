@@ -21,13 +21,10 @@ def build(bld):
             export_includes = ['.'])
     bld.shlib(target = 'ndarray_utils',
             source = 'ndarray_utils.cpp', 
-            use='utility npltypes kslicer slicer chirpz ndarray FFTW',
+            use='utility npltypes slicer slicer chirpz ndarray FFTW',
             export_includes = ['.'])
     bld.shlib(target = 'slicer',
             source = 'slicer.cpp', 
-            export_includes = ['.'])
-    bld.shlib( target = 'kslicer',
-            source = 'kernel_slicer.cpp', 
             export_includes = ['.'])
     bld.shlib( target = 'nplio', 
             source = 'nplio.cpp', 
@@ -51,7 +48,7 @@ def build(bld):
             use = 'EIGEN')
     bld.shlib( target = 'iterators', 
             source = 'iterators.cpp', 
-            use='ndarray slicer kslicer',
+            use='ndarray slicer slicer',
             export_includes = ['.'])
     bld.shlib( target = 'basic_plot', 
             source = 'basic_plot.cpp', 

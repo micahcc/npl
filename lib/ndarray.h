@@ -207,6 +207,46 @@ public:
 	virtual ptr<NDArray> createAnother() const = 0;
 
 	/**
+	 * @brief Create a new array that is the same underlying type as this.
+     * If this is an image then it will also copy the metdata, but NOT the
+     * pixels.
+     *
+	 * @param newdims Number of dimensions in copied output
+	 * @param newsize Size of output, this array should be of size newdims
+	 * @param newtype Type of pixels in output array
+	 *
+	 * @return Image with identical orientation but different size and pixeltype
+	 */
+	virtual ptr<NDArray> createAnother(size_t newdims, const size_t* newsize,
+			PixelT newtype) const = 0;
+
+	/**
+	 * @brief Create a new array that is the same underlying type as this, but
+     * with a different pixel type. 
+	 *
+	 * @param newtype Type of pixels in output array
+	 *
+     * @return Image with identical orientation and size but different pixel
+     * type
+	 */
+	virtual ptr<NDArray> createAnother(PixelT newtype) const = 0;
+
+	/**
+	 * @brief Create a new array that is the same underlying type as this,
+     * and same pixel type and orientation as this, but with a different
+     * size.
+	 *
+	 * @param newdims Number of dimensions in output array
+     * @param newsize Input array of length newdims that gives the size of
+     *                output array,
+	 *
+	 * @return Image with identical orientation and pixel type but different
+     * size from this
+	 */
+    virtual ptr<NDArray> createAnother(size_t newdims, 
+            const size_t* newsize) const = 0;
+
+	/**
 	 * @brief Create a new array that is a copy of the input, possibly with new
 	 * dimensions and pixeltype. The new array will have all overlapping pixels
 	 * copied from the old array.
@@ -489,13 +529,53 @@ public:
 	 * @return Copied array.
 	 */
 	virtual ptr<NDArray> copy() const;
-	
+
     /**
      * @brief Creates an identical array, but does not initialize pixel values.
 	 *
 	 * @return New array.
 	 */
 	virtual ptr<NDArray> createAnother() const;
+
+	/**
+	 * @brief Create a new array that is the same underlying type as this.
+     * If this is an image then it will also copy the metdata, but NOT the
+     * pixels.
+     *
+	 * @param newdims Number of dimensions in copied output
+	 * @param newsize Size of output, this array should be of size newdims
+	 * @param newtype Type of pixels in output array
+	 *
+	 * @return Image with identical orientation but different size and pixeltype
+	 */
+	virtual ptr<NDArray> createAnother(size_t newdims, const size_t* newsize,
+			PixelT newtype) const;
+
+	/**
+	 * @brief Create a new array that is the same underlying type as this, but
+     * with a different pixel type. 
+	 *
+	 * @param newtype Type of pixels in output array
+	 *
+     * @return Image with identical orientation and size but different pixel
+     * type
+	 */
+	virtual ptr<NDArray> createAnother(PixelT newtype) const;
+
+	/**
+	 * @brief Create a new array that is the same underlying type as this,
+     * and same pixel type and orientation as this, but with a different
+     * size.
+	 *
+	 * @param newdims Number of dimensions in output array
+     * @param newsize Input array of length newdims that gives the size of
+     *                output array,
+	 *
+	 * @return Image with identical orientation and pixel type but different
+     * size from this
+	 */
+    virtual ptr<NDArray> createAnother(size_t newdims, 
+            const size_t* newsize) const;
 
 	/**
 	 * @brief Create a new array that is a copy of the input, possibly with new

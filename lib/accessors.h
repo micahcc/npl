@@ -201,7 +201,7 @@ public:
 	 *
 	 * @return current value
 	 */
-	void set(T v, const std::vector<int64_t>& index)
+	void set(const std::vector<int64_t>& index, T v)
 	{
 		return castset(this->parent->__getAddr(index), v);
 	};
@@ -214,7 +214,7 @@ public:
 	 *
 	 * @return current value
 	 */
-	void set(T v, int64_t index)
+	void set(int64_t index, T v)
 	{
 		return castset(this->parent->__getAddr(index), v);
 	};
@@ -459,7 +459,7 @@ public:
 	 *
 	 * @return value
 	 */
-	T get(int64_t x=0, int64_t y=0, int64_t z=0)
+	T get(int64_t x, int64_t y, int64_t z)
 	{
 		return this->castget(this->parent->__getAddr(x,y,z,0));
 	};
@@ -469,7 +469,7 @@ public:
 	 *
 	 * @return value
 	 */
-	void set(T v, int64_t x=0, int64_t y=0, int64_t z=0)
+	void set(int64_t x, int64_t y, int64_t z, T v)
 	{
 		this->castset(this->parent->__getAddr(x,y,z,0), v);
 	};
@@ -522,7 +522,7 @@ public:
 	 *
 	 * @return value
 	 */
-	void set(T v, int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
+	void set(int64_t x, int64_t y, int64_t z, int64_t t, T v)
 	{
 		this->castset(this->parent->__getAddr(x,y,z,t), v);
 	};

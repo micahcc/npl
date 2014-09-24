@@ -48,7 +48,7 @@ int main()
 		for(int64_t yy=0; yy < dblversion->dim(1); yy++) {
 			for(int64_t xx=0; xx < dblversion->dim(0); xx++) {
 				double pix = xx+yy*100+zz*10000+.5;
-				acc.set(pix, {xx,yy,zz});
+				acc.set({xx,yy,zz}, pix);
 			}
 		}
 	}

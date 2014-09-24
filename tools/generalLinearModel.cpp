@@ -26,7 +26,6 @@
 #include "statistics.h"
 #include "mrimage.h"
 #include "mrimage_utils.h"
-#include "kernel_slicer.h"
 #include "kdtree.h"
 #include "iterators.h"
 #include "accessors.h"
@@ -125,8 +124,8 @@ int main(int argc, char** argv)
         auto t_it = tAccs.begin();
         auto p_it = pAccs.begin();
         for(size_t ii=0; ii<X.cols(); ii++) {
-            (*t_it).set(ret.t[ii], ind);
-            (*p_it).set(ret.p[ii], ind);
+            (*t_it).set(ind, ret.t[ii]);
+            (*p_it).set(ind, ret.p[ii]);
             ++t_it;
             ++p_it;
         }
