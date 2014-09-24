@@ -28,6 +28,7 @@
 #include <random>
 #include <cmath>
 #include <iostream>
+#include <iomanip>
 
 using namespace std;
 using Eigen::MatrixXd;
@@ -732,8 +733,10 @@ size_t KMeans::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
  * 
  * @param samples Samples, S x D matrix with S is the number of samples and
  * D is the dimensionality. This must match the internal dimension count.
+ *
+ * @return -1 if maximum iterations hit, 0 otherwise
  */
-void KMeans::update(const MatrixXd& samples, bool reinit)
+int KMeans::update(const MatrixXd& samples, bool reinit)
 {
     Eigen::VectorXi classes(samples.rows());
 
@@ -744,10 +747,16 @@ void KMeans::update(const MatrixXd& samples, bool reinit)
 
     // now for the 'real' k-means
     size_t change = SIZE_MAX;
-    while(change > 0) {
+    int ii = 0;
+    for(ii=0; ii<maxit && change > 0; ii++) {
         change = classify(samples, classes);
         updateMeans(samples, classes);
     }
+
+    if(ii == maxit)
+        return -1;
+    else 
+        return 0;
 }
 
 /**
@@ -943,8 +952,8 @@ size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
             //log likelihood = (note that last part is ignored because it is
             // constant for all points)
             //log(tau) - log(sigma)/2 - (x-mu)^Tsigma^-1(x-mu) - dlog(2pi)/2 
-            double llike = (x.transpose()*Cinv*x)(0,0);
-            llike += log(m_tau[cc]) - .5*log(det);
+            double llike = log(m_tau[cc])- .5*log(det)-
+                .5*(x.dot(Cinv*x))-ndim/2.*log(2*M_PI);
 
 			if(std::isinf(llike) || std::isnan(llike))
 				llike = -INFINITY;
@@ -984,8 +993,10 @@ size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
  * 
  * @param samples Samples, S x D matrix with S is the number of samples and
  * D is the dimensionality. This must match the internal dimension count.
+ *
+ * @return -1 if maximum iterations hit, 0 otherwise
  */
-void ExpMax::update(const MatrixXd& samples, bool reinit)
+int ExpMax::update(const MatrixXd& samples, bool reinit)
 {
     Eigen::VectorXi classes(samples.rows());
 
@@ -1011,7 +1022,8 @@ void ExpMax::update(const MatrixXd& samples, bool reinit)
 
     // now for the 'real' k-means
     size_t change = SIZE_MAX;
-    while(change > 0) {
+    int ii = 0;
+    for(ii=0; ii<maxit && change > 0; ++ii) {
         change = classify(samples, classes);
         updateMeanCovTau(samples, classes);
 
@@ -1028,6 +1040,11 @@ void ExpMax::update(const MatrixXd& samples, bool reinit)
         cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^" << endl;
 #endif
     }
+    
+    if(ii == maxit)
+        return -1;
+    else 
+        return 0;
 }
 
 
