@@ -338,7 +338,7 @@ ptr<NDArray> pseudoPolarZoom(ptr<const NDArray> inimg,
  *
  * @param inout Input/output image.
  * @param radius Radius (distance from center) to set to 1
- * @param alphis the what the distance is raised to in each dimension (2 is
+ * @param alpha is the what the distance is raised to in each dimension (2 is
  * euclidian distance)
  */
 void fillCircle(ptr<NDArray> inout, double radius, double alpha);
@@ -402,10 +402,12 @@ ptr<NDArray> sobelEdge(ptr<const NDArray> img);
  * dimension
  *
  * @param img Input image
+ * @param dim Dimension to collapse
+ * @param doabs Take the absolute value before summing up
  *
- * @return 
+ * @return Image with 1 fewer dimensions, and dim sequezed out.
  */
-ptr<NDArray> collapseSum(ptr<const NDArray> img, size_t dim);
+ptr<NDArray> collapseSum(ptr<const NDArray> img, size_t dim, bool doabs=false);
 
 /** @}  NDArrayUtilities */
 
