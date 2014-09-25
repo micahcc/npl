@@ -1008,8 +1008,6 @@ void ChunkSlicer::index(size_t len, double* index) const
 	}
 }
 
-
-
 /***********************************************
  *
  * Modification

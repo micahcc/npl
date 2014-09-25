@@ -39,14 +39,14 @@ namespace npl {
  *
  * Accessors are used to get and set pixel data. Since
  * the pixel type is hidden in images and arrays, accessors perform the
- * necessary casting.
+ * necessary casting. All Accessors have names that end with View or ConstView
  * Thus 
  *
  * \code{.cpp}
- * NDaccess<double> dacc(img);
+ * NDView<double> dacc(img);
  * double v = dacc[index];
  *
- * NDaccess<std::complex<double>> cacc(img);
+ * NDView<std::complex<double>> cacc(img);
  * std::complex<double> c = cacc[index];
  * \endcode
  *
@@ -67,10 +67,10 @@ namespace npl {
  * @tparam T Value to return on access
  */
 template<typename T>
-class NDAccess
+class NDView
 {
 public:
-	NDAccess(std::shared_ptr<NDArray> in) : parent(in)
+	NDView(std::shared_ptr<NDArray> in) : parent(in)
 	{
 		switch(in->type()) {
 			case UINT8:
@@ -141,7 +141,7 @@ public:
 			case UNKNOWN_TYPE:
 				castget = castgetStatic<uint8_t>;
 				castset = castsetStatic<uint8_t>;
-				throw std::invalid_argument("Unknown type to NDAccess");
+				throw std::invalid_argument("Unknown type to NDView");
 				break;
 		}
 	};
@@ -286,10 +286,10 @@ protected:
  * @tparam T Value to return on access
  */
 template<typename T>
-class NDConstAccess
+class NDConstView
 {
 public:
-	NDConstAccess(std::shared_ptr<const NDArray> in) : parent(in)
+	NDConstView(std::shared_ptr<const NDArray> in) : parent(in)
 	{
 		switch(in->type()) {
 			case UINT8:
@@ -343,7 +343,7 @@ public:
 			default:
 			case UNKNOWN_TYPE:
 				castget = castgetStatic<uint8_t>;
-				throw std::invalid_argument("Unknown type to NDConstAccess");
+				throw std::invalid_argument("Unknown type to NDConstView");
 				break;
 		}
 	};
@@ -438,10 +438,10 @@ protected:
  * @tparam T Type of value to cast and return
  */
 template<typename T>
-class Pixel3DView : public NDAccess<T>
+class Pixel3DView : public NDView<T>
 {
 public:
-	Pixel3DView(std::shared_ptr<NDArray> in) : NDAccess<T>(in)
+	Pixel3DView(std::shared_ptr<NDArray> in) : NDView<T>(in)
 	{ };
 
 	/**
@@ -476,7 +476,7 @@ public:
 	
 protected:
 	
-	// Remove functions that aren't relevent from NDAccess
+	// Remove functions that aren't relevent from NDView
 	T operator[](int64_t i) { (void)(i); return T(); };
 	T get(const std::vector<int64_t>& i) {  (void)(i); return T(); };
 	T operator[](const std::vector<int64_t>& i) { (void)(i); return T(); };
@@ -491,10 +491,10 @@ protected:
  * @tparam T Type of value to cast and return
  */
 template<typename T>
-class Vector3DView : public NDAccess<T>
+class Vector3DView : public NDView<T>
 {
 public:
-	Vector3DView(std::shared_ptr<NDArray> in) : NDAccess<T>(in)
+	Vector3DView(std::shared_ptr<NDArray> in) : NDView<T>(in)
 	{ };
 
 	/**
@@ -529,7 +529,7 @@ public:
 	
 protected:
 	
-	// Remove functions that aren't relevent from NDAccess
+	// Remove functions that aren't relevent from NDView
 	T operator[](int64_t i) { (void)(i); return T(); };
 	T get(const std::vector<int64_t>& i) {  (void)(i); return T(); };
 	T operator[](const std::vector<int64_t>& i) { (void)(i); return T(); };
@@ -548,12 +548,12 @@ double linKern(double x)
  * @tparam T Type of value to cast and return
  */
 template<typename T>
-class LinInterpNDView : public NDConstAccess<T>
+class LinInterpNDView : public NDConstView<T>
 {
 public:
 	LinInterpNDView(std::shared_ptr<const NDArray> in,
 				BoundaryConditionT bound = ZEROFLUX)
-				: NDConstAccess<T>(in), m_boundmethod(bound)
+				: NDConstView<T>(in), m_boundmethod(bound)
 	{ };
 
 	/**
@@ -731,12 +731,12 @@ protected:
  * @tparam T Type of value to cast and return
  */
 template<typename T>
-class LinInterp3DView : public NDConstAccess<T>
+class LinInterp3DView : public NDConstView<T>
 {
 public:
 	LinInterp3DView(std::shared_ptr<const NDArray> in,
 				BoundaryConditionT bound = ZEROFLUX)
-				: NDConstAccess<T>(in), m_boundmethod(bound)
+				: NDConstView<T>(in), m_boundmethod(bound)
 	{ };
 
 	/**
@@ -868,12 +868,12 @@ protected:
  * @tparam T Type of value to cast and return
  */
 template<typename T>
-class NNInterp3DView : public NDConstAccess<T>
+class NNInterp3DView : public NDConstView<T>
 {
 public:
 	NNInterp3DView(std::shared_ptr<NDArray> in,
 				BoundaryConditionT bound = ZEROFLUX)
-				: NDConstAccess<T>(in), m_boundmethod(bound)
+				: NDConstView<T>(in), m_boundmethod(bound)
 	{ };
 
 	/**
@@ -959,12 +959,12 @@ private:
  * @tparam T Type of value to cast and return
  */
 template<typename T>
-class LanczosInterp3DView : public NDConstAccess<T>
+class LanczosInterp3DView : public NDConstView<T>
 {
 public:
 	LanczosInterp3DView(std::shared_ptr<const NDArray> in,
 				BoundaryConditionT bound = ZEROFLUX)
-				: NDConstAccess<T>(in), m_boundmethod(bound), m_radius(2)
+				: NDConstView<T>(in), m_boundmethod(bound), m_radius(2)
 	{ };
 
 	void setRadius(size_t rad) { m_radius = rad; };

@@ -89,13 +89,13 @@ int main(int argc, char** argv)
     // create output images
     std::list<ptr<MRImage>> tImgs;
     std::list<ptr<MRImage>> pImgs;
-    std::list<NDAccess<double>> tAccs;
-    std::list<NDAccess<double>> pAccs;
+    std::list<NDView<double>> tAccs;
+    std::list<NDView<double>> pAccs;
     for(size_t ii=0; ii<X.cols(); ii++) {
         tImgs.push_back(dPtrCast<MRImage>(fmri->extractCast(3, fmri->dim(), FLOAT64)));
-        tAccs.push_back(NDAccess<double>(tImgs.back()));
+        tAccs.push_back(NDView<double>(tImgs.back()));
         pImgs.push_back(dPtrCast<MRImage>(fmri->extractCast(3, fmri->dim(), FLOAT64)));
-        pAccs.push_back(NDAccess<double>(pImgs.back()));
+        pAccs.push_back(NDView<double>(pImgs.back()));
     }
 
     vector<int64_t> ind(3);

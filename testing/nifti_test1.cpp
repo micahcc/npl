@@ -42,7 +42,7 @@ int main()
 	{
 	/* Create an image with: 0.5+x+y*100+z*10000*/
 	auto dblversion = createMRImage({10, 23, 39}, FLOAT64);
-	NDAccess<double> acc(dblversion);
+	NDView<double> acc(dblversion);
 
 	for(int64_t zz=0; zz < dblversion->dim(2); zz++) {
 		for(int64_t yy=0; yy < dblversion->dim(1); yy++) {
@@ -77,9 +77,9 @@ int main()
 	auto intversion = readMRImage("test1b.nii.gz", true);
 	auto floatversion = readMRImage("test1c.nii.gz", true);
 	
-	NDAccess<int> v1(dblversion);
-	NDAccess<int> v2(intversion);
-	NDAccess<int> v3(floatversion);
+	NDView<int> v1(dblversion);
+	NDView<int> v2(intversion);
+	NDView<int> v3(floatversion);
 	// check int version vs dbl version
 	if(intversion->ndim() != dblversion->ndim())
 		return -1;

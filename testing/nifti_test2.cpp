@@ -30,7 +30,7 @@ int main()
 {
 	/* Create an image with: x+y*100+z*10000*/
 	auto oimage = createMRImage({10, 23, 39}, FLOAT64);
-	NDAccess<double> acc(oimage);
+	NDView<double> acc(oimage);
 
 	for(int64_t zz=0; zz < oimage->dim(2); zz++) {
 		for(int64_t yy=0; yy < oimage->dim(1); yy++) {
@@ -46,7 +46,7 @@ int main()
 
 	/* Read the Image */
 	auto iimage = readMRImage("test4.nii.gz", true);
-	NDAccess<double> in(iimage);
+	NDView<double> in(iimage);
 	
 	/* Check the Image */
 	for(int64_t zz=0; zz < oimage->dim(2); zz++) {

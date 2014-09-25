@@ -73,7 +73,7 @@ ptr<NDArray> derivative(ptr<const NDArray> in, size_t dir)
     auto out = dPtrCast<MRImage>(in->copy());
 
     vector<int64_t> index(in->ndim());
-    NDConstAccess<double> inGet(in);
+    NDConstView<double> inGet(in);
 
     Vector3DIter<double> oit(out);
     for(oit.goBegin(); !oit.eof(); ++oit) {
@@ -133,7 +133,7 @@ ptr<NDArray> derivative(ptr<const NDArray> in)
             in->copyCast(osize.size(), osize.data()));
 
     vector<int64_t> index(in->ndim());
-    NDConstAccess<double> inGet(in);
+    NDConstView<double> inGet(in);
 
     Vector3DIter<double> oit(out);
     for(oit.goBegin(); !oit.eof(); ++oit) {
@@ -2144,7 +2144,7 @@ ptr<NDArray> collapseSum(ptr<const NDArray> img, size_t dim, bool doabs)
 
     vector<int64_t> index1(img->ndim());
     vector<int64_t> index2(img->ndim()-1);
-    NDAccess<double> oac(out);
+    NDView<double> oac(out);
     ChunkConstIter<double> iit(img);
     iit.setLineChunk(dim);
     for(iit.goBegin(); !iit.eof(); iit.nextChunk()) {

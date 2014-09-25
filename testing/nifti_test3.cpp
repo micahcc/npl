@@ -31,7 +31,7 @@ int main()
 {
     /* Read an image with: x*1000+y*100+z*10+t */
     auto oimage = readMRImage("../../data/test_nifti4.nii.gz");
-    NDAccess<double> acc(oimage);
+    NDView<double> acc(oimage);
 
     for(int64_t tt=0; tt < oimage->dim(3); tt++) {
         for(int64_t zz=0; zz < oimage->dim(2); zz++) {
