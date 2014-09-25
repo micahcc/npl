@@ -811,6 +811,8 @@ protected:
  * and the last will be the slowest. Any not dimensions not included in the order
  * vector will be slower than the last member of order.
  *
+ * TODO: Change API to be more intuitive.
+ *
  * Key variables are
  *
  * dim 		Dimension (size) of memory block.

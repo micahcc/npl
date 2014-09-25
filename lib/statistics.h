@@ -250,7 +250,7 @@ private:
  * @param X independent variables
  * @param covInv Inverse of covariance matrix, to compute us pseudoinverse(X^TX)
  * @param Xinv Pseudo inverse of X. Compute with pseudoInverse(X)
- * @param student_cdf Pre-computed students' T distribution. Example:
+ * @param distrib Pre-computed students' T distribution. Example:
  * auto v = students_t_cdf(X.rows()-1, .1, 1000);
  *
  * @return Struct with Regression Results. 
@@ -345,6 +345,7 @@ public:
      * 
      * @param samples Samples, S x D matrix with S is the number of samples and
      * D is the dimensionality. This must match the internal dimension count.
+     * @param reinit whether to reinitialize the  classifier before updating
      *
      * return -1 if maximum number of iterations hit, 0 otherwise (converged)
      */
@@ -396,7 +397,7 @@ public:
      * @brief Update the number of groups. Note that this invalidates any
      * current information
      *
-     * @param groups Number of groups to classify
+     * @param ngroups Number of groups to classify
      */
     void setk(size_t ngroups);
     
@@ -446,6 +447,7 @@ public:
      * 
      * @param samples Samples, S x D matrix with S is the number of samples and
      * D is the dimensionality. This must match the internal dimension count.
+     * @param reinit whether to reinitialize the  classifier before updating
      *
      * @return -1 if maximum number of iterations hit, 0 otherwise
      */
@@ -488,7 +490,7 @@ public:
      * @brief Update the number of groups. Note that this invalidates any
      * current information
      *
-     * @param groups Number of groups to classify
+     * @param ngroups Number of groups to classify
      */
     void setk(size_t ngroups);
     
@@ -501,6 +503,8 @@ public:
      * @param newmeans Matrix with new coviance matrices. Covariance matrices
      * are stacked so that row ndim*k gets the first element of the k'th
      * covance matrix.
+     * @param newcovs the new covariance matrices to set in the classifier
+     * @param tau the prior probaibilities of each of the mixture gaussians
      */
     void updateMeanCovTau(const MatrixXd& newmeans, const MatrixXd& newcovs, 
             const VectorXd& tau);
@@ -544,6 +548,7 @@ public:
      * 
      * @param samples Samples, S x D matrix with S is the number of samples and
      * D is the dimensionality. This must match the internal dimension count.
+     * @param reinit whether to reinitialize the  classifier before updating
      *
      * return 0 if converged, -1 otherwise
      */
