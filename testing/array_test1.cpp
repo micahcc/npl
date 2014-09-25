@@ -36,7 +36,7 @@ int main()
 	
 	cerr << "Dimensions:" << test1->ndim() << endl;
 
-	NDAccess<double> arr1(test1);
+	NDView<double> arr1(test1);
 
 	double total = 0;
 	std::vector<int64_t> index(3);

@@ -46,7 +46,7 @@ int test1d(std::vector<size_t>& size, size_t bytes, size_t elements)
 	std::vector<int64_t> index(1);
 	unordered_map<std::vector<int64_t>, double, hash_vector<int64_t>> mapcomp;
 
-	NDAccess<double> arrA(arr);
+	NDView<double> arrA(arr);
 	size_t count = 0;
 	for(index[0] = 0; index[0] < arr->dim(0); index[0]++, count++) {
 		T val = dist(rangen);
@@ -80,7 +80,7 @@ int test2d(std::vector<size_t>& size, size_t bytes, size_t elements)
 {
 	std::uniform_real_distribution<T> dist(0, 100000);
 	auto arr = std::make_shared<NDArrayStore<2,T>>(size);
-	NDAccess<double> arrA(arr);
+	NDView<double> arrA(arr);
 
 	if(bytes != arr->bytes())
 		return -1;
@@ -129,7 +129,7 @@ int test3d(std::vector<size_t>& size, size_t bytes, size_t elements)
 {
 	std::uniform_real_distribution<T> dist(0, 100000);
 	auto arr = std::make_shared<NDArrayStore<3,T>>(size);
-	NDAccess<double> arrA(arr);
+	NDView<double> arrA(arr);
 
 	if(bytes != arr->bytes())
 		return -1;
@@ -182,7 +182,7 @@ int test5d(std::vector<size_t>& size, size_t bytes, size_t elements)
 {
 	std::uniform_real_distribution<T> dist(0, 100000);
 	auto arr = std::make_shared<NDArrayStore<5,T>>(size);
-	NDAccess<double> arrA(arr);
+	NDView<double> arrA(arr);
 
 	if(bytes != arr->bytes())
 		return -1;

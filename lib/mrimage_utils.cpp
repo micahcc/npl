@@ -207,7 +207,7 @@ ptr<MRImage> fft_backward(ptr<const MRImage> in,
     }
 
     // fill padded from input
-    NDConstAccess<cdouble_t> iacc(in);
+    NDConstView<cdouble_t> iacc(in);
     OrderIter<cdouble_t> it(output);
     vector<int64_t> iindex(ndim);
     vector<int64_t> oindex(ndim);

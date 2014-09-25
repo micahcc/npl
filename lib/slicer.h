@@ -207,6 +207,7 @@ public:
 	 *
 	 * @param ind output index variable
 	 */
+    inline
 	void index(std::vector<int64_t>& ind) const
 	{
 		index(ind.size(), ind.data()); 
@@ -221,6 +222,7 @@ public:
 	 *
 	 * @param ind output index variable
 	 */
+    inline
 	void index(std::vector<int>& ind) const
 	{
 		index(ind.size(), ind.data()); 
@@ -235,10 +237,24 @@ public:
 	 *
 	 * @param ind output index variable
 	 */
+
+    inline
 	void index(std::vector<double>& ind) const 
 	{
 		index(ind.size(), ind.data()); 
 	};
+    
+    /**
+     * @brief Returns the index in the specified dimension
+     *
+     * @param dd Dimension of image to sample index of
+     */
+    inline
+    int64_t index(size_t dd) const
+    {
+        assert(dd<m_ndim);
+        return m_pos[dd];
+    };
 
 	/***********************************************
 	 *
@@ -594,6 +610,7 @@ public:
 	 *
 	 * @param ind output index variable
 	 */
+    inline
 	void index(std::vector<int64_t>& ind) const
 	{
 		index(ind.size(), ind.data());
@@ -608,6 +625,7 @@ public:
 	 *
 	 * @param ind output index variable
 	 */
+    inline
 	void index(std::vector<int>& ind) const
 	{
 		index(ind.size(), ind.data());
@@ -622,10 +640,23 @@ public:
 	 *
 	 * @param ind output index variable
 	 */
+    inline
 	void index(std::vector<double>& ind) const
 	{
 		index(ind.size(), ind.data());
 	};
+
+    /**
+     * @brief Returns the index in the specified dimension
+     *
+     * @param dd Dimension of image to sample index of
+     */
+    inline
+    int64_t index(size_t dd) const
+    {
+        assert(dd<m_ndim);
+        return m_pos[dd];
+    };
 
 	/***********************************************
 	 *

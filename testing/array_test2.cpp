@@ -61,7 +61,7 @@ int main()
 	std::cout << "Time: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
 	
 	cerr << "Comparing Direct with Slicer (Through Accessor)" << endl;
-	NDAccess<double> img(testp);
+	NDView<double> img(testp);
 	ii = 0;
 	t = clock();
 	

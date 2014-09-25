@@ -33,7 +33,7 @@ int main()
 	std::vector<double> cindex(5, 0);
 	shared_ptr<MRImage> testimg = createMRImage(sz, FLOAT64);
 	NNInterp3DView<double> interp(testimg);
-	NDAccess<double> view(testimg);
+	NDView<double> view(testimg);
 	Pixel3DView<double> pview(testimg);
 	Vector3DView<double> tview(testimg);
 	bool outside = false;
