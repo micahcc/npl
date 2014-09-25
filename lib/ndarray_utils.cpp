@@ -2064,7 +2064,7 @@ ptr<NDArray> sobelEdge(ptr<const NDArray> img)
 {
     // create output
     size_t ndim = img->ndim();
-    vector<size_t> osize(img->dim(), img->dim()+1);
+    vector<size_t> osize(img->dim(), img->dim()+ndim);
     osize.push_back(ndim);
     auto out = img->copyCast(osize.size(), osize.data());
 
@@ -2083,7 +2083,8 @@ ptr<NDArray> sobelEdge(ptr<const NDArray> img)
     
     // chunk up by volumes
     ChunkIter<double> oit(out);
-    oit.setChunkSize(ndim, img->dim()); 
+    oit.setChunkSize(ndim, img->dim(), true); 
+    oit.setOrder(kit.getOrder());
     vector<int64_t> index(ndim+1);
     for(oit.goBegin(); !oit.eof(); oit.nextChunk()) {
         oit.index(index);
@@ -2095,13 +2096,14 @@ ptr<NDArray> sobelEdge(ptr<const NDArray> img)
             for(size_t kk=0; kk<kit.ksize(); kk++) {
                 kit.indexK(kk, index.size(), index.data());
 
-                // compute weight of kernel element
+                // compute weight of kernel element, note that because
+                // from_center is the offset from center, we need to add 1
                 double w = 1;
                 for(size_t dd=0; dd<ndim; dd++) {
                     if(dd == graddir)
-                        w *= der_profile[index[dd]];
+                        w *= der_profile[index[dd]+1];
                     else
-                        w *= avg_profile[index[dd]];
+                        w *= avg_profile[index[dd]+1];
                 }
 
                 sum += w*kit[kk];
@@ -2109,7 +2111,10 @@ ptr<NDArray> sobelEdge(ptr<const NDArray> img)
 
             oit.set(sum);
         }
+
+        assert(kit.eof() && oit.eoc());
     }
+    assert(kit.eof() && oit.eof());
 
     return out;
 }
@@ -2123,8 +2128,12 @@ ptr<NDArray> sobelEdge(ptr<const NDArray> img)
  *
  * @return 
  */
-ptr<NDArray> collapseSum(ptr<const NDArray> img, size_t dim)
+ptr<NDArray> collapseSum(ptr<const NDArray> img, size_t dim, bool doabs)
 {
+    if(dim >= img->ndim()) {
+        throw INVALID_ARGUMENT("Input dim is >= number of dimensions!");
+    }
+
     vector<size_t> osize(img->ndim()-1);
     for(size_t ii=0, jj=0; ii<img->ndim(); ii++) {
         if(ii != dim) 
@@ -2141,7 +2150,7 @@ ptr<NDArray> collapseSum(ptr<const NDArray> img, size_t dim)
     for(iit.goBegin(); !iit.eof(); iit.nextChunk()) {
         double sum = 0;
         for(; !iit.eoc(); ++iit) 
-            sum += *iit;
+            sum += doabs ? fabs(*iit) : *iit;
 
         iit.index(index1);
         

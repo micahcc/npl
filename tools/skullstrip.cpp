@@ -59,14 +59,16 @@ int main(int argc, char** argv)
      * edge detection
      ****************************/
     auto deriv = sobelEdge(inimg);
+    cerr << *deriv << endl;
     deriv->write("sobel.nii.gz");
-    auto absderiv = collapseSum(deriv, 3);
+    auto absderiv = collapseSum(deriv, 3, true);
+    cerr << *absderiv << endl;
     absderiv->write("sobel_abs.nii.gz");
-//
-//    /*****************************
-//     * create point list from edges (based on top quartile of edges in each
-//     * window) then extract points that meet local shape criteria 
-//     ****************************/
+
+    /*****************************
+     * create point list from edges (based on top quartile of edges in each
+     * window) then extract points that meet local shape criteria 
+     ****************************/
 //	MatrixXd points = genPoints(absderiv);
 //    points = shapeFilter(points);
 //    auto mask = pointsToMask(inimg, points);

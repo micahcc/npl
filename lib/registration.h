@@ -68,8 +68,11 @@ class RigidInformationComputer
      *
      * @param fixed Fixed image. A copy of this will be made.
      * @param moving Moving image. A copy of this will be made.
-     * @param negate Whether to use negative correlation (for instance to
      * minimize negative correlation using a gradient descent).
+     * @param bins Number of bins during marginal density estimation (joint
+     *                  with have nbins*nbins)
+     * @param kernrad During parzen window, the radius of the smoothing kernel
+     * @param negate Whether to use negative correlation (for instance to
      */
     RigidInformationComputer(shared_ptr<const MRImage> fixed, 
             shared_ptr<const MRImage> moving,
@@ -103,7 +106,7 @@ class RigidInformationComputer
      * @brief Computes the correlation. 
      *
      * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
-     * @param value Value at the given rotation
+     * @param val Value at the given rotation
      *
      * @return 0 if successful
      */
@@ -223,7 +226,7 @@ class RigidCorrComputer
      * @brief Computes the correlation. 
      *
      * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
-     * @param value Value at the given rotation
+     * @param val Value at the given rotation
      *
      * @return 0 if successful
      */
@@ -396,6 +399,9 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
  * @param fixed     Image which will be the target of registration. 
  * @param moving    Image which will be rotated then shifted to match fixed.
  * @param sigmas    Standard deviation of smoothing kernel at each level
+ * @param nbins     Number of bins during marginal density estimation (joint
+ *                  with have nbins*nbins)
+ * @param binradius During parzen window, the radius of the smoothing kernel
  *
  * @return          Rigid transform.
  */
