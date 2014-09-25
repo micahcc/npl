@@ -325,7 +325,7 @@ void gaussianSmooth1D(ptr<NDArray> inout, size_t dim,
 		for(size_t ii=0; ii<inout->dim(dim); ii++, ++kit) {
 			double tmp = 0;
 			for(size_t kk=0; kk<kit.ksize(); kk++) {
-				double dist = kit.from_center(kk, dim);
+				double dist = kit.offsetK(kk, dim);
 				double nval = kit[kk];
 				double stddist = dist/stddev;
 				double weighted = gaussKern(stddist)*nval/normalize;
@@ -366,12 +366,12 @@ ptr<NDArray> erode(ptr<NDArray> in, size_t reps)
 		// for each pixels neighborhood, smooth neightbors
 		for(oit.goBegin(), it.goBegin(); !it.eof(); ++it, ++oit) {
 			oit.index(index1.size(), index1.data());
-			it.center_index(index2.size(), index2.data());
+			it.indexC(index2.size(), index2.data());
 
 			// if any of the neighbors are 0, then set to 0
 			bool erodeme = false;
 			for(size_t ii=0; ii<it.ksize(); ++ii) {
-				if(it.offset(ii) == 0) {
+				if(it.getK(ii) == 0) {
 					erodeme = true;
 				}
 			}
@@ -408,7 +408,7 @@ ptr<NDArray> dilate(ptr<NDArray> in, size_t reps)
 		// for each pixels neighborhood, smooth neightbors
 		for(oit.goBegin(), it.goBegin(); !it.eof(); ++it, ++oit) {
 			oit.index(index1.size(), index1.data());
-			it.center_index(index2.size(), index2.data());
+			it.indexC(index2.size(), index2.data());
 			for(size_t ii=0; ii<in->ndim(); ++ii) {
 				if(index1[ii] != index2[ii]) {
 					throw std::logic_error("Error differece in iteration!");
@@ -419,8 +419,8 @@ ptr<NDArray> dilate(ptr<NDArray> in, size_t reps)
 			bool dilateme = false;
 			int dilval = 0;
 			for(size_t ii=0; ii<it.ksize(); ++ii) {
-				if(it.offset(ii) != 0) {
-					dilval = it.offset(ii);
+				if(it.getK(ii) != 0) {
+					dilval = it.getK(ii);
 					dilateme = true;
 				}
 			}
@@ -2093,7 +2093,7 @@ ptr<NDArray> sobelEdge(ptr<const NDArray> img)
         for(kit.goBegin(); !kit.eof() && !oit.eoc(); ++kit, ++oit) {
             double sum = 0;
             for(size_t kk=0; kk<kit.ksize(); kk++) {
-                kit.offset_index(kk, index.size(), index.data());
+                kit.indexK(kk, index.size(), index.data());
 
                 // compute weight of kernel element
                 double w = 1;

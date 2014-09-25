@@ -1833,9 +1833,9 @@ void KSlicer::goIndex(const std::vector<int64_t>& newpos)
  * @param len size of index
  * @param index output index variable
  */
-void KSlicer::center_index(size_t len, int64_t* index) const
+void KSlicer::indexC(size_t len, int64_t* index) const
 {
-	offset_index(m_center, len, index, true);
+	indexK(m_center, len, index, true);
 }
 	
 /**
@@ -1849,7 +1849,7 @@ void KSlicer::center_index(size_t len, int64_t* index) const
  * @param len size of index
  * @param index output index variable
  */
-void KSlicer::offset_index(size_t kit, size_t len, int64_t* index, bool bound) const
+void KSlicer::indexK(size_t kit, size_t len, int64_t* index, bool bound) const
 {
 	assert(!m_end);
 	assert(kit < m_numoffs);
@@ -1881,7 +1881,7 @@ void KSlicer::offset_index(size_t kit, size_t len, int64_t* index, bool bound) c
  *
  * @return Offset from center of given pixel (kit)
  */
-int64_t KSlicer::from_center(size_t kit, size_t dim)
+int64_t KSlicer::offsetK(size_t kit, size_t dim)
 {
 	return m_offs[kit][dim];
 }
@@ -1896,7 +1896,7 @@ int64_t KSlicer::from_center(size_t kit, size_t dim)
  * longer the additional values won't be touched
  * @param kit Pixel we are referring to
  */
-void KSlicer::from_center(size_t kit, size_t len, int64_t* dindex) const
+void KSlicer::offsetK(size_t kit, size_t len, int64_t* dindex) const
 {
 	for(size_t ii=0; ii<len && ii<m_dim; ii++)
 		dindex[ii] = m_offs[kit][ii];

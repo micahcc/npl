@@ -1008,7 +1008,7 @@ public:
 	 * @return Linear index
 	 */
 	inline
-	int64_t center() const
+	int64_t getC() const
 	{
 		assert(!m_end);
 		return m_linpos[m_center];
@@ -1039,7 +1039,7 @@ public:
 	 * @param len size of index
 	 * @param index output index variable
 	 */
-	void center_index(size_t len, int64_t* index) const;
+	void indexC(size_t len, int64_t* index) const;
 	
 	/**
 	 * @brief Get index of i'th kernel (center-offset) element.
@@ -1047,7 +1047,7 @@ public:
 	 * @return linear position
 	 */
 	inline
-	int64_t offset(int64_t kit) const {
+	int64_t getK(int64_t kit) const {
 		assert(!m_end);
 		assert(kit < m_numoffs);
 		return m_linpos[kit];
@@ -1079,7 +1079,7 @@ public:
 	 *
 	 * @return ND position
 	 */
-	void offset_index(size_t kit, size_t len, int64_t* index, bool bound = true) const;
+	void indexK(size_t kit, size_t len, int64_t* index, bool bound = true) const;
 
 	/**
 	 * @brief Returns the distance from the center projected onto the specified
@@ -1091,7 +1091,7 @@ public:
 	 *
 	 * @return Offset from center of given pixel (kit)
 	 */
-	int64_t from_center(size_t kit, size_t dim);
+	int64_t offsetK(size_t kit, size_t dim);
 	
 	/**
 	 * @brief Returns offset from center of specified pixel (kit).
@@ -1103,7 +1103,7 @@ public:
 	 * the iteration dimensions, only the first len will be filled. If it is
 	 * longer the additional values won't be touched
 	 */
-	void from_center(size_t kit, size_t len, int64_t* dindex) const;
+	void offsetK(size_t kit, size_t len, int64_t* dindex) const;
 
 	/**
 	 * @brief Get linear position

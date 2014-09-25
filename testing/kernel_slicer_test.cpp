@@ -76,27 +76,27 @@ int main()
                   int64_t teff = clamp(0, sz[3]-1, tt+tto);
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
 
-                  int64_t itlin = it.offset(neighbor);
+                  int64_t itlin = it.getK(neighbor);
 
-                  it.offset_index(neighbor, 1, index.data(), true);
+                  it.indexK(neighbor, 1, index.data(), true);
                   if(xeff != index[0]) {
                     cerr << "Incorrect x map" << endl;
                     return -1;
                   }
 
-                  it.offset_index(neighbor, 2, index.data(), true);
+                  it.indexK(neighbor, 2, index.data(), true);
                   if(yeff != index[1]) {
                     cerr << "Incorrect y map" << endl;
                     return -1;
                   }
 
-                  it.offset_index(neighbor, 3, index.data(), true);
+                  it.indexK(neighbor, 3, index.data(), true);
                   if(zeff != index[2]) {
                     cerr << "Incorrect z map" << endl;
                     return -1;
                   }
 
-                  it.offset_index(neighbor, 4, index.data(), true);
+                  it.indexK(neighbor, 4, index.data(), true);
                   if(teff != index[3]) {
                     cerr << "Incorrect t map" << endl;
                     return -1;
@@ -134,8 +134,8 @@ int main()
                   int64_t teff = clamp(0, sz[3]-1, tt+tto);
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
 
-                  int64_t itlin = it.offset(neighbor);
-                  it.offset_index(neighbor, index.size(), index.data(), true);
+                  int64_t itlin = it.getK(neighbor);
+                  it.indexK(neighbor, index.size(), index.data(), true);
 				  ++neighbor;
 
                   if(xeff != index[0]) {
@@ -192,8 +192,8 @@ int main()
                   int64_t teff = clamp(0, sz[3]-1, tt+tto);
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
 
-				  int64_t itlin = it.offset(neighbor);
-                  it.offset_index(neighbor, index.size(), index.data(), true);
+				  int64_t itlin = it.getK(neighbor);
+                  it.indexK(neighbor, index.size(), index.data(), true);
 				  ++neighbor;
 
                   if(xeff != index[0]) {
@@ -247,8 +247,8 @@ int main()
                   int64_t teff = clamp(0, sz[3]-1, tt+tto);
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
 				
-				  int64_t itlin = it.offset(neighbor);
-                  it.offset_index(neighbor, index.size(), index.data(), true);
+				  int64_t itlin = it.getK(neighbor);
+                  it.indexK(neighbor, index.size(), index.data(), true);
 				  ++neighbor;
 
                   if(xeff != index[0]) {
@@ -308,8 +308,8 @@ int main()
                   int64_t teff = clamp(0, sz[3]-1, tt+tto);
                   int64_t lin = teff+zeff*sz[3]+yeff*sz[3]*sz[2]+xeff*sz[3]*sz[2]*sz[1];
 
-				  int64_t itlin = it.offset(neighbor);
-                  it.offset_index(neighbor, index.size(), index.data(), true);
+				  int64_t itlin = it.getK(neighbor);
+                  it.indexK(neighbor, index.size(), index.data(), true);
 				  ++neighbor;
 
                   if(xeff != index[0]) {

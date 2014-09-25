@@ -250,7 +250,7 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
 	while(!oit.eof()) {
 		// perform kernel math, writing to buffer
 		for(size_t ii=0; ii<inout->dim(dim); ii++, ++kit) {
-			kit.center_index(index.size(), index.data());
+			kit.indexC(index.size(), index.data());
 			inout->indexToPoint(index.size(), index.data(), point.data());
 			mask->pointToIndex(point.size(), point.data(), cindex.data());
 
@@ -258,7 +258,7 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
 			if((m != 0 && !invert) || (m == 0 && invert)) {
 				double tmp = 0;
 				for(size_t kk=0; kk<kit.ksize(); kk++) {
-					double dist = kit.from_center(kk, dim);
+					double dist = kit.offsetK(kk, dim);
 					double nval = kit[kk];
 					double stddist = dist/stddev;
 					double weighted = gaussKern(stddist)*nval/normalize;
@@ -266,7 +266,7 @@ void gaussianSmooth1D(shared_ptr<MRImage> inout, size_t dim,
 				}
 				buff[ii] = tmp;
 			} else {
-				buff[ii] = kit.center();
+				buff[ii] = kit.getC();
 			}
 		}
 
@@ -556,12 +556,12 @@ shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def,
 
 		for(pmit.goBegin(), cmit.goBegin(); !cmit.eof(); ++pmit, ++cmit) {
 			// skip regions inside the mask
-			if(pmit.center() != 0)
+			if(pmit.getC() != 0)
 				continue;
 			++changed;
 
 			// get the current index in deform/mask
-			pmit.center_index(3, index);
+			pmit.indexC(3, index);
 
 			// zero continuous index
 			std::fill(offset, offset+3, 0);
@@ -583,7 +583,7 @@ shared_ptr<MRImage> extrapolateFromMasked(shared_ptr<MRImage> def,
 			for(size_t ii=0; ii<pmit.ksize(); ++ii) {
 				int64_t tmp[3];
 				if(pmit[ii] != 0) {
-					pmit.offset_index(ii, 3, tmp);
+					pmit.indexK(ii, 3, tmp);
 					for(size_t jj=0; jj<3; ++jj)
 						offset[jj] += odview(tmp[0], tmp[1], tmp[2], jj);
 				}
