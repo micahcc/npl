@@ -482,6 +482,40 @@ protected:
 	T operator[](const std::vector<int64_t>& i) { (void)(i); return T(); };
 };
 
+/**
+ * @brief The purpose of this class is to view an image as a 3D+vector dimension
+ * image rather than a 4+D image. Therefore all dimensions above the third are
+ * cast as a vector. If there is demand I may create a matrixx verion as well
+ *
+ * @tparam T Type of value to cast and return
+ */
+template<typename T>
+class Vector3DConstView : public NDConstView<T>
+{
+public:
+	Vector3DConstView(std::shared_ptr<const NDArray> in) : NDConstView<T>(in)
+	{ };
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T operator()(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
+	{
+		return this->castget(this->parent->__getAddr(x,y,z,t));
+	};
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T get(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
+	{
+		return this->castget(this->parent->__getAddr(x,y,z,t));
+	};
+};
 
 /**
  * @brief The purpose of this class is to view an image as a 3D+vector dimension
@@ -526,13 +560,6 @@ public:
 	{
 		this->castset(this->parent->__getAddr(x,y,z,t), v);
 	};
-	
-protected:
-	
-	// Remove functions that aren't relevent from NDView
-	T operator[](int64_t i) { (void)(i); return T(); };
-	T get(const std::vector<int64_t>& i) {  (void)(i); return T(); };
-	T operator[](const std::vector<int64_t>& i) { (void)(i); return T(); };
 };
 
 /* Linear Kernel Sampling */

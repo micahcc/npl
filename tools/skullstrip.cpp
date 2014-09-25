@@ -166,7 +166,7 @@ void genPoints(ptr<const MRImage> scale,
     it.setRadius(radius);
 
     // vimg accessor
-    NDConstView<double> vac(vimg);
+    Vector3DConstView<double> vac(vimg);
     
     //split here
     size_t ksp = clamp<int64_t>(0, it.ksize()-1, it.ksize()*(1-pct)); 
@@ -223,8 +223,7 @@ void genPoints(ptr<const MRImage> scale,
                 // gradient (normalized), because we have already established
                 // this is a large gradient 
                 for(size_t dd=0; dd<3; dd++) {
-                    index[3] = dd;
-                    tmp[dd] = w*vac[index];
+                    tmp[dd] = w*vac(index[0], index[1], index[2], dd);
                 }
                 tmp.normalize();
                 vmean += tmp;
