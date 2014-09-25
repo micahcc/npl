@@ -435,7 +435,7 @@ void gaussianSmooth1D(ptr<MRImage> inout, size_t dim,
 		for(size_t ii=0; ii<inout->dim(dim); ii++, ++kit) {
 			double tmp = 0;
 			for(size_t kk=0; kk<kit.ksize(); kk++) {
-				double dist = kit.from_center(kk, dim);
+				double dist = kit.offsetK(kk, dim);
 				double nval = kit[kk];
 				double stddist = dist/stddev;
 				double weighted = gaussKern(stddist)*nval/normalize;

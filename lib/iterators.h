@@ -1798,6 +1798,11 @@ private:
  * get the number of neighbors in the kernel use ksize(), so
  * it.offset(0), it.offset(1), ..., it.offset(ksize()-1) are valid calls.
  *
+ * The primary functions are operator[] which allows you to get the k'th offset
+ * value, indexK() which returns the index of the k'th offset, and offsetK()
+ * which returns the offset of k'th offset, IE where it is in relation to the
+ * center.
+ *
  * Note that order is the not the default order. If you use using this iterator
  * with another iterator, be sure to setOrder(it.getOrder()) so that both
  * iterators have the same directions.
@@ -1906,7 +1911,7 @@ public:
 	};
 	
 	/**
-	 * @brief Dereference operator
+	 * @brief Dereference operator, get center pixel value
 	 *
 	 * @return current value
 	 */
@@ -1916,33 +1921,35 @@ public:
 	};
 	
 	/**
-	 * @brief Dereference operator
+	 * @brief Same as dereference operator, get center pixel value
 	 *
 	 * @return current value
 	 */
-	T center() const
+	T getC() const
 	{
-		return castget(parent->__getAddr(KSlicer::center()));
+		return castget(parent->__getAddr(KSlicer::getC()));
 	};
 	
 	/**
-	 * @brief Dereference operator
+	 * @brief Dereference (get) the pixel at the k'th offset position. To
+     * figure out WHERE this pixel is in relation to the center use offsetK
 	 *
 	 * @return current value at offset k
 	 */
-	T offset(int64_t k) const
+	T getK(int64_t k) const
 	{
-		return castget(parent->__getAddr(KSlicer::offset(k)));
+		return castget(parent->__getAddr(KSlicer::getK(k)));
 	};
 	
 	/**
-	 * @brief Dereference operator
+	 * @brief Dereference (get) the pixel at the k'th offset position. To
+     * figure out WHERE this pixel is in relation to the center use offsetK
 	 *
 	 * @return current value at offset k
 	 */
 	T operator[](int64_t k) const
 	{
-		return castget(parent->__getAddr(KSlicer::offset(k)));
+		return castget(parent->__getAddr(KSlicer::getK(k)));
 	};
 	
 	/**
