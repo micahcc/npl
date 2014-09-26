@@ -143,6 +143,7 @@ int main()
     cerr << "Nested Loop Method: " << c << endl;
     cerr << count << endl;
     
+    count = 0;
     c = clock();
     for(it.goBegin(); !it.eof(); ++it) {
         for(size_t k=0; k<it.ksize(); k++) {

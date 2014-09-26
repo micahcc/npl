@@ -1159,7 +1159,7 @@ public:
 protected:
 
 	// order of traversal, constructor initializes
-	size_t m_dim; // constructor
+	size_t m_ndim; // constructor
 	std::vector<size_t> m_size; // constructor
 	std::vector<size_t> m_strides; //constructor
 	
@@ -1169,7 +1169,9 @@ protected:
 	// setRadius/setWindow
 	// for each of the neighbors we need to know
 	size_t m_numoffs; // setRadius/setWindow/
-	std::vector<std::vector<int64_t>> m_offs; // setRadius/setWindow
+
+    // NDIM*OFFSET, D0O0, D1O0, D2O0, D0O1, ... 
+	std::vector<int64_t> m_offs; // setRadius/setWindow
 	size_t m_center;  // setRadius/setWindow
 	int64_t m_fradius; //forward radius, should be positive
 	int64_t m_rradius; //reverse radius, should be positive
@@ -1180,7 +1182,7 @@ protected:
 
 	// goBegin/goEnd/goIndex
 	bool m_end;
-	std::vector<std::vector<int64_t>> m_pos;
+	std::vector<int64_t> m_pos;
 	std::vector<int64_t> m_linpos;
 
 };
