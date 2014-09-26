@@ -1357,8 +1357,8 @@ void ChunkSlicer::setOrder(const std::vector<size_t>& order, bool revorder)
  * @brief Default Constructor, max a length 1, dimension 1 slicer
  */
 KSlicer::KSlicer() : m_size(1,1), m_strides(1,1), m_order(0), m_numoffs(1),
-    m_offs(1, 0), m_center(0), m_fradius(0), m_rradius(0), m_begin(0),
-    m_end(false), m_pos(1, 0), m_linpos(1, 0)
+    m_offs(1, NULL), m_offs_raw(1, 0), m_center(0), m_fradius(0), m_rradius(0),
+    m_begin(0), m_end(false), m_pos(1, NULL), m_pos_raw(1, 0), m_linpos(1, 0)
 {
 	size_t tmp = 1;
 	setDim(1, &tmp);
@@ -1372,8 +1372,9 @@ KSlicer::KSlicer() : m_size(1,1), m_strides(1,1), m_order(0), m_numoffs(1),
  */
 KSlicer::KSlicer(size_t ndim, const size_t* dim) : 
     m_size(dim,dim+ndim), m_strides(ndim), m_order(ndim), m_numoffs(1),
-    m_offs(1, 0), m_center(0), m_fradius(0), m_rradius(0), m_begin(0),
-    m_end(false), m_pos(ndim, 0), m_linpos(1, 0)
+    m_offs(1, NULL), m_offs_raw(ndim, 0), m_center(0), m_fradius(0),
+    m_rradius(0), m_begin(0), m_end(false), m_pos(1, NULL), m_pos_raw(ndim, 0),
+    m_linpos(1, 0)
 {
 	setDim(ndim, dim);
 }
@@ -1389,14 +1390,14 @@ KSlicer& KSlicer::operator++()
 	if(isEnd())
 		return *this;
 	
-	int64_t forbound = (int64_t)m_pos[m_center*m_ndim+m_order[0]]+m_fradius;
-	int64_t revbound = (int64_t)m_pos[m_center*m_ndim+m_order[0]]-m_rradius;
+	int64_t forbound = (int64_t)m_pos[m_center][m_order[0]]+m_fradius;
+	int64_t revbound = (int64_t)m_pos[m_center][m_order[0]]-m_rradius;
 	
 	// if the entire kernel is within the line, then just add add 1/stride
 	if(forbound < (int64_t)m_roi[m_order[0]].second &&
 				revbound >= (int64_t)m_roi[m_order[0]].first) {
 		for(size_t oo=0; oo<m_numoffs; oo++) {
-			m_pos[oo*m_ndim+m_order[0]]++;
+			m_pos[oo][m_order[0]]++;
 			m_linpos[oo] += m_strides[m_order[0]];
 		}
 	} else { // brute force
@@ -1404,15 +1405,15 @@ KSlicer& KSlicer::operator++()
 		// iterate center
 		for(size_t ii=0; ii<m_ndim; ii++){
 			size_t dd = m_order[ii];
-			if(m_pos[m_center*m_ndim+dd] < m_roi[dd].second) {
-				m_pos[m_center*m_ndim+dd]++;
+			if(m_pos[m_center][dd] < m_roi[dd].second) {
+				m_pos[m_center][dd]++;
 				break;
 			} else if(ii != m_ndim-1){
 				// reset dimension
-				m_pos[m_center*m_ndim+dd] = m_roi[dd].first;
+				m_pos[m_center][dd] = m_roi[dd].first;
 			} else {
 				// we are willing to go 1 past the last
-				m_pos[m_center*m_ndim+dd]++;
+				m_pos[m_center][dd]++;
 				m_linpos[m_center] += m_strides[dd];
 				m_end = true;
 
@@ -1425,8 +1426,8 @@ KSlicer& KSlicer::operator++()
 		// calculate ND positions for each other offset
 		for(size_t oo=0; oo<m_numoffs; oo++) {
 			for(size_t dd=0; dd<m_ndim; dd++) {
-				m_pos[oo*m_ndim+dd] = clamp(m_roi[dd].first, m_roi[dd].second,
-						m_pos[m_center*m_ndim+dd]+m_offs[oo*m_ndim+dd]);
+				m_pos[oo][dd] = clamp(m_roi[dd].first, m_roi[dd].second,
+						m_pos[m_center][dd]+m_offs[oo][dd]);
 			}
 		}
 
@@ -1434,7 +1435,7 @@ KSlicer& KSlicer::operator++()
 		for(size_t oo = 0; oo < m_numoffs; oo++) {
 			m_linpos[oo] = 0;
 			for(size_t dd=0; dd<m_ndim; dd++)
-				m_linpos[oo] += m_pos[oo*m_ndim+dd]*m_strides[dd];
+				m_linpos[oo] += m_pos[oo][dd]*m_strides[dd];
 		}
 	}
 
@@ -1454,14 +1455,14 @@ KSlicer& KSlicer::operator--()
 	
 	m_end = false;
 
-	int64_t forbound = (int64_t)m_pos[m_center*m_ndim+m_order[0]]+m_fradius;
-	int64_t revbound = (int64_t)m_pos[m_center*m_ndim+m_order[0]]-m_rradius;
+	int64_t forbound = (int64_t)m_pos[m_center][m_order[0]]+m_fradius;
+	int64_t revbound = (int64_t)m_pos[m_center][m_order[0]]-m_rradius;
 	
 	// if the entire kernel is within the line, then just add add 1/stride
 	if(forbound <= (int64_t)m_roi[m_order[0]].second &&
 				revbound > (int64_t)m_roi[m_order[0]].first) {
 		for(size_t oo=0; oo<m_numoffs; oo++) {
-			m_pos[oo*m_ndim+m_order[0]]--;
+			m_pos[oo][m_order[0]]--;
 			m_linpos[oo] -= m_strides[m_order[0]];
 		}
 	} else { // brute force
@@ -1469,20 +1470,20 @@ KSlicer& KSlicer::operator--()
 		// iterate center
 		for(size_t ii=0; ii<m_order.size(); ii++){
 			size_t dd = m_order[ii];
-			if(m_pos[m_center*m_ndim+dd] != m_roi[dd].first) {
-				m_pos[m_center*m_ndim+dd]--;
+			if(m_pos[m_center][dd] != m_roi[dd].first) {
+				m_pos[m_center][dd]--;
 				break;
 			} else if(ii != m_order.size()-1) {
 				// jump forward in dd, (will pull back in next)
-				m_pos[m_center*m_ndim+dd] = m_roi[dd].second;
+				m_pos[m_center][dd] = m_roi[dd].second;
 			}
 		}
 
 		// calculate ND positions for each other offset
 		for(size_t oo=0; oo<m_numoffs; oo++) {
 			for(size_t dd=0; dd<m_ndim; dd++) {
-				m_pos[oo*m_ndim+dd] = clamp(m_roi[dd].first, m_roi[dd].second,
-						m_pos[m_center*m_ndim+dd]+m_offs[oo*m_ndim+dd]);
+				m_pos[oo][dd] = clamp(m_roi[dd].first, m_roi[dd].second,
+						m_pos[m_center][dd]+m_offs[oo][dd]);
 			}
 		}
 
@@ -1490,7 +1491,7 @@ KSlicer& KSlicer::operator--()
 		for(size_t oo = 0; oo < m_numoffs; oo++) {
 			m_linpos[oo] = 0;
 			for(size_t dd=0; dd<m_ndim; dd++)
-				m_linpos[oo] += m_pos[oo*m_ndim+dd]*m_strides[dd];
+				m_linpos[oo] += m_pos[oo][dd]*m_strides[dd];
 		}
 	}
 
@@ -1594,37 +1595,40 @@ void KSlicer::setWindow(const std::vector<std::pair<int64_t, int64_t>>& krange)
 		m_numoffs *= kmax[ii]-kmin[ii]+1;
 	}
 
-	m_offs.resize(m_ndim*m_numoffs);
-	fill(m_offs.begin(), m_offs.end(), 0);
+	m_offs.resize(m_numoffs);
+    m_offs_raw.resize(m_numoffs*m_ndim);
+    for(size_t ii=0; ii<m_numoffs; ii++) 
+        m_offs[ii] = &m_offs_raw[ii*m_ndim]; 
+	fill(m_offs_raw.begin(), m_offs_raw.end(), 0);
 
 	// initialize first offset then set remaining based on that
 	for(size_t ii=0; ii<m_ndim; ii++)
-		m_offs[0*m_ndim+ii] = kmin[ii];
+		m_offs[0][ii] = kmin[ii];
 
 	m_center = 0;
 	for(size_t oo=1; oo<m_numoffs; oo++) {
 		int64_t dd=m_ndim-1;
 		// copy from previous
 		for(dd=0; dd<m_ndim; dd++)
-			m_offs[oo*m_ndim+dd] = m_offs[(oo-1)*m_ndim+dd];
+			m_offs[oo][dd] = m_offs[(oo-1)][dd];
 
 		// advance 1
 		for(dd=m_ndim-1; dd>=0; dd--) {
 
 			// if we can increase in bounds, just do that
-			if(m_offs[(oo-1)*m_ndim+dd] < kmax[dd]) {
-				m_offs[oo*m_ndim+dd]++;
+			if(m_offs[(oo-1)][dd] < kmax[dd]) {
+				m_offs[oo][dd]++;
 				break;
 			} else {
 				// roll over if we hit the edge
-				m_offs[oo*m_ndim+dd] = kmin[dd];
+				m_offs[oo][dd] = kmin[dd];
 			}
 		}
 
 		// figure out if this is the center
 		bool center = true;
 		for(dd=0; dd<m_ndim; dd++) {
-			if(m_offs[oo*m_ndim+dd] != 0) {
+			if(m_offs[oo][dd] != 0) {
 				center = false;
 				break;
 			}
@@ -1634,8 +1638,13 @@ void KSlicer::setWindow(const std::vector<std::pair<int64_t, int64_t>>& krange)
 			m_center = oo;
 	}
 
-	m_pos.resize(m_numoffs*m_ndim);
-	m_linpos.resize(m_numoffs);
+	m_pos_raw.resize(m_ndim*m_numoffs);
+	m_pos.resize(m_numoffs);
+    for(size_t ii=0; ii<m_numoffs; ii++) 
+        m_pos[ii] = &m_pos_raw[ii*m_ndim];
+	
+    m_linpos.resize(m_numoffs, -1);
+    goBegin();
 }
 	
 
@@ -1686,11 +1695,29 @@ void KSlicer::setDim(size_t ndim, const size_t* dim)
 		m_strides[ii] = m_strides[ii+1]*dim[ii+1];
 	}
 
-	setOrder();
-	setRadius(0);
-	setROI();
-	goBegin();
+    // reset order and radius
+    m_order.clear();
+    for(int64_t ii=m_ndim-1; ii>=0; ii--)
+        m_order.push_back(ii);
+	
+    // set up ROI, and calculate the m_begin location
+	m_roi.resize(m_ndim);
+	m_begin = 0;
+	for(size_t ii=0; ii<m_ndim; ii++) {
+        // default to full range
+        m_roi[ii].first = 0;
+        m_roi[ii].second = m_size[ii]-1;
+		m_begin += m_roi[ii].first*m_strides[ii];
+	}
 
+    m_pos_raw.resize(ndim);
+    m_pos.resize(1, &m_pos_raw[0]);
+    m_offs_raw.resize(ndim);
+    m_offs.resize(1, &m_offs_raw[0]);
+    m_center = 0;
+
+	setRadius(0);
+	goBegin();
 };
 
 /**
@@ -1763,14 +1790,13 @@ void KSlicer::setOrder(std::vector<size_t> order, bool revorder)
 	m_fradius = 0;
 	m_rradius = 0;
 	for(size_t oo=0; oo<m_numoffs; oo++) {
-		if(m_offs[oo*m_ndim+m_order[0]] > m_fradius)
-			m_fradius = m_offs[oo*m_ndim+m_order[0]];
-		if(m_offs[oo*m_ndim+m_order[0]] < m_rradius)
-			m_rradius = m_offs[oo*m_ndim+m_order[0]];
+		if(m_offs[oo][m_order[0]] > m_fradius)
+			m_fradius = m_offs[oo][m_order[0]];
+		if(m_offs[oo][m_order[0]] < m_rradius)
+			m_rradius = m_offs[oo][m_order[0]];
 	}
 	// turn offset into radius
 	m_rradius = -m_rradius;
-//	goBegin();
 };
 
 /**
@@ -1787,7 +1813,7 @@ void KSlicer::goIndex(const std::vector<int64_t>& newpos)
 	// don't do anything if we are already where we need to be...
 	bool same = true;
 	for(size_t ii=0; ii<m_ndim; ii++) {
-		if(newpos[ii] != m_pos[m_center*m_ndim+ii])
+		if(newpos[ii] != m_pos[m_center][ii])
 			same = false;
 	}
 	if(same)
@@ -1801,15 +1827,15 @@ void KSlicer::goIndex(const std::vector<int64_t>& newpos)
 		clamped = clamp(m_roi[dd].first, m_roi[dd].second, newpos[dd]);
 		
 		// set position
-		m_pos[m_center*m_ndim+dd] = clamped;
+		m_pos[m_center][dd] = clamped;
 
 	}
 	
 	// calculate ND positions for each other offset
 	for(size_t oo=0; oo<m_numoffs; oo++) {
 		for(size_t dd=0; dd<m_ndim; dd++) {
-			m_pos[oo*m_ndim+dd] = clamp(m_roi[dd].first, m_roi[dd].second,
-					m_pos[m_center*m_ndim+dd]+m_offs[oo*m_ndim+dd]);
+			m_pos[oo][dd] = clamp(m_roi[dd].first, m_roi[dd].second,
+					m_pos[m_center][dd]+m_offs[oo][dd]);
 		}
 	}
 
@@ -1817,7 +1843,7 @@ void KSlicer::goIndex(const std::vector<int64_t>& newpos)
 	for(size_t oo = 0; oo < m_numoffs; oo++) {
 		m_linpos[oo] = 0;
 		for(size_t dd=0; dd<m_ndim; dd++)
-			m_linpos[oo] += m_pos[oo*m_ndim+dd]*m_strides[dd];
+			m_linpos[oo] += m_pos[oo][dd]*m_strides[dd];
 	}
 	
 	m_end = false;
@@ -1859,11 +1885,11 @@ void KSlicer::indexK(size_t kit, size_t len, int64_t* index, bool bound) const
 	if(bound) {
 		// m_pos already has been bound
 		for(size_t ii=0; ii<len && ii<m_ndim; ii++)
-			index[ii] = m_pos[kit*m_ndim+ii];
+			index[ii] = m_pos[kit][ii];
 	} else {
 		// unbound
 		for(size_t ii=0; ii < len && ii < m_ndim; ii++)
-			index[ii] = m_pos[m_center*m_ndim+ii]+m_offs[kit*m_ndim+ii];
+			index[ii] = m_pos[m_center][ii]+m_offs[kit][ii];
 	}
 	
 	// extra values to 0
@@ -1884,7 +1910,7 @@ void KSlicer::indexK(size_t kit, size_t len, int64_t* index, bool bound) const
  */
 int64_t KSlicer::offsetK(size_t kit, size_t dim)
 {
-	return m_offs[kit*m_ndim+dim];
+	return m_offs[kit][dim];
 }
 
 /**
@@ -1900,7 +1926,7 @@ int64_t KSlicer::offsetK(size_t kit, size_t dim)
 void KSlicer::offsetK(size_t kit, size_t len, int64_t* dindex) const
 {
 	for(size_t ii=0; ii<len && ii<m_ndim; ii++)
-		dindex[ii] = m_offs[kit*m_ndim+ii];
+		dindex[ii] = m_offs[kit][ii];
 };
 
 /**
@@ -1912,14 +1938,14 @@ void KSlicer::goBegin()
 	// copy the center
 	for(size_t dd = 0; dd<m_ndim; dd++) {
 		// clamp to roi
-		m_pos[m_center*m_ndim+dd] = m_roi[dd].first;
+		m_pos[m_center][dd] = m_roi[dd].first;
 	}
 	
 	// calculate ND positions for each other offset
 	for(size_t oo=0; oo<m_numoffs; oo++) {
 		for(size_t dd=0; dd<m_ndim; dd++) {
-			m_pos[oo*m_ndim+dd] = clamp(m_roi[dd].first, m_roi[dd].second,
-					m_pos[m_center*m_ndim+dd]+m_offs[oo*m_ndim+dd]);
+			m_pos[oo][dd] = clamp(m_roi[dd].first, m_roi[dd].second,
+					m_pos[m_center][dd]+m_offs[oo][dd]);
 		}
 	}
 
@@ -1927,7 +1953,7 @@ void KSlicer::goBegin()
 	for(size_t oo = 0; oo < m_numoffs; oo++) {
 		m_linpos[oo] = 0;
 		for(size_t dd=0; dd<m_ndim; dd++)
-			m_linpos[oo] += m_pos[oo*m_ndim+dd]*m_strides[dd];
+			m_linpos[oo] += m_pos[oo][dd]*m_strides[dd];
 	}
 	
 	m_end = false;
@@ -1942,14 +1968,14 @@ void KSlicer::goEnd()
 	// copy the center
 	for(size_t dd = 0; dd<m_ndim; dd++) {
 		// clamp to roi
-		m_pos[m_center*m_ndim+dd] = m_roi[dd].second;
+		m_pos[m_center][dd] = m_roi[dd].second;
 	}
 	
 	// calculate ND positions for each other offset
 	for(size_t oo=0; oo<m_numoffs; oo++) {
 		for(size_t dd=0; dd<m_ndim; dd++) {
-			m_pos[oo*m_ndim+dd] = clamp(m_roi[dd].first, m_roi[dd].second,
-					m_pos[m_center*m_ndim+dd]+m_offs[oo*m_ndim+dd]);
+			m_pos[oo][dd] = clamp(m_roi[dd].first, m_roi[dd].second,
+					m_pos[m_center][dd]+m_offs[oo][dd]);
 		}
 	}
 
@@ -1957,7 +1983,7 @@ void KSlicer::goEnd()
 	for(size_t oo = 0; oo < m_numoffs; oo++) {
 		m_linpos[oo] = 0;
 		for(size_t dd=0; dd<m_ndim; dd++)
-			m_linpos[oo] += m_pos[oo*m_ndim+dd]*m_strides[dd];
+			m_linpos[oo] += m_pos[oo][dd]*m_strides[dd];
 	}
 	
 	m_end = true;

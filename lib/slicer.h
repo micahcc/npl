@@ -1083,6 +1083,7 @@ public:
 	int64_t getK(int64_t kit) const {
 		assert(!m_end);
 		assert(kit < m_numoffs);
+        assert(m_linpos[kit] >= 0);
 		return m_linpos[kit];
 	};
 	
@@ -1095,6 +1096,7 @@ public:
 	int64_t operator[](int64_t kit) const {
 		assert(!m_end);
 		assert(kit < m_numoffs);
+        assert(m_linpos[kit] >= 0);
 		return m_linpos[kit];
 	};
 
@@ -1171,7 +1173,8 @@ protected:
 	size_t m_numoffs; // setRadius/setWindow/
 
     // NDIM*OFFSET, D0O0, D1O0, D2O0, D0O1, ... 
-	std::vector<int64_t> m_offs; // setRadius/setWindow
+	std::vector<int64_t*> m_offs; // setRadius/setWindow
+	std::vector<int64_t> m_offs_raw; // setRadius/setWindow
 	size_t m_center;  // setRadius/setWindow
 	int64_t m_fradius; //forward radius, should be positive
 	int64_t m_rradius; //reverse radius, should be positive
@@ -1182,7 +1185,8 @@ protected:
 
 	// goBegin/goEnd/goIndex
 	bool m_end;
-	std::vector<int64_t> m_pos;
+	std::vector<int64_t*> m_pos;
+	std::vector<int64_t> m_pos_raw;
 	std::vector<int64_t> m_linpos;
 
 };

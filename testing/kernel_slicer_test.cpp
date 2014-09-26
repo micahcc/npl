@@ -34,6 +34,7 @@ int main()
   std::vector<size_t> kern({1,1,1});
   npl::KSlicer it(4, sz);
   it.setRadius(kern);
+  it.setOrder(); // re-initialize order that is best for radius
 
   assert(it.isBegin());
   assert(!it.isEnd());
@@ -99,6 +100,10 @@ int main()
                   it.indexK(neighbor, 4, index.data(), true);
                   if(teff != index[3]) {
                     cerr << "Incorrect t map" << endl;
+                    cerr << "[" << xx << "," << yy << "," << zz << "," << tt << "]" << endl;
+                    cerr << "[" << xxo << "," << yyo << "," << zzo << "," << tto << "]" << endl;
+                    cerr << "[" << xeff << "," << yeff << "," << zeff << "," << teff << "]" << endl;
+                    cerr << "vs\n[" << index[0] << "," << index[1] << "," << index[2] << "," << index[3] << "]" << endl;
                     return -1;
                   }
 
