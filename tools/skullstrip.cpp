@@ -36,7 +36,70 @@ using namespace npl;
 using Eigen::JacobiSVD;
 using Eigen::ComputeFullV;
 using Eigen::ComputeFullU;
-	
+
+///**
+// * @brief 
+// *
+// * @param size_t Number of dimensions
+// * @param size_t Dimensions (size) of image
+// * @param int64_t ND Index
+// */
+//typedef std::function<void(size_t, size_t*, int64_t*) NDFunction;
+//
+///**
+// * @brief 
+// *
+// * @param size_t Number of dimensions
+// * @param size_t Dimensions (size) of image
+// * @param int64_t ND Index
+// * @param int64_t Offset
+// * @param int64_t Clamped Offset
+// */
+//typedef std::function<void(size_t, size_t*, int64_t*, int64_t*, int64_t*) NDKFunction;
+//
+//template <>
+//int foreachND<3>(NDFunction foo, size_t* sz)
+//{
+//    int64_t index[3];
+//    int64_t clamped[3];
+//    for(int64_t index[0]=0; index[0] < sz[0]; index[0]++) {
+//    for(int64_t index[1]=0; index[1] < sz[1]; index[1]++) {
+//    for(int64_t index[2]=0; index[2] < sz[2]; index[2]++) {
+//        foo(3, sz, index);
+//    }
+//    }
+//    }
+//}
+//
+//template <size_t D>
+//int foreachKernND(NDKFunction foo, size_t* sz, int64_t radius)
+//{
+//}
+//
+//template <>
+//int foreachNDKernel<3>(NDKFunction foo, size_t* sz, int64_t radius)
+//{
+//    int64_t index[1];
+//    int64_t offset[1];
+//    int64_t clamped[1];
+//    for(int64_t index[0]=0; index[0] < sz[0]; index[0]++) {
+//    for(int64_t index[1]=0; index[1] < sz[1]; index[1]++) {
+//    for(int64_t index[2]=0; index[2] < sz[2]; index[2]++) {
+//        for(int64_t offset[0]=-radius; offset[0] <= radius; offset[0]++) {
+//        for(int64_t offset[1]=-radius; offset[1] <= radius; offset[1]++) {
+//        for(int64_t offset[2]=-radius; offset[2] <= radius; offset[2]++) {
+//            clamped[0] = clamp<int64_t>(0, sz[0]-1, index[0] + offset[0]);
+//            clamped[1] = clamp<int64_t>(0, sz[1]-1, index[1] + offset[1]);
+//            clamped[1] = clamp<int64_t>(0, sz[2]-1, index[2] + offset[2]);
+//            foo(3, sz, index, offset, clamped);
+//        }
+//        }
+//        }
+//    }
+//    }
+//    }
+//}
+//
 /**
  * @brief Generates a point cloud, stored in a KDTree based on locally large
  * scalar values, in the scale image. Coorresponding information in the vector
@@ -142,6 +205,7 @@ void genPoints(ptr<const MRImage> scale,
 
     // create output image
     vector<size_t> osize(vimg->dim(), vimg->dim()+vimg->ndim());
+    vector<size_t> sz(scale->dim(), scale->dim()+scale->ndim());
     osize[3] = 6;
 
     auto lambdas = vimg->createAnother(osize.size(), osize.data());
@@ -161,12 +225,9 @@ void genPoints(ptr<const MRImage> scale,
     Pixel3DView<double> dm_ac(direction_mean);
     Pixel3DView<double> dv_ac(direction_var);
 
-    // iterator
-    KernelIter<double> it(scale); 
-    it.setRadius(radius);
-
     // vimg accessor
-    Vector3DConstView<double> vac(vimg);
+    Pixel3DConstView<double> s_ac(scale);
+    Vector3DConstView<double> v_ac(vimg);
     
     //split here
     size_t ksp = clamp<int64_t>(0, it.ksize()-1, it.ksize()*(1-pct)); 
@@ -184,15 +245,27 @@ void genPoints(ptr<const MRImage> scale,
 
     int count = 0;
     // go through every point, and the neighborhood of every point
-    vector<int64_t> index(4);
-    for(it.goBegin(); !it.eof(); ++it) {
-        // take the neighborhood values
-        for(size_t k = 0; k < it.ksize(); k++) 
-            vals[k] = it[k];
+    for(int64_t xx = 0; xx < sz[0]; ++xx){
+    for(int64_t yy = 0; yy < sz[1]; ++yy){
+    for(int64_t zz = 0; zz < sz[2]; ++zz){
+
+        size_t k = 0;
+        for(int64_t xxo = -radius; xxo <= radius; ++xxo){
+            for(int64_t yyo = -radius; yyo <= radius; ++yyo){
+                for(int64_t zzo = -radius; zzo <= radius; ++zzo, k++){
+                    int64_t xeff = clamp(0, sz[0]-1, xx+xxo);
+                    int64_t yeff = clamp(0, sz[1]-1, yy+yyo);
+                    int64_t zeff = clamp(0, sz[2]-1, zz+zzo);
+
+                    // take the values in the scalar image
+                    vals[k] = s_ac(xeff, yeff, zeff);
+                }
+            }
+        }
 
         // sort
         std::sort(vals.begin(), vals.end());
-
+        
         if(count == 101 || count == 102) 
             cerr << "Computing Covariance/Mean For:" << endl;
 
@@ -202,34 +275,38 @@ void genPoints(ptr<const MRImage> scale,
         vmean.setZero();
         pcov.setZero();
         vcov.setZero();
-        for(size_t k = 0; k < it.ksize(); k++) {
-            if(it[k] > vals[ksp]) {
-                // compute weight from offset from center
-                double w = 1;
-                for(size_t dd=0; dd<3; dd++)
-                    w *= B3kern(it.offsetK(k,dd), radius);
+        for(int64_t xxo = -radius; xxo <= radius; ++xxo){
+            for(int64_t yyo = -radius; yyo <= radius; ++yyo){
+                for(int64_t zzo = -radius; zzo <= radius; ++zzo, k++){
+                    int64_t xeff = clamp(0, sz[0]-1, xx+xxo);
+                    int64_t yeff = clamp(0, sz[1]-1, yy+yyo);
+                    int64_t zeff = clamp(0, sz[2]-1, zz+zzo);
+                    
+                    if(s_ac(xeff, yeff, zeff) > vals[ksp]) {
+                        // compute weight from offset from center
+                        double w = B3kern(xxo, radius)*B3kern(yyo,radius)*
+                                B3kern(zzo, radius);
 
-                // get position of found point
-                it.indexK(k, 3, index.data());
+                        tmp[0] = xx*w;
+                        tmp[1] = yy*w;
+                        tmp[2] = zz*w;
+                        pmean += tmp;
+                        pcov += tmp*tmp.transpose();
+                        if(count == 101) 
+                            cerr << tmp.transpose() << endl;
 
-                // sample position
-                for(size_t dd=0; dd<3; dd++) 
-                    tmp[dd] = w*index[dd];
-                pmean += tmp;
-                pcov += tmp*tmp.transpose();
-                if(count == 101) 
-                    cerr << tmp.transpose() << endl;
-
-                // gradient (normalized), because we have already established
-                // this is a large gradient 
-                for(size_t dd=0; dd<3; dd++) {
-                    tmp[dd] = w*vac(index[0], index[1], index[2], dd);
+                        // gradient (normalized), because we have already established
+                        // this is a large gradient 
+                        tmp[0] = w*vac(xeff, yeff, zeff, 0);
+                        tmp[1] = w*vac(xeff, yeff, zeff, 1);
+                        tmp[2] = w*vac(xeff, yeff, zeff, 2);
+                        tmp.normalize();
+                        vmean += tmp;
+                        vcov += tmp*tmp.transpose();
+                        if(count == 102) 
+                            cerr << tmp.transpose() << endl;
+                    }
                 }
-                tmp.normalize();
-                vmean += tmp;
-                vcov += tmp*tmp.transpose();
-                if(count == 102) 
-                    cerr << tmp.transpose() << endl;
             }
         }
 
@@ -250,8 +327,6 @@ void genPoints(ptr<const MRImage> scale,
             cerr << "Mean\n" << vmean.transpose() << endl << endl;
         }
 
-        it.indexC(3, index.data());
-
         /**********************************************************************
          * Scatter Metrics
          * for point location covariance we want the direction of minimal
@@ -265,7 +340,7 @@ void genPoints(ptr<const MRImage> scale,
         for(size_t dd=0; dd<3; dd++) {
             // set eigenvalues
             double lambda = esolve.eigenvalues()[dd].real();
-            l_ac.set(index[0], index[1], index[2], dd, lambda);
+            l_ac.set(xx, yy, zz, dd, lambda);
 
             if(lambda < bestlambda) {
                 bestlambda = lambda;
@@ -276,14 +351,14 @@ void genPoints(ptr<const MRImage> scale,
         for(size_t dd=0; dd<3; dd++) {
             // set direction of minimal eigenvalue
             double lambda = esolve.eigenvectors().col(bestlambda_i)[dd].real();
-            sn_ac.set(index[0], index[1], index[2], dd, lambda);
+            sn_ac.set(xx, yy, zz, dd, lambda);
 
             // divide other two by minimum
             if(dd != bestlambda_i) 
                 metric += lambda;
         }
         metric /= esolve.eigenvalues()[bestlambda_i].real();
-        sm_ac.set(index[0], index[1], index[2], metric);
+        sm_ac.set(xx, yy, zz, metric);
 
         /**********************************************************************
          * Vector Metrics
@@ -298,7 +373,7 @@ void genPoints(ptr<const MRImage> scale,
         bestlambda = -INFINITY; // max
         for(size_t dd=0; dd<3; dd++) {
             double lambda = esolve.eigenvalues()[dd].real();
-            l_ac.set(index[0], index[1], index[2], dd+3, lambda);
+            l_ac.set(xx, yy, zz, dd+3, lambda);
             if(lambda > bestlambda) {
                 bestlambda = lambda;
                 bestlambda_i = dd;
@@ -310,19 +385,22 @@ void genPoints(ptr<const MRImage> scale,
         for(size_t dd=0; dd<3; dd++) {
             // best eigenvector
             double ev = esolve.eigenvectors().col(bestlambda_i)[dd].real();
-            gs_ac.set(index[0], index[1], index[2], dd, ev);
+            gs_ac.set(xx, yy, zz, dd, ev);
         }
 
         // compute metric and save mean vector
         for(size_t dd=0; dd<3; dd++) {
             double lambda = esolve.eigenvalues()[dd].real();
-            gd_ac.set(index[0], index[1], index[2], dd, vmean[dd]);
+            gd_ac.set(xx, yy, zz, dd, vmean[dd]);
             if(dd != bestlambda_i) 
                 metric += lambda;
         }
         metric = esolve.eigenvalues()[bestlambda_i].real()/metric; // FA
-        dv_ac.set(index[0], index[1], index[2], metric);
-        dm_ac.set(index[0], index[1], index[2], vmean.norm());
+        dv_ac.set(xx, yy, zz, metric);
+        dm_ac.set(xx, yy, zz, vmean.norm());
+    }
+    }
+    }
     }
     
     lambdas->write("lambdas.nii.gz");

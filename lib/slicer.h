@@ -856,7 +856,7 @@ protected:
  * 					would cause the iterator to range from (1,0,32) to
  * 					(5,9,100)
  */
-class KSlicer
+class KSlicer : public Slicer
 {
 public:
 	
@@ -885,38 +885,6 @@ public:
 	 *
 	 ***************************************************/
 
-	/**
-	 * @brief Sets the region of interest. During iteration or any motion the
-	 * position will not move outside the specified range
-	 *
-	 * @param roi	pair of [min,max] values in the desired hypercube
-	 */
-	void setROI(const std::vector<std::pair<int64_t, int64_t>> roi = {});
-	
-	/**
-	 * @brief Set the order of iteration, in terms of which dimensions iterate
-	 * the fastest and which the slowest.
-	 *
-	 * @param order order of iteration. {0,1,2} would mean that dimension 0 (x)
-	 * would move the fastest and 2 the slowest. If the image is a 5D image then
-	 * that unmentioned (3,4) would be the slowest.
-	 * @param revorder Reverse the speed of iteration. So the first dimension
-	 * in the order vector would in fact be the slowest and un-referenced
-	 * dimensions will be the fastest. (in the example for order this would be
-	 * 4 and 3).
-	 */
-	void setOrder(const std::vector<size_t> order = {}, bool revorder = false);
-	
-	/**
-	 * @brief Returns the array giving the order of dimension being traversed.
-	 * So 3,2,1,0 would mean that the next point in dimension 3 will be next,
-	 * when wrapping the next point in 2 is visited, when that wraps the next
-	 * in one and so on.
-	 *
-	 * @return Order of dimensions
-	 */
-	const std::vector<size_t>& getOrder() const { return m_order; } ;
-	
 	/**
 	 * @brief Set the radius of the kernel window. All directions will
 	 * have equal distance, with the radius in each dimension set by the
@@ -962,75 +930,6 @@ public:
 
 	/****************************************
 	 *
-	 * Query Location
-	 *
-	 ****************************************/
-	
-	/**
-	 * @brief Are we at the begining of iteration?
-	 *
-	 * @return true if we are at the begining
-	 */
-	bool isBegin() const { return m_linpos[m_center] == m_begin; };
-
-	/**
-	 * @brief Are we at the end of iteration? Note that this will be 1 past the
-	 * end, as typically is done in c++
-	 *
-	 * @return true if we are at the end
-	 */
-	bool isEnd() const { return m_end; };
-
-	/**
-	 * @brief Are we at the end of iteration? Note that this will be 1 past the
-	 * end, as typically is done in c++
-	 *
-	 * @return true if we are at the end
-	 */
-	bool eof() const { return m_end; };
-
-
-	/*************************************
-	 * Movement
-	 ***********************************/
-
-	/**
-	 * @brief Prefix iterator. Iterates in the order dictatored by the dimension
-	 * order passsed during construction or by setOrder
-	 *
-	 * @return 	new value of linear position
-	 */
-	KSlicer& operator++();
-	
-	/**
-	 * @brief Prefix negative  iterator. Iterates in the order dictatored by
-	 * the dimension order passsed during construction or by setOrder
-	 *
-	 * @return 	new value of linear position
-	 */
-	KSlicer& operator--();
-
-	/**
-	 * @brief Go to the beginning
-	 *
-	 */
-	void goBegin();
-
-	/**
-	 * @brief Jump to the end of iteration.
-	 *
-	 */
-	void goEnd();
-
-	/**
-	 * @brief Jump to the given position
-	 *
-	 * @param newpos	location to move to
-	 */
-	void goIndex(const std::vector<int64_t>& newpos);
-
-	/****************************************
-	 *
 	 * Actually get the linear location
 	 *
 	 ***************************************/
@@ -1044,7 +943,7 @@ public:
 	int64_t getC() const
 	{
 		assert(!m_end);
-		return m_linpos[m_center];
+		return m_linpos;
 	};
 	
 	/**
@@ -1057,7 +956,7 @@ public:
 	int64_t operator*() const
 	{
 		assert(!m_end);
-		return m_linpos[m_center];
+		return m_linpos;
 	};
 
 
@@ -1072,19 +971,18 @@ public:
 	 * @param len size of index
 	 * @param index output index variable
 	 */
-	void indexC(size_t len, int64_t* index) const;
+    inline
+	void indexC(size_t len, int64_t* index) const
+    {
+        indexK(m_center, len, index, true);
+    }
 	
 	/**
 	 * @brief Get index of i'th kernel (center-offset) element.
 	 *
 	 * @return linear position
 	 */
-	inline
-	int64_t getK(int64_t kit) const {
-		assert(!m_end);
-		assert(kit < m_numoffs);
-		return m_linpos[kit];
-	};
+	int64_t getK(int64_t kit, bool bound=true) const;
 	
 	/**
 	 * @brief Same as offset(int64_t kit)
@@ -1095,7 +993,7 @@ public:
 	int64_t operator[](int64_t kit) const {
 		assert(!m_end);
 		assert(kit < m_numoffs);
-		return m_linpos[kit];
+		return getK(kit);
 	};
 
 	/**
@@ -1115,6 +1013,21 @@ public:
 	void indexK(size_t kit, size_t len, int64_t* index, bool bound = true) const;
 
 	/**
+	 * @brief Get the ND position of the specified offset (kernel) element.
+	 *
+	 * @param kit Kernel index
+	 * @param dim Dimension of index you want
+	 * @param bound report the actual sampled point (ie point after clamping
+	 * position to be in the image. Interior points will be the same, but on
+	 * the boundary if you set bound you will only get indices inside the image
+	 * ROI, otherwise you would get values like -1, -1 -1 for radius 1 pos
+	 * 0,0,0
+	 *
+	 * @return position in particular direction
+	 */
+	int64_t indexK(size_t kit, size_t dim, bool bound = true) const;
+
+	/**
 	 * @brief Returns the distance from the center projected onto the specified
 	 * dimension. So center is {0,0,0}, and {1,2,1} would return 1,2,1 for inputs
 	 * dim=0, dim=1, dim=2
@@ -1124,7 +1037,10 @@ public:
 	 *
 	 * @return Offset from center of given pixel (kit)
 	 */
-	int64_t offsetK(size_t kit, size_t dim);
+    inline
+    int64_t offsetK(size_t kit, size_t dim) {
+        return m_offs[kit*m_ndim+dim];
+    }
 	
 	/**
 	 * @brief Returns offset from center of specified pixel (kit).
@@ -1136,7 +1052,11 @@ public:
 	 * the iteration dimensions, only the first len will be filled. If it is
 	 * longer the additional values won't be touched
 	 */
-	void offsetK(size_t kit, size_t len, int64_t* dindex) const;
+    inline
+    void offsetK(size_t kit, size_t len, int64_t* dindex) const {
+        for(size_t ii=0; ii<len && ii<m_ndim; ii++)
+            dindex[ii] = m_offs[kit*m_ndim+ii];
+    }
 
 	/**
 	 * @brief Get linear position
@@ -1148,40 +1068,16 @@ public:
 		return m_numoffs;
 	};
 
-	/**
-	 * @brief All around intializer. Sets all internal variables.
-	 *
-	 * @param ndim 	Rank (number of dimensions), also length of dim array
-     * @param dim Dimension (size) of memory block.
-	 */
-	void setDim(size_t ndim, const size_t* dim);
-
 protected:
-
-	// order of traversal, constructor initializes
-	size_t m_dim; // constructor
-	std::vector<size_t> m_size; // constructor
-	std::vector<size_t> m_strides; //constructor
-	
-	// setOrder
-	std::vector<size_t> m_order;
-
 	// setRadius/setWindow
 	// for each of the neighbors we need to know
 	size_t m_numoffs; // setRadius/setWindow/
-	std::vector<std::vector<int64_t>> m_offs; // setRadius/setWindow
+
+    /**
+     * @brief Stores the ijk... offset of each position
+     */
+	std::vector<int64_t> m_offs; // setRadius/setWindow
 	size_t m_center;  // setRadius/setWindow
-	int64_t m_fradius; //forward radius, should be positive
-	int64_t m_rradius; //reverse radius, should be positive
-
-	// setROI
-	std::vector<std::pair<int64_t,int64_t>> m_roi;
-	size_t m_begin;
-
-	// goBegin/goEnd/goIndex
-	bool m_end;
-	std::vector<std::vector<int64_t>> m_pos;
-	std::vector<int64_t> m_linpos;
 
 };
 

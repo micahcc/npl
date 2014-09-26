@@ -107,12 +107,12 @@ string regexErrorDescription(std::regex_error& e)
 }
 
 template <typename T>
-ptr<NDArray> copyHelp(ptr<const NDArray> in, regex re, const vector<string>& lookup)
+ptr<NDArray> copyHelp(ptr<const NDArray> in, const vector<bool>& keepers)
 {
     // figure out size
     size_t odim = 0;
-    for(size_t ii=0; ii<lookup.size(); ii++) {
-        if(regex_match(lookup[ii], re)) 
+    for(size_t ii=0; ii<keepers.size(); ii++) {
+        if(keepers[ii])
             odim++;
     }
 
@@ -129,7 +129,7 @@ ptr<NDArray> copyHelp(ptr<const NDArray> in, regex re, const vector<string>& loo
         size_t time_out = 0;
         for(size_t time_in=0; time_in<lookup.size(); time_in++) {
             // copy lines conditionally
-            if(regex_match(lookup[time_in], re)) 
+            if(keepers[time_in]) 
                 oit.set(time_out++, iit[time_in]);
         }
     }
@@ -258,7 +258,16 @@ int main(int argc, char* argv[])
             false,"*.txt", cmd);
 	
 	TCLAP::ValueArg<std::string> a_regex("r","regex", "Regular expression to "
-            "match values in the lookup file.", true, ".*", "regex", cmd);
+            "match values in the lookup file.", false, ".*", "regex", cmd);
+
+	TCLAP::ValueArg a_auto("a","auto", "If the lookup values are numberic "
+            "then this will break up the file into multiple files. Provide a"
+            "threshold for splitting here. ", false, 500, "maxdist", cmd);
+
+    TCLAP::SwitchArg a_auto_keepmin("K","keep-min", "Keep the volume for the "
+            "minimum group in every group. IE if the is a 'B=0' image then "
+            "it will always be aded to all ouptuts when auto-splitting",
+            true, cmd);
 
 	// parse arguments
 	cmd.parse(argc, argv);
@@ -269,38 +278,61 @@ int main(int argc, char* argv[])
         return -1;
     }
 	
-	regex re;
-	try {//std::regex::egrep
-		re.assign(a_regex.getValue());
-	} catch(regex_error& e) {
-        cerr << "Error in regular expression: '" << a_regex.getValue() << "'\n";
-        cerr << regexErrorDescription(e) << "\nQutting" << endl;
-		return -1;
-	}
-
-    // read lookup
-    vector<string> lookup;
-    ifstream ifs(a_lookup.getValue());
-    string v;
-    ifs >> v;
-    while(ifs.good()) {
-        lookup.push_back(v);
+    vector<int> keepers;
+    if(a_auto.isSet()) { 
+        // read lookup
+        vector<double> lookup;
+        ifstream ifs(a_lookup.getValue());
+        string v;
         ifs >> v;
-    }
-    
-	// figure out size
-	cerr << "Regex: " << a_regex.getValue() << endl;
-    vector<bool> keepers(lookup.size(), false);
-    size_t nkeepers = 0;
-    for(size_t ii=0; ii<lookup.size(); ii++) {
-        if(regex_match(lookup[ii], re)) {
-			cerr << left << setw(10) << lookup[ii] << " Matches, keeping" << endl;
-            keepers[ii] = true;
-            nkeepers++;
-        } else {
-			cerr << left << setw(10) << lookup[ii] << " Does not match, Removing" << endl;
-            keepers[ii] = false;
+        while(ifs.good()) {
+            lookup.push_back(v);
+            ifs >> v;
         }
+        
+        double scatter = 0;
+    } else {
+        if(!a_regex.isSet()){
+            cerr << "If not doing splitting auomaticlly, you need to provide a"
+                " regular expression to selected the desired group of "
+                "time-points" << endl;
+            return -1;
+        }
+
+        regex re;
+        try {//std::regex::egrep
+            re.assign(a_regex.getValue());
+        } catch(regex_error& e) {
+            cerr << "Error in regular expression: '" << a_regex.getValue() << "'\n";
+            cerr << regexErrorDescription(e) << "\nQutting" << endl;
+            return -1;
+        }
+
+        // read lookup
+        vector<string> lookup;
+        ifstream ifs(a_lookup.getValue());
+        string v;
+        ifs >> v;
+        while(ifs.good()) {
+            lookup.push_back(v);
+            ifs >> v;
+        }
+
+        // figure out size
+        cerr << "Regex: " << a_regex.getValue() << endl;
+        keepers.resize(lookup.size(), 0);
+        size_t nkeepers = 0;
+        for(size_t ii=0; ii<lookup.size(); ii++) {
+            if(regex_match(lookup[ii], re)) {
+                cerr << left << setw(10) << lookup[ii] << " Matches, keeping" << endl;
+                keepers[ii] = 1;
+                nkeepers++;
+            } else {
+                cerr << left << setw(10) << lookup[ii] << " Does not match, Removing" << endl;
+                keepers[ii] = 0;
+            }
+        }
+
     }
 
     // perform matched arrays first
@@ -311,64 +343,66 @@ int main(int argc, char* argv[])
     
     // perform
     auto img = dPtrCast<NDArray>(readMRImage(a_input.getValue()));
-	if(lookup.size() != img->tlen()) {
+	if(keepers.size() != img->tlen()) {
         cerr << "Error, number of volumes does not match number of values in "
-            "lookup (" << a_lookup.getValue() << endl;
+            "lookup" << endl;
         return -1;
     }
 
-    switch(img->type()) {
-        case UINT8:
-            img = copyHelp<uint8_t>(img, re, lookup);
-            break;
-        case INT16:
-            img = copyHelp<int16_t>(img, re, lookup);
-            break;
-        case INT32:
-            img = copyHelp<int32_t>(img, re, lookup);
-            break;
-        case FLOAT32:
-            img = copyHelp<float>(img, re, lookup);
-            break;
-        case COMPLEX64:
-            img = copyHelp<cfloat_t>(img, re, lookup);
-            break;
-        case FLOAT64:
-            img = copyHelp<double>(img, re, lookup);
-            break;
-        case RGB24:
-            img = copyHelp<rgb_t>(img, re, lookup);
-            break;
-        case INT8:
-            img = copyHelp<int8_t>(img, re, lookup);
-            break;
-        case UINT16:
-            img = copyHelp<uint16_t>(img, re, lookup);
-            break;
-        case UINT32:
-            img = copyHelp<uint32_t>(img, re, lookup);
-            break;
-        case INT64:
-            img = copyHelp<int64_t>(img, re, lookup);
-            break;
-        case UINT64:
-            img = copyHelp<uint64_t>(img, re, lookup);
-            break;
-        case FLOAT128:
-            img = copyHelp<long double>(img, re, lookup);
-            break;
-        case COMPLEX128:
-            img = copyHelp<cdouble_t>(img, re, lookup);
-            break;
-        case COMPLEX256:
-            img = copyHelp<cquad_t>(img, re, lookup);
-            break;
-        case RGBA32:
-            img = copyHelp<rgba_t>(img, re, lookup);
-            break;
-        default:
-            return -1;
-    }
+    if(a_auto.isSet()) {
+        ptr<MRImage> out;
+        switch(img->type()) {
+            case UINT8:
+                out = copyHelp<uint8_t>(img, keepers);
+                break;
+            case INT16:
+                out = copyHelp<int16_t>(img,keepers);
+                break;
+            case INT32:
+                out = copyHelp<int32_t>(img,keepers);
+                break;
+            case FLOAT32:
+                out = copyHelp<float>(img,keepers);
+                break;
+            case COMPLEX64:
+                out = copyHelp<cfloat_t>(img,keepers);
+                break;
+            case FLOAT64:
+                out = copyHelp<double>(img,keepers);
+                break;
+            case RGB24:
+                out = copyHelp<rgb_t>(img,keepers);
+                break;
+            case INT8:
+                out = copyHelp<int8_t>(img,keepers);
+                break;
+            case UINT16:
+                out = copyHelp<uint16_t>(img,keepers);
+                break;
+            case UINT32:
+                out = copyHelp<uint32_t>(img,keepers);
+                break;
+            case INT64:
+                out = copyHelp<int64_t>(img,keepers);
+                break;
+            case UINT64:
+                out = copyHelp<uint64_t>(img,keepers);
+                break;
+            case FLOAT128:
+                out = copyHelp<long double>(img,keepers);
+                break;
+            case COMPLEX128:
+                out = copyHelp<cdouble_t>(img,keepers);
+                break;
+            case COMPLEX256:
+                out = copyHelp<cquad_t>(img,keepers);
+                break;
+            case RGBA32:
+                out = copyHelp<rgba_t>(img,keepers);
+                break;
+            default:
+                return -1;
+        }
 
 	img->write(a_out.getValue());
 

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file kernel_slicer_test.cpp
+ * @file kernel_slicer_test.cpp Tests the kernel_slicer algorithm
  *
  *****************************************************************************/
 #include <cassert>
@@ -63,8 +63,8 @@ int main()
   it.goBegin();
   for(int64_t xx = 0; xx < sz[0]; ++xx){
     for(int64_t yy = 0; yy < sz[1]; ++yy){
-      for(int64_t tt = 0; tt < sz[3]; ++tt){
-        for(int64_t zz = 0; zz < sz[2]; ++zz, ++it){
+      for(int64_t zz = 0; zz < sz[2]; ++zz){
+        for(int64_t tt = 0; tt < sz[3]; ++tt, ++it){
           int64_t neighbor = 0;
           for(int64_t xxo = -1; xxo <= 1; ++xxo){
             for(int64_t yyo = -1; yyo <= 1; ++yyo){
@@ -117,12 +117,13 @@ int main()
   }
   assert(it.isEnd());
 
+//  it.goEnd();
   --it;
   // iterating backward
   for(int xx = sz[0]-1; xx >= 0; xx--){
     for(int yy = sz[1]-1; yy >= 0; yy--){
-      for(int tt = sz[3]-1; tt >= 0; tt--){
-        for(int zz = sz[2]-1; zz >= 0; zz--, --it){
+      for(int zz = sz[2]-1; zz >= 0; zz--){
+        for(int tt = sz[3]-1; tt >= 0; tt--, --it){
           int64_t neighbor = 0;
           for(int64_t xxo = -1; xxo <= 1; ++xxo){
             for(int64_t yyo = -1; yyo <= 1; ++yyo){
@@ -179,8 +180,8 @@ int main()
   it.goBegin();
   for(int64_t xx = 0; xx < sz[0]; ++xx){
     for(int64_t yy = 0; yy < sz[1]; ++yy){
-      for(int64_t tt = 0; tt < sz[3]; ++tt){
-        for(int64_t zz = 0; zz < sz[2]; ++zz, ++it){
+      for(int64_t zz = 0; zz < sz[2]; ++zz){
+        for(int64_t tt = 0; tt < sz[3]; ++tt,  ++it){
           int64_t neighbor = 0;
           for(int64_t xxo = -2; xxo <= 1; ++xxo){
             for(int64_t yyo = -1; yyo <= 0; ++yyo){
@@ -234,8 +235,8 @@ int main()
   // iterating backward
   for(int xx = sz[0]-1; xx >= 0; xx--){
     for(int yy = sz[1]-1; yy >= 0; yy--){
-      for(int tt = sz[3]-1; tt >= 0; tt--){
-        for(int zz = sz[2]-1; zz >= 0; zz--, --it){
+      for(int zz = sz[2]-1; zz >= 0; zz--){
+        for(int tt = sz[3]-1; tt >= 0; tt--, --it){
           int64_t neighbor = 0;
           for(int64_t xxo = -2; xxo <= 1; ++xxo){
             for(int64_t yyo = -1; yyo <= 0; ++yyo){
@@ -289,8 +290,8 @@ int main()
   // jumping to the current location
   for(int xx = sz[0]-1; xx >= 0; xx--){
     for(int yy = sz[1]-1; yy >= 0; yy--){
-      for(int tt = sz[3]-1; tt >= 0; tt--){
-        for(int zz = sz[2]-1; zz >= 0; zz--){
+      for(int zz = sz[2]-1; zz >= 0; zz--){
+        for(int tt = sz[3]-1; tt >= 0; tt--){
           int64_t neighbor = 0;
           index[0] = xx;
           index[1] = yy;
