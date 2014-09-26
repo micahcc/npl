@@ -86,15 +86,15 @@ int main(int argc, char** argv)
     auto deriv = dPtrCast<MRImage>(sobelEdge(inimg));
     cerr << *deriv << endl;
     deriv->write("sobel.nii.gz");
-//    auto absderiv = dPtrCast<MRImage>(collapseSum(deriv, 3, true));
-//    cerr << *absderiv << endl;
-//    absderiv->write("sobel_abs.nii.gz");
-//
-//    /*****************************
-//     * create point list from edges (based on top quartile of edges in each
-//     * window) then extract points that meet local shape criteria 
-//     ****************************/
-//	genPoints(absderiv, deriv, .3, 3);
+    auto absderiv = dPtrCast<MRImage>(collapseSum(deriv, 3, true));
+    cerr << *absderiv << endl;
+    absderiv->write("sobel_abs.nii.gz");
+
+    /*****************************
+     * create point list from edges (based on top quartile of edges in each
+     * window) then extract points that meet local shape criteria 
+     ****************************/
+	genPoints(absderiv, deriv, .3, 3);
 //    points = shapeFilter(points);
 //    auto mask = pointsToMask(inimg, points);
 
@@ -181,12 +181,14 @@ void genPoints(ptr<const MRImage> scale,
     Eigen::Vector3d pmean; 
     Eigen::Matrix3d vcov; // vector (gradient) matrix
     Eigen::Vector3d vmean; 
+    Eigen::Vector3d lambdas; 
     Eigen::EigenSolver<Matrix3d> esolve;
 
     int count = 0;
     // go through every point, and the neighborhood of every point
     vector<int64_t> index(4);
     for(it.goBegin(); !it.eof(); ++it) {
+        count++;
         // take the neighborhood values
         for(size_t k = 0; k < it.ksize(); k++) 
             vals[k] = it[k];
@@ -203,19 +205,23 @@ void genPoints(ptr<const MRImage> scale,
         vmean.setZero();
         pcov.setZero();
         vcov.setZero();
+        size_t n = 0; 
         for(size_t k = 0; k < it.ksize(); k++) {
             if(it[k] > vals[ksp]) {
+                // note the exact number of matching could vary due to
+                // enditical values
+                
                 // compute weight from offset from center
-                double w = 1;
-                for(size_t dd=0; dd<3; dd++)
-                    w *= B3kern(it.offsetK(k,dd), radius);
+//                double w = 1./(it.ksize()-ksp);
+//                for(size_t dd=0; dd<3; dd++)
+//                    w *= B3kern(it.offsetK(k,dd), radius);
 
-                // get position of found point
-                it.indexK(k, 3, index.data());
+                // get offset of found point
+                it.offsetK(k, 3, index.data());
 
                 // sample position
                 for(size_t dd=0; dd<3; dd++) 
-                    tmp[dd] = w*index[dd];
+                    tmp[dd] = index[dd];
                 pmean += tmp;
                 pcov += tmp*tmp.transpose();
                 if(count == 101) 
@@ -223,14 +229,18 @@ void genPoints(ptr<const MRImage> scale,
 
                 // gradient (normalized), because we have already established
                 // this is a large gradient 
+                it.indexK(k, 3, index.data());
                 for(size_t dd=0; dd<3; dd++) {
-                    tmp[dd] = w*vac(index[0], index[1], index[2], dd);
+                    tmp[dd] = vac(index[0], index[1], index[2], dd);
                 }
                 tmp.normalize();
                 vmean += tmp;
                 vcov += tmp*tmp.transpose();
-                if(count == 102) 
+                if(count == 102) {
                     cerr << tmp.transpose() << endl;
+                }
+             
+                n++;
             }
         }
 
@@ -239,14 +249,20 @@ void genPoints(ptr<const MRImage> scale,
          */
 
         // make x*xt into covariance
-        pcov -= pmean*pmean.transpose();       
-        vcov -= vmean*vmean.transpose();       
+        pmean /= n;
+        pcov /= (n-1);
+        pcov -= (n/(n-1.))*pmean*pmean.transpose();       
+        
+        vmean /= n;
+        vcov /= (n-1);
+        vcov -= (n/(n-1.))*vmean*vmean.transpose();       
 
         if(count == 101) {
             cerr << "Covariance\n" << pcov << endl << endl;
             cerr << "Mean\n" << pmean.transpose() << endl << endl;
         }
         if(count == 102) {
+            cerr << n << endl;
             cerr << "Covariance\n" << vcov << endl << endl;
             cerr << "Mean\n" << vmean.transpose() << endl << endl;
         }
@@ -260,30 +276,31 @@ void genPoints(ptr<const MRImage> scale,
          *********************************************************************/
 
         esolve.compute(pcov, true);
+        if(count == 101) {
+            cerr << "Lambdas\n" << esolve.eigenvalues() << endl << endl;
+            cerr << "Evs\n" << esolve.eigenvectors() << endl << endl;
+        }
         double bestlambda = INFINITY; //min
         double metric = 0;
         int bestlambda_i = -1;
+        lambdas = esolve.eigenvalues().abs();
+        std::sort(lambdas.data(), lambdas.data()+3);
+
         for(size_t dd=0; dd<3; dd++) {
             // set eigenvalues
-            double lambda = esolve.eigenvalues()[dd].real();
-            l_ac.set(index[0], index[1], index[2], dd, lambda);
-
-            if(lambda < bestlambda) {
-                bestlambda = lambda;
-                bestlambda_i = dd;
-            }
+            l_ac.set(index[0], index[1], index[2], dd, lambdas[dd]);
         }
 
         for(size_t dd=0; dd<3; dd++) {
             // set direction of minimal eigenvalue
-            double lambda = esolve.eigenvectors().col(bestlambda_i)[dd].real();
+            double lambda = fabs(esolve.eigenvectors().col(bestlambda_i)[dd].real());
             sn_ac.set(index[0], index[1], index[2], dd, lambda);
 
             // divide other two by minimum
             if(dd != bestlambda_i) 
                 metric += lambda;
         }
-        metric /= esolve.eigenvalues()[bestlambda_i].real();
+        metric /= fabs(esolve.eigenvalues()[bestlambda_i].real());
         sm_ac.set(index[0], index[1], index[2], metric);
 
         /**********************************************************************
@@ -295,10 +312,17 @@ void genPoints(ptr<const MRImage> scale,
          *********************************************************************/
 
         esolve.compute(vcov, ComputeFullU | ComputeFullV);
+        if(count == 102) {
+            cerr << "Lambdas\n" << esolve.eigenvalues() << endl << endl;
+            cerr << "Evs\n" << esolve.eigenvectors() << endl << endl;
+        }
         bestlambda_i = -1;
-        bestlambda = -INFINITY; // max
+        bestlambda = 0; // max
         for(size_t dd=0; dd<3; dd++) {
-            double lambda = esolve.eigenvalues()[dd].real();
+            double lambda = fabs(esolve.eigenvalues()[dd].real());
+        }
+
+        for(size_t dd=0; dd<3; dd++) {
             l_ac.set(index[0], index[1], index[2], dd+3, lambda);
             if(lambda > bestlambda) {
                 bestlambda = lambda;
@@ -316,12 +340,12 @@ void genPoints(ptr<const MRImage> scale,
 
         // compute metric and save mean vector
         for(size_t dd=0; dd<3; dd++) {
-            double lambda = esolve.eigenvalues()[dd].real();
+            double lambda = fabs(esolve.eigenvalues()[dd].real());
             gd_ac.set(index[0], index[1], index[2], dd, vmean[dd]);
             if(dd != bestlambda_i) 
                 metric += lambda;
         }
-        metric = esolve.eigenvalues()[bestlambda_i].real()/metric; // FA
+        metric = fabs(esolve.eigenvalues()[bestlambda_i].real()/metric); // FA
         dv_ac.set(index[0], index[1], index[2], metric);
         dm_ac.set(index[0], index[1], index[2], vmean.norm());
     }

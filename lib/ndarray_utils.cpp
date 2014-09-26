@@ -2070,8 +2070,8 @@ ptr<NDArray> sobelEdge(ptr<const NDArray> img)
 
     // sobel is the combination of 1 derivative with averaging in the other
     // dimensions
-    vector<double> der_profile({-1, 0, 1});
-    vector<double> avg_profile({ 1, 2, 1});
+    vector<double> der_profile({-0.5, 0, 0.5});
+    vector<double> avg_profile({0.25, 0.5, 0.25});
 
     //////////////////
     // iterate through
@@ -2094,7 +2094,7 @@ ptr<NDArray> sobelEdge(ptr<const NDArray> img)
         for(kit.goBegin(); !kit.eof() && !oit.eoc(); ++kit, ++oit) {
             double sum = 0;
             for(size_t kk=0; kk<kit.ksize(); kk++) {
-                kit.indexK(kk, index.size(), index.data());
+                kit.offsetK(kk, index.size(), index.data());
 
                 // compute weight of kernel element, note that because
                 // from_center is the offset from center, we need to add 1
