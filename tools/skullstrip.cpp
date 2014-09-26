@@ -78,6 +78,7 @@ int main(int argc, char** argv)
 		cerr << "Expected input to be 3D Image!" << endl;
 		return -1;
 	}
+    inimg = dPtrCast<MRImage>(inimg->copyCast(FLOAT32));
 	
     /*****************************
      * edge detection
@@ -85,15 +86,15 @@ int main(int argc, char** argv)
     auto deriv = dPtrCast<MRImage>(sobelEdge(inimg));
     cerr << *deriv << endl;
     deriv->write("sobel.nii.gz");
-    auto absderiv = dPtrCast<MRImage>(collapseSum(deriv, 3, true));
-    cerr << *absderiv << endl;
-    absderiv->write("sobel_abs.nii.gz");
-
-    /*****************************
-     * create point list from edges (based on top quartile of edges in each
-     * window) then extract points that meet local shape criteria 
-     ****************************/
-	genPoints(absderiv, deriv, .3, 3);
+//    auto absderiv = dPtrCast<MRImage>(collapseSum(deriv, 3, true));
+//    cerr << *absderiv << endl;
+//    absderiv->write("sobel_abs.nii.gz");
+//
+//    /*****************************
+//     * create point list from edges (based on top quartile of edges in each
+//     * window) then extract points that meet local shape criteria 
+//     ****************************/
+//	genPoints(absderiv, deriv, .3, 3);
 //    points = shapeFilter(points);
 //    auto mask = pointsToMask(inimg, points);
 
