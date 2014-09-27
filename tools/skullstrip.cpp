@@ -153,7 +153,7 @@ void genPoints(ptr<const MRImage> scale,
     Vector3DView<double> sn_ac(surface_norm);
     Vector3DView<double> gd_ac(grad_dir);
     Vector3DView<double> gs_ac(grad_scatter);
-    
+
     // theoretical metrics, not sure if they will work, so do them all
     auto scatter_metric = scale->createAnother(); 
     auto direction_mean = scale->createAnother(); 
@@ -181,8 +181,8 @@ void genPoints(ptr<const MRImage> scale,
     Eigen::Vector3d pmean; 
     Eigen::Matrix3d vcov; // vector (gradient) matrix
     Eigen::Vector3d vmean; 
-    Eigen::Vector3d lambdas; 
     Eigen::EigenSolver<Matrix3d> esolve;
+    int order[3] = {0,1,2};
 
     int count = 0;
     // go through every point, and the neighborhood of every point
@@ -213,6 +213,7 @@ void genPoints(ptr<const MRImage> scale,
                 
                 // compute weight from offset from center
 //                double w = 1./(it.ksize()-ksp);
+                double w = 1.;
 //                for(size_t dd=0; dd<3; dd++)
 //                    w *= B3kern(it.offsetK(k,dd), radius);
 
@@ -221,7 +222,7 @@ void genPoints(ptr<const MRImage> scale,
 
                 // sample position
                 for(size_t dd=0; dd<3; dd++) 
-                    tmp[dd] = index[dd];
+                    tmp[dd] = w*index[dd];
                 pmean += tmp;
                 pcov += tmp*tmp.transpose();
                 if(count == 101) 
@@ -231,7 +232,7 @@ void genPoints(ptr<const MRImage> scale,
                 // this is a large gradient 
                 it.indexK(k, 3, index.data());
                 for(size_t dd=0; dd<3; dd++) {
-                    tmp[dd] = vac(index[0], index[1], index[2], dd);
+                    tmp[dd] = w*vac(index[0], index[1], index[2], dd);
                 }
                 tmp.normalize();
                 vmean += tmp;
@@ -240,7 +241,7 @@ void genPoints(ptr<const MRImage> scale,
                     cerr << tmp.transpose() << endl;
                 }
              
-                n++;
+                n += w;
             }
         }
 
@@ -280,27 +281,23 @@ void genPoints(ptr<const MRImage> scale,
             cerr << "Lambdas\n" << esolve.eigenvalues() << endl << endl;
             cerr << "Evs\n" << esolve.eigenvectors() << endl << endl;
         }
-        double bestlambda = INFINITY; //min
-        double metric = 0;
-        int bestlambda_i = -1;
-        lambdas = esolve.eigenvalues().abs();
-        std::sort(lambdas.data(), lambdas.data()+3);
+
+        // order eigenvectors
+        std::sort(order, order+3, [&](int lhs, int rhs)
+        { 
+            return fabs(esolve.eigenvalues()[lhs].real()) < 
+                    fabs(esolve.eigenvalues()[rhs].real());
+        });
 
         for(size_t dd=0; dd<3; dd++) {
             // set eigenvalues
-            l_ac.set(index[0], index[1], index[2], dd, lambdas[dd]);
+            double lambda = fabs(esolve.eigenvalues()[order[dd]].real());
+            double ev = fabs(esolve.eigenvectors().col(order[0])[dd].real());
+            l_ac.set(index[0], index[1], index[2], dd, lambda);
+            sn_ac.set(index[0], index[1], index[2], dd, ev);
         }
-
-        for(size_t dd=0; dd<3; dd++) {
-            // set direction of minimal eigenvalue
-            double lambda = fabs(esolve.eigenvectors().col(bestlambda_i)[dd].real());
-            sn_ac.set(index[0], index[1], index[2], dd, lambda);
-
-            // divide other two by minimum
-            if(dd != bestlambda_i) 
-                metric += lambda;
-        }
-        metric /= fabs(esolve.eigenvalues()[bestlambda_i].real());
+        double metric = fabs(esolve.eigenvalues()[order[0]].real() / 
+                    esolve.eigenvalues()[order[2]].real());
         sm_ac.set(index[0], index[1], index[2], metric);
 
         /**********************************************************************
@@ -316,36 +313,24 @@ void genPoints(ptr<const MRImage> scale,
             cerr << "Lambdas\n" << esolve.eigenvalues() << endl << endl;
             cerr << "Evs\n" << esolve.eigenvectors() << endl << endl;
         }
-        bestlambda_i = -1;
-        bestlambda = 0; // max
-        for(size_t dd=0; dd<3; dd++) {
-            double lambda = fabs(esolve.eigenvalues()[dd].real());
-        }
+        
+        // order eigenvectors
+        std::sort(order, order+3, [&](int lhs, int rhs)
+        { 
+            return fabs(esolve.eigenvalues()[lhs].real()) < 
+                    fabs(esolve.eigenvalues()[rhs].real());
+        });
 
         for(size_t dd=0; dd<3; dd++) {
+            double lambda = fabs(esolve.eigenvalues()[order[dd]].real());
+            double ev = esolve.eigenvectors().col(order[2])[dd].real();
             l_ac.set(index[0], index[1], index[2], dd+3, lambda);
-            if(lambda > bestlambda) {
-                bestlambda = lambda;
-                bestlambda_i = dd;
-            }
-        }
-
-        // set direction of maximum eigenvalue and mean
-        metric = 0;
-        for(size_t dd=0; dd<3; dd++) {
-            // best eigenvector
-            double ev = esolve.eigenvectors().col(bestlambda_i)[dd].real();
             gs_ac.set(index[0], index[1], index[2], dd, ev);
-        }
-
-        // compute metric and save mean vector
-        for(size_t dd=0; dd<3; dd++) {
-            double lambda = fabs(esolve.eigenvalues()[dd].real());
             gd_ac.set(index[0], index[1], index[2], dd, vmean[dd]);
-            if(dd != bestlambda_i) 
-                metric += lambda;
         }
-        metric = fabs(esolve.eigenvalues()[bestlambda_i].real()/metric); // FA
+        metric = fabs(esolve.eigenvalues()[order[2]].real()/
+                (esolve.eigenvalues()[order[1]].real()+
+                esolve.eigenvalues()[order[0]].real())); 
         dv_ac.set(index[0], index[1], index[2], metric);
         dm_ac.set(index[0], index[1], index[2], vmean.norm());
     }
