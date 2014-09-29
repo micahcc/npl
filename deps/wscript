@@ -4,6 +4,7 @@ def build(bld):
     bld(name = 'EIGEN', export_includes = ['eigen'])
 
     bld.recurse('optimizers/lib optimizers/testing')
+    bld.recurse('mathparse')
 #    if bld.env.STATIC_LINK:
 #        bld.stlib(target='alglib', features='cxx', 
 #                source = bld.path.ant_glob('alglib/src/*.cpp'),

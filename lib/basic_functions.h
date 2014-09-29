@@ -17,6 +17,7 @@
  * purposes, including bounding indexes, and window functions 
  *
  *****************************************************************************/
+
 #ifndef BASIC_FUNCTIONS_H
 #define BASIC_FUNCTIONS_H
 
