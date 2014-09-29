@@ -45,33 +45,33 @@ def build(bld):
             target='array_test2', 
             source='array_test2.cpp', 
             use='ndarray slicer')
-    
+
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='array_test3', 
             source='array_test3.cpp', 
             use='ndarray iterators')
-    
+
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='array_test4', 
             source='array_test4.cpp', 
             use='ndarray iterators')
-    
+
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='kernel_slicer_test', 
             source='kernel_slicer_test.cpp',
             use='slicer')
-    
+
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='kern_test', 
             source='kern_test.cpp',
             use='iterators ndarray')
 
-    
+
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='ndarray_accessor_test1', 
             source='ndarray_accessor_test1.cpp', 
             use='ndarray accessors')
-    
+
     # test nifti orientation
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='nifti_orient_test1', 
@@ -103,16 +103,52 @@ def build(bld):
             target='nifti_rwrw_test', 
             source='nifti_rwrw_test.cpp', 
             use='nplio')
-    
+
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='img_nn_interp_test', 
             source='img_nn_interp_test.cpp', 
-            use='mrimage_utils')
-    
+            use='mrimage_utils accessors mrimage_utils iterators')
+
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='img_nn_interp_test2', 
+            source='img_nn_interp_test2.cpp', 
+            use='mrimage_utils accessors mrimage iterators')
+
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='img_nn_interp_test3', 
+            source='img_nn_interp_test3.cpp', 
+            use='mrimage_utils accessors mrimage iterators')
+
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='img_lin_interp_test', 
             source='img_lin_interp_test.cpp', 
             use='mrimage_utils')
+
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='img_lin_interp_test2', 
+            source='img_lin_interp_test2.cpp', 
+            use='mrimage_utils mrimage accessors iterators')
+
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='img_lin_interp_test3', 
+            source='img_lin_interp_test3.cpp', 
+            use='mrimage_utils mrimage accessors iterators')
+    
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='img_lanczos_interp_test1', 
+            source='img_lanczos_interp_test1.cpp', 
+            use='mrimage_utils')
+
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='img_lanczos_interp_test2', 
+            source='img_lanczos_interp_test2.cpp', 
+            use='mrimage_utils mrimage accessors iterators')
+
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='img_lanczos_interp_test3', 
+            source='img_lanczos_interp_test3.cpp', 
+            use='mrimage_utils mrimage accessors iterators')
+
 
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='img_kernel_test', 
@@ -129,12 +165,12 @@ def build(bld):
             target='kdtree_test',
             source='kdtree_test.cpp', 
             use='kdtree')
-    
+
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='kdtree_test2',
             source='kdtree_test2.cpp', 
             use='kdtree')
-    
+
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='kdtree_test3',
             source='kdtree_test3.cpp', 
@@ -149,7 +185,7 @@ def build(bld):
             target='kdtree_test_grid', 
             source='kdtree_test_grid.cpp', 
             use='kdtree')
-    
+
     # nifti tests
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='nifti_test1', 
@@ -160,7 +196,7 @@ def build(bld):
             target='nifti_test2', 
             source='nifti_test2.cpp', 
             use='nplio')
-    
+
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='nifti_test3', 
             source='nifti_test3.cpp', 
@@ -175,12 +211,12 @@ def build(bld):
             target='imgiter_test1', 
             source='imgiter_test1.cpp', 
             use='nplio iterators') 
-    
+
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='chunkiter_test', 
             source='chunkiter_test.cpp', 
             use='iterators mrimage')
-    
+
     #json tests
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='json_write1', 
@@ -202,7 +238,7 @@ def build(bld):
             target='fft_test', 
             source='fft_test.cpp', 
             use='ndarray_utils utility mrimage_utils iterators') 
-   
+
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='fft_shift_test', 
             source='fft_shift_test.cpp', 
@@ -232,12 +268,12 @@ def build(bld):
             target='chirpz_test2', 
             source='chirpz_test2.cpp', 
             use='chirpz') 
-    
+
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='pseudopolar_test', 
             source='pseudopolar_test.cpp', 
             use='chirpz ndarray_utils utility mrimage_utils iterators') 
-    
+
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='pseudopolar_test2', 
             source='pseudopolar_test2.cpp', 
@@ -247,17 +283,17 @@ def build(bld):
             target='pseudopolar_test3', 
             source='pseudopolar_test3.cpp', 
             use='chirpz ndarray_utils utility mrimage_utils iterators') 
-    
+
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='pseudopolar_test4', 
             source='pseudopolar_test4.cpp', 
             use='chirpz ndarray_utils utility mrimage_utils iterators') 
-    
+
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='pseudopolar_axis_test1', 
             source='pseudopolar_axis_test1.cpp', 
             use='ndarray_utils utility mrimage_utils iterators EIGEN') 
-    
+
     # Statistics tests
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='ica_test', 
@@ -294,7 +330,7 @@ def build(bld):
             target='rigid_reg_test1', 
             source='rigid_reg_test1.cpp', 
             use='registration')
-    
+
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='rigid_reg_test2', 
             source='rigid_reg_test2.cpp', 
@@ -320,12 +356,12 @@ def build(bld):
             target='concat_test1', 
             source='concat_test1.cpp', 
             use='mrimage ndarray_utils')
-    
+
     bld.program(install_path='${PREFIX}/tests',  features='test',
             target='concat_test2', 
             source='concat_test2.cpp', 
             use='mrimage ndarray_utils')
-    
+
     bld.program(install_path='${PREFIX}/tests',  features='test',
             target='concat_test3', 
             source='concat_test3.cpp', 

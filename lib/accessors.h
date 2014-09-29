@@ -906,18 +906,12 @@ public:
 		vector<vector<double>> karray(ndim, vector<double>(KPOINTS));
 		vector<vector<int64_t>> indarray(ndim, vector<int64_t>(KPOINTS));
 
-		for(int dd = 0; dd < ndim && dd<len; dd++) {
-			indarray[dd][0] = floor(cindex[dd]);
-			indarray[dd][1] = indarray[dd][0]+1; //make sure they aren't the same
-			karray[dd][0] = linKern(indarray[dd][0]-cindex[dd]);
-			karray[dd][1] = linKern(indarray[dd][1]-cindex[dd]);
-		}
-        // defualt missing values in cindex to 0
 		for(int dd = 0; dd < ndim; dd++) {
-			indarray[dd][0] = floor(0);
+            double C = dd < len ? cindex[dd] : 0; 
+			indarray[dd][0] = floor(C);
 			indarray[dd][1] = indarray[dd][0]+1; //make sure they aren't the same
-			karray[dd][0] = linKern(indarray[dd][0]-0);
-			karray[dd][1] = linKern(indarray[dd][1]-0);
+			karray[dd][0] = linKern(indarray[dd][0]-C);
+			karray[dd][1] = linKern(indarray[dd][1]-C);
 		}
 
 		bool iioutside = false;
@@ -1326,16 +1320,21 @@ public:
 		vector<int64_t> index(ndim,0);
         if(m_boundmethod == ZEROFLUX) {
             // clamp
-            for(size_t dd=0; dd<ndim&& dd<len; dd++)
-                index[dd] = clamp<int64_t>(0, dim[dd]-1, round(cindex[dd]));
+            for(size_t dd=0; dd<ndim; dd++) {
+                double C = dd < len ? cindex[dd] : 0; 
+                index[dd] = clamp<int64_t>(0, dim[dd]-1, round(C));
+            }
         } else if(m_boundmethod == WRAP) {
             // wrap
-            for(size_t dd=0; dd<ndim; dd++)
-                index[dd] = wrap<int64_t>(0, dim[dd]-1, round(index[dd]));
+            for(size_t dd=0; dd<ndim; dd++) {
+                double C = dd < len ? cindex[dd] : 0; 
+                index[dd] = wrap<int64_t>(0, dim[dd]-1, round(C));
+            }
         } else {
             for(size_t dd=0; dd<ndim; dd++) {
-                index[dd] = round(cindex[dd]);
-                if(index[dd] < 0 || index[dd] > dim[dd])
+                double C = dd < len ? cindex[dd] : 0; 
+                index[dd] = round(C);
+                if(index[dd] < 0 || index[dd] > dim[dd]-1)
                     return 0;
             }
         }
@@ -1706,7 +1705,7 @@ class LanczosInterp3DView : public Vector3DConstView<T>
 public:
 	LanczosInterp3DView(std::shared_ptr<const NDArray> in,
 				BoundaryConditionT bound = ZEROFLUX)
-                : NDConstView<T>(in), m_boundmethod(bound), m_ras(false),
+                : Vector3DConstView<T>(in), m_boundmethod(bound), m_ras(false),
                 m_radius(2)
 	{ };
 
