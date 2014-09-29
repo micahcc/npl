@@ -139,41 +139,53 @@ int main(int argc, char** argv)
     ptr<MRImage> out;
     {
         auto ptr = dPtrCast<MRImage>(readMRImage(args[refimg]));
-        imgargs[refimg].setArray(ptr);
-        if(type != UNKNOWN_TYPE) {
-            out = ptr->createAnother();
-        } else {
-            out = ptr->createAnother(type);
-        }
-    }
-
-    // load/resample non-reference imagesimages
-    for(auto it=args.begin(); it!=args.end(); ++it) {
-        // don't reload the reference
-        if(imgargs.count(it->first) == 0) {
-            // read image
-            auto ptr = dPtrCast<MRImage>(readMRImage(it->second));
-
-            //check dimensions
-            if(ptr->ndim() != out->ndim()) {
-                cerr << "Input image dimensions must match!" << endl;
-                usage(-1);
+        switch(resampler) {
+            case NEAREST: 
+            {
+                shared_ptr<NNInterpNDView<double>> interp(
+                        new NNInterpNDView<double>(ptr));
+                interp->m_ras = true;
+                imgargs[refimg] = interp;
             }
+            break;
+            case LINEAR:
+            {
+                shared_ptr<LinInterpNDView<double>> interp(
+                        new LinInterpNDView<double>(ptr));
+                interp->m_ras = true;
+                imgargs[refimg] = interp;
+            }
+            break;
+            default:
+            case LANCZOS:
+            {
+                shared_ptr<LanczosInterpNDView<double>> interp(
+                        new LanczosInterpNDView<double>(ptr));
+                interp->m_ras = true;
+                imgargs[refimg] = interp;
+            }
+            break;
+        }
 
-            // resample, create Viewer
-            imgargs[it->first].setArray(ptr);
+        if(type != UNKNOWN_TYPE) {
+            out = dPtrCast<MRImage>(ptr->createAnother());
+        } else {
+            out = dPtrCast<MRImage>(ptr->createAnother(type));
         }
     }
 
     // perform math
     vector<int64_t> ind(out->ndim());
+    vector<double> cind(out->ndim());
     for(NDIter<double> it(out); !it.eof(); ++it) {
-        // get index
+        // get index, point
         it.index(ind);
+        out->indexToPoint(ind.size(), ind.data(), cind.data());
+        out->indexToPoint(ind.size(), ind.data(), cind.data());
         
         // set all the values
         for(auto eit=imgargs.begin(); eit!=imgargs.end(); ++eit) {
-            double v = (eit->second)[ind];
+            double v = (*eit->second)[ind];
             expr.setarg(eit->first, v);
         }
 
@@ -182,8 +194,9 @@ int main(int argc, char** argv)
     }
 
     // write out image
-    out->wrtie(outname);
+    out->write(outname);
 }
+
 ///**
 // * @Brief Resamples this image into the same sapce as the input and returns
 // * the result. This is not modified.

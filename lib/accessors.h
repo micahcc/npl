@@ -150,7 +150,7 @@ public:
                 break;
         }
     }
-	
+
 	/**
 	 * @brief Gets value linear position in array, then casts to T
 	 *
@@ -160,7 +160,7 @@ public:
 	{
 		return castget(this->parent->__getAddr(index));
 	};
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -172,7 +172,7 @@ public:
 	{
 		return castget(this->parent->__getAddr(index));
 	};
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -185,7 +185,7 @@ public:
 	{
 		return castget(this->parent->__getAddr(len, index));
 	};
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -197,7 +197,7 @@ public:
 	{
 		return castget(this->parent->__getAddr(index));
 	};
-	
+
 	/**
 	 * @brief Casts to the appropriate type then sets array at given index.
 	 *
@@ -210,7 +210,7 @@ public:
 	{
 		return castset(this->parent->__getAddr(index), v);
 	};
-	
+
 	/**
 	 * @brief Casts to the appropriate type then sets array at given index.
 	 *
@@ -223,11 +223,11 @@ public:
 	{
 		return castset(this->parent->__getAddr(index), v);
 	};
-	
+
 	int64_t tlen() { return this->parent->tlen(); };
-	
+
 protected:
-	
+
 
 	/**
 	 * @brief This is a wrapper function that will be called to safely cast
@@ -243,7 +243,7 @@ protected:
 	{
 		return (T)(*(static_cast<U*>(ptr)));
 	};
-	
+
 	/**
 	 * @brief This is a wrapper function that will be called to safely cast
 	 * to the underlying type.
@@ -357,7 +357,7 @@ public:
 				break;
 		}
 	};
-	
+
 	/**
 	 * @brief Gets value linear position in array, then casts to T
 	 *
@@ -367,7 +367,7 @@ public:
 	{
 		return castget(this->parent->__getAddr(index));
 	};
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -379,7 +379,7 @@ public:
 	{
 		return castget(this->parent->__getAddr(index));
 	};
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -392,7 +392,7 @@ public:
 	{
 		return castget(this->parent->__getAddr(len, index));
 	};
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -404,11 +404,11 @@ public:
 	{
 		return castget(this->parent->__getAddr(index));
 	};
-	
+
 	int64_t tlen() { return this->parent->tlen(); };
-	
+
 protected:
-	
+
 
 	/**
 	 * @brief This is a wrapper function that will be called to safely cast
@@ -424,7 +424,7 @@ protected:
 	{
 		return (T)(*(static_cast<U*>(ptr)));
 	};
-	
+
 	/**
 	 * @brief Where to get the dat a from. Also the shared_ptr prevents dealloc
 	 */
@@ -463,7 +463,7 @@ public:
 	{
 		return this->castget(this->parent->__getAddr(x,y,z,0));
 	};
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -473,7 +473,7 @@ public:
 	{
 		return this->castget(this->parent->__getAddr(x,y,z,0));
 	};
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -483,9 +483,9 @@ public:
 	{
 		this->castset(this->parent->__getAddr(x,y,z,0), v);
 	};
-	
+
 protected:
-	
+
 	// Remove functions that aren't relevent from NDView
 	T operator[](int64_t i) { (void)(i); return T(); };
 	T get(const std::vector<int64_t>& i) {  (void)(i); return T(); };
@@ -511,20 +511,75 @@ public:
 	 *
 	 * @return value
 	 */
+    virtual
 	T operator()(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
 		return this->castget(this->parent->__getAddr(x,y,z,t));
 	};
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
 	 * @return value
 	 */
+    virtual
 	T get(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
 		return this->castget(this->parent->__getAddr(x,y,z,t));
 	};
+
+private:
+    //////////////////////////////////////////////////////
+    // Hide Non-3D Functrions from NDConstView
+    //////////////////////////////////////////////////////
+	
+    /**
+	 * @brief Gets value linear position in array, then casts to T
+	 *
+	 * @return value
+	 */
+	T operator[](int64_t index)
+	{
+		return castget(this->parent->__getAddr(index));
+	};
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index n-d index to access
+	 *
+	 * @return value
+	 */
+	T get(const std::vector<int64_t>& index)
+	{
+		return castget(this->parent->__getAddr(index));
+	};
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param len length of index array
+	 * @param index n-d index to access
+	 *
+	 * @return value
+	 */
+	T get(size_t len, int64_t* index)
+	{
+		return castget(this->parent->__getAddr(len, index));
+	};
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index n-d index to access
+	 *
+	 * @return value
+	 */
+	T operator[](const std::vector<int64_t>& index)
+	{
+		return castget(this->parent->__getAddr(index));
+	};
+
 };
 
 /**
@@ -550,7 +605,7 @@ public:
 	{
 		return this->castget(this->parent->__getAddr(x,y,z,t));
 	};
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -560,7 +615,7 @@ public:
 	{
 		return this->castget(this->parent->__getAddr(x,y,z,t));
 	};
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -570,7 +625,93 @@ public:
 	{
 		this->castset(this->parent->__getAddr(x,y,z,t), v);
 	};
+private:
+    //////////////////////////////////////////////////////
+    // Hide Non-3D Functrions from NDConstView
+    //////////////////////////////////////////////////////
+	
+    /**
+	 * @brief Gets value linear position in array, then casts to T
+	 *
+	 * @return value
+	 */
+	T operator[](int64_t index)
+	{
+		return castget(this->parent->__getAddr(index));
+	};
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index n-d index to access
+	 *
+	 * @return value
+	 */
+	T get(const std::vector<int64_t>& index)
+	{
+		return castget(this->parent->__getAddr(index));
+	};
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param len length of index array
+	 * @param index n-d index to access
+	 *
+	 * @return value
+	 */
+	T get(size_t len, int64_t* index)
+	{
+		return castget(this->parent->__getAddr(len, index));
+	};
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index n-d index to access
+	 *
+	 * @return value
+	 */
+	T operator[](const std::vector<int64_t>& index)
+	{
+		return castget(this->parent->__getAddr(index));
+	};
+
+	/**
+	 * @brief Casts to the appropriate type then sets array at given index.
+	 *
+	 * @param v value to set at index
+	 * @param index n-d index to access
+	 *
+	 * @return current value
+	 */
+	void set(const std::vector<int64_t>& index, T v)
+	{
+		return castset(this->parent->__getAddr(index), v);
+	};
+
+	/**
+	 * @brief Casts to the appropriate type then sets array at given index.
+	 *
+	 * @param v value to set at index
+	 * @param index n-d index to access
+	 *
+	 * @return current value
+	 */
+	void set(int64_t index, T v)
+	{
+		return castset(this->parent->__getAddr(index), v);
+	};
+
 };
+
+/****************************************
+ * Interpolators
+ ***************************************/
+
+////////////////
+//Linear
+///////////////
 
 /* Linear Kernel Sampling */
 double linKern(double x)
@@ -590,7 +731,7 @@ class LinInterpNDView : public NDConstView<T>
 public:
 	LinInterpNDView(std::shared_ptr<const NDArray> in,
 				BoundaryConditionT bound = ZEROFLUX)
-				: NDConstView<T>(in), m_boundmethod(bound)
+				: NDConstView<T>(in), m_boundmethod(bound), m_ras(false)
 	{ };
 
 	/**
@@ -603,13 +744,14 @@ public:
 	 * @param u	5th dimension 
 	 * @param v	6th dimension 
 	 * @param w	7th dimension 
+	 * @param q	8th dimension 
 	 *
 	 * @return value Interpolated value at given position
 	 */
 	T operator()(double x=0, double y=0, double z=0, double t=0, double u = 0,
-			double v = 0, double w = 0)
+			double v = 0, double w = 0, double q = 0)
 	{
-		double tmp[8] = {x,y,z,t,u,v,w};
+		double tmp[8] = {x,y,z,t,u,v,w,q};
 		return get(8, tmp);
 	};
 
@@ -628,9 +770,9 @@ public:
         size_t ii=0;
         for(auto it = index.begin(); it != index.end() && ii<8; ++it, ++ii) 
             tmp[ii] = *it;
-		return get(min(8, index.size()), tmp);
+		return get(std::min(8UL, index.size()), tmp);
 	};
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -642,7 +784,7 @@ public:
 	{
 		return get(index.size(), index.data());
 	};
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -657,9 +799,9 @@ public:
         size_t ii=0;
         for(auto it = index.begin(); it != index.end() && ii<8; ++it, ++ii) 
             tmp[ii] = *it;
-		return get(min(8, index.size()), tmp);
+		return get(std::min(8UL, index.size()), tmp);
 	};
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -674,27 +816,96 @@ public:
         size_t ii=0;
         for(auto it = index.begin(); it != index.end() && ii<8; ++it, ++ii) 
             tmp[ii] = *it;
-		return get(min(8, index.size()), tmp);
+		return get(std::min(8UL, index.size()), tmp);
 	};
-	
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T get(const vector<double>& cindex)
+	{
+        get(cindex.size(), cindex.data());
+    }
+
+    /**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index n-d index to access
+	 *
+	 * @return value
+	 */
+	T get(const std::vector<int64_t>& index)
+	{
+        assert(index.size() <= 8);
+        double tmp[8];
+        size_t ii=0;
+        for(auto it = index.begin(); it != index.end() && ii<8; ++it, ++ii) 
+            tmp[ii] = *it;
+		return get(std::min(8UL, index.size()), tmp);
+	};
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param len length of index array
+	 * @param index n-d index to access
+	 *
+	 * @return value
+	 */
+	T get(size_t len, int64_t* index)
+	{
+        assert(len <= 8);
+        double tmp[8];
+        size_t ii=0;
+        for(size_t ii=0; ii<len && ii<8; ii++) 
+            tmp[ii] = index[ii];
+		return get(std::min(8UL, len), tmp);
+	};
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index n-d index to access
+	 *
+	 * @return value
+	 */
+	T operator[](const std::vector<int64_t>& index)
+	{
+        assert(index.size() <= 8);
+        double tmp[8];
+        size_t ii=0;
+        for(auto it = index.begin(); it != index.end() && ii<8; ++it, ++ii) 
+            tmp[ii] = *it;
+		return get(std::min(8UL, index.size()), tmp);
+	};
+
     /**
 	 * @brief Gets value at array index and then casts to T
 	 *
 	 * @return value
 	 */
-	T get(size_t len, const double* cindex)
+	T get(size_t len, const double* incindex)
 	{
 		// initialize variables
 		int ndim = this->parent->ndim();
-        dim = this->parent->dim();
+        const size_t* dim = this->parent->dim();
 
-		vector<int64_t> index(ndim);
+        // convert RAS to index
+        vector<double> cindex(incindex, incindex+len);
+        if(m_ras) {
+            auto tmp = dPtrCast<const MRImage>(this->parent);
+            tmp->pointToIndex(len, cindex.data(), cindex.data());
+        }
+
+		vector<int64_t> index(ndim, 0);
 		const int KPOINTS = 2;
 
 		// 1D version of the weights and indices
 		vector<vector<double>> karray(ndim, vector<double>(KPOINTS));
 		vector<vector<int64_t>> indarray(ndim, vector<int64_t>(KPOINTS));
-		
+
 		for(int dd = 0; dd < ndim && dd<len; dd++) {
 			indarray[dd][0] = floor(cindex[dd]);
 			indarray[dd][1] = indarray[dd][0]+1; //make sure they aren't the same
@@ -730,9 +941,10 @@ public:
 				iioutside = iioutside || index[dd] < 0 || index[dd] >= dim[dd];
 			}
 
-			// might prevent optimization
-			//			if(weight == 0)
-			//				continue;
+            // might prevent optimization, but also helps with NAN's in 0
+            // weighted regions
+            if(weight == 0)
+                continue;
 
 			// if the current point maps outside, then we need to deal with it
 //			outside = (weight != 0 && iioutside) || outside;
@@ -759,28 +971,25 @@ public:
 
 		return pixval;
 	}
-	
-	/**
-	 * @brief Gets value at array index and then casts to T
-	 *
-	 * @return value
-	 */
-	T get(const vector<double>& cindex)
-	{
-        get(cindex.size(), cindex.data());
-    }
-	
+
+
 	BoundaryConditionT m_boundmethod;
+
+    /**
+     * @brief if true, then this assumes the inputs are RAS coordinates rather
+     * than indexes. Default is false
+     */
+    bool m_ras;
+
 protected:
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
+     * doesn't make sense for interpolation
 	 *
 	 * @return value
 	 */
 	T operator[](int64_t i) { (void)(i); return T(); };
-	T get(const std::vector<int64_t>& i) { (void)(i); return T(); };
-	T operator[](const std::vector<int64_t>& i) { (void)(i); return T(); };
 };
 
 /**
@@ -794,12 +1003,12 @@ protected:
  * @tparam T Type of value to cast and return
  */
 template<typename T>
-class LinInterp3DView : public NDConstView<T>
+class LinInterp3DView : public Vector3DConstView<T>
 {
 public:
 	LinInterp3DView(std::shared_ptr<const NDArray> in,
 				BoundaryConditionT bound = ZEROFLUX)
-				: NDConstView<T>(in), m_boundmethod(bound)
+				: Vector3DConstView<T>(in), m_boundmethod(bound), m_ras(false)
 	{ };
 
 	/**
@@ -811,7 +1020,7 @@ public:
 	{
 		return get(x,y,z,t);
 	};
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -825,7 +1034,7 @@ public:
 		dim[1] = this->parent->ndim() > 1 ? this->parent->dim(1) : 1;
 		dim[2] = this->parent->ndim() > 2 ? this->parent->dim(2) : 1;
 		dim[3] = this->parent->tlen();
-		
+
 		// deal with t being outside bounds
 		if(t < 0 || t >= dim[3]) {
 			if(m_boundmethod == ZEROFLUX) {
@@ -841,6 +1050,13 @@ public:
 
 		// initialize variables
 		double cindex[3] = {x,y,z};
+
+        // convert RAS to cindex
+        if(m_ras) {
+            auto tmp = dPtrCast<const MRImage>(this->parent);
+            tmp->pointToIndex(3, cindex, cindex);
+        }
+
 		int64_t index[3];
 		const int KPOINTS = 2;
 		const int DIM = 3;
@@ -848,7 +1064,7 @@ public:
 		// 1D version of the weights and indices
 		double karray[DIM][KPOINTS];
 		int64_t indarray[DIM][KPOINTS];
-		
+
 		for(int dd = 0; dd < DIM; dd++) {
 			indarray[dd][0] = floor(cindex[dd]);
 			indarray[dd][1] = indarray[dd][0]+1; //make sure they aren't the same
@@ -907,17 +1123,34 @@ public:
 		return pixval;
 	}
 	
-	BoundaryConditionT m_boundmethod;
-protected:
-	
+    /**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T operator()(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
+	{
+		return get((double)x,(double)y,(double)z,t);
+	};
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
 	 * @return value
 	 */
-	T operator[](int64_t i) { (void)(i); return T(); };
-	T get(const std::vector<int64_t>& i) { (void)(i); return T(); };
-	T operator[](const std::vector<int64_t>& i) { (void)(i); return T(); };
+	T get(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
+	{
+		return get((double)x,(double)y,(double)z,t);
+	};
+
+	BoundaryConditionT m_boundmethod;
+
+    /**
+     * @brief if true, then this assumes the inputs are RAS coordinates rather
+     * than indexes. Default is false
+     */
+    bool m_ras;
+
 };
 
 /**
@@ -931,7 +1164,7 @@ class NNInterpNDView : public NDConstView<T>
 public:
 	NNInterpNDView(std::shared_ptr<const NDArray> in,
 				BoundaryConditionT bound = ZEROFLUX)
-				: NDConstView<T>(in), m_boundmethod(bound)
+				: NDConstView<T>(in), m_boundmethod(bound), m_ras(false)
 	{ };
 
 	/**
@@ -944,13 +1177,14 @@ public:
 	 * @param u	5th dimension 
 	 * @param v	6th dimension 
 	 * @param w	7th dimension 
+	 * @param q	8th dimension 
 	 *
 	 * @return value Interpolated value at given position
 	 */
 	T operator()(double x=0, double y=0, double z=0, double t=0, double u = 0,
-			double v = 0, double w = 0)
+			double v = 0, double w = 0, double q = 0)
 	{
-		double tmp[8] = {x,y,z,t,u,v,w};
+		double tmp[8] = {x,y,z,t,u,v,w,q};
 		return get(8, tmp);
 	};
 
@@ -969,9 +1203,60 @@ public:
         size_t ii=0;
         for(auto it = index.begin(); it != index.end() && ii<8; ++it, ++ii) 
             tmp[ii] = *it;
-		return get(min(8, index.size()), tmp);
+		return get(std::min(8UL, index.size()), tmp);
 	};
 	
+    /**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index n-d index to access
+	 *
+	 * @return value
+	 */
+	T get(const std::vector<int64_t>& index)
+	{
+        assert(index.size() <= 8);
+        double tmp[8];
+        size_t ii=0;
+        for(auto it = index.begin(); it != index.end() && ii<8; ++it, ++ii) 
+            tmp[ii] = *it;
+		return get(std::min(8UL, index.size()), tmp);
+	};
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param len length of index array
+	 * @param index n-d index to access
+	 *
+	 * @return value
+	 */
+	T get(size_t len, int64_t* index)
+	{
+        assert(len <= 8);
+        double tmp[8];
+        for(size_t ii=0; ii < len && ii<8; ++ii) 
+            tmp[ii] = index[ii];
+		return get(std::min(8UL, len), tmp);
+	};
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index n-d index to access
+	 *
+	 * @return value
+	 */
+	T operator[](const std::vector<int64_t>& index)
+	{
+        assert(index.size() <= 8);
+        double tmp[8];
+        size_t ii=0;
+        for(auto it = index.begin(); it != index.end() && ii<8; ++it, ++ii) 
+            tmp[ii] = *it;
+		return get(std::min(8UL, index.size()), tmp);
+	};
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -983,7 +1268,7 @@ public:
 	{
 		return get(index.size(), index.data());
 	};
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -998,9 +1283,9 @@ public:
         size_t ii=0;
         for(auto it = index.begin(); it != index.end() && ii<8; ++it, ++ii) 
             tmp[ii] = *it;
-		return get(min(8, index.size()), tmp);
+		return get(std::min(8UL, index.size()), tmp);
 	};
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -1015,41 +1300,49 @@ public:
         size_t ii=0;
         for(auto it = index.begin(); it != index.end() && ii<8; ++it, ++ii) 
             tmp[ii] = *it;
-		return get(min(8, index.size()), tmp);
+		return get(std::min(8UL, index.size()), tmp);
 	};
-	
+
     /**
 	 * @brief Gets value at array index and then casts to T
 	 *
 	 * @return value
 	 */
-	T get(size_t len, const double* cindex)
+	T get(size_t len, const double* incindex)
 	{
+        // convert RAS to index
+        vector<double> cindex(incindex, incindex+len);
+        if(m_ras) {
+            auto tmp = dPtrCast<const MRImage>(this->parent);
+            tmp->pointToIndex(len, cindex.data(), cindex.data());
+        }
+
+
 		// initialize variables
-		int ndim = this->parent->ndim();
-        dim = this->parent->dim();
+		size_t ndim = this->parent->ndim();
+        const size_t* dim = this->parent->dim();
 
         // round values from cindex
-		vector<int64_t> index(ndim);
+		vector<int64_t> index(ndim,0);
         if(m_boundmethod == ZEROFLUX) {
             // clamp
-            for(size_t dd=0; dd<DIM && dd<len; dd++)
+            for(size_t dd=0; dd<ndim&& dd<len; dd++)
                 index[dd] = clamp<int64_t>(0, dim[dd]-1, round(cindex[dd]));
         } else if(m_boundmethod == WRAP) {
             // wrap
-            for(size_t dd=0; dd<DIM; dd++)
+            for(size_t dd=0; dd<ndim; dd++)
                 index[dd] = wrap<int64_t>(0, dim[dd]-1, round(index[dd]));
         } else {
-            for(size_t dd=0; dd<DIM; dd++) {
-                index[dd] = clamp<int64_t>(0, dim[dd]-1, round(cindex[dd]));
-                if(index[dd] != round(cindex[dd]))
-                    return T(0);
+            for(size_t dd=0; dd<ndim; dd++) {
+                index[dd] = round(cindex[dd]);
+                if(index[dd] < 0 || index[dd] > dim[dd])
+                    return 0;
             }
         }
-		
+
         return this->castget(this->parent->__getAddr(index));
 	}
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -1059,18 +1352,29 @@ public:
 	{
         get(cindex.size(), cindex.data());
     }
-	
+
 	BoundaryConditionT m_boundmethod;
-protected:
+
+    /**
+     * @brief if true, then this assumes the inputs are RAS coordinates rather
+     * than indexes. Default is false
+     */
+    bool m_ras;
+
+private:
+    ///////////////////////////////////////////////////////////
+    // Hide Unused Functions From Parent
+    ///////////////////////////////////////////////////////////
 	
-	/**
-	 * @brief Gets value at array index and then casts to T
+    /**
+	 * @brief Gets value linear position in array, then casts to T
 	 *
 	 * @return value
 	 */
-	T operator[](int64_t i) { (void)(i); return T(); };
-	T get(const std::vector<int64_t>& i) { (void)(i); return T(); };
-	T operator[](const std::vector<int64_t>& i) { (void)(i); return T(); };
+	T operator[](int64_t index)
+	{
+		return castget(this->parent->__getAddr(index));
+	};
 };
 
 /**
@@ -1084,12 +1388,12 @@ protected:
  * @tparam T Type of value to cast and return
  */
 template<typename T>
-class NNInterp3DView : public NDConstView<T>
+class NNInterp3DView : public Vector3DConstView<T>
 {
 public:
 	NNInterp3DView(std::shared_ptr<NDArray> in,
 				BoundaryConditionT bound = ZEROFLUX)
-				: NDConstView<T>(in), m_boundmethod(bound)
+				: Vector3DConstView<T>(in), m_boundmethod(bound), m_ras(false)
 	{ };
 
 	/**
@@ -1101,7 +1405,7 @@ public:
 	{
 		return get(x,y,z,t);
 	};
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -1109,6 +1413,17 @@ public:
 	 */
 	T get(double x=0, double y=0, double z=0, int64_t t=0)
 	{
+        // convert RAS to cindex
+        if(m_ras) {
+            double cindex[3] = {x,y,z};
+            auto tmp = dPtrCast<const MRImage>(this->parent);
+            tmp->pointToIndex(3, cindex, cindex);
+            x = cindex[0];
+            y = cindex[1];
+            z = cindex[2];
+        }
+
+
 		// interpolate
 		int64_t i = round(x);
 		int64_t j = round(y);
@@ -1122,7 +1437,7 @@ public:
 		bool yout = (j < 0 || j >= ydim);
 		bool zout = (k < 0 || k >= zdim);
 		bool tout = (t < 0 || t >= tdim);
-		
+
 		if(xout || yout || zout || tout) {
 //			outside = true;
 			switch(m_boundmethod) {
@@ -1148,21 +1463,42 @@ public:
 		return this->castget(this->parent->__getAddr(i,j,k,t));
 	};
 	
-	BoundaryConditionT m_boundmethod;;
-private:
-	
-
+    /**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T operator()(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
+	{
+		return get((double)x, (double)y, (double)z, t);
+	};
 
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
 	 * @return value
 	 */
-	// Remove functions that aren't relevent from Base
-	T operator[](int64_t i) { (void)(i); return T(); };
-	T get(const std::vector<int64_t>& i) { (void)(i); return T(); };
-	T operator[](const std::vector<int64_t>& i) { (void)(i); return T(); };
+	T get(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
+	{
+		return get((double)x, (double)y, (double)z, t);
+	};
+
+
+	BoundaryConditionT m_boundmethod;;
+
+    /**
+     * @brief if true, then this assumes the inputs are RAS coordinates rather
+     * than indexes. Default is false
+     */
+    bool m_ras;
+
+private:
+
 };
+
+////////////////////////
+// Lanczos
+////////////////////////
 
 /**
  * @brief The purpose of this class is to view an image as a continuous
@@ -1180,7 +1516,8 @@ class LanczosInterpNDView : public NDConstView<T>
 public:
 	LanczosInterpNDView(std::shared_ptr<const NDArray> in,
 				BoundaryConditionT bound = ZEROFLUX)
-				: NDConstView<T>(in), m_boundmethod(bound), m_radius(2)
+				: NDConstView<T>(in), m_boundmethod(bound), m_ras(false), 
+                m_radius(2)
 	{ };
 
 	void setRadius(size_t rad) { m_radius = rad; };
@@ -1201,112 +1538,155 @@ public:
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
+	 * @param index n-d index to access
+	 *
 	 * @return value
 	 */
-	T get(double x=0, double y=0, double z=0, int64_t t=0)
+	T get(const std::vector<int64_t>& index)
+	{
+        assert(index.size() <= 8);
+        double tmp[8];
+        size_t ii=0;
+        for(auto it = index.begin(); it != index.end() && ii<8; ++it, ++ii) 
+            tmp[ii] = *it;
+		return get(std::min(8UL, index.size()), tmp);
+	};
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param len length of index array
+	 * @param index n-d index to access
+	 *
+	 * @return value
+	 */
+	T get(size_t len, int64_t* index)
+	{
+        assert(len <= 8);
+        double tmp[8];
+        size_t ii=0;
+        for(size_t ii=0; ii<len && ii<8; ii++) 
+            tmp[ii] = index[ii];
+		return get(std::min(8UL, len), tmp);
+	};
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index n-d index to access
+	 *
+	 * @return value
+	 */
+	T operator[](const std::vector<int64_t>& index)
+	{
+        assert(index.size() <= 8);
+        double tmp[8];
+        size_t ii=0;
+        for(auto it = index.begin(); it != index.end() && ii<8; ++it, ++ii) 
+            tmp[ii] = *it;
+		return get(std::min(8UL, index.size()), tmp);
+	};
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T get(size_t len, const double* incoord)
 	{
 		// figure out size of dimensions in parent
-		size_t dim[4];
-		dim[0] = this->parent->dim(0);
-		dim[1] = this->parent->ndim() > 1 ? this->parent->dim(1) : 1;
-		dim[2] = this->parent->ndim() > 2 ? this->parent->dim(2) : 1;
-		dim[3] = this->parent->tlen();
-		
-		// deal with t being outside bounds
-		if(t < 0 || t >= dim[3]) {
-			if(m_boundmethod == ZEROFLUX) {
-				// clamp
-				t = clamp<int64_t>(0, dim[3]-1, t);
-			} else if(m_boundmethod == WRAP) {
-				// wrap
-				t = wrap<int64_t>(0, dim[3]-1, t);
-			} else {
-				return 0;
-			}
-		}
+		const size_t* dim = this->parent->dim();
+        size_t ndim = this->parent->ndim();
+
+        // convert RAS to index
+        vector<double> cindex(incoord, incoord+len);
+        if(m_ras) {
+            auto tmp = dPtrCast<const MRImage>(this->parent);
+            tmp->pointToIndex(len, cindex.data(), cindex.data());
+        }
 
 		// initialize variables
-		double cindex[3] = {x,y,z};
-		int64_t index[3];
-		const int KPOINTS = 1+m_radius*2;
-		const int DIM = 3;
+		vector<int64_t> index(ndim, 0);
+		int kpoints = 1+m_radius*2;
 
 		// 1D version of the weights and indices
-		double karray[DIM][KPOINTS];
-		int64_t indarray[DIM][KPOINTS];
-		int64_t radius = m_radius;
+		vector<vector<double>> karray(ndim, vector<double>(kpoints, 0));
+		vector<vector<int64_t>> indarray(ndim, vector<int64_t>(kpoints, 0));
 
-		for(int dd = 0; dd < DIM; dd++) {
-			for(int64_t ii=-radius; ii<=radius; ii++){
-				int64_t i = round(cindex[dd])+ii;
+		for(int dd = 0; dd < ndim; dd++) {
+			for(int64_t ii=-m_radius; ii<=m_radius; ii++){
+                double C = dd < len ? cindex[dd] : 0; 
+				int64_t i = round(C)+ii;
 				indarray[dd][ii+m_radius] = i;
-				karray[dd][ii+m_radius] = lanczosKern(i-cindex[dd], m_radius);
+				karray[dd][ii+m_radius] = lanczosKern(i-C, m_radius);
 			}
 		}
 
 		bool iioutside = false;
-//		outside = false;
 
 		// compute weighted pixval by iterating over neighbors, which are
 		// combinations of KPOINTS
 		T pixval = 0;
 		double weight = 0;
 		div_t result;
-		for(int ii = 0 ; ii < pow(KPOINTS, DIM); ii++) {
+		for(int ii = 0 ; ii < pow(kpoints, ndim); ii++) {
 			weight = 1;
 
 			//set index
 			result.quot = ii;
 			iioutside = false;
-			for(int dd = 0; dd < DIM; dd++) {
-				result = std::div(result.quot, KPOINTS);
+			for(int dd = 0; dd < ndim; dd++) {
+				result = std::div(result.quot, kpoints);
 				weight *= karray[dd][result.rem];
 				index[dd] = indarray[dd][result.rem];
 				iioutside = iioutside || index[dd] < 0 || index[dd] >= dim[dd];
 			}
 
-			// might prevent optimization
-			//			if(weight == 0)
-			//				continue;
-
-			// if the current point maps outside, then we need to deal with it
-//			outside = (weight != 0 && iioutside) || outside;
 			if(iioutside) {
 				if(m_boundmethod == ZEROFLUX) {
 					// clamp
-					for(size_t dd=0; dd<DIM; dd++)
+					for(size_t dd=0; dd<ndim; dd++)
 						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
 				} else if(m_boundmethod == WRAP) {
 					// wrap
-					for(size_t dd=0; dd<DIM; dd++)
+					for(size_t dd=0; dd<ndim; dd++)
 						index[dd] = wrap<int64_t>(0, dim[dd]-1, index[dd]);
-				} else {
+				} else { // zero outside
 					// set wieght to zero, then just clamp
 					weight = 0;
-					for(size_t dd=0; dd<DIM; dd++)
+					for(size_t dd=0; dd<ndim; dd++)
 						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
 				}
 			}
 
-			T v = this->castget(this->parent->__getAddr(index[0], index[1],index[2],t));
+			T v = this->castget(this->parent->__getAddr(index));
 			pixval += weight*v;
 		}
 
 		return pixval;
 	}
-	
+
 	BoundaryConditionT m_boundmethod;
+
+    /**
+     * @brief if true, then this assumes the inputs are RAS coordinates rather
+     * than indexes. Default is false
+     */
+    bool m_ras;
+
 protected:
-	
-	/**
-	 * @brief Gets value at array index and then casts to T
+
+    /**
+	 * @brief Gets value linear position in array, then casts to T
 	 *
 	 * @return value
 	 */
-	T operator[](int64_t i) { (void)(i); return T(); };
-	T get(const std::vector<int64_t>& i) { (void)(i); return T(); };
-	T operator[](const std::vector<int64_t>& i) { (void)(i); return T(); };
-	size_t m_radius;
+	T operator[](int64_t index)
+	{
+		return castget(this->parent->__getAddr(index));
+	};
+
+	int64_t m_radius;
 };
 
 
@@ -1321,12 +1701,13 @@ protected:
  * @tparam T Type of value to cast and return
  */
 template<typename T>
-class LanczosInterp3DView : public NDConstView<T>
+class LanczosInterp3DView : public Vector3DConstView<T>
 {
 public:
 	LanczosInterp3DView(std::shared_ptr<const NDArray> in,
 				BoundaryConditionT bound = ZEROFLUX)
-				: NDConstView<T>(in), m_boundmethod(bound), m_radius(2)
+                : NDConstView<T>(in), m_boundmethod(bound), m_ras(false),
+                m_radius(2)
 	{ };
 
 	void setRadius(size_t rad) { m_radius = rad; };
@@ -1342,6 +1723,27 @@ public:
 		return get(x,y,z,t);
 	};
 	
+    /**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T operator()(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
+	{
+		return get((double)x,(double)y,(double)z,t);
+	};
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T get(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
+	{
+		return get((double)x,(double)y,(double)z,t);
+	};
+
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -1355,7 +1757,7 @@ public:
 		dim[1] = this->parent->ndim() > 1 ? this->parent->dim(1) : 1;
 		dim[2] = this->parent->ndim() > 2 ? this->parent->dim(2) : 1;
 		dim[3] = this->parent->tlen();
-		
+
 		// deal with t being outside bounds
 		if(t < 0 || t >= dim[3]) {
 			if(m_boundmethod == ZEROFLUX) {
@@ -1370,7 +1772,14 @@ public:
 		}
 
 		// initialize variables
-		double cindex[3] = {x,y,z};
+
+        double cindex[3] = {x,y,z};
+        // convert RAS to cindex
+        if(m_ras) {
+            auto tmp = dPtrCast<const MRImage>(this->parent);
+            tmp->pointToIndex(3, cindex, cindex);
+        }
+
 		int64_t index[3];
 		const int KPOINTS = 1+m_radius*2;
 		const int DIM = 3;
@@ -1378,10 +1787,9 @@ public:
 		// 1D version of the weights and indices
 		double karray[DIM][KPOINTS];
 		int64_t indarray[DIM][KPOINTS];
-		int64_t radius = m_radius;
 
 		for(int dd = 0; dd < DIM; dd++) {
-			for(int64_t ii=-radius; ii<=radius; ii++){
+			for(int64_t ii=-m_radius; ii<=m_radius; ii++){
 				int64_t i = round(cindex[dd])+ii;
 				indarray[dd][ii+m_radius] = i;
 				karray[dd][ii+m_radius] = lanczosKern(i-cindex[dd], m_radius);
@@ -1389,7 +1797,6 @@ public:
 		}
 
 		bool iioutside = false;
-//		outside = false;
 
 		// compute weighted pixval by iterating over neighbors, which are
 		// combinations of KPOINTS
@@ -1409,12 +1816,7 @@ public:
 				iioutside = iioutside || index[dd] < 0 || index[dd] >= dim[dd];
 			}
 
-			// might prevent optimization
-			//			if(weight == 0)
-			//				continue;
-
 			// if the current point maps outside, then we need to deal with it
-//			outside = (weight != 0 && iioutside) || outside;
 			if(iioutside) {
 				if(m_boundmethod == ZEROFLUX) {
 					// clamp
@@ -1438,10 +1840,17 @@ public:
 
 		return pixval;
 	}
-	
+
 	BoundaryConditionT m_boundmethod;
+
+    /**
+     * @brief if true, then this assumes the inputs are RAS coordinates rather
+     * than indexes. Default is false
+     */
+    bool m_ras;
+
 protected:
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -1450,7 +1859,7 @@ protected:
 	T operator[](int64_t i) { (void)(i); return T(); };
 	T get(const std::vector<int64_t>& i) { (void)(i); return T(); };
 	T operator[](const std::vector<int64_t>& i) { (void)(i); return T(); };
-	size_t m_radius;
+	int64_t m_radius;
 };
 
 /**
