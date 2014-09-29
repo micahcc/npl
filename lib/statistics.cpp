@@ -1051,4 +1051,52 @@ int ExpMax::update(const MatrixXd& samples, bool reinit)
 }
 
 
+/**
+ * @brief Solves y = Xb (where beta is a vector of parameters, y is a vector
+ * of desired results and X is the design/system)
+ *
+ * @param X Design or system
+ * @param y Observations (target)
+ *
+ * @return Parameters that give the minimum squared error (y - Xb)^2
+ */
+VectorXd leastSquares(const MatrixXd& X, const VectorXd& y)
+{
+    assert(X.rows() == y.rows());
+    Eigen::JacobiSVD<MatrixXd> svd;
+    svd.compute(X, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    return svd.solve(y);
+}
+
+/**
+ * @brief Solves iteratively re-weighted least squares problem. Wy = WXb (where
+ * W is a weighting matrix, beta is a vector of parameters, y is a vector of
+ * desired results and X is the design/system)
+ *
+ * @param X Design or system
+ * @param y Observations (target)
+ * @param w Initial weights (note that zeros will be kept at 0)
+ *
+ * @return Parameters that give the minimum squared error (y - Xb)^2
+ */
+VectorXd IRLS(const MatrixXd& X, const VectorXd& y, VectorXd& w)
+{
+    assert(X.rows() == y.rows());
+    VectorXd beta(X.cols());
+    MatrixXd wX = w.asDiagonal()*X;
+    VectorXd wy = w.asDiagonal()*y;
+    VectorXd err(y.rows());
+//    for() {
+        //update beta
+        beta = wX.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(wy);
+        err = (X*beta-y);
+
+//        // update weights;
+//        for(size_t ii=0; ii<w.size(); ii++) {
+//            w[ii] = pow(
+//        }
+ //   }
+    return beta;
+}
+
 } // NPL

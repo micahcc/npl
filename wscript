@@ -6,15 +6,6 @@ import re
 
 out = 'build'
 
-def cmakeparse(cmakefile):
-    ifile = open(cmakefile)
-    ind = ifile.read()
-    ifile.close()
-    print(ind)
-    libs = re.search('LIBRARIES "([a-zA-Z0-9_;-]*)"', ind).group(1)
-    libs = libs.split(";")
-    return libs
-
 def configure(conf):
     join = os.path.join
     isabs = os.path.isabs
