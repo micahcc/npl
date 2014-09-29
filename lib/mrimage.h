@@ -619,6 +619,17 @@ public:
     virtual ptr<NDArray> extractCast(size_t len, const size_t* size,
             PixelT newtype) const = 0;
 
+    /**
+     * @Brief Resamples this image into the same sapce as the input and returns
+     * the result. This is not modified.
+     *
+     * @param ref reference image to sample to
+     * @param method LANCZOS or LINEAR or NEAREST for lanczos resampling,
+     * linear resampling or nearest neighbor. 
+     *
+     * @return this image resampled into the space of ref
+     */
+    virtual ptr<NDArray> resample(ptr<MRImage> ref, SampleT method) const = 0;
 
 
     /**
@@ -1092,6 +1103,18 @@ public:
      */
     virtual ptr<NDArray> extractCast(size_t len, const size_t* size,
             PixelT newtype) const;
+
+    /**
+     * @Brief Resamples this image into the same sapce as the input and returns
+     * the result. This is not modified.
+     *
+     * @param ref reference image to sample to
+     * @param method LANCZOS or LINEAR or NEAREST for lanczos resampling,
+     * linear resampling or nearest neighbor. 
+     *
+     * @return this image resampled into the space of ref
+     */
+    virtual ptr<NDArray> resample(ptr<MRImage> ref, SampleT method) const;
 
     /**
 	 * @brief Create an exact copy of the current image object, and return
