@@ -32,7 +32,6 @@
 
 using std::string;
 using namespace npl;
-using std::shared_ptr;
 
 /**
  * @brief Computes the overlap of the two images' in 3-space.
@@ -42,7 +41,7 @@ using std::shared_ptr;
  *
  * @return Ratio of b that overlaps with a's grid
  */
-double overlapRatio(shared_ptr<MRImage> a, shared_ptr<MRImage> b)
+double overlapRatio(ptr<MRImage> a, ptr<MRImage> b)
 {
 	int64_t index[3];
 	double point[3];
@@ -58,7 +57,7 @@ double overlapRatio(shared_ptr<MRImage> a, shared_ptr<MRImage> b)
 }
 
 
-void binarize(shared_ptr<MRImage> in)
+void binarize(ptr<MRImage> in)
 {
 	OrderIter<int> it(in);
 	for(it.goBegin(); !it.eof(); ++it) {
@@ -96,13 +95,13 @@ int main(int argc, char** argv)
 	/**********
 	 * Input
 	 *********/
-	std::shared_ptr<MRImage> inimg(readMRImage(a_in.getValue()));
+	ptr<MRImage> inimg(readMRImage(a_in.getValue()));
 	if(inimg->ndim() > 4 || inimg->ndim() < 3) {
 		cerr << "Expected input to be 3D/4D Image!" << endl;
 		return -1;
 	}
 	
-	std::shared_ptr<MRImage> mask(readMRImage(a_mask.getValue()));
+	ptr<MRImage> mask(readMRImage(a_mask.getValue()));
 	if(mask->ndim() != 3) {
 		cerr << "Expected mask to be 3D Image!" << endl;
 		return -1;
@@ -124,14 +123,14 @@ int main(int argc, char** argv)
 		return -1;
 	}
 	
-	std::shared_ptr<MRImage> atlas(readMRImage(a_atlas.getValue()));
+	ptr<MRImage> atlas(readMRImage(a_atlas.getValue()));
 	if(atlas->ndim() != 3) {
 		cerr << "Expected mask to be 3D Image!" << endl;
 		return -1;
 	}
 	binarize(atlas);
 
-	std::shared_ptr<MRImage> defimg(readMRImage(a_deform.getValue()));
+	ptr<MRImage> defimg(readMRImage(a_deform.getValue()));
 	if(defimg->ndim() > 5 || defimg->ndim() < 4 || defimg->tlen() != 3) {
 		cerr << "Expected dform to be 4D/5D Image, with 3 volumes!" << endl;
 		return -1;

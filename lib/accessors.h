@@ -72,79 +72,84 @@ class NDView
 public:
 	NDView(std::shared_ptr<NDArray> in) : parent(in)
 	{
-		switch(in->type()) {
-			case UINT8:
-				castget = castgetStatic<uint8_t>;
-				castset = castsetStatic<uint8_t>;
-				break;
-			case INT8:
-				castget = castgetStatic<int8_t>;
-				castset = castsetStatic<int8_t>;
-				break;
-			case UINT16:
-				castget = castgetStatic<uint16_t>;
-				castset = castsetStatic<uint16_t>;
-				break;
-			case INT16:
-				castget = castgetStatic<int16_t>;
-				castset = castsetStatic<int16_t>;
-				break;
-			case UINT32:
-				castget = castgetStatic<uint32_t>;
-				castset = castsetStatic<uint32_t>;
-				break;
-			case INT32:
-				castget = castgetStatic<int32_t>;
-				castset = castsetStatic<int32_t>;
-				break;
-			case UINT64:
-				castget = castgetStatic<uint64_t>;
-				castset = castsetStatic<uint64_t>;
-				break;
-			case INT64:
-				castget = castgetStatic<int64_t>;
-				castset = castsetStatic<int64_t>;
-				break;
-			case FLOAT32:
-				castget = castgetStatic<float>;
-				castset = castsetStatic<float>;
-				break;
-			case FLOAT64:
-				castget = castgetStatic<double>;
-				castset = castsetStatic<double>;
-				break;
-			case FLOAT128:
-				castget = castgetStatic<long double>;
-				castset = castsetStatic<long double>;
-				break;
-			case COMPLEX64:
-				castget = castgetStatic<cfloat_t>;
-				castset = castsetStatic<cfloat_t>;
-				break;
-			case COMPLEX128:
-				castget = castgetStatic<cdouble_t>;
-				castset = castsetStatic<cdouble_t>;
-				break;
-			case COMPLEX256:
-				castget = castgetStatic<cquad_t>;
-				castset = castsetStatic<cquad_t>;
-				break;
-			case RGB24:
-				castget = castgetStatic<rgb_t>;
-				castset = castsetStatic<rgb_t>;
-				break;
-			case RGBA32:
-				castget = castgetStatic<rgba_t>;
-				castset = castsetStatic<rgba_t>;
-				break;
-			default:
-			case UNKNOWN_TYPE:
-				castget = castgetStatic<uint8_t>;
-				castset = castsetStatic<uint8_t>;
-				throw std::invalid_argument("Unknown type to NDView");
-				break;
-		}
+        setArray(in);
 	};
+
+    void setArray(ptr<NDArray> in) 
+    {
+        switch(in->type()) {
+            case UINT8:
+                castget = castgetStatic<uint8_t>;
+                castset = castsetStatic<uint8_t>;
+                break;
+            case INT8:
+                castget = castgetStatic<int8_t>;
+                castset = castsetStatic<int8_t>;
+                break;
+            case UINT16:
+                castget = castgetStatic<uint16_t>;
+                castset = castsetStatic<uint16_t>;
+                break;
+            case INT16:
+                castget = castgetStatic<int16_t>;
+                castset = castsetStatic<int16_t>;
+                break;
+            case UINT32:
+                castget = castgetStatic<uint32_t>;
+                castset = castsetStatic<uint32_t>;
+                break;
+            case INT32:
+                castget = castgetStatic<int32_t>;
+                castset = castsetStatic<int32_t>;
+                break;
+            case UINT64:
+                castget = castgetStatic<uint64_t>;
+                castset = castsetStatic<uint64_t>;
+                break;
+            case INT64:
+                castget = castgetStatic<int64_t>;
+                castset = castsetStatic<int64_t>;
+                break;
+            case FLOAT32:
+                castget = castgetStatic<float>;
+                castset = castsetStatic<float>;
+                break;
+            case FLOAT64:
+                castget = castgetStatic<double>;
+                castset = castsetStatic<double>;
+                break;
+            case FLOAT128:
+                castget = castgetStatic<long double>;
+                castset = castsetStatic<long double>;
+                break;
+            case COMPLEX64:
+                castget = castgetStatic<cfloat_t>;
+                castset = castsetStatic<cfloat_t>;
+                break;
+            case COMPLEX128:
+                castget = castgetStatic<cdouble_t>;
+                castset = castsetStatic<cdouble_t>;
+                break;
+            case COMPLEX256:
+                castget = castgetStatic<cquad_t>;
+                castset = castsetStatic<cquad_t>;
+                break;
+            case RGB24:
+                castget = castgetStatic<rgb_t>;
+                castset = castsetStatic<rgb_t>;
+                break;
+            case RGBA32:
+                castget = castgetStatic<rgba_t>;
+                castset = castsetStatic<rgba_t>;
+                break;
+            default:
+            case UNKNOWN_TYPE:
+                castget = castgetStatic<uint8_t>;
+                castset = castsetStatic<uint8_t>;
+                throw std::invalid_argument("Unknown type to NDView");
+                break;
+        }
+    }
 	
 	/**
 	 * @brief Gets value linear position in array, then casts to T
@@ -290,6 +295,11 @@ class NDConstView
 {
 public:
 	NDConstView(std::shared_ptr<const NDArray> in) : parent(in)
+    {
+        setArray(in);
+    }
+
+    void setArray(ptr<const NDArray> in)
 	{
 		switch(in->type()) {
 			case UINT8:
@@ -599,8 +609,8 @@ public:
 	T operator()(double x=0, double y=0, double z=0, double t=0, double u = 0,
 			double v = 0, double w = 0)
 	{
-		std::vector<double> tmp({x,y,z,t,u,v,w});
-		return get(tmp);
+		double tmp[8] = {x,y,z,t,u,v,w};
+		return get(8, tmp);
 	};
 
 
@@ -613,7 +623,12 @@ public:
 	 */
 	T operator()(const std::vector<float>& index)
 	{
-		return get(index);
+        assert(index.size() <= 8);
+        double tmp[8];
+        size_t ii=0;
+        for(auto it = index.begin(); it != index.end() && ii<8; ++it, ++ii) 
+            tmp[ii] = *it;
+		return get(min(8, index.size()), tmp);
 	};
 	
 	/**
@@ -625,7 +640,7 @@ public:
 	 */
 	T operator()(const std::vector<double>& index)
 	{
-		return get(index);
+		return get(index.size(), index.data());
 	};
 	
 	/**
@@ -637,8 +652,12 @@ public:
 	 */
 	T operator()(std::initializer_list<double> index)
 	{
-		std::vector<double> tmp(index.begin(), index.end());
-		return get(tmp);
+        assert(index.size() <= 8);
+        double tmp[8];
+        size_t ii=0;
+        for(auto it = index.begin(); it != index.end() && ii<8; ++it, ++ii) 
+            tmp[ii] = *it;
+		return get(min(8, index.size()), tmp);
 	};
 	
 	/**
@@ -650,37 +669,44 @@ public:
 	 */
 	T operator()(std::initializer_list<float> index)
 	{
-		std::vector<double> tmp(index.size());
-		size_t ii=0;
-		for(auto& v: index)
-			tmp[ii++] = v;
-
-		return get(tmp);
+        assert(index.size() <= 8);
+        double tmp[8];
+        size_t ii=0;
+        for(auto it = index.begin(); it != index.end() && ii<8; ++it, ++ii) 
+            tmp[ii] = *it;
+		return get(min(8, index.size()), tmp);
 	};
 	
-	/**
+    /**
 	 * @brief Gets value at array index and then casts to T
 	 *
 	 * @return value
 	 */
-	T get(const vector<double>& cindex)
+	T get(size_t len, const double* cindex)
 	{
 		// initialize variables
-		int DIM = this->parent->ndim();
-		vector<size_t> dim(this->parent->dim(), this->parent->dim()+DIM);
+		int ndim = this->parent->ndim();
+        dim = this->parent->dim();
 
-		vector<int64_t> index(DIM);
+		vector<int64_t> index(ndim);
 		const int KPOINTS = 2;
 
 		// 1D version of the weights and indices
-		vector<vector<double>> karray(DIM, vector<double>(KPOINTS));
-		vector<vector<int64_t>> indarray(DIM, vector<int64_t>(KPOINTS));
+		vector<vector<double>> karray(ndim, vector<double>(KPOINTS));
+		vector<vector<int64_t>> indarray(ndim, vector<int64_t>(KPOINTS));
 		
-		for(int dd = 0; dd < DIM; dd++) {
+		for(int dd = 0; dd < ndim && dd<len; dd++) {
 			indarray[dd][0] = floor(cindex[dd]);
 			indarray[dd][1] = indarray[dd][0]+1; //make sure they aren't the same
 			karray[dd][0] = linKern(indarray[dd][0]-cindex[dd]);
 			karray[dd][1] = linKern(indarray[dd][1]-cindex[dd]);
+		}
+        // defualt missing values in cindex to 0
+		for(int dd = 0; dd < ndim; dd++) {
+			indarray[dd][0] = floor(0);
+			indarray[dd][1] = indarray[dd][0]+1; //make sure they aren't the same
+			karray[dd][0] = linKern(indarray[dd][0]-0);
+			karray[dd][1] = linKern(indarray[dd][1]-0);
 		}
 
 		bool iioutside = false;
@@ -691,13 +717,13 @@ public:
 		T pixval = 0;
 		double weight = 0;
 		div_t result;
-		for(int ii = 0 ; ii < pow(KPOINTS, DIM); ii++) {
+		for(int ii = 0 ; ii < pow(KPOINTS, ndim); ii++) {
 			weight = 1;
 
 			//set index
 			result.quot = ii;
 			iioutside = false;
-			for(int dd = 0; dd < DIM; dd++) {
+			for(int dd = 0; dd < ndim; dd++) {
 				result = std::div(result.quot, KPOINTS);
 				weight *= karray[dd][result.rem];
 				index[dd] = indarray[dd][result.rem];
@@ -713,16 +739,16 @@ public:
 			if(iioutside) {
 				if(m_boundmethod == ZEROFLUX) {
 					// clamp
-					for(size_t dd=0; dd<DIM; dd++)
+					for(size_t dd=0; dd<ndim; dd++)
 						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
 				} else if(m_boundmethod == WRAP) {
 					// wrap
-					for(size_t dd=0; dd<DIM; dd++)
-						wrap<int64_t>(0, dim[dd]-1, index[dd]);
+					for(size_t dd=0; dd<ndim; dd++)
+						index[dd] = wrap<int64_t>(0, dim[dd]-1, index[dd]);
 				} else {
 					// set wieght to zero, then just clamp
 					weight = 0;
-					for(size_t dd=0; dd<DIM; dd++)
+					for(size_t dd=0; dd<ndim; dd++)
 						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
 				}
 			}
@@ -733,6 +759,16 @@ public:
 
 		return pixval;
 	}
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T get(const vector<double>& cindex)
+	{
+        get(cindex.size(), cindex.data());
+    }
 	
 	BoundaryConditionT m_boundmethod;
 protected:
@@ -855,7 +891,7 @@ public:
 				} else if(m_boundmethod == WRAP) {
 					// wrap
 					for(size_t dd=0; dd<DIM; dd++)
-						wrap<int64_t>(0, dim[dd]-1, index[dd]);
+						index[dd] = wrap<int64_t>(0, dim[dd]-1, index[dd]);
 				} else {
 					// set wieght to zero, then just clamp
 					weight = 0;
@@ -870,6 +906,159 @@ public:
 
 		return pixval;
 	}
+	
+	BoundaryConditionT m_boundmethod;
+protected:
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T operator[](int64_t i) { (void)(i); return T(); };
+	T get(const std::vector<int64_t>& i) { (void)(i); return T(); };
+	T operator[](const std::vector<int64_t>& i) { (void)(i); return T(); };
+};
+
+/**
+ * @brief General purpose Nearest-Neighbor interpolator
+ *
+ * @tparam T Type of value to cast and return
+ */
+template<typename T>
+class NNInterpNDView : public NDConstView<T>
+{
+public:
+	NNInterpNDView(std::shared_ptr<const NDArray> in,
+				BoundaryConditionT bound = ZEROFLUX)
+				: NDConstView<T>(in), m_boundmethod(bound)
+	{ };
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param x	x-dimension 
+	 * @param y	y-dimension 
+	 * @param z	z-dimension 
+	 * @param t	4th dimension 
+	 * @param u	5th dimension 
+	 * @param v	6th dimension 
+	 * @param w	7th dimension 
+	 *
+	 * @return value Interpolated value at given position
+	 */
+	T operator()(double x=0, double y=0, double z=0, double t=0, double u = 0,
+			double v = 0, double w = 0)
+	{
+		double tmp[8] = {x,y,z,t,u,v,w};
+		return get(8, tmp);
+	};
+
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index  Position in ND-space to interpolate
+	 *
+	 * @return value Interpolated value at given position
+	 */
+	T operator()(const std::vector<float>& index)
+	{
+        assert(index.size() <= 8);
+        double tmp[8];
+        size_t ii=0;
+        for(auto it = index.begin(); it != index.end() && ii<8; ++it, ++ii) 
+            tmp[ii] = *it;
+		return get(min(8, index.size()), tmp);
+	};
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index  Position in ND-space to interpolate
+	 *
+	 * @return value Interpolated value at given position
+	 */
+	T operator()(const std::vector<double>& index)
+	{
+		return get(index.size(), index.data());
+	};
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index  Position in ND-space to interpolate
+	 *
+	 * @return value Interpolated value at given position
+	 */
+	T operator()(std::initializer_list<double> index)
+	{
+        assert(index.size() <= 8);
+        double tmp[8];
+        size_t ii=0;
+        for(auto it = index.begin(); it != index.end() && ii<8; ++it, ++ii) 
+            tmp[ii] = *it;
+		return get(min(8, index.size()), tmp);
+	};
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @param index  Position in ND-space to interpolate
+	 *
+	 * @return value Interpolated value at given position
+	 */
+	T operator()(std::initializer_list<float> index)
+	{
+        assert(index.size() <= 8);
+        double tmp[8];
+        size_t ii=0;
+        for(auto it = index.begin(); it != index.end() && ii<8; ++it, ++ii) 
+            tmp[ii] = *it;
+		return get(min(8, index.size()), tmp);
+	};
+	
+    /**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T get(size_t len, const double* cindex)
+	{
+		// initialize variables
+		int ndim = this->parent->ndim();
+        dim = this->parent->dim();
+
+        // round values from cindex
+		vector<int64_t> index(ndim);
+        if(m_boundmethod == ZEROFLUX) {
+            // clamp
+            for(size_t dd=0; dd<DIM && dd<len; dd++)
+                index[dd] = clamp<int64_t>(0, dim[dd]-1, round(cindex[dd]));
+        } else if(m_boundmethod == WRAP) {
+            // wrap
+            for(size_t dd=0; dd<DIM; dd++)
+                index[dd] = wrap<int64_t>(0, dim[dd]-1, round(index[dd]));
+        } else {
+            for(size_t dd=0; dd<DIM; dd++) {
+                index[dd] = clamp<int64_t>(0, dim[dd]-1, round(cindex[dd]));
+                if(index[dd] != round(cindex[dd]))
+                    return T(0);
+            }
+        }
+		
+        return this->castget(this->parent->__getAddr(index));
+	}
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T get(const vector<double>& cindex)
+	{
+        get(cindex.size(), cindex.data());
+    }
 	
 	BoundaryConditionT m_boundmethod;
 protected:
@@ -986,6 +1175,152 @@ private:
  * @tparam T Type of value to cast and return
  */
 template<typename T>
+class LanczosInterpNDView : public NDConstView<T>
+{
+public:
+	LanczosInterpNDView(std::shared_ptr<const NDArray> in,
+				BoundaryConditionT bound = ZEROFLUX)
+				: NDConstView<T>(in), m_boundmethod(bound), m_radius(2)
+	{ };
+
+	void setRadius(size_t rad) { m_radius = rad; };
+	size_t getRadius() { return m_radius; };
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+    T operator()(double x=0, double y=0, double z=0, int64_t t=0, double u=0,
+            double v=0, double w=0)
+	{
+		double tmp[8] = {x,y,z,t,u,v,w};
+		return get(8, tmp);
+	};
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T get(double x=0, double y=0, double z=0, int64_t t=0)
+	{
+		// figure out size of dimensions in parent
+		size_t dim[4];
+		dim[0] = this->parent->dim(0);
+		dim[1] = this->parent->ndim() > 1 ? this->parent->dim(1) : 1;
+		dim[2] = this->parent->ndim() > 2 ? this->parent->dim(2) : 1;
+		dim[3] = this->parent->tlen();
+		
+		// deal with t being outside bounds
+		if(t < 0 || t >= dim[3]) {
+			if(m_boundmethod == ZEROFLUX) {
+				// clamp
+				t = clamp<int64_t>(0, dim[3]-1, t);
+			} else if(m_boundmethod == WRAP) {
+				// wrap
+				t = wrap<int64_t>(0, dim[3]-1, t);
+			} else {
+				return 0;
+			}
+		}
+
+		// initialize variables
+		double cindex[3] = {x,y,z};
+		int64_t index[3];
+		const int KPOINTS = 1+m_radius*2;
+		const int DIM = 3;
+
+		// 1D version of the weights and indices
+		double karray[DIM][KPOINTS];
+		int64_t indarray[DIM][KPOINTS];
+		int64_t radius = m_radius;
+
+		for(int dd = 0; dd < DIM; dd++) {
+			for(int64_t ii=-radius; ii<=radius; ii++){
+				int64_t i = round(cindex[dd])+ii;
+				indarray[dd][ii+m_radius] = i;
+				karray[dd][ii+m_radius] = lanczosKern(i-cindex[dd], m_radius);
+			}
+		}
+
+		bool iioutside = false;
+//		outside = false;
+
+		// compute weighted pixval by iterating over neighbors, which are
+		// combinations of KPOINTS
+		T pixval = 0;
+		double weight = 0;
+		div_t result;
+		for(int ii = 0 ; ii < pow(KPOINTS, DIM); ii++) {
+			weight = 1;
+
+			//set index
+			result.quot = ii;
+			iioutside = false;
+			for(int dd = 0; dd < DIM; dd++) {
+				result = std::div(result.quot, KPOINTS);
+				weight *= karray[dd][result.rem];
+				index[dd] = indarray[dd][result.rem];
+				iioutside = iioutside || index[dd] < 0 || index[dd] >= dim[dd];
+			}
+
+			// might prevent optimization
+			//			if(weight == 0)
+			//				continue;
+
+			// if the current point maps outside, then we need to deal with it
+//			outside = (weight != 0 && iioutside) || outside;
+			if(iioutside) {
+				if(m_boundmethod == ZEROFLUX) {
+					// clamp
+					for(size_t dd=0; dd<DIM; dd++)
+						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
+				} else if(m_boundmethod == WRAP) {
+					// wrap
+					for(size_t dd=0; dd<DIM; dd++)
+						index[dd] = wrap<int64_t>(0, dim[dd]-1, index[dd]);
+				} else {
+					// set wieght to zero, then just clamp
+					weight = 0;
+					for(size_t dd=0; dd<DIM; dd++)
+						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
+				}
+			}
+
+			T v = this->castget(this->parent->__getAddr(index[0], index[1],index[2],t));
+			pixval += weight*v;
+		}
+
+		return pixval;
+	}
+	
+	BoundaryConditionT m_boundmethod;
+protected:
+	
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T operator[](int64_t i) { (void)(i); return T(); };
+	T get(const std::vector<int64_t>& i) { (void)(i); return T(); };
+	T operator[](const std::vector<int64_t>& i) { (void)(i); return T(); };
+	size_t m_radius;
+};
+
+
+/**
+ * @brief The purpose of this class is to view an image as a continuous
+ * 3D+vector dimension image rather than a 4+D image. Therefore all dimensions
+ * above the third are cast as a vector and interpolation is only performed
+ * between 3D points, with the 4th dimension assumed to be non-spatial. The
+ * would be applicable if the upper dimensions are of a different type
+ * than the first 3.
+ *
+ * @tparam T Type of value to cast and return
+ */
+template<typename T>
 class LanczosInterp3DView : public NDConstView<T>
 {
 public:
@@ -1088,7 +1423,7 @@ public:
 				} else if(m_boundmethod == WRAP) {
 					// wrap
 					for(size_t dd=0; dd<DIM; dd++)
-						wrap<int64_t>(0, dim[dd]-1, index[dd]);
+						index[dd] = wrap<int64_t>(0, dim[dd]-1, index[dd]);
 				} else {
 					// set wieght to zero, then just clamp
 					weight = 0;
