@@ -817,7 +817,7 @@ int MRImageStore<D,T>::indexToPoint(size_t len, const int64_t* index,
     Matrix<double, D, 1> vindex;
     Matrix<double, D, 1> vpoint;
     // copy in
-    for(size_t ii=0; ii<len; ii++) 
+    for(size_t ii=0; ii<len && ii<D; ii++) 
         vindex[ii] = index[ii];
     for(size_t ii=len; ii<D; ii++)
         vindex[ii] = 0;
@@ -859,7 +859,7 @@ int MRImageStore<D,T>::indexToPoint(size_t len, const double* index,
     Matrix<double, D, 1> vindex;
     Matrix<double, D, 1> vpoint;
     // copy in
-    for(size_t ii=0; ii<len; ii++) 
+    for(size_t ii=0; ii<len && ii<D; ii++) 
         vindex[ii] = index[ii];
     for(size_t ii=len; ii<D; ii++)
         vindex[ii] = 0;
@@ -901,7 +901,7 @@ int MRImageStore<D,T>::pointToIndex(size_t len, const double* rast,
     Matrix<double, D, 1> vindex;
     Matrix<double, D, 1> vpoint;
     // copy in
-    for(size_t ii=0; ii<len; ii++) 
+    for(size_t ii=0; ii<len && ii<D; ii++) 
         vpoint[ii] = rast[ii];
     for(size_t ii=len; ii<D; ii++)
         vpoint[ii] = 0;
@@ -944,7 +944,7 @@ int MRImageStore<D,T>::pointToIndex(size_t len, const double* rast,
     Matrix<double, D, 1> vindex;
     Matrix<double, D, 1> vpoint;
     // copy in
-    for(size_t ii=0; ii<len; ii++) 
+    for(size_t ii=0; ii<len && ii<D; ii++) 
         vpoint[ii] = rast[ii];
     for(size_t ii=len; ii<D; ii++)
         vpoint[ii] = 0;
@@ -989,7 +989,7 @@ int MRImageStore<D,T>::orientVector(size_t len, const double* xyz,
     Matrix<double, D, 1> vRAS;
     
     // copy in
-    for(size_t ii=0; ii<len; ii++) 
+    for(size_t ii=0; ii<len && ii<D; ii++) 
         vInd[ii] = xyz[ii];
     for(size_t ii=len; ii<D; ii++)
         vInd[ii] = 0;
@@ -1032,7 +1032,7 @@ int MRImageStore<D,T>::disOrientVector(size_t len, const double* ras,
     Matrix<double, D, 1> vInd;
     Matrix<double, D, 1> vRAS;
     // copy in
-    for(size_t ii=0; ii<len; ii++) 
+    for(size_t ii=0; ii<len && ii<D; ii++) 
         vRAS[ii] = ras[ii];
     for(size_t ii=len; ii<D; ii++)
         vRAS[ii] = 0;
