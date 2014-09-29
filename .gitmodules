@@ -1,3 +1,6 @@
 [submodule "deps/optimizers"]
 	path = deps/optimizers
 	url = git@github.com:MicahChambers/cppConvexOptimizers.git
+[submodule "deps/mathparse"]
+	path = deps/mathparse
+	url = git@github.com:MicahChambers/mathparse.git
