@@ -182,37 +182,3 @@ int main(int argc, char** argv)
     out->write(outname);
 }
 
-///**
-// * @Brief Resamples this image into the same sapce as the input and returns
-// * the result. This is not modified.
-// *
-// * @param in image to resample 
-// * @param ref reference image to sample to
-// * @param otype output type
-// * @param method LANCZOS or LINEAR or NEAREST for lanczos resampling,
-// * linear resampling or nearest neighbor. 
-// *
-// * @return this image resampled into the space of ref
-// */
-//template <typename IT>
-//ptr<MRImage> resample(ptr<MRImage> input, ptr<MRImage> refe, PixelT otype,
-//        SampleT method) const
-//{
-//    ptr<MRImage> out = dPtrCast<MRImage>(ref->createAnother(otype));
-//
-//    // perform resampling
-//    if(method == LANCZOS) {
-//        for(NDIter<IT> it(out); !it.eof(); ++it) {
-//            // convert point
-//            //
-//        }
-//    } else if(method == LINEAR) { 
-//
-//    } else if(method == NEAREST) {
-//
-//    } else {
-//        throw INVALID_ARGUMENT("Unknown resampling method requested: "+
-//                to_str(method));
-//    }
-//}
-//
