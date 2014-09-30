@@ -43,32 +43,16 @@ void usage(int status)
         "lanczos resampled to that space (unless --nn/--lin are provided). "
         "Pixel type is by default the same as this image, but it can be set "
         "with --short/--double/--float. Any single character can follow a - to "
-        "create a variable for use in the equation. "
-        "Acceptable operations in the equation are:\n ";
-    cerr << setw(10) << "sin" << "sine trig function" << endl;
-    cerr << setw(10) << "cos" << "cosine trig function" << endl;
-    cerr << setw(10) << "tan" << "tangent trig function" << endl;
-    cerr << setw(10) << "log" << "natural log" << endl;
-    cerr << setw(10) << "^" << "power function" << endl;
-    cerr << setw(10) << "*" << "multiplication" << endl;
-    cerr << setw(10) << "/" << "division" << endl;
-    cerr << setw(10) << "+" << "addition" << endl;
-    cerr << setw(10) << "-" << "subtraction" << endl;
-    cerr << setw(10) << "==" << "equal-to" << endl;
-    cerr << "TODO\n" << endl;
-    cerr << setw(10) << "abs" << "absoute value" << endl;
-    cerr << setw(10) << "round" << "round values to nearest int" << endl;
-    cerr << setw(10) << "floor" << "floor value to next int below number" << endl;
-    cerr << setw(10) << "ceil" << "ceil next int above number" << endl;
-    cerr << setw(10) << "<" << "binarize" << endl;
-    cerr << setw(10) << ">" << "binarize" << endl;
+        "create a variable for use in the equation. ";
     cerr << "Options:\n"<<endl;
-    cerr << setw(10) << "--nn" << "Nearest neighbor resampling" << endl;
-    cerr << setw(10) << "--lin" << "Linear resampling" << endl;
-    cerr << setw(10) << "--short" << "Use short int out for type" << endl;
-    cerr << setw(10) << "--int" << "Use int for out type" << endl;
-    cerr << setw(10) << "--float" << "Use float for out type" << endl;
-    cerr << setw(10) << "--double" << "Use double for out type" << endl;
+    cerr << '\t' << setw(10) << left << "--nn"     << "Nearest neighbor resampling" << endl;
+    cerr << '\t' << setw(10) << left << "--lin"    << "Linear resampling" << endl;
+    cerr << '\t' << setw(10) << left << "--short"  << "Use short int out for type" << endl;
+    cerr << '\t' << setw(10) << left << "--int"    << "Use int for out type" << endl;
+    cerr << '\t' << setw(10) << left << "--float"  << "Use float for out type" << endl;
+    cerr << '\t' << setw(10) << left << "--double" << "Use double for out type" << endl;
+    cerr << "\nAcceptable operations in the equation are:\n";
+    listops();
     exit(status);
 }
 
@@ -134,6 +118,7 @@ int main(int argc, char** argv)
 
     // parse math
     MathExpression expr(equation);
+    expr.randomTest();
 
     // load reference image/create output
     ptr<MRImage> out;
@@ -167,7 +152,7 @@ int main(int argc, char** argv)
             break;
         }
 
-        if(type != UNKNOWN_TYPE) {
+        if(type == UNKNOWN_TYPE) {
             out = dPtrCast<MRImage>(ptr->createAnother());
         } else {
             out = dPtrCast<MRImage>(ptr->createAnother(type));

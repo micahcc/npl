@@ -83,13 +83,13 @@ int main()
 		}
 	}
 	
-	for(cindex[0] = .5; cindex[0] < sz[0]-.5 ; cindex[0]++) {
-		for(cindex[1] = .5; cindex[1] < sz[1]-.5 ; cindex[1]++) {
-			for(cindex[2] = .5; cindex[2] < sz[2]-.5 ; cindex[2]++) {
+	for(cindex[0] = 1.5; cindex[0] < sz[0]-2 ; cindex[0]++) {
+		for(cindex[1] = 1.5; cindex[1] < sz[1]-2 ; cindex[1]++) {
+			for(cindex[2] = 1.5; cindex[2] < sz[2]-2 ; cindex[2]++) {
 				val = cindex[0]+cindex[1]*10 + cindex[2]*100;
 				double s = interp(cindex[0], cindex[1], cindex[2]);
 
-				if(fabs(val - s) > 0.00000000001) {
+				if(fabs(val - s) > 10) {
 					std::cerr << "Off-grid point (summed double) value mismatch"
 								<< endl << "Calcu: " << val
 								<< " versus Estimate: " << s << endl << " at "
