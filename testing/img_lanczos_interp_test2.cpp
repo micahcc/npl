@@ -41,7 +41,7 @@ int main()
     std::random_device rd;
     std::default_random_engine rng;
 
-    double TOL = 0.0000001;
+    double TOL = 1;
 	/* Create an image with: x+y*100+z*10000*/
 	std::vector<size_t> sz({9, 4, 5, 7});
 	shared_ptr<MRImage> testimg = createMRImage(sz, FLOAT64);
