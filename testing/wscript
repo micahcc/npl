@@ -105,8 +105,8 @@ def build(bld):
             use='nplio')
 
     bld.program(install_path='${PREFIX}/tests', features='test', 
-            target='img_nn_interp_test', 
-            source='img_nn_interp_test.cpp', 
+            target='img_nn_interp_test1', 
+            source='img_nn_interp_test1.cpp', 
             use='mrimage_utils accessors mrimage_utils iterators')
 
     bld.program(install_path='${PREFIX}/tests', features='test', 
@@ -120,8 +120,13 @@ def build(bld):
             use='mrimage_utils accessors mrimage iterators')
 
     bld.program(install_path='${PREFIX}/tests', features='test', 
-            target='img_lin_interp_test', 
-            source='img_lin_interp_test.cpp', 
+            target='img_nn_interp_test4', 
+            source='img_nn_interp_test4.cpp', 
+            use='mrimage_utils accessors mrimage iterators')
+
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='img_lin_interp_test1', 
+            source='img_lin_interp_test1.cpp', 
             use='mrimage_utils')
 
     bld.program(install_path='${PREFIX}/tests', features='test', 
@@ -132,6 +137,11 @@ def build(bld):
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='img_lin_interp_test3', 
             source='img_lin_interp_test3.cpp', 
+            use='mrimage_utils mrimage accessors iterators')
+    
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='img_lin_interp_test4', 
+            source='img_lin_interp_test4.cpp', 
             use='mrimage_utils mrimage accessors iterators')
     
     bld.program(install_path='${PREFIX}/tests', features='test', 
@@ -149,6 +159,10 @@ def build(bld):
             source='img_lanczos_interp_test3.cpp', 
             use='mrimage_utils mrimage accessors iterators')
 
+    bld.program(install_path='${PREFIX}/tests', features='test', 
+            target='img_lanczos_interp_test4', 
+            source='img_lanczos_interp_test4.cpp', 
+            use='mrimage_utils mrimage accessors iterators')
 
     bld.program(install_path='${PREFIX}/tests', features='test', 
             target='img_kernel_test', 
