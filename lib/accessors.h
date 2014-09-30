@@ -75,8 +75,11 @@ public:
         setArray(in);
 	};
 
+	NDView() : parent(NULL) {} ;
+
     void setArray(ptr<NDArray> in) 
     {
+		parent = in;
         switch(in->type()) {
             case UINT8:
                 castget = castgetStatic<uint8_t>;
@@ -298,9 +301,12 @@ public:
     {
         setArray(in);
     }
+	
+	NDConstView() : parent(NULL) {} ;
 
     void setArray(ptr<const NDArray> in)
 	{
+		parent = in;
 		switch(in->type()) {
 			case UINT8:
 				castget = castgetStatic<uint8_t>;
@@ -454,6 +460,7 @@ public:
 	Pixel3DView(std::shared_ptr<NDArray> in) : NDView<T>(in)
 	{ };
 
+	Pixel3DView();
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -505,6 +512,8 @@ class Vector3DConstView : public NDConstView<T>
 public:
 	Vector3DConstView(std::shared_ptr<const NDArray> in) : NDConstView<T>(in)
 	{ };
+
+	Vector3DConstView() {};
 
 	/**
 	 * @brief Gets value at array index and then casts to T
@@ -596,6 +605,7 @@ public:
 	Vector3DView(std::shared_ptr<NDArray> in) : NDView<T>(in)
 	{ };
 
+	Vector3DView() {}; 
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -734,6 +744,8 @@ public:
 				: NDConstView<T>(in), m_boundmethod(bound), m_ras(false)
 	{ };
 
+	LinInterpNDView() : m_boundmethod(ZEROFLUX), m_ras(false) {} ;
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -826,7 +838,7 @@ public:
 	 */
 	T get(const vector<double>& cindex)
 	{
-        get(cindex.size(), cindex.data());
+        return get(cindex.size(), cindex.data());
     }
 
     /**
@@ -1005,6 +1017,8 @@ public:
 				: Vector3DConstView<T>(in), m_boundmethod(bound), m_ras(false)
 	{ };
 
+	LinInterp3DView() : m_boundmethod(ZEROFLUX), m_ras(false) {} ;
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 *
@@ -1160,6 +1174,8 @@ public:
 				BoundaryConditionT bound = ZEROFLUX)
 				: NDConstView<T>(in), m_boundmethod(bound), m_ras(false)
 	{ };
+
+	NNInterpNDView() : m_boundmethod(ZEROFLUX), m_ras(false) {} ;
 
 	/**
 	 * @brief Gets value at array index and then casts to T
@@ -1349,7 +1365,7 @@ public:
 	 */
 	T get(const vector<double>& cindex)
 	{
-        get(cindex.size(), cindex.data());
+        return get(cindex.size(), cindex.data());
     }
 
 	BoundaryConditionT m_boundmethod;
@@ -1394,6 +1410,8 @@ public:
 				BoundaryConditionT bound = ZEROFLUX)
 				: Vector3DConstView<T>(in), m_boundmethod(bound), m_ras(false)
 	{ };
+
+	NNInterp3DView() : m_boundmethod(ZEROFLUX), m_ras(false) {} ;
 
 	/**
 	 * @brief Gets value at array index and then casts to T
@@ -1519,6 +1537,8 @@ public:
                 m_radius(2)
 	{ };
 
+	LanczosInterpNDView() : m_boundmethod(ZEROFLUX), m_ras(false), m_radius(2) {} ;
+
 	void setRadius(size_t rad) { m_radius = rad; };
 	size_t getRadius() { return m_radius; };
 
@@ -1585,6 +1605,16 @@ public:
             tmp[ii] = *it;
 		return get(std::min(8UL, index.size()), tmp);
 	};
+
+	/**
+	 * @brief Gets value at array index and then casts to T
+	 *
+	 * @return value
+	 */
+	T get(const std::vector<double>& incoord)
+	{
+		return get(incoord.size(), incoord.data());
+	}
 
 	/**
 	 * @brief Gets value at array index and then casts to T
@@ -1708,6 +1738,8 @@ public:
                 : Vector3DConstView<T>(in), m_boundmethod(bound), m_ras(false),
                 m_radius(2)
 	{ };
+
+	LanczosInterp3DView() : m_boundmethod(ZEROFLUX), m_ras(false), m_radius(2) {} ;
 
 	void setRadius(size_t rad) { m_radius = rad; };
 	size_t getRadius() { return m_radius; };

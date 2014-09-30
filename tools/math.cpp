@@ -68,7 +68,6 @@ int main(int argc, char** argv)
     PixelT type = UNKNOWN_TYPE;
 
     string equation;
-    map<char, shared_ptr<NDConstView<double>>> imgargs;
     char refimg = 0;
     unordered_map<char, string> args;
     for(int ii=1; ii<argc; ii++) {
@@ -121,61 +120,80 @@ int main(int argc, char** argv)
 
     // load reference image/create output
     ptr<MRImage> out;
-    {
-        auto ptr = dPtrCast<MRImage>(readMRImage(args[refimg]));
-        switch(resampler) {
-            case NEAREST: 
-            {
-                shared_ptr<NNInterpNDView<double>> interp(
-                        new NNInterpNDView<double>(ptr));
-                interp->m_ras = true;
-                imgargs[refimg] = interp;
-            }
-            break;
-            case LINEAR:
-            {
-                shared_ptr<LinInterpNDView<double>> interp(
-                        new LinInterpNDView<double>(ptr));
-                interp->m_ras = true;
-                imgargs[refimg] = interp;
-            }
-            break;
-            default:
-            case LANCZOS:
-            {
-                shared_ptr<LanczosInterpNDView<double>> interp(
-                        new LanczosInterpNDView<double>(ptr));
-                interp->m_ras = true;
-                imgargs[refimg] = interp;
-            }
-            break;
-        }
+	{
+	auto ptr = dPtrCast<MRImage>(readMRImage(args[refimg]));
+	if(type == UNKNOWN_TYPE) {
+		out = dPtrCast<MRImage>(ptr->createAnother());
+	} else {
+		out = dPtrCast<MRImage>(ptr->createAnother(type));
+	}
+	}
 
-        if(type == UNKNOWN_TYPE) {
-            out = dPtrCast<MRImage>(ptr->createAnother());
-        } else {
-            out = dPtrCast<MRImage>(ptr->createAnother(type));
-        }
-    }
+	// TODO only resample lowest matching dimensions, then
+	// iterate over the highest dimensions slowest so that 
+	// we can deal with 4D+ images.
+	// load all images and create interpolated version
+	map<char, NDConstView<double>> imgargs;
+	for(auto fit = args.begin(); fit != args.end(); ++fit) {
+		auto img = readMRImage(fit->second);
+		
+		if(img->matchingOrient(out, true)) {
+			imgargs[fit->first] = NDConstView<double>(img);
+		} else {
+			vector<int64_t> ind(out->ndim());
+			vector<double> point(out->ndim());
+			auto tmp = dPtrCast<MRImage>(out->createAnother());
 
-    // perform math
-    vector<int64_t> ind(out->ndim());
-    vector<double> cind(out->ndim());
-    for(NDIter<double> it(out); !it.eof(); ++it) {
-        // get index, point
-        it.index(ind);
-        out->indexToPoint(ind.size(), ind.data(), cind.data());
-        out->indexToPoint(ind.size(), ind.data(), cind.data());
-        
-        // set all the values
-        for(auto eit=imgargs.begin(); eit!=imgargs.end(); ++eit) {
-            double v = (*eit->second)[ind];
-            expr.setarg(eit->first, v);
-        }
+			switch(resampler) {
+				case NEAREST: {
+					cerr << "NN-Interpolating " << fit->second << endl;
+					NNInterpNDView<double> interp(img);
+					interp.m_ras = true;
+					for(NDIter<double> it(tmp); !it.eof(); ++it) {
+						// get index, point
+						it.index(ind);
+						tmp->indexToPoint(ind.size(), ind.data(), point.data());
+						it.set(interp.get(point));
+					}
+				} break;
+				case LINEAR: {
+					cerr << "Linear-Interpolating " << fit->second << endl;
+					LinInterpNDView<double> interp(img);
+					interp.m_ras = true;
+					for(NDIter<double> it(tmp); !it.eof(); ++it) {
+						// get index, point
+						it.index(ind);
+						tmp->indexToPoint(ind.size(), ind.data(), point.data());
+						it.set(interp.get(point));
+					}
+				} break;
+				case LANCZOS: {
+					cerr << "Lanczos-Interpolating " << fit->second << endl;
+					LanczosInterpNDView<double> interp(img);
+					interp.m_ras = true;
+					for(NDIter<double> it(tmp); !it.eof(); ++it) {
+						// get index, point
+						it.index(ind);
+						tmp->indexToPoint(ind.size(), ind.data(), point.data());
+						it.set(interp.get(point));
+					}
+				}
+			}
+			imgargs[fit->first] = NDConstView<double>(tmp);
+		}
+	}
 
-        // execute
-        it.set(expr.exec());
-    }
+	// do math
+	vector<int64_t> ind(out->ndim());
+	for(NDIter<double> it(out); !it.eof(); ++it) {
+		it.index(ind);
+		for(auto eit=imgargs.begin(); eit!=imgargs.end(); ++eit) {
+			// get value at the set point
+			double v = eit->second.get(ind);
+			expr.setarg(eit->first, v);
+		}
+		it.set(expr.exec());
+	}
 
     // write out image
     out->write(outname);
