@@ -20,7 +20,6 @@
 
 #include <unordered_map>
 #include <version.h>
-#include <tclap/CmdLine.h>
 #include <string>
 #include <stdexcept>
 

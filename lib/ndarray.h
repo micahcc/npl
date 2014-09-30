@@ -287,7 +287,7 @@ public:
 				const size_t* newsize) const = 0;
 
     /**
-     * @Brief extracts a region of this image. Zeros in the size variable
+     * @brief extracts a region of this image. Zeros in the size variable
      * indicate dimension to be removed.
      *
      * @param len     Length of index/newsize arrays
@@ -301,7 +301,7 @@ public:
             const size_t* size) const = 0;
 
     /**
-     * @Brief extracts a region of this image. Zeros in the size variable
+     * @brief extracts a region of this image. Zeros in the size variable
      * indicate dimension to be removed.
      *
      * @param len     Length of index/size arrays
@@ -313,7 +313,7 @@ public:
     virtual ptr<NDArray> extractCast(size_t len, const size_t* size) const = 0;
 
     /**
-     * @Brief extracts a region of this image. Zeros in the size variable
+     * @brief extracts a region of this image. Zeros in the size variable
      * indicate dimension to be removed.
      *
      * @param len     Length of index/size arrays
@@ -328,7 +328,7 @@ public:
             const int64_t* index, const size_t* size, PixelT newtype) const = 0;
 
     /**
-     * @Brief extracts a region of this image. Zeros in the size variable
+     * @brief extracts a region of this image. Zeros in the size variable
      * indicate dimension to be removed.
      *
      * @param len     Length of index/size arrays
