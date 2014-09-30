@@ -19,9 +19,11 @@
  *****************************************************************************/
 
 #include <unordered_map>
+#include <tclap/CmdLine.h>
 #include <version.h>
 #include <string>
 #include <stdexcept>
+#include <iterator>
 
 #include "mrimage.h"
 #include "nplio.h"
@@ -33,34 +35,8 @@
 using namespace npl;
 using namespace std;
 
-std::ostream_iterator<int> out_it (std::cout,", ");
-
-void usage(int status)
-{
-	cerr << "Usage: nplMath --out <image> [options] [-a <image>] [-b <image>] ... \"<equation>\"" << endl;
-	cerr << "\tMath is performed in the space of the first image on the "
-		"command line which is not necessarily -a. All other images are "
-		"lanczos resampled to that space (unless --nn/--lin are provided). "
-		"Pixel type is by default the same as this image, but it can be set "
-		"with --short/--double/--float. Any single character can follow a - to "
-		"create a variable for use in the equation. ";
-	cerr << "Options:\n"<<endl;
-	cerr << '\t' << setw(10) << left << "--nn"     
-		<< "Nearest neighbor resampling" << endl;
-	cerr << '\t' << setw(10) << left << "--lin"    
-		<< "Linear resampling" << endl;
-	cerr << '\t' << setw(10) << left << "--short"  
-		<< "Use short int out for type" << endl;
-	cerr << '\t' << setw(10) << left << "--int"    
-		<< "Use int for out type" << endl;
-	cerr << '\t' << setw(10) << left << "--float"  
-		<< "Use float for out type" << endl;
-	cerr << '\t' << setw(10) << left << "--double" 
-		<< "Use double for out type" << endl;
-	cerr << "\nAcceptable operations in the equation are:\n";
-	listops();
-	exit(status);
-}
+std::ostream_iterator<double> vdstream (std::cout,", ");
+std::ostream_iterator<int64_t> vistream (std::cout,", ");
 
 ptr<MRImage> createBiasField(ptr<MRImage> in, double bspace)
 {
@@ -71,13 +47,13 @@ ptr<MRImage> createBiasField(ptr<MRImage> in, double bspace)
 
 		// get spacing and size
 		for(size_t dd=0; dd<osize.size(); ++dd) {
-				osize[dd] = 4+in->dim(dd)*in->spacing(dd)/a_spacing->getValue();
+				osize[dd] = 4+in->dim(dd)*in->spacing(dd)/bspace;
 				spacing[dd] = bspace;
 		}
 
 		auto biasfield = createMRImage(osize.size(), osize.data(), FLOAT64);
-		biasfield->setDirection(in->getDirection());
-		biasfield->setSpacing(spacing);
+		biasfield->setDirection(in->getDirection(), false);
+		biasfield->setSpacing(spacing, false);
 		
 		// compute center of input
 		VectorXd indc(ndim); // center index
@@ -90,10 +66,10 @@ ptr<MRImage> createBiasField(ptr<MRImage> in, double bspace)
 		// o = c-R(sx_c)
 		for(size_t dd=0; dd<ndim; dd++) 
 				indc[dd] = (osize[dd]-1.)/2.;
-		VectorXd origin = ptc - in->getDirection()*(spacing.asDiagonal()*indc);
-		biasfield->setOrigin(origin);
+		origin = ptc - in->getDirection()*(spacing.asDiagonal()*indc);
+		biasfield->setOrigin(origin, false);
 
-		biasfied->write("biasfield_empty.nii.gz");
+		biasfield->write("biasfield_empty.nii.gz");
 
 		return biasfield;
 }
@@ -124,18 +100,20 @@ int main(int argc, char** argv)
 		cmd.parse(argc, argv);
 
 		// read input, initialize
-		auto in = readMRImage(a_in->getValue());
-		auto mask = readMRImage(a_mask->getValue());
+		auto in = readMRImage(a_in.getValue());
+		auto mask = readMRImage(a_mask.getValue());
 		auto biasfield = createBiasField(in, a_spacing.getValue());
 		size_t ndim = in->ndim();
 		size_t nparams = 1; // number of Cubic-BSpline Parameters
 		size_t npixels = 1; // Number of pixels we are comparing
 		for(size_t ii=0; ii<ndim; ii++) {
-				nparams *= osize[ii];
+				nparams *= biasfield->dim(ii);
 				npixels *= in->dim(ii);
 		}
-		VectorXd params(nparams, 0);
-		MatrixXd pixweights(npixels, nparams, 0);
+		VectorXd params(nparams);
+		MatrixXd pixweights(npixels, nparams);
+		params.setZero();
+		pixweights.setZero();
 
 		/************************************************************
 		 * Calculate Parameter Weights at Each Pixel
@@ -172,7 +150,7 @@ int main(int argc, char** argv)
 				}
 #ifndef NDEBUG	
 				cout << "Bias Field Coordinate:\n";
-				copy(bind.begin(), bind.end(), out_it);
+				copy(bind.begin(), bind.end(), vdstream);
 #endif
 				// construct ROI, iterator for neighborhood of bias field parameter
 				iit.setROI(roi);
@@ -180,14 +158,14 @@ int main(int argc, char** argv)
 						// compute index in biasfield
 						iit.index(ndim, iind_i.data());
 #ifndef NDEBUG	
-				cout << "Input Coordinate:\n";
-				copy(iind_i.begin(), iind_i.end(), out_it);
+						cout << "Input Coordinate:\n";
+						copy(iind_i.begin(), iind_i.end(), vistream);
 #endif
 						in->indexToPoint(ndim, iind_i.data(), point.data());
 						biasfield->pointToIndex(ndim, point.data(), oind.data());
 #ifndef NDEBUG	
-				cout << "Bias Field Coord at Input Coordinate:\n";
-				copy(oind_i.begin(), oind_i.end(), out_it);
+						cout << "Bias Field Coord at Input Coordinate:\n";
+						copy(oind.begin(), oind.end(), vdstream);
 #endif
 
 						// compute weight
@@ -199,11 +177,12 @@ int main(int argc, char** argv)
 						pixweights(lininput, linbias) = w; 
 #ifndef NDEBUG	
 				cout << "Weight: " << w << endl;
-				out << "-----------------------------------------\n";
+				cout << "-----------------------------------------\n";
 #endif
 				}
 		}
 	
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
+	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
 }
 

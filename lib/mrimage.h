@@ -422,7 +422,7 @@ public:
 		 * @return True if the two images have matching orientation information.
 		 */
 		virtual
-				bool matchingOrient(ptr<const MRImage> other, bool checksize) const;
+		bool matchingOrient(ptr<const MRImage> other, bool checksize) const;
 
 		/********************************************
 		 * Output Functions
