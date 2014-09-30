@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * 	http://www.apache.org/licenses/LICENSE-2.0
+ *	http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -44,12 +44,18 @@ void usage(int status)
 		"with --short/--double/--float. Any single character can follow a - to "
 		"create a variable for use in the equation. ";
 	cerr << "Options:\n"<<endl;
-	cerr << '\t' << setw(10) << left << "--nn"     << "Nearest neighbor resampling" << endl;
-	cerr << '\t' << setw(10) << left << "--lin"    << "Linear resampling" << endl;
-	cerr << '\t' << setw(10) << left << "--short"  << "Use short int out for type" << endl;
-	cerr << '\t' << setw(10) << left << "--int"    << "Use int for out type" << endl;
-	cerr << '\t' << setw(10) << left << "--float"  << "Use float for out type" << endl;
-	cerr << '\t' << setw(10) << left << "--double" << "Use double for out type" << endl;
+	cerr << '\t' << setw(10) << left << "--nn"     
+		<< "Nearest neighbor resampling" << endl;
+	cerr << '\t' << setw(10) << left << "--lin"    
+		<< "Linear resampling" << endl;
+	cerr << '\t' << setw(10) << left << "--short"  
+		<< "Use short int out for type" << endl;
+	cerr << '\t' << setw(10) << left << "--int"    
+		<< "Use int for out type" << endl;
+	cerr << '\t' << setw(10) << left << "--float"  
+		<< "Use float for out type" << endl;
+	cerr << '\t' << setw(10) << left << "--double" 
+		<< "Use double for out type" << endl;
 	cerr << "\nAcceptable operations in the equation are:\n";
 	listops();
 	exit(status);

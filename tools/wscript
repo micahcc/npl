@@ -5,21 +5,26 @@ def build(bld):
             install_path='${PREFIX}/tools_incomplete', 
             source = 'biascorrect.cpp', 
             use = 'mrimage_utils tclap nplio iterators accessors')
+
     bld.program(target = 'nplMath', 
             source = 'math.cpp', 
             use = 'mrimage_utils nplio iterators accessors mathexpression')
+
     bld.program(target = 'skullstrip', 
             install_path='${PREFIX}/tools_incomplete', 
             source = 'skullstrip.cpp', 
             use = 'mrimage_utils tclap nplio iterators accessors')
+
     bld.program(target = 'deformJacobianMap', 
             install_path='${PREFIX}/tools_incomplete', 
             source = 'deformJacobianMap.cpp', 
             use = 'mrimage_utils tclap nplio iterators accessors')
+
     bld.program(target = 'convertDeform', 
             install_path='${PREFIX}/tools_incomplete', 
             source = 'convertDeform.cpp', 
             use = 'mrimage_utils nplio tclap iterators accessors')
+
     bld.program(target = 'copyOrientation', 
             source = 'copyOrientation.cpp', 
             use = 'mrimage_utils nplio tclap')
@@ -33,23 +38,31 @@ def build(bld):
             install_path='${PREFIX}/tools_incomplete', 
             source = 'fmri_ica.cpp',
             use = 'mrimage_utils nplio statistics tclap');
+
     bld.program(target = 'nplhd', 
             source = 'niiHeader.cpp', 
             use = 'mrimage nplio')
+
     bld.program(target = 'nplTouch', 
             source = 'touch.cpp', 
             use = 'nplio tclap mrimage mrimage_utils')
+
     bld.program(target = 'nplRemoveRegressors', 
             source = 'remove_regressors.cpp', 
             use = 'tclap mrimage nplio statistics')
+
     bld.program(target = 'nplSelectVolumes', 
             source = 'extractTimePoints.cpp', 
             use = 'tclap utility mrimage nplio')
+
 #    bld.program(target = 'indexMapToOffsetMap', 
-#            source = 'indexMapToOffsetMap.cpp', use = 'mrimage tclap kdtree kslicer')
+#            source = 'indexMapToOffsetMap.cpp', 
+#            use = 'mrimage tclap kdtree kslicer')
 #    
 #    bld.program(target = 'applyDeform', 
-#            source = 'applyDeform.cpp', use = 'mrimage tclap slicer')
+#            source = 'applyDeform.cpp', 
+#            use = 'mrimage tclap slicer')
 #
 #    bld.program(target = 'applyDeform', 
-#            source = 'applyDeform.cpp', use = 'mrimage_utils tclap iterators accessors')
+#            source = 'applyDeform.cpp', 
+#            use = 'mrimage_utils tclap iterators accessors')
