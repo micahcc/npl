@@ -1,9 +1,13 @@
 
 def build(bld):
     # todo rename
+    bld.program(target = 'nplBiasCorrect', 
+            install_path='${PREFIX}/tools_incomplete', 
+            source = 'biascorrect.cpp', 
+            use = 'mrimage_utils tclap nplio iterators accessors')
     bld.program(target = 'nplMath', 
             source = 'math.cpp', 
-            use = 'mrimage_utils tclap nplio iterators accessors mathexpression')
+            use = 'mrimage_utils nplio iterators accessors mathexpression')
     bld.program(target = 'skullstrip', 
             install_path='${PREFIX}/tools_incomplete', 
             source = 'skullstrip.cpp', 
