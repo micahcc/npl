@@ -48,12 +48,14 @@ int main(int argc, char** argv)
 			"for multiple inputs.", true, "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image (3D,INT32).",
 			true, "", "*.nii.gz", cmd);
+	TCLAP::ValueArg<int> a_clusters("c", "clusters", "Number of clusters",
+			false, 3, "<labelcount>", cmd);
 	TCLAP::MultiArg<int> a_dims("d", "dims", "Dimensions to use for "
 			"classification. This is counted across inputs (-i), so if you "
 			"give a 4D image with 3 timepoints and a 4D image with 2 "
 			"timepoints then to select the first volume you would do -d 0. "
 			"To also select the last you would do -d 0 -d 4",
-			true, "*.nii.gz", cmd);
+			false, "*.nii.gz", cmd);
 	TCLAP::SwitchArg a_expmax("E", "expmax", "Use gaussian mixture and "
 			"expectation maximization algorithm rather than K-means for "
 			"clustering", cmd);
@@ -85,7 +87,7 @@ int main(int argc, char** argv)
 		}
 
 		for(size_t tt=0; tt<tlen; tt++,cdim++) {
-			if(!a_dims.isSet() || a_dims.getValue()[tt] != cdim) {
+			if(!a_dims.isSet() || a_dims.getValue()[tt] == cdim) {
 				// copy
 				insamples.push_back(vector<double>());
 				insamples.back().resize(nrows);
@@ -106,13 +108,32 @@ int main(int argc, char** argv)
 		}
 	}
 
-	// classify
-	KMeans classifier(samples.cols(), 4);
-	classifier.compute(samples);
-	Eigen::VectorXi labels = classifier.classify(samples);
-	auto segmented = createMRImage(osize.size(), osize.data(), INT32,
-			labels.data(), [](void*){return;});
-	segmented->write("segmented.nii.gz");
+	// Create Classifier
+	ptr<Classifier> classifier;
+	if(a_expmax.isSet()) {
+		cerr << "Expectation Maximization" << endl;
+		classifier.reset(new ExpMax(samples.cols(), a_clusters.getValue()));
+	} else {
+		cerr << "K-Means" << endl;
+		classifier.reset(new KMeans(samples.cols(), a_clusters.getValue()));
+	}
+
+	// Perform Classification
+	cerr << "Computing Groups...";
+	classifier->compute(samples);
+	cerr << "Done!" << endl;
+	cerr << "Classifying...";
+	Eigen::VectorXi labels = classifier->classify(samples);
+	cerr << "Done!" << endl;
+	
+	// Create Output Image
+	auto segmented = createMRImage(osize.size(), osize.data(), INT32);
+	size_t ii = 0;
+	for(FlatIter<double> it(segmented); !it.eof(); ++it, ++ii) {
+		it.set(labels[ii]);
+	}
+	assert(ii == nrows);
+	segmented->write(a_out.getValue());
     
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
