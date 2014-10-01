@@ -1052,6 +1052,8 @@ size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
 	}
 
 
+	double RANDFACTOR = 10;
+	double reassigned = 0;
 	//place every point in its most probable group
 	std::uniform_int_distribution<int> randi(0, zero_tau.size()-1);
     std::uniform_real_distribution<double> randf(0, 1);
@@ -1067,19 +1069,21 @@ size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
 				}
 			}
 
-			double p = exp(prob(pp, max_class));
-			bool reassign = randf(rng) > p;
-			cerr << "p=" << p << ", " << "Reassigned? " << reassign;
+			double p = pow(1-exp(prob(pp, max_class)),RANDFACTOR);
+			bool reassign = randf(rng) < p;
 			if(reassign) {
+				reassigned++;
+//				cerr << "Original p: " << exp(prob(pp, max_class)) << endl;
+//				cerr << "p=" << p << ", " << "Reassigned? " << reassign;
 				max_class = zero_tau[randi(rng)];
-				cerr << " to " << max_class << endl;
-			} else
-				cerr << endl;
+//				cerr << " to " << max_class << endl;
+			}
 
 			if(classes[pp] != max_class)
 				change++;
 			classes[pp] = max_class;
 		}
+		cerr << "Reassigned: " << 100*reassigned/samples.rows() <<"%" << endl;
 	} else {
 		for(int pp = 0 ; pp < samples.rows(); pp++) {
 			double max = -INFINITY;

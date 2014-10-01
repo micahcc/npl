@@ -89,7 +89,7 @@ int main(int argc, char** argv)
 			return -1;
 		}
 
-		for(size_t tt=0; tt<tlen; tt++,cdim++) {
+		for(size_t tt=0; tt<tlen; tt++) {
 			if(!a_dims.isSet() || a_dims.getValue()[tt] == cdim) {
 				// copy
 				insamples.push_back(vector<double>());
@@ -98,6 +98,7 @@ int main(int argc, char** argv)
 				for(Vector3DIter<double> it(inimg); !it.eof(); ++it, rr++) {
 					insamples.back()[rr] = it[tt];
 				}
+				cdim++;
 			}
 		}
 	}
@@ -151,14 +152,12 @@ int main(int argc, char** argv)
 	}
 
 	// free sup some membory
-	samples.clear();
-	labels.clear();
+	samples.resize(0,0);
+	labels.resize(0);
 
 	cerr << "Performing Connected Component Analysis...";
-	/// TODO
-	connectedComponentRelabel();
+	segmented = dPtrCast<MRImage>(relabelConnected(segmented));
 	cerr << "Done";
-
 
 	assert(ii == nrows);
 	segmented->write(a_out.getValue());
