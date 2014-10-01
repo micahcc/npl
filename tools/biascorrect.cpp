@@ -102,7 +102,7 @@ try {
 			"a scalar then values are taken as weights.", true, "", "*.nii.gz",
 			cmd);
 	TCLAP::ValueArg<double> a_spacing("s", "spacing", "Space between knots "
-			"for bias-field estimation.", false, 30, "[mm]", cmd);
+			"for bias-field estimation.", false, 40, "[mm]", cmd);
 
 	TCLAP::ValueArg<string> a_biasfield("o", "out", "Bias Field Image.",
 			false, "", "*.nii.gz", cmd);
@@ -249,6 +249,8 @@ try {
 	biasfield->write("biasfield_params.nii.gz");
 	in->write("biasfield_est.nii.gz");
 	cerr << "Done" << endl;
+
+	// TODO add mask
 	
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }

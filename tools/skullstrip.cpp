@@ -345,13 +345,13 @@ void genPoints(ptr<const MRImage> scale,
     direction_var->write("direction_var.nii.gz");
 
 	// classify
-	ExpMax classifier(lambdas->tlen(), 4);
+	KMeans classifier(lambdas->tlen(), 4);
 	Eigen::Map<MatrixXd> samples((double*)lambdas->data(), scale->elements(),
 				lambdas->tlen());
 	classifier.compute(samples);
 	Eigen::VectorXi labels = classifier.classify(samples);
 	auto segmented = createMRImage(scale->ndim(), scale->dim(), INT32,
 			labels.data(), [](void*){return;});
-	
+	segmented->write("segmented.nii.gz");
 }
 
