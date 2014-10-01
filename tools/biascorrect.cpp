@@ -81,6 +81,11 @@ ptr<MRImage> createBiasField(ptr<MRImage> in, double bspace)
 
 //#define USE_SPARSE
 
+double smoothwindow(double x, double a)
+{
+	return hannWindow(x, a/2);
+}
+
 int main(int argc, char** argv)
 {
 try {

@@ -331,14 +331,14 @@ ptr<MRImage> resample(ptr<const MRImage> in, double* spacing,
                 ibuffer[ii][1] = 0;
             }
             // positive frequencies
-            for(ii=0; ii< (min(rsize[dd],psize[dd])-1)/2; ii++) {
-                double w = window(ii, max(rsize[dd],psize[dd])/2.);
+            for(ii=0; ii<(min(rsize[dd],psize[dd])+1)/2; ii++) {
+                double w = window(ii, min(rsize[dd],psize[dd])/2.);
                 ibuffer[ii][0] = obuffer[ii][0]*w*normf;
                 ibuffer[ii][1] = obuffer[ii][1]*w*normf;
             }
             // negative frequencies
-            for(ii=1; ii< (min(rsize[dd],psize[dd])+1)/2; ii++) {
-                double w = window(ii, max(rsize[dd],psize[dd])/2);
+            for(ii=1; ii<=(min(rsize[dd],psize[dd]))/2; ii++) {
+                double w = window(ii, min(rsize[dd],psize[dd])/2);
                 ibuffer[rsize[dd]-ii][0] = obuffer[psize[dd]-ii][0]*w*normf;
                 ibuffer[rsize[dd]-ii][1] = obuffer[psize[dd]-ii][1]*w*normf;
             }
