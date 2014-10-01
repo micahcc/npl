@@ -6,6 +6,11 @@ def build(bld):
             source = 'biascorrect.cpp', 
             use = 'mrimage_utils tclap nplio iterators accessors')
 
+    bld.program(target = 'nplSimpleSegment', 
+            install_path='${PREFIX}/tools_incomplete', 
+            source = 'simplesegment.cpp', 
+            use = 'mrimage_utils tclap nplio statistics iterators accessors')
+
     bld.program(target = 'nplMath', 
             source = 'math.cpp', 
             use = 'mrimage_utils nplio iterators accessors mathexpression')
