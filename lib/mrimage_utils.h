@@ -24,6 +24,7 @@
 #define MRIMAGE_UTILS_H
 
 #include "ndarray.h"
+#include "basic_functions.h"
 #include "npltypes.h"
 
 #include <string>
@@ -80,6 +81,18 @@ void gaussianSmooth1D(ptr<MRImage> inout, size_t dim, double stddev);
  */
 ptr<MRImage> smoothDownsample(ptr<const MRImage> in, 
         double sigma);
+
+/**
+ * @brief Performs fourier resampling using fourier transform and the provided window function.
+ *
+ * @param in Input image
+ * @param spacing Desired output spacing 
+ * @param window Window function  to reduce ringing
+ *
+ * @return  Smoothed and downsampled image
+ */
+ptr<MRImage> resample(ptr<const MRImage> in, double* spacing, 
+		double(*window)(double, double) = hannWindow);
 
 /******************************************************
  * FFT Tools

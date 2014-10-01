@@ -105,6 +105,11 @@ int main(int argc, char** argv)
 
             ii++;
         } else {
+			if(!equation.empty()) {
+				cerr << "Two equations provided: \"" << equation << "\" and \""
+					<< argv[ii] << endl;
+				usage(-1);
+			}
             equation = argv[ii];
         }
     }
@@ -113,7 +118,7 @@ int main(int argc, char** argv)
         cerr << "Error, need at least 1 image" << endl;
         usage(-1);
     }
-
+	cerr << "Equation: " << endl;
     // parse math
     MathExpression expr(equation);
     expr.randomTest();

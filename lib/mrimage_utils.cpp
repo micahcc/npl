@@ -31,6 +31,7 @@
 
 #include <string>
 #include <iostream>
+#include <string>
 #include <iomanip>
 #include <cassert>
 #include <memory>
@@ -251,6 +252,125 @@ ptr<MRImage> fft_backward(ptr<const MRImage> in,
     fftw_execute(plan);
 
     return output;
+}
+
+/**
+ * @brief Performs fourier resampling using fourier transform and the provided
+ * window function.
+ *
+ * Given Lv (input length), Lz (input pad), and Lu (output size), 
+ * Padded size = Lv + Lz
+ * Truncated/Padded Fourier domain = Lv + Lz + Ly (Ly may be negative)
+ * Output size Lu = (Ly+Lz+Lz)*Lv/(Lv+Lz)
+ * The padding in fourier domain Ly = (Lv+Lz)(Lu-Lv)/Lv
+ * Ly may be negative in case of downsampling
+ *
+ * @param in Input image
+ * @param spacing Desired output spacing 
+ * @param window Window function  to reduce ringing
+ *
+ * @return  Smoothed and downsampled image
+ */
+ptr<MRImage> resample(ptr<const MRImage> in, double* spacing, 
+		double(*window)(double, double))
+{
+
+    size_t ndim = in->ndim();
+
+    // create downsampled image
+    vector<int64_t> isize(in->dim(), in->dim()+ndim); //input size
+    vector<int64_t> psize(in->ndim()); // padsize
+    vector<int64_t> rsize(in->ndim()); // truncated/padded frequency domain length
+    vector<int64_t> osize(ndim); // output size
+    
+	int64_t linelen = 0;
+    for(size_t dd=0; dd<ndim; dd++) {
+        // compute ratio
+        double ratio = in->spacing(dd)/spacing[dd];
+        psize[dd] = round2(2*isize[dd]);
+		osize[dd] = ceil(isize[dd]*ratio);
+		rsize[dd] = psize[dd]*osize[dd]/isize[dd];
+        
+		linelen = max(linelen, rsize[dd]);
+		linelen = max(linelen, psize[dd]);
+    }
+
+    vector<size_t> roi(in->dim(), in->dim()+ndim);
+    auto working = dPtrCast<MRImage>(in->copyCast(COMPLEX128));
+		writeComplex("workinginit", working);
+    auto ibuffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*linelen*2);
+    auto obuffer = &ibuffer[linelen];
+    for(size_t dd=0; dd<ndim; dd++) {
+        auto fwd = fftw_plan_dft_1d((int)psize[dd], ibuffer, obuffer,
+                FFTW_FORWARD, FFTW_MEASURE);
+        auto bwd = fftw_plan_dft_1d((int)rsize[dd], ibuffer, obuffer,
+                FFTW_BACKWARD, FFTW_MEASURE);
+
+        // extract line
+        ChunkIter<cdouble_t> it(working);
+        it.setROI(roi.size(), roi.data());
+        it.setLineChunk(dd);
+        for(it.goBegin(); !it.eof(); it.nextChunk()) {
+            int64_t ii=0;
+            for(it.goChunkBegin(), ii=0; !it.eoc(); ++it, ++ii) {
+                ibuffer[ii][0] = (*it).real();
+                ibuffer[ii][1] = (*it).imag();
+            }
+            for(; ii<psize[dd]; ii++){
+                ibuffer[ii][0] = 0;
+                ibuffer[ii][1] = 0;
+            }
+
+            // fourier tansform line
+            fftw_execute(fwd);
+
+            double normf = 1./sqrt(psize[dd]*rsize[dd]);
+			// zero all
+            for(ii=0; ii<rsize[dd]; ii++) {
+                ibuffer[ii][0] = 0;
+                ibuffer[ii][1] = 0;
+            }
+            // positive frequencies
+            for(ii=0; ii< (min(rsize[dd],psize[dd])-1)/2; ii++) {
+                double w = window(ii, max(rsize[dd],psize[dd])/2.);
+                ibuffer[ii][0] = obuffer[ii][0]*w*normf;
+                ibuffer[ii][1] = obuffer[ii][1]*w*normf;
+            }
+            // negative frequencies
+            for(ii=1; ii< (min(rsize[dd],psize[dd])+1)/2; ii++) {
+                double w = window(ii, max(rsize[dd],psize[dd])/2);
+                ibuffer[rsize[dd]-ii][0] = obuffer[psize[dd]-ii][0]*w*normf;
+                ibuffer[rsize[dd]-ii][1] = obuffer[psize[dd]-ii][1]*w*normf;
+            }
+
+            // inverse fourier tansform
+            fftw_execute(bwd);
+
+            // write out (ignore zero extra area)
+            for(it.goChunkBegin(), ii=0; ii<osize[dd]; ++it, ++ii) {
+                cdouble_t tmp(obuffer[ii][0], obuffer[ii][1]);
+                it.set(tmp);
+            }
+        }
+
+        // update ROI
+        roi[dd] = osize[dd];
+        DBG3(cerr << isize[dd] << "->" << osize[dd] << endl);
+		writeComplex("working"+to_string(dd), working);
+    }
+
+    // copy roi into output
+	vector<size_t> trueosize(in->ndim());
+	for(size_t dd=0; dd<in->ndim(); dd++) trueosize[dd] = osize[dd];
+    auto out = dPtrCast<MRImage>(working->copyCast(osize.size(), 
+				trueosize.data(), FLOAT64));
+
+    // set spacing
+    for(size_t dd=0; dd<in->ndim(); dd++) 
+        out->spacing(dd) *= ((double)psize[dd])/((double)rsize[dd]);
+
+    fftw_free(ibuffer);
+    return out;
 }
 
 /**
