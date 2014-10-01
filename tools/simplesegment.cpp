@@ -59,6 +59,9 @@ int main(int argc, char** argv)
 	TCLAP::SwitchArg a_expmax("E", "expmax", "Use gaussian mixture and "
 			"expectation maximization algorithm rather than K-means for "
 			"clustering", cmd);
+	TCLAP::SwitchArg a_standardize("S", "standardize", "Standardize dimensions "
+			"so that no one dimension dominates the others because it has "
+			"large scale. Should be used for k-means", cmd);
 
 	cmd.parse(argc, argv);
 
@@ -108,6 +111,20 @@ int main(int argc, char** argv)
 		}
 	}
 
+	if(a_standardize.isSet()) {
+		VectorXd means = samples.colwise().mean();
+		cerr << "Mean: " << means.transpose() << endl;
+		VectorXd var = samples.colwise().squaredNorm().array()/samples.rows();
+		var = var.array() - means.array().square();
+		cerr << "Var: " << var.transpose() << endl;
+		cerr << samples.row(0) << endl;
+		for(size_t cc=0; cc<samples.cols(); cc++) {
+			samples.col(cc) = (samples.col(cc).array() - means[cc])/
+				sqrt(var[cc]);
+		}
+		cerr << samples.row(0) << endl;
+	}
+
 	// Create Classifier
 	ptr<Classifier> classifier;
 	if(a_expmax.isSet()) {
@@ -125,13 +142,24 @@ int main(int argc, char** argv)
 	cerr << "Classifying...";
 	Eigen::VectorXi labels = classifier->classify(samples);
 	cerr << "Done!" << endl;
-	
+
 	// Create Output Image
 	auto segmented = createMRImage(osize.size(), osize.data(), INT32);
 	size_t ii = 0;
 	for(FlatIter<double> it(segmented); !it.eof(); ++it, ++ii) {
 		it.set(labels[ii]);
 	}
+
+	// free sup some membory
+	samples.clear();
+	labels.clear();
+
+	cerr << "Performing Connected Component Analysis...";
+	/// TODO
+	connectedComponentRelabel();
+	cerr << "Done";
+
+
 	assert(ii == nrows);
 	segmented->write(a_out.getValue());
     

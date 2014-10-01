@@ -1037,18 +1037,16 @@ size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
 #endif 
 
 		//calculate probable location of each point
+		double cval = log(m_tau[cc])- .5*log(det)-ndim/2.*log(2*M_PI);
 		for(int pp = 0; pp < samples.rows(); pp++) {
             x = samples.row(pp) - m_mu.row(cc);
 			
             //log likelihood = (note that last part is ignored because it is
             // constant for all points)
             //log(tau) - log(sigma)/2 - (x-mu)^Tsigma^-1(x-mu) - dlog(2pi)/2 
-            double llike = log(m_tau[cc])- .5*log(det)-
-                .5*(x.dot(Cinv*x))-ndim/2.*log(2*M_PI);
+            double llike = cval - .5*(x.dot(Cinv*x));
 
-			if(std::isinf(llike) || std::isnan(llike))
-				llike = -INFINITY;
-
+			llike = (std::isinf(llike) || std::isnan(llike)) ? -INFINITY : llike;
 			prob(pp, cc) = llike;
 		}
 	}
@@ -1057,19 +1055,18 @@ size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
 	//place every point in its most probable group
 	std::uniform_int_distribution<int> randi(0, zero_tau.size()-1);
     std::uniform_real_distribution<double> randf(0, 1);
-	if(zero_tau.size() > 0) 
+	if(zero_tau.size() > 0) {
 		cerr << "Zero Tau, Randomly Assigning Based on Probabilities" << endl;
-	for(int pp = 0 ; pp < samples.rows(); pp++) {
-		double max = -INFINITY;
-		int max_class = -1;
-		for(int cc = 0 ; cc < m_k; cc++) {
-			if(prob(pp, cc) > max) {
-				max = prob(pp,cc);
-				max_class = cc;
+		for(int pp = 0 ; pp < samples.rows(); pp++) {
+			double max = -INFINITY;
+			int max_class = -1;
+			for(int cc = 0 ; cc < m_k; cc++) {
+				if(prob(pp, cc) > max) {
+					max = prob(pp,cc);
+					max_class = cc;
+				}
 			}
-		}
 
-		if(zero_tau.size() > 0) {
 			double p = exp(prob(pp, max_class));
 			bool reassign = randf(rng) > p;
 			cerr << "p=" << p << ", " << "Reassigned? " << reassign;
@@ -1078,11 +1075,26 @@ size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
 				cerr << " to " << max_class << endl;
 			} else
 				cerr << endl;
-		}
 
-        if(classes[pp] != max_class)
-            change++;
-		classes[pp] = max_class;
+			if(classes[pp] != max_class)
+				change++;
+			classes[pp] = max_class;
+		}
+	} else {
+		for(int pp = 0 ; pp < samples.rows(); pp++) {
+			double max = -INFINITY;
+			int max_class = -1;
+			for(int cc = 0 ; cc < m_k; cc++) {
+				if(prob(pp, cc) > max) {
+					max = prob(pp,cc);
+					max_class = cc;
+				}
+			}
+
+			if(classes[pp] != max_class)
+				change++;
+			classes[pp] = max_class;
+		}
 	}
     return change;
 }
