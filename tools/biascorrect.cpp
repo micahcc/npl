@@ -109,7 +109,10 @@ try {
 	// read input, initialize
 	ptr<MRImage> in = readMRImage(a_in.getValue());
 	in = dPtrCast<MRImage>(in->copyCast(FLOAT64));
-	in = smoothDownsample(in, 10);
+	vector<double> dspace(in->ndim());
+	for(size_t dd=0; dd<in->ndim(); dd++)
+		dspace[dd] = 10;
+	in = resample(in, dspace.data());
 
 	in->write("downsampled.nii.gz");
 

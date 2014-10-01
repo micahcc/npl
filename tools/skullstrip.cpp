@@ -26,6 +26,7 @@
 #include "iterators.h"
 #include "accessors.h"
 #include "ndarray_utils.h"
+#include "statistics.h"
 #include "version.h"
 #include "macros.h"
 
@@ -145,7 +146,7 @@ void genPoints(ptr<const MRImage> scale,
     vector<size_t> osize(vimg->dim(), vimg->dim()+vimg->ndim());
     osize[3] = 6;
 
-    auto lambdas = vimg->createAnother(osize.size(), osize.data());
+    auto lambdas = vimg->createAnother(osize.size(), osize.data(), FLOAT64);
     auto grad_dir = vimg->createAnother(); 
     auto grad_scatter = vimg->createAnother(); 
     auto surface_norm = vimg->createAnother(); 
@@ -342,5 +343,15 @@ void genPoints(ptr<const MRImage> scale,
     scatter_metric->write("scatter_metric.nii.gz");
     direction_mean->write("direction_mean.nii.gz");
     direction_var->write("direction_var.nii.gz");
+
+	// classify
+	ExpMax classifier(lambdas->tlen(), 4);
+	Eigen::Map<MatrixXd> samples((double*)lambdas->data(), scale->elements(),
+				lambdas->tlen());
+	classifier.compute(samples);
+	Eigen::VectorXi labels = classifier.classify(samples);
+	auto segmented = createMRImage(scale->ndim(), scale->dim(), INT32,
+			labels.data(), [](void*){return;});
+	
 }
 
