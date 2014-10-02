@@ -184,13 +184,34 @@ try {
 	 * Take the log of the input image because Bias Fiels are multiplied by
 	 * the image intensity
 	 **********************************************************************/
-	double minval = INFINITY;
-	for(size_t ii=0; ii<pixels.rows(); ii++)
-		minval = min(minval, pixels[ii]);
-	if(minval > 0) minval = -1;
+	// first average the masked regions and divide by avg
+	double avg = 0;
+	size_t count = 0;
+	for(size_t ii=0; ii<pixels.rows(); ii++) {
+		if(weights[ii] > 0) {
+			avg += pixels[ii];
+			count++;
+		}
+	}
+	avg /= count;
+	if(fabs(avg) < 0.0001) {
+		// probably already de-meaned
+		avg = avg < 0 ? -1 : 1;
+	}
 	
+	// divide by mean and compute minimum value
+	double minval = INFINITY;
+	for(size_t ii=0; ii<pixels.rows(); ii++) {
+		pixels[ii] /= avg;
+		minval = min(minval, pixels[ii]);
+	}
+
 	for(size_t ii=0; ii<pixels.rows(); ii++)
 		pixels[ii] = log(pixels[ii] - minval + 1);
+
+#ifdef VERYDEBUG
+	in->write("normalized.nii.gz");
+#endif 
 
 	/************************************************************
 	 * Calculate Parameter Weights at Each Pixel
@@ -304,23 +325,11 @@ try {
 	// estimate the bias field from the parameters
 	pixels = Bmat*params;
 
-	// find minimum in masked pixels and subtract that so that intensity
-	// remains relatively the same after bias correction
-	double avg = 0;
-	double count = 0;
-	for(size_t rr=0; rr<weights.rows(); rr++) {
-		if(weights[rr] > 0) {
-			avg += pixels[rr];
-			count++;
-		}
-	}
-
 #ifdef VERYDEBUG
 	in->write("logbias.nii.gz");
 #endif 
-	avg /= count;
 	for(size_t rr=0; rr<pixels.rows(); rr++) {
-		pixels[rr] = exp(pixels[rr]-avg);
+		pixels[rr] = exp(pixels[rr]);
 		if(std::isinf(pixels[rr]) || std::isnan(pixels[rr]))
 			pixels[rr] = 1;
 	}
