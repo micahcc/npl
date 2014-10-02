@@ -297,8 +297,8 @@ void genPoints(ptr<const MRImage> scale,
             l_ac.set(index[0], index[1], index[2], dd, lambda);
             sn_ac.set(index[0], index[1], index[2], dd, ev);
         }
-        double metric = fabs(esolve.eigenvalues()[order[0]].real() / 
-                    esolve.eigenvalues()[order[2]].real());
+        double metric = fabs(esolve.eigenvalues()[order[2]].real() / 
+                    esolve.eigenvalues()[order[0]].real());
         sm_ac.set(index[0], index[1], index[2], metric);
 
         /**********************************************************************
