@@ -111,7 +111,7 @@ try {
 			"isotropic voxels.", false, 10, "pixsize", cmd);
 	TCLAP::ValueArg<double> a_lambda("R", "regweight", "Regularization weight "
 			"for ridge regression. Larger values will cause a smoother result",
-			false, 1.e-5, "ratio", cmd);
+			false, 1.e-3, "ratio", cmd);
 
 	TCLAP::ValueArg<string> a_biasfield("o", "out", "Bias Field Image.",
 			false, "", "*.nii.gz", cmd);
@@ -124,7 +124,14 @@ try {
 	ptr<MRImage> in = readMRImage(a_in.getValue());
 	in = dPtrCast<MRImage>(in->copyCast(min(in->ndim(),3UL), in->dim(), FLOAT64));
 	vector<double> dspace(in->ndim(), a_downspace.getValue());
+	
+	cout << "Downsampling input from [";
+	copy(in->getSpacing().data(), in->getSpacing().data()+in->ndim(), vdstream);
+	cout << "] spacing to [";
+	copy(dspace.begin(), dspace.end(), vdstream);
+	cout << "] spacing...";
 	in = resample(in, dspace.data());
+	cout << "Done\n";
 
 	// read mask then downsample using nearest neighbor
 	ptr<MRImage> mask;
@@ -149,7 +156,10 @@ try {
 #endif
 
 	// Create Double Bias Field
+	cout << "Creating Bias Field estimate with with " << a_spacing.getValue()
+		<< "mm spacing...";
 	auto biasfield = createBiasField(in, a_spacing.getValue());
+	cout << "Done\n";
 	
 	size_t ndim = in->ndim();
 	size_t nparams = 1; // number of Cubic-BSpline Parameters
@@ -196,7 +206,7 @@ try {
 		roi_start[dd] = -2.5*biasfield->spacing(dd)/in->spacing(dd);
 	}
 
-	cerr << "Filling Weights..." << endl;
+	cout << "Filling Weights...";
 	// for each parameter
 	NDIter<double> iit(in); // input iterator
 	vector<int64_t> bind(ndim); // bias field index
@@ -248,7 +258,7 @@ try {
 	}
 
 #ifdef USE_SPARSE
-	cerr << "Done\nBuilding Sparse Matrix..." << endl;
+	cout << "Done\nBuilding Sparse Matrix..." << endl;
 	Bmat.setFromTriplets(pixB.begin(), pixB.end());
 #endif
 
@@ -260,24 +270,29 @@ try {
 #ifdef USE_SPARSE
 	Bmat.makeCompressed();
 	Eigen::SparseQR<SparseMat,Eigen::COLAMDOrdering<int>> solver;
-	cerr << "Done\nComputing..." << endl;
+	cout << "Done\nComputing..." << endl;
 	solver.compute(Bmat);
-	cerr << "Done\nSolving..." << endl;
+	cout << "Done\nSolving..." << endl;
 	params = solver.solve(pixels);
 #else
 	// perform decomposition
 	Eigen::JacobiSVD<MatrixXd> solver;
-	cerr << "Done\nComputing..." << endl;
+	cout << "Done\nComputing..." << endl;
 	solver.compute(weights.asDiagonal()*Bmat, 
 			Eigen::ComputeThinU | Eigen::ComputeThinV);
-	cerr << "Done\nSolving..." << endl;
 
-//	params = solver.solve(pixels);
+	double lambda = a_lambda.getValue();
+	if(lambda < 0) {
+		cerr << "Warning negative lambda given, setting to default" << endl;
+		lambda = 1e-3;
+	}
+	cout << "Done\nSolving with lambda="<< lambda << "...";
+
 	// adjust eigenvalues with regularization term
 	// this is a form of Tikhonov Regularization
 	VectorXd sigmas = solver.singularValues();
 	for(size_t ii=0; ii<sigmas.rows(); ii++) {
-		double is = sigmas[ii]/(sigmas[ii]*sigmas[ii]+a_lambda.getValue());
+		double is = sigmas[ii]/(sigmas[ii]*sigmas[ii]+lambda);
 		if(std::isnan(is) || std::isinf(is) || is > 1e20)
 			sigmas[ii] = 0;
 		else
@@ -313,7 +328,7 @@ try {
 	in->write("bias.nii.gz");
 #endif 
 
-	cerr << "Done\nWriting..." << endl;
+	cout << "Done\nWriting..." << endl;
 	if(a_biasfield.isSet())
 		in->write(a_biasfield.getValue());
 	if(a_corimage.isSet()) {
@@ -329,7 +344,7 @@ try {
 		}
 		reread->write(a_corimage.getValue());
 	}
-	cerr << "Done" << endl;
+	cout << "Done" << endl;
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
