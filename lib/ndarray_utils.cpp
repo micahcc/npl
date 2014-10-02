@@ -42,6 +42,7 @@
 #include <iomanip>
 #include <cassert>
 #include <memory>
+#include <unordered_map>
 #include <stdexcept>
 
 #include "mrimage.h"
@@ -2164,6 +2165,128 @@ ptr<NDArray> collapseSum(ptr<const NDArray> img, size_t dim, bool doabs)
 
     return out;
 }
+
+/**
+ * @brief Fills an image with zeros.
+ *
+ * @param inout input/output image. Will be all zeros
+ */
+inline
+void zero(ptr<NDArray> inout)
+{
+	for(FlatIter<int> it(inout); !it.eof(); ++it)
+		it.set(0);
+}
+
+/**
+ * @brief Performs relabeling based on connected component using the two pass
+ * algorithm.
+ *
+ * @param input Input labelmap image
+ *
+ * @return Relabeled image with connected components labeled together, and
+ * non-connected components labeled separately
+ */
+ptr<NDArray> relabelConnected(ptr<NDArray> input)
+{
+	size_t ndim = input->ndim();
+	auto output = input->createAnother();
+	zero(output);
+
+	// accessors and iterator
+	NDConstView<int> oac(output);
+	NDConstView<int> iac(input);
+	NDIter<int> oit(output);
+	NDConstIter<int> iit(input);
+
+	// maps for checking equivalence
+	std::unordered_map<int, int> equivalent;
+	std::unordered_map<int, int> remap;
+	vector<int64_t> ind(input->ndim());
+
+	//connected component
+	int maxlabel = 1;
+	for(oit.goBegin(); !oit.eof(); ++oit) {
+		oit.index(ind);
+
+		//check before in each dimension
+		int pval, npval;
+		int newlabel = 0;
+		for(int dd = 0; dd < ndim;  dd++) {
+			ind[dd]--;
+
+			//skip points outside the image
+			if(ind[dd] < 0) {
+				ind[dd]++;
+				continue;
+			}
+
+			pval = iac[ind];
+			npval = oac[ind];
+			
+			// found a connection
+			if(pval == *iit) {
+
+				// pixel unclaimed so far, so claim with newlabel
+				// (which must have been labeled because it is before us)
+				if(newlabel == 0) {
+					newlabel = oac[ind];
+				
+				// this pixel has already been claimed by another
+				} else if(npval != newlabel) {
+					auto ret1 = equivalent.insert({newlabel, npval});
+					auto ret2 = equivalent.insert({npval, newlabel});
+
+					newlabel = min(newlabel, npval);
+					newlabel = min(newlabel, ret1.first->second);
+					newlabel = min(newlabel, ret2.first->second);
+
+					// point both of the lookups to the minimum value,
+					// to reduce the number of hops to the minimum
+					ret1.first->second = newlabel;
+					ret2.first->second = newlabel;
+
+				}
+			}
+
+			//return to middle
+			ind[dd]++;
+		}
+
+		//no existing neighbor label found, use a new label
+		if(newlabel == 0) {
+			newlabel = maxlabel++;
+		}
+
+		oit.set(newlabel);
+	}
+	
+	//second pass
+	maxlabel = 1;
+	for(oit.goBegin() ;!oit.eof(); ++oit) {
+		int newlabel = *oit;
+		int prev = newlabel;
+
+		//find minimal equivalence
+		do {
+			prev = newlabel;
+			newlabel = equivalent[newlabel];
+		} while(prev != newlabel);
+
+		//try insertion into remap table
+		auto ret1 = remap.insert({newlabel, maxlabel});
+
+		if(ret1.second) {
+			// if it was successful insertion, then use the maxlabel and increment
+			oit.set(maxlabel++);
+		} else {
+			// insertion failed, so use the existing remap
+			oit.set(ret1.first->second);
+		}
+	}
+
+	return output;
+};
 
 } // npl
 
