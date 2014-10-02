@@ -409,6 +409,18 @@ ptr<NDArray> sobelEdge(ptr<const NDArray> img);
  */
 ptr<NDArray> collapseSum(ptr<const NDArray> img, size_t dim, bool doabs=false);
 
+
+/**
+ * @brief Performs relabeling based on connected component using the two pass
+ * algorithm.
+ *
+ * @param input Input labelmap image
+ *
+ * @return Relabeled image with connected components labeled together, and
+ * non-connected components labeled separately
+ */
+ptr<NDArray> relabelConnected(ptr<NDArray> input);
+
 /** @}  NDArrayUtilities */
 
 } // npl

@@ -34,6 +34,9 @@ using namespace std;
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 using Eigen::JacobiSVD;
+#undef NDEBUG
+#define DEBUG
+//#define VERYDEBUG
 
 namespace npl {
 
@@ -529,10 +532,93 @@ MatrixXd pseudoInverse(const MatrixXd& X)
  *
  * @param samples Matrix of samples, one sample per row, 
  * @param nclass Number of classes to break samples up into
+ * @param extimated groupings
+ */
+void approxKMeans(const MatrixXd& samples, size_t nclass, Eigen::VectorXi& labels)
+{
+	DBG1(cerr << "Approximating K-Means" << endl);
+	size_t ndim = samples.cols();
+	size_t npoints = samples.rows();
+	double norm = 0;
+
+	MatrixXd means(nclass, ndim);
+    std::vector<double> dists(npoints);
+    std::vector<int> indices(npoints);
+	
+	// Select Point
+    std::default_random_engine rng;
+    std::uniform_int_distribution<int> randi(0, npoints-1);
+    std::uniform_real_distribution<double> randf(0, 1);
+    int tmp = randi(rng);
+    size_t pp;
+	means.row(0) = samples.row(tmp);
+
+	//set the rest of the centers
+	for(int cc = 1; cc < nclass; cc++) { 
+		norm = 0;
+
+		//create list of distances
+		for(pp = 0 ; pp < npoints ; pp++) {
+			dists[pp] = INFINITY;
+			for(int tt = 0 ; tt < cc; tt++) {
+                double v = (samples.row(pp)-means.row(tt)).squaredNorm();
+                dists[pp] = std::min(dists[pp], v);
+			}
+
+			//keep normalization factor for later
+			norm += dists[pp];
+		}
+
+		//set target pp^th greatest distance
+		double pct = norm*randf(rng);
+
+        // fill indices
+        for(size_t ii=0; ii<npoints; ii++)
+            indices[ii] = ii;
+
+        // sort, while keeping indices
+        std::sort(indices.begin(), indices.end(), 
+                [&dists](size_t i, size_t j){
+                    return dists[i] < dists[j]; 
+                });
+
+		//go through sorted list to find matching location in CDF
+        for(pp = 0; pp < npoints && pct > 0 ; pp++) {
+            double d = dists[indices[pp]]; 
+            pct -= d;
+        }
+
+		//copy randomly selected  point into middle
+		means.row(cc) = samples.row(pp);
+	}
+
+	labels.resize(samples.rows());
+	for(size_t rr=0; rr<samples.rows(); rr++) {
+		double bestdist = INFINITY;
+		int bestlabel = -1;
+		for(size_t cc=0; cc<nclass; cc++) {
+			double distsq = (samples.row(rr) - means.row(cc)).squaredNorm();
+			if(distsq < bestdist) {
+				bestdist = distsq;
+				bestlabel = cc;
+			}
+		}
+		labels[rr] = bestlabel;
+	}
+}
+
+/**
+ * @brief Approximates k-means using the algorithm of:
+ *
+ * 'Fast Approximate k-Means via Cluster Closures' by Wang et al
+ *
+ * @param samples Matrix of samples, one sample per row, 
+ * @param nclass Number of classes to break samples up into
  * @param means Estimated mid-points/means
  */
 void approxKMeans(const MatrixXd& samples, size_t nclass, MatrixXd& means)
 {
+	DBG1(cerr << "Approximating K-Means" << endl);
 	size_t ndim = samples.cols();
 	size_t npoints = samples.rows();
 	double norm = 0;
@@ -751,6 +837,7 @@ int KMeans::update(const MatrixXd& samples, bool reinit)
     for(ii=0; ii != maxit && change > 0; maxit++, ii++) {
         change = classify(samples, classes);
         updateMeans(samples, classes);
+		cerr << "iter: " << ii << ", " << change << " changed" << endl;
     }
 
     if(ii == maxit) {
@@ -914,18 +1001,20 @@ size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
     }
     classes.resize(samples.rows());
 
+    static std::default_random_engine rng;
+
     Eigen::FullPivHouseholderQR<MatrixXd> qr(ndim, ndim);
     MatrixXd prob(samples.rows(), m_k);
-    VectorXd x;
+    VectorXd x(ndim);
     MatrixXd Cinv(ndim, ndim);
     double det = 0;
     size_t change = 0;
-	
+	vector<int64_t> zero_tau;
+	zero_tau.reserve(m_k);
+    
     //compute Cholesky decomp, then determinant and inverse covariance matrix
 	for(int cc = 0; cc < m_k; cc++) {
-#ifdef VERYDEBUG
         cerr << "Covariance:\n" << m_cov.block(cc*ndim, 0, ndim, ndim) << endl;
-#endif 
 		if(m_tau[cc] > 0) {
 			if(ndim == 1) {
 				det = m_cov(0,0);
@@ -940,49 +1029,77 @@ size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
 			//dist will be nan or inf, prob will be nan, (dist > max) -> false
             Cinv.fill(INFINITY);
 			det = 1;
+			zero_tau.push_back(cc);
 		}
-#ifdef VERYDEBUG
+#ifndef  NDEBUG
         cerr << "Covariance Det:\n" << det << endl;
         cerr << "Inverse Covariance:\n" << Cinv << endl;
 #endif 
 
 		//calculate probable location of each point
+		double cval = log(m_tau[cc])- .5*log(det)-ndim/2.*log(2*M_PI);
 		for(int pp = 0; pp < samples.rows(); pp++) {
             x = samples.row(pp) - m_mu.row(cc);
 			
             //log likelihood = (note that last part is ignored because it is
             // constant for all points)
             //log(tau) - log(sigma)/2 - (x-mu)^Tsigma^-1(x-mu) - dlog(2pi)/2 
-            double llike = log(m_tau[cc])- .5*log(det)-
-                .5*(x.dot(Cinv*x))-ndim/2.*log(2*M_PI);
+            double llike = cval - .5*(x.dot(Cinv*x));
 
-			if(std::isinf(llike) || std::isnan(llike))
-				llike = -INFINITY;
-
+			llike = (std::isinf(llike) || std::isnan(llike)) ? -INFINITY : llike;
 			prob(pp, cc) = llike;
 		}
 	}
 
+
+	double RANDFACTOR = 10;
+	double reassigned = 0;
 	//place every point in its most probable group
-	for(int pp = 0 ; pp < samples.rows(); pp++) {
-		double max = -INFINITY;
-		int max_class = -1;
-		for(int cc = 0 ; cc < m_k; cc++) {
-			if(prob(pp, cc) > max) {
-				max = prob(pp,cc);
-				max_class = cc;
+	std::uniform_int_distribution<int> randi(0, zero_tau.size()-1);
+    std::uniform_real_distribution<double> randf(0, 1);
+	if(zero_tau.size() > 0) {
+		cerr << "Zero Tau, Randomly Assigning Based on Probabilities" << endl;
+		for(int pp = 0 ; pp < samples.rows(); pp++) {
+			double max = -INFINITY;
+			int max_class = -1;
+			for(int cc = 0 ; cc < m_k; cc++) {
+				if(prob(pp, cc) > max) {
+					max = prob(pp,cc);
+					max_class = cc;
+				}
 			}
+
+			double p = pow(1-exp(prob(pp, max_class)),RANDFACTOR);
+			bool reassign = randf(rng) < p;
+			if(reassign) {
+				reassigned++;
+//				cerr << "Original p: " << exp(prob(pp, max_class)) << endl;
+//				cerr << "p=" << p << ", " << "Reassigned? " << reassign;
+				max_class = zero_tau[randi(rng)];
+//				cerr << " to " << max_class << endl;
+			}
+
+			if(classes[pp] != max_class)
+				change++;
+			classes[pp] = max_class;
 		}
+		cerr << "Reassigned: " << 100*reassigned/samples.rows() <<"%" << endl;
+	} else {
+		for(int pp = 0 ; pp < samples.rows(); pp++) {
+			double max = -INFINITY;
+			int max_class = -1;
+			for(int cc = 0 ; cc < m_k; cc++) {
+				if(prob(pp, cc) > max) {
+					max = prob(pp,cc);
+					max_class = cc;
+				}
+			}
 
-        if(classes[pp] != max_class)
-            change++;
-		classes[pp] = max_class;
+			if(classes[pp] != max_class)
+				change++;
+			classes[pp] = max_class;
+		}
 	}
-
-    // if m_tau is zero for one or more groups, randomly assign memebers
-    // of the other groups based on the probability of membership in that group
-    // TODO
-
     return change;
 }
 
@@ -1003,9 +1120,12 @@ int ExpMax::update(const MatrixXd& samples, bool reinit)
 
     // initialize with approximate k-means
     if(reinit || !m_valid) {
-        // In real world data random works as well as anything else
-        for(size_t ii=0; ii < samples.rows(); ii++) 
-            classes[ii] = ii%m_k;
+		approxKMeans(samples, m_k, classes);
+//		cerr << "Randomly Assigning Groups" << endl;
+//        // In real world data random works as well as anything else
+//        for(size_t ii=0; ii < samples.rows(); ii++) 
+//            classes[ii] = ii%m_k;
+		cerr << "Updating Mean/Cov/Tau" << endl;
         updateMeanCovTau(samples, classes);
 #ifndef NDEBUG
         cout << "==========================================" << endl;
@@ -1024,9 +1144,17 @@ int ExpMax::update(const MatrixXd& samples, bool reinit)
     // now for the 'real' k-means
     size_t change = SIZE_MAX;
     int ii = 0;
+	DBG1(auto c = clock());
     for(ii=0; ii != maxit && change > 0; ++ii, ++maxit) {
+		DBG1(c = clock());
         change = classify(samples, classes);
+		DBG1(c = clock() - c);
+		DBG1(cerr << "Classify Time: " << c << endl);
+		
+		DBG1(c = clock());
         updateMeanCovTau(samples, classes);
+		DBG1(c = clock() -c );
+		DBG1(cerr << "Mean/Cov Time: " << c << endl);
 
 #ifndef NDEBUG
         cout << "==========================================" << endl;
@@ -1040,6 +1168,7 @@ int ExpMax::update(const MatrixXd& samples, bool reinit)
         }
         cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^" << endl;
 #endif
+		cerr << "iter: " << ii << ", " << change << " changed" << endl;
     }
     
     if(ii == maxit) {
