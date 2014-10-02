@@ -73,6 +73,8 @@ int main(int argc, char** argv)
 	size_t cdim = 0;
 	size_t nrows = 0;
 	vector<size_t> osize;
+	VectorXd origin, spacing;
+	MatrixXd direction;
 	for(auto it=a_in.begin(); it!=a_in.end(); ++it) {
 		auto inimg = readMRImage(*it);
 		size_t tlen = inimg->tlen();
@@ -82,6 +84,9 @@ int main(int argc, char** argv)
 			osize.resize(min(inimg->ndim(),3UL));
 			for(size_t dd=0; dd<osize.size(); dd++)
 				osize[dd] = inimg->dim(dd);
+			direction = inimg->getDirection();
+			spacing = inimg->getSpacing();
+			origin = inimg->getOrigin();
 		} else if(nrows != volsize) {
 			cerr << "Input volumes must have same number of pixels" << endl;
 			cerr << "Input: " << *it << " has different number from the rest!" 
@@ -89,8 +94,15 @@ int main(int argc, char** argv)
 			return -1;
 		}
 
-		for(size_t tt=0; tt<tlen; tt++) {
-			if(!a_dims.isSet() || a_dims.getValue()[tt] == cdim) {
+		for(size_t tt=0; tt<tlen; tt++, cdim++) {
+			bool use = !a_dims.isSet();
+			for(auto dit = a_dims.begin(); dit != a_dims.end(); ++dit) {
+				if(*dit == cdim) 
+					use = true;
+			}
+
+			if(use) {
+				cerr << "Including " << tt << " from " << *it << endl;
 				// copy
 				insamples.push_back(vector<double>());
 				insamples.back().resize(nrows);
@@ -98,9 +110,13 @@ int main(int argc, char** argv)
 				for(Vector3DIter<double> it(inimg); !it.eof(); ++it, rr++) {
 					insamples.back()[rr] = it[tt];
 				}
-				cdim++;
 			}
 		}
+	}
+
+	if(insamples.size() == 0) {
+		cerr << "No Data Selected!" << endl;
+		return -1;
 	}
 
 	// from insamples, create samples
@@ -146,11 +162,14 @@ int main(int argc, char** argv)
 
 	// Create Output Image
 	auto segmented = createMRImage(osize.size(), osize.data(), INT32);
+	segmented->setOrient(origin, spacing, direction);
+
 	size_t ii = 0;
 	for(FlatIter<double> it(segmented); !it.eof(); ++it, ++ii) {
 		it.set(labels[ii]);
 	}
 
+	segmented->write("pre-relabel.nii.gz");
 	// free sup some membory
 	samples.resize(0,0);
 	labels.resize(0);
