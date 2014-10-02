@@ -138,8 +138,8 @@ try {
 		for(NDIter<double> it(mask); !it.eof(); ++it) {
 			it.index(ind);
 			mask->indexToPoint(ind.size(), ind.data(), pt.data());
-//			it.set(mask_ac(pt));
-			it.set(1);
+			it.set(mask_ac(pt));
+//			it.set(1);
 		}
 		mask->write("downsampled_mask.nii.gz");
 	}
@@ -170,12 +170,13 @@ try {
 	 * Take the log of the input image because Bias Fiels are multiplied by
 	 * the image intensity
 	 **********************************************************************/
-	double add = INFINITY;
+	double minval = INFINITY;
 	for(size_t ii=0; ii<pixels.rows(); ii++)
-		add = pixels[ii] < add ? pixels[ii] : add;
+		minval = min(minval, pixels[ii]);
+	if(minval > 0) minval = -1;
+	
 	for(size_t ii=0; ii<pixels.rows(); ii++)
-		pixels[ii] = log(pixels[ii] + add + 1);
-
+		pixels[ii] = log(pixels[ii] - minval + 1);
 
 	/************************************************************
 	 * Calculate Parameter Weights at Each Pixel
@@ -275,16 +276,51 @@ try {
 #else
 	// adjust with relative weighs from mask
 	pixels = weights.asDiagonal()*pixels;
-	Bmat = weights.asDiagonal()*Bmat;
-
+	MatrixXd BmatW = weights.asDiagonal()*Bmat;
+	
 	// perform decomposition
 	Eigen::JacobiSVD<MatrixXd> solver;
 	cerr << "Done\nComputing..." << endl;
-	solver.compute(Bmat, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	solver.compute(BmatW, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	cerr << "Done\nSolving..." << endl;
 	params = solver.solve(pixels);
-	pixels = Bmat*params;
+	
 #endif
+	
+	/* 
+	 * Handle Unsupported Knots 
+	 */
+	for(size_t cc=0; cc<BmatW.cols(); cc++) {
+		bool allzero = true;
+		for(size_t rr=0; rr<BmatW.rows(); rr++) {
+			if(Bmat(rr,cc) > 1e-5) {
+				cerr << Bmat(rr,cc) << endl;
+				cerr << "nonzero " << endl;
+				allzero = false;
+				break;
+			}
+		}
+
+		if(allzero) 
+			params[cc] = 0;
+//			params[cc] = NAN;
+	}
+
+//	// TODO fill NAN's
+//	size_t remaining = 1;
+//	NDIter<double> it(biasfield);
+//	NDIter<double> it(biasfield);
+//	while(remaining > 0) {
+//		remaining = 0;
+//		for(; !it.eof(); ++it) {
+//			if(isnan(*it)) {
+//				// check the neighbors
+//
+//			}
+//		}
+//	}
+
+	pixels = Bmat*params;
 
 	cerr << "Done\nWriting..." << endl;
 	biasfield->write("biasfield_params.nii.gz");
