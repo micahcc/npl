@@ -599,6 +599,12 @@ private:
     VectorXd m_tau;
 };
 
+/**
+ * @brief Base class for all ND classifiers.
+ */
+Eigen::VectorXi FastSearchFindDP(const MatrixXd& samples);
+
+
 /** @} */
 
 /** @} */

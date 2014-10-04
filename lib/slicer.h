@@ -1129,6 +1129,17 @@ public:
 	int64_t offsetK(size_t kit, size_t dim);
 	
 	/**
+	 * @brief Returns whether the k'th kernel member is inside the region of 
+	 * interest. 
+	 *
+	 * @param k Which pixel to return distance from
+	 *
+	 * @return True if k'th kernel element is inside the region, false if a 
+	 * clamped value would be returned
+	 */
+	bool insideK(size_t k);
+	
+	/**
 	 * @brief Returns offset from center of specified pixel (kit).
 	 *
 	 * @param kit Pixel we are referring to

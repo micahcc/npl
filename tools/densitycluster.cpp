@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file simplesegment.cpp Segmentater based on KMeans or Expectation
- * maximization.
+ * @file densitrycluster.cpp Clustering based on local density.
  *
  *****************************************************************************/
 
@@ -48,20 +47,20 @@ int main(int argc, char** argv)
 			"for multiple inputs.", true, "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image (3D,INT32).",
 			true, "", "*.nii.gz", cmd);
-	TCLAP::ValueArg<int> a_clusters("c", "clusters", "Number of clusters",
-			false, 3, "<labelcount>", cmd);
 	TCLAP::MultiArg<int> a_dims("d", "dims", "Dimensions to use for "
 			"classification. This is counted across inputs (-i), so if you "
 			"give a 4D image with 3 timepoints and a 4D image with 2 "
 			"timepoints then to select the first volume you would do -d 0. "
 			"To also select the last you would do -d 0 -d 4",
 			false, "*.nii.gz", cmd);
-	TCLAP::SwitchArg a_expmax("E", "expmax", "Use gaussian mixture and "
-			"expectation maximization algorithm rather than K-means for "
-			"clustering", cmd);
-	TCLAP::SwitchArg a_standardize("S", "standardize", "Standardize dimensions "
-			"so that no one dimension dominates the others because it has "
-			"large scale. Should be used for k-means", cmd);
+	TCLAP::ValueArg<double> a_valweight("w", "valweight", "Weight of values "
+			"in terms of physical distance. The values are already "
+			"standardized so this would be the number of mm equivalent to "
+			"the entire range of values. So 5 means a 5mm distance is "
+			"equivalent to the difference of min to max values.", 
+			false, 10, "mm", cmd);
+	TCLAP::ValueArg<double> a_distthresh("t", "thresh", "Distance threshold "
+			"when deciding rho." , false, 10, "mm", cmd);
 
 	cmd.parse(argc, argv);
 
@@ -70,6 +69,7 @@ int main(int argc, char** argv)
 	 *********/
 	// read inputs
 	list<vector<double>> insamples;
+	ptr<MRImage> refimg;
 	size_t cdim = 0;
 	size_t nrows = 0;
 	vector<size_t> osize;
@@ -87,6 +87,7 @@ int main(int argc, char** argv)
 			direction = inimg->getDirection();
 			spacing = inimg->getSpacing();
 			origin = inimg->getOrigin();
+			refimg = inimg;
 		} else if(nrows != volsize) {
 			cerr << "Input volumes must have same number of pixels" << endl;
 			cerr << "Input: " << *it << " has different number from the rest!" 
@@ -119,70 +120,57 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	// from insamples, create samples
-	MatrixXd samples(nrows, insamples.size());
-	size_t cc=0;
-	for(auto it=insamples.begin(); it!=insamples.end(); ++it, ++cc) {
-		for(size_t rr=0; rr<nrows; rr++) {
-			samples(rr, cc) = (*it)[rr];
+	// TODO NORMALIZE 0 - 1 
+
+	
+	// Make each row of samples a pixel from the first input image. The highest
+	// dimensions carry physical location, the lower cary pixel data
+	MatrixXd samples(nrows, insamples.size()+min(refing->ndim(), 3UL));
+	size_t ii=0;
+	vector<double> pt(refimg->ndim());
+	for(NDIter<double> it(refimg); !it.eof(); ++it, ++ii) {
+		// fill in samples from insamples
+		size_t cc = 0;
+		for(auto sit=insamples.begin(); sit!=insamples.end(); ++sit,++cc) {
+			samples(ii,cc) = (*sit)[rr];
 		}
-	}
 
-	if(a_standardize.isSet()) {
-		VectorXd means = samples.colwise().mean();
-		cerr << "Mean: " << means.transpose() << endl;
-		VectorXd var = samples.colwise().squaredNorm().array()/samples.rows();
-		var = var.array() - means.array().square();
-		cerr << "Var: " << var.transpose() << endl;
-		cerr << samples.row(0) << endl;
-		for(size_t cc=0; cc<samples.cols(); cc++) {
-			samples.col(cc) = (samples.col(cc).array() - means[cc])/
-				sqrt(var[cc]);
+		// fill in remaing from point locations
+		it.index(pt.size(), pt.data());
+		refimg->indexToPoint(pt.size(), pt.data(), pt.data());
+		for(size_t kk=0; cc < samples.cols(); ++kk,++cc) {
+			samples(ii, cc) = pt[kk];
 		}
-		cerr << samples.row(0) << endl;
+#ifndef NDEBUG
+		if(ii == 1024) {
+			cerr << "Example Coordinate:\n" << samples.row(ii) << endl;
+		}
+#endif
 	}
 
-	// Create Classifier
-	ptr<Classifier> classifier;
-	if(a_expmax.isSet()) {
-		cerr << "Expectation Maximization" << endl;
-		classifier.reset(new ExpMax(samples.cols(), a_clusters.getValue()));
-	} else {
-		cerr << "K-Means" << endl;
-		classifier.reset(new KMeans(samples.cols(), a_clusters.getValue()));
-	}
+	// free up memory
+	insamples.clear();
 
-	// Perform Classification
-	cerr << "Computing Groups...";
-	classifier->compute(samples);
-	cerr << "Done!" << endl;
-	cerr << "Classifying...";
-	Eigen::VectorXi labels = classifier->classify(samples);
-	cerr << "Done!" << endl;
+	// Clustering By Fast Search and Find of Density Peaks
+	FastSearchFindDP segmenter(samples.cols()); 
+	segmenter.compute(samples);
+	auto labels = segmenter.classify(samples);
 
-	// Create Output Image
-	auto segmented = createMRImage(osize.size(), osize.data(), INT32);
-	segmented->setOrient(origin, spacing, direction);
-
-	size_t ii = 0;
-	for(FlatIter<double> it(segmented); !it.eof(); ++it, ++ii) {
+	/*
+	 * Create, Fill Output
+	 */ 
+	auto labelmap = dPtrCast<MRImage>(refimg->createAnother(min(refimg->ndim(),
+					3UL), refimg->dim(), INT32));
+	size_t ii=0;
+	for(FlatIter<int> it(labelmap); !it.eof(); ++it, ++ii) 
 		it.set(labels[ii]);
-	}
 
-	segmented->write("pre-relabel.nii.gz");
-	// free sup some membory
-	samples.resize(0,0);
-	labels.resize(0);
-
-	cerr << "Performing Connected Component Analysis...";
-	segmented = dPtrCast<MRImage>(relabelConnected(segmented));
-	cerr << "Done";
-
-	assert(ii == nrows);
-	segmented->write(a_out.getValue());
-    
+	// write 
+	labelmap->write(a_out.getValue());
+	
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
 }
+
 
 
