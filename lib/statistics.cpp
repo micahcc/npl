@@ -20,6 +20,7 @@
 
 #include <Eigen/SVD>
 #include <Eigen/QR>
+#include "slicer.h"
 #include "statistics.h"
 #include "basic_functions.h"
 #include "macros.h"
@@ -1179,53 +1180,258 @@ int ExpMax::update(const MatrixXd& samples, bool reinit)
         return 0;
 }
 
+/*****************************************************************************
+ * Fast Search and Find Density Peaks Clustering Algorithm
+ ****************************************************************************/
+struct BinT
+{
+	size_t max_rho;
+	vector<BinT*> neighbors;
+	vector<int> members;
+	bool visited;
+	MatrixXd corners;
+};
 
 /**
- * @brief Solves y = Xb (where beta is a vector of parameters, y is a vector
- * of desired results and X is the design/system)
+ * @brief Updates the classifier with new samples, if reinit is true then
+ * no prior information will be used. If reinit is false then any existing
+ * information will be left intact. In Kmeans that would mean that the
+ * means will be left at their previous state.
  *
- * @param X Design or system
- * @param y Observations (target)
+ * see "Clustering by fast search and find of density peaks"
+ * by Rodriguez, a.  Laio, A.
  *
- * @return Parameters that give the minimum squared error (y - Xb)^2
+ * @param samples Samples, S x D matrix with S is the number of samples and
+ * D is the dimensionality. This must match the internal dimension count.
+ * @param reinit whether to reinitialize the  classifier before updating
+ *
+ * return -1 if maximum number of iterations hit, 0 otherwise (converged)
  */
-VectorXd leastSquares(const MatrixXd& X, const VectorXd& y)
+Eigen::VectorXi FastSearchFindDP(const MatrixXd& samples)
 {
-    assert(X.rows() == y.rows());
-    Eigen::JacobiSVD<MatrixXd> svd;
-    svd.compute(X, Eigen::ComputeThinU | Eigen::ComputeThinV);
-    return svd.solve(y);
+	size_t ndim = samples.cols();
+
+	const double THRESH = 15;
+	const double thresh_sq = THRESH*THRESH;
+	
+	/*************************************************************************
+	 * Construct Bins, with diameter THRESH so that points within THRESH 
+	 * are limited to center and immediate neighbor bins
+	 *************************************************************************/
+
+	// First Determine Size of Bins in each Dimension
+	vector<size_t> sizes(ndim);
+	vector<size_t> strides(ndim);
+	vector<pair<double,double>> range(ndim); //min/max in each dim
+	vector<int64_t> index(ndim);
+	size_t totalbins = 1;
+	for(size_t cc=0; cc<ndim; cc++) {
+
+		// compute range
+		range[cc].first = INFINITY;
+		range[cc].second = -INFINITY;
+		for(size_t rr=0; rr<samples.rows(); rr++) {
+			range[cc].first = std::min(range[cc].first, samples(rr,cc));
+			range[cc].second = std::max(range[cc].second, samples(rr,cc));
+		}
+
+		// break bins up into THRESH+episolon chunks. The extra bin is to
+		// preven the maximum point from overflowing. This would happen if
+		// MAX-MIN = K*THRESH for integer K. If K = 1 then the maximum value
+		// would make exactly to the top of the bin
+		sizes[cc] = 1+(range[cc].second-range[cc].first)/THRESH;
+		if(cc == 0) 
+			strides[cc] = 1;
+		else
+			strides[cc] = sizes[cc-1]*strides[cc-1];
+		totalbins *= sizes[cc];
+	}
+	
+	// Now Initialize Bins
+	KSlicer slicer(ndim, sizes.data());
+	slicer.setRadius(1);
+	vector<BinT> bins(totalbins);
+	for(slicer.goBegin(); !slicer.eof(); ++slicer) {
+		bins[*slicer].max_rho = 0;
+		bins[*slicer].neighbors.clear();
+		bins[*slicer].members.clear();
+		bins[*slicer].visited = true;
+
+		for(size_t kk=0; kk<slicer.ksize(); kk++) {
+			if(slicer.insideK(kk)) 
+				bins[*slicer].neighbors.push_back(&bins[slicer.getK(kk)]);
+		}
+
+		// Construct the corners
+		bins[*slicer].corners.resize(1<<ndim, ndim);
+		slicer.indexC(ndim, index.data());
+		vector<double> pt(ndim);
+		for(size_t ii=0; ii<corners.rows(); ii++) {
+			// a bitfield 0's indicate lower, 1 upper
+			for(size_t dd=0; dd<ndim; dd++) {
+				pt[dd] = index[dd]*THRESH*(ii&(1<<dd));
+			}
+		}
+	}
+
+	// fill bins with member points
+	for(size_t rr=0; rr<samples.rows(); rr++) {
+		// determine bin
+		size_t bin = 0;
+		for(size_t cc=0; cc<ndim; cc++) {
+			bin += strides[cc]*(samples(rr,cc)-range[cc].first)/THRESH;
+		}
+		
+		// place this sample into bin's membership
+		bins[bin].members.push_back(rr);
+	}
+
+	/*************************************************************************
+	 * Compute Local Density (rho), by creating a list of points in the
+	 * vicinity of each bin, then computing the distance between all pairs
+	 * locally
+	 *************************************************************************/
+	cerr << "Computing lists of potential connections" << endl;
+
+	vector<int64_t> rho(samples.rows());
+	vector<int64_t> closest(samples.rows());
+	for(slicer.goBegin(); !slicer.eof(); ++slicer) {
+		// for every member of this bin, check 1) this bin 2) neighboring bins
+		for(const auto& xi : bins[*slicer]) {
+
+			// check others in this bin
+			for(const auto& xj : bins[slicer.getC()]) {
+				double distsq = (samples.row(xj)-samples.row(xi)).squaredNorm();
+				if(distsq < thresh_sq) 
+					rho[xi]++;
+			}
+	
+			// neigboring bins
+			for(size_t kk=0; kk<slicer.ksize(); ++kk) {
+				for(const auto& xj : bins[slicer.getK(kk)]) {
+					double distsq = (samples.row(xj)-samples.row(xi)).squaredNorm();
+					if(distsq < thresh_sq) 
+						rho[xi]++;
+				}
+			}
+
+			bins[*slicer].max_rho = std::max(bins[*slicer].max_rho, rho[xi]);
+		}
+	}
+
+	/************************************************************************
+	 * Compute Delta (distance to nearest point with higher density than this
+	 ***********************************************************************/
+	std::list<BinT*> queue;
+	for(size_t rr=0; rr<samples.rows(); rr++) {
+
+		// determine bin
+		size_t bin = 0;
+		for(size_t cc=0; cc<ndim; cc++) {
+			bin += strides[cc]*(samples(rr,cc)-range[cc].first)/THRESH;
+		}
+
+		// set visited to false in all bins
+		for(size_t ii=0; ii<bins.size(); ii++)
+			bins[ii].visited = false;
+
+		double dmin = INFINITY;
+		queue.push_back(&bins[bin]);
+		while(!queue.empty()) {
+			BinT* b = queue.front();
+			queue.pop_front();
+			b->visited = true;
+
+			// this bin contains at least 1 point that satisfies the rho 
+			// criteria. Find that point (or a closer one) and update dmin
+			if(b->max_rho > rho[rr]) {
+				for(auto jj : b->members) {
+					double dsq = (samples.row(rr)-samples.row(jj)).normSquared();
+					if (dsqr < dmin) {
+						dmin = dsqr;
+						closest[rr] = jj;
+					}
+				}
+			}
+
+			// determine whether neighboring bins could contain points that 
+			// satisfy the rho criteria
+			for(auto nn : b->neighbors) {
+				// neighbor has a point that satisfies the criteria
+				if(!nn->visited && nn->max_rho > rho[rr]) {
+					// check to see if the neighbor's closes point is closer than 
+					// dmin 
+					double cdist = INFINITY;
+					double d = 0;
+					for(size_t ii=0; ii<nn->corners.rows(); ii++) {
+						d = (nn->corners.row(ii)-samples.row(rr)).normSquared();
+						cdist = std::min(cdist, d);
+					}
+
+					// the minimum corner distance is less than the the current
+					// min, so the closest rho-satisfying point could be there 
+					if(cdist < dmin) 
+						queue.push_back(nn);
+				}
+			}
+		}
+
+	}
+
+	// Fill Out
+	VectorXi out(samples.rows());
+
+	// TODO
+	m_valid = true;
+	return 0;
 }
 
-/**
- * @brief Solves iteratively re-weighted least squares problem. Wy = WXb (where
- * W is a weighting matrix, beta is a vector of parameters, y is a vector of
- * desired results and X is the design/system)
- *
- * @param X Design or system
- * @param y Observations (target)
- * @param w Initial weights (note that zeros will be kept at 0)
- *
- * @return Parameters that give the minimum squared error (y - Xb)^2
- */
-VectorXd IRLS(const MatrixXd& X, const VectorXd& y, VectorXd& w)
-{
-    assert(X.rows() == y.rows());
-    VectorXd beta(X.cols());
-    MatrixXd wX = w.asDiagonal()*X;
-    VectorXd wy = w.asDiagonal()*y;
-    VectorXd err(y.rows());
-//    for() {
-        //update beta
-        beta = wX.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(wy);
-        err = (X*beta-y);
-
-//        // update weights;
-//        for(size_t ii=0; ii<w.size(); ii++) {
-//            w[ii] = pow(
-//        }
- //   }
-    return beta;
-}
+///**
+// * @brief Solves y = Xb (where beta is a vector of parameters, y is a vector
+// * of desired results and X is the design/system)
+// *
+// * @param X Design or system
+// * @param y Observations (target)
+// *
+// * @return Parameters that give the minimum squared error (y - Xb)^2
+// */
+//VectorXd leastSquares(const MatrixXd& X, const VectorXd& y)
+//{
+//    assert(X.rows() == y.rows());
+//    Eigen::JacobiSVD<MatrixXd> svd;
+//    svd.compute(X, Eigen::ComputeThinU | Eigen::ComputeThinV);
+//    return svd.solve(y);
+//}
+//
+///**
+// * @brief Solves iteratively re-weighted least squares problem. Wy = WXb (where
+// * W is a weighting matrix, beta is a vector of parameters, y is a vector of
+// * desired results and X is the design/system)
+// *
+// * @param X Design or system
+// * @param y Observations (target)
+// * @param w Initial weights (note that zeros will be kept at 0)
+// *
+// * @return Parameters that give the minimum squared error (y - Xb)^2
+// */
+//VectorXd IRLS(const MatrixXd& X, const VectorXd& y, VectorXd& w)
+//{
+//    assert(X.rows() == y.rows());
+//    VectorXd beta(X.cols());
+//    MatrixXd wX = w.asDiagonal()*X;
+//    VectorXd wy = w.asDiagonal()*y;
+//    VectorXd err(y.rows());
+////    for() {
+//        //update beta
+//        beta = wX.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(wy);
+//        err = (X*beta-y);
+//
+////        // update weights;
+////        for(size_t ii=0; ii<w.size(); ii++) {
+////            w[ii] = pow(
+////        }
+// //   }
+//    return beta;
+//}
 
 } // NPL

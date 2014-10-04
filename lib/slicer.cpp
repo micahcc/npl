@@ -1897,6 +1897,30 @@ void KSlicer::indexK(size_t kit, size_t len, int64_t* index, bool bound) const
 		index[ii] = 0;
 	}
 }
+	
+/**
+ * @brief Returns whether the k'th kernel member is inside the region of 
+ * interest. 
+ *
+ * @param k Which pixel to return distance from
+ *
+ * @return True if k'th kernel element is inside the region, false if a 
+ * clamped value would be returned
+ */
+bool KSlicer::insideK(size_t k)
+{
+	assert(!m_end);
+	assert(k < m_numoffs);
+	
+	// unbound
+	for(size_t ii=0; ii < m_ndim; ii++) {
+		if(m_pos[m_center][ii] + m_offs[k][ii] >= m_size[ii] || 
+					m_pos[m_center][ii] + m_offs[k][ii] < 0) {
+			return false;
+		}
+	}
+	return true;
+}
 
 /**
  * @brief Returns the distance from the center projected onto the specified
