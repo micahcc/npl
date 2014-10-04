@@ -1185,7 +1185,7 @@ int ExpMax::update(const MatrixXd& samples, bool reinit)
  ****************************************************************************/
 struct BinT
 {
-	size_t max_rho;
+	int64_t max_rho;
 	vector<BinT*> neighbors;
 	vector<int> members;
 	bool visited;
@@ -1207,7 +1207,8 @@ struct BinT
  *
  * return -1 if maximum number of iterations hit, 0 otherwise (converged)
  */
-Eigen::VectorXi FastSearchFindDP(const MatrixXd& samples)
+int FastSearchFindDP(const MatrixXd& samples, 
+		Eigen::VectorXi& classes)
 {
 	size_t ndim = samples.cols();
 
@@ -1266,10 +1267,10 @@ Eigen::VectorXi FastSearchFindDP(const MatrixXd& samples)
 		bins[*slicer].corners.resize(1<<ndim, ndim);
 		slicer.indexC(ndim, index.data());
 		vector<double> pt(ndim);
-		for(size_t ii=0; ii<corners.rows(); ii++) {
+		for(size_t ii=0; ii<bins[*slicer].corners.rows(); ii++) {
 			// a bitfield 0's indicate lower, 1 upper
 			for(size_t dd=0; dd<ndim; dd++) {
-				pt[dd] = index[dd]*THRESH*(ii&(1<<dd));
+				bins[*slicer].corners(ii,dd) = index[dd]*THRESH*(ii&(1<<dd));
 			}
 		}
 	}
@@ -1297,10 +1298,10 @@ Eigen::VectorXi FastSearchFindDP(const MatrixXd& samples)
 	vector<int64_t> closest(samples.rows());
 	for(slicer.goBegin(); !slicer.eof(); ++slicer) {
 		// for every member of this bin, check 1) this bin 2) neighboring bins
-		for(const auto& xi : bins[*slicer]) {
+		for(const auto& xi : bins[*slicer].members) {
 
 			// check others in this bin
-			for(const auto& xj : bins[slicer.getC()]) {
+			for(const auto& xj : bins[slicer.getC()].members) {
 				double distsq = (samples.row(xj)-samples.row(xi)).squaredNorm();
 				if(distsq < thresh_sq) 
 					rho[xi]++;
@@ -1308,7 +1309,7 @@ Eigen::VectorXi FastSearchFindDP(const MatrixXd& samples)
 	
 			// neigboring bins
 			for(size_t kk=0; kk<slicer.ksize(); ++kk) {
-				for(const auto& xj : bins[slicer.getK(kk)]) {
+				for(const auto& xj : bins[slicer.getK(kk)].members) {
 					double distsq = (samples.row(xj)-samples.row(xi)).squaredNorm();
 					if(distsq < thresh_sq) 
 						rho[xi]++;
@@ -1346,9 +1347,9 @@ Eigen::VectorXi FastSearchFindDP(const MatrixXd& samples)
 			// criteria. Find that point (or a closer one) and update dmin
 			if(b->max_rho > rho[rr]) {
 				for(auto jj : b->members) {
-					double dsq = (samples.row(rr)-samples.row(jj)).normSquared();
-					if (dsqr < dmin) {
-						dmin = dsqr;
+					double dsq = (samples.row(rr)-samples.row(jj)).squaredNorm();
+					if (dsq < dmin) {
+						dmin = dsq;
 						closest[rr] = jj;
 					}
 				}
@@ -1364,7 +1365,7 @@ Eigen::VectorXi FastSearchFindDP(const MatrixXd& samples)
 					double cdist = INFINITY;
 					double d = 0;
 					for(size_t ii=0; ii<nn->corners.rows(); ii++) {
-						d = (nn->corners.row(ii)-samples.row(rr)).normSquared();
+						d = (nn->corners.row(ii)-samples.row(rr)).squaredNorm();
 						cdist = std::min(cdist, d);
 					}
 
@@ -1379,10 +1380,9 @@ Eigen::VectorXi FastSearchFindDP(const MatrixXd& samples)
 	}
 
 	// Fill Out
-	VectorXi out(samples.rows());
-
 	// TODO
-	m_valid = true;
+	classes.resize(samples.rows());
+
 	return 0;
 }
 
