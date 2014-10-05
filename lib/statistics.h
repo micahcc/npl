@@ -602,7 +602,11 @@ private:
 /**
  * @brief Base class for all ND classifiers.
  */
-Eigen::VectorXi FastSearchFindDP(const MatrixXd& samples);
+int FastSearchFindDP(const MatrixXd& samples, Eigen::VectorXi& classes, 
+		double thresh);
+
+int FastSearchFindDP_brute(const MatrixXd& samples, Eigen::VectorXi& classes,
+		double thresh);
 
 
 /** @} */
