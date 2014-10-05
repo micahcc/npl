@@ -29,15 +29,13 @@
 #include <random>
 #include <cmath>
 #include <iostream>
+#include <map>
 #include <iomanip>
 
 using namespace std;
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 using Eigen::JacobiSVD;
-#undef NDEBUG
-#define DEBUG
-//#define VERYDEBUG
 
 namespace npl {
 
@@ -1201,6 +1199,118 @@ struct BinT
  * see "Clustering by fast search and find of density peaks"
  * by Rodriguez, a.  Laio, A.
  *
+ * This is a brute force solution, order N^2
+ *
+ * @param samples Samples, S x D matrix with S is the number of samples and
+ * D is the dimensionality. This must match the internal dimension count.
+ * @param reinit whether to reinitialize the  classifier before updating
+ *
+ * return -1 if maximum number of iterations hit, 0 otherwise (converged)
+ */
+int FastSearchFindDP_brute(const MatrixXd& samples, 
+		Eigen::VectorXi& classes, double thresh)
+{
+	size_t ndim = samples.cols();
+	const double thresh_sq = thresh*thresh;
+	
+	/*************************************************************************
+	 * Compute Local Density (rho), by creating a list of points in the
+	 * vicinity of each bin, then computing the distance between all pairs
+	 * locally
+	 *************************************************************************/
+	cerr << "Computing lists of potential connections" << endl;
+	vector<int64_t> rho(samples.rows());
+	double dsq;
+	for(size_t ii=0; ii<samples.rows(); ii++) {
+		rho[ii] = 0;
+		for(size_t jj=ii; jj<samples.rows(); jj++) {
+			dsq = (samples.row(ii) - samples.row(jj)).squaredNorm();
+			if(dsq < thresh_sq) 
+				rho[ii]++;
+		}
+	}
+
+	/************************************************************************
+	 * Compute Delta (distance to nearest point with higher density than this
+	 ***********************************************************************/
+	cerr << "Compute Delta (distance to nearest) greater rho" << endl;
+	vector<double> delta(samples.rows());
+	classes.resize(samples.rows());
+	double maxd = 0;
+	int64_t max_node = -1;
+	for(size_t ii=0; ii<samples.rows(); ii++) {
+		delta[ii] = INFINITY;
+		classes[ii] = ii;
+		for(size_t jj=0; jj<samples.rows(); jj++) {
+			if(rho[jj] > rho[ii]) {
+				dsq = (samples.row(ii) - samples.row(jj)).squaredNorm();
+				delta[ii] = min(dsq, delta[ii]);
+				classes[ii] = jj;
+			}
+		}
+
+		cerr << ii << "->" << classes[ii]<< endl;
+		if(std::isinf(delta[ii])) {
+			max_node = ii;
+		} else {
+			maxd = max(maxd, delta[ii]);
+		}
+	}
+	delta[max_node] = maxd;
+	cerr << "max node: "<< endl;
+
+	/************************************************************************
+	 * Break Into Clusters 
+	 ***********************************************************************/
+	cerr << "Breaking Into Clusters" << endl;
+	vector<double> dist(samples.rows());
+	vector<int64_t> order(samples.rows());
+	double mean = 0;
+	for(size_t rr=0; rr<samples.rows(); rr++) {
+		dist[rr] = delta[rr]*rho[rr];
+		mean += dist[rr];
+	}
+	
+	mean /= samples.rows();
+	double RATIO = 10;
+	std::map<size_t,size_t> classmap;
+	size_t nclass = 0;
+	for(size_t rr=0; rr<samples.rows(); rr++) {
+		// follow trail of parents until we hit a node with the needed dist
+		size_t pp = rr;
+		while(dist[pp] < mean*RATIO) 
+			pp = classes[pp];
+
+		// change the parent to the true parent for later iterations
+		classes[rr] = pp;
+
+		auto ret = classmap.insert(make_pair(pp, nclass));
+		if(ret.second) 
+			nclass++;
+	}
+
+	// finally convert parent to classes
+	for(size_t rr=0; rr<samples.rows(); rr++) 
+		classes[rr] = classmap[classes[rr]];
+	
+	cerr << endl;
+	for(size_t rr=0; rr<classes.rows(); rr++) {
+		cerr << setw(10) << delta[rr] << setw(10) << rho[rr] << setw(10) <<
+			classes[rr] << setw(10) << samples.row(rr) << endl;
+	}
+	cerr << endl;
+
+	return 0;
+}
+/**
+ * @brief Updates the classifier with new samples, if reinit is true then
+ * no prior information will be used. If reinit is false then any existing
+ * information will be left intact. In Kmeans that would mean that the
+ * means will be left at their previous state.
+ *
+ * see "Clustering by fast search and find of density peaks"
+ * by Rodriguez, a.  Laio, A.
+ *
  * @param samples Samples, S x D matrix with S is the number of samples and
  * D is the dimensionality. This must match the internal dimension count.
  * @param reinit whether to reinitialize the  classifier before updating
@@ -1208,15 +1318,14 @@ struct BinT
  * return -1 if maximum number of iterations hit, 0 otherwise (converged)
  */
 int FastSearchFindDP(const MatrixXd& samples, 
-		Eigen::VectorXi& classes)
+		Eigen::VectorXi& classes, double thresh)
 {
 	size_t ndim = samples.cols();
 
-	const double THRESH = 15;
-	const double thresh_sq = THRESH*THRESH;
+	const double thresh_sq = thresh*thresh;
 	
 	/*************************************************************************
-	 * Construct Bins, with diameter THRESH so that points within THRESH 
+	 * Construct Bins, with diameter thresh so that points within thresh 
 	 * are limited to center and immediate neighbor bins
 	 *************************************************************************/
 
@@ -1236,17 +1345,18 @@ int FastSearchFindDP(const MatrixXd& samples,
 			range[cc].second = std::max(range[cc].second, samples(rr,cc));
 		}
 
-		// break bins up into THRESH+episolon chunks. The extra bin is to
+		// break bins up into thresh+episolon chunks. The extra bin is to
 		// preven the maximum point from overflowing. This would happen if
-		// MAX-MIN = K*THRESH for integer K. If K = 1 then the maximum value
+		// MAX-MIN = K*thresh for integer K. If K = 1 then the maximum value
 		// would make exactly to the top of the bin
-		sizes[cc] = 1+(range[cc].second-range[cc].first)/THRESH;
-		if(cc == 0) 
-			strides[cc] = 1;
-		else
-			strides[cc] = sizes[cc-1]*strides[cc-1];
+		sizes[cc] = 1+(range[cc].second-range[cc].first)/thresh;
 		totalbins *= sizes[cc];
 	}
+
+	// compute strides (row major order, highest dimension fastest)
+	strides[ndim-1] = 1;
+	for(int64_t ii=ndim-2; ii>=0; ii--)
+		strides[ii] = sizes[ii+1]*strides[ii+1];
 	
 	// Now Initialize Bins
 	KSlicer slicer(ndim, sizes.data());
@@ -1267,12 +1377,16 @@ int FastSearchFindDP(const MatrixXd& samples,
 		bins[*slicer].corners.resize(1<<ndim, ndim);
 		slicer.indexC(ndim, index.data());
 		vector<double> pt(ndim);
+		cerr << "Corners: " << endl;
 		for(size_t ii=0; ii<bins[*slicer].corners.rows(); ii++) {
 			// a bitfield 0's indicate lower, 1 upper
 			for(size_t dd=0; dd<ndim; dd++) {
-				bins[*slicer].corners(ii,dd) = index[dd]*THRESH*(ii&(1<<dd));
+				bins[*slicer].corners(ii,dd) = thresh*(index[dd]+((ii&(1<<dd))>>dd));
+//				cerr << thresh << "*(" << index[dd] << ((ii&(1<<dd))>>dd) << endl;
+//				cerr << "=" << bins[*slicer].corners(ii,dd) << endl;
 			}
 		}
+		cerr << bins[*slicer].corners<< endl;
 	}
 
 	// fill bins with member points
@@ -1280,7 +1394,7 @@ int FastSearchFindDP(const MatrixXd& samples,
 		// determine bin
 		size_t bin = 0;
 		for(size_t cc=0; cc<ndim; cc++) {
-			bin += strides[cc]*(samples(rr,cc)-range[cc].first)/THRESH;
+			bin += strides[cc]*(samples(rr,cc)-range[cc].first)/thresh;
 		}
 		
 		// place this sample into bin's membership
@@ -1329,7 +1443,7 @@ int FastSearchFindDP(const MatrixXd& samples,
 		// determine bin
 		size_t bin = 0;
 		for(size_t cc=0; cc<ndim; cc++) {
-			bin += strides[cc]*(samples(rr,cc)-range[cc].first)/THRESH;
+			bin += strides[cc]*(samples(rr,cc)-range[cc].first)/thresh;
 		}
 
 		// set visited to false in all bins

@@ -335,6 +335,11 @@ def build(bld):
             use='statistics') 
 
     bld.program(install_path='${PREFIX}/tests', features='test',
+            target='FSFDP_test', 
+            source='FSFDP_test.cpp', 
+            use='statistics') 
+
+    bld.program(install_path='${PREFIX}/tests', features='test',
             target='expmax_test1', 
             source='expmax_test1.cpp', 
             use='statistics basic_plot') 
