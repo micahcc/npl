@@ -1244,8 +1244,10 @@ int FastSearchFindDP_brute(const MatrixXd& samples,
 		for(size_t jj=0; jj<samples.rows(); jj++) {
 			if(rho[jj] > rho[ii]) {
 				dsq = (samples.row(ii) - samples.row(jj)).squaredNorm();
-				delta[ii] = min(dsq, delta[ii]);
-				classes[ii] = jj;
+				if(dsq < delta[ii]) {
+					delta[ii] = min(dsq, delta[ii]);
+					classes[ii] = jj;
+				}
 			}
 		}
 
