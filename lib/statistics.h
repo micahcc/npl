@@ -602,10 +602,16 @@ private:
 /**
  * @brief Base class for all ND classifiers.
  */
-int FastSearchFindDP(const MatrixXd& samples, Eigen::VectorXi& classes, 
+int findDensityPeaks(const MatrixXd& samples, double thresh, 
+		Eigen::VectorXi& rho, Eigen::VectorXd delta, Eigen::VectorXi& parent);
+
+int fastSearchFindDP(const MatrixXd& samples, Eigen::VectorXi& classes, 
 		double thresh);
 
-int FastSearchFindDP_brute(const MatrixXd& samples, Eigen::VectorXi& classes,
+int findDensityPeaks_brute(const MatrixXd& samples, double thresh, 
+		Eigen::VectorXi& rho, Eigen::VectorXd delta, Eigen::VectorXi& parent);
+
+int fastSearchFindDP_brute(const MatrixXd& samples, Eigen::VectorXi& classes,
 		double thresh);
 
 
