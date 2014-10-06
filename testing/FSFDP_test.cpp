@@ -66,14 +66,15 @@ int main(int argc, char** argv)
 	findDensityPeaks_brute(samples, .5, rho2, delta2, parent2);
 	for(size_t ii=0; ii<samples.rows(); ii++) {
 		if(rho1[ii] != rho2[ii]) {
-			cerr << "Mismatched Rho"<< endl;
+			cerr << "Mismatched Rho at "<< ii << " with brute: " << rho2[ii] <<
+				" vs " << rho1[ii] << endl;
 			return -1;
 		}
-		if(delta[ii] != delta[ii]) {
+		if(delta1[ii] != delta1[ii]) {
 			cerr << "Mismatched delta"<< endl;
 			return -1;
 		}
-		if(parent[ii] != parent[ii]) {
+		if(parent1[ii] != parent2[ii]) {
 			cerr << "Mismatched parent"<< endl;
 			return -1;
 		}
@@ -83,7 +84,7 @@ int main(int argc, char** argv)
 	 * Perform Clustering
 	 ***************************/
 	Eigen::VectorXi classes;
-	if(FastSearchFindDP_brute(samples, classes, .5) != 0) {
+	if(fastSearchFindDP_brute(samples, classes, .5) != 0) {
 		cerr << "Clustering Failed" << endl;
 		return -1;
 	}
