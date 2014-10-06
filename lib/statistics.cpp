@@ -1193,23 +1193,26 @@ int ExpMax::update(const MatrixXd& samples, bool reinit)
  *
  * @return 0 if successful
  */
-int findDensityPeaks_brute(const MatrixXd& samples, double thesh,
+int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
 		Eigen::VectorXi& rho, VectorXd& delta,
 		Eigen::VectorXi& parent)
 {
+	double thresh_sq = thresh*thresh;
+
 	/*************************************************************************
-	 * Compute Local Density (rho), by creating a list of points in the
-	 * vicinity of each bin, then computing the distance between all pairs
-	 * locally
+	 * Compute Local Density (rho), by computing distance from every 
+	 * other point and summing the number of points within thresh distance. 
 	 *************************************************************************/
 	rho.resize(samples.rows());
 	double dsq;
 	for(size_t ii=0; ii<samples.rows(); ii++) {
 		rho[ii] = 0;
-		for(size_t jj=ii; jj<samples.rows(); jj++) {
-			dsq = (samples.row(ii) - samples.row(jj)).squaredNorm();
-			if(dsq < thresh_sq) 
-				rho[ii]++;
+		for(size_t jj=0; jj<samples.rows(); jj++) {
+			if(ii != jj) {
+				dsq = (samples.row(ii) - samples.row(jj)).squaredNorm();
+				if(dsq < thresh_sq) 
+					rho[ii]++;
+			}
 		}
 	}
 
@@ -1264,12 +1267,9 @@ int findDensityPeaks_brute(const MatrixXd& samples, double thesh,
 int fastSearchFindDP_brute(const MatrixXd& samples, 
 		Eigen::VectorXi& classes, double thresh)
 {
-	size_t ndim = samples.cols();
-	const double thresh_sq = thresh*thresh;
-	
 	Eigen::VectorXi clusters;
-	VectorXd delta;
-	VectorXi rho;
+	Eigen::VectorXd delta;
+	Eigen::VectorXi rho;
 	findDensityPeaks_brute(samples, thresh, rho, delta, clusters);
 	
 	for(size_t rr=0; rr<classes.rows(); rr++) {
@@ -1316,8 +1316,8 @@ int fastSearchFindDP_brute(const MatrixXd& samples,
 
 struct BinT
 {
-	int64_t max_rho;
-	vector<BinT*> neighbors;
+	int max_rho;
+	vector<size_t> neighbors;
 	vector<int> members;
 	bool visited;
 	MatrixXd corners;
@@ -1336,7 +1336,7 @@ struct BinT
  *
  * @return 0 if successful
  */
-int findDensityPeaks(const MatrixXd& samples, double thesh,
+int findDensityPeaks(const MatrixXd& samples, double thresh,
 		Eigen::VectorXi& rho, VectorXd& delta,
 		Eigen::VectorXi& parent)
 {
@@ -1388,8 +1388,8 @@ int findDensityPeaks(const MatrixXd& samples, double thesh,
 		bins[*slicer].visited = true;
 
 		for(size_t kk=0; kk<slicer.ksize(); kk++) {
-			if(slicer.insideK(kk)) 
-				bins[*slicer].neighbors.push_back(&bins[slicer.getK(kk)]);
+			if(slicer.insideK(kk) && slicer.getK(kk) != slicer.getC()) 
+				bins[*slicer].neighbors.push_back(slicer.getK(kk));
 		}
 
 		// Construct the corners
@@ -1425,28 +1425,31 @@ int findDensityPeaks(const MatrixXd& samples, double thesh,
 	 *************************************************************************/
 	cerr << "Computing lists of potential connections" << endl;
 
+	double distsq;
 	rho.resize(samples.rows());
-	for(slicer.goBegin(); !slicer.eof(); ++slicer) {
+	for(size_t bb=0; bb<bins.size(); bb++) {
 		// for every member of this bin, check 1) this bin 2) neighboring bins
-		for(const auto& xi : bins[*slicer].members) {
+		for(const auto& xi : bins[bb].members) {
 
 			// check others in this bin
-			for(const auto& xj : bins[slicer.getC()].members) {
-				double distsq = (samples.row(xj)-samples.row(xi)).squaredNorm();
-				if(distsq < thresh_sq) 
-					rho[xi]++;
+			for(const auto& xj : bins[bb].members) {
+				if(xi != xj) {
+					distsq = (samples.row(xj)-samples.row(xi)).squaredNorm();
+					if(distsq < thresh_sq) 
+						rho[xi]++;
+				}
 			}
 	
-			// neigboring bins
-			for(size_t kk=0; kk<slicer.ksize(); ++kk) {
-				for(const auto& xj : bins[slicer.getK(kk)].members) {
+			// neigboring/adjacent bins
+			for(auto adjbin: bins[bb].neighbors) {
+				for(const auto& xj : bins[adjbin].members) {
 					double distsq = (samples.row(xj)-samples.row(xi)).squaredNorm();
 					if(distsq < thresh_sq) 
 						rho[xi]++;
 				}
 			}
 
-			bins[*slicer].max_rho = std::max(bins[*slicer].max_rho, rho[xi]);
+			bins[bb].max_rho = std::max(bins[bb].max_rho, rho[xi]);
 		}
 	}
 
@@ -1454,7 +1457,7 @@ int findDensityPeaks(const MatrixXd& samples, double thesh,
 	/************************************************************************
 	 * Compute Delta (distance to nearest point with higher density than this
 	 ***********************************************************************/
-	std::list<BinT*> queue;
+	std::list<size_t> queue; // queue of bins (by index)
 	parent.resize(samples.rows());
 	delta.resize(samples.rows());
 	for(size_t rr=0; rr<samples.rows(); rr++) {
@@ -1470,16 +1473,16 @@ int findDensityPeaks(const MatrixXd& samples, double thesh,
 			bins[ii].visited = false;
 
 		double dmin = INFINITY;
-		queue.push_back(&bins[bin]);
+		queue.push_back(bin);
 		while(!queue.empty()) {
-			BinT* b = queue.front();
+			size_t b = queue.front();
 			queue.pop_front();
-			b->visited = true;
+			bins[b].visited = true;
 
 			// this bin contains at least 1 point that satisfies the rho 
 			// criteria. Find that point (or a closer one) and update dmin
-			if(b->max_rho > rho[rr]) {
-				for(auto jj : b->members) {
+			if(bins[b].max_rho > rho[rr]) {
+				for(auto jj : bins[b].members) {
 					double dsq = (samples.row(rr)-samples.row(jj)).squaredNorm();
 					if (dsq < dmin) {
 						dmin = dsq;
@@ -1491,22 +1494,22 @@ int findDensityPeaks(const MatrixXd& samples, double thesh,
 
 			// determine whether neighboring bins could contain points that 
 			// satisfy the rho criteria
-			for(auto nn : b->neighbors) {
+			for(auto bn : bins[b].neighbors) {
 				// neighbor has a point that satisfies the criteria
-				if(!nn->visited && nn->max_rho > rho[rr]) {
+				if(!bins[bn].visited && bins[bn].max_rho > rho[rr]) {
 					// check to see if the neighbor's closes point is closer than 
 					// dmin 
 					double cdist = INFINITY;
 					double d = 0;
-					for(size_t ii=0; ii<nn->corners.rows(); ii++) {
-						d = (nn->corners.row(ii)-samples.row(rr)).squaredNorm();
+					for(size_t ii=0; ii<bins[bn].corners.rows(); ii++) {
+						d = (bins[bn].corners.row(ii)-samples.row(rr)).squaredNorm();
 						cdist = std::min(cdist, d);
 					}
 
 					// the minimum corner distance is less than the the current
 					// min, so the closest rho-satisfying point could be there 
 					if(cdist < dmin) 
-						queue.push_back(nn);
+						queue.push_back(bn);
 				}
 			}
 		}
@@ -1534,12 +1537,11 @@ int findDensityPeaks(const MatrixXd& samples, double thesh,
 int fastSearchFindDP(const MatrixXd& samples, 
 		Eigen::VectorXi& classes, double thresh)
 {
-	size_t ndim = samples.cols();
 	const double thresh_sq = thresh*thresh;
 	
 	Eigen::VectorXi clusters;
-	VectorXd delta;
-	VectorXi rho;
+	Eigen::VectorXd delta;
+	Eigen::VectorXi rho;
 	findDensityPeaks(samples, thresh, rho, delta, clusters);
 	
 	for(size_t rr=0; rr<classes.rows(); rr++) {
