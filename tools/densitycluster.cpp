@@ -59,6 +59,15 @@ int main(int argc, char** argv)
 			"the entire range of values. So 5 means a 5mm distance is "
 			"equivalent to the difference of min to max values.", 
 			false, 10, "mm", cmd);
+	TCLAP::ValueArg<double> a_winwidth("W", "kerne-window", 
+			"Window size fo computing density, smaller values are somewhat"
+			"faster and better as long as this is sufficiently large to capture"
+			"several neighboring points.", false, 5, "mm", cmd);
+	TCLAP::ValueArg<double> a_outthresh("T", "cluster-thresh", 
+			"Threshold for determining whether something is a 'cluster'. This"
+			"is the number of standard deviations from the mean to go when"
+			"considering points as outliers and therefore deserving of their "
+			"own cluster." , false, 8, "stddevs", cmd);
 	TCLAP::ValueArg<double> a_distthresh("t", "thresh", "Distance threshold "
 			"when deciding rho." , false, 10, "mm", cmd);
 
@@ -69,7 +78,7 @@ int main(int argc, char** argv)
 	 *********/
 	// read inputs
 	list<vector<double>> insamples;
-	ptr<MRImage> refimg;
+	ptr<MRImage> outimg;
 	size_t cdim = 0;
 	size_t nrows = 0;
 	vector<size_t> osize;
@@ -87,7 +96,8 @@ int main(int argc, char** argv)
 			direction = inimg->getDirection();
 			spacing = inimg->getSpacing();
 			origin = inimg->getOrigin();
-			refimg = inimg;
+			outimg = dPtrCast<MRImage>(inimg->createAnother(min(3UL,
+							inimg->ndim()), inimg->dim(), INT32));
 		} else if(nrows != volsize) {
 			cerr << "Input volumes must have same number of pixels" << endl;
 			cerr << "Input: " << *it << " has different number from the rest!" 
@@ -120,53 +130,59 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	// TODO NORMALIZE 0 - 1 
+	// Normalize
+	for(auto it = insamples.begin(); it != insamples.end(); it++) {
+		double minv = INFINITY;
+		double maxv = -INFINITY;
+		for(size_t jj=0; jj<it->size(); jj++) {
+			minv = min(minv, (*it)[jj]);
+			maxv = max(maxv, (*it)[jj]);
+		}
 
-	
+		for(size_t jj=0; jj<it->size(); jj++) 
+			(*it)[jj] = a_valweight.getValue()*((*it)[jj]-minv)/
+				(maxv-minv);
+	}
+
 	// Make each row of samples a pixel from the first input image. The highest
 	// dimensions carry physical location, the lower cary pixel data
-	MatrixXd samples(nrows, insamples.size()+min(refing->ndim(), 3UL));
-	size_t ii=0;
-	vector<double> pt(refimg->ndim());
-	for(NDIter<double> it(refimg); !it.eof(); ++it, ++ii) {
+	MatrixXd samples(nrows, insamples.size()+outimg->ndim());
+	
+	// add coordinates
+	vector<double> pt(outimg->ndim());
+	size_t rr = 0;
+	for(NDIter<double> it(outimg); !it.eof(); ++it, ++rr) {
 		// fill in samples from insamples
 		size_t cc = 0;
 		for(auto sit=insamples.begin(); sit!=insamples.end(); ++sit,++cc) {
-			samples(ii,cc) = (*sit)[rr];
+			samples(rr,cc) = (*sit)[rr];
 		}
 
 		// fill in remaing from point locations
 		it.index(pt.size(), pt.data());
-		refimg->indexToPoint(pt.size(), pt.data(), pt.data());
+		outimg->indexToPoint(pt.size(), pt.data(), pt.data());
 		for(size_t kk=0; cc < samples.cols(); ++kk,++cc) {
-			samples(ii, cc) = pt[kk];
+			samples(rr, cc) = pt[kk];
 		}
-#ifndef NDEBUG
-		if(ii == 1024) {
-			cerr << "Example Coordinate:\n" << samples.row(ii) << endl;
-		}
-#endif
 	}
 
 	// free up memory
 	insamples.clear();
 
 	// Clustering By Fast Search and Find of Density Peaks
-	FastSearchFindDP segmenter(samples.cols()); 
-	segmenter.compute(samples);
-	auto labels = segmenter.classify(samples);
+	Eigen::VectorXi labels;
+	fastSearchFindDP(samples, a_winwidth.getValue(), a_outthresh.getValue(),
+			labels,  false);
 
 	/*
 	 * Create, Fill Output
 	 */ 
-	auto labelmap = dPtrCast<MRImage>(refimg->createAnother(min(refimg->ndim(),
-					3UL), refimg->dim(), INT32));
 	size_t ii=0;
-	for(FlatIter<int> it(labelmap); !it.eof(); ++it, ++ii) 
+	for(FlatIter<int> it(outimg); !it.eof(); ++it, ++ii) 
 		it.set(labels[ii]);
 
 	// write 
-	labelmap->write(a_out.getValue());
+	outimg->write(a_out.getValue());
 	
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
