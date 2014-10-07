@@ -102,7 +102,7 @@ int main(int argc, char** argv)
 	 * Perform Clustering
 	 ***************************/
 	Eigen::VectorXi classes;
-	if(fastSearchFindDP(samples, .1, classes, true) != 0) {
+	if(fastSearchFindDP(samples, .1, 8, classes, true) != 0) {
 		cerr << "Clustering Failed" << endl;
 		return -1;
 	}
