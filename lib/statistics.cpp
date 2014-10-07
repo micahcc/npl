@@ -1310,7 +1310,7 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 	parent.resize(nsamp);
 
 	const double thresh_sq = thresh*thresh;
-	const double binwidth = thresh*1.000001;
+	const double binwidth = thresh;
 
 	/*************************************************************************
 	 * Construct Bins, with diameter thresh so that points within thresh 
@@ -1371,16 +1371,17 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 	}
 
 	// fill bins with member points
-	Slicer bin(ndim, sizes.data());
 	for(size_t rr=0; rr<nsamp; rr++) {
 		// determine bin
 		vector<int64_t> index(ndim);
-		for(size_t cc=0; cc<ndim; cc++) 
-			index[cc] = floor((samples(rr,cc)-range[cc].first)/binwidth);
-		bin.goIndex(index);
+		// determine bin
+		size_t bin = 0;
+		for(size_t cc=0; cc<ndim; cc++) {
+			bin += strides[cc]*floor((samples(rr,cc)-range[cc].first)/binwidth);
+		}
 	
 		// place this sample into bin's membership
-		bins[*bin].members.push_back(rr);
+		bins[bin].members.push_back(rr);
 	}
 
 	/*************************************************************************
@@ -1429,8 +1430,11 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 
 	// circle enclosing the hypercube
 	double enc_radsq= 0;
-	for(size_t dd=0; dd<ndim; dd++)
-		enc_radsq += thresh*thresh/4;
+	double enc_rad= 0;
+	for(size_t dd=0; dd<ndim; dd++){
+		enc_radsq += binwidth*binwidth/4;
+		enc_rad += sqrt(enc_radsq);
+	}
 
 	double maxdelta = 0;
 	for(size_t ii=0; ii<nsamp; ii++) {
@@ -1458,15 +1462,18 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 
 			// this bin contains at least 1 point that satisfies the rho 
 			// criteria. Find that point (or a closer one) and update dmin
-			if(bins[b].max_rho > rho[ii] && (dmin > (samples.row(ii).transpose() - 
-						bins[b].center).squaredNorm() - enc_radsq)) {
-				for(auto jj : bins[b].members) {
-					if(rho[jj] > rho[ii]) {
-						dsq = (samples.row(ii)-samples.row(jj)).squaredNorm();
-						if (dsq < dmin) {
-							dmin = dsq;
-							parent[ii] = jj;
-							delta[ii] = dsq;
+			if(bins[b].max_rho > rho[ii]) {
+				double cdist = (samples.row(ii).transpose() - 
+						bins[b].center).norm();
+				if(cdist < sqrt(dmin) + enc_rad) {
+					for(auto jj : bins[b].members) {
+						if(rho[jj] > rho[ii]) {
+							dsq = (samples.row(ii)-samples.row(jj)).squaredNorm();
+							if (dsq < dmin) {
+								dmin = dsq;
+								parent[ii] = jj;
+								delta[ii] = dsq;
+							}
 						}
 					}
 				}
@@ -1489,8 +1496,9 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 					// on rho when we ofificially visit (previous loop). 
 					// check if the distance to the center is < half
 					// the diameter (threshold), ie 1/4 the diameter squared
-					if(!bins[bn].visited && dmin > (samples.row(ii).transpose() - 
-									bins[bn].center).squaredNorm() - enc_radsq)
+					double cdist = (samples.row(ii).transpose() - 
+							bins[bn].center).norm();
+					if(!bins[bn].visited && cdist < sqrt(dmin) + enc_rad)
 					{
 						queue.push_back(bn);
 						bins[bn].visited = true;

@@ -37,11 +37,13 @@ int main(int argc, char** argv)
 	 ***************************/
 	const size_t NCLUSTER = 4;
 	const size_t NDIM = 2;
-	const size_t NSAMPLES = 1000;
+	const size_t NSAMPLES = 5000;
 
 	std::random_device rd;
-	//    std::default_random_engine rng(rd());
-	std::default_random_engine rng(13);
+	size_t seed = rd();
+	cerr << "Seed: " << seed;
+	std::default_random_engine rng(seed);
+	//std::default_random_engine rng(13);
 	std::uniform_int_distribution<int> randUI(0, NCLUSTER-1);
 	std::normal_distribution<double> randGD(0, 1);
 
@@ -50,11 +52,11 @@ int main(int argc, char** argv)
 	Eigen::MatrixXd samples(NSAMPLES, NDIM);
 	for(size_t ii=0; ii<NSAMPLES; ii++) {
 		// choose random group
-		int radius = 1+randUI(rng);
-		double angle = randGD(rng)/10;
+		trueclass[ii] = randUI(rng);
+		int radius = 1 + trueclass[ii] + randGD(rng)/5;
+		double angle = randGD(rng)/5;
 		samples(ii, 0) = radius*cos(angle);
 		samples(ii, 1) = radius*sin(angle);
-		trueclass[ii] = radius-1;
 	}
 	
 	/*************************************************************************
@@ -80,9 +82,9 @@ int main(int argc, char** argv)
 		if(delta1[ii] != delta2[ii]) {
 			cerr << "Mismatched delta:\n";
 			cerr << "Bins: " << ii << " " << rho1[ii] << " " << parent1[ii] <<
-				" " << delta1[ii] << endl;
+				" " << rho1[parent1[ii]] << " " << delta1[ii] << endl;
 			cerr << "Brute: " << ii << " " << rho2[ii] << " " << parent2[ii] <<
-				" " << delta2[ii] << endl;
+				" " << rho2[parent2[ii]] << " " << delta2[ii] << endl;
 			return -1;
 		}
 	}
