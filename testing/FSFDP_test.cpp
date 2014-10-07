@@ -37,11 +37,11 @@ int main(int argc, char** argv)
 	 ***************************/
 	const size_t NCLUSTER = 4;
 	const size_t NDIM = 2;
-	const size_t NSAMPLES = 10000;
+	const size_t NSAMPLES = 100000;
 
 	std::random_device rd;
-//	size_t seed = rd();
-	size_t seed = 2020870799;
+	size_t seed = rd();
+//	size_t seed = 2020870799;
 	cerr << "Seed: " << seed;
 	std::default_random_engine rng(seed);
 	//std::default_random_engine rng(13);

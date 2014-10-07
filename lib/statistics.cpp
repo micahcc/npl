@@ -1225,7 +1225,6 @@ int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
 	for(size_t ii=0; ii<nsamp; ii++)
 		rho[ii] = 0;
 
-	clock_t c = clock();
 	double dsq;
 	for(size_t ii=0; ii<nsamp; ii++) {
 		for(size_t jj=ii+1; jj<nsamp; jj++) {
@@ -1240,13 +1239,10 @@ int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
 	for(size_t ii=0; ii<nsamp; ii++) {
 		rho[ii] += (double)ii/nsamp;
 	}
-	c = clock()-c;
-	cerr << "Rho Comp: " << c << endl;
 
 	/************************************************************************
 	 * Compute Delta (distance to nearest point with higher density than this
 	 ***********************************************************************/
-	c = clock();
 	double maxd = 0;
 	for(size_t ii=0; ii<nsamp; ii++) {
 		delta[ii] = INFINITY;
@@ -1264,8 +1260,6 @@ int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
 		if(!std::isinf(delta[ii])) 
 			maxd = max(maxd, delta[ii]);
 	}
-	c = clock()-c;
-	cerr << "Delta Comp: " << c << endl;
 
 	for(size_t ii=0; ii<nsamp; ii++) {
 		if(std::isinf(delta[ii]))
@@ -1324,7 +1318,6 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 	 * are limited to center and immediate neighbor bins
 	 *************************************************************************/
 
-	clock_t c = clock();
 	// First Determine Size of Bins in each Dimension
 	vector<size_t> sizes(ndim);
 	vector<size_t> strides(ndim);
@@ -1420,8 +1413,6 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 		}
 	}
 
-	c = clock()-c;
-	cerr << "Rho Comp: " << c << endl;
 
 	/************************************************************************
 	 * Compute Delta (distance to nearest point with higher density than this
@@ -1571,12 +1562,6 @@ int fastSearchFindDP(const MatrixXd& samples,
 	// finally convert parent to classes
 	for(size_t rr=0; rr<nsamp; rr++) 
 		classes[rr] = classmap[classes[rr]];
-
-	for(size_t rr=0; rr<nsamp; rr++) {
-		cerr << setw(10) << delta[rr] << setw(10) << rho[rr] << setw(10) <<
-			classes[rr] << setw(10) << samples.row(rr) << endl;
-	}
-	cerr << endl;
 
 	return 0;
 }
