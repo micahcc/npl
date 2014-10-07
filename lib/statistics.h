@@ -600,22 +600,56 @@ private:
 };
 
 /**
- * @brief Base class for all ND classifiers.
+ * @brief Algorithm of unsupervised learning (clustering) based on density.
+ *
+ * see "Clustering by fast search and find of density peaks"
+ * by Rodriguez, a.  Laio, A.
+ *
+ * @param samples Samples, S x D matrix with S is the number of samples and
+ * D is the dimensionality. This must match the internal dimension count.
+ * @param thresh Threshold distance for density calculation
+ * @param classes Output classes
+ * @param brute whether ther use slower brute force method for density
+ * calculation (for testing purposes only)
+ *
+ * return -1 if maximum number of iterations hit, 0 otherwise (converged)
+ */
+int fastSearchFindDP(const MatrixXd& samples, 
+		 double thresh, Eigen::VectorXi& classes, bool brute = false);
+
+/**
+ * @brief Computes Density and Peak computation for Fast Search and Find of
+ * Density Peaks algorithm.
+ *
+ * @param samples Samples, S x D matrix with S is the number of samples and
+ * D is the dimensionality. This must match the internal dimension count.
+ * @param thresh Threshold for density calculation
+ * @param rho Point densities
+ * @param delta Distance to nearest peak
+ * @param parent Index (point) that is the nearest peak
+ *
+ * @return 0 if successful
  */
 int findDensityPeaks(const MatrixXd& samples, double thresh,
 		Eigen::VectorXi& rho, VectorXd& delta,
 		Eigen::VectorXi& parent);
 
-int fastSearchFindDP(const MatrixXd& samples, Eigen::VectorXi& classes, 
-		double thresh);
-
+/**
+ * @brief Computes Density and Peak computation for Fast Search and Find of
+ * Density Peaks algorithm. This is a slower, non-bin based version
+ *
+ * @param samples Samples, S x D matrix with S is the number of samples and
+ * D is the dimensionality. This must match the internal dimension count.
+ * @param thresh Threshold for density calculation
+ * @param rho Point densities
+ * @param delta Distance to nearest peak
+ * @param parent Index (point) that is the nearest peak
+ *
+ * @return 0 if successful
+ */
 int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
 		Eigen::VectorXi& rho, VectorXd& delta,
 		Eigen::VectorXi& parent);
-
-int fastSearchFindDP_brute(const MatrixXd& samples, Eigen::VectorXi& classes,
-		double thresh);
-
 
 /** @} */
 
