@@ -1519,8 +1519,8 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
  *
  * return -1 if maximum number of iterations hit, 0 otherwise (converged)
  */
-int fastSearchFindDP(const MatrixXd& samples, 
-		 double thresh, Eigen::VectorXi& classes, bool brute)
+int fastSearchFindDP(const MatrixXd& samples, double thresh, double outthresh,
+		 Eigen::VectorXi& classes, bool brute)
 {
 	size_t nsamp = samples.rows();
 	Eigen::VectorXd delta;
@@ -1548,7 +1548,7 @@ int fastSearchFindDP(const MatrixXd& samples,
 	for(size_t rr=0; rr<nsamp; rr++) {
 		// follow trail of parents until we hit a node with the needed delta
 		size_t pp = rr;
-		while(delta[pp] < mean + 8*stddev && classes[pp] != pp) 
+		while(delta[pp] < mean + outthresh*stddev && classes[pp] != pp) 
 			pp = classes[pp];
 
 		// change the parent to the true parent for later iterations
