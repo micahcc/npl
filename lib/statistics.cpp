@@ -1271,6 +1271,24 @@ int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
  * @brief Computes Density and Peak computation for Fast Search and Find of
  * Density Peaks algorithm.
  *
+ * Sketch of Algorithm: 
+ *
+ * Instead of computing distance from ALL points to all points, we compute
+ * distance of nearby points. So we construct bins of nearby points. To begin
+ * we compute the bin location of all points and save a reference to the point
+ * Bin sizes are equal to the threshold distance in the algorithm so that no 
+ * point is more than 1 bin away from every point within the threshold. 
+ *
+ * To compute rho, we
+ * then go through all points and compute the distance from every point within
+ * the center and neighboring bins, summing rho for every point within the 
+ * distance threshold. This should be order N^2/B instead of N^2
+ *
+ * To compute delta (the distance of a point to the nearest higher rho point),
+ * you go to every point and search for bins that have rho greater than rho
+ * for the point. This is sped up by caching the maximum rho in every bin
+ * and therefore the actual number of distances computed is roughly N*N/B. 
+ *
  * @param samples Samples, S x D matrix with S is the number of samples and
  * D is the dimensionality. This must match the internal dimension count.
  * @param thresh Threshold for density calculation
@@ -1417,8 +1435,8 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 
 		parent[ii] = ii;
 		delta[ii] = INFINITY;
-//		if(rho[ii] == max_rho) 
-//			continue;
+		if(rho[ii] == max_rho) 
+			continue;
 
 		// determine bin
 		size_t bin = 0;
