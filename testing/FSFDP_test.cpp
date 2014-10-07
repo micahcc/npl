@@ -60,12 +60,17 @@ int main(int argc, char** argv)
 	/*************************************************************************
 	 * Test That Preliminary Parts of algorithms return the same thing
 	 *************************************************************************/
-	Eigen::VectorXi rho1, rho2, parent1, parent2;
-	Eigen::VectorXd delta1, delta2;
-	findDensityPeaks(samples, .2, rho1, delta1, parent1);
-	findDensityPeaks_brute(samples, .2, rho2, delta2, parent2);
+	Eigen::VectorXi parent1, parent2;
+	Eigen::VectorXd rho1, rho2, delta1, delta2;
+	clock_t c = clock();
+	findDensityPeaks(samples, .1, rho1, delta1, parent1);
+	c = clock() - c;
+	cerr << setw(30) << "Density Peaks: " << c << endl;
+	findDensityPeaks_brute(samples, .1, rho2, delta2, parent2);
+	c = clock() - c;
+	cerr << setw(30) << "Brute Force: " << c << endl;
 	for(size_t ii=0; ii<samples.rows(); ii++) {
-		if(rho1[ii] != rho2[ii]) {
+		if((int)rho1[ii] != (int)rho2[ii]) {
 			cerr << "Mismatched Rho at "<< ii << " with brute: " << rho2[ii] <<
 				" vs " << rho1[ii] << endl;
 			return -1;
@@ -93,7 +98,7 @@ int main(int argc, char** argv)
 	 * Perform Clustering
 	 ***************************/
 	Eigen::VectorXi classes;
-	if(fastSearchFindDP(samples, 1.5, classes, true) != 0) {
+	if(fastSearchFindDP(samples, .1, classes, true) != 0) {
 		cerr << "Clustering Failed" << endl;
 		return -1;
 	}
