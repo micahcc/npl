@@ -41,7 +41,6 @@ int main(int argc, char** argv)
 
 	std::random_device rd;
 	size_t seed = rd();
-//	size_t seed = 2020870799;
 	cerr << "Seed: " << seed;
 	std::default_random_engine rng(seed);
 	//std::default_random_engine rng(13);

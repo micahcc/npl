@@ -870,7 +870,6 @@ public:
 	{
         assert(len <= 8);
         double tmp[8];
-        size_t ii=0;
         for(size_t ii=0; ii<len && ii<8; ii++) 
             tmp[ii] = index[ii];
 		return get(std::min(8UL, len), tmp);
@@ -1547,7 +1546,7 @@ public:
 	 *
 	 * @return value
 	 */
-    T operator()(double x=0, double y=0, double z=0, int64_t t=0, double u=0,
+    T operator()(double x=0, double y=0, double z=0, double t=0, double u=0,
             double v=0, double w=0)
 	{
 		double tmp[8] = {x,y,z,t,u,v,w};
@@ -1583,7 +1582,6 @@ public:
 	{
         assert(len <= 8);
         double tmp[8];
-        size_t ii=0;
         for(size_t ii=0; ii<len && ii<8; ii++) 
             tmp[ii] = index[ii];
 		return get(std::min(8UL, len), tmp);
