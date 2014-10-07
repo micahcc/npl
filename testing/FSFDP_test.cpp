@@ -37,10 +37,11 @@ int main(int argc, char** argv)
 	 ***************************/
 	const size_t NCLUSTER = 4;
 	const size_t NDIM = 2;
-	const size_t NSAMPLES = 100000;
+	const size_t NSAMPLES = 10000;
 
 	std::random_device rd;
-	size_t seed = rd();
+//	size_t seed = rd();
+	size_t seed = 2020870799;
 	cerr << "Seed: " << seed;
 	std::default_random_engine rng(seed);
 	//std::default_random_engine rng(13);
@@ -65,10 +66,10 @@ int main(int argc, char** argv)
 	Eigen::VectorXi parent1, parent2;
 	Eigen::VectorXd rho1, rho2, delta1, delta2;
 	clock_t c = clock();
-	findDensityPeaks(samples, 1, rho1, delta1, parent1);
+	findDensityPeaks(samples, .1, rho1, delta1, parent1);
 	c = clock() - c;
 	cerr << setw(30) << "Density Peaks: " << c << endl;
-	findDensityPeaks_brute(samples, 1, rho2, delta2, parent2);
+	findDensityPeaks_brute(samples, .1, rho2, delta2, parent2);
 	c = clock() - c;
 	cerr << setw(30) << "Brute Force: " << c << endl;
 	for(size_t ii=0; ii<samples.rows(); ii++) {
@@ -81,10 +82,12 @@ int main(int argc, char** argv)
 	for(size_t ii=0; ii<samples.rows(); ii++) {
 		if(delta1[ii] != delta2[ii]) {
 			cerr << "Mismatched delta:\n";
-			cerr << "Bins: " << ii << " " << rho1[ii] << " " << parent1[ii] <<
-				" " << rho1[parent1[ii]] << " " << delta1[ii] << endl;
-			cerr << "Brute: " << ii << " " << rho2[ii] << " " << parent2[ii] <<
-				" " << rho2[parent2[ii]] << " " << delta2[ii] << endl;
+			cerr << "Bin Method: " << ii << " Rho: " << rho1[ii] << " Parent: "
+				<< parent1[ii] << " Parent Rho: " << rho1[parent1[ii]] 
+				<< " Delta: " << delta1[ii] << endl;
+			cerr << "Brute Method: " << ii << " Rho: " << rho2[ii] << " Parent: "
+				<< parent2[ii] << " Parent Rho: " << rho2[parent2[ii]] 
+				<< " Delta: " << delta2[ii] << endl;
 			return -1;
 		}
 	}
