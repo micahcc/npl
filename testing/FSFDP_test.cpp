@@ -93,7 +93,7 @@ int main(int argc, char** argv)
 	 * Perform Clustering
 	 ***************************/
 	Eigen::VectorXi classes;
-	if(fastSearchFindDP(samples, .2, classes, true) != 0) {
+	if(fastSearchFindDP(samples, 1.5, classes, true) != 0) {
 		cerr << "Clustering Failed" << endl;
 		return -1;
 	}
@@ -106,26 +106,31 @@ int main(int argc, char** argv)
 	for(size_t ii=0; ii<NCLUSTER; ii++)
 		cmap[ii] = ii;
 
+	int maxc = 0;
+	for(size_t ii=0; ii<classes.rows(); ii++) {
+		maxc = max(maxc, classes[ii]);
+	}
 
 	// TODO better comparison metric
 	// for each true class, find the best matching estimated class
-	size_t total = 0;
-	for(int64_t tc=0; tc<NCLUSTER; tc++) {
-		map<int64_t, int64_t> matchcounts;
-		for(size_t rr=0; rr<classes.rows(); rr++) {
-			auto ret = matchcounts.insert(make_pair(classes[rr], 0));
-			ret.first->second++;
-		}
+	MatrixXd coincidence(NCLUSTER, maxc+1);
+	coincidence.setZero();
 
-		cerr << "Class: " << tc << endl;
-		int64_t bestmatch = 0;
-		for(auto& p: matchcounts) {
-			bestmatch = max(bestmatch, p.second);
-			cerr << p.first << " : " << p.second << endl;
+	for(int64_t rr=0; rr<trueclass.rows(); rr++) 
+		coincidence(trueclass[rr], classes[rr])++;
+	cerr << "Coincidence Matrix:\n" << coincidence << endl;
+
+	double ratio = 0;
+	for(size_t rr=0; rr<coincidence.rows(); rr++) {
+		double maxr = 0;
+		for(size_t cc=0; cc<coincidence.rows(); cc++) {
+			double r = coincidence(rr,cc)/(double)NSAMPLES;
+			if(r > maxr)
+				maxr = r;
 		}
-		total += bestmatch;
+		ratio += maxr;
 	}
-	double ratio = total/(double)samples.rows();
+
 	cerr << "Match Percent: " << ratio << endl;
 
 	if(argc > 1) {
