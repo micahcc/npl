@@ -1191,8 +1191,6 @@ struct BinT
 	vector<size_t> neighbors;
 	vector<int> members;
 	bool visited;
-//	MatrixXd corners;
-	VectorXd center;
 };
 
 
@@ -1331,7 +1329,6 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 	vector<size_t> sizes(ndim);
 	vector<size_t> strides(ndim);
 	vector<pair<double,double>> range(ndim); //min/max in each dim
-	vector<int64_t> index(ndim);
 	size_t totalbins = 1;
 	for(size_t cc=0; cc<ndim; cc++) {
 
@@ -1371,19 +1368,11 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 				bins[*slicer].neighbors.push_back(slicer.getK(kk));
 		}
 
-		// Find Center
-		bins[*slicer].center.resize(ndim);
-		slicer.indexC(ndim, index.data());
-		for(size_t dd=0; dd<ndim; dd++) {
-			bins[*slicer].center[dd] = ((double)index[dd]+.5)*binwidth + range[dd].first;
-		}
-
 	}
 
 	// fill bins with member points
 	for(size_t rr=0; rr<nsamp; rr++) {
 		// determine bin
-		vector<int64_t> index(ndim);
 		// determine bin
 		size_t bin = 0;
 		for(size_t cc=0; cc<ndim; cc++) {
@@ -1438,7 +1427,7 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 	 * Compute Delta (distance to nearest point with higher density than this
 	 ***********************************************************************/
 	list<int> unresolved;
-	std::list<size_t> queue; // queue of bins (by index)
+	std::list<pair<size_t, size_t>> queue; // queue of bins (by index)
 	double dsq; // distance squared
 
 	// circle enclosing the hypercube
@@ -1468,54 +1457,41 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 			bins[bb].visited = false;
 
 		double dmin = INFINITY;
-		queue.push_back(bin);
-		while(!queue.empty()) {
-			size_t b = queue.front();
+
+		// push center and neighbors
+		queue.clear();
+		queue.push_back(make_pair(bin, 0));
+		bins[bin].visited = true;
+		for(auto bn : bins[bin].neighbors) {
+			queue.push_back(make_pair(bn, 0));
+			bins[bin].visited = true;
+		}
+
+
+		while(!queue.empty() && queue.front().second*binwidth < dmin) {
+			size_t b = queue.front().first;
+			size_t priority = queue.front().second;
 			queue.pop_front();
 
 			// this bin contains at least 1 point that satisfies the rho 
 			// criteria. Find that point (or a closer one) and update dmin
 			if(bins[b].max_rho > rho[ii]) {
-				double cdist = (samples.row(ii).transpose() - 
-						bins[b].center).norm();
-				if(cdist < sqrt(dmin) + enc_rad) {
-					for(auto jj : bins[b].members) {
-						if(rho[jj] > rho[ii]) {
-							dsq = (samples.row(ii)-samples.row(jj)).squaredNorm();
-							if (dsq < dmin) {
-								dmin = dsq;
-								parent[ii] = jj;
-								delta[ii] = dsq;
-							}
+				for(auto jj : bins[b].members) {
+					if(rho[jj] > rho[ii]) {
+						dsq = (samples.row(ii)-samples.row(jj)).squaredNorm();
+						if (dsq < dmin*dmin) {
+							dmin = sqrt(dsq);
+							parent[ii] = jj;
+							delta[ii] = dsq;
 						}
 					}
 				}
 			}
 
-			if(std::isinf(dmin)) {
-				// if infinite, just add all neighbors
-				for(auto bn : bins[b].neighbors) {
-					if(!bins[bn].visited) {
-						queue.push_back(bn);
-						bins[bn].visited = true;
-					}
-				}
-			} else {
-				// determine whether neighboring bins could contain points that 
-				// satisfy the rho criteria
-				for(auto bn : bins[b].neighbors) {
-					// Need to search all bins that could contain a point
-					// nearer than the current best (dmin). We'll filter based
-					// on rho when we ofificially visit (previous loop). 
-					// check if the distance to the center is < half
-					// the diameter (threshold), ie 1/4 the diameter squared
-					double cdist = (samples.row(ii).transpose() - 
-							bins[bn].center).norm();
-					if(!bins[bn].visited && cdist < sqrt(dmin) + enc_rad)
-					{
-						queue.push_back(bn);
-						bins[bn].visited = true;
-					}
+			for(auto bn : bins[b].neighbors) {
+				if(!bins[bn].visited) {
+					queue.push_back(make_pair(bn, priority+1));
+					bins[bn].visited = true;
 				}
 			}
 		}
