@@ -1181,15 +1181,31 @@ int ExpMax::update(const MatrixXd& samples, bool reinit)
 /*****************************************************************************
  * Fast Search and Find Density Peaks Clustering Algorithm
  ****************************************************************************/
+
 /**
- * @brief Algorithm which calculates rho: the number of points within distance
- * thresh; and delta, the distance to the nearest point with greater rho
+ * @brief Bin data structure for storing information about nearby points.
+ */
+struct BinT
+{
+	int max_rho;
+	vector<size_t> neighbors;
+	vector<int> members;
+	bool visited;
+//	MatrixXd corners;
+	VectorXd center;
+};
+
+
+/**
+ * @brief Computes Density and Peak computation for Fast Search and Find of
+ * Density Peaks algorithm. This is a slower, non-bin based version
  *
- * @param samples Input samples
- * @param thresh Input distance threshold for rho
- * @param rho Number of points within rho distance of i'th point
- * @param delta Distance to the nearest point with higher rho
- * @param parent Nearest point with higher rho
+ * @param samples Samples, S x D matrix with S is the number of samples and
+ * D is the dimensionality. This must match the internal dimension count.
+ * @param thresh Threshold for density calculation
+ * @param rho Point densities
+ * @param delta Distance to nearest peak
+ * @param parent Index (point) that is the nearest peak
  *
  * @return 0 if successful
  */
@@ -1197,21 +1213,26 @@ int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
 		Eigen::VectorXi& rho, VectorXd& delta,
 		Eigen::VectorXi& parent)
 {
-	double thresh_sq = thresh*thresh;
+	size_t nsamp = samples.rows();
+	rho.resize(nsamp);
+	delta.resize(nsamp);
+	parent.resize(nsamp);
+
+	const double thresh_sq = thresh*thresh;
 
 	/*************************************************************************
 	 * Compute Local Density (rho), by computing distance from every 
 	 * other point and summing the number of points within thresh distance. 
 	 *************************************************************************/
-	rho.resize(samples.rows());
 	double dsq;
-	for(size_t ii=0; ii<samples.rows(); ii++) {
+	for(size_t ii=0; ii<nsamp; ii++) {
 		rho[ii] = 0;
-		for(size_t jj=0; jj<samples.rows(); jj++) {
+		for(size_t jj=0; jj<nsamp; jj++) {
 			if(ii != jj) {
 				dsq = (samples.row(ii) - samples.row(jj)).squaredNorm();
-				if(dsq < thresh_sq) 
+				if(dsq < thresh_sq) {
 					rho[ii]++;
+				}
 			}
 		}
 	}
@@ -1219,14 +1240,12 @@ int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
 	/************************************************************************
 	 * Compute Delta (distance to nearest point with higher density than this
 	 ***********************************************************************/
-	delta.resize(samples.rows());
-	parent.resize(samples.rows());
 	double maxd = 0;
 	int64_t max_node = -1;
-	for(size_t ii=0; ii<samples.rows(); ii++) {
+	for(size_t ii=0; ii<nsamp; ii++) {
 		delta[ii] = INFINITY;
 		parent[ii] = ii;
-		for(size_t jj=0; jj<samples.rows(); jj++) {
+		for(size_t jj=0; jj<nsamp; jj++) {
 			if(rho[jj] > rho[ii]) {
 				dsq = (samples.row(ii) - samples.row(jj)).squaredNorm();
 				if(dsq < delta[ii]) {
@@ -1236,103 +1255,28 @@ int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
 			}
 		}
 
-		if(std::isinf(delta[ii])) {
-			max_node = ii;
-		} else {
+		if(!std::isinf(delta[ii])) 
 			maxd = max(maxd, delta[ii]);
-		}
 	}
-	delta[max_node] = maxd;
+
+	for(size_t ii=0; ii<nsamp; ii++) {
+		if(std::isinf(delta[ii]))
+			delta[ii] = maxd;
+	}
 
 	return 0;
 }
 
 /**
- * @brief Updates the classifier with new samples, if reinit is true then
- * no prior information will be used. If reinit is false then any existing
- * information will be left intact. In Kmeans that would mean that the
- * means will be left at their previous state.
- *
- * see "Clustering by fast search and find of density peaks"
- * by Rodriguez, a.  Laio, A.
- *
- * This is a brute force solution, order N^2
+ * @brief Computes Density and Peak computation for Fast Search and Find of
+ * Density Peaks algorithm.
  *
  * @param samples Samples, S x D matrix with S is the number of samples and
  * D is the dimensionality. This must match the internal dimension count.
- * @param reinit whether to reinitialize the  classifier before updating
- *
- * return -1 if maximum number of iterations hit, 0 otherwise (converged)
- */
-int fastSearchFindDP_brute(const MatrixXd& samples, 
-		Eigen::VectorXi& classes, double thresh)
-{
-	Eigen::VectorXi clusters;
-	Eigen::VectorXd delta;
-	Eigen::VectorXi rho;
-	findDensityPeaks_brute(samples, thresh, rho, delta, clusters);
-	
-	for(size_t rr=0; rr<classes.rows(); rr++) {
-		cerr << setw(10) << delta[rr] << setw(10) << rho[rr] << setw(10) <<
-			classes[rr] << setw(10) << samples.row(rr) << endl;
-	}
-	cerr << endl;
-
-	/************************************************************************
-	 * Break Into Clusters 
-	 ***********************************************************************/
-	vector<double> dist(samples.rows());
-	vector<int64_t> order(samples.rows());
-	double mean = 0;
-	for(size_t rr=0; rr<samples.rows(); rr++) {
-		dist[rr] = delta[rr]*rho[rr];
-		mean += dist[rr];
-	}
-	
-	mean /= samples.rows();
-	double RATIO = 10;
-	std::map<size_t,size_t> classmap;
-	size_t nclass = 0;
-	for(size_t rr=0; rr<samples.rows(); rr++) {
-		// follow trail of parents until we hit a node with the needed dist
-		size_t pp = rr;
-		while(dist[pp] < mean*RATIO) 
-			pp = classes[pp];
-
-		// change the parent to the true parent for later iterations
-		classes[rr] = pp;
-
-		auto ret = classmap.insert(make_pair(pp, nclass));
-		if(ret.second) 
-			nclass++;
-	}
-
-	// finally convert parent to classes
-	for(size_t rr=0; rr<samples.rows(); rr++) 
-		classes[rr] = classmap[classes[rr]];
-
-	return 0;
-}
-
-struct BinT
-{
-	int max_rho;
-	vector<size_t> neighbors;
-	vector<int> members;
-	bool visited;
-	MatrixXd corners;
-};
-
-
-/**
- * @brief Algorithm which calculates rho: the number of points within distance
- * thresh; and delta, the distance to the nearest point with greater rho
- *
- * @param samples Input samples
- * @param thresh Input distance threshold for rho
- * @param rho Number of points within rho distance of i'th point
- * @param delta Distance to the nearest point with higher rho
- * @param parent Nearest point with higher rho
+ * @param thresh Threshold for density calculation
+ * @param rho Point densities
+ * @param delta Distance to nearest peak
+ * @param parent Index (point) that is the nearest peak
  *
  * @return 0 if successful
  */
@@ -1341,7 +1285,13 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 		Eigen::VectorXi& parent)
 {
 	size_t ndim = samples.cols();
+	size_t nsamp = samples.rows();
+	rho.resize(nsamp);
+	delta.resize(nsamp);
+	parent.resize(nsamp);
+
 	const double thresh_sq = thresh*thresh;
+	const double binwidth = thresh*1.000001;
 
 	/*************************************************************************
 	 * Construct Bins, with diameter thresh so that points within thresh 
@@ -1359,7 +1309,7 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 		// compute range
 		range[cc].first = INFINITY;
 		range[cc].second = -INFINITY;
-		for(size_t rr=0; rr<samples.rows(); rr++) {
+		for(size_t rr=0; rr<nsamp; rr++) {
 			range[cc].first = std::min(range[cc].first, samples(rr,cc));
 			range[cc].second = std::max(range[cc].second, samples(rr,cc));
 		}
@@ -1368,7 +1318,7 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 		// preven the maximum point from overflowing. This would happen if
 		// MAX-MIN = K*thresh for integer K. If K = 1 then the maximum value
 		// would make exactly to the top of the bin
-		sizes[cc] = 1+(range[cc].second-range[cc].first)/thresh;
+		sizes[cc] = 1+(range[cc].second-range[cc].first)/binwidth;
 		totalbins *= sizes[cc];
 	}
 
@@ -1392,30 +1342,26 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 				bins[*slicer].neighbors.push_back(slicer.getK(kk));
 		}
 
-		// Construct the corners
-		bins[*slicer].corners.resize(1<<ndim, ndim);
+		// Find Center
+		bins[*slicer].center.resize(ndim);
 		slicer.indexC(ndim, index.data());
-		vector<double> pt(ndim);
-		cerr << "Corners: " << endl;
-		for(size_t ii=0; ii<bins[*slicer].corners.rows(); ii++) {
-			// a bitfield 0's indicate lower, 1 upper
-			for(size_t dd=0; dd<ndim; dd++) {
-				bins[*slicer].corners(ii,dd) = thresh*(index[dd]+((ii&(1<<dd))>>dd));
-			}
+		for(size_t dd=0; dd<ndim; dd++) {
+			bins[*slicer].center[dd] = ((double)index[dd]+.5)*binwidth + range[dd].first;
 		}
-		cerr << bins[*slicer].corners<< endl;
+
 	}
 
 	// fill bins with member points
-	for(size_t rr=0; rr<samples.rows(); rr++) {
+	Slicer bin(ndim, sizes.data());
+	for(size_t rr=0; rr<nsamp; rr++) {
 		// determine bin
-		size_t bin = 0;
-		for(size_t cc=0; cc<ndim; cc++) {
-			bin += strides[cc]*(samples(rr,cc)-range[cc].first)/thresh;
-		}
-		
+		vector<int64_t> index(ndim);
+		for(size_t cc=0; cc<ndim; cc++) 
+			index[cc] = floor((samples(rr,cc)-range[cc].first)/binwidth);
+		bin.goIndex(index);
+	
 		// place this sample into bin's membership
-		bins[bin].members.push_back(rr);
+		bins[*bin].members.push_back(rr);
 	}
 
 	/*************************************************************************
@@ -1423,20 +1369,19 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 	 * vicinity of each bin, then computing the distance between all pairs
 	 * locally
 	 *************************************************************************/
-	cerr << "Computing lists of potential connections" << endl;
-
 	double distsq;
-	rho.resize(samples.rows());
+	int max_rho = 0; // overall maximum rho, so we don't search for it later
 	for(size_t bb=0; bb<bins.size(); bb++) {
 		// for every member of this bin, check 1) this bin 2) neighboring bins
 		for(const auto& xi : bins[bb].members) {
-
+			rho[xi] = 0;
 			// check others in this bin
 			for(const auto& xj : bins[bb].members) {
 				if(xi != xj) {
 					distsq = (samples.row(xj)-samples.row(xi)).squaredNorm();
-					if(distsq < thresh_sq) 
+					if(distsq < thresh_sq) {
 						rho[xi]++;
+					}
 				}
 			}
 	
@@ -1444,12 +1389,14 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 			for(auto adjbin: bins[bb].neighbors) {
 				for(const auto& xj : bins[adjbin].members) {
 					double distsq = (samples.row(xj)-samples.row(xi)).squaredNorm();
-					if(distsq < thresh_sq) 
+					if(distsq < thresh_sq) {
 						rho[xi]++;
+					}
 				}
 			}
 
 			bins[bb].max_rho = std::max(bins[bb].max_rho, rho[xi]);
+			max_rho = std::max(max_rho, rho[xi]);
 		}
 	}
 
@@ -1458,63 +1405,87 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 	 * Compute Delta (distance to nearest point with higher density than this
 	 ***********************************************************************/
 	std::list<size_t> queue; // queue of bins (by index)
-	parent.resize(samples.rows());
-	delta.resize(samples.rows());
-	for(size_t rr=0; rr<samples.rows(); rr++) {
+	double dsq; // distance squared
+
+	// circle enclosing the hypercube
+	double enc_radsq= 0;
+	for(size_t dd=0; dd<ndim; dd++)
+		enc_radsq += thresh*thresh/4;
+
+	double maxdelta = 0;
+	for(size_t ii=0; ii<nsamp; ii++) {
+
+		parent[ii] = ii;
+		delta[ii] = INFINITY;
+//		if(rho[ii] == max_rho) 
+//			continue;
 
 		// determine bin
 		size_t bin = 0;
 		for(size_t cc=0; cc<ndim; cc++) {
-			bin += strides[cc]*(samples(rr,cc)-range[cc].first)/thresh;
+			bin += strides[cc]*floor((samples(ii,cc)-range[cc].first)/binwidth);
 		}
 
 		// set visited to false in all bins
-		for(size_t ii=0; ii<bins.size(); ii++)
-			bins[ii].visited = false;
+		for(size_t bb=0; bb<bins.size(); bb++)
+			bins[bb].visited = false;
 
 		double dmin = INFINITY;
 		queue.push_back(bin);
 		while(!queue.empty()) {
 			size_t b = queue.front();
 			queue.pop_front();
-			bins[b].visited = true;
 
 			// this bin contains at least 1 point that satisfies the rho 
 			// criteria. Find that point (or a closer one) and update dmin
-			if(bins[b].max_rho > rho[rr]) {
+			if(bins[b].max_rho > rho[ii] && (dmin > (samples.row(ii).transpose() - 
+						bins[b].center).squaredNorm() - enc_radsq)) {
 				for(auto jj : bins[b].members) {
-					double dsq = (samples.row(rr)-samples.row(jj)).squaredNorm();
-					if (dsq < dmin) {
-						dmin = dsq;
-						parent[rr] = jj;
-						delta[rr] = dsq;
+					if(rho[jj] > rho[ii]) {
+						dsq = (samples.row(ii)-samples.row(jj)).squaredNorm();
+						if (dsq < dmin) {
+							dmin = dsq;
+							parent[ii] = jj;
+							delta[ii] = dsq;
+						}
 					}
 				}
 			}
 
-			// determine whether neighboring bins could contain points that 
-			// satisfy the rho criteria
-			for(auto bn : bins[b].neighbors) {
-				// neighbor has a point that satisfies the criteria
-				if(!bins[bn].visited && bins[bn].max_rho > rho[rr]) {
-					// check to see if the neighbor's closes point is closer than 
-					// dmin 
-					double cdist = INFINITY;
-					double d = 0;
-					for(size_t ii=0; ii<bins[bn].corners.rows(); ii++) {
-						d = (bins[bn].corners.row(ii)-samples.row(rr)).squaredNorm();
-						cdist = std::min(cdist, d);
-					}
-
-					// the minimum corner distance is less than the the current
-					// min, so the closest rho-satisfying point could be there 
-					if(cdist < dmin) 
+			if(std::isinf(dmin)) {
+				// if infinite, just add all neighbors
+				for(auto bn : bins[b].neighbors) {
+					if(!bins[bn].visited) {
 						queue.push_back(bn);
+						bins[bn].visited = true;
+					}
+				}
+			} else {
+				// determine whether neighboring bins could contain points that 
+				// satisfy the rho criteria
+				for(auto bn : bins[b].neighbors) {
+					// Need to search all bins that could contain a point
+					// nearer than the current best (dmin). We'll filter based
+					// on rho when we ofificially visit (previous loop). 
+					// check if the distance to the center is < half
+					// the diameter (threshold), ie 1/4 the diameter squared
+					if(!bins[bn].visited && dmin > (samples.row(ii).transpose() - 
+									bins[bn].center).squaredNorm() - enc_radsq)
+					{
+						queue.push_back(bn);
+						bins[bn].visited = true;
+					}
 				}
 			}
 		}
-
+		
+		if(!std::isinf(delta[ii]))
+			maxdelta = max(maxdelta, delta[ii]);
 	}
+
+	for(size_t ii=0; ii<nsamp; ii++) 
+		if(std::isinf(delta[ii]))
+			delta[ii] = maxdelta; 
 
 	return 0;
 }
@@ -1528,44 +1499,44 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
  * see "Clustering by fast search and find of density peaks"
  * by Rodriguez, a.  Laio, A.
  *
+ * This is a brute force solution, order N^2
+ *
  * @param samples Samples, S x D matrix with S is the number of samples and
  * D is the dimensionality. This must match the internal dimension count.
- * @param reinit whether to reinitialize the  classifier before updating
+ * @param thresh Threshold distance for density calculation
+ * @param classes Output classes
+ * @param brute whether ther use slower brute force method for density
+ * calculation (for testing purposes only)
  *
  * return -1 if maximum number of iterations hit, 0 otherwise (converged)
  */
 int fastSearchFindDP(const MatrixXd& samples, 
-		Eigen::VectorXi& classes, double thresh)
+		 double thresh, Eigen::VectorXi& classes, bool brute)
 {
-	const double thresh_sq = thresh*thresh;
-	
-	Eigen::VectorXi clusters;
+	size_t nsamp = samples.rows();
 	Eigen::VectorXd delta;
 	Eigen::VectorXi rho;
-	findDensityPeaks(samples, thresh, rho, delta, clusters);
+	if(brute)
+		findDensityPeaks_brute(samples, thresh, rho, delta, classes);
+	else
+		findDensityPeaks(samples, thresh, rho, delta, classes);
 	
-	for(size_t rr=0; rr<classes.rows(); rr++) {
-		cerr << setw(10) << delta[rr] << setw(10) << rho[rr] << setw(10) <<
-			classes[rr] << setw(10) << samples.row(rr) << endl;
-	}
-	cerr << endl;
-
 	/************************************************************************
 	 * Break Into Clusters 
 	 ***********************************************************************/
-	vector<double> dist(samples.rows());
-	vector<int64_t> order(samples.rows());
+	vector<double> dist(nsamp);
+	vector<int64_t> order(nsamp);
 	double mean = 0;
-	for(size_t rr=0; rr<samples.rows(); rr++) {
+	for(size_t rr=0; rr<nsamp; rr++) {
 		dist[rr] = delta[rr]*rho[rr];
 		mean += dist[rr];
 	}
 	
-	mean /= samples.rows();
+	mean /= nsamp;
 	double RATIO = 10;
 	std::map<size_t,size_t> classmap;
 	size_t nclass = 0;
-	for(size_t rr=0; rr<samples.rows(); rr++) {
+	for(size_t rr=0; rr<nsamp; rr++) {
 		// follow trail of parents until we hit a node with the needed dist
 		size_t pp = rr;
 		while(dist[pp] < mean*RATIO) 
@@ -1580,11 +1551,19 @@ int fastSearchFindDP(const MatrixXd& samples,
 	}
 
 	// finally convert parent to classes
-	for(size_t rr=0; rr<samples.rows(); rr++) 
+	for(size_t rr=0; rr<nsamp; rr++) 
 		classes[rr] = classmap[classes[rr]];
+
+	for(size_t rr=0; rr<nsamp; rr++) {
+		cerr << setw(10) << delta[rr] << setw(10) << rho[rr] << setw(10) <<
+			classes[rr] << setw(10) << samples.row(rr) << endl;
+	}
+	cerr << endl;
 
 	return 0;
 }
+
+
 
 ///**
 // * @brief Solves y = Xb (where beta is a vector of parameters, y is a vector

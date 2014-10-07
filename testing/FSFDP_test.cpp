@@ -62,20 +62,29 @@ int main(int argc, char** argv)
 	 *************************************************************************/
 	Eigen::VectorXi rho1, rho2, parent1, parent2;
 	Eigen::VectorXd delta1, delta2;
-	findDensityPeaks(samples, .5, rho1, delta1, parent1);
-	findDensityPeaks_brute(samples, .5, rho2, delta2, parent2);
+	findDensityPeaks(samples, .2, rho1, delta1, parent1);
+	findDensityPeaks_brute(samples, .2, rho2, delta2, parent2);
 	for(size_t ii=0; ii<samples.rows(); ii++) {
 		if(rho1[ii] != rho2[ii]) {
 			cerr << "Mismatched Rho at "<< ii << " with brute: " << rho2[ii] <<
 				" vs " << rho1[ii] << endl;
 			return -1;
 		}
-		if(delta1[ii] != delta1[ii]) {
-			cerr << "Mismatched delta"<< endl;
+	}
+	for(size_t ii=0; ii<samples.rows(); ii++) {
+		if(delta1[ii] != delta2[ii]) {
+			cerr << "Mismatched delta:\n";
+			cerr << "Bins: " << ii << " " << rho1[ii] << " " << parent1[ii] <<
+				" " << delta1[ii] << endl;
+			cerr << "Brute: " << ii << " " << rho2[ii] << " " << parent2[ii] <<
+				" " << delta2[ii] << endl;
 			return -1;
 		}
+	}
+	for(size_t ii=0; ii<samples.rows(); ii++) {
 		if(parent1[ii] != parent2[ii]) {
-			cerr << "Mismatched parent"<< endl;
+			cerr << "Mismatched parent at " << ii << " with brute: " <<
+				parent1[ii] << " vs " << parent2[ii] << endl;
 			return -1;
 		}
 	}
@@ -84,7 +93,7 @@ int main(int argc, char** argv)
 	 * Perform Clustering
 	 ***************************/
 	Eigen::VectorXi classes;
-	if(fastSearchFindDP_brute(samples, classes, .5) != 0) {
+	if(fastSearchFindDP(samples, .2, classes, true) != 0) {
 		cerr << "Clustering Failed" << endl;
 		return -1;
 	}
