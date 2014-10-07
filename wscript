@@ -27,7 +27,7 @@ def configure(conf):
     
     conf.env.LINKFLAGS = ['-lm']
     conf.env.DEFINES = []
-    conf.env.CXXFLAGS = ['-Wno-sign-compare', '-Wall', '-Wextra', '-std=c++11']
+    conf.env.CXXFLAGS = ['-Wall', '-Wextra', '-std=c++11', '-Wno-sign-compare']
     conf.env.STATIC_LINK = False
 
     if opts['profile']:
