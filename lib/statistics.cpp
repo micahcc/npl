@@ -1237,7 +1237,7 @@ int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
 		}
 	}
 	for(size_t ii=0; ii<nsamp; ii++) 
-		rho[ii] += rand()/(double)RAND_MAX;
+		rho[ii] += (double)ii/nsamp;
 
 	/************************************************************************
 	 * Compute Delta (distance to nearest point with higher density than this
@@ -1414,7 +1414,7 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 				}
 			}
 
-			rho[xi] += rand()/(double)RAND_MAX;
+			rho[xi] += (double)xi/nsamp; 
 			bins[bb].max_rho = std::max(bins[bb].max_rho, rho[xi]);
 			max_rho = std::max(max_rho, rho[xi]);
 		}
