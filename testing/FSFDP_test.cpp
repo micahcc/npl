@@ -37,7 +37,7 @@ int main(int argc, char** argv)
 	 ***************************/
 	const size_t NCLUSTER = 4;
 	const size_t NDIM = 2;
-	const size_t NSAMPLES = 5000;
+	const size_t NSAMPLES = 1000;
 
 	std::random_device rd;
 	size_t seed = rd();
@@ -53,7 +53,7 @@ int main(int argc, char** argv)
 	for(size_t ii=0; ii<NSAMPLES; ii++) {
 		// choose random group
 		trueclass[ii] = randUI(rng);
-		int radius = 1 + trueclass[ii] + randGD(rng)/5;
+		double radius = 1 + trueclass[ii] + randGD(rng)/10;
 		double angle = randGD(rng)/5;
 		samples(ii, 0) = radius*cos(angle);
 		samples(ii, 1) = radius*sin(angle);
@@ -65,10 +65,10 @@ int main(int argc, char** argv)
 	Eigen::VectorXi parent1, parent2;
 	Eigen::VectorXd rho1, rho2, delta1, delta2;
 	clock_t c = clock();
-	findDensityPeaks(samples, .1, rho1, delta1, parent1);
+	findDensityPeaks(samples, 1, rho1, delta1, parent1);
 	c = clock() - c;
 	cerr << setw(30) << "Density Peaks: " << c << endl;
-	findDensityPeaks_brute(samples, .1, rho2, delta2, parent2);
+	findDensityPeaks_brute(samples, 1, rho2, delta2, parent2);
 	c = clock() - c;
 	cerr << setw(30) << "Brute Force: " << c << endl;
 	for(size_t ii=0; ii<samples.rows(); ii++) {
