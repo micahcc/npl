@@ -1224,24 +1224,31 @@ int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
 	 * Compute Local Density (rho), by computing distance from every 
 	 * other point and summing the number of points within thresh distance. 
 	 *************************************************************************/
+	for(size_t ii=0; ii<nsamp; ii++)
+		rho[ii] = 0;
+
+	clock_t c = clock();
 	double dsq;
 	for(size_t ii=0; ii<nsamp; ii++) {
-		rho[ii] = 0;
-		for(size_t jj=0; jj<nsamp; jj++) {
-			if(ii != jj) {
-				dsq = (samples.row(ii) - samples.row(jj)).squaredNorm();
-				if(dsq < thresh_sq) {
-					rho[ii]++;
-				}
+		for(size_t jj=ii+1; jj<nsamp; jj++) {
+			dsq = (samples.row(ii) - samples.row(jj)).squaredNorm();
+			if(dsq < thresh_sq) {
+				rho[ii]++;
+				rho[jj]++;
 			}
 		}
 	}
-	for(size_t ii=0; ii<nsamp; ii++) 
+
+	for(size_t ii=0; ii<nsamp; ii++) {
 		rho[ii] += (double)ii/nsamp;
+	}
+	c = clock()-c;
+	cerr << "Rho Comp: " << c << endl;
 
 	/************************************************************************
 	 * Compute Delta (distance to nearest point with higher density than this
 	 ***********************************************************************/
+	c = clock();
 	double maxd = 0;
 	for(size_t ii=0; ii<nsamp; ii++) {
 		delta[ii] = INFINITY;
@@ -1259,6 +1266,8 @@ int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
 		if(!std::isinf(delta[ii])) 
 			maxd = max(maxd, delta[ii]);
 	}
+	c = clock()-c;
+	cerr << "Delta Comp: " << c << endl;
 
 	for(size_t ii=0; ii<nsamp; ii++) {
 		if(std::isinf(delta[ii]))
@@ -1317,6 +1326,7 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 	 * are limited to center and immediate neighbor bins
 	 *************************************************************************/
 
+	clock_t c = clock();
 	// First Determine Size of Bins in each Dimension
 	vector<size_t> sizes(ndim);
 	vector<size_t> strides(ndim);
@@ -1421,10 +1431,13 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 		}
 	}
 
+	c = clock()-c;
+	cerr << "Rho Comp: " << c << endl;
 
 	/************************************************************************
 	 * Compute Delta (distance to nearest point with higher density than this
 	 ***********************************************************************/
+	list<int> unresolved;
 	std::list<size_t> queue; // queue of bins (by index)
 	double dsq; // distance squared
 
@@ -1509,6 +1522,7 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 		
 		if(!std::isinf(delta[ii]))
 			maxdelta = max(maxdelta, delta[ii]);
+
 	}
 
 	for(size_t ii=0; ii<nsamp; ii++) 
