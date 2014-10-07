@@ -37,7 +37,7 @@ int main(int argc, char** argv)
 	 ***************************/
 	const size_t NCLUSTER = 4;
 	const size_t NDIM = 2;
-	const size_t NSAMPLES = 1000;
+	const size_t NSAMPLES = 100000;
 
 	std::random_device rd;
 	size_t seed = rd();
