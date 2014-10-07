@@ -631,7 +631,7 @@ int fastSearchFindDP(const MatrixXd& samples,
  * @return 0 if successful
  */
 int findDensityPeaks(const MatrixXd& samples, double thresh,
-		Eigen::VectorXi& rho, VectorXd& delta,
+		Eigen::VectorXd& rho, VectorXd& delta,
 		Eigen::VectorXi& parent);
 
 /**
@@ -648,7 +648,7 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
  * @return 0 if successful
  */
 int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
-		Eigen::VectorXi& rho, VectorXd& delta,
+		Eigen::VectorXd& rho, VectorXd& delta,
 		Eigen::VectorXi& parent);
 
 /** @} */

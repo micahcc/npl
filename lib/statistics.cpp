@@ -1187,7 +1187,7 @@ int ExpMax::update(const MatrixXd& samples, bool reinit)
  */
 struct BinT
 {
-	int max_rho;
+	double max_rho;
 	vector<size_t> neighbors;
 	vector<int> members;
 	bool visited;
@@ -1210,7 +1210,7 @@ struct BinT
  * @return 0 if successful
  */
 int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
-		Eigen::VectorXi& rho, VectorXd& delta,
+		Eigen::VectorXd& rho, VectorXd& delta,
 		Eigen::VectorXi& parent)
 {
 	size_t nsamp = samples.rows();
@@ -1236,12 +1236,13 @@ int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
 			}
 		}
 	}
+	for(size_t ii=0; ii<nsamp; ii++) 
+		rho[ii] += rand()/(double)RAND_MAX;
 
 	/************************************************************************
 	 * Compute Delta (distance to nearest point with higher density than this
 	 ***********************************************************************/
 	double maxd = 0;
-	int64_t max_node = -1;
 	for(size_t ii=0; ii<nsamp; ii++) {
 		delta[ii] = INFINITY;
 		parent[ii] = ii;
@@ -1299,7 +1300,7 @@ int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
  * @return 0 if successful
  */
 int findDensityPeaks(const MatrixXd& samples, double thresh,
-		Eigen::VectorXi& rho, VectorXd& delta,
+		Eigen::VectorXd& rho, VectorXd& delta,
 		Eigen::VectorXi& parent)
 {
 	size_t ndim = samples.cols();
@@ -1388,7 +1389,7 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 	 * locally
 	 *************************************************************************/
 	double distsq;
-	int max_rho = 0; // overall maximum rho, so we don't search for it later
+	double max_rho = 0; // overall maximum rho, so we don't search for it later
 	for(size_t bb=0; bb<bins.size(); bb++) {
 		// for every member of this bin, check 1) this bin 2) neighboring bins
 		for(const auto& xi : bins[bb].members) {
@@ -1413,6 +1414,7 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 				}
 			}
 
+			rho[xi] += rand()/(double)RAND_MAX;
 			bins[bb].max_rho = std::max(bins[bb].max_rho, rho[xi]);
 			max_rho = std::max(max_rho, rho[xi]);
 		}
@@ -1533,7 +1535,7 @@ int fastSearchFindDP(const MatrixXd& samples,
 {
 	size_t nsamp = samples.rows();
 	Eigen::VectorXd delta;
-	Eigen::VectorXi rho;
+	Eigen::VectorXd rho;
 	if(brute)
 		findDensityPeaks_brute(samples, thresh, rho, delta, classes);
 	else
@@ -1542,22 +1544,22 @@ int fastSearchFindDP(const MatrixXd& samples,
 	/************************************************************************
 	 * Break Into Clusters 
 	 ***********************************************************************/
-	vector<double> dist(nsamp);
 	vector<int64_t> order(nsamp);
 	double mean = 0;
+	double stddev = 0;
 	for(size_t rr=0; rr<nsamp; rr++) {
-		dist[rr] = delta[rr]*rho[rr];
-		mean += dist[rr];
+		stddev += delta[rr]*delta[rr];
+		mean += delta[rr];
 	}
-	
+	stddev = sqrt(sample_var(nsamp, mean, stddev));
 	mean /= nsamp;
-	double RATIO = 10;
+	
 	std::map<size_t,size_t> classmap;
 	size_t nclass = 0;
 	for(size_t rr=0; rr<nsamp; rr++) {
-		// follow trail of parents until we hit a node with the needed dist
+		// follow trail of parents until we hit a node with the needed delta
 		size_t pp = rr;
-		while(dist[pp] < mean*RATIO) 
+		while(delta[pp] < mean + 8*stddev && classes[pp] != pp) 
 			pp = classes[pp];
 
 		// change the parent to the true parent for later iterations
