@@ -8,26 +8,28 @@ from os.path import abspath, join, isfile, isdir
 from sys import exit, stderr
 from shutil import copy2
 
-npl='/ifs/students/mchambers/npl-3.0/'
-nplbfc=join(npl,'bin','nplBiasFieldCorrect')
+npl='/home/micahc/tools/npl-3.0/'
+#nplbfc=join(npl,'bin','nplBiasFieldCorrect')
+nplbfc=join(npl,'bin','nplBiasCorrect')
 nplmath=join(npl,'bin','nplMath')
 npldistcor=join(npl,'bin','fIDistortionCorrect')
 
-def newer(a, b):
-	if isfile(b):
-		return os.path.getctime(a) < os.path.getctime(b)
+def earlier(lhs, rhs):
+	if isfile(rhs):
+		return os.path.getctime(lhs) < os.path.getctime(rhs)
 	else:
 		return False
 
 def copy(src, target, force):
-	if not newer(src, target) or force:
+	if not earlier(src, target) or force:
 		print("Copying %s -> %s" % (src, target))
 		copy2(src, target)
 
 
-def biascorrect(iimg, corrected, biasfield, force):
-	if not newer(iimg, oimg) and not force:
-		print("Using cached %s" % oimg)
+def biascorrect(iimg, biasfield="", corrected = "", force = False):
+	if not force and (not biasfield or earlier(iimg, biasfield)) and \
+				(not corrected or earier(iimg, corrected)):
+		print("Skipping Bias Correction of %s, output exists" % iimg)
 		return 0
 
 	if biasfield and corrected:
@@ -93,24 +95,25 @@ def main(fmri, t1, t2, biasfield, biased_image, output, force, no_distortion,
 
 	os.chdir(output)
 	
-#	#########################################################################
-#	# Compute Bias Field / Bias Correct
-#	#########################################################################
-#	if args.biased_image:
-#		# estimate bias field, write
-#		biascorrect(iimg="biased_image.nii.gz", biasfield="biasfield.nii.gz")
-#	elif len(args.t1) > 0 and len(args.t2) > 0:
-#		# register first T2 to first T1
-#		mmregister(fixed = "t1_0.nii.gz", moving = "t2_0.nii.gz", 
-#				oimg = "t2_0_tmp.nii.gz")
-#		multiply(inputs = ['t1_0.nii.gz', 't2_0_tmp.nii.gz'],
-#				oimg = "t1_x_t2.nii.gz")
-#		biascorrect(iimg='t1_x_t2.nii.gz', biasfield = 'biasfield.nii.gz')
-#	elif len(t1) > 0:
-#		biascorrect(iimg='t1_0.nii.gz', biasfield = 'biasfield.nii.gz')
-#	elif len(t2) > 0:
-#		biascorrect(iimg='t2_0.nii.gz', biasfield = 'biasfield.nii.gz')
-#
+	#########################################################################
+	# Compute Bias Field / Bias Correct
+	#########################################################################
+	if biased_image:
+		# estimate bias field, write
+		biascorrect(iimg="biased_image.nii.gz", biasfield="biasfield.nii.gz")
+	elif len(t1) > 0 and len(t2) > 0:
+		# register first T2 to first T1
+		mmregister(fixed = "t1_0.nii.gz", moving = "t2_0.nii.gz", 
+				oimg = "t2_0_tmp.nii.gz")
+		multiply(inputs = ['t1_0.nii.gz', 't2_0_tmp.nii.gz'],
+				oimg = "t1_x_t2.nii.gz")
+		biascorrect(iimg='t1_x_t2.nii.gz', biasfield = 'biasfield.nii.gz', 
+				force = force)
+	elif len(t1) > 0:
+		biascorrect(iimg='t1_0.nii.gz', biasfield = 'biasfield.nii.gz')
+	elif len(t2) > 0:
+		biascorrect(iimg='t2_0.nii.gz', biasfield = 'biasfield.nii.gz')
+
 #	# Apply Bias Correction
 #	for ii in range(len(t1imgs)):
 #		out = 't1_%i_bc.nii.gz'%ii
