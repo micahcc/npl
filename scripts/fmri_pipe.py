@@ -3,14 +3,15 @@
 import configparser
 import argparse
 from subprocess import call
-from os import path
-from os.path import abspath, join
+from os import chdir, path
+from os.path import abspath, join, isfile, isdir
 from sys import exit, stderr
+from shutil import copy2
 
 npl='/ifs/students/mchambers/npl-3.0/'
-nplbfc=path.join(npl,'bin','nplBiasFieldCorrect')
-nplmath=path.join(npl,'bin','nplMath')
-npldistcor=path.join(npl,'bin','fIDistortionCorrect')
+nplbfc=join(npl,'bin','nplBiasFieldCorrect')
+nplmath=join(npl,'bin','nplMath')
+npldistcor=join(npl,'bin','fIDistortionCorrect')
 force = False
 
 def copyout(iimg, oimg, force):
@@ -69,28 +70,24 @@ def main(fmri, t1, t2, biasfield, biased_image, output, force, no_distortion,
 		jac_weight, tps_weight, hist, knot_space, bins, parzen_size, smooth,
 		cost):
 
-#	force = args.force
-#	applybfield = False
-#
-#	#########################################################################
-#	# Copy Files to Output
-#	#########################################################################
-#	t1avg = ""
-#	t2avg = ""
-#	t1imgs = []
-#	t2imgs = []
-#	for i in range(len(args.t1)):
-#		w = "t1_%i.nii.gz"%i
-#		copy2(args.t1[i], join(args.output, w))
-#		t1imgs.append(w)
-#	for i in range(len(args.t2)):
-#		w = "t2_%i.nii.gz"%i
-#		copy2(args.t2[i], join(args.output, w))
-#		t2imgs.append(w)
-#	if args.fmri: copy2(args.fmri, join(args.output, "fmri.nii.gz"))
-#	if args.biasfield: copy2(args.biasfield, join(args.output, "biasfield.nii.gz"))
-#	if args.biased_image: copy2(args.biased_image, join(args.output, "biased_image.nii.gz"))
-#	
+	#########################################################################
+	# Copy Files to Output
+	#########################################################################
+	t1avg = ""
+	t2avg = ""
+	for i in range(len(t1)):
+		w = "t1_%i.nii.gz"%i
+		copy2(t1[i], join(output, w))
+		t1[i] = w
+	for i in range(len(t2)):
+		w = "t2_%i.nii.gz"%i
+		copy2(t2[i], join(output, w))
+		t2[i] = w
+	if fmri: copy2(fmri, join(output, "fmri.nii.gz"))
+	if biasfield: copy2(biasfield, join(output, "biasfield.nii.gz"))
+	if biased_image: copy2(biased_image, join(output, "biased_image.nii.gz"))
+	chdir(output)
+	
 #	#########################################################################
 #	# Compute Bias Field / Bias Correct
 #	#########################################################################
@@ -272,9 +269,37 @@ if __name__ == "__main__":
 	
 	args = parser.parse_args(remaining_argv)
 
+	# check if files exist
 	allopts = dict(list(io.items()) + list(options.items()))
-	if not allopts['t1'] and not allopts['t2']: 
+
+	# Check for input t1 and t2
+	if not io['t1'] and not io['t2']: 
 		print("Need to provide either T1 or T2 image!", file=stderr)
 		parser.print_help()
+	
+	# convert t1,t2 to list of strings
+	if not isinstance(io['t1'], list):
+		io['t1'] = [str(io['t1'])]
 
+	if not isinstance(io['t2'], list):
+		io['t2'] = [str(io['t2'])]
+
+	# Check the existence of all input files
+	for f in io['t1']:
+		if not isfile(f):
+			print('Error input file: %s does not exist' % f)
+			exit(-1)
+	for f in io['t2']:
+		if not isfile(f):
+			print('Error input file: %s does not exist' % f)
+			exit(-1)
+
+	if not isdir(io['output']):
+		print("Need to provide an output dir (--output)!", file=stderr)
+		parser.print_help()
+	
+	if not isfile(io['fmri']):
+		print("Need to provide an fMRI (--fmri)!", file=stderr)
+		parser.print_help()
+	
 	main(**allopts)
