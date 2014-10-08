@@ -1,9 +1,9 @@
 #!/usr/bin/python3
-
+import ast
 import configparser
 import argparse
 from subprocess import call
-from os import chdir, path
+import os
 from os.path import abspath, join, isfile, isdir
 from sys import exit, stderr
 from shutil import copy2
@@ -12,18 +12,18 @@ npl='/ifs/students/mchambers/npl-3.0/'
 nplbfc=join(npl,'bin','nplBiasFieldCorrect')
 nplmath=join(npl,'bin','nplMath')
 npldistcor=join(npl,'bin','fIDistortionCorrect')
-force = False
 
-def copyout(iimg, oimg, force):
-	if not newer(iimg, oimg) and not force:
-		print("Using cached %s" % oimg)
-		return 0
+def newer(a, b):
+	if isfile(b):
+		return os.path.getctime(a) < os.path.getctime(b)
 	else:
-		ret = sys.copy(iimg, oimg)
-		if ret != 0:
-			print("Error During Copying %s -> %s" % (iimg, oimg), file=stderr)
-			exit(ret)
-	return 0
+		return False
+
+def copy(src, target, force):
+	if not newer(src, target) or force:
+		print("Copying %s -> %s" % (src, target))
+		copy2(src, target)
+
 
 def biascorrect(iimg, corrected, biasfield, force):
 	if not newer(iimg, oimg) and not force:
@@ -68,8 +68,7 @@ def average(inputs, oimg):
 
 def main(fmri, t1, t2, biasfield, biased_image, output, force, no_distortion,
 		jac_weight, tps_weight, hist, knot_space, bins, parzen_size, smooth,
-		cost):
-
+		cost, **extra):
 	#########################################################################
 	# Copy Files to Output
 	#########################################################################
@@ -77,16 +76,22 @@ def main(fmri, t1, t2, biasfield, biased_image, output, force, no_distortion,
 	t2avg = ""
 	for i in range(len(t1)):
 		w = "t1_%i.nii.gz"%i
-		copy2(t1[i], join(output, w))
+		copy(t1[i], join(output, w), force)
 		t1[i] = w
 	for i in range(len(t2)):
 		w = "t2_%i.nii.gz"%i
-		copy2(t2[i], join(output, w))
+		copy(t2[i], join(output, w), force)
 		t2[i] = w
-	if fmri: copy2(fmri, join(output, "fmri.nii.gz"))
-	if biasfield: copy2(biasfield, join(output, "biasfield.nii.gz"))
-	if biased_image: copy2(biased_image, join(output, "biased_image.nii.gz"))
-	chdir(output)
+	if fmri: 
+		copy(fmri, join(output, "fmri.nii.gz"), force)
+
+	if biasfield: 
+		copy(fmri, join(output, "fmri.nii.gz"), force)
+
+	if biased_image: 
+		copy(biased_image, join(output, "biased_image.nii.gz"), force)
+
+	os.chdir(output)
 	
 #	#########################################################################
 #	# Compute Bias Field / Bias Correct
@@ -168,9 +173,31 @@ def main(fmri, t1, t2, biasfield, biased_image, output, force, no_distortion,
 #
 #
 
+def deparse(example, key, config, section):
+	if isinstance(example, bool):
+		return config.getboolean(section, key)
+	elif isinstance(example, int):
+		return  config.getint(section, key)
+	elif isinstance(example, float):
+		return  config.getfloat(section, key)
+	elif isinstance(example, list):
+		if len(example) > 0:
+			if isinstance(example[0], int):
+				return [int(v) for v in config.get(section, key).split(',')]
+			elif isinstance(example[0], float):
+				return  [float(v) for v in config.get(section, key).split(',')]
+			else:
+				return [v.strip() for v in config.get(section, key).split(',')]
+		else:
+			# just assume string
+			return [v.strip() for v in config.get(section, key).split(',')]
+	else:
+		return config['io'][k]
+
+
 if __name__ == "__main__":
 
-	conf_parser = argparse.ArgumentParser( add_help = False )
+	conf_parser = argparse.ArgumentParser(add_help = False)
 	conf_parser.add_argument('-c', '--conf', help = 'Config file', metavar='*.ini')
 	args, remaining_argv = conf_parser.parse_known_args()
 
@@ -196,18 +223,31 @@ if __name__ == "__main__":
 	}
 
 	if args.conf:
-		config = configparser.SafeConfigParser()
+		config = configparser.ConfigParser(
+				interpolation=configparser.ExtendedInterpolation())
 		config.read([args.conf])
 
 		# merge/update defaults
 		if 'io' in config.keys(): 
-			io = dict(list(io.items())+config.items('io'))
+			tmp = dict();
+			for k, v in io.items():
+				if not config.has_option('io', k):
+					continue
+				
+				tmp[k] = deparse(example=v, key=k, config=config, section='io')
+			
+			io = dict(list(io.items())+list(tmp.items()))
 		if 'options' in config.keys(): 
-			options = dict(list(options.items())+config.items('options'))
+			tmp = dict();
+			for k, v in options.items():
+				if not config.has_option('io', k):
+					continue
 
-	parser = argparse.ArgumentParser(parents = [conf_parser], 
-			description=__doc__, 
-			formatter_class=argparse.RawDescriptionHelpFormatter)
+				tmp[k] = deparse(example=v, key=k, config=config, section='option')
+
+			options = dict(list(options.items())+list(tmp.items()))
+
+	parser = argparse.ArgumentParser(parents = [conf_parser])
 
 	parser.set_defaults(**dict(list(io.items())+list(options.items())))
 		
@@ -215,6 +255,7 @@ if __name__ == "__main__":
 		'It is expected that all images are in roughtly the correct place so '
 		'that bias-field correction can be applied without registration')
 
+	parser.add_argument('-c', '--conf', help = 'Config file', metavar='*.ini')
 	parser.add_argument('-f', '--fmri', metavar='*.nii.gz', type=str, 
 			nargs='?', help='fMRI Image To Process.')
 	parser.add_argument('-1', '--t1', metavar='*.nii.gz', type=str, nargs='*', 
@@ -273,33 +314,31 @@ if __name__ == "__main__":
 	allopts = dict(list(io.items()) + list(options.items()))
 
 	# Check for input t1 and t2
-	if not io['t1'] and not io['t2']: 
+	if not allopts['t1'] and not allopts['t2']: 
 		print("Need to provide either T1 or T2 image!", file=stderr)
-		parser.print_help()
+		exit(-1)
 	
-	# convert t1,t2 to list of strings
-	if not isinstance(io['t1'], list):
-		io['t1'] = [str(io['t1'])]
-
-	if not isinstance(io['t2'], list):
-		io['t2'] = [str(io['t2'])]
-
 	# Check the existence of all input files
-	for f in io['t1']:
+	for f in allopts['t1']:
 		if not isfile(f):
 			print('Error input file: %s does not exist' % f)
 			exit(-1)
-	for f in io['t2']:
+	for f in allopts['t2']:
 		if not isfile(f):
 			print('Error input file: %s does not exist' % f)
 			exit(-1)
-
-	if not isdir(io['output']):
+	if not allopts['output']:
 		print("Need to provide an output dir (--output)!", file=stderr)
-		parser.print_help()
+		exit(-1)
+	if not isdir(allopts['output']):
+		print("output dir is not a directory: %s" % output, file=stderr)
+		exit(-1)
 	
-	if not isfile(io['fmri']):
+	if not allopts['fmri']:
 		print("Need to provide an fMRI (--fmri)!", file=stderr)
-		parser.print_help()
+		exit(-1)
+	if not isfile(allopts['fmri']):
+		print("Input fMRI is not a file: %s" % allopts['fmri'], file=stderr)
+		exit(-1)
 	
 	main(**allopts)
