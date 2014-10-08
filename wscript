@@ -98,4 +98,4 @@ def build(bld):
         f.close()
 
     # recurse into other wscript files
-    bld.recurse('deps lib testing tools deps')
+    bld.recurse('deps lib testing tools deps scripts')
