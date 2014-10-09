@@ -100,7 +100,7 @@ int main(int argc, char** argv)
 	Vector3DIter<double> vit(vol);
 
 	// set up sigmas
-	vector<double> sigmas({3, 2, 1, 0});
+	vector<double> sigmas({1.5, 0.75, 0});
 	if(a_sigmas.isSet()) 
 		sigmas.assign(a_sigmas.begin(), a_sigmas.end());
 
@@ -125,7 +125,12 @@ int main(int argc, char** argv)
 	} else {
 		// Compute Motion
 		
+		Rigid3DTrans rigid;
+		rigid.center.setZero();
+		rigid.shift.setZero();
+		rigid.rotation.setZero();
 		for(size_t tt=0; tt<fmri->tlen(); tt++) {
+			cerr << "Time " << tt << " / " << fmri->tlen() << endl;
 			if(tt == ref) {
 				motion.push_back(vector<double>());
 				motion.back().resize(9, 0);
@@ -135,7 +140,7 @@ int main(int argc, char** argv)
 					vit.set(iit[tt]);
 
 				// perform registration
-				rigid = corReg3D(refvol, vol, sigmas);
+				corReg3D(refvol, vol, sigmas, rigid);
 				motion.push_back(vector<double>());
 				auto& m = motion.back();
 				m.resize(9, 0);

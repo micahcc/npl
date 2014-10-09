@@ -27,8 +27,6 @@
 
 #include <memory>
 
-#define VERYDEBUG 1
-
 using std::shared_ptr;
 
 namespace npl {
@@ -382,14 +380,16 @@ shared_ptr<MRImage> motionCorrect(shared_ptr<const MRImage> input, size_t ref);
  * that the two volumes should have identical sampling and identical
  * orientation. If that is not the case, an exception will be thrown.
  *
+ * \todo make it v = Ru + s, then u = INV(R)*(v - s)
+ *
  * @param fixed     Image which will be the target of registration. 
  * @param moving    Image which will be rotated then shifted to match fixed.
- * @param sigmas    Standard deviation of smoothing kernel at each level
+ * @param sigmas	Standard deviation of smoothing at each level
+ * @param inout		Input/Output rigid transform
  *
- * @return          Rigid transform.
  */
-Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed, 
-        shared_ptr<const MRImage> moving, const std::vector<double>& sigmas);
+void corReg3D(shared_ptr<const MRImage> fixed, shared_ptr<const MRImage> moving, 
+        const std::vector<double>& sigmas, Rigid3DTrans& inout);
 
 /**
  * @brief Performs information-based registration between two 3D volumes. note
