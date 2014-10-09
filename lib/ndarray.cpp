@@ -594,9 +594,9 @@ ptr<NDArray> _copyCast(ptr<const NDArray> in, size_t newdims,
  * @param out Output array to write to
  */
 template <typename T>
-void copyROI_help(ptr<const NDArray> in, const int64_t* inROIL, const
-        int64_t* inROIU, ptr<NDArray> out, const int64_t* oROIL, 
-        const int64_t* oROIU)
+void copyROI_help(ptr<const NDArray> in, const int64_t* inROIL, 
+        const size_t* inROIZ, ptr<NDArray> out, const int64_t* oROIL, 
+        const size_t* oROIZ)
 {
     // Set up slicers to iterate through the input and output arrays. Only
     // common dimensions are iterated over, and only the minimum of the two
@@ -606,8 +606,8 @@ void copyROI_help(ptr<const NDArray> in, const int64_t* inROIL, const
     OrderIter<T> oit(out);
 
     // perform copy/cast
-    iit.setROI(in->ndim(), inROIL, inROIU);
-    oit.setROI(out->ndim(), oROIL, oROIU);
+    iit.setROI(in->ndim(), inROIZ, inROIL);
+    oit.setROI(out->ndim(), oROIZ, oROIL);
     for(iit.goBegin(), oit.goBegin(); !oit.eof() && !iit.eof(); ++oit, ++iit)
         oit.set(*iit);
 
@@ -629,57 +629,57 @@ void copyROI_help(ptr<const NDArray> in, const int64_t* inROIL, const
  *
  */
 void copyROI(ptr<const NDArray> in, 
-        const int64_t* inROIL, const int64_t* inROIU, ptr<NDArray> out,
-        const int64_t* oROIL, const int64_t* oROIU, PixelT newtype)
+        const int64_t* inROIL, const size_t* inROIZ, ptr<NDArray> out,
+        const int64_t* oROIL, const size_t* oROIZ, PixelT newtype)
 {
 	switch(newtype) {
 		case UINT8:
-			copyROI_help<uint8_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			copyROI_help<uint8_t>(in, inROIL, inROIZ, out, oROIL, oROIZ);
 			break;
 		case INT16:
-			copyROI_help<int16_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			copyROI_help<int16_t>(in, inROIL, inROIZ, out, oROIL, oROIZ);
 			break;
 		case INT32:
-			copyROI_help<int32_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			copyROI_help<int32_t>(in, inROIL, inROIZ, out, oROIL, oROIZ);
 			break;
 		case FLOAT32:
-			copyROI_help<float>(in, inROIL, inROIU, out, oROIL, oROIU);
+			copyROI_help<float>(in, inROIL, inROIZ, out, oROIL, oROIZ);
 			break;
 		case COMPLEX64:
-			copyROI_help<cfloat_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			copyROI_help<cfloat_t>(in, inROIL, inROIZ, out, oROIL, oROIZ);
 			break;
 		case FLOAT64:
-			copyROI_help<double>(in, inROIL, inROIU, out, oROIL, oROIU);
+			copyROI_help<double>(in, inROIL, inROIZ, out, oROIL, oROIZ);
 			break;
 		case RGB24:
-			copyROI_help<rgb_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			copyROI_help<rgb_t>(in, inROIL, inROIZ, out, oROIL, oROIZ);
 			break;
 		case INT8:
-			copyROI_help<int8_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			copyROI_help<int8_t>(in, inROIL, inROIZ, out, oROIL, oROIZ);
 			break;
 		case UINT16:
-			copyROI_help<uint16_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			copyROI_help<uint16_t>(in, inROIL, inROIZ, out, oROIL, oROIZ);
 			break;
 		case UINT32:
-			copyROI_help<uint32_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			copyROI_help<uint32_t>(in, inROIL, inROIZ, out, oROIL, oROIZ);
 			break;
 		case INT64:
-			copyROI_help<int64_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			copyROI_help<int64_t>(in, inROIL, inROIZ, out, oROIL, oROIZ);
 			break;
 		case UINT64:
-			copyROI_help<uint64_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			copyROI_help<uint64_t>(in, inROIL, inROIZ, out, oROIL, oROIZ);
 			break;
 		case FLOAT128:
-			copyROI_help<long double>(in, inROIL, inROIU, out, oROIL, oROIU);
+			copyROI_help<long double>(in, inROIL, inROIZ, out, oROIL, oROIZ);
 			break;
 		case COMPLEX128:
-			copyROI_help<cdouble_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			copyROI_help<cdouble_t>(in, inROIL, inROIZ, out, oROIL, oROIZ);
 			break;
 		case COMPLEX256:
-			copyROI_help<cquad_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			copyROI_help<cquad_t>(in, inROIL, inROIZ, out, oROIL, oROIZ);
 			break;
 		case RGBA32:
-			copyROI_help<rgba_t>(in, inROIL, inROIU, out, oROIL, oROIU);
+			copyROI_help<rgba_t>(in, inROIL, inROIZ, out, oROIL, oROIZ);
 			break;
 		default:
             throw INVALID_ARGUMENT("Unsupported pixel type: " +

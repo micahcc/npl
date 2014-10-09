@@ -25,6 +25,7 @@
 #include "mrimage.h"
 #include "iterators.h"
 #include "accessors.h"
+#include "mrimage_utils.h"
 #include "ndarray_utils.h"
 #include "statistics.h"
 #include "version.h"
@@ -68,6 +69,9 @@ int main(int argc, char** argv)
 			true, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
 			true, "", "*.nii.gz", cmd);
+	TCLAP::ValueArg<double> a_spacing("s", "spacing", "Resample image to have "
+			"the specified spacing. If you find that the skullstripping is too "
+			"slow then you may want to increase this.", false, 3, "mm", cmd);
 
 	cmd.parse(argc, argv);
 
@@ -79,7 +83,9 @@ int main(int argc, char** argv)
 		cerr << "Expected input to be 3D Image!" << endl;
 		return -1;
 	}
-    inimg = dPtrCast<MRImage>(inimg->copyCast(FLOAT32));
+	
+	vector<double> spacing(3, a_spacing.getValue());
+    inimg = resample(inimg, spacing.data());
 	
     /*****************************
      * edge detection

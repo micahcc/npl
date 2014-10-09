@@ -1348,7 +1348,7 @@ ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
     assert(len < 10);
     
     int64_t ilower[D];
-    int64_t iupper[D];
+	size_t isize[D];
     
     size_t newdim = 0;
     size_t newsize[10];
@@ -1373,16 +1373,17 @@ ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
             else
                 ilower[dd] = 0;
 
-            if(size[dd] > 0) 
-                iupper[dd] = ilower[dd]+size[dd]-1;
+            if(size[dd] > 0)
+                isize[dd] = size[dd];
             else
-                iupper[dd] = ilower[dd];
+                isize[dd] = 1;
+
         } else {
             ilower[dd] = 0;
-            iupper[dd] = 0;
+            isize[dd] = 1;
         }
 
-        if(iupper[dd] >= dim(dd)) {
+        if(size[dd]+ilower[dd] > dim(dd)) {
             throw INVALID_ARGUMENT("Extracted Region is outside the input "
                     "image FOV");
         }
@@ -1391,7 +1392,7 @@ ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
     // create output
     auto out = dPtrCast<MRImage>(
 			createMRImage(newdim, newsize, newtype));
-    copyROI(getConstPtr(), ilower, iupper, out, olower, oupper, newtype);
+    copyROI(getConstPtr(), ilower, isize, out, olower, newsize, newtype);
 
 	// copy spacing, origin and direction to out
 	size_t odim1=0;

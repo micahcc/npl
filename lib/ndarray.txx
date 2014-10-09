@@ -169,16 +169,16 @@ void NDArrayStore<D,T>::resize(const size_t dim[D])
 		// copy the old array to the new, by creating slicers with regions of
 		//interest which have the minimum size of the original or new
 		int64_t roi_lower[D];
-		int64_t roi_upper[D];
+		size_t roi_size[D];
 		for(size_t dd=0; dd < D; dd++) {
 			roi_lower[dd] = 0;
-			roi_upper[dd] = std::min<int64_t>(dim[dd], _m_dim[dd]);
+			roi_size[dd] = std::min<int64_t>(dim[dd], _m_dim[dd]);
 		}
 
 		Slicer oldit(D, _m_dim);
 		Slicer newit(D, dim);
-		oldit.setROI(D, roi_lower, roi_upper);
-		newit.setROI(D, roi_lower, roi_upper);
+		oldit.setROI(D, roi_size, roi_lower);
+		newit.setROI(D, roi_size, roi_lower);
 
 		// copy the data
 		for(oldit.goBegin(), newit.goBegin(); !newit.eof(); ++newit, ++oldit) {
@@ -778,7 +778,7 @@ ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len,
  * the input array
  *
  * @param len     Length of index/size arrays
- * @param index   Index to start copying from.
+ * @param index   Index to start copying from. (NULL->all zeros)
  * @param size Size of output image. Note length 0 dimensions will be
  * removed, while length 1 dimensions will be left. 
  * @param newtype Pixel type of output image.
@@ -793,19 +793,17 @@ ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, const int64_t* index,
     assert(len < 10);
     
     int64_t ilower[D];
-    int64_t iupper[D];
+    size_t isize[D];
     
     size_t newdim = 0;
     size_t newsize[10];
     int64_t olower[10];
-    int64_t oupper[10];
 
     // determine output size
     for(size_t dd=0; dd<len; dd++) {
         if(size[dd] > 0) {
             newsize[newdim] = size[dd];
             olower[newdim] = 0;
-            oupper[newdim] = size[dd]-1;
             newdim++;
         }
     }
@@ -818,16 +816,16 @@ ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, const int64_t* index,
             else
                 ilower[dd] = 0;
 
-            if(size[dd] > 0) 
-                iupper[dd] = ilower[dd]+size[dd]-1;
+            if(size[dd] > 0)
+                isize[dd] = size[dd];
             else
-                iupper[dd] = ilower[dd];
+                isize[dd] = 1;
         } else {
             ilower[dd] = 0;
-            iupper[dd] = 0;
+			isize[dd] = 1;
         }
 
-        if(iupper[dd] >= dim(dd)) {
+        if(size[dd]+ilower[dd] > dim(dd)) {
             throw INVALID_ARGUMENT("Extracted Region is outside the input "
                     "image FOV");
         }
@@ -835,7 +833,7 @@ ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, const int64_t* index,
     
     // create output
     auto out = createNDArray(newdim, newsize, newtype);
-    copyROI(getConstPtr(), ilower, iupper, out, olower, oupper, newtype);
+    copyROI(getConstPtr(), ilower, isize, out, olower, newsize, newtype);
 
     return out;
 }
