@@ -2,7 +2,6 @@
 def build(bld):
     # todo rename
     bld.program(target = 'nplBiasFieldCorrect', 
-            install_path='${PREFIX}/tools_incomplete', 
             source = 'biascorrect.cpp', 
             use = 'mrimage_utils tclap nplio iterators accessors')
 
