@@ -100,7 +100,7 @@ int main(int argc, char** argv)
 	Vector3DIter<double> vit(vol);
 
 	// set up sigmas
-	vector<double> sigmas({1.5, 0.75, 0});
+	vector<double> sigmas({1,0.5,0});
 	if(a_sigmas.isSet()) 
 		sigmas.assign(a_sigmas.begin(), a_sigmas.end());
 

@@ -116,7 +116,7 @@ void corReg3D(shared_ptr<const MRImage> fixed,
         // initialize optimizer
         LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
         opt.stop_Its = 10000;
-        opt.stop_X = 0.0001;
+        opt.stop_X = 0.00001;
         opt.stop_G = 0;
         opt.stop_F = 0;
 
@@ -134,8 +134,9 @@ void corReg3D(shared_ptr<const MRImage> fixed,
 //        cerr << "Shift : " << inout.shift.transpose() << endl;
 
         // run the optimizer
-        StopReason stopr = opt.optimize();
-        cerr << Optimizer::explainStop(stopr) << endl;
+        opt.optimize();
+//        StopReason stopr = opt.optimize();
+//        cerr << Optimizer::explainStop(stopr) << endl;
 
         // set values from parameters, and convert to RAS coordinate so that no
         // matter the sampling after smoothing the values remain
