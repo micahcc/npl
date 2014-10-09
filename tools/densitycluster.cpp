@@ -58,18 +58,16 @@ int main(int argc, char** argv)
 			"standardized so this would be the number of mm equivalent to "
 			"the entire range of values. So 5 means a 5mm distance is "
 			"equivalent to the difference of min to max values.", 
-			false, 10, "mm", cmd);
+			false, 15, "mm", cmd);
 	TCLAP::ValueArg<double> a_winwidth("W", "kerne-window", 
 			"Window size fo computing density, smaller values are somewhat"
 			"faster and better as long as this is sufficiently large to capture"
-			"several neighboring points.", false, 5, "mm", cmd);
+			"several neighboring points.", false, 4, "mm", cmd);
 	TCLAP::ValueArg<double> a_outthresh("T", "cluster-thresh", 
 			"Threshold for determining whether something is a 'cluster'. This"
 			"is the number of standard deviations from the mean to go when"
 			"considering points as outliers and therefore deserving of their "
 			"own cluster." , false, 8, "stddevs", cmd);
-	TCLAP::ValueArg<double> a_distthresh("t", "thresh", "Distance threshold "
-			"when deciding rho." , false, 10, "mm", cmd);
 
 	cmd.parse(argc, argv);
 
@@ -130,6 +128,7 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
+	cerr << "Normalizing" << endl;
 	// Normalize
 	for(auto it = insamples.begin(); it != insamples.end(); it++) {
 		double minv = INFINITY;
@@ -146,7 +145,9 @@ int main(int argc, char** argv)
 
 	// Make each row of samples a pixel from the first input image. The highest
 	// dimensions carry physical location, the lower cary pixel data
-	MatrixXd samples(nrows, insamples.size()+outimg->ndim());
+	Eigen::MatrixXf samples(nrows, insamples.size()+outimg->ndim());
+	cerr << "Creating Samples (" << samples.rows() << "x" << samples.cols()
+		<< ")" << endl;
 	
 	// add coordinates
 	vector<double> pt(outimg->ndim());
@@ -169,10 +170,12 @@ int main(int argc, char** argv)
 	// free up memory
 	insamples.clear();
 
+	cerr << "Clustering" << endl;
 	// Clustering By Fast Search and Find of Density Peaks
 	Eigen::VectorXi labels;
 	fastSearchFindDP(samples, a_winwidth.getValue(), a_outthresh.getValue(),
 			labels,  false);
+	cerr << "Done" << endl;
 
 	/*
 	 * Create, Fill Output
