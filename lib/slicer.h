@@ -273,20 +273,7 @@ public:
      * @param roisize Size of ROI (which runs in the block from:
      * [0 to roisize[0]-1,0. to roisize[1]-1, etc]
      */
-    void setROI(size_t len, const size_t* roisize);
-
-    /**
-     * @brief Sets the region of interest, with lower bound of 0.
-     * During iteration or any motion the
-     * position will not move outside the specified range. Invalidates position.
-     *
-     * Invalidates position
-     *
-     * @param len length of roi array
-     * @param roisize Size of ROI (which runs in the block from:
-     * [0 to roisize[0]-1,0. to roisize[1]-1, etc]
-     */
-    void setROI(size_t len, const int64_t* roisize);
+    void setROI(size_t len, const size_t* roisize, const int64_t* roistart = NULL);
 
 	/**
 	 * @brief Sets the region of interest. During iteration or any motion the
@@ -296,17 +283,6 @@ public:
 	 * @param roi	pair of [min,max] values in the desired hypercube
 	 */
 	void setROI(const std::vector<std::pair<int64_t, int64_t>>& roi);
-
-	/**
-	 * @brief Sets the region of interest. During iteration or motion the
-	 * position will not move outside the specified range
-	 *
-	 * @param len	Length of both lower and upper arrays.
-	 * @param lower	Coordinate at lower bound of bounding box.
-	 * @param upper	Coordinate at upper bound of bounding box.
-	 */
-	void setROI(size_t len = 0, const int64_t* lower = NULL, 
-			const int64_t* upper = NULL);
 
 	/**
 	 * @brief Sets the order of iteration from ++/-- operators
@@ -672,23 +648,11 @@ public:
      * Invalidates position
      *
      * @param len length of roi array
+	 * @param roistart lower bound of ROI
      * @param roisize Size of ROI (which runs in the block from:
      * [0 to roisize[0]-1,0. to roisize[1]-1, etc]
      */
-    void setROI(size_t len, const size_t* roisize);
-
-    /**
-     * @brief Sets the region of interest, with lower bound of 0.
-     * During iteration or any motion the
-     * position will not move outside the specified range. Invalidates position.
-     *
-     * Invalidates position
-     *
-     * @param len length of roi array
-     * @param roisize Size of ROI (which runs in the block from:
-     * [0 to roisize[0]-1,0. to roisize[1]-1, etc]
-     */
-    void setROI(size_t len, const int64_t* roisize);
+    void setROI(size_t len,  const size_t* roisize, const int64_t* roistart = NULL);
 
 	/**
 	 * @brief Sets the region of interest. During iteration or any motion the
@@ -698,17 +662,6 @@ public:
 	 * @param roi	pair of [min,max] values in the desired hypercube
 	 */
 	void setROI(const std::vector<std::pair<int64_t, int64_t>>& roi);
-
-	/**
-	 * @brief Sets the region of interest. During iteration or motion the
-	 * position will not move outside the specified range
-	 *
-	 * @param len	Length of both lower and upper arrays.
-	 * @param lower	Coordinate at lower bound of bounding box.
-	 * @param upper	Coordinate at upper bound of bounding box.
-	 */
-	void setROI(size_t len = 0, const int64_t* lower = NULL, 
-			const int64_t* upper = NULL);
 
 	/**
 	 * @brief Set the sizes of chunks for each dimension. Chunks will end every
@@ -892,6 +845,20 @@ public:
 	 * @param roi	pair of [min,max] values in the desired hypercube
 	 */
 	void setROI(const std::vector<std::pair<int64_t, int64_t>> roi = {});
+
+    /**
+     * @brief Sets the region of interest, with lower bound of 0.
+     * During iteration or any motion the
+     * position will not move outside the specified range. Invalidates position.
+     *
+     * Invalidates position
+     *
+     * @param len length of roi array
+	 * @param roistart lower bound of ROI
+     * @param roisize Size of ROI (which runs in the block from:
+     * [0 to roisize[0]-1,0. to roisize[1]-1, etc]
+     */
+    void setROI(size_t len, const size_t* roisize, const int64_t* roistart = NULL);
 	
 	/**
 	 * @brief Set the order of iteration, in terms of which dimensions iterate

@@ -35,6 +35,8 @@
 using namespace std;
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
+using Eigen::MatrixXf;
+using Eigen::VectorXf;
 using Eigen::JacobiSVD;
 
 namespace npl {
@@ -1207,8 +1209,8 @@ struct BinT
  *
  * @return 0 if successful
  */
-int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
-		Eigen::VectorXd& rho, VectorXd& delta,
+int findDensityPeaks_brute(const MatrixXf& samples, double thresh,
+		Eigen::VectorXf& rho, VectorXf& delta,
 		Eigen::VectorXi& parent)
 {
 	size_t nsamp = samples.rows();
@@ -1225,6 +1227,7 @@ int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
 	for(size_t ii=0; ii<nsamp; ii++)
 		rho[ii] = 0;
 
+	cerr << "Computing Rho" << endl;
 	double dsq;
 	for(size_t ii=0; ii<nsamp; ii++) {
 		for(size_t jj=ii+1; jj<nsamp; jj++) {
@@ -1243,6 +1246,7 @@ int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
 	/************************************************************************
 	 * Compute Delta (distance to nearest point with higher density than this
 	 ***********************************************************************/
+	cerr << "Delta" << endl;
 	double maxd = 0;
 	for(size_t ii=0; ii<nsamp; ii++) {
 		delta[ii] = INFINITY;
@@ -1251,14 +1255,14 @@ int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
 			if(rho[jj] > rho[ii]) {
 				dsq = (samples.row(ii) - samples.row(jj)).squaredNorm();
 				if(dsq < delta[ii]) {
-					delta[ii] = min(dsq, delta[ii]);
+					delta[ii] = min<double>(dsq, delta[ii]);
 					parent[ii] = jj;
 				}
 			}
 		}
 
 		if(!std::isinf(delta[ii])) 
-			maxd = max(maxd, delta[ii]);
+			maxd = max<double>(maxd, delta[ii]);
 	}
 
 	for(size_t ii=0; ii<nsamp; ii++) {
@@ -1300,8 +1304,8 @@ int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
  *
  * @return 0 if successful
  */
-int findDensityPeaks(const MatrixXd& samples, double thresh,
-		Eigen::VectorXd& rho, VectorXd& delta,
+int findDensityPeaks(const MatrixXf& samples, double thresh,
+		Eigen::VectorXf& rho, VectorXf& delta,
 		Eigen::VectorXi& parent)
 {
 	size_t ndim = samples.cols();
@@ -1318,6 +1322,7 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 	 * are limited to center and immediate neighbor bins
 	 *************************************************************************/
 
+	cerr << "Filling Bins" << endl;
 	// First Determine Size of Bins in each Dimension
 	vector<size_t> sizes(ndim);
 	vector<size_t> strides(ndim);
@@ -1329,8 +1334,8 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 		range[cc].first = INFINITY;
 		range[cc].second = -INFINITY;
 		for(size_t rr=0; rr<nsamp; rr++) {
-			range[cc].first = std::min(range[cc].first, samples(rr,cc));
-			range[cc].second = std::max(range[cc].second, samples(rr,cc));
+			range[cc].first = std::min<double>(range[cc].first, samples(rr,cc));
+			range[cc].second = std::max<double>(range[cc].second, samples(rr,cc));
 		}
 
 		// break bins up into thresh+episolon chunks. The extra bin is to
@@ -1383,7 +1388,11 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 	 *************************************************************************/
 	double distsq;
 	double max_rho = 0; // overall maximum rho, so we don't search for it later
+	cerr << "Computing Rho" << endl;
 	for(size_t bb=0; bb<bins.size(); bb++) {
+		if(bb % 1024 == 0)
+			cerr << bb << "/" << bins.size() << endl;
+
 		// for every member of this bin, check 1) this bin 2) neighboring bins
 		for(const auto& xi : bins[bb].members) {
 			rho[xi] = 0;
@@ -1408,8 +1417,8 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 			}
 
 			rho[xi] += (double)xi/nsamp; 
-			bins[bb].max_rho = std::max(bins[bb].max_rho, rho[xi]);
-			max_rho = std::max(max_rho, rho[xi]);
+			bins[bb].max_rho = std::max<double>(bins[bb].max_rho, rho[xi]);
+			max_rho = std::max<double>(max_rho, rho[xi]);
 		}
 	}
 
@@ -1417,6 +1426,7 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 	/************************************************************************
 	 * Compute Delta (distance to nearest point with higher density than this
 	 ***********************************************************************/
+	cerr << "Computing Delta" << endl;
 	list<int> unresolved;
 	std::list<pair<size_t, size_t>> queue; // queue of bins (by index)
 	double dsq; // distance squared
@@ -1431,6 +1441,8 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 
 	double maxdelta = 0;
 	for(size_t ii=0; ii<nsamp; ii++) {
+		if(ii % 1024 == 0)
+			cerr << ii << "/" << nsamp << endl;
 
 		parent[ii] = ii;
 		delta[ii] = INFINITY;
@@ -1488,7 +1500,7 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
 		}
 		
 		if(!std::isinf(delta[ii]))
-			maxdelta = max(maxdelta, delta[ii]);
+			maxdelta = max<double>(maxdelta, delta[ii]);
 
 	}
 
@@ -1519,12 +1531,12 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
  *
  * return -1 if maximum number of iterations hit, 0 otherwise (converged)
  */
-int fastSearchFindDP(const MatrixXd& samples, double thresh, double outthresh,
+int fastSearchFindDP(const MatrixXf& samples, double thresh, double outthresh,
 		 Eigen::VectorXi& classes, bool brute)
 {
 	size_t nsamp = samples.rows();
-	Eigen::VectorXd delta;
-	Eigen::VectorXd rho;
+	Eigen::VectorXf delta;
+	Eigen::VectorXf rho;
 	if(brute)
 		findDensityPeaks_brute(samples, thresh, rho, delta, classes);
 	else

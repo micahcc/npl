@@ -214,55 +214,28 @@ void Slicer::index(size_t len, double* index) const
 
 /**
  * @brief Sets the region of interest, with lower bound of 0.
- * During iteration or any motion the
- * position will not move outside the specified range. Invalidates position.
+ * During iteration or any motion the * position will not move outside the
+ * specified range. 
  *
  * Invalidates position
  *
  * @param len
- * @param roisize Size of ROI (which runs from [0,0...] to 
- * [roi[0]-1, roi[1]-1...]
+ * @param roisize Size of ROI 
+ * @param roistart Lower corner of region of interest
  */
-void Slicer::setROI(size_t len, const size_t* roisize)
+void Slicer::setROI(size_t len, const size_t* roisize, const int64_t* roistart)
 {
 	m_linfirst = 0;
 	for(size_t ii=0; ii<m_ndim ; ii++) {
-        m_roi[ii].first = 0;
 		if(ii < len) {
 			// clamp, to be <= 0...sizes[ii]-1
-			m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, roisize[ii]-1);
-		} else {
-			// no specification, just make it all
-			m_roi[ii].first = 0;
-			m_roi[ii].second = m_dim[ii]-1;
-		}
-		m_linfirst += m_strides[ii]*m_roi[ii].first;
-	}
+			if(roistart) 
+				m_roi[ii].first = clamp<int64_t>(0, m_dim[ii]-1, roistart[ii]);
+			else 
+				m_roi[ii].first = 0;
 
-	for(size_t ii=0; ii<m_ndim; ii++)
-		m_pos[ii] = m_roi[ii].first;
-	m_linpos = m_linfirst;
-}
-
-/**
- * @brief Sets the region of interest, with lower bound of 0.
- * During iteration or any motion the
- * position will not move outside the specified range. Invalidates position.
- *
- * Invalidates position
- *
- * @param len length of roi array
- * @param roisize Size of ROI (which runs from [0,0...] to 
- * [roi[0]-1, roi[1]-1...]
- */
-void Slicer::setROI(size_t len, const int64_t* roisize)
-{
-	m_linfirst = 0;
-	for(size_t ii=0; ii<m_ndim ; ii++) {
-        m_roi[ii].first = 0;
-		if(ii < len) {
-			// clamp, to be <= 0...sizes[ii]-1
-			m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, roisize[ii]-1);
+			m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, 
+					m_roi[ii].first + roisize[ii]-1);
 		} else {
 			// no specification, just make it all
 			m_roi[ii].first = 0;
@@ -292,39 +265,6 @@ void Slicer::setROI(const std::vector<std::pair<int64_t, int64_t>>& roi)
 			// clamp, to be <= 0...sizes[ii]-1
 			m_roi[ii].first = clamp<int64_t>(0, m_dim[ii]-1, roi[ii].first);
 			m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, roi[ii].second);
-		} else {
-			// no specification, just make it all
-			m_roi[ii].first = 0;
-			m_roi[ii].second = m_dim[ii]-1;
-		}
-		m_linfirst += m_strides[ii]*m_roi[ii].first;
-	}
-
-	for(size_t ii=0; ii<m_ndim; ii++)
-		m_pos[ii] = m_roi[ii].first;
-	m_linpos = m_linfirst;
-}
-
-/**
- * @brief Sets the region of interest. During iteration or any motion the
- * position will not move outside the specified range. Invalidates position.
- * Any missing dimensions will be set to the largest possible region. IE a
- * length=2 lower and upper for a 3D space will have [0, dim[2]] as the range
- *
- * Invalidates position
- *
- * @param len	Length of lower/upper arrays
- * @param lower	Lower bound of ROI (ND-index)
- * @param upper Upper bound of ROI (ND-index)
- */
-void Slicer::setROI(size_t len, const int64_t* lower, const int64_t* upper)
-{
-	m_linfirst = 0;
-	for(size_t ii=0; ii<m_ndim ; ii++) {
-		if(ii < len) {
-			// clamp, to be <= 0...sizes[ii]-1
-			m_roi[ii].first = clamp<int64_t>(0, m_dim[ii]-1, lower[ii]);
-			m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, upper[ii]);
 		} else {
 			// no specification, just make it all
 			m_roi[ii].first = 0;
@@ -1020,50 +960,23 @@ void ChunkSlicer::index(size_t len, double* index) const
  * position will not move outside the specified range. Invalidates position.
  *
  * @param len Length of roi
- * @param roisize Size of ROI (which runs from [0,0...] to 
- * [roi[0]-1, roi[1]-1...]
+ * @param roisize Size of ROI 
+ * @param roistart Lower corner of roi (may be null, in which case its assumed
+ * to be 0).
  */
-void ChunkSlicer::setROI(size_t len, const size_t* roisize)
+void ChunkSlicer::setROI(size_t len, const size_t* roisize, const int64_t* roistart)
 {
 	m_linfirst = 0;
 	for(size_t ii=0; ii<m_ndim ; ii++) {
-        m_roi[ii].first = 0;
 		if(ii < len) {
 			// clamp, to be <= 0...sizes[ii]-1
-			m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, roisize[ii]-1);
-		} else {
-			// no specification, just make it all
-			m_roi[ii].first = 0;
-			m_roi[ii].second = m_dim[ii]-1;
-		}
-		m_linfirst += m_strides[ii]*m_roi[ii].first;
-	}
+			if(roistart) 
+				m_roi[ii].first = clamp<int64_t>(0, m_dim[ii]-1, roistart[ii]);
+			else 
+				m_roi[ii].first = 0;
 
-	for(size_t ii=0; ii<m_ndim; ii++)
-		m_pos[ii] = m_roi[ii].first;
-	m_linpos = m_linfirst;
-	m_chunkfirst = m_linfirst;
-}
-
-/**
- * @brief Sets the region of interest, with lower bound of 0.
- * During iteration or any motion the
- * position will not move outside the specified range. Invalidates position.
- *
- * Invalidates position
- *
- * @param len Length of roi
- * @param roisize Size of ROI (which runs from [0,0...] to 
- * [roi[0]-1, roi[1]-1...]
- */
-void ChunkSlicer::setROI(size_t len, const int64_t* roisize)
-{
-	m_linfirst = 0;
-	for(size_t ii=0; ii<m_ndim ; ii++) {
-        m_roi[ii].first = 0;
-		if(ii < len) {
-			// clamp, to be <= 0...sizes[ii]-1
-			m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, roisize[ii]);
+			m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, 
+					m_roi[ii].first + roisize[ii]-1);
 		} else {
 			// no specification, just make it all
 			m_roi[ii].first = 0;
@@ -1095,39 +1008,6 @@ void ChunkSlicer::setROI(const std::vector<std::pair<int64_t, int64_t>>& roi)
 		if(ii < roi.size()) {
 			m_roi[ii].first = roi[ii].first;
 			m_roi[ii].second = roi[ii].second;
-		} else {
-			m_roi[ii].first = 0;
-			m_roi[ii].second = m_dim[ii]-1;
-		}
-		m_linfirst += m_roi[ii].first*m_strides[ii];
-	}
-	
-	for(size_t ii=0; ii<m_ndim; ii++)
-		m_pos[ii] = m_roi[ii].first;
-	m_linpos = m_linfirst;
-	m_chunkfirst = m_linfirst;
-}
-
-/**
- * @brief Sets the region of interest. During iteration or motion the
- * position will not move outside the specified range
- *
- * Invalidates position
- *
- * @param len	Length of both lower and upper arrays.
- * @param lower	Coordinate at lower bound of bounding box.
- * @param upper	Coordinate at upper bound of bounding box.
- */
-void ChunkSlicer::setROI(size_t len, const int64_t* lower, const int64_t* upper)
-{
-	if(lower == NULL || upper == NULL)
-		len = 0;
-
-	m_linfirst = 0;
-	for(size_t ii=0; ii<m_ndim; ii++) {
-		if(ii < len) {
-			m_roi[ii].first = lower[ii];
-			m_roi[ii].second = upper[ii];
 		} else {
 			m_roi[ii].first = 0;
 			m_roi[ii].second = m_dim[ii]-1;
@@ -1668,6 +1548,40 @@ void KSlicer::setROI(std::vector<std::pair<int64_t, int64_t>> roi)
 		if(ii < roi.size()) {
 			m_roi[ii].first = clamp<int64_t>(0, m_size[ii]-1, roi[ii].first);
 			m_roi[ii].second = clamp<int64_t>(0, m_size[ii]-1, roi[ii].second);
+		} else {
+			// default to full range
+			m_roi[ii].first = 0;
+			m_roi[ii].second = m_size[ii]-1;
+		}
+		m_begin += m_roi[ii].first*m_strides[ii];
+	}
+}
+
+/**
+ * @brief Sets the region of interest. During iteration or any motion the
+ * position will not move outside the specified range. Note that behavior
+ * is not defined after you do this, until you call goBegin()
+ *
+ * You should call goBegin() after this
+ *
+ * @param roi   Range of region of interest. Pairs indicates the range
+ * 	in i'th dimension, so krange = {{1,5},{0,9},{32,100}}
+ * 	would cause the iterator to range from (1,0,32) to (5,9,100)
+ */
+void KSlicer::setROI(size_t len, const size_t* roisize, const int64_t* roistart)
+{
+	// set up ROI, and calculate the m_begin location
+	m_roi.resize(m_ndim);
+	m_begin = 0;
+	for(size_t ii=0; ii<m_ndim; ii++) {
+		if(ii < len) {
+			if(roistart) 
+				m_roi[ii].first = clamp<int64_t>(0, m_size[ii]-1, roistart[ii]);
+			else
+				m_roi[ii].first = 0;
+
+			m_roi[ii].second = clamp<int64_t>(0, m_size[ii]-1, 
+					m_roi[ii].first + roisize[ii]-1);
 		} else {
 			// default to full range
 			m_roi[ii].first = 0;

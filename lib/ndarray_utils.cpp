@@ -502,10 +502,11 @@ void shiftImageFFT(ptr<NDArray> inout, size_t dim, double dist,
 	const double PI = acos(-1);
 	size_t padsize = round2(inout->dim(dim));
 	size_t paddiff = padsize-inout->dim(dim);
-	auto buffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*padsize);
-	fftw_plan fwd = fftw_plan_dft_1d((int)padsize, buffer, buffer, 
+	auto ibuffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*padsize);
+	auto obuffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*padsize);
+	fftw_plan fwd = fftw_plan_dft_1d((int)padsize, ibuffer, obuffer, 
 			FFTW_FORWARD, FFTW_MEASURE);
-	fftw_plan rev = fftw_plan_dft_1d((int)padsize, buffer, buffer, 
+	fftw_plan rev = fftw_plan_dft_1d((int)padsize, ibuffer, obuffer, 
 			FFTW_BACKWARD, FFTW_MEASURE);
 
 	// need copy data into center of buffer, create iterator that moves
@@ -518,14 +519,14 @@ void shiftImageFFT(ptr<NDArray> inout, size_t dim, double dist,
 	for(iit.goBegin(), oit.goBegin(); !iit.isEnd() ;) {
 		// zero buffer 
 		for(size_t tt=0; tt<padsize; tt++) {
-			buffer[tt][0] = 0;
-			buffer[tt][1] = 0;
+			ibuffer[tt][0] = 0;
+			ibuffer[tt][1] = 0;
 		}
 
 		// fill from line
 		for(size_t tt=0; tt<inout->dim(dim); ++iit, tt++) {
-			buffer[tt+paddiff/2][0] = (*iit).real();
-			buffer[tt+paddiff/2][1] = (*iit).imag();
+			ibuffer[tt+paddiff/2][0] = (*iit).real();
+			ibuffer[tt+paddiff/2][1] = (*iit).imag();
 		}
 
 		// fourier transform
@@ -535,17 +536,17 @@ void shiftImageFFT(ptr<NDArray> inout, size_t dim, double dist,
 		double normf = pow(padsize,-1);
 		for(size_t tt=0; tt<padsize/2; tt++) {
 			double ff = (double)tt/(double)padsize;
-			cdouble_t tmp(buffer[tt][0]*normf, buffer[tt][1]*normf);
+			cdouble_t tmp(obuffer[tt][0]*normf, obuffer[tt][1]*normf);
 			tmp *= window(ff, .5)*std::exp(-2.*PI*I*dist*ff);
-			buffer[tt][0] = tmp.real();
-			buffer[tt][1] = tmp.imag();
+			ibuffer[tt][0] = tmp.real();
+			ibuffer[tt][1] = tmp.imag();
 		}
 		for(size_t tt=padsize/2; tt<padsize; tt++) {
 			double ff = -(double)(padsize-tt)/(double)padsize;
-			cdouble_t tmp(buffer[tt][0]*normf, buffer[tt][1]*normf);
+			cdouble_t tmp(obuffer[tt][0]*normf, obuffer[tt][1]*normf);
 			tmp *= window(ff, .5)*std::exp(-2.*PI*I*dist*ff);
-			buffer[tt][0] = tmp.real();
-			buffer[tt][1] = tmp.imag();
+			ibuffer[tt][0] = tmp.real();
+			ibuffer[tt][1] = tmp.imag();
 		}
 
 		// inverse fourier transform
@@ -553,7 +554,7 @@ void shiftImageFFT(ptr<NDArray> inout, size_t dim, double dist,
 
 		// fill line from buffer
 		for(size_t tt=0; tt<inout->dim(dim); ++oit, tt++) {
-			cdouble_t tmp(buffer[tt+paddiff/2][0], buffer[tt+paddiff/2][1]);
+			cdouble_t tmp(obuffer[tt+paddiff/2][0], obuffer[tt+paddiff/2][1]);
 			oit.set(tmp); 
 		}
 	}

@@ -49,7 +49,7 @@ int main(int argc, char** argv)
 
 	// add mean to each sample
 	Eigen::VectorXi trueclass(NSAMPLES);
-	Eigen::MatrixXd samples(NSAMPLES, NDIM);
+	Eigen::MatrixXf samples(NSAMPLES, NDIM);
 	for(size_t ii=0; ii<NSAMPLES; ii++) {
 		// choose random group
 		trueclass[ii] = randUI(rng);
@@ -63,7 +63,7 @@ int main(int argc, char** argv)
 	 * Test That Preliminary Parts of algorithms return the same thing
 	 *************************************************************************/
 	Eigen::VectorXi parent1, parent2;
-	Eigen::VectorXd rho1, rho2, delta1, delta2;
+	Eigen::VectorXf rho1, rho2, delta1, delta2;
 	clock_t c = clock();
 	findDensityPeaks(samples, .1, rho1, delta1, parent1);
 	c = clock() - c;
@@ -122,7 +122,7 @@ int main(int argc, char** argv)
 
 	// TODO better comparison metric
 	// for each true class, find the best matching estimated class
-	MatrixXd coincidence(NCLUSTER, maxc+1);
+	Eigen::MatrixXf coincidence(NCLUSTER, maxc+1);
 	coincidence.setZero();
 
 	for(int64_t rr=0; rr<trueclass.rows(); rr++) 

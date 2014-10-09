@@ -5,6 +5,11 @@ def build(bld):
             source = 'biascorrect.cpp', 
             use = 'mrimage_utils tclap nplio iterators accessors')
 
+    bld.program(target = 'nplMotionCorr', 
+            install_path='${PREFIX}/bin', 
+            source = 'motioncorr.cpp', 
+            use = 'mrimage_utils registration tclap nplio iterators accessors')
+
     bld.program(target = 'nplSimpleSegment', 
             install_path='${PREFIX}/tools_incomplete', 
             source = 'densitycluster.cpp', 
