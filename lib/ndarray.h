@@ -116,16 +116,16 @@ ptr<NDArray> createNDArray(const std::vector<size_t>& dim,
  *
  * @param in Input image (copy pixels from this image)
  * @param inROIL Input ROI, lower bound 
- * @param inROIU Input ROI, upper bound
+ * @param inROIU Input ROI, size
  * @param out Copy to copy pixels to
  * @param oROIL Output ROI, lower bound
- * @param oROIU Output ROI, upper bound
+ * @param oROIU Output ROI, size
  * @param newtype Type to cast pixels to during copy
  *
  */
 void copyROI(ptr<const NDArray> in, 
-        const int64_t* inROIL, const int64_t* inROIU, ptr<NDArray> out,
-        const int64_t* oROIL, const int64_t* oROIU, PixelT newtype);
+        const int64_t* inROIL, const size_t* inROIZ, ptr<NDArray> out,
+        const int64_t* oROIL, const size_t* oROIZ, PixelT newtype);
 
 /**
  * @brief Writes out information about an MRImage

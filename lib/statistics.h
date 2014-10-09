@@ -614,8 +614,8 @@ private:
  *
  * return -1 if maximum number of iterations hit, 0 otherwise (converged)
  */
-int fastSearchFindDP(const MatrixXd& samples, double thresh, double outthresh,
-		 Eigen::VectorXi& classes, bool brute = false);
+int fastSearchFindDP(const Eigen::MatrixXf& samples, double thresh, 
+		double outthresh, Eigen::VectorXi& classes, bool brute = false);
 
 /**
  * @brief Computes Density and Peak computation for Fast Search and Find of
@@ -630,8 +630,8 @@ int fastSearchFindDP(const MatrixXd& samples, double thresh, double outthresh,
  *
  * @return 0 if successful
  */
-int findDensityPeaks(const MatrixXd& samples, double thresh,
-		Eigen::VectorXd& rho, VectorXd& delta,
+int findDensityPeaks(const Eigen::MatrixXf& samples, double thresh,
+		Eigen::VectorXf& rho, Eigen::VectorXf& delta,
 		Eigen::VectorXi& parent);
 
 /**
@@ -647,8 +647,8 @@ int findDensityPeaks(const MatrixXd& samples, double thresh,
  *
  * @return 0 if successful
  */
-int findDensityPeaks_brute(const MatrixXd& samples, double thresh,
-		Eigen::VectorXd& rho, VectorXd& delta,
+int findDensityPeaks_brute(const Eigen::MatrixXf& samples, double thresh,
+		Eigen::VectorXf& rho, Eigen::VectorXf& delta,
 		Eigen::VectorXi& parent);
 
 /** @} */

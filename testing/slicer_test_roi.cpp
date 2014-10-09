@@ -36,8 +36,8 @@ int main()
 	Slicer slicer(3, dim);
 
 	int64_t roi1[3] = {3, 5, 4};
-	int64_t roi2[3] = {7, 8, 6};
-	slicer.setROI(3, roi1, roi2);
+	size_t roiz[3] = {5, 4, 3};
+	slicer.setROI(3, roiz, roi1);
 	slicer.goBegin();
 	for(int64_t xx=3; xx<=7; xx++) {
 		for(int64_t yy=5; yy<=8; yy++) {
@@ -52,7 +52,7 @@ int main()
 		}
 	}
 	
-	slicer.setROI(2, roi1, roi2);
+	slicer.setROI(2, roiz, roi1);
 	slicer.goBegin();
 	for(int64_t xx=3; xx<=7; xx++) {
 		for(int64_t yy=5; yy<=8; yy++) {
@@ -67,7 +67,7 @@ int main()
 		}
 	}
 	
-	slicer.setROI(1, roi1, roi2);
+	slicer.setROI(1, roiz, roi1);
 	slicer.goBegin();
 	for(int64_t xx=3; xx<=7; xx++) {
 		for(int64_t yy=0; yy<10; yy++) {
@@ -97,7 +97,7 @@ int main()
 		}
 	}
 
-	slicer.setROI(3, roi1, roi2);
+	slicer.setROI(3, roiz, roi1);
 	slicer.goBegin();
 	for(int64_t zz=4; zz<=6; zz++) {
 		for(int64_t yy=5; yy<=8; yy++) {

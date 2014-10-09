@@ -32,11 +32,11 @@ int test1(shared_ptr<MRImage> img)
 {
 	cerr << "test1" << endl;
 	int64_t roi1[3] = {3, 5, 4};
-	int64_t roi2[3] = {7, 8, 6};
+	size_t roiz[3] = {5, 4, 3};
 	int64_t breaks[] = {1, 1, 0};
 
 	ChunkIter<int> slicer(img);
-	slicer.setROI(3, roi1, roi2);
+	slicer.setROI(3, roiz, roi1);
 	slicer.setChunkSize(3, breaks);
 	slicer.goBegin();
 	for(int64_t xx=3; xx<=7; xx++) {
@@ -65,8 +65,8 @@ int test2(shared_ptr<MRImage> img)
 	ChunkIter<int> slicer(img);
 
 	int64_t roi1[3] = {3, 5, 4};
-	int64_t roi2[3] = {7, 8, 6};
-	slicer.setROI(3, roi1, roi2);
+	size_t roiz[3] = {5, 4, 3};
+	slicer.setROI(3, roiz, roi1);
 	int64_t breaks[] = {1, 0, 0};
 	slicer.setChunkSize(3, breaks);
 	slicer.goBegin();
@@ -96,10 +96,10 @@ int test3(shared_ptr<MRImage> img)
 	ChunkIter<int> slicer(img);
 
 	int64_t roi1[3] = {3, 5, 4};
-	int64_t roi2[3] = {7, 8, 6};
+	size_t roiz[3] = {5, 4, 3};
 	int64_t breaks[] = {1, 0, 0};
 	slicer.setChunkSize(3, breaks);
-	slicer.setROI(3, roi1, roi2);
+	slicer.setROI(3, roiz, roi1);
 	slicer.goBegin();
 	for(int64_t xx=3; xx<=7; xx++) {
 		for(int64_t yy=5; yy<=8; yy++) {
@@ -155,8 +155,8 @@ int test5(shared_ptr<MRImage> img)
 	ChunkIter<int> slicer(img);
 
 	int64_t roi1[3] = {1, 1, 2};
-	int64_t roi2[3] = {6, 8, 7};
-	slicer.setROI(3, roi1, roi2);
+	size_t roiz[3] = {6, 8, 6};
+	slicer.setROI(3, roiz, roi1);
 
 	int64_t breaks[] = {2, 3, 7};
 	slicer.setChunkSize(3, breaks);
@@ -327,8 +327,8 @@ int test6(shared_ptr<MRImage> img)
 	ChunkIter<int> slicer(img);
 
 	int64_t roi1[3] = {1, 1, 2};
-	int64_t roi2[3] = {6, 8, 7};
-	slicer.setROI(3, roi1, roi2);
+	size_t roiz[3] = {6, 8, 6};
+	slicer.setROI(3, roiz, roi1);
 
 	int64_t breaks[] = {2, 3, 7};
 	slicer.setChunkSize(3, breaks);
@@ -555,8 +555,8 @@ int test7(shared_ptr<MRImage> img)
 	ChunkIter<int> slicer(img);
 
 	int64_t roi1[3] = {1, 1, 2};
-	int64_t roi2[3] = {6, 8, 7};
-	slicer.setROI(3, roi1, roi2);
+	size_t roiz[3] = {6, 8, 6};
+	slicer.setROI(3, roiz, roi1);
 
 	int64_t breaks[] = {2, 3, 7};
 	slicer.setChunkSize(3, breaks);
