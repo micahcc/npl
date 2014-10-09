@@ -13,7 +13,7 @@ def build(bld):
 
     bld.program(target = 'nplSimpleSegment', 
             install_path='${PREFIX}/tools_incomplete', 
-            source = 'densitycluster.cpp', 
+            source = 'simplesegment.cpp', 
             use = 'mrimage_utils tclap nplio statistics iterators accessors')
 
     bld.program(target = 'nplMath', 

@@ -71,7 +71,7 @@ int main(int argc, char** argv)
 			true, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<double> a_spacing("s", "spacing", "Resample image to have "
 			"the specified spacing. If you find that the skullstripping is too "
-			"slow then you may want to increase this.", false, 3, "mm", cmd);
+			"slow then you may want to increase this.", false, 1, "mm", cmd);
 
 	cmd.parse(argc, argv);
 
