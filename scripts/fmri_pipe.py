@@ -9,10 +9,11 @@ from sys import exit, stderr
 from shutil import copy2
 
 npl='/home/micahc/tools/npl-3.0/'
-#nplbfc=join(npl,'bin','nplBiasFieldCorrect')
-nplbfc=join(npl,'bin','nplBiasCorrect')
+nplbfc=join(npl,'bin','nplBiasFieldCorrect')
 nplmath=join(npl,'bin','nplMath')
 npldistcor=join(npl,'bin','fIDistortionCorrect')
+	
+atoz = 'abcdefghijklmnopqrstuvwxyz'
 
 def earlier(lhs, rhs):
 	if isfile(rhs):
@@ -45,22 +46,44 @@ def biascorrect(iimg, biasfield="", corrected = "", force = False):
 	else:
 		return 0;
 
+def multiply(inputs, oimg):
+	eq = ""
+	args = []
+	nop = True
+	for ii in range(len(inputs)):
+		args.extend(['-'+atoz[ii],inputs[ii]])
+		if ii != 0: eq += '*'
+		eq += atoz[ii]
+
+		if not earlier(inputs[ii], oimg) or force:
+			nop = False
+			break
+	if nop:
+		return 0
+
+	print(eq) 
+	print(args)
+	ret = call([nplmath, '--out', oimg, eq]+args)
+
+	if ret != 0:
+		print("Error During Multiplication", file=stderr)
+		exit(ret)
+	else:
+		return 0
+
 def average(inputs, oimg):
 	if not newer(inputs, oimg) and not force:
 		print("Using cached %s" % oimg)
 		return 0
-
-	lookup = 'abcdefghijklmnopqrstuvwxyz'
-	cmd = [nplmath,'--out',oimg]
+	args = []
 	eq = "("
 	for i in range(len(inputs)):
-		cmd.extend(['-'+lookup[i],inputs[i]])
-		if i != 0:
-			eq = eq + '+'
-		eq = eq + lookup[i]
-	eq = eq+')/'+str(len(inputs))
+		cmd.extend(['-'+atoz[i],inputs[i]])
+		if i != 0: eq += '+'
+		eq += atoz[i]
+	eq += ')/'+str(len(inputs))
 
-	ret = call(cmd)
+	ret = call([nplmath,'--out',oimg,eq]+args)
 	
 	if ret != 0:
 		print("Error During Averaging of %s", str(inputs), file=stderr)
@@ -114,15 +137,16 @@ def main(fmri, t1, t2, biasfield, biased_image, output, force, no_distortion,
 	elif len(t2) > 0:
 		biascorrect(iimg='t2_0.nii.gz', biasfield = 'biasfield.nii.gz')
 
-#	# Apply Bias Correction
-#	for ii in range(len(t1imgs)):
-#		out = 't1_%i_bc.nii.gz'%ii
-#		multiply(inputs = [t1imgs[ii], 'biasfield.nii.gz'], oimg = out)
-#	for ii in range(len(t2imgs)):
-#		out = 't2_%i_bc.nii.gz'%ii
-#		multiply(inputs = [t2imgs[ii], 'biasfield.nii.gz'], oimg = out)
-#	multiply(inputs = ['fmri.nii.gz', 'biasfield.nii.gz'], oimg = out)
-#
+	return 0
+	# Apply Bias Correction
+	for ii in range(len(t1imgs)):
+		out = 't1_%i_bc.nii.gz'%ii
+		multiply(inputs = [t1imgs[ii], 'biasfield.nii.gz'], oimg = out)
+	for ii in range(len(t2imgs)):
+		out = 't2_%i_bc.nii.gz'%ii
+		multiply(inputs = [t2imgs[ii], 'biasfield.nii.gz'], oimg = out)
+	multiply(inputs = ['fmri.nii.gz', 'biasfield.nii.gz'], oimg = out)
+
 #	#########################################################################
 #	# Average T1 and T2 images
 #	#########################################################################
