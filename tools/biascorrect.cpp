@@ -198,7 +198,7 @@ try {
 			it.set(mask_ac(pt));
 		}
 	} else {
-		mask = dPtrCast<MRImage>(in->copyCast(FLOAT32));
+		mask = dPtrCast<MRImage>(in->copyCast(FLOAT64));
 		double thresh = otsuThresh(in);
 
 		cerr << "Threshold: " << thresh << endl;
