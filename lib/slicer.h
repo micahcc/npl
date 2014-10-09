@@ -1042,7 +1042,9 @@ public:
 	void indexC(size_t len, int64_t* index) const;
 	
 	/**
-	 * @brief Get index of i'th kernel (center-offset) element.
+	 * @brief Get index of i'th kernel (center-offset) element. Note that
+	 * values outside the image will not be returned, the nearest inside 
+	 * position will be.
 	 *
 	 * @return linear position
 	 */
@@ -1055,7 +1057,9 @@ public:
 	};
 	
 	/**
-	 * @brief Same as offset(int64_t kit)
+	 * @brief Same as offset(int64_t kit). Note that values outside the image
+	 * will not be returned, the nearest inside position will be.
+
 	 *
 	 * @return linear position
 	 */
@@ -1086,7 +1090,8 @@ public:
 	/**
 	 * @brief Returns the distance from the center projected onto the specified
 	 * dimension. So center is {0,0,0}, and {1,2,1} would return 1,2,1 for inputs
-	 * dim=0, dim=1, dim=2
+	 * dim=0, dim=1, dim=2. Note that this is the ideal offset (so it doesn't 
+	 * respect image bounds).
 	 *
 	 * @param kit Which pixel to return distance from
 	 * @param dim dimension to get distance in
@@ -1107,7 +1112,8 @@ public:
 	bool insideK(size_t k);
 	
 	/**
-	 * @brief Returns offset from center of specified pixel (kit).
+	 * @brief Returns offset from center of specified pixel (kit). Note that
+	 * this is the ideal offset (so it doesn't respect image bounds).
 	 *
 	 * @param kit Pixel we are referring to
 	 * @param len lenght of dindex array
