@@ -8,7 +8,7 @@ def build(bld):
     bld.program(target = 'nplMotionCorr', 
             install_path='${PREFIX}/bin', 
             source = 'motioncorr.cpp', 
-            use = 'mrimage_utils registration tclap nplio iterators accessors')
+            use = 'mrimage_utils registration lbfgs tclap nplio iterators accessors')
 
     bld.program(target = 'nplSimpleSegment', 
             install_path='${PREFIX}/tools_incomplete', 
