@@ -78,25 +78,26 @@ shared_ptr<MRImage> motionCorrect(shared_ptr<const MRImage> input, size_t ref)
  *
  * @param fixed     Image which will be the target of registration. 
  * @param moving    Image which will be rotated then shifted to match fixed.
+ * @param sigmas	Standard deviation of smoothing at each level
+ * @param inout		Input/Output rigid transform
  *
- * @return          4x4 Matrix, indicating rotation about the center then 
- *                  shift. Rotation matrix is the first 3x3 and shift is the
- *                  4th column.
  */
-Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed, 
+void corReg3D(shared_ptr<const MRImage> fixed, 
         shared_ptr<const MRImage> moving, 
-        const std::vector<double>& sigmas)
+        const std::vector<double>& sigmas, Rigid3DTrans& inout)
 {
     using namespace std::placeholders;
     using std::bind;
-
-    Rigid3DTrans rigid;
 
     // make sure the input image has matching properties
     if(!fixed->matchingOrient(moving, true))
         throw std::invalid_argument("Input images have mismatching pixels "
                 "in\n" + __FUNCTION_STR__);
 
+        
+	cerr << setw(20) << "Init Rigid:  " << setw(7) << " : " 
+		<< inout.rotation.transpose() << ", " 
+		<< inout.shift.transpose() << endl;
     
     for(size_t ii=0; ii<sigmas.size(); ii++) {
         // smooth and downsample input images
@@ -118,24 +119,19 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
         opt.stop_X = 0.0001;
         opt.stop_G = 0;
         opt.stop_F = 0;
-        
-        cerr << "Init Rigid: " << ii << endl;
-        cerr << "Rotation: " << rigid.rotation.transpose() << endl;
-        cerr << "Center : " << rigid.center.transpose() << endl;
-        cerr << "Shift : " << rigid.shift.transpose() << endl;
 
         // grab the parameters from the previous iteration (or initialized)
-        rigid.toIndexCoords(sm_moving, true);
+        inout.toIndexCoords(sm_moving, true);
         for(size_t ii=0; ii<3; ii++) {
-            opt.state_x[ii] = rigid.rotation[ii];
-            opt.state_x[ii+3] = rigid.shift[ii];
-            assert(rigid.center[ii] == (sm_moving->dim(ii)-1.)/2.);
+            opt.state_x[ii] = inout.rotation[ii];
+            opt.state_x[ii+3] = inout.shift[ii];
+            assert(inout.center[ii] == (sm_moving->dim(ii)-1.)/2.);
         }
 
-        cerr << "Init Rigid (Index Coord): " << ii << endl;
-        cerr << "Rotation: " << rigid.rotation.transpose() << endl;
-        cerr << "Center : " << rigid.center.transpose() << endl;
-        cerr << "Shift : " << rigid.shift.transpose() << endl;
+//        cerr << "Init Rigid (Index Coord): " << ii << endl;
+//        cerr << "Rotation: " << inout.rotation.transpose() << endl;
+//        cerr << "Center : " << inout.center.transpose() << endl;
+//        cerr << "Shift : " << inout.shift.transpose() << endl;
 
         // run the optimizer
         StopReason stopr = opt.optimize();
@@ -144,25 +140,26 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
         // set values from parameters, and convert to RAS coordinate so that no
         // matter the sampling after smoothing the values remain
         for(size_t ii=0; ii<3; ii++) {
-            rigid.rotation[ii] = opt.state_x[ii];
-            rigid.shift[ii] = opt.state_x[ii+3];
-            rigid.center[ii] = (sm_moving->dim(ii)-1)/2.;
+            inout.rotation[ii] = opt.state_x[ii];
+            inout.shift[ii] = opt.state_x[ii+3];
+            inout.center[ii] = (sm_moving->dim(ii)-1)/2.;
         }
 
-        cerr << "Finished Rigid (Index Coord): " << ii << endl;
-        cerr << "Rotation: " << rigid.rotation.transpose() << endl;
-        cerr << "Center : " << rigid.center.transpose() << endl;
-        cerr << "Shift : " << rigid.shift.transpose() << endl;
+//        cerr << "Finished Rigid (Index Coord): " << ii << endl;
+//        cerr << "Rotation: " << inout.rotation.transpose() << endl;
+//        cerr << "Center : " << inout.center.transpose() << endl;
+//        cerr << "Shift : " << inout.shift.transpose() << endl;
         
-        rigid.toRASCoords(sm_moving);
-
-        cerr << "Finished Rigid (RAS Coord): " << ii << endl;
-        cerr << "Rotation: " << rigid.rotation.transpose() << endl;
-        cerr << "Center : " << rigid.center.transpose() << endl;
-        cerr << "Shift : " << rigid.shift.transpose() << endl;
+        inout.toRASCoords(sm_moving);
+        cerr << setw(20) << "After Rigid: " << setw(4) << ii << " : " 
+					<< inout.rotation.transpose() << ", " 
+					<< inout.shift.transpose() << endl;
     }
+	cerr << setw(20) << "Final Rigid: " << setw(7) << " : " 
+		<< inout.rotation.transpose() << ", " 
+		<< inout.shift.transpose() << endl;
+	cerr << "==========================================" << endl;
 
-    return rigid; 
 };
 
 /**
