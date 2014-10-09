@@ -46,6 +46,54 @@ std::ostream_iterator<int64_t> vistream (std::cout,", ");
 
 typedef Eigen::SparseMatrix<double,Eigen::RowMajor> SparseMat;
 
+double otsuThresh(ptr<const NDArray> in)
+{
+	vector<double> bins(sqrt(in->elements()));
+	double minv = INFINITY;
+	double maxv = -INFINITY;
+	for(FlatConstIter<double> fit(in); !fit.eof(); ++fit) {
+		minv = std::min(minv, *fit);
+		maxv = std::max(maxv, *fit);
+	}
+	double bwidth = 0.99999999*bins.size()/(maxv-minv);
+	for(FlatConstIter<double> fit(in); !fit.eof(); ++fit) 
+		bins[floor((*fit-minv)*bwidth)]++;
+
+	for(size_t bb=0; bb < bins.size(); bb++) {
+		bins[bb] /= in->elements();
+	}
+
+	double prob1 = 0, prob2 = 0, mu1 = 0, mu2 = 0, sigma = 0;
+	size_t tt =0;
+	double max_sigma = -INFINITY;
+	size_t max_t = 0;
+	for(tt=0; tt<bins.size(); tt++) {
+		prob1 = 0;
+		for(size_t bb=0; bb<tt; bb++) 
+			prob1 += bins[bb];
+		mu1 = 0;
+		for(size_t bb=0; bb<tt; bb++)
+			mu1 += bins[bb]*(minv + bb/bwidth);
+		mu1 /= prob1;
+
+		prob2 = 0;
+		for(size_t bb=tt; bb<bins.size(); bb++) 
+			prob2 += bins[bb];
+		mu2 = 0;
+		for(size_t bb=tt; bb<bins.size(); bb++)
+			mu2 += bins[bb]*(minv + bb/bwidth);
+		mu2 /= prob2;
+
+		sigma = prob1*prob2*(mu1-mu2)*(mu1-mu2);
+		if(sigma > max_sigma) {
+			max_t = tt;
+			max_sigma = sigma;
+		}
+	}
+
+	return max_t/bwidth + minv;
+}
+
 ptr<MRImage> createBiasField(ptr<MRImage> in, double bspace)
 {
 	size_t ndim = in->ndim();
@@ -100,7 +148,8 @@ try {
 	TCLAP::ValueArg<string> a_in("i", "input", "Input image.",
 		true, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_mask("m", "mask", "Mask image. If this image is "
-			"a scalar then values are taken as weights.", true, "", "*.nii.gz",
+			"a scalar then values are taken as weights. If not provided a "
+			"mask based on the image mean will be used", false, "", "*.nii.gz",
 			cmd);
 	TCLAP::ValueArg<double> a_spacing("s", "spacing", "Space between knots "
 			"for bias-field estimation.", false, 40, "mm", cmd);
@@ -111,9 +160,9 @@ try {
 			"isotropic voxels.", false, 10, "pixsize", cmd);
 	TCLAP::ValueArg<double> a_lambda("R", "regweight", "Regularization weight "
 			"for ridge regression. Larger values will cause a smoother result",
-			false, 1.e-3, "ratio", cmd);
+			false, 1.e-5, "ratio", cmd);
 
-	TCLAP::ValueArg<string> a_biasfield("o", "out", "Bias Field Image.",
+	TCLAP::ValueArg<string> a_biasfield("b", "biasfield", "Bias Field Image.",
 			false, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_corimage("c", "corr", "Bias Field Corrected "
 			"version of input image.", false, "", "*.nii.gz", cmd);
@@ -135,7 +184,7 @@ try {
 
 	// read mask then downsample using nearest neighbor
 	ptr<MRImage> mask;
-	{
+	if(a_mask.isSet()) {
 		auto tmpmask = readMRImage(a_mask.getValue());
 		NNInterpNDView<double> mask_ac(tmpmask);
 		mask_ac.m_ras = true;
@@ -147,6 +196,14 @@ try {
 			it.index(ind);
 			mask->indexToPoint(ind.size(), ind.data(), pt.data());
 			it.set(mask_ac(pt));
+		}
+	} else {
+		mask = dPtrCast<MRImage>(in->copyCast(FLOAT32));
+		double thresh = otsuThresh(in);
+
+		cerr << "Threshold: " << thresh << endl;
+		for(FlatIter<double> fit(mask); !fit.eof(); ++fit) {
+			fit.set(*fit > thresh);
 		}
 	}
 
