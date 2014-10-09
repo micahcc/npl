@@ -22,12 +22,15 @@
 #include <iterator>
 
 #include <tclap/CmdLine.h>
+
+#include "lbfgs.h"
+#include "registration.h"
+
 #include "nplio.h"
 #include "mrimage.h"
 #include "iterators.h"
 #include "accessors.h"
 #include "ndarray_utils.h"
-#include "registration.h"
 #include "version.h"
 #include "macros.h"
 
@@ -35,6 +38,117 @@ using namespace std;
 using namespace npl;
 
 std::ostream_iterator<double> doubleoit(std::cout, ", ");
+
+/**
+ * @brief Computes motion parameters from an fMRI image
+ *
+ * @param fmri Input fMRI 
+ * @param reftime Volume to use for reference 
+ * @param sigmas Standard deviation (in phyiscal space)
+ * @param hardstops Lower bound on negative correlation  -1 would mean that it
+ * stops when it hits -1
+ *
+ * @return 
+ */
+vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
+		const vector<double>& sigmas, const vector<double>& hardstops)
+{
+    using namespace std::placeholders;
+    using std::bind;
+
+	vector<vector<double>> motion;
+	
+	// extract reference volumes and pre-smooth
+	vector<size_t> vsize(fmri->dim(), fmri->dim()+fmri->ndim());
+	vsize[3] = 0;
+	
+	auto refvol = dPtrCast<MRImage>(fmri->extractCast(4, vsize.data(),
+				FLOAT32));
+
+	// create working volume
+	auto movvol = dPtrCast<MRImage>(refvol->createAnother());
+
+	// Iterators
+	Vector3DConstIter<double> iit(fmri); /** Input Iterator */
+	Vector3DIter<double> mit(movvol);  /** Moving Volume Iterator */
+	Vector3DIter<double> fit(refvol);  /** Fixed Volume Iterator */
+
+	// Registration Tools
+	RigidCorrComputer comp(refvol, movvol, true);
+
+	// create value and gradient functions
+	auto vfunc = bind(&RigidCorrComputer::value, &comp, _1, _2);
+	auto vgfunc = bind(&RigidCorrComputer::valueGrad, &comp, _1, _2, _3);
+	auto gfunc = bind(&RigidCorrComputer::grad, &comp, _1, _2);
+	
+	// initialize optimizer
+	LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
+	opt.stop_Its = 10000;
+	opt.stop_X = 0;
+	opt.stop_G = 0;
+	opt.stop_F = 0.0001;
+	opt.state_x.setZero();
+	
+	for(size_t tt=0; tt<fmri->tlen(); tt++) {
+		cerr << "Time " << tt << " / " << fmri->tlen() << endl;
+		if(tt == reftime) {
+			motion.push_back(vector<double>());
+			motion.back().resize(9, 0);
+		} else {
+
+			/****************************************************************
+			 * Registration
+			 ***************************************************************/
+			cerr << setw(20) << "Init Rigid:  " << setw(7) << " : " 
+				<< opt.state_x.transpose() << endl;
+
+			for(size_t ii=0; ii<sigmas.size(); ii++) {
+
+				/* Extract and Smooth Moving Volume */
+				for(iit.goBegin(), mit.goBegin(), fit.goBegin(); !iit.eof(); 
+								++iit, ++mit, ++fit) {
+					mit.set(iit[tt]);
+					fit.set(iit[reftime]);
+				}
+				for(size_t dd=0; dd<3; dd++) {
+					gaussianSmooth1D(movvol, dd, sigmas[ii]);
+					gaussianSmooth1D(refvol, dd, sigmas[ii]);
+				}
+				movvol->write("mov_"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
+				refvol->write("ref_"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
+
+				// run the optimizer
+				opt.optimize();
+				opt.stop_F_under = hardstops[ii];
+				StopReason stopr = opt.optimize();
+				cerr << Optimizer::explainStop(stopr) << endl;
+
+				cerr << setw(20) << "After Rigid: " << setw(4) << ii << " : " 
+					<< opt.state_x.transpose() << endl;
+			}
+			cerr << setw(20) << "Final Rigid: " << setw(4) << tt << " : " 
+				<< opt.state_x.transpose() << endl;
+			cerr << "==========================================" << endl;
+
+			/******************************************************************
+			 * Results
+			 *****************************************************************/
+			motion.push_back(vector<double>());
+			auto& m = motion.back();
+			m.resize(9, 0);
+
+			// set values from parameters, and convert to RAS coordinate so that no
+			// matter the sampling after smoothing the values remain
+			for(size_t ii=0; ii<3; ii++) {
+				m[ii] = (movvol->dim(ii)-1)/2.;
+				m[ii+3] = opt.state_x[ii];
+				m[ii+6] = opt.state_x[ii+3];
+			}
+		}
+	}
+
+	return motion;
+}
 
 int main(int argc, char** argv)
 {
@@ -65,6 +179,9 @@ int main(int argc, char** argv)
 	TCLAP::MultiArg<double> a_sigmas("s", "sigmas", "Smoothing standard "
 			"deviations. These are the steps of the registration.", false, 
 			"sd", cmd);
+	TCLAP::MultiArg<double> a_thresh("t", "thresh", "Stop threshold "
+			"for correlation at each step.", false, 
+			"corr", cmd);
 
 	cmd.parse(argc, argv);
 
@@ -87,22 +204,23 @@ int main(int argc, char** argv)
 
 	// construct variables to get a particular volume
 	vector<vector<double>> motion;
-	vector<int64_t> index(4, 0);
-	vector<size_t> vsize(fmri->dim(), fmri->dim()+fmri->ndim());
-	vsize[3] = 0;
-	Rigid3DTrans rigid;
-
-	// extract reference volume
-	auto refvol = dPtrCast<MRImage>(fmri->extractCast(index.size(),
-				index.data(), vsize.data(), FLOAT32));
-	auto vol = dPtrCast<MRImage>(refvol->createAnother());
-	Vector3DIter<double> iit(fmri);
-	Vector3DIter<double> vit(vol);
 
 	// set up sigmas
 	vector<double> sigmas({1,0.5,0});
 	if(a_sigmas.isSet()) 
 		sigmas.assign(a_sigmas.begin(), a_sigmas.end());
+	
+	// set up threshold
+	vector<double> thresh({0.99,0.999,0.9999});
+	if(a_thresh.isSet()) 
+		thresh.assign(a_sigmas.begin(), a_sigmas.end());
+	for(auto& v: thresh) 
+		v = -fabs(v);
+
+	if(thresh.size() != sigmas.size()) {
+		cerr << "Threshold and Sigmas must indicate the same number of steps\n";
+		return -1;
+	}
 
 	if(a_inmotion.isSet()) {
 		motion = readNumericCSV(a_inmotion.getValue());
@@ -124,36 +242,8 @@ int main(int argc, char** argv)
 
 	} else {
 		// Compute Motion
-		
-		Rigid3DTrans rigid;
-		rigid.center.setZero();
-		rigid.shift.setZero();
-		rigid.rotation.setZero();
-		for(size_t tt=0; tt<fmri->tlen(); tt++) {
-			cerr << "Time " << tt << " / " << fmri->tlen() << endl;
-			if(tt == ref) {
-				motion.push_back(vector<double>());
-				motion.back().resize(9, 0);
-			} else {
-				// extract timepoint
-				for(iit.goBegin(), vit.goBegin(); !iit.eof(); ++iit, ++vit) 
-					vit.set(iit[tt]);
-
-				// perform registration
-				corReg3D(refvol, vol, sigmas, rigid);
-				motion.push_back(vector<double>());
-				auto& m = motion.back();
-				m.resize(9, 0);
-
-				copy(rigid.center.data(), rigid.center.data()+3, &m[0]);
-				copy(rigid.shift.data(), rigid.shift.data()+3, &m[3]);
-				copy(rigid.rotation.data(), rigid.rotation.data()+3, &m[6]);
-
-#ifndef NDEBUG
-				copy(m.begin(), m.end(), doubleoit);
-#endif //NDEBUG
-			}
-		}
+	
+		motion = computeMotion(fmri, ref, sigmas, thresh);
 	}
 
 	// Write to Motion File
@@ -175,35 +265,35 @@ int main(int argc, char** argv)
 		ofs << "\n";
 	}
 
-	// apply motion parameters
-	NDIter<double> fit(fmri);
-	for(size_t tt=0; tt<fmri->tlen(); tt++) {
-		// extract timepoint
-		for(iit.goBegin(), vit.goBegin(); !iit.eof(); ++iit, ++vit) 
-			vit.set(iit[tt]);
-		
-		// convert motion parameters to centered rotation + translation
-		copy(motion[tt].begin(), motion[tt].begin()+3, rigid.center.data());
-		copy(motion[tt].begin()+3, motion[tt].begin()+6, rigid.shift.data());
-		copy(motion[tt].begin()+6, motion[tt].end(), rigid.rotation.data());
-		rigid.toIndexCoords(vol, true);
-		cerr << "Rigid Transform: " << tt << "\n" << rigid <<endl;
-		
-		// Apply Rigid Transform
-		rotateImageShearFFT(vol, rigid.rotation[0], rigid.rotation[1], 
-				rigid.rotation[2]);
-		vol->write("rotated"+to_string(tt)+".nii.gz");
-		for(size_t dd=0; dd<3; dd++) 
-			shiftImageFFT(vol, dd, rigid.shift[dd]);
-		vol->write("shifted_rotated"+to_string(tt)+".nii.gz");
-
-		// Copy Result Back to input image
-		for(iit.goBegin(), vit.goBegin(); !iit.eof(); ++iit, ++vit) 
-			iit.set(tt, vit[0]);
-	}
-
-	if(a_out.isSet()) 
-		fmri->write(a_out.getValue());
+//	// apply motion parameters
+//	NDIter<double> fit(fmri);
+//	for(size_t tt=0; tt<fmri->tlen(); tt++) {
+//		// extract timepoint
+//		for(iit.goBegin(), vit.goBegin(); !iit.eof(); ++iit, ++vit) 
+//			vit.set(iit[tt]);
+//		
+//		// convert motion parameters to centered rotation + translation
+//		copy(motion[tt].begin(), motion[tt].begin()+3, rigid.center.data());
+//		copy(motion[tt].begin()+3, motion[tt].begin()+6, rigid.shift.data());
+//		copy(motion[tt].begin()+6, motion[tt].end(), rigid.rotation.data());
+//		rigid.toIndexCoords(vol, true);
+//		cerr << "Rigid Transform: " << tt << "\n" << rigid <<endl;
+//		
+//		// Apply Rigid Transform
+//		rotateImageShearFFT(vol, rigid.rotation[0], rigid.rotation[1], 
+//				rigid.rotation[2]);
+//		vol->write("rotated"+to_string(tt)+".nii.gz");
+//		for(size_t dd=0; dd<3; dd++) 
+//			shiftImageFFT(vol, dd, rigid.shift[dd]);
+//		vol->write("shifted_rotated"+to_string(tt)+".nii.gz");
+//
+//		// Copy Result Back to input image
+//		for(iit.goBegin(), vit.goBegin(); !iit.eof(); ++iit, ++vit) 
+//			iit.set(tt, vit[0]);
+//	}
+//
+//	if(a_out.isSet()) 
+//		fmri->write(a_out.getValue());
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
