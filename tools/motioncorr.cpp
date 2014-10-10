@@ -140,6 +140,7 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 				
 				// run the optimizer
 				opt.stop_F_under = hardstops[ii];
+				opt.reset_history();
 				StopReason stopr = opt.optimize();
 				otime += clock() - timer;
 				cerr << Optimizer::explainStop(stopr) << endl;
@@ -234,7 +235,7 @@ int main(int argc, char** argv)
 		sigmas.assign(a_sigmas.begin(), a_sigmas.end());
 	
 	// set up threshold
-	vector<double> thresh({0.99,0.99,0.999});
+	vector<double> thresh({0.99,0.99,0.99});
 	if(a_thresh.isSet()) 
 		thresh.assign(a_sigmas.begin(), a_sigmas.end());
 	for(auto& v: thresh) 

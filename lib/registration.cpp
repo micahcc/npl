@@ -403,9 +403,9 @@ void RigidCorrComputer::updatedInputs()
 int RigidCorrComputer::valueGrad(const VectorXd& params, 
         double& val, VectorXd& grad)
 {
-    double rx = params[0];
-    double ry = params[1];
-    double rz = params[2];
+    double rx = params[0]*M_PI/180.;
+    double ry = params[1]*M_PI/180.;
+    double rz = params[2]*M_PI/180.;
     double sx = params[3];
     double sy = params[4];
     double sz = params[5];
@@ -500,9 +500,9 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
         double dz_dSz = 1;
 
         // compute SUM_i dg/dv_i dv_i/dp
-        double dgdRx = dg_dx*dx_dRx + dg_dy*dy_dRx + dg_dz*dz_dRx;
-        double dgdRy = dg_dx*dx_dRy + dg_dy*dy_dRy + dg_dz*dz_dRy;
-        double dgdRz = dg_dx*dx_dRz + dg_dy*dy_dRz + dg_dz*dz_dRz;
+        double dgdRx = M_PI/180.*(dg_dx*dx_dRx + dg_dy*dy_dRx + dg_dz*dz_dRx);
+        double dgdRy = M_PI/180.*(dg_dx*dx_dRy + dg_dy*dy_dRy + dg_dz*dz_dRy);
+        double dgdRz = M_PI/180.*(dg_dx*dx_dRz + dg_dy*dy_dRz + dg_dz*dz_dRz);
 
         double dgdSx = dg_dx*dx_dSx + dg_dy*dy_dSx + dg_dz*dz_dSx;
         double dgdSy = dg_dx*dx_dSy + dg_dy*dy_dSy + dg_dz*dz_dSy;
@@ -601,9 +601,9 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
     assert(m_fixed->ndim() == 3);
     assert(m_moving->ndim() == 3);
 
-    double rx = params[0];
-    double ry = params[1];
-    double rz = params[2];
+    double rx = params[0]*M_PI/180.;
+    double ry = params[1]*M_PI/180.;
+    double rz = params[2]*M_PI/180.;
     double sx = params[3];
     double sy = params[4];
     double sz = params[5];
@@ -802,9 +802,9 @@ void RigidInformationComputer::updatedInputs()
 int RigidInformationComputer::valueGrad(const VectorXd& params, 
         double& val, VectorXd& grad)
 {
-    double rx = params[0];
-    double ry = params[1];
-    double rz = params[2];
+    double rx = params[0]*M_PI/180.;
+    double ry = params[1]*M_PI/180.;
+    double rz = params[2]*M_PI/180.;
     double sx = params[3];
     double sy = params[4];
     double sz = params[5];
@@ -871,9 +871,9 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
             + (-cx + x)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
 
         // compute SUM_i dg/dv_i dv_i/dp
-        dgdPhi[0] = dg_dx*dx_dRx + dg_dy*dy_dRx + dg_dz*dz_dRx;
-        dgdPhi[1] = dg_dx*dx_dRy + dg_dy*dy_dRy + dg_dz*dz_dRy;
-        dgdPhi[2] = dg_dx*dx_dRz + dg_dy*dy_dRz + dg_dz*dz_dRz;
+        dgdPhi[0] = M_PI/180.*(dg_dx*dx_dRx + dg_dy*dy_dRx + dg_dz*dz_dRx);
+        dgdPhi[1] = M_PI/180.*(dg_dx*dx_dRy + dg_dy*dy_dRy + dg_dz*dz_dRy);
+        dgdPhi[2] = M_PI/180.*(dg_dx*dx_dRz + dg_dy*dy_dRz + dg_dz*dz_dRz);
 
         dgdPhi[3] = dg_dx;
         dgdPhi[4] = dg_dy;
@@ -1025,9 +1025,9 @@ int RigidInformationComputer::grad(const VectorXd& params, VectorXd& grad)
  */
 int RigidInformationComputer::value(const VectorXd& params, double& val)
 {
-    double rx = params[0];
-    double ry = params[1];
-    double rz = params[2];
+    double rx = params[0]*M_PI/180.;
+    double ry = params[1]*M_PI/180.;
+    double rz = params[2]*M_PI/180.;
     double sx = params[3];
     double sy = params[4];
     double sz = params[5];
