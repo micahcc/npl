@@ -386,6 +386,9 @@ RigidCorrComputer::RigidCorrComputer(
 void RigidCorrComputer::updatedInputs()
 {
 	derivative(m_moving, m_dmoving);
+    m_move_get.setArray(m_moving);
+    m_dmove_get.setArray(m_dmoving);
+    m_fit.setArray(m_fixed);
 }
 
 /**
@@ -545,9 +548,11 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
         val = -val;
     }
 
-#ifdef VERYDEBUG
+#if defined VERYDEBUG || defined DEBUG
     cerr << "Value: " << val << endl;
     cerr << "Gradient: " << grad.transpose() << endl;
+#endif
+#ifdef VERYDEBUG
     string sc = "_"+to_string(callcount);
     d_theta_x->write("d_theta_x"+sc+".nii.gz");
     d_theta_y->write("d_theta_y"+sc+".nii.gz");
@@ -652,8 +657,10 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
     if(m_negate)
         val = -val;
 
+#if defined VERYDEBUG || defined DEBUG
+    cerr << "Value: " << val << endl;
+#endif
 #ifdef VERYDEBUG
-    DEBUGWRITE(cerr << "Value: " << val << endl);
     string sc = "_"+to_string(callcount);
     interpolated->write("interp"+sc+".nii.gz");
     callcount++;
@@ -778,6 +785,9 @@ void RigidInformationComputer::updatedInputs()
         m_Hfix -= m_pdffix[ii] > 0 ? m_pdffix[ii]*log(m_pdffix[ii]) : 0;
     }
 
+    m_move_get.setArray(m_moving);
+    m_dmove_get.setArray(m_dmoving);
+    m_fit.setArray(m_fixed);
 }
 
 /**

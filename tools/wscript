@@ -6,13 +6,17 @@ def build(bld):
             use = 'mrimage_utils tclap nplio iterators accessors')
 
     bld.program(target = 'nplMotionCorr', 
-            install_path='${PREFIX}/bin', 
             source = 'motioncorr.cpp', 
             use = 'mrimage_utils registration lbfgs tclap nplio iterators accessors')
 
-    bld.program(target = 'nplSimpleSegment', 
+    bld.program(target = 'nplKMeansSegment', 
             install_path='${PREFIX}/tools_incomplete', 
             source = 'simplesegment.cpp', 
+            use = 'mrimage_utils tclap nplio statistics iterators accessors')
+
+    bld.program(target = 'nplDensitySegment', 
+            install_path='${PREFIX}/tools_incomplete', 
+            source = 'densitycluster.cpp', 
             use = 'mrimage_utils tclap nplio statistics iterators accessors')
 
     bld.program(target = 'nplMath', 
