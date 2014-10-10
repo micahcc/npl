@@ -347,7 +347,7 @@ RigidCorrComputer::RigidCorrComputer(
         bool negate) :
     m_fixed(dPtrCast<MRImage>(fixed->copy())),
     m_moving(dPtrCast<MRImage>(moving->copy())),
-    m_dmoving(dPtrCast<MRImage>(moving->createAnother())),
+    m_dmoving(dPtrCast<MRImage>(derivative(moving))),
     m_move_get(m_moving),
     m_dmove_get(m_dmoving),
     m_fit(m_fixed),
@@ -683,7 +683,7 @@ RigidInformationComputer::RigidInformationComputer(
     m_negate(negate), 
     m_fixed(dPtrCast<MRImage>(fixed->copy())),
     m_moving(dPtrCast<MRImage>(moving->copy())),
-    m_dmoving(dPtrCast<MRImage>(moving->createAnother())),
+    m_dmoving(dPtrCast<MRImage>(derivative(moving))),
 	m_bins(bins), m_krad(kernrad),
     m_move_get(m_moving), m_dmove_get(m_dmoving), m_fit(m_fixed),
     m_pdfmove({(size_t)m_bins}), m_pdffix({(size_t)m_bins}), 

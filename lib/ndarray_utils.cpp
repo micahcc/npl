@@ -130,8 +130,7 @@ ptr<NDArray> derivative(ptr<const NDArray> in)
 {
     vector<size_t> osize(in->dim(), in->dim()+in->ndim());
     osize.push_back(in->ndim());
-    auto out = dPtrCast<MRImage>(
-            in->copyCast(osize.size(), osize.data()));
+    auto out = dPtrCast<MRImage>(in->copyCast(osize.size(), osize.data()));
 
 	derivative(in, out);
     return out;
@@ -153,12 +152,12 @@ ptr<NDArray> derivative(ptr<const NDArray> in)
  */
 int derivative(ptr<const NDArray> in, ptr<NDArray> out)
 {
-	if(out->ndim() != in->ndim())
-		return -1;
-	for(size_t dd=0; dd<out->ndim(); dd++) {
-		if(out->dim(dd) != in->dim(dd))  {
-			return -1;
-		}
+	if(out->ndim() != in->ndim()+1) 
+		throw INVALID_ARGUMENT("Output (derivative) should have 1 extra dimension "
+				"compared to input.");
+	for(size_t dd=0; dd<in->ndim(); dd++) {
+		if(out->dim(dd) != in->dim(dd))  
+			throw INVALID_ARGUMENT("Input and Output sizes differ");
 	}
 
     vector<int64_t> index(in->ndim());
