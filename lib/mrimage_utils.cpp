@@ -513,6 +513,9 @@ ptr<MRImage> smoothDownsample(ptr<const MRImage> in, double sigma)
 void gaussianSmooth1D(ptr<MRImage> inout, size_t dim,
 		double stddev)
 {
+	if(stddev <= 0)
+		return;
+
     const auto gaussKern = [](double x) 
     {
         const double PI = acos(-1);

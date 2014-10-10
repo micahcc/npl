@@ -334,8 +334,8 @@ int information3DDerivTest(double step, double tol,
 /**
  * @brief Constructor for the rigid correlation class. Note that 
  * rigid rotation is assumed to be about the center of the fixed 
- * image space. If necessary the input moving image will be resampled.
- * To the same space as the fixed image.
+ * image space. If you make any changes to the internal images call
+ * reinit() to reinitialize the derivative.
  *
  * @param fixed Fixed image. A copy of this will be made.
  * @param moving Moving image. A copy of this will be made.

@@ -20,6 +20,8 @@
 #ifndef REGISTRATION_H
 #define REGISTRATION_H
 
+#define VERYDEBUG
+
 #include "mrimage.h"
 #include "accessors.h"
 #include "iterators.h"
@@ -61,9 +63,9 @@ class RigidInformationComputer
     /**
      * @brief Constructor for the rigid correlation class. Note that 
      * rigid rotation is assumed to be about the center of the fixed 
-     * image space. If necessary the input moving image will be resampled.
-     * To the same space as the fixed image.
-     *
+	 * image space.  * If changes are made to the moving image, then call
+	 * reinit() to reinitialize the image derivative.
+	 *
      * @param fixed Fixed image. A copy of this will be made.
      * @param moving Moving image. A copy of this will be made.
      * minimize negative correlation using a gradient descent).
@@ -185,9 +187,11 @@ class RigidCorrComputer
     /**
      * @brief Constructor for the rigid correlation class. Note that 
      * rigid rotation is assumed to be about the center of the fixed 
-     * image space. If necessary the input moving image will be resampled.
-     * To the same space as the fixed image.
-     *
+     * image space. Also note that changed to the input images by the outside
+	 * will * be reflected in the registration images HOWEVER you need to call
+	 * reinit() if you change the inputs, otherwise the image gradients will
+	 * be incorrect.
+	 *
      * @param fixed Fixed image. A copy of this will be made.
      * @param moving Moving image. A copy of this will be made.
      * @param negate Whether to use negative correlation (for instance to
