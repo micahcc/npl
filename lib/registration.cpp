@@ -523,7 +523,6 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
         d_shi_y.set(ind[0], ind[1], ind[2], dgdSy);
         d_shi_z.set(ind[0], ind[1], ind[2], dgdSz);
         acc.set(ind[0], ind[1], ind[2], g);
-        assert(acc(ind[0], ind[1], ind[2]) == g);
 #endif
      
         grad[0] += (*m_fit)*dgdRx;
