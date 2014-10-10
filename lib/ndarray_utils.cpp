@@ -310,6 +310,9 @@ bool comparable(const NDArray* left, const NDArray* right, bool* elL, bool* elR)
 void gaussianSmooth1D(ptr<NDArray> inout, size_t dim,
 		double stddev)
 {
+	if(stddev <= 0) 
+		return;
+
     const auto gaussKern = [](double x) 
     {
         const double PI = acos(-1);
