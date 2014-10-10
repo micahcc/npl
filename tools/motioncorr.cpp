@@ -68,13 +68,13 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 	// create working volume
 	auto movvol = dPtrCast<MRImage>(refvol->createAnother());
 
-	// Iterators
-	Vector3DConstIter<double> iit(fmri); /** Input Iterator */
-	Vector3DIter<double> mit(movvol);  /** Moving Volume Iterator */
-	Vector3DIter<double> fit(refvol);  /** Fixed Volume Iterator */
-
 	// Registration Tools
 	RigidCorrComputer comp(refvol, movvol, true);
+
+	// Iterators
+	Vector3DConstIter<double> iit(fmri); /** Input Iterator */
+	Vector3DIter<double> mit(comp.m_moving);  /** Moving Volume Iterator */
+	Vector3DIter<double> fit(comp.m_fixed);  /** Fixed Volume Iterator */
 
 	// create value and gradient functions
 	auto vfunc = bind(&RigidCorrComputer::value, &comp, _1, _2);
@@ -111,13 +111,15 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 					fit.set(iit[reftime]);
 				}
 				for(size_t dd=0; dd<3; dd++) {
-					gaussianSmooth1D(movvol, dd, sigmas[ii]);
-					gaussianSmooth1D(refvol, dd, sigmas[ii]);
+					gaussianSmooth1D(comp.m_moving, dd, sigmas[ii]);
+					gaussianSmooth1D(comp.m_fixed, dd, sigmas[ii]);
 				}
-				movvol->write("mov_"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
-				refvol->write("ref_"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
+
+				comp.m_moving->write("mov_"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
+				comp.m_fixed->write("ref_"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
 
 				// run the optimizer
+				comp.updatedInputs();
 				opt.optimize();
 				opt.stop_F_under = hardstops[ii];
 				StopReason stopr = opt.optimize();
@@ -140,7 +142,7 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 			// set values from parameters, and convert to RAS coordinate so that no
 			// matter the sampling after smoothing the values remain
 			for(size_t ii=0; ii<3; ii++) {
-				m[ii] = (movvol->dim(ii)-1)/2.;
+				m[ii] = (comp.m_moving->dim(ii)-1)/2.;
 				m[ii+3] = opt.state_x[ii];
 				m[ii+6] = opt.state_x[ii+3];
 			}

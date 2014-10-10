@@ -118,6 +118,16 @@ class RigidInformationComputer
      */
     bool m_negate;
 
+	/**
+	 * @brief Reinitialize derivative image. If the you change the moving image
+	 * you need to call this to recompute the derivative image.
+	 */
+	void updatedInputs();
+
+    shared_ptr<MRImage> m_fixed;
+    shared_ptr<MRImage> m_moving;
+    shared_ptr<MRImage> m_dmoving;
+
     private:
 
     /**
@@ -129,10 +139,6 @@ class RigidInformationComputer
      * @brief Parzen Window (kernel) radius
      */
     int m_krad;
-
-    shared_ptr<MRImage> m_fixed;
-    shared_ptr<MRImage> m_moving;
-    shared_ptr<MRImage> m_dmoving;
 
     // for interpolating moving image, and iterating fixed
     LinInterp3DView<double> m_move_get;
@@ -234,11 +240,17 @@ class RigidCorrComputer
      */
     int value(const Eigen::VectorXd& params, double& val);
 
-    private:
+	/**
+	 * @brief Reinitialize derivative image. If the you change the moving image
+	 * you need to call this to recompute the derivative image.
+	 */
+	void updatedInputs();
 
     shared_ptr<MRImage> m_fixed;
     shared_ptr<MRImage> m_moving;
     shared_ptr<MRImage> m_dmoving;
+
+    private:
 
     // for interpolating moving image, and iterating fixed
     LinInterp3DView<double> m_move_get;

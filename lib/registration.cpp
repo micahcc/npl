@@ -347,7 +347,7 @@ RigidCorrComputer::RigidCorrComputer(
         bool negate) :
     m_fixed(dPtrCast<MRImage>(fixed->copy())),
     m_moving(dPtrCast<MRImage>(moving->copy())),
-    m_dmoving(dPtrCast<MRImage>(derivative(moving))),
+    m_dmoving(dPtrCast<MRImage>(moving->createAnother())),
     m_move_get(m_moving),
     m_dmove_get(m_dmoving),
     m_fit(m_fixed),
@@ -357,9 +357,12 @@ RigidCorrComputer::RigidCorrComputer(
         throw INVALID_ARGUMENT("Fixed image is not 3D!");
     if(moving->ndim() != 3)
         throw INVALID_ARGUMENT("Moving image is not 3D!");
+    
+	updatedInputs();
 
 #ifdef VERYDEBUG
     m_moving->write("init_moving.nii.gz");
+    m_dmoving->write("init_moving.nii.gz");
     m_fixed->write("init_fixed.nii.gz");
     d_theta_x = dPtrCast<MRImage>(moving->copy());
     d_theta_y = dPtrCast<MRImage>(moving->copy());
@@ -371,9 +374,18 @@ RigidCorrComputer::RigidCorrComputer(
     interpolated->write("init_interpolated.nii.gz");
     callcount = 0;
 #endif
-	
+
     for(size_t ii=0; ii<3 && ii<moving->ndim(); ii++) 
 		m_center[ii] = (m_moving->dim(ii)-1)/2.;
+}
+
+/**
+ * @brief Call this if you have altered the member images (fixed or moving) 
+ * so that derivative can be recomputed.
+ */
+void RigidCorrComputer::updatedInputs()
+{
+	derivative(m_moving, m_dmoving);
 }
 
 /**
@@ -668,10 +680,11 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 RigidInformationComputer::RigidInformationComputer(
         shared_ptr<const MRImage> fixed, shared_ptr<const MRImage> moving,
         int bins, int kernrad, bool negate) :
-    m_negate(negate), m_bins(bins), m_krad(kernrad),
+    m_negate(negate), 
     m_fixed(dPtrCast<MRImage>(fixed->copy())),
     m_moving(dPtrCast<MRImage>(moving->copy())),
-    m_dmoving(dPtrCast<MRImage>(derivative(moving))),
+    m_dmoving(dPtrCast<MRImage>(moving->createAnother())),
+	m_bins(bins), m_krad(kernrad),
     m_move_get(m_moving), m_dmove_get(m_dmoving), m_fit(m_fixed),
     m_pdfmove({(size_t)m_bins}), m_pdffix({(size_t)m_bins}), 
     m_pdfjoint({(size_t)m_bins,(size_t)m_bins}), 
@@ -686,6 +699,8 @@ RigidInformationComputer::RigidInformationComputer(
     // center
     for(size_t ii=0; ii<3 && ii<moving->ndim(); ii++) 
 		m_center[ii] = (m_moving->dim(ii)-1)/2.;
+	
+	updatedInputs();
 
 #ifdef VERYDEBUG
     m_moving->write("init_moving.nii.gz");
@@ -706,6 +721,19 @@ RigidInformationComputer::RigidInformationComputer(
     //////////////////////////
 //    m_move_get.m_boundmethod = CONSTZERO;
 //    m_dmove_get.m_boundmethod = CONSTZERO;
+    
+}
+
+/**
+ * @brief If the input has been modified then call this to input ranges, and
+ * image derivative
+ */
+void RigidInformationComputer::updatedInputs()
+{
+	//////////////////////////
+	// Moving Derivative
+	//////////////////////////
+	derivative(m_moving, m_dmoving);
 	
     //////////////////////////////////////
     // compute ranges, and bin widths
@@ -750,6 +778,7 @@ RigidInformationComputer::RigidInformationComputer(
         m_pdffix[ii] *= Nrecip;
         m_Hfix -= m_pdffix[ii] > 0 ? m_pdffix[ii]*log(m_pdffix[ii]) : 0;
     }
+
 }
 
 /**
