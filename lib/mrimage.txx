@@ -1353,14 +1353,12 @@ ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
     size_t newdim = 0;
     size_t newsize[10];
     int64_t olower[10];
-    int64_t oupper[10];
 
     // determine output size
     for(size_t dd=0; dd<len && dd<D; dd++) {
         if(size[dd] > 0) {
             newsize[newdim] = size[dd];
             olower[newdim] = 0;
-            oupper[newdim] = size[dd]-1;
             newdim++;
         }
     }

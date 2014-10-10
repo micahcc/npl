@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file applyDeform.cpp Tool to apply a deformation field to another image. 
- * Not yet functional
+ * @file biascorrect.cpp Bias-field correction tool.
  *
  *****************************************************************************/
 
@@ -131,11 +130,6 @@ ptr<MRImage> createBiasField(ptr<MRImage> in, double bspace)
 }
 
 //#define USE_SPARSE
-
-double smoothwindow(double x, double a)
-{
-	return hannWindow(x, .8*a);
-}
 
 int main(int argc, char** argv)
 {

@@ -133,6 +133,34 @@ ptr<NDArray> derivative(ptr<const NDArray> in)
     auto out = dPtrCast<MRImage>(
             in->copyCast(osize.size(), osize.data()));
 
+	derivative(in, out);
+    return out;
+}
+
+/**
+ * @brief Computes the derivative of the image. Computes all  
+ * directional derivatives of the input image and the output
+ * image will have 1 higher dimension with derivative of 0 in the first volume
+ * 1 in the second and so on.
+ *
+ * Thus a 2D image will produce a [X,Y,2] image and a 3D image will produce a 
+ * [X,Y,Z,3] sized image.
+ *
+ * @param in    Input image/NDArray 
+ * @param out	Derivative of input
+ *
+ * @return 0 if successful
+ */
+int derivative(ptr<const NDArray> in, ptr<NDArray> out)
+{
+	if(out->ndim() != in->ndim())
+		return -1;
+	for(size_t dd=0; dd<out->ndim(); dd++) {
+		if(out->dim(dd) != in->dim(dd))  {
+			return -1;
+		}
+	}
+
     vector<int64_t> index(in->ndim());
     NDConstView<double> inGet(in);
 
@@ -174,7 +202,7 @@ ptr<NDArray> derivative(ptr<const NDArray> in)
         }
     }
 
-    return out;
+    return 0;
 }
 
 //ptr<NDArray> ppfft(ptr<NDArray> in, size_t len, size_t* dims)
