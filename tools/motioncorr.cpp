@@ -67,6 +67,22 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 
 	// create working volume
 	auto movvol = dPtrCast<MRImage>(refvol->createAnother());
+	
+	// Pre-Compute Fixed Smoothing
+	vector<ptr<MRImage>> fixed;
+	for(size_t ii=0; ii<sigmas.size(); ii++) {
+		fixed.push_back(dPtrCast<MRImage>(dPtrCast<MRImage>(
+						fmri->extractCast(4, vsize.data(), FLOAT32))));
+		Vector3DConstIter<double> iit(fmri); 
+		FlatIter<double> fit(fixed.back());
+		for(iit.goBegin(), fit.goBegin(); !iit.eof(); ++iit, ++fit) {
+			fit.set(iit[reftime]);
+		}
+		
+		for(size_t dd=0; dd<3; dd++) 
+			gaussianSmooth1D(fixed.back(), dd, sigmas[ii]);
+		fixed.back()->write("fixed_"+to_string(ii)+".nii.gz");
+	}
 
 	// Registration Tools
 	RigidCorrComputer comp(refvol, movvol, true);
@@ -74,7 +90,6 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 	// Iterators
 	Vector3DConstIter<double> iit(fmri); /** Input Iterator */
 	Vector3DIter<double> mit(comp.m_moving);  /** Moving Volume Iterator */
-	Vector3DIter<double> fit(comp.m_fixed);  /** Fixed Volume Iterator */
 
 	// create value and gradient functions
 	auto vfunc = bind(&RigidCorrComputer::value, &comp, _1, _2);
@@ -84,10 +99,13 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 	// initialize optimizer
 	LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
 	opt.stop_Its = 10000;
-	opt.stop_X = 0;
+	opt.stop_X = 0.0001;
 	opt.stop_G = 0;
 	opt.stop_F = 0.0001;
 	opt.state_x.setZero();
+	clock_t otime = 0;
+	clock_t settime = 0;
+	clock_t timer = clock();
 	
 	for(size_t tt=0; tt<fmri->tlen(); tt++) {
 		cerr << "Time " << tt << " / " << fmri->tlen() << endl;
@@ -104,25 +122,26 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 
 			for(size_t ii=0; ii<sigmas.size(); ii++) {
 
-				/* Extract and Smooth Moving Volume */
-				for(iit.goBegin(), mit.goBegin(), fit.goBegin(); !iit.eof(); 
-								++iit, ++mit, ++fit) {
+				/* 
+				 * Extract and Smooth Moving Volume, Set Fixed in computer to 
+				 * Pre-Smoothed Version
+				 * */
+				timer = clock();
+				for(iit.goBegin(), mit.goBegin(); !iit.eof(); ++iit, ++mit) 
 					mit.set(iit[tt]);
-					fit.set(iit[reftime]);
-				}
-				for(size_t dd=0; dd<3; dd++) {
+
+				for(size_t dd=0; dd<3; dd++) 
 					gaussianSmooth1D(comp.m_moving, dd, sigmas[ii]);
-					gaussianSmooth1D(comp.m_fixed, dd, sigmas[ii]);
-				}
 
-				comp.m_moving->write("mov_"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
-				comp.m_fixed->write("ref_"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
-
-				// run the optimizer
+				comp.m_fixed = fixed[ii];
 				comp.updatedInputs();
-				opt.optimize();
+				settime += clock() - timer;
+				timer = clock();
+				
+				// run the optimizer
 				opt.stop_F_under = hardstops[ii];
 				StopReason stopr = opt.optimize();
+				otime += clock() - timer;
 				cerr << Optimizer::explainStop(stopr) << endl;
 
 				cerr << setw(20) << "After Rigid: " << setw(4) << ii << " : " 
@@ -147,6 +166,8 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 				m[ii+6] = opt.state_x[ii+3];
 			}
 		}
+		cerr << "Opttime: " << otime << endl;
+		cerr << "SetupTime: " << settime << endl;
 	}
 
 	return motion;
@@ -213,7 +234,7 @@ int main(int argc, char** argv)
 		sigmas.assign(a_sigmas.begin(), a_sigmas.end());
 	
 	// set up threshold
-	vector<double> thresh({0.99,0.999,0.9999});
+	vector<double> thresh({0.99,0.99,0.999});
 	if(a_thresh.isSet()) 
 		thresh.assign(a_sigmas.begin(), a_sigmas.end());
 	for(auto& v: thresh) 

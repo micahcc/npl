@@ -20,7 +20,8 @@
 #ifndef REGISTRATION_H
 #define REGISTRATION_H
 
-#define VERYDEBUG
+//#define VERYDEBUG
+//#define DEBUG
 
 #include "mrimage.h"
 #include "accessors.h"
