@@ -278,7 +278,7 @@ int main(int argc, char** argv)
 			return -1;
 		}
 		for(auto& line : motion) {
-			assert(line.size() == 0);
+			assert(line.size() == 9);
 			for(size_t ii=0; ii<9; ii++) {
 				if(ii != 0)
 					ofs << " ";
