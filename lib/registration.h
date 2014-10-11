@@ -129,6 +129,13 @@ class RigidInformationComputer
     shared_ptr<MRImage> m_moving;
     shared_ptr<MRImage> m_dmoving;
 
+	enum Metric {METRIC_MI, METRIC_VI, METRIC_NMI};
+    
+	/**
+	 * @brief Metric to use
+	 */
+	Metric m_metric;
+
     private:
 
     /**
@@ -147,13 +154,6 @@ class RigidInformationComputer
     NDConstIter<double> m_fit;
 
 	double m_center[3];
-
-	enum Metric {METRIC_MI, METRIC_VI, METRIC_NMI};
-    
-	/**
-	 * @brief Metric to use
-	 */
-	Metric m_metric;
 
 #ifdef VERYDEBUG
     shared_ptr<MRImage> d_theta_x;
