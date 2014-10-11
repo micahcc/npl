@@ -9,6 +9,10 @@ def build(bld):
             source = 'motioncorr.cpp', 
             use = 'mrimage_utils registration lbfgs tclap nplio iterators accessors')
 
+    bld.program(target = 'nplRigidReg', 
+            source = 'rigidreg.cpp', 
+            use = 'mrimage_utils registration lbfgs tclap nplio iterators accessors')
+
     bld.program(target = 'nplKMeansSegment', 
             install_path='${PREFIX}/tools_incomplete', 
             source = 'simplesegment.cpp', 
