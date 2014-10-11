@@ -30,6 +30,7 @@
 #include "mrimage.h"
 #include "nplio.h"
 #include "mrimage_utils.h"
+#include "ndarray_utils.h"
 #include "kdtree.h"
 #include "iterators.h"
 #include "accessors.h"
@@ -44,8 +45,6 @@ const double OUTSIDEWEIGHT = 1e-9;
 
 std::ostream_iterator<double> vdstream (std::cout,", ");
 std::ostream_iterator<int64_t> vistream (std::cout,", ");
-
-typedef Eigen::SparseMatrix<double,Eigen::RowMajor> SparseMat;
 
 double otsuThresh(ptr<const NDArray> in)
 {
@@ -203,6 +202,7 @@ try {
 			fit.set(*fit > thresh);
 		}
 	}
+	fullmask = dPtrCast<MRImage>(erode(fullmask, 1));
 	fullmask->write("fullmask.nii.gz");
 	
 	{
@@ -215,9 +215,10 @@ try {
 		for(NDIter<double> it(mask); !it.eof(); ++it) {
 			it.index(ind);
 			mask->indexToPoint(ind.size(), ind.data(), pt.data());
-			it.set(mask_ac(pt) > .9);
+			it.set(mask_ac(pt) > .5);
 		}
 	}
+	fullmask.reset();
 
 #ifdef VERYDEBUG
 	in->write("downsampled.nii.gz");
@@ -239,7 +240,7 @@ try {
 	}
 #ifdef USE_SPARSE
 	vector<Eigen::Triplet<double>> pixB;
-	SparseMat Bmat(npixels, nparams);
+	pixB.reserve(nparams*5);
 #else
 	MatrixXd Bmat(npixels, nparams);
 	Bmat.setZero();
