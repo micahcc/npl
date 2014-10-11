@@ -685,6 +685,7 @@ RigidInformationComputer::RigidInformationComputer(
     m_dmoving(dPtrCast<MRImage>(derivative(moving))),
 	m_bins(bins), m_krad(kernrad),
     m_move_get(m_moving), m_dmove_get(m_dmoving), m_fit(m_fixed),
+	m_metric(METRIC_MI), 
     m_pdfmove({(size_t)m_bins}), m_pdffix({(size_t)m_bins}), 
     m_pdfjoint({(size_t)m_bins,(size_t)m_bins}), 
     m_dpdfjoint({6, (size_t)m_bins, (size_t)m_bins}), 
@@ -965,13 +966,23 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
     }
 
 
-    // update value
-    val = m_Hfix+m_Hmove-m_Hjoint;
-   
-    // go from grad H to grad I
-    for(size_t ii=0; ii<6; ii++)
-        grad[ii] = m_gradHmove[ii]-m_gradHjoint[ii];
+    // update value and grad 
+    if(m_metric == METRIC_MI) {
+		val = m_Hfix+m_Hmove-m_Hjoint;
+		for(size_t ii=0; ii<6; ii++)
+			grad[ii] = m_gradHmove[ii]-m_gradHjoint[ii];
 
+	} else if(m_metric == METRIC_VI) {
+		val = 2*m_Hjoint-m_Hfix-m_Hmove;
+		for(size_t ii=0; ii<6; ii++)
+			grad[ii] = 2*m_gradHjoint[ii] - m_gradHmove[ii];
+
+	} else if(m_metric == METRIC_NMI) {
+		val =  (m_Hfix+m_Hmove)/m_Hjoint;
+		for(size_t ii=0; ii<6; ii++)
+			grad[ii] = m_gradHmove[ii]/m_Hjoint - 
+						m_gradHjoint[ii]*(m_Hfix+m_Hmove)/(m_Hjoint*m_Hjoint);
+	}
 
 #ifdef VERYDEBUG
     cerr << "Fixed  Entropy: " << m_Hfix << endl;
@@ -1097,7 +1108,13 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
     }
 
     // update value
-    val = m_Hfix+m_Hmove-m_Hjoint;
+    if(m_metric == METRIC_MI) {
+		val = m_Hfix+m_Hmove-m_Hjoint;
+	} else if(m_metric == METRIC_VI) {
+		val = 2*m_Hjoint-m_Hfix-m_Hmove;
+	} else if(m_metric == METRIC_NMI) {
+		val =  (m_Hfix+m_Hmove)/m_Hjoint;
+	}
 
 #ifdef VERYDEBUG
     cerr << "Fixed  Entropy: " << m_Hfix << endl;
