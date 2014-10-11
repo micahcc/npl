@@ -171,8 +171,10 @@ void gaussianSmooth1D(ptr<NDArray> inout, size_t dim, double stddev);
  * @param inout Input/output image
  * @param dd Dimension to shift, will be positive 
  * @param dist
+ * @param kern kernel to use for sampling
  */
-void shiftImageKern(ptr<NDArray> inout, size_t dd, double dist);
+void shiftImageKern(ptr<NDArray> inout, size_t dd, double dist,
+		double(*kern)(double,double) = npl::lanczosKern);
 
 /**
  * @brief Performs unidirectional shift in the direction of +dd, of distance 
