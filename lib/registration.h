@@ -147,7 +147,13 @@ class RigidInformationComputer
 
 	double m_center[3];
 
+	enum Metric {METRIC_MI, METRIC_VI, METRIC_NMI};
     
+	/**
+	 * @brief Metric to use
+	 */
+	Metric m_metric;
+
 #ifdef VERYDEBUG
     shared_ptr<MRImage> d_theta_x;
     shared_ptr<MRImage> d_theta_y;
