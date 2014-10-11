@@ -477,7 +477,8 @@ ptr<NDArray> dilate(ptr<NDArray> in, size_t reps)
  *
  * @return shifted image
  */
-void shiftImageKern(ptr<NDArray> inout, size_t dd, double dist)
+void shiftImageKern(ptr<NDArray> inout, size_t dd, double dist,
+		double(*kern)(double,double))
 {
 	assert(dd < inout->ndim());
 
@@ -505,7 +506,7 @@ void shiftImageKern(ptr<NDArray> inout, size_t dd, double dist)
 			int64_t isource = round(source);
 			for(int64_t oo = -RADIUS; oo <= RADIUS; oo++) {
 				int64_t ind = clamp<int64_t>(0, inout->dim(dd)-1, isource+oo);
-				tmp += lanczosKern(oo+isource-source, RADIUS)*buf[ind];
+				tmp += kern(oo+isource-source, RADIUS)*buf[ind];
 			}
 
 			oit.set(tmp);
@@ -1587,8 +1588,9 @@ int rotateImageShearFFT(ptr<NDArray> inout, double rx, double ry, double rz,
 			}
 		}
 
-		// perform shear
-		shearImageFFT(inout, sheardim, 3, shearvals, window);
+		// perform shear (if there is one - if there isn't do nothing)
+		if(sheardim != -1)
+			shearImageFFT(inout, sheardim, 3, shearvals, window);
 	}
 	
 	return 0;
