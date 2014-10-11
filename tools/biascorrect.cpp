@@ -41,10 +41,342 @@ using namespace std;
 #define VERYDEBUG
 #include "macros.h"
 
-const double OUTSIDEWEIGHT = 1e-9;
+/**
+ * @brief This function does a couple things (which I know violates the rule of
+ * functions): it normalizes, logs and and downsampls the input (this is placed
+ * into * downimg) and it downsamples the input mask (placing the result in
+ * downmask)
+ *
+ * @param input Input image to downsample
+ * @param mask Input mask to downsample (also needed to normalize masked values)
+ * @param spacing Spacing of output images
+ * @param outside_weight Value of masked points OUTSIDE original mask
+ * @param downimg Output: Downsampled and normalized version of input
+ * @param downmask Output: Downsampled version of mask (with 0 values changed
+ * outside_weight)
+ */
+void preprocInputs(ptr<const MRImage> input, 
+		ptr<const MRImage> mask, double spacing, double outside_weight,
+		ptr<MRImage>& downimg, ptr<MRImage>& downmask);
 
-std::ostream_iterator<double> vdstream (std::cout,", ");
-std::ostream_iterator<int64_t> vistream (std::cout,", ");
+/**
+ * @brief Creates a bias field with the specified spacing, that overlaps
+ * with the input image.
+ *
+ * @param in Template image, same direction will be used, and the bias field
+ * will have an overlapping grid
+ * @param bspace Spacing of bias field
+ *
+ * @return Bias field
+ */
+ptr<MRImage> createBiasField(ptr<const MRImage> in, double bspace);
+
+/**
+ * @brief Computes a threshold based on OTSU.
+ *
+ * @param in Input image.
+ *
+ * @return Threshold 
+ */
+double otsuThresh(ptr<const NDArray> in);
+
+ptr<MRImage> estBiasParams(ptr<const MRImage> in, ptr<const MRImage> mask, 
+		double spacing, double lambda);
+
+int main(int argc, char** argv)
+{
+try {
+	/*
+	 * Command Line
+	 */
+
+	TCLAP::CmdLine cmd("Computes a bias-field from an image and a mask. ",
+			' ', __version__ );
+
+	TCLAP::ValueArg<string> a_in("i", "input", "Input image.",
+		true, "", "*.nii.gz", cmd);
+	TCLAP::ValueArg<string> a_mask("m", "mask", "Mask image. If this image is "
+			"a scalar then values are taken as weights. If not provided a "
+			"mask based on the image mean will be used", false, "", "*.nii.gz",
+			cmd);
+	TCLAP::ValueArg<double> a_spacing("s", "spacing", "Space between knots "
+			"for bias-field estimation.", false, 40, "mm", cmd);
+	TCLAP::ValueArg<double> a_downspace("d", "downsample", "Spacing in "
+			"downsampled image. This is primarily to speed up processing. "
+			"Because the problem is already overdetermined this doesn't impact "
+			"results very much. So a 5 here would resample the image to 5x5x5 "
+			"isotropic voxels.", false, 10, "pixsize", cmd);
+	TCLAP::ValueArg<double> a_lambda("R", "regweight", "Regularization weight "
+			"for ridge regression. Larger values will cause a smoother result",
+			false, 1.e-5, "ratio", cmd);
+	TCLAP::ValueArg<double> a_oweight("O", "oweight", "Weight of pixels "
+			"outside the mask (which prevents numerical instability",
+			false, 1.e-5, "ratio", cmd);
+
+	TCLAP::ValueArg<string> a_biasfield("b", "biasfield", "Bias Field Image.",
+			false, "", "*.nii.gz", cmd);
+	TCLAP::ValueArg<string> a_biasparams("B", "bparams", "Bias Field "
+			"parameters image. these are the knot value in the bias field.",
+			false, "", "*.nii.gz", cmd);
+	TCLAP::ValueArg<string> a_corimage("c", "corr", "Bias Field Corrected "
+			"version of input image.", false, "", "*.nii.gz", cmd);
+
+	cmd.parse(argc, argv);
+
+	/****************************************************
+	 * Read a Single 3D Volume from Input Image
+	 ****************************************************/
+	ptr<MRImage> fullres = readMRImage(a_in.getValue());
+	fullres = dPtrCast<MRImage>(fullres->copyCast(min(fullres->ndim(),3UL), 
+				fullres->dim(), FLOAT64));
+	size_t ndim = fullres->ndim();
+
+	/****************************************************
+	 * Read or Create Mask
+	 ****************************************************/
+	cout << "Loading/Creating Mask...";
+	ptr<MRImage> fullmask;
+	if(a_mask.isSet()) {
+		fullmask = readMRImage(a_mask.getValue());
+
+		// binarize
+		for(FlatIter<double> fit(fullmask); !fit.eof(); ++fit) {
+			double v = *fit;
+			if(v > 0)
+				fit.set(1);
+			else
+				fit.set(a_oweight.getValue());
+		}
+
+	} else {
+		fullmask = dPtrCast<MRImage>(fullres->copyCast(FLOAT64));
+		double thresh = otsuThresh(fullres);
+
+		// binarize/threshold
+		cerr << "Threshold: " << thresh << endl;
+		for(FlatIter<double> fit(fullmask); !fit.eof(); ++fit) {
+			fit.set(*fit > thresh);
+		}
+		fullmask = dPtrCast<MRImage>(erode(fullmask, 1));
+	}
+	cout << "Done...";
+	fullmask->write("fullmask.nii.gz");
+	
+	/****************************************************
+	 * Create Downsampled, logged Versions if Inputs
+	 ****************************************************/
+	cout << "Downsampling/Normalizing...";
+	ptr<MRImage> dinput;
+	ptr<MRImage> dmask;
+	preprocInputs(fullres, fullmask, a_downspace.getValue(),
+			a_oweight.getValue(), dinput, dmask);
+	fullmask.reset();
+	cout << "Done" << endl;
+	
+	/********************************************************************
+	 * Estimate Bias Field Parameters from Pixels and Weights 
+	 ********************************************************************/
+	cout << "Estimating Bias Field...";
+	auto biasparams = estBiasParams(dinput, dmask, a_spacing.getValue(),
+			a_lambda.getValue());
+	cout << "Done...";
+	if(a_biasparams.isSet()) 
+		biasparams->write(a_biasparams.getValue());
+
+	/*************************************************************************
+	 * estimate the bias field from the parameters
+	 ************************************************************************/
+	cout << "Estimating Bias Field From Parameters";
+	vector<pair<int64_t,int64_t>> roi(ndim);
+	NDConstIter<double> bp_it(biasparams); // iterator of biasparams
+	vector<int64_t> ind(ndim); // index
+	vector<double> pt(ndim);   // point
+	vector<double> cind(ndim); // continuous index
+	for(NDIter<double> it(fullres); !it.eof(); ++it) {
+
+		// get continuous index of voxel
+		it.index(ind.size(), ind.data());
+		fullres->indexToPoint(ind.size(), ind.data(), pt.data());
+		biasparams->pointToIndex(pt.size(), pt.data(), cind.data());
+		for(size_t dd=0; dd<ndim; dd++) 
+			ind[dd] = round(cind[dd]);
+		
+		// create ROI from nearest index to continuous one
+		for(size_t dd=0; dd<ndim; dd++) {
+			roi[dd].first = ind[dd]-2;
+			roi[dd].second = ind[dd]+2;
+		}
+
+		// construct ROI, iterator for neighborhood of bias field parameter
+		bp_it.setROI(roi);
+		double sum = 0;
+		for(bp_it.goBegin(); !bp_it.eof(); ++bp_it) {
+			double w = 1;
+			bp_it.index(ind.size(), ind.data());
+			for(size_t dd=0; dd<ndim; dd++)
+				w *= B3kern(ind[dd]-cind[dd]);
+			sum += w*(*bp_it);
+		}
+		it.set(sum);
+	}
+	cout << "Done" << endl;
+
+#ifdef VERYDEBUG
+	fullres->write("logbias.nii.gz");
+#endif 
+	for(FlatIter<double> it(fullres); !it.eof(); ++it) {
+		it.set(exp(*it));
+		if(std::isinf(*it) || std::isnan(*it)) {
+			cerr << "Unusual bias field value (nan/inf) found" << endl;
+			it.set(1);
+		}
+	}
+	if(a_biasfield.isSet())
+		fullres->write(a_biasfield.getValue());
+
+	/*************************************************************************
+	 * Finally Write the Output
+	 ************************************************************************/
+	cout << "Done\nWriting..." << endl;
+	if(a_corimage.isSet()) {
+		// Re-Read Input (even if it is 4D)
+		auto input = readMRImage(a_in.getValue());
+
+		NDView<double> b_vw(fullres);
+		for(NDIter<double> iit(input); !iit.eof(); ++iit) {
+			iit.index(ind);
+			iit.set(iit.get()/b_vw[ind]);
+		}
+		input->write(a_corimage.getValue());
+	}
+	cout << "Done" << endl;
+
+	} catch (TCLAP::ArgException &e)  // catch any exceptions
+	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
+}
+
+/**
+ * @brief Given an input image and mask, this estimates the bias-field
+ * parameters. 
+ *
+ * @param in Input scalar image, should already be log-transformed
+ * @param weight Input weight image  
+ * @param spacing
+ * @param lambda
+ *
+ * @return 
+ */
+ptr<MRImage> estBiasParams(ptr<const MRImage> in, ptr<const MRImage> weight, 
+		double spacing, double lambda)
+{
+	// Create Double Bias Field
+	cout << "Creating Bias Field estimate with with " << spacing 
+		<< "mm spacing...";
+	auto biasparams = createBiasField(in, spacing);
+	cout << "Done\n";
+	
+	size_t ndim = in->ndim();
+	size_t nparams = 1; // number of Cubic-BSpline Parameters
+	size_t npixels = 1; // Number of pixels we are comparing
+	for(size_t ii=0; ii<ndim; ii++) {
+		nparams *= biasparams->dim(ii);
+		npixels *= in->dim(ii);
+	}
+	vector<Eigen::Triplet<double>> pixB;
+	pixB.reserve(nparams*6);
+	
+	// add in augmented parameters for regularization, hence the npixels+pp
+	for(size_t pp=0; pp<nparams; pp++)
+		pixB.push_back(Eigen::Triplet<double>(npixels+pp, pp, lambda));
+	
+	/********************************************************************
+	 * Create Pixel, Parameter and Weight Vectors
+	 ********************************************************************/
+	VectorXd pixels(npixels+nparams);
+	Eigen::Map<VectorXd> params((double*)biasparams->data(), nparams);
+	VectorXd weights(npixels+nparams);
+	FlatConstIter<double> iit(in);
+	FlatConstIter<double> mit(weight);
+
+	// b (main part)
+	for(size_t ii=0; ii<npixels; ii++, ++iit, ++mit) {
+		pixels[ii] = *iit;
+		weights[ii] = *mit;
+	}
+	
+	// gamma (regularization part)
+	for(size_t ii=npixels; ii<npixels+nparams; ii++) {
+		pixels[ii] = 0;
+		weights[ii] = 1;
+	}
+
+	/************************************************************
+	 * Calculate Parameter Weights at Each Pixel
+	 * In the equation we are solving this would be B, p are the
+	 * parameters and v are the voxel values:
+	 * v = Bp
+	 ***********************************************************/
+	vector<pair<int64_t,int64_t>> roi(ndim);
+	NDConstIter<double> bit(biasparams); // iterator of biasparams
+	vector<int64_t> ind(ndim); // index
+	vector<double> pt(ndim);   // point
+	vector<double> cind(ndim); // continuous index
+	size_t linparam, linpix;
+	for(NDConstIter<double> iit(in); !iit.eof(); ++iit) {
+
+		// get continuous index of voxel
+		iit.index(ind.size(), ind.data());
+		linpix = in->getLinIndex(ind);
+
+		in->indexToPoint(ind.size(), ind.data(), pt.data());
+		biasparams->pointToIndex(pt.size(), pt.data(), cind.data());
+		for(size_t dd=0; dd<ndim; dd++) 
+			ind[dd] = round(cind[dd]);
+		
+		// create ROI from nearest index to continuous one
+		for(size_t dd=0; dd<ndim; dd++) {
+			roi[dd].first = ind[dd]-2;
+			roi[dd].second = ind[dd]+2;
+		}
+
+		// construct ROI, iterator for neighborhood of bias field parameter
+		bit.setROI(roi);
+		for(bit.goBegin(); !bit.eof(); ++bit) {
+			bit.index(ind.size(), ind.data());
+			linparam = biasparams->getLinIndex(ind);
+
+			// compute weight
+			double w = 1;
+			for(size_t dd=0; dd<ndim; dd++)
+				w *= B3kern(ind[dd]-cind[dd]);
+
+			assert(linparam < nparams);
+			assert(linpix < npixels);
+			pixB.push_back(Eigen::Triplet<double>(linpix, linparam, w)); 
+		}
+	}
+
+	/*****************************************************************
+	 * Least Squares Fit
+	 ****************************************************************/
+	cout << "Done\nBuilding Sparse Matrix...";
+	Eigen::SparseMatrix<double,Eigen::ColMajor> Bmat(npixels+nparams,nparams);
+	Bmat.setFromTriplets(pixB.begin(), pixB.end());
+	Bmat.makeCompressed();
+	Eigen::SparseQR<Eigen::SparseMatrix<double,Eigen::ColMajor>,
+			Eigen::COLAMDOrdering<int>> solver;
+
+	// adjust with relative weighs from weight
+	pixels = weights.asDiagonal()*pixels;
+	
+	cout << "Done\nComputing...";
+	solver.compute(weights.asDiagonal()*Bmat);
+	cout << "Done\nSolving...";
+	params = solver.solve(pixels);
+	cout << "Done" << endl;
+
+	return biasparams;
+}
 
 double otsuThresh(ptr<const NDArray> in)
 {
@@ -94,7 +426,7 @@ double otsuThresh(ptr<const NDArray> in)
 	return max_t/bwidth + minv;
 }
 
-ptr<MRImage> createBiasField(ptr<MRImage> in, double bspace)
+ptr<MRImage> createBiasField(ptr<const MRImage> in, double bspace)
 {
 	size_t ndim = in->ndim();
 	VectorXd spacing(in->ndim());
@@ -103,7 +435,7 @@ ptr<MRImage> createBiasField(ptr<MRImage> in, double bspace)
 
 	// get spacing and size
 	for(size_t dd=0; dd<osize.size(); ++dd) {
-		osize[dd] = 4+in->dim(dd)*in->spacing(dd)/bspace;
+		osize[dd] = 2+in->dim(dd)*in->spacing(dd)/bspace;
 		spacing[dd] = bspace;
 	}
 
@@ -128,350 +460,98 @@ ptr<MRImage> createBiasField(ptr<MRImage> in, double bspace)
 	return biasparams;
 }
 
-//#define USE_SPARSE
-
-int main(int argc, char** argv)
+/**
+ * @brief This function does a couple things (which I know violates the rule of
+ * functions): it normalizes, logs and and downsampls the input (this is placed
+ * into * downimg) and it downsamples the input mask (placing the result in
+ * downmask)
+ *
+ * @param input Input image to downsample
+ * @param mask Input mask to downsample (also needed to normalize masked values)
+ * @param spacing Spacing of output images
+ * @param outside_weight Value of masked points OUTSIDE original mask
+ * @param downimg Output: Downsampled and normalized version of input
+ * @param downmask Output: Downsampled version of mask (with 0 values changed
+ * outside_weight)
+ */
+void preprocInputs(ptr<const MRImage> input, 
+		ptr<const MRImage> mask, double spacing, double outside_weight,
+		ptr<MRImage>& downimg, ptr<MRImage>& downmask)
 {
-try {
-	/*
-	 * Command Line
-	 */
-
-	TCLAP::CmdLine cmd("Computes a bias-field from an image and a mask. ",
-			' ', __version__ );
-
-	TCLAP::ValueArg<string> a_in("i", "input", "Input image.",
-		true, "", "*.nii.gz", cmd);
-	TCLAP::ValueArg<string> a_mask("m", "mask", "Mask image. If this image is "
-			"a scalar then values are taken as weights. If not provided a "
-			"mask based on the image mean will be used", false, "", "*.nii.gz",
-			cmd);
-	TCLAP::ValueArg<double> a_spacing("s", "spacing", "Space between knots "
-			"for bias-field estimation.", false, 40, "mm", cmd);
-	TCLAP::ValueArg<double> a_downspace("d", "downsample", "Spacing in "
-			"downsampled image. This is primarily to speed up processing. "
-			"Because the problem is already overdetermined this doesn't impact "
-			"results very much. So a 5 here would resample the image to 5x5x5 "
-			"isotropic voxels.", false, 10, "pixsize", cmd);
-	TCLAP::ValueArg<double> a_lambda("R", "regweight", "Regularization weight "
-			"for ridge regression. Larger values will cause a smoother result",
-			false, 1.e-5, "ratio", cmd);
-
-	TCLAP::ValueArg<string> a_biasfield("b", "biasfield", "Bias Field Image.",
-			false, "", "*.nii.gz", cmd);
-	TCLAP::ValueArg<string> a_biasparams("B", "bparams", "Bias Field "
-			"parameters image. these are the knot value in the bias field.",
-			false, "", "*.nii.gz", cmd);
-	TCLAP::ValueArg<string> a_corimage("c", "corr", "Bias Field Corrected "
-			"version of input image.", false, "", "*.nii.gz", cmd);
-
-	cmd.parse(argc, argv);
-
-	// read input, recast as double, with <= 3 dimensions
-	ptr<MRImage> fullres = readMRImage(a_in.getValue());
-	fullres = dPtrCast<MRImage>(fullres->copyCast(min(fullres->ndim(),3UL), 
-				fullres->dim(), FLOAT64));
-	vector<double> dspace(fullres->ndim(), a_downspace.getValue());
+	auto normed = dPtrCast<MRImage>(input->copy());
 	
-	cout << "Downsampling input from [";
-	copy(fullres->getSpacing().data(), fullres->getSpacing().data() +
-			fullres->ndim(), vdstream);
-	cout << "] spacing to [";
-	copy(dspace.begin(), dspace.end(), vdstream);
-	cout << "] spacing...";
-	auto in = dPtrCast<MRImage>(resample(fullres, dspace.data()));
-	cout << "Done\n";
-
-	// read mask then downsample using nearest neighbor
-	ptr<MRImage> fullmask;
-	ptr<MRImage> mask;
-	if(a_mask.isSet()) {
-		fullmask = readMRImage(a_mask.getValue());
-
-		// binarize
-		for(FlatIter<double> fit(fullmask); !fit.eof(); ++fit) 
-			fit.set(*fit > 0);
-
-	} else {
-		fullmask = dPtrCast<MRImage>(fullres->copyCast(FLOAT64));
-		double thresh = otsuThresh(fullres);
-
-		// binarize/threshold
-		cerr << "Threshold: " << thresh << endl;
-		for(FlatIter<double> fit(fullmask); !fit.eof(); ++fit) {
-			fit.set(*fit > thresh);
-		}
-	}
-	fullmask = dPtrCast<MRImage>(erode(fullmask, 1));
-	fullmask->write("fullmask.nii.gz");
+	vector<double> pt(normed->ndim());
+	vector<int64_t> ind(normed->ndim());
+	LinInterpNDView<double> m_interp(mask);
+	m_interp.m_ras = true;
 	
-	{
-		LinInterpNDView<double> mask_ac(fullmask);
-		mask_ac.m_ras = true;
-
-		mask = dPtrCast<MRImage>(in->createAnother(FLOAT64));
-		vector<double> pt(in->ndim());
-		vector<int64_t> ind(in->ndim());
-		for(NDIter<double> it(mask); !it.eof(); ++it) {
-			it.index(ind);
-			mask->indexToPoint(ind.size(), ind.data(), pt.data());
-			it.set(mask_ac(pt) > .5);
-		}
-	}
-	fullmask.reset();
-
-#ifdef VERYDEBUG
-	in->write("downsampled.nii.gz");
-	mask->write("downsampled_mask.nii.gz");
-#endif
-
-	// Create Double Bias Field
-	cout << "Creating Bias Field estimate with with " << a_spacing.getValue()
-		<< "mm spacing...";
-	auto biasparams = createBiasField(in, a_spacing.getValue());
-	cout << "Done\n";
-	
-	size_t ndim = in->ndim();
-	size_t nparams = 1; // number of Cubic-BSpline Parameters
-	size_t npixels = 1; // Number of pixels we are comparing
-	for(size_t ii=0; ii<ndim; ii++) {
-		nparams *= biasparams->dim(ii);
-		npixels *= in->dim(ii);
-	}
-#ifdef USE_SPARSE
-	vector<Eigen::Triplet<double>> pixB;
-	pixB.reserve(nparams*5);
-#else
-	MatrixXd Bmat(npixels, nparams);
-	Bmat.setZero();
-#endif
-	
-	Eigen::Map<VectorXd> pixels((double*)in->data(), npixels);
-	Eigen::Map<VectorXd> params((double*)biasparams->data(), nparams);
-	Eigen::Map<VectorXd> weights((double*)mask->data(), npixels);
-
-	/***********************************************************************
-	 * Take the log of the input image because Bias Fiels are multiplied by
-	 * the image intensity
-	 **********************************************************************/
-	// first average the masked regions and divide by avg
-	double avg = 0;
+	/************************************************************************
+	 * first normalize
+	 ************************************************************************/
+	double mean = 0;
 	size_t count = 0;
-	double minval = INFINITY;
-	for(size_t ii=0; ii<pixels.rows(); ii++) {
-		if(weights[ii] > 0) {
-			avg += pixels[ii];
-			minval = min(minval, pixels[ii]);
+	for(NDIter<double> iit(normed); !iit.eof(); ++iit) {
+		iit.index(ind);
+		normed->indexToPoint(ind.size(), ind.data(), pt.data());
+		double m = m_interp(pt);
+		if(m > 0.5) {
+			mean += *iit;
 			count++;
 		}
 	}
-	avg /= count;
+	mean /= count;
+	cerr << "Masked Mean: " << mean;
 	
-	// divide by mean and compute minimum value
-	for(size_t ii=0; ii<pixels.rows(); ii++) {
-		if(weights[ii] > 0) { 
-			pixels[ii] = (pixels[ii]-minval+1)/(avg - minval-1);
+	for(NDIter<double> iit(normed); !iit.eof(); ++iit) {
+		iit.index(ind);
+		normed->indexToPoint(ind.size(), ind.data(), pt.data());
+		double m = m_interp(pt);
+		if(m > 0.5) {
+			iit.set(*iit/mean);
 		} else {
-			pixels[ii] = 1;
+			iit.set(1);
 		}
 	}
+	normed->write("normed.nii.gz");
 
-#ifdef VERYDEBUG
-	in->write("normalized.nii.gz");
-#endif 
+	for(FlatIter<double> iit(normed); !iit.eof(); ++iit) {
+		if(*iit < 0)
+			iit.set(0);
+		else
+			iit.set(log(*iit));
+	}
+	normed->write("logged.nii.gz");
 
-	// take the log
-	for(size_t ii=0; ii<pixels.rows(); ii++)
-		pixels[ii] = log(pixels[ii]);
-	
-	// make outside mask values 1 (0 in log space)
-	for(size_t ii=0; ii<weights.rows(); ii++) {
-		if(weights[ii] <= 0) {
-			weights[ii] = OUTSIDEWEIGHT;
+	/************************************************************************
+	 * Now Downsample
+	 ***********************************************************************/
+	vector<double> dspace(normed->ndim(), spacing);
+	cout << "Downsampling input from [";
+	for(size_t ii=0; ii<3; ii++) {
+		if(ii!=0) cout << ", ";
+		cout << normed->spacing(ii);
+	}
+	cout << "] spacing to [";
+	downimg = dPtrCast<MRImage>(resample(normed, dspace.data()));
+	for(size_t ii=0; ii<3; ii++) {
+		if(ii!=0) cout << ", ";
+		cout << downimg->spacing(ii);
+	}
+	cout << "] spacing...";
+	cout << "Done\n";
+
+	/************************************************************************
+	 * And Downsample Mask
+	 ***********************************************************************/
+	downmask = dPtrCast<MRImage>(downimg->createAnother());
+	for(NDIter<double> mit(downmask); !mit.eof(); ++mit) {
+		mit.index(ind);
+		downmask->indexToPoint(ind.size(), ind.data(), pt.data());
+		double m = m_interp(pt);
+		if(m > 0.5) {
+			mit.set(1);
+		} else {
+			mit.set(outside_weight);
 		}
 	}
-
-#ifdef VERYDEBUG
-	in->write("lognormalized.nii.gz");
-#endif 
-
-	/************************************************************
-	 * Calculate Parameter Weights at Each Pixel
-	 * In the equation we are solving this would be B, p are the
-	 * parameters and v are the voxel values:
-	 * v = Bp
-	 ***********************************************************/
-	vector<size_t> roi_size(ndim);   // size of ROI in index space
-	vector<int64_t> roi_start(ndim); // offset from center in index space
-	vector<pair<int64_t,int64_t>> roi(ndim);
-	for(size_t dd=0; dd<ndim; dd++) {
-		roi_size[dd] = 5*biasparams->spacing(dd)/in->spacing(dd);
-		roi_start[dd] = -2.5*biasparams->spacing(dd)/in->spacing(dd);
-	}
-
-	cout << "Filling Weights...";
-	// for each parameter
-	NDIter<double> iit(in); // input iterator
-	vector<int64_t> bind(ndim); // bias field index
-	vector<double> oind(ndim); // index in bias field, offset from center 
-	vector<double> iind(ndim); // input image index
-	vector<int64_t> iind_i(ndim); // input image index, integer
-	vector<double> point(ndim); 
-	for(NDIter<double> pit(biasparams); !pit.eof(); ++pit) {
-		// compute index in input image
-		pit.index(ndim, bind.data());
-		size_t linbias = biasparams->getLinIndex(bind);
-		biasparams->indexToPoint(ndim, bind.data(), point.data());
-		in->pointToIndex(ndim, point.data(), iind.data());
-
-		// create ROI
-		for(size_t dd=0; dd<ndim; dd++) {
-			roi[dd].first = roi_start[dd]+round(iind[dd]);
-			roi[dd].second = roi[dd].first + roi_size[dd]-1;
-		}
-		// construct ROI, iterator for neighborhood of bias field parameter
-		iit.setROI(roi);
-		for(iit.goBegin(); !iit.eof(); ++iit) {
-			// compute index in biasparams
-			iit.index(ndim, iind_i.data());
-			in->indexToPoint(ndim, iind_i.data(), point.data());
-			biasparams->pointToIndex(ndim, point.data(), oind.data());
-
-			// compute weight
-			double w = 1;
-			for(size_t dd=0; dd<ndim; dd++) 
-				w *= B3kern(bind[dd] - oind[dd]);
-
-			bool outside = false;
-			for(size_t dd=0; dd<in->ndim(); dd++){
-				if(iind_i[dd] < 0 || iind_i[dd] >= in->dim(dd))
-					outside = true;
-			}
-			if(!outside && w > 0) {
-				size_t lininput = in->getLinIndex(iind_i);
-				assert(linbias < Bmat.cols());
-				assert(lininput < Bmat.rows());
-#ifdef USE_SPARSE
-				pixB.push_back(Eigen::Triplet<double>(lininput, linbias, w)); 
-#else
-				Bmat(lininput, linbias) = w;
-#endif
-			}
-		}
-	}
-
-	/*****************************************************************
-	 * Least Squares Fit
-	 ****************************************************************/
-#ifdef USE_SPARSE
-	cout << "Done\nBuilding Sparse Matrix..." << endl;
-	Bmat.setFromTriplets(pixB.begin(), pixB.end());
-#endif
-
-	// adjust with relative weighs from mask
-	DBG1(void* ptr = pixels.data());
-	pixels = weights.asDiagonal()*pixels;
-	assert(ptr == pixels.data());
-	
-#ifdef USE_SPARSE
-	Bmat.makeCompressed();
-	Eigen::SparseQR<SparseMat,Eigen::COLAMDOrdering<int>> solver;
-	cout << "Done\nComputing...";
-	solver.compute(Bmat);
-	cout << "Done\nSolving..." << endl;
-	params = solver.solve(pixels);
-#else
-	// perform decomposition
-	Eigen::JacobiSVD<MatrixXd> solver;
-	cout << "Done\nComputing...";
-	solver.compute(weights.asDiagonal()*Bmat, 
-			Eigen::ComputeThinU | Eigen::ComputeThinV);
-
-	double lambda = a_lambda.getValue();
-	if(lambda < 0) {
-		cerr << "Warning negative lambda given, setting to default" << endl;
-		lambda = 1e-3;
-	}
-	cout << "Done\nSolving with lambda="<< lambda << "...";
-
-	// adjust eigenvalues with regularization term
-	// this is a form of Tikhonov Regularization
-	VectorXd sigmas = solver.singularValues();
-	for(size_t ii=0; ii<sigmas.rows(); ii++) {
-		double is = sigmas[ii]/(sigmas[ii]*sigmas[ii]+lambda);
-		if(std::isnan(is) || std::isinf(is) || is > 1e20) {
-			cerr << "Warning odd singular values (inf/nan/>1e20)" << endl;
-			sigmas[ii] = 0;
-		} else
-			sigmas[ii] = is;
-	}
-	params = solver.matrixV()*sigmas.asDiagonal()*solver.matrixU().transpose()*pixels;
-#endif
-
-	/*************************************************************************
-	 * estimate the bias field from the parameters
-	 ************************************************************************/
-	cout << "Estimating Bias Field From Parameters";
-	auto biasfield = dPtrCast<MRImage>(fullres->createAnother(FLOAT64));
-	NDConstIter<double> bp_it(biasparams); // iterator of biasparams
-	for(NDIter<double> it(biasfield); !it.eof(); ++it) {
-		// get index/point
-		it.index(ndim, iind_i.data());
-		biasfield->indexToPoint(ndim, iind_i.data(), point.data());
-		biasparams->pointToIndex(ndim, point.data(), oind.data());
-		for(size_t dd=0; dd<ndim; dd++) 
-			bind[dd] = round(oind[dd]);
-		
-		// create ROI
-		for(size_t dd=0; dd<ndim; dd++) {
-			roi[dd].first = bind[dd]-2;
-			roi[dd].second = bind[dd]+2;
-		}
-
-		// construct ROI, iterator for neighborhood of bias field parameter
-		bp_it.setROI(roi);
-		double sum = 0;
-		for(bp_it.goBegin(); !bp_it.eof(); ++bp_it) {
-			double w = 1;
-			bp_it.index(ndim, bind.data());
-			for(size_t dd=0; dd<ndim; dd++)
-				w *= B3kern(bind[dd]-oind[dd]);
-			sum += w*(*bp_it);
-		}
-		it.set(sum);
-	}
-	cout << "Done" << endl;
-
-#ifdef VERYDEBUG
-	biasfield->write("logbias.nii.gz");
-#endif 
-	for(FlatIter<double> it(biasfield); !it.eof(); ++it) {
-		it.set(exp(*it));
-		if(std::isinf(*it) || std::isnan(*it)) {
-			cerr << "Unusual bias field value (nan/inf) found" << endl;
-			it.set(1);
-		}
-	}
-#ifdef VERYDEBUG
-	biasfield->write("bias.nii.gz");
-#endif 
-
-	cout << "Done\nWriting..." << endl;
-	if(a_biasparams.isSet()) 
-		biasparams->write(a_biasparams.getValue());
-	if(a_biasfield.isSet())
-		biasfield->write(a_biasfield.getValue());
-	if(a_corimage.isSet()) {
-		FlatIter<double> bit(biasfield);
-		FlatIter<double> it(fullres);
-		for(; !it.eof() && !bit.eof(); ++bit, ++it) {
-			it.set((*it)/(*bit));
-		}
-		fullres->write(a_corimage.getValue());
-	}
-	cout << "Done" << endl;
-
-	} catch (TCLAP::ArgException &e)  // catch any exceptions
-	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
 }
-
