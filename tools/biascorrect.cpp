@@ -80,6 +80,16 @@ ptr<MRImage> createBiasField(ptr<const MRImage> in, double bspace);
  */
 double otsuThresh(ptr<const NDArray> in);
 
+/**
+ * @brief Performs bias field estimation, the mask will be used as weights
+ *
+ * @param in MRImage with bias field
+ * @param mask Weights of respective pixels
+ * @param spacing Spacing of bias field image
+ * @param lambda Regularization weight
+ *
+ * @return 
+ */
 ptr<MRImage> estBiasParams(ptr<const MRImage> in, ptr<const MRImage> mask, 
 		double spacing, double lambda);
 
@@ -225,10 +235,12 @@ try {
 	fullres->write("logbias.nii.gz");
 #endif 
 	for(FlatIter<double> it(fullres); !it.eof(); ++it) {
-		it.set(exp(*it));
+		double v = exp(*it);
 		if(std::isinf(*it) || std::isnan(*it)) {
-			cerr << "Unusual bias field value (nan/inf) found" << endl;
+//			cerr << "Unusual bias field value (nan/inf) found" << endl;
 			it.set(1);
+		} else {
+			it.set(v);
 		}
 	}
 	if(a_biasfield.isSet())
@@ -378,6 +390,13 @@ ptr<MRImage> estBiasParams(ptr<const MRImage> in, ptr<const MRImage> weight,
 	return biasparams;
 }
 
+/**
+ * @brief Computes a threshold based on OTSU.
+ *
+ * @param in Input image.
+ *
+ * @return Threshold 
+ */
 double otsuThresh(ptr<const NDArray> in)
 {
 	vector<double> bins(sqrt(in->elements()));
@@ -460,6 +479,47 @@ ptr<MRImage> createBiasField(ptr<const MRImage> in, double bspace)
 	return biasparams;
 }
 
+double mode(ptr<const MRImage> input, ptr<const MRImage> mask)
+{
+	LinInterpNDView<double> m_interp(mask);
+	m_interp.m_ras = true;
+	
+	vector<double> bins(sqrt(input->elements()));
+	vector<double> pt(input->ndim());
+	vector<int64_t> ind(input->ndim());
+	double minv = INFINITY;
+	double maxv = -INFINITY;
+	for(NDConstIter<double> fit(input); !fit.eof(); ++fit) {
+		fit.index(ind);
+		input->indexToPoint(ind.size(), ind.data(), pt.data());
+		double m = m_interp(pt);
+		if(m > 0.5) {
+			minv = std::min(minv, *fit);
+			maxv = std::max(maxv, *fit);
+		} 
+	}
+	double bwidth = 0.99999999*bins.size()/(maxv-minv);
+	for(NDConstIter<double> fit(input); !fit.eof(); ++fit) {
+		fit.index(ind);
+		input->indexToPoint(ind.size(), ind.data(), pt.data());
+		double m = m_interp(pt);
+		if(m > 0.5) {
+			bins[floor((*fit-minv)*bwidth)]++;
+		}
+	}
+
+	maxv = -INFINITY;
+	int maxb = -1;
+	for(size_t bb=0; bb < bins.size(); bb++) {
+		if(bins[bb] > maxv) {
+			maxv = bins[bb];
+			maxb = bb;
+		}
+	}
+
+	return maxb/bwidth + minv;
+}
+
 /**
  * @brief This function does a couple things (which I know violates the rule of
  * functions): it normalizes, logs and and downsampls the input (this is placed
@@ -486,28 +546,17 @@ void preprocInputs(ptr<const MRImage> input,
 	m_interp.m_ras = true;
 	
 	/************************************************************************
-	 * first normalize
+	 * first normalize, dividing by the mode
 	 ************************************************************************/
-	double mean = 0;
-	size_t count = 0;
-	for(NDIter<double> iit(normed); !iit.eof(); ++iit) {
-		iit.index(ind);
-		normed->indexToPoint(ind.size(), ind.data(), pt.data());
-		double m = m_interp(pt);
-		if(m > 0.5) {
-			mean += *iit;
-			count++;
-		}
-	}
-	mean /= count;
-	cerr << "Masked Mean: " << mean;
+	double modev = mode(normed, mask);
+	cerr << "Mode (for normalizing): " << modev << endl;
 	
 	for(NDIter<double> iit(normed); !iit.eof(); ++iit) {
 		iit.index(ind);
 		normed->indexToPoint(ind.size(), ind.data(), pt.data());
 		double m = m_interp(pt);
 		if(m > 0.5) {
-			iit.set(*iit/mean);
+			iit.set(*iit/modev);
 		} else {
 			iit.set(1);
 		}
