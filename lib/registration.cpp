@@ -39,8 +39,6 @@ using Eigen::AngleAxisd;
 using std::cerr;
 using std::endl;
 
-#define DEBUG
-
 #ifdef VERYDEBUG
 #define DEBUGWRITE(FOO) FOO 
 #else
@@ -81,12 +79,12 @@ shared_ptr<MRImage> motionCorrect(shared_ptr<const MRImage> input, size_t ref)
  * @param fixed     Image which will be the target of registration. 
  * @param moving    Image which will be rotated then shifted to match fixed.
  * @param sigmas	Standard deviation of smoothing at each level
- * @param inout		Input/Output rigid transform
  *
+ * @return Output rigid transform
  */
-void corReg3D(shared_ptr<const MRImage> fixed, 
+Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed, 
         shared_ptr<const MRImage> moving, 
-        const std::vector<double>& sigmas, Rigid3DTrans& inout)
+        const std::vector<double>& sigmas)
 {
     using namespace std::placeholders;
     using std::bind;
@@ -96,10 +94,11 @@ void corReg3D(shared_ptr<const MRImage> fixed,
         throw std::invalid_argument("Input images have mismatching pixels "
                 "in\n" + __FUNCTION_STR__);
 
-        
+    
+	Rigid3DTrans rigid;
 	cerr << setw(20) << "Init Rigid:  " << setw(7) << " : " 
-		<< inout.rotation.transpose() << ", " 
-		<< inout.shift.transpose() << endl;
+		<< rigid.rotation.transpose() << ", " 
+		<< rigid.shift.transpose() << endl;
     
     for(size_t ii=0; ii<sigmas.size(); ii++) {
         // smooth and downsample input images
@@ -121,19 +120,21 @@ void corReg3D(shared_ptr<const MRImage> fixed,
         opt.stop_X = 0.00001;
         opt.stop_G = 0;
         opt.stop_F = 0;
+//		for(size_t dd=0; dd<3; dd++)
+//			opt.opt_scale[dd] = 1/10;
 
         // grab the parameters from the previous iteration (or initialized)
-        inout.toIndexCoords(sm_moving, true);
+        rigid.toIndexCoords(sm_moving, true);
         for(size_t ii=0; ii<3; ii++) {
-            opt.state_x[ii] = inout.rotation[ii];
-            opt.state_x[ii+3] = inout.shift[ii];
-            assert(inout.center[ii] == (sm_moving->dim(ii)-1.)/2.);
+            opt.state_x[ii] = rigid.rotation[ii];
+            opt.state_x[ii+3] = rigid.shift[ii];
+            assert(rigid.center[ii] == (sm_moving->dim(ii)-1.)/2.);
         }
 
 //        cerr << "Init Rigid (Index Coord): " << ii << endl;
-//        cerr << "Rotation: " << inout.rotation.transpose() << endl;
-//        cerr << "Center : " << inout.center.transpose() << endl;
-//        cerr << "Shift : " << inout.shift.transpose() << endl;
+//        cerr << "Rotation: " << rigid.rotation.transpose() << endl;
+//        cerr << "Center : " << rigid.center.transpose() << endl;
+//        cerr << "Shift : " << rigid.shift.transpose() << endl;
 
         // run the optimizer
         opt.optimize();
@@ -143,26 +144,27 @@ void corReg3D(shared_ptr<const MRImage> fixed,
         // set values from parameters, and convert to RAS coordinate so that no
         // matter the sampling after smoothing the values remain
         for(size_t ii=0; ii<3; ii++) {
-            inout.rotation[ii] = opt.state_x[ii];
-            inout.shift[ii] = opt.state_x[ii+3];
-            inout.center[ii] = (sm_moving->dim(ii)-1)/2.;
+            rigid.rotation[ii] = opt.state_x[ii];
+            rigid.shift[ii] = opt.state_x[ii+3];
+            rigid.center[ii] = (sm_moving->dim(ii)-1)/2.;
         }
 
 //        cerr << "Finished Rigid (Index Coord): " << ii << endl;
-//        cerr << "Rotation: " << inout.rotation.transpose() << endl;
-//        cerr << "Center : " << inout.center.transpose() << endl;
-//        cerr << "Shift : " << inout.shift.transpose() << endl;
+//        cerr << "Rotation: " << rigid.rotation.transpose() << endl;
+//        cerr << "Center : " << rigid.center.transpose() << endl;
+//        cerr << "Shift : " << rigid.shift.transpose() << endl;
         
-        inout.toRASCoords(sm_moving);
+        rigid.toRASCoords(sm_moving);
         cerr << setw(20) << "After Rigid: " << setw(4) << ii << " : " 
-					<< inout.rotation.transpose() << ", " 
-					<< inout.shift.transpose() << endl;
+					<< rigid.rotation.transpose() << ", " 
+					<< rigid.shift.transpose() << endl;
     }
 	cerr << setw(20) << "Final Rigid: " << setw(7) << " : " 
-		<< inout.rotation.transpose() << ", " 
-		<< inout.shift.transpose() << endl;
+		<< rigid.rotation.transpose() << ", " 
+		<< rigid.shift.transpose() << endl;
 	cerr << "==========================================" << endl;
 
+	return rigid;
 };
 
 /**
@@ -210,8 +212,10 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
 
         // initialize optimizer
         LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
+//		for(size_t dd=0; dd<3; dd++)
+//			opt.opt_scale[dd] = .1;
         opt.stop_Its = 10000;
-        opt.stop_X = 0.0001;
+        opt.stop_X = 0.00001;
         opt.stop_G = 0;
         opt.stop_F = 0;
         
@@ -1008,7 +1012,7 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 						m_gradHjoint[ii]*(m_Hfix+m_Hmove)/(m_Hjoint*m_Hjoint);
 	}
 
-#ifdef VERYDEBUG
+#if defined DEBUG || defined VERYDEBUG
     cerr << "Fixed  Entropy: " << m_Hfix << endl;
     cerr << "Moving Entropy: " << m_Hmove<< endl;
     cerr << "Joint  Entropy: " << m_Hjoint << endl;
@@ -1144,7 +1148,7 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
 		val =  (m_Hfix+m_Hmove)/m_Hjoint;
 	}
 
-#ifdef VERYDEBUG
+#if defined DEBUG || defined VERYDEBUG
     cerr << "Fixed  Entropy: " << m_Hfix << endl;
     cerr << "Moving Entropy: " << m_Hmove<< endl;
     cerr << "Joint  Entropy: " << m_Hjoint << endl;
@@ -1239,7 +1243,10 @@ Matrix3d Rigid3DTrans::rotMatrix()
  */
 void Rigid3DTrans::toRASCoords(shared_ptr<const MRImage> in)
 {
-    ras_coord = true;
+	if(ras_coord)
+		return;
+
+	ras_coord = true;
 
     Matrix3d R, Q, A;
     Vector3d c, s, d, t, b;
@@ -1319,6 +1326,9 @@ void Rigid3DTrans::toRASCoords(shared_ptr<const MRImage> in)
 void Rigid3DTrans::toIndexCoords(shared_ptr<const MRImage> in, 
         bool forcegridcenter)
 {
+	if(!ras_coord)
+		return;
+
 	ras_coord = false;
 
 	Matrix3d R, Q, A;

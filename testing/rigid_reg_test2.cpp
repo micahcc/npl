@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file smooth_test1.cpp
+ * @file rigid_reg_test2.cpp Tests correlation based rigid registration
  *
  *****************************************************************************/
 
@@ -102,18 +102,16 @@ int main()
 
     // rotate it
     auto moved = dPtrCast<MRImage>(img->copy());
-    rotateImageShearFFT(moved, truerotate[0], truerotate[1], truerotate[2]);
+    rotateImageShearKern(moved, truerotate[0], truerotate[1], truerotate[2]);
 
-    shiftImageFFT(moved, 0, trueshift[0]);
-    shiftImageFFT(moved, 1, trueshift[1]);
-    shiftImageFFT(moved, 2, trueshift[2]);
+	for(size_t ii=0; ii<3; ii++)
+		shiftImageKern(moved, ii, trueshift[ii]);
     
     cerr << "Input Image:\n" << *img << endl;
     cerr << "Rigidly Transformed Image:\n" << *moved << endl;
 
     std::vector<double> sigma_schedule({4,2,0});
-	Rigid3DTrans out;
-    corReg3D(img, moved, sigma_schedule, out);
+	auto out = corReg3D(img, moved, sigma_schedule);
 
 	out.toIndexCoords(moved, true);
     cerr << "Final Parameters: " << out << endl;
