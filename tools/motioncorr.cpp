@@ -100,9 +100,9 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 	// initialize optimizer
 	LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
 	opt.stop_Its = 10000;
-	opt.stop_X = 0.0001;
+	opt.stop_X = 0.00001;
 	opt.stop_G = 0;
-	opt.stop_F = 0.0001;
+	opt.stop_F = 0;
 	opt.state_x.setZero();
 	Rigid3DTrans rigid;
 	for(size_t tt=0; tt<fmri->tlen(); tt++) {
@@ -231,12 +231,12 @@ int main(int argc, char** argv)
 	vector<vector<double>> motion;
 
 	// set up sigmas
-	vector<double> sigmas({1,0.5,0});
+	vector<double> sigmas({1.5,0.75,0});
 	if(a_sigmas.isSet()) 
 		sigmas.assign(a_sigmas.begin(), a_sigmas.end());
 	
 	// set up threshold
-	vector<double> thresh({0.99,0.99,0.99});
+	vector<double> thresh({0.999,0.999,1});
 	if(a_thresh.isSet()) 
 		thresh.assign(a_sigmas.begin(), a_sigmas.end());
 	for(auto& v: thresh) 
@@ -305,7 +305,6 @@ int main(int argc, char** argv)
 		// extract timepoint
 		for(iit.goBegin(), vit.goBegin(); !iit.eof(); ++iit, ++vit) 
 			vit.set(iit[tt]);
-		vol->write("original"+to_string(tt)+".nii.gz");
 	
 		// Convert from RAS to index
 		for(size_t dd=0; dd<3; dd++) {
@@ -314,17 +313,14 @@ int main(int argc, char** argv)
 			rigid.shift[dd] = motion[tt][dd+6];
 		}
 		rigid.toIndexCoords(vol, true);
-		rigid.invert();
+//		rigid.invert();
 		cerr << "Rigid Transform: " << tt << "\n" << rigid <<endl;
-		vol->write("rotated"+to_string(tt)+".nii.gz");
 		
 		// Apply Rigid Transform
 		rotateImageShearKern(vol, rigid.rotation[0], rigid.rotation[1], 
 				rigid.rotation[2]);
-		vol->write("rotated"+to_string(tt)+".nii.gz");
 		for(size_t dd=0; dd<3; dd++) 
 			shiftImageKern(vol, dd, rigid.shift[dd]);
-		vol->write("shifted_rotated"+to_string(tt)+".nii.gz");
 
 		// Copy Result Back to input image
 		for(iit.goBegin(), vit.goBegin(); !iit.eof(); ++iit, ++vit) 
