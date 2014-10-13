@@ -7,7 +7,7 @@ def build(bld):
 
     bld.program(target = 'nplMotionCorr', 
             source = 'motioncorr.cpp', 
-            use = 'mrimage_utils registration lbfgs tclap nplio iterators accessors')
+            use = 'mrimage_utils registration gradient tclap nplio iterators accessors')
 
     bld.program(target = 'nplRigidReg', 
             source = 'rigidreg.cpp', 
