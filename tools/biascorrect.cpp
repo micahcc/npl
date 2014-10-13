@@ -178,15 +178,17 @@ try {
 		double thresh = otsuThresh(fullres);
 
 		// binarize/threshold
-		cerr << "Threshold: " << thresh << endl;
+		cout << " (Threshold: " << thresh << ") ";
 		for(FlatIter<double> fit(fullmask); !fit.eof(); ++fit) {
 			fit.set(*fit > thresh);
 		}
 		fullmask = dPtrCast<MRImage>(erode(fullmask, 1));
 	}
 	cout << "Done...";
+#if defined VERYDEBUG || DEBUG
 	fullmask->write("fullmask.nii.gz");
-	
+#endif 
+
 	/****************************************************
 	 * Create Downsampled, logged Versions if Inputs
 	 ****************************************************/
@@ -212,7 +214,7 @@ try {
 	 ************************************************************************/
 
 	fullres = reconstructBiasField(biasparams, fullres);
-#ifdef VERYDEBUG
+#if defined VERYDEBUG || DEBUG
 	fullres->write("logbias.nii.gz");
 #endif 
 	for(FlatIter<double> it(fullres); !it.eof(); ++it) {
@@ -604,7 +606,7 @@ void preprocInputs(ptr<const MRImage> input,
 	 * first normalize, dividing by the mode
 	 ************************************************************************/
 	double modev = mode(normed, mask);
-	cerr << "Mode (for normalizing): " << modev << endl;
+	cout  << " (Mode for normalizing: " << modev << " ) "; ;
 	
 	for(NDIter<double> iit(normed); !iit.eof(); ++iit) {
 		iit.index(ind);
@@ -616,7 +618,9 @@ void preprocInputs(ptr<const MRImage> input,
 			iit.set(1);
 		}
 	}
+#if defined VERYDEBUG || DEBUG
 	normed->write("normed.nii.gz");
+#endif
 
 	for(FlatIter<double> iit(normed); !iit.eof(); ++iit) {
 		if(*iit < 0)
@@ -624,7 +628,9 @@ void preprocInputs(ptr<const MRImage> input,
 		else
 			iit.set(log(*iit));
 	}
+#if defined VERYDEBUG || DEBUG
 	normed->write("logged.nii.gz");
+#endif
 
 	/************************************************************************
 	 * Now Downsample
