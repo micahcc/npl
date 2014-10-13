@@ -20,9 +20,6 @@
 #ifndef REGISTRATION_H
 #define REGISTRATION_H
 
-//#define VERYDEBUG
-//#define DEBUG
-
 #include "mrimage.h"
 #include "accessors.h"
 #include "iterators.h"
@@ -306,7 +303,7 @@ struct Rigid3DTrans
     bool ras_coord;
 
     Rigid3DTrans() {
-        ras_coord = false;
+        ras_coord = true;
         rotation.setZero();
         shift.setZero();
         center.setZero();
@@ -408,11 +405,11 @@ shared_ptr<MRImage> motionCorrect(shared_ptr<const MRImage> input, size_t ref);
  * @param fixed     Image which will be the target of registration. 
  * @param moving    Image which will be rotated then shifted to match fixed.
  * @param sigmas	Standard deviation of smoothing at each level
- * @param inout		Input/Output rigid transform
  *
+ * @return Output rigid transform
  */
-void corReg3D(shared_ptr<const MRImage> fixed, shared_ptr<const MRImage> moving, 
-        const std::vector<double>& sigmas, Rigid3DTrans& inout);
+Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed, shared_ptr<const MRImage> moving, 
+        const std::vector<double>& sigmas);
 
 /**
  * @brief Performs information-based registration between two 3D volumes. note

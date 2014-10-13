@@ -83,7 +83,7 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 		
 		for(size_t dd=0; dd<3; dd++) 
 			gaussianSmooth1D(fixed.back(), dd, sigmas[ii]);
-		fixed.back()->write("fixed_"+to_string(ii)+".nii.gz");
+//		fixed.back()->write("fixed_"+to_string(ii)+".nii.gz");
 	}
 
 	// Registration Tools
@@ -138,12 +138,12 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 				comp.m_fixed = fixed[ii];
 				comp.updatedInputs();
 				
-				comp.m_moving->write("moving_"+to_string(ii)+"_"+to_string(tt)
-						+".nii.gz");
-				comp.m_dmoving->write("dmoving_"+to_string(ii)+"_"+to_string(tt)
-						+".nii.gz");
-				comp.m_fixed->write("fixed_"+to_string(ii)+"_"+to_string(tt)
-						+".nii.gz");
+//				comp.m_moving->write("moving_"+to_string(ii)+"_"+to_string(tt)
+//						+".nii.gz");
+//				comp.m_dmoving->write("dmoving_"+to_string(ii)+"_"+to_string(tt)
+//						+".nii.gz");
+//				comp.m_fixed->write("fixed_"+to_string(ii)+"_"+to_string(tt)
+//						+".nii.gz");
 				
 				// run the optimizer
 //				opt.stop_F_under = hardstops[ii];

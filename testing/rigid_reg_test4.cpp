@@ -47,7 +47,7 @@ double gaussGen(double x, double y, double z, double xsz, double ysz, double zsz
 shared_ptr<MRImage> gaussianImage()
 {
     // create an image
-    size_t sz[] = {64,64,64};
+    size_t sz[] = {32,32,32};
     int64_t index[3];
     auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, FLOAT64);
 
@@ -97,14 +97,15 @@ int main()
     // create test image
     auto img = gaussianImage();
     //auto img = squareImage();
+	double trueshift[3] = {5,7,-2};
+	double truerotate[3] = {.1,.1,.2};
 
     // rotate it
     auto moved = dPtrCast<MRImage>(img->copy());
-    rotateImageShearFFT(moved, .1, .1, .2);
+    rotateImageShearKern(moved, truerotate[0], truerotate[1], truerotate[2]);
 
-    shiftImageFFT(moved, 0, 5);
-    shiftImageFFT(moved, 1, 7);
-    shiftImageFFT(moved, 2, -2);
+	for(size_t ii=0; ii<3; ii++)
+		shiftImageKern(moved, ii, trueshift[ii]);
     
     // invert
     for(NDIter<double> it(moved); !it.eof(); ++it) 
@@ -113,11 +114,21 @@ int main()
     cerr << "Input Image:\n" << *img << endl;
     cerr << "Rigidly Transformed Image:\n" << *moved << endl;
 
-    std::vector<double> sigma_schedule({4,3,2});
+    std::vector<double> sigma_schedule({4,2,0});
     auto out = informationReg3D(img, moved, sigma_schedule);
-
+	out.toIndexCoords(moved, true);
     cerr << "Final Parameters: " << out << endl;
+	
+	for(size_t dd=0; dd<3; dd++) {
+		if(fabs(truerotate[dd] - out.rotation[dd]) > 0.01) {
+			cerr << "Rotate " << dd << " differs!" << endl;
+			return -1;
+		}
+		if(fabs(trueshift[dd] - out.shift[dd]) > 0.01) {
+			cerr << "Shift " << dd << " differs!" << endl;
+			return -1;
+		}
+	}
     return 0;
 }
-
 
