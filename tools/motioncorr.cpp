@@ -24,6 +24,7 @@
 #include <tclap/CmdLine.h>
 
 #include "gradient.h"
+#include "lbfgs.h"
 #include "registration.h"
 
 #include "nplio.h"
@@ -100,13 +101,13 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 	// initialize optimizer
 //	LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
 	GradientOpt opt(6, vfunc, gfunc, vgfunc);
+	opt.opt_init_scale = 1;
 	opt.stop_Its = 10000;
-	opt.stop_X = 0.00001;
+	opt.stop_X = 0.000001;
 	opt.stop_G = 0;
 	opt.stop_F = 0;
-	opt.opt_maxstep = INFINITY;
-	opt.opt_rdec_scale = 1;
-	opt.opt_init_scale = 1;
+//	opt.opt_ls_beta = 0.5;
+//	opt.opt_ls_s = 100;
 	opt.state_x.setZero();
 	Rigid3DTrans rigid;
 	for(size_t tt=0; tt<fmri->tlen(); tt++) {
@@ -137,12 +138,19 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 				comp.m_fixed = fixed[ii];
 				comp.updatedInputs();
 				
+				comp.m_moving->write("moving_"+to_string(ii)+"_"+to_string(tt)
+						+".nii.gz");
+				comp.m_dmoving->write("dmoving_"+to_string(ii)+"_"+to_string(tt)
+						+".nii.gz");
+				comp.m_fixed->write("fixed_"+to_string(ii)+"_"+to_string(tt)
+						+".nii.gz");
+				
 				// run the optimizer
-				opt.stop_F_under = hardstops[ii];
+//				opt.stop_F_under = hardstops[ii];
 //				opt.reset_history();
-//				StopReason stopr = opt.optimize();
-//				cerr << Optimizer::explainStop(stopr) << endl;
-				opt.optimize();
+				StopReason stopr = opt.optimize();
+				cerr << Optimizer::explainStop(stopr) << endl;
+//				opt.optimize();
 
 //				cerr << setw(20) << "After Rigid: " << setw(4) << ii << " : " 
 //					<< opt.state_x.transpose() << endl;
@@ -235,12 +243,12 @@ int main(int argc, char** argv)
 	vector<vector<double>> motion;
 
 	// set up sigmas
-	vector<double> sigmas({1.5,0.75,0});
+	vector<double> sigmas({2.5,1.25,0});
 	if(a_sigmas.isSet()) 
 		sigmas.assign(a_sigmas.begin(), a_sigmas.end());
 	
 	// set up threshold
-	vector<double> thresh({0.999,0.999,1});
+	vector<double> thresh({0.999,0.999,0.999});
 	if(a_thresh.isSet()) 
 		thresh.assign(a_sigmas.begin(), a_sigmas.end());
 	for(auto& v: thresh) 
@@ -317,14 +325,16 @@ int main(int argc, char** argv)
 			rigid.shift[dd] = motion[tt][dd+6];
 		}
 		rigid.toIndexCoords(vol, true);
-//		rigid.invert();
+		rigid.invert();
 		cerr << "Rigid Transform: " << tt << "\n" << rigid <<endl;
 		
 		// Apply Rigid Transform
 		rotateImageShearKern(vol, rigid.rotation[0], rigid.rotation[1], 
 				rigid.rotation[2]);
+		vol->write("rot_"+to_string(tt)+".nii.gz");
 		for(size_t dd=0; dd<3; dd++) 
 			shiftImageKern(vol, dd, rigid.shift[dd]);
+		vol->write("shift_"+to_string(tt)+".nii.gz");
 
 		// Copy Result Back to input image
 		for(iit.goBegin(), vit.goBegin(); !iit.eof(); ++iit, ++vit) 

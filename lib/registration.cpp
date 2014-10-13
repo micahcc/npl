@@ -39,6 +39,8 @@ using Eigen::AngleAxisd;
 using std::cerr;
 using std::endl;
 
+#define DEBUG
+
 #ifdef VERYDEBUG
 #define DEBUGWRITE(FOO) FOO 
 #else
@@ -123,8 +125,8 @@ void corReg3D(shared_ptr<const MRImage> fixed,
         // grab the parameters from the previous iteration (or initialized)
         inout.toIndexCoords(sm_moving, true);
         for(size_t ii=0; ii<3; ii++) {
-            opt.state_x[ii] = inout.rotation[ii];
-            opt.state_x[ii+3] = inout.shift[ii];
+            opt.state_x[ii] = inout.rotation[ii]/M_PI*180.;
+            opt.state_x[ii+3] = inout.shift[ii]*sm_moving->spacing(ii);
             assert(inout.center[ii] == (sm_moving->dim(ii)-1.)/2.);
         }
 
@@ -141,8 +143,8 @@ void corReg3D(shared_ptr<const MRImage> fixed,
         // set values from parameters, and convert to RAS coordinate so that no
         // matter the sampling after smoothing the values remain
         for(size_t ii=0; ii<3; ii++) {
-            inout.rotation[ii] = opt.state_x[ii];
-            inout.shift[ii] = opt.state_x[ii+3];
+            inout.rotation[ii] = opt.state_x[ii]*M_PI/180.;
+            inout.shift[ii] = opt.state_x[ii+3]/sm_moving->spacing(ii);
             inout.center[ii] = (sm_moving->dim(ii)-1)/2.;
         }
 
@@ -410,6 +412,10 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
     double sy = params[4]/m_moving->spacing(1);
     double sz = params[5]/m_moving->spacing(2);
 
+#if defined DEBUG || defined VERYDEBUG
+	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: " 
+		<< sx << ", " << sy << ", " << sz << endl;
+#endif
 #ifdef VERYDEBUG
     cerr << "ValGrad()" << endl;
     Pixel3DView<double> d_ang_x(d_theta_x);
@@ -610,6 +616,10 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
     double sx = params[3]/m_moving->spacing(0);
     double sy = params[4]/m_moving->spacing(1);
     double sz = params[5]/m_moving->spacing(2);
+#if defined DEBUG || defined VERYDEBUG
+	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: " 
+		<< sx << ", " << sy << ", " << sz << endl;
+#endif
 
 	double ind[3];
 	double cind[3];
@@ -812,6 +822,10 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
     double sx = params[3]/m_moving->spacing(0);
     double sy = params[4]/m_moving->spacing(1);
     double sz = params[5]/m_moving->spacing(2);
+#if defined DEBUG || defined VERYDEBUG
+	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: " 
+		<< sx << ", " << sy << ", " << sz << endl;
+#endif
 
     // Zero Everything
     m_pdfmove.zero();
@@ -1045,6 +1059,10 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
     double sx = params[3]/m_moving->spacing(0);
     double sy = params[4]/m_moving->spacing(1);
     double sz = params[5]/m_moving->spacing(2);
+#if defined DEBUG || defined VERYDEBUG
+	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: " 
+		<< sx << ", " << sy << ", " << sz << endl;
+#endif
 
     // Zero 
     m_pdfmove.zero();

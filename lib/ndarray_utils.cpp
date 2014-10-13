@@ -1532,7 +1532,8 @@ int rotateImageShearKern(ptr<NDArray> inout, double rx, double ry, double rz,
 		}
 
 		// perform shear
-		shearImageKern(inout, sheardim, 3, shearvals, kern);
+		if(sheardim != -1)
+			shearImageKern(inout, sheardim, 3, shearvals, kern);
 	}
 	
 	return 0;
