@@ -113,6 +113,7 @@ int main()
 	Rigid3DTrans out;
     corReg3D(img, moved, sigma_schedule, out);
 
+	out.toIndexCoords(moved, true);
     cerr << "Final Parameters: " << out << endl;
     return 0;
 }
