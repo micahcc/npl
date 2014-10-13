@@ -56,7 +56,7 @@ using namespace std;
  * outside_weight)
  */
 void preprocInputs(ptr<const MRImage> input, 
-		ptr<const MRImage> mask, double spacing, double outside_weight,
+		ptr<const MRImage> mask, double spacing, 
 		ptr<MRImage>& downimg, ptr<MRImage>& downmask);
 
 /**
@@ -93,6 +93,26 @@ double otsuThresh(ptr<const NDArray> in);
 ptr<MRImage> estBiasParams(ptr<const MRImage> in, ptr<const MRImage> mask, 
 		double spacing, double lambda);
 
+/**
+ * @brief Constructs a bias field in the space of input, based on the
+ * parameters in biasparams
+ *
+ * @param biasparams Parameters of bias field
+ * @param input Input spacing image
+ *
+ * @return Bias field sampled on the input grid 
+ */
+ptr<MRImage> reconstructBiasField(ptr<const MRImage> biasparams,
+		ptr<const MRImage> input);
+
+/**
+ * @brief The main function
+ *
+ * @param argc
+ * @param argv
+ *
+ * @return 
+ */
 int main(int argc, char** argv)
 {
 try {
@@ -119,10 +139,6 @@ try {
 	TCLAP::ValueArg<double> a_lambda("R", "regweight", "Regularization weight "
 			"for ridge regression. Larger values will cause a smoother result",
 			false, 1.e-5, "ratio", cmd);
-	TCLAP::ValueArg<double> a_oweight("O", "oweight", "Weight of pixels "
-			"outside the mask (which prevents numerical instability",
-			false, 1.e-5, "ratio", cmd);
-
 	TCLAP::ValueArg<string> a_biasfield("b", "biasfield", "Bias Field Image.",
 			false, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_biasparams("B", "bparams", "Bias Field "
@@ -139,7 +155,6 @@ try {
 	ptr<MRImage> fullres = readMRImage(a_in.getValue());
 	fullres = dPtrCast<MRImage>(fullres->copyCast(min(fullres->ndim(),3UL), 
 				fullres->dim(), FLOAT64));
-	size_t ndim = fullres->ndim();
 
 	/****************************************************
 	 * Read or Create Mask
@@ -155,7 +170,7 @@ try {
 			if(v > 0)
 				fit.set(1);
 			else
-				fit.set(a_oweight.getValue());
+				fit.set(0);
 		}
 
 	} else {
@@ -178,8 +193,7 @@ try {
 	cout << "Downsampling/Normalizing...";
 	ptr<MRImage> dinput;
 	ptr<MRImage> dmask;
-	preprocInputs(fullres, fullmask, a_downspace.getValue(),
-			a_oweight.getValue(), dinput, dmask);
+	preprocInputs(fullres, fullmask, a_downspace.getValue(), dinput, dmask);
 	fullmask.reset();
 	cout << "Done" << endl;
 	
@@ -196,41 +210,8 @@ try {
 	/*************************************************************************
 	 * estimate the bias field from the parameters
 	 ************************************************************************/
-	cout << "Estimating Bias Field From Parameters";
-	vector<pair<int64_t,int64_t>> roi(ndim);
-	NDConstIter<double> bp_it(biasparams); // iterator of biasparams
-	vector<int64_t> ind(ndim); // index
-	vector<double> pt(ndim);   // point
-	vector<double> cind(ndim); // continuous index
-	for(NDIter<double> it(fullres); !it.eof(); ++it) {
 
-		// get continuous index of voxel
-		it.index(ind.size(), ind.data());
-		fullres->indexToPoint(ind.size(), ind.data(), pt.data());
-		biasparams->pointToIndex(pt.size(), pt.data(), cind.data());
-		for(size_t dd=0; dd<ndim; dd++) 
-			ind[dd] = round(cind[dd]);
-		
-		// create ROI from nearest index to continuous one
-		for(size_t dd=0; dd<ndim; dd++) {
-			roi[dd].first = ind[dd]-2;
-			roi[dd].second = ind[dd]+2;
-		}
-
-		// construct ROI, iterator for neighborhood of bias field parameter
-		bp_it.setROI(roi);
-		double sum = 0;
-		for(bp_it.goBegin(); !bp_it.eof(); ++bp_it) {
-			double w = 1;
-			bp_it.index(ind.size(), ind.data());
-			for(size_t dd=0; dd<ndim; dd++)
-				w *= B3kern(ind[dd]-cind[dd]);
-			sum += w*(*bp_it);
-		}
-		it.set(sum);
-	}
-	cout << "Done" << endl;
-
+	fullres = reconstructBiasField(biasparams, fullres);
 #ifdef VERYDEBUG
 	fullres->write("logbias.nii.gz");
 #endif 
@@ -254,6 +235,7 @@ try {
 		// Re-Read Input (even if it is 4D)
 		auto input = readMRImage(a_in.getValue());
 
+		vector<int64_t> ind(fullres->ndim());
 		NDView<double> b_vw(fullres);
 		for(NDIter<double> iit(input); !iit.eof(); ++iit) {
 			iit.index(ind);
@@ -391,6 +373,76 @@ ptr<MRImage> estBiasParams(ptr<const MRImage> in, ptr<const MRImage> weight,
 }
 
 /**
+ * @brief Reconstruct a bias field in the spacing of the input image
+ *
+ * @param input Image to use sa the template for the bias field parameters
+ *
+ * @return (log) Bias field image
+ */
+ptr<MRImage> reconstructBiasField(ptr<const MRImage> biasparams,
+		ptr<const MRImage> input)
+{
+	cout << "Estimating Bias Field From Parameters";
+	if(biasparams->getDirection() != input->getDirection()) {
+		throw INVALID_ARGUMENT("Input bias parameters and sample image do "
+				"not have identical direction matrices!");
+	}
+
+	auto out = dPtrCast<MRImage>(input->createAnother());
+	
+	// for each kernel, iterate over the points in the neighborhood
+	size_t ndim = input->ndim();
+	vector<pair<int64_t,int64_t>> roi(ndim);
+	NDIter<double> pit(out); // iterator of pixels
+	vector<int64_t> pind(ndim); // index of pixel
+	vector<int64_t> ind(ndim); // index
+	vector<double> pt(ndim);   // point
+	vector<double> cind(ndim); // continuous index
+
+	vector<int> winsize(ndim);
+	vector<vector<double>> karray(ndim);
+	vector<vector<int>> iarray(ndim);
+	for(size_t dd=0; dd<ndim; dd++) {
+		winsize[dd] = 1+4*ceil(biasparams->spacing(dd)/out->spacing(dd));
+		karray[dd].resize(winsize[dd]);
+	}
+
+	// We go through each parameter, and compute the weight of the B-spline
+	// parameter at each pixel within the range (2 indexes in parameter
+	// space, 2*S_B/S_I indexs in pixel space)
+	for(NDConstIter<double> bit(biasparams); !bit.eof(); ++bit) {
+		
+		// get continuous index of pixel
+		bit.index(ind.size(), ind.data());
+		biasparams->indexToPoint(ind.size(), ind.data(), pt.data());
+		out->pointToIndex(pt.size(), pt.data(), cind.data());
+
+		// construct weights / construct ROI
+		double dist = 0;
+		for(size_t dd=0; dd<ndim; dd++) {
+			pind[dd] = round(cind[dd]); //pind is the center
+			for(int ww=-winsize[dd]/2; ww<=winsize[dd]/2; ww++) {
+				dist = (pind[dd]+ww-cind[dd])*out->spacing(dd)/biasparams->spacing(dd);
+				karray[dd][ww+winsize[dd]/2] = B3kern(dist);
+			}
+			roi[dd].first = pind[dd]-winsize[dd]/2;
+			roi[dd].second = pind[dd]+winsize[dd]/2;
+		}
+
+		pit.setROI(roi);
+		for(pit.goBegin(); !pit.eof(); ++pit) {
+			pit.index(ind);
+			double w = 1;
+			for(size_t dd=0; dd<ndim; dd++)
+				w *= karray[dd][ind[dd]-pind[dd]+winsize[dd]/2];
+			pit.set(*pit + w*(*bit));
+		}
+	}
+
+	return out;
+}
+
+/**
  * @brief Computes a threshold based on OTSU.
  *
  * @param in Input image.
@@ -476,6 +528,9 @@ ptr<MRImage> createBiasField(ptr<const MRImage> in, double bspace)
 	origin = ptc - in->getDirection()*(spacing.asDiagonal()*indc);
 	biasparams->setOrigin(origin, false);
 
+	for(FlatIter<double> it(biasparams); !it.eof(); ++it) 
+		it.set(0);
+
 	return biasparams;
 }
 
@@ -535,7 +590,7 @@ double mode(ptr<const MRImage> input, ptr<const MRImage> mask)
  * outside_weight)
  */
 void preprocInputs(ptr<const MRImage> input, 
-		ptr<const MRImage> mask, double spacing, double outside_weight,
+		ptr<const MRImage> mask, double spacing, 
 		ptr<MRImage>& downimg, ptr<MRImage>& downmask)
 {
 	auto normed = dPtrCast<MRImage>(input->copy());
@@ -600,7 +655,7 @@ void preprocInputs(ptr<const MRImage> input,
 		if(m > 0.5) {
 			mit.set(1);
 		} else {
-			mit.set(outside_weight);
+			mit.set(0);
 		}
 	}
 }
