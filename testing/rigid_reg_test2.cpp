@@ -97,14 +97,16 @@ int main()
     // create test image
     auto img = gaussianImage();
     //auto img = squareImage();
+	double trueshift[3] = {5,7,-2};
+	double truerotate[3] = {.1,.1,.2};
 
     // rotate it
     auto moved = dPtrCast<MRImage>(img->copy());
-    rotateImageShearFFT(moved, .1, .1, .2);
+    rotateImageShearFFT(moved, truerotate[0], truerotate[1], truerotate[2]);
 
-    shiftImageFFT(moved, 0, 5);
-    shiftImageFFT(moved, 1, 7);
-    shiftImageFFT(moved, 2, -2);
+    shiftImageFFT(moved, 0, trueshift[0]);
+    shiftImageFFT(moved, 1, trueshift[1]);
+    shiftImageFFT(moved, 2, trueshift[2]);
     
     cerr << "Input Image:\n" << *img << endl;
     cerr << "Rigidly Transformed Image:\n" << *moved << endl;
@@ -115,6 +117,17 @@ int main()
 
 	out.toIndexCoords(moved, true);
     cerr << "Final Parameters: " << out << endl;
+	
+	for(size_t dd=0; dd<3; dd++) {
+		if(fabs(truerotate[dd] - out.rotation[dd]) > 0.01) {
+			cerr << "Rotate " << dd << " differs!" << endl;
+			return -1;
+		}
+		if(fabs(trueshift[dd] - out.shift[dd]) > 0.01) {
+			cerr << "Shift " << dd << " differs!" << endl;
+			return -1;
+		}
+	}
     return 0;
 }
 
