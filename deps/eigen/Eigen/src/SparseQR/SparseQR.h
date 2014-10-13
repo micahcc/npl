@@ -447,7 +447,7 @@ void SparseQR<MatrixType,OrderingType>::factorize(const MatrixType& mat)
       }
     } // End update current column
     
-    Scalar tau;
+    Scalar tau = 0;
     RealScalar beta = 0;
     
     if(nonzeroCol < diagSize)

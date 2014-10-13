@@ -23,7 +23,7 @@
 
 #include <tclap/CmdLine.h>
 
-#include "lbfgs.h"
+#include "gradient.h"
 #include "registration.h"
 
 #include "nplio.h"
@@ -98,11 +98,15 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 	auto gfunc = bind(&RigidCorrComputer::grad, &comp, _1, _2);
 	
 	// initialize optimizer
-	LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
+//	LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
+	GradientOpt opt(6, vfunc, gfunc, vgfunc);
 	opt.stop_Its = 10000;
 	opt.stop_X = 0.00001;
 	opt.stop_G = 0;
 	opt.stop_F = 0;
+	opt.opt_maxstep = INFINITY;
+	opt.opt_rdec_scale = 1;
+	opt.opt_init_scale = 1;
 	opt.state_x.setZero();
 	Rigid3DTrans rigid;
 	for(size_t tt=0; tt<fmri->tlen(); tt++) {
@@ -135,7 +139,7 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 				
 				// run the optimizer
 				opt.stop_F_under = hardstops[ii];
-				opt.reset_history();
+//				opt.reset_history();
 //				StopReason stopr = opt.optimize();
 //				cerr << Optimizer::explainStop(stopr) << endl;
 				opt.optimize();
