@@ -1175,14 +1175,16 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
  */
 void Rigid3DTrans::invert() 
 {
-        auto tmp_shift = shift;
-        auto tmp_center = center;
-        auto tmp_rotation = rotation;
-        shift = -tmp_shift;
-        center = tmp_center+tmp_shift;
-        rotation[2] = -tmp_rotation[0];
-        rotation[1] = -tmp_rotation[1];
-        rotation[0] = -tmp_rotation[2];
+	if(!ras_coord) 
+		throw INVALID_ARGUMENT("Its Bad To Invert in Index Coordinates");
+	auto tmp_shift = shift;
+	auto tmp_center = center;
+	auto tmp_rotation = rotation;
+	shift = -tmp_shift;
+	center = tmp_center+tmp_shift;
+	rotation[2] = -tmp_rotation[0];
+	rotation[1] = -tmp_rotation[1];
+	rotation[0] = -tmp_rotation[2];
 }
 
 /**
@@ -1233,8 +1235,10 @@ Matrix3d Rigid3DTrans::rotMatrix()
  */
 void Rigid3DTrans::toRASCoords(shared_ptr<const MRImage> in)
 {
-	if(ras_coord)
+	if(ras_coord) {
+		throw INVALID_ARGUMENT("Rigid3DTrans is already in Index Coordinates");
 		return;
+	}
 
 	ras_coord = true;
 
@@ -1316,8 +1320,10 @@ void Rigid3DTrans::toRASCoords(shared_ptr<const MRImage> in)
 void Rigid3DTrans::toIndexCoords(shared_ptr<const MRImage> in, 
         bool forcegridcenter)
 {
-	if(!ras_coord)
+	if(!ras_coord) {
+		throw INVALID_ARGUMENT("Rigid3DTrans is already in Index Coordinates");
 		return;
+	}
 
 	ras_coord = false;
 

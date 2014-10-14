@@ -342,17 +342,17 @@ int main(int argc, char** argv)
 		}
 		cerr << "vol: " << endl << *vol << endl;
 		cerr << "Rigid Transform: " << tt << "\n" << rigid <<endl;
-		rigid.toIndexCoords(vol, true);
 		rigid.invert();
+		rigid.toIndexCoords(vol, true);
 		cerr << "Rigid Transform: " << tt << "\n" << rigid <<endl;
 		
 		// Apply Rigid Transform
 		rotateImageShearKern(vol, rigid.rotation[0], rigid.rotation[1], 
 				rigid.rotation[2]);
-		vol->write("rot_"+to_string(tt)+".nii.gz");
+//		vol->write("rot_"+to_string(tt)+".nii.gz");
 		for(size_t dd=0; dd<3; dd++) 
 			shiftImageKern(vol, dd, rigid.shift[dd]);
-		vol->write("shift_"+to_string(tt)+".nii.gz");
+//		vol->write("shift_"+to_string(tt)+".nii.gz");
 
 		// Copy Result Back to input image
 		for(iit.goBegin(), vit.goBegin(); !iit.eof(); ++iit, ++vit) 
