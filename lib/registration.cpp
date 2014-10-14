@@ -120,8 +120,6 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
         opt.stop_X = 0.00001;
         opt.stop_G = 0;
         opt.stop_F = 0;
-//		for(size_t dd=0; dd<3; dd++)
-//			opt.opt_scale[dd] = 1/10;
 
         // grab the parameters from the previous iteration (or initialized)
         rigid.toIndexCoords(sm_moving, true);
@@ -212,8 +210,6 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
 
         // initialize optimizer
         LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
-//		for(size_t dd=0; dd<3; dd++)
-//			opt.opt_scale[dd] = .1;
         opt.stop_Its = 10000;
         opt.stop_X = 0.00001;
         opt.stop_G = 0;
@@ -416,10 +412,10 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
     double sy = params[4];
     double sz = params[5];
 
-#if defined DEBUG || defined VERYDEBUG
+//#if defined DEBUG || defined VERYDEBUG
 	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: " 
 		<< sx << ", " << sy << ", " << sz << endl;
-#endif
+//#endif
 #ifdef VERYDEBUG
     cerr << "ValGrad()" << endl;
     Pixel3DView<double> d_ang_x(d_theta_x);
@@ -558,10 +554,10 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
         val = -val;
     }
 
-#if defined VERYDEBUG || defined DEBUG
+//#if defined VERYDEBUG || defined DEBUG
     cerr << "Value: " << val << endl;
     cerr << "Gradient: " << grad.transpose() << endl;
-#endif
+//#endif
 #ifdef VERYDEBUG
     string sc = "_"+to_string(callcount);
     d_theta_x->write("d_theta_x"+sc+".nii.gz");
@@ -617,10 +613,10 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
     double sx = params[3];
     double sy = params[4];
     double sz = params[5];
-#if defined DEBUG || defined VERYDEBUG
+//#if defined DEBUG || defined VERYDEBUG
 	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: " 
 		<< sx << ", " << sy << ", " << sz << endl;
-#endif
+//#endif
 
 	double ind[3];
 	double cind[3];
@@ -671,9 +667,9 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
     if(m_negate)
         val = -val;
 
-#if defined VERYDEBUG || defined DEBUG
+//#if defined VERYDEBUG || defined DEBUG
     cerr << "Value: " << val << endl;
-#endif
+//#endif
 #ifdef VERYDEBUG
     string sc = "_"+to_string(callcount);
     interpolated->write("interp"+sc+".nii.gz");
