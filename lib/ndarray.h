@@ -116,10 +116,10 @@ ptr<NDArray> createNDArray(const std::vector<size_t>& dim,
  *
  * @param in Input image (copy pixels from this image)
  * @param inROIL Input ROI, lower bound 
- * @param inROIU Input ROI, size
+ * @param inROIZ Input ROI, size
  * @param out Copy to copy pixels to
  * @param oROIL Output ROI, lower bound
- * @param oROIU Output ROI, size
+ * @param oROIZ Output ROI, size
  * @param newtype Type to cast pixels to during copy
  *
  */
