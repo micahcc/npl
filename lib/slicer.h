@@ -64,17 +64,17 @@ public:
 	 * @brief Updates dimensions of target nd array
 	 *
 	 * @param ndim Rank (dimensionality) of data block, length of dim
-     * @param dim Size of data block, in each dimension, so dim = {32, 2,54 }
-     * would have 32*2*54 members 
+	 * @param dim Size of data block, in each dimension, so dim = {32, 2,54 }
+	 * would have 32*2*54 members 
 	 */
 	void setDim(size_t ndim, const size_t* dim);
-	
+
 	/****************************************
 	 *
 	 * Query Location
 	 *
 	 ****************************************/
-	
+
 	/**
 	 * @brief Are we at the begining of iteration?
 	 *
@@ -89,7 +89,7 @@ public:
 	 * @return true if we are at the end
 	 */
 	bool isEnd() const { return m_end; };
-	
+
 	/**
 	 * @brief Are we at the end of iteration? Note that this will be 1 past the
 	 * end, as typically is done in c++
@@ -109,7 +109,7 @@ public:
 	 * @return 	new value of linear position
 	 */
 	Slicer& operator++();
-	
+
 	/**
 	 * @brief Prefix negative  iterator. Iterates in the order dictatored by
 	 * the dimension order passsed during construction or by setOrder
@@ -139,7 +139,7 @@ public:
 	 * @param newpos location to move to
 	 */
 	void goIndex(size_t len, int64_t* newpos);
-	
+
 	/**
 	 * @brief Jump to the given position
 	 *
@@ -159,9 +159,8 @@ public:
 	 *
 	 * @return The current linear index.
 	 */
-	inline
-	int64_t operator*() const { return m_linpos; };
-	
+	inline int64_t operator*() const { return m_linpos; };
+
 	/**
 	 * @brief Places the first len dimension in the given array. If the number
 	 * of dimensions exceed the len then the additional dimensions will be
@@ -173,7 +172,7 @@ public:
 	 * @param index output index variable
 	 */
 	void index(size_t len, int64_t* index) const;
-	
+
 	/**
 	 * @brief Places the first len dimension in the given array. If the number
 	 * of dimensions exceed the len then the additional dimensions will be
@@ -197,7 +196,7 @@ public:
 	 * @param index output index variable
 	 */
 	void index(size_t len, double* index) const;
-	
+
 	/**
 	 * @brief Places the first len dimension in the given array. If the number
 	 * of dimensions exceed the len then the additional dimensions will be
@@ -207,12 +206,11 @@ public:
 	 *
 	 * @param ind output index variable
 	 */
-    inline
-	void index(std::vector<int64_t>& ind) const
+	inline void index(std::vector<int64_t>& ind) const
 	{
 		index(ind.size(), ind.data()); 
 	}
-	
+
 	/**
 	 * @brief Places the first len dimension in the given array. If the number
 	 * of dimensions exceed the len then the additional dimensions will be
@@ -222,8 +220,7 @@ public:
 	 *
 	 * @param ind output index variable
 	 */
-    inline
-	void index(std::vector<int>& ind) const
+	inline void index(std::vector<int>& ind) const
 	{
 		index(ind.size(), ind.data()); 
 	};
@@ -238,23 +235,21 @@ public:
 	 * @param ind output index variable
 	 */
 
-    inline
-	void index(std::vector<double>& ind) const 
+	inline void index(std::vector<double>& ind) const 
 	{
 		index(ind.size(), ind.data()); 
 	};
-    
-    /**
-     * @brief Returns the index in the specified dimension
-     *
-     * @param dd Dimension of image to sample index of
-     */
-    inline
-    int64_t index(size_t dd) const
-    {
-        assert(dd<m_ndim);
-        return m_pos[dd];
-    };
+
+	/**
+	 * @brief Returns the index in the specified dimension
+	 *
+	 * @param dd Dimension of image to sample index of
+	 */
+	inline int64_t index(size_t dd) const
+	{
+		assert(dd<m_ndim);
+		return m_pos[dd];
+	};
 
 	/***********************************************
 	 *
@@ -262,18 +257,20 @@ public:
 	 *
 	 **********************************************/
 
-    /**
-     * @brief Sets the region of interest, with lower bound of 0.
-     * During iteration or any motion the
-     * position will not move outside the specified range. Invalidates position.
-     *
-     * Invalidates position
-     *
-     * @param len length of roi array
-     * @param roisize Size of ROI (which runs in the block from:
-     * [0 to roisize[0]-1,0. to roisize[1]-1, etc]
-     */
-    void setROI(size_t len, const size_t* roisize, const int64_t* roistart = NULL);
+	/**
+	 * @brief Sets the region of interest, with lower bound of 0.
+	 * During iteration or any motion the
+	 * position will not move outside the specified range. Invalidates position.
+	 *
+	 * Invalidates position
+	 *
+	 * @param len length of roi array
+	 * @param roisize Size of ROI (which runs in the block from:
+	 * [roistart[0] ... roisize[0]-1, roistart[0] ... roisize[1]-1, etc] or, if
+	 * roistart is Null then [0 ... roisize[0]-1, 0 ... roisize[1]-1, etc]
+	 * @param roistart Lower corner of region-of-interest
+	 */
+	void setROI(size_t len, const size_t* roisize, const int64_t* roistart = NULL);
 
 	/**
 	 * @brief Sets the region of interest. During iteration or any motion the
@@ -295,7 +292,7 @@ public:
 	 * 					specified in order will be faster than those included.
 	 */
 	void setOrder(const std::vector<size_t>& order, bool revorder = false);
-	
+
 	/**
 	 * @brief Sets the order of iteration from ++/-- operators
 	 *
@@ -307,7 +304,7 @@ public:
 	 * 					specified in order will be faster than those included.
 	 */
 	void setOrder(std::initializer_list<size_t> order, bool revorder = false);
-	
+
 	/**
 	 * @brief Sets the order of iteration from ++/-- operators. Order will be
 	 * the default (highest to lowest)
@@ -326,13 +323,13 @@ public:
 	const std::vector<size_t>& getOrder() const { return m_order; } ;
 
 protected:
-	
+
 	/******************************************
 	 *
 	 * Offset, useful to kernel processing
 	 *
 	 ******************************************/
-	
+
 	size_t m_linpos;
 	size_t m_linfirst;
 	std::vector<int64_t> m_pos;
@@ -370,7 +367,7 @@ protected:
 class ChunkSlicer 
 {
 public:
-	
+
 	/****************************************
 	 *
 	 * Constructors
@@ -400,13 +397,13 @@ public:
 	 * @param dim Dimensions (size)
 	 */
 	void setDim(size_t ndim, const size_t* dim);
-	
+
 	/****************************************
 	 *
 	 * Query Location
 	 *
 	 ****************************************/
-	
+
 	/**
 	 * @brief Are we at the begining of iteration?
 	 *
@@ -421,7 +418,7 @@ public:
 	 * @return true if we are at the end
 	 */
 	bool isEnd() const { return m_end; };
-	
+
 	/**
 	 * @brief Are we at the end of iteration? Note that this will be 1 past the
 	 * end, as typically is done in c++
@@ -462,7 +459,7 @@ public:
 	 * @return 	new value of linear position
 	 */
 	ChunkSlicer& operator++();
-	
+
 	/**
 	 * @brief Prefix negative  iterator. Iterates in the order dictatored by
 	 * the dimension order passsed during construction or by setOrder
@@ -470,14 +467,14 @@ public:
 	 * @return 	new value of linear position
 	 */
 	ChunkSlicer& operator--();
-	
+
 	/**
 	 * @brief Proceed to the next chunk (if there is one).
 	 *
 	 * @return 	
 	 */
 	ChunkSlicer& nextChunk();
-	
+
 	/**
 	 * @brief Return to the previous chunk (if there is one).
 	 *
@@ -518,7 +515,7 @@ public:
 	 * @param newpos Position to move to 
 	 */
 	void goIndex(size_t len, int64_t* newpos);
-	
+
 	/**
 	 * @brief Jump to the given position
 	 *
@@ -538,9 +535,8 @@ public:
 	 *
 	 * @return
 	 */
-	inline
-	int64_t operator*() const { return m_linpos; };
-	
+	inline int64_t operator*() const { return m_linpos; };
+
 	/**
 	 * @brief Places the first len dimension in the given array. If the number
 	 * of dimensions exceed the len then the additional dimensions will be
@@ -552,7 +548,7 @@ public:
 	 * @param index output index variable
 	 */
 	void index(size_t len, int64_t* index) const;
-	
+
 	/**
 	 * @brief Places the first len dimension in the given array. If the number
 	 * of dimensions exceed the len then the additional dimensions will be
@@ -564,7 +560,7 @@ public:
 	 * @param index output index variable
 	 */
 	void index(size_t len, int* index) const;
-	
+
 	/**
 	 * @brief Places the first len dimension in the given array. If the number
 	 * of dimensions exceed the len then the additional dimensions will be
@@ -576,7 +572,7 @@ public:
 	 * @param index output index variable
 	 */
 	void index(size_t len, double* index) const;
-	
+
 	/**
 	 * @brief Places the first len dimension in the given array. If the number
 	 * of dimensions exceed the len then the additional dimensions will be
@@ -586,53 +582,50 @@ public:
 	 *
 	 * @param ind output index variable
 	 */
-    inline
-	void index(std::vector<int64_t>& ind) const
-	{
-		index(ind.size(), ind.data());
-	};
-	
-	/**
-	 * @brief Places the first len dimension in the given array. If the number
-	 * of dimensions exceed the len then the additional dimensions will be
-	 * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
-	 * In other words index will be completely overwritten in the most sane way
-	 * possible if the internal dimensions and size index differ.
-	 *
-	 * @param ind output index variable
-	 */
-    inline
-	void index(std::vector<int>& ind) const
-	{
-		index(ind.size(), ind.data());
-	};
-	
-	/**
-	 * @brief Places the first len dimension in the given array. If the number
-	 * of dimensions exceed the len then the additional dimensions will be
-	 * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
-	 * In other words index will be completely overwritten in the most sane way
-	 * possible if the internal dimensions and size index differ.
-	 *
-	 * @param ind output index variable
-	 */
-    inline
-	void index(std::vector<double>& ind) const
+	inline void index(std::vector<int64_t>& ind) const
 	{
 		index(ind.size(), ind.data());
 	};
 
-    /**
-     * @brief Returns the index in the specified dimension
-     *
-     * @param dd Dimension of image to sample index of
-     */
-    inline
-    int64_t index(size_t dd) const
-    {
-        assert(dd<m_ndim);
-        return m_pos[dd];
-    };
+	/**
+	 * @brief Places the first len dimension in the given array. If the number
+	 * of dimensions exceed the len then the additional dimensions will be
+	 * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
+	 * In other words index will be completely overwritten in the most sane way
+	 * possible if the internal dimensions and size index differ.
+	 *
+	 * @param ind output index variable
+	 */
+	inline void index(std::vector<int>& ind) const
+	{
+		index(ind.size(), ind.data());
+	};
+
+	/**
+	 * @brief Places the first len dimension in the given array. If the number
+	 * of dimensions exceed the len then the additional dimensions will be
+	 * ignored, if len exceeds the dimensionality then index[dim...len-1] = 0.
+	 * In other words index will be completely overwritten in the most sane way
+	 * possible if the internal dimensions and size index differ.
+	 *
+	 * @param ind output index variable
+	 */
+	inline void index(std::vector<double>& ind) const
+	{
+		index(ind.size(), ind.data());
+	};
+
+	/**
+	 * @brief Returns the index in the specified dimension
+	 *
+	 * @param dd Dimension of image to sample index of
+	 */
+	inline
+		int64_t index(size_t dd) const
+		{
+			assert(dd<m_ndim);
+			return m_pos[dd];
+		};
 
 	/***********************************************
 	 *
@@ -640,19 +633,19 @@ public:
 	 *
 	 **********************************************/
 
-    /**
-     * @brief Sets the region of interest, with lower bound of 0.
-     * During iteration or any motion the
-     * position will not move outside the specified range. Invalidates position.
-     *
-     * Invalidates position
-     *
-     * @param len length of roi array
+	/**
+	 * @brief Sets the region of interest, with lower bound of 0.
+	 * During iteration or any motion the
+	 * position will not move outside the specified range. Invalidates position.
+	 *
+	 * Invalidates position
+	 *
+	 * @param len length of roi array
 	 * @param roistart lower bound of ROI
-     * @param roisize Size of ROI (which runs in the block from:
-     * [0 to roisize[0]-1,0. to roisize[1]-1, etc]
-     */
-    void setROI(size_t len,  const size_t* roisize, const int64_t* roistart = NULL);
+	 * @param roisize Size of ROI (which runs in the block from:
+	 * [0 to roisize[0]-1,0. to roisize[1]-1, etc]
+	 */
+	void setROI(size_t len,  const size_t* roisize, const int64_t* roistart = NULL);
 
 	/**
 	 * @brief Sets the region of interest. During iteration or any motion the
@@ -736,7 +729,7 @@ public:
 	 * 					specified in order will be faster than those included.
 	 */
 	void setOrder(const std::vector<size_t>& order, bool revorder = false);
-	
+
 	/**
 	 * @brief Sets the order of iteration from ++/-- operators
 	 *
@@ -760,24 +753,24 @@ public:
 	const std::vector<size_t>& getOrder() const { return m_order; } ;
 
 protected:
-	
+
 	/******************************************
 	 *
 	 * Offset, useful to kernel processing
 	 *
 	 ******************************************/
-	
+
 	// used to determine begin/end status
 	size_t m_linfirst;
 	size_t m_chunkfirst;
 	bool m_end;
 	bool m_chunkend;
-	
+
 	// position
 	size_t m_linpos;
 	std::vector<int64_t> m_pos;
 	std::vector<std::pair<int64_t,int64_t>> m_chunk;
-	
+
 	// relatively static
 	std::vector<size_t> m_order;
 	std::vector<std::pair<int64_t,int64_t>> m_roi;
@@ -812,7 +805,7 @@ protected:
 class KSlicer
 {
 public:
-	
+
 	/****************************************
 	 *
 	 * Constructors
@@ -846,20 +839,20 @@ public:
 	 */
 	void setROI(const std::vector<std::pair<int64_t, int64_t>> roi = {});
 
-    /**
-     * @brief Sets the region of interest, with lower bound of 0.
-     * During iteration or any motion the
-     * position will not move outside the specified range. Invalidates position.
-     *
-     * Invalidates position
-     *
-     * @param len length of roi array
+	/**
+	 * @brief Sets the region of interest, with lower bound of 0.
+	 * During iteration or any motion the
+	 * position will not move outside the specified range. Invalidates position.
+	 *
+	 * Invalidates position
+	 *
+	 * @param len length of roi array
 	 * @param roistart lower bound of ROI
-     * @param roisize Size of ROI (which runs in the block from:
-     * [0 to roisize[0]-1,0. to roisize[1]-1, etc]
-     */
-    void setROI(size_t len, const size_t* roisize, const int64_t* roistart = NULL);
-	
+	 * @param roisize Size of ROI (which runs in the block from:
+	 * [0 to roisize[0]-1,0. to roisize[1]-1, etc]
+	 */
+	void setROI(size_t len, const size_t* roisize, const int64_t* roistart = NULL);
+
 	/**
 	 * @brief Set the order of iteration, in terms of which dimensions iterate
 	 * the fastest and which the slowest.
@@ -873,7 +866,7 @@ public:
 	 * 4 and 3).
 	 */
 	void setOrder(const std::vector<size_t> order = {}, bool revorder = false);
-	
+
 	/**
 	 * @brief Returns the array giving the order of dimension being traversed.
 	 * So 3,2,1,0 would mean that the next point in dimension 3 will be next,
@@ -883,7 +876,7 @@ public:
 	 * @return Order of dimensions
 	 */
 	const std::vector<size_t>& getOrder() const { return m_order; } ;
-	
+
 	/**
 	 * @brief Set the radius of the kernel window. All directions will
 	 * have equal distance, with the radius in each dimension set by the
@@ -897,7 +890,7 @@ public:
 	 * non-zero values for x,y,z but 0 values in higher dimensions
 	 */
 	void setRadius(std::vector<size_t> kradius = {});
-	
+
 	/**
 	 * @brief Set the radius of the kernel window. All directions will
 	 * have equal distance in all dimensions. So if kradius = 2 then
@@ -910,7 +903,7 @@ public:
 	 * @param kradius Radius in all directions.
 	 */
 	void setRadius(size_t kradius);
-	
+
 	/**
 	 * @brief Set the ROI from the center of the kernel. The first value
 	 * should be <= 0, the second should be >= 0. The ranges are inclusive.
@@ -932,7 +925,7 @@ public:
 	 * Query Location
 	 *
 	 ****************************************/
-	
+
 	/**
 	 * @brief Are we at the begining of iteration?
 	 *
@@ -968,7 +961,7 @@ public:
 	 * @return 	new value of linear position
 	 */
 	KSlicer& operator++();
-	
+
 	/**
 	 * @brief Prefix negative  iterator. Iterates in the order dictatored by
 	 * the dimension order passsed during construction or by setOrder
@@ -1007,21 +1000,19 @@ public:
 	 *
 	 * @return Linear index
 	 */
-	inline
-	int64_t getC() const
+	inline int64_t getC() const
 	{
 		assert(!m_end);
 		return m_linpos[m_center];
 	};
-	
+
 	/**
 	 * @brief Get image linear index of center. Identitcal to center() just
 	 * more confusing
 	 *
 	 * @return Linear index
 	 */
-	inline
-	int64_t operator*() const
+	inline int64_t operator*() const
 	{
 		assert(!m_end);
 		return m_linpos[m_center];
@@ -1040,7 +1031,7 @@ public:
 	 * @param index output index variable
 	 */
 	void indexC(size_t len, int64_t* index) const;
-	
+
 	/**
 	 * @brief Get index of i'th kernel (center-offset) element. Note that
 	 * values outside the image will not be returned, the nearest inside 
@@ -1048,14 +1039,14 @@ public:
 	 *
 	 * @return linear position
 	 */
-	inline
-	int64_t getK(int64_t kit) const {
+	inline int64_t getK(int64_t kit) const 
+	{
 		assert(!m_end);
 		assert(kit < m_numoffs);
-        assert(m_linpos[kit] >= 0);
+		assert(m_linpos[kit] >= 0);
 		return m_linpos[kit];
 	};
-	
+
 	/**
 	 * @brief Same as offset(int64_t kit). Note that values outside the image
 	 * will not be returned, the nearest inside position will be.
@@ -1063,11 +1054,11 @@ public:
 	 *
 	 * @return linear position
 	 */
-	inline
-	int64_t operator[](int64_t kit) const {
+	inline int64_t operator[](int64_t kit) const 
+	{
 		assert(!m_end);
 		assert(kit < m_numoffs);
-        assert(m_linpos[kit] >= 0);
+		assert(m_linpos[kit] >= 0);
 		return m_linpos[kit];
 	};
 
@@ -1099,7 +1090,7 @@ public:
 	 * @return Offset from center of given pixel (kit)
 	 */
 	int64_t offsetK(size_t kit, size_t dim);
-	
+
 	/**
 	 * @brief Returns whether the k'th kernel member is inside the region of 
 	 * interest. 
@@ -1110,7 +1101,7 @@ public:
 	 * clamped value would be returned
 	 */
 	bool insideK(size_t k);
-	
+
 	/**
 	 * @brief Returns offset from center of specified pixel (kit). Note that
 	 * this is the ideal offset (so it doesn't respect image bounds).
@@ -1138,7 +1129,7 @@ public:
 	 * @brief All around intializer. Sets all internal variables.
 	 *
 	 * @param ndim 	Rank (number of dimensions), also length of dim array
-     * @param dim Dimension (size) of memory block.
+	 * @param dim Dimension (size) of memory block.
 	 */
 	void setDim(size_t ndim, const size_t* dim);
 
@@ -1148,7 +1139,7 @@ protected:
 	size_t m_ndim; // constructor
 	std::vector<size_t> m_size; // constructor
 	std::vector<size_t> m_strides; //constructor
-	
+
 	// setOrder
 	std::vector<size_t> m_order;
 
@@ -1156,7 +1147,7 @@ protected:
 	// for each of the neighbors we need to know
 	size_t m_numoffs; // setRadius/setWindow/
 
-    // NDIM*OFFSET, D0O0, D1O0, D2O0, D0O1, ... 
+	// NDIM*OFFSET, D0O0, D1O0, D2O0, D0O1, ... 
 	std::vector<int64_t*> m_offs; // setRadius/setWindow
 	std::vector<int64_t> m_offs_raw; // setRadius/setWindow
 	size_t m_center;  // setRadius/setWindow

@@ -608,6 +608,8 @@ private:
  * @param samples Samples, S x D matrix with S is the number of samples and
  * D is the dimensionality. This must match the internal dimension count.
  * @param thresh Threshold distance for density calculation
+ * @param outthresh threshold for outlier, ratio of standard devation. Should
+ * be > 2 because you want to be well outside the center of the distribution.
  * @param classes Output classes
  * @param brute whether ther use slower brute force method for density
  * calculation (for testing purposes only)
