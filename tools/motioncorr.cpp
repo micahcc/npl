@@ -137,11 +137,13 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 				for(iit.goBegin(), mit.goBegin(); !iit.eof(); ++iit, ++mit) 
 					mit.set(iit[tt]);
 
-				double thresh = otsuThresh(movvol);
+				double thresh = otsuThresh(comp.m_moving);
 				for(mit.goBegin(); !mit.eof(); ++mit) {
-					if(*mit < thresh)
+					if(*mit < thresh) {
 						mit.set(0);
+					}
 				}
+				comp.m_moving->write("tmoving"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
 
 				for(size_t dd=0; dd<3; dd++) 
 					gaussianSmooth1D(comp.m_moving, dd, sigmas[ii]);
@@ -152,6 +154,9 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 				// run the optimizer
 //				opt.stop_F_under = hardstops[ii];
 				opt.reset_history();
+				comp.m_fixed->write("fixed"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
+				comp.m_moving->write("moving"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
+				comp.m_dmoving->write("dmoving"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
 				StopReason stopr = opt.optimize();
 				cerr << Optimizer::explainStop(stopr) << endl;
 //				opt.optimize();
@@ -181,8 +186,10 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 			cout << setw(20) << "Final Rigid: " << setw(4) << tt << " :\n"  
 				<< rigid << endl;
 			rigid.invert();
+			cout << setw(20) << "Inverse Final Rigid: " << setw(4) << tt << " :\n"  
+				<< rigid << endl;
 			rigid.toIndexCoords(comp.m_moving, true);
-			cerr << "APPLYING" << endl << rigid << endl;
+			cerr << "Index Final Rigid" << endl << rigid << endl;
 			rotateImageShearKern(comp.m_moving, rigid.rotation[0],
 					rigid.rotation[1], rigid.rotation[2]);
 			for(size_t dd=0; dd<3; dd++)

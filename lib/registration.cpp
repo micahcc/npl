@@ -1173,6 +1173,8 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
  * New s = -s
  * New R = R^-1
  * 
+ *
+ *  TODO FIX THIS
  */
 void Rigid3DTrans::invert() 
 {
@@ -1183,9 +1185,9 @@ void Rigid3DTrans::invert()
 	auto tmp_rotation = rotation;
 	shift = -tmp_shift;
 	center = tmp_center+tmp_shift;
-	rotation[2] = -tmp_rotation[0];
+	rotation[2] = -tmp_rotation[2];
 	rotation[1] = -tmp_rotation[1];
-	rotation[0] = -tmp_rotation[2];
+	rotation[0] = -tmp_rotation[0];
 }
 
 /**
