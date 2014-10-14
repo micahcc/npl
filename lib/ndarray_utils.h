@@ -439,6 +439,15 @@ ptr<NDArray> collapseSum(ptr<const NDArray> img, size_t dim, bool doabs=false);
  */
 ptr<NDArray> relabelConnected(ptr<NDArray> input);
 
+/**
+ * @brief Computes a threshold based on OTSU.
+ *
+ * @param in Input image.
+ *
+ * @return Threshold 
+ */
+double otsuThresh(ptr<const NDArray> in);
+
 /** @}  NDArrayUtilities */
 
 } // npl

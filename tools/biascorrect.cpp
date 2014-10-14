@@ -72,15 +72,6 @@ void preprocInputs(ptr<const MRImage> input,
 ptr<MRImage> createBiasField(ptr<const MRImage> in, double bspace);
 
 /**
- * @brief Computes a threshold based on OTSU.
- *
- * @param in Input image.
- *
- * @return Threshold 
- */
-double otsuThresh(ptr<const NDArray> in);
-
-/**
  * @brief Performs bias field estimation, the mask will be used as weights
  *
  * @param in MRImage with bias field
@@ -443,61 +434,6 @@ ptr<MRImage> reconstructBiasField(ptr<const MRImage> biasparams,
 	}
 
 	return out;
-}
-
-/**
- * @brief Computes a threshold based on OTSU.
- *
- * @param in Input image.
- *
- * @return Threshold 
- */
-double otsuThresh(ptr<const NDArray> in)
-{
-	vector<double> bins(sqrt(in->elements()));
-	double minv = INFINITY;
-	double maxv = -INFINITY;
-	for(FlatConstIter<double> fit(in); !fit.eof(); ++fit) {
-		minv = std::min(minv, *fit);
-		maxv = std::max(maxv, *fit);
-	}
-	double bwidth = 0.99999999*bins.size()/(maxv-minv);
-	for(FlatConstIter<double> fit(in); !fit.eof(); ++fit) 
-		bins[floor((*fit-minv)*bwidth)]++;
-
-	for(size_t bb=0; bb < bins.size(); bb++) {
-		bins[bb] /= in->elements();
-	}
-
-	double prob1 = 0, prob2 = 0, mu1 = 0, mu2 = 0, sigma = 0;
-	size_t tt =0;
-	double max_sigma = -INFINITY;
-	size_t max_t = 0;
-	for(tt=0; tt<bins.size(); tt++) {
-		prob1 = 0;
-		for(size_t bb=0; bb<tt; bb++) 
-			prob1 += bins[bb];
-		mu1 = 0;
-		for(size_t bb=0; bb<tt; bb++)
-			mu1 += bins[bb]*(minv + bb/bwidth);
-		mu1 /= prob1;
-
-		prob2 = 0;
-		for(size_t bb=tt; bb<bins.size(); bb++) 
-			prob2 += bins[bb];
-		mu2 = 0;
-		for(size_t bb=tt; bb<bins.size(); bb++)
-			mu2 += bins[bb]*(minv + bb/bwidth);
-		mu2 /= prob2;
-
-		sigma = prob1*prob2*(mu1-mu2)*(mu1-mu2);
-		if(sigma > max_sigma) {
-			max_t = tt;
-			max_sigma = sigma;
-		}
-	}
-
-	return max_t/bwidth + minv;
 }
 
 ptr<MRImage> createBiasField(ptr<const MRImage> in, double bspace)

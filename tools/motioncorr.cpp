@@ -80,6 +80,12 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 		for(iit.goBegin(), fit.goBegin(); !iit.eof(); ++iit, ++fit) {
 			fit.set(iit[reftime]);
 		}
+
+		double thresh = otsuThresh(fixed.back());
+		for(fit.goBegin(); !fit.eof(); ++fit) {
+			if(*fit < thresh)
+				fit.set(0);
+		}
 		
 		for(size_t dd=0; dd<3; dd++) 
 			gaussianSmooth1D(fixed.back(), dd, sigmas[ii]);
@@ -125,11 +131,17 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 			for(size_t ii=0; ii<sigmas.size(); ii++) {
 
 				/* 
-				 * Extract and Smooth Moving Volume, Set Fixed in computer to 
-				 * Pre-Smoothed Version
+				 * Extract, threshold and Smooth Moving Volume, Set Fixed in
+				 * computer to Pre-Smoothed Version
 				 * */
 				for(iit.goBegin(), mit.goBegin(); !iit.eof(); ++iit, ++mit) 
 					mit.set(iit[tt]);
+
+				double thresh = otsuThresh(movvol);
+				for(mit.goBegin(); !mit.eof(); ++mit) {
+					if(*mit < thresh)
+						mit.set(0);
+				}
 
 				for(size_t dd=0; dd<3; dd++) 
 					gaussianSmooth1D(comp.m_moving, dd, sigmas[ii]);

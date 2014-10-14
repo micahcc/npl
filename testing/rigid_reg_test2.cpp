@@ -47,7 +47,7 @@ double gaussGen(double x, double y, double z, double xsz, double ysz, double zsz
 shared_ptr<MRImage> gaussianImage()
 {
     // create an image
-    size_t sz[] = {64,64,64};
+    size_t sz[] = {32,32,32};
     int64_t index[3];
     auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, FLOAT64);
 
@@ -72,7 +72,7 @@ shared_ptr<MRImage> squareImage()
 {
     // create test image
 	int64_t index[3];
-	size_t sz[] = {64, 64, 64};
+	size_t sz[] = {32, 32, 32};
 	auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, FLOAT64);
 
 	// fill with square
