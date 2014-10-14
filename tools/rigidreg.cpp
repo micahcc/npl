@@ -200,6 +200,7 @@ Rigid3DTrans correg(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 	rigid.center.setZero();
 	rigid.rotation.setZero();
 	rigid.shift.setZero();
+	rigid.ras_coord = true;
 
     for(size_t ii=0; ii<sigmas.size(); ii++) {
         // smooth and downsample input images
