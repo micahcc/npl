@@ -505,8 +505,9 @@ void shiftImageKern(ptr<NDArray> inout, size_t dd, double dist,
 			double source = (double)tt-dist;
 			int64_t isource = round(source);
 			for(int64_t oo = -RADIUS; oo <= RADIUS; oo++) {
-				int64_t ind = clamp<int64_t>(0, inout->dim(dd)-1, isource+oo);
-				tmp += kern(oo+isource-source, RADIUS)*buf[ind];
+				int64_t ind =  isource+oo;
+				if(ind >+ 0 || ind < inout->dim(dd))
+					tmp += kern(oo+isource-source, RADIUS)*buf[ind];
 			}
 
 			oit.set(tmp);
@@ -646,8 +647,9 @@ void shearImageKern(ptr<NDArray> inout, size_t dim, size_t len,
 			double source = (double)tt-lineshift;
 			int64_t isource = round(source);
 			for(int64_t oo = -RADIUS; oo <= RADIUS; oo++) {
-				int64_t ind = clamp<int64_t>(0, inout->dim(dim)-1, isource+oo);
-				tmp += kern(oo+isource-source, RADIUS)*buf[ind];
+				int64_t ind = isource+oo;
+				if(ind >= 0 || ind < inout->dim(dim))
+					tmp += kern(oo+isource-source, RADIUS)*buf[ind];
 			}
 
 			oit.set(tmp);

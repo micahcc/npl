@@ -124,8 +124,8 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
         // grab the parameters from the previous iteration (or initialized)
         rigid.toIndexCoords(sm_moving, true);
         for(size_t ii=0; ii<3; ii++) {
-            opt.state_x[ii] = rigid.rotation[ii];
-            opt.state_x[ii+3] = rigid.shift[ii];
+            opt.state_x[ii] = rigid.rotation[ii]*180/M_PI;
+            opt.state_x[ii+3] = rigid.shift[ii]/sm_moving->spacing(ii);
             assert(rigid.center[ii] == (sm_moving->dim(ii)-1.)/2.);
         }
 
@@ -142,8 +142,8 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
         // set values from parameters, and convert to RAS coordinate so that no
         // matter the sampling after smoothing the values remain
         for(size_t ii=0; ii<3; ii++) {
-            rigid.rotation[ii] = opt.state_x[ii];
-            rigid.shift[ii] = opt.state_x[ii+3];
+            rigid.rotation[ii] = opt.state_x[ii]*M_PI/180;
+            rigid.shift[ii] = opt.state_x[ii+3]*sm_moving->spacing(ii);
             rigid.center[ii] = (sm_moving->dim(ii)-1)/2.;
         }
 
@@ -223,8 +223,8 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
         // grab the parameters from the previous iteration (or initialized)
         rigid.toIndexCoords(sm_moving, true);
         for(size_t ii=0; ii<3; ii++) {
-            opt.state_x[ii] = rigid.rotation[ii];
-            opt.state_x[ii+3] = rigid.shift[ii];
+            opt.state_x[ii] = rigid.rotation[ii]*180/M_PI;
+            opt.state_x[ii+3] = rigid.shift[ii]/sm_moving->spacing(ii);
             assert(rigid.center[ii] == (sm_moving->dim(ii)-1.)/2.);
         }
 
@@ -240,8 +240,8 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
         // set values from parameters, and convert to RAS coordinate so that no
         // matter the sampling after smoothing the values remain
         for(size_t ii=0; ii<3; ii++) {
-            rigid.rotation[ii] = opt.state_x[ii];
-            rigid.shift[ii] = opt.state_x[ii+3];
+            rigid.rotation[ii] = opt.state_x[ii]*M_PI/180;
+            rigid.shift[ii] = opt.state_x[ii+3]*sm_moving->spacing(ii);
             rigid.center[ii] = (sm_moving->dim(ii)-1)/2.;
         }
 
@@ -350,8 +350,8 @@ RigidCorrComputer::RigidCorrComputer(
     m_fixed(dPtrCast<MRImage>(fixed->copy())),
     m_moving(dPtrCast<MRImage>(moving->copy())),
     m_dmoving(dPtrCast<MRImage>(derivative(moving))),
-    m_move_get(m_moving),
-    m_dmove_get(m_dmoving),
+    m_move_get(m_moving, CONSTZERO),
+    m_dmove_get(m_dmoving, CONSTZERO),
     m_fit(m_fixed),
     m_negate(negate)
 {
@@ -405,12 +405,12 @@ void RigidCorrComputer::updatedInputs()
 int RigidCorrComputer::valueGrad(const VectorXd& params, 
         double& val, VectorXd& grad)
 {
-    double rx = params[0];
-    double ry = params[1];
-    double rz = params[2];
-    double sx = params[3];
-    double sy = params[4];
-    double sz = params[5];
+    double rx = params[0]*M_PI/180.;
+    double ry = params[1]*M_PI/180.;
+    double rz = params[2]*M_PI/180.;
+    double sx = params[3]*m_moving->spacing(0);
+    double sy = params[4]*m_moving->spacing(1);
+    double sz = params[5]*m_moving->spacing(2);
 
 //#if defined DEBUG || defined VERYDEBUG
 	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: " 
@@ -534,12 +534,12 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
         acc.set(ind[0], ind[1], ind[2], g);
 #endif
      
-        grad[0] += (*m_fit)*dgdRx;
-        grad[1] += (*m_fit)*dgdRy;
-        grad[2] += (*m_fit)*dgdRz;
-        grad[3] += (*m_fit)*dgdSx;
-        grad[4] += (*m_fit)*dgdSy;
-        grad[5] += (*m_fit)*dgdSz;
+        grad[0] += (*m_fit)*dgdRx*M_PI/180.;
+        grad[1] += (*m_fit)*dgdRy*M_PI/180.;
+        grad[2] += (*m_fit)*dgdRz*M_PI/180.;
+        grad[3] += (*m_fit)*dgdSx*m_moving->spacing(0);
+        grad[4] += (*m_fit)*dgdSy*m_moving->spacing(1);
+        grad[5] += (*m_fit)*dgdSz*m_moving->spacing(2);
      
     }
 
@@ -607,12 +607,12 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
     assert(m_fixed->ndim() == 3);
     assert(m_moving->ndim() == 3);
 
-    double rx = params[0];
-    double ry = params[1];
-    double rz = params[2];
-    double sx = params[3];
-    double sy = params[4];
-    double sz = params[5];
+    double rx = params[0]*M_PI/180.;
+    double ry = params[1]*M_PI/180.;
+    double rz = params[2]*M_PI/180.;
+    double sx = params[3]*m_moving->spacing(0);
+    double sy = params[4]*m_moving->spacing(1);
+    double sz = params[5]*m_moving->spacing(2);
 //#if defined DEBUG || defined VERYDEBUG
 	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: " 
 		<< sx << ", " << sy << ", " << sz << endl;
@@ -702,8 +702,8 @@ RigidInformationComputer::RigidInformationComputer(
     m_dmoving(dPtrCast<MRImage>(derivative(moving))),
 	m_metric(METRIC_MI), 
 	m_bins(bins), m_krad(kernrad),
-    m_move_get(m_moving), m_dmove_get(m_dmoving), m_fit(m_fixed),
-    m_pdfmove({(size_t)m_bins}), m_pdffix({(size_t)m_bins}), 
+	m_move_get(m_moving, CONSTZERO), m_dmove_get(m_dmoving, CONSTZERO),
+	m_fit(m_fixed), m_pdfmove({(size_t)m_bins}), m_pdffix({(size_t)m_bins}), 
     m_pdfjoint({(size_t)m_bins,(size_t)m_bins}), 
     m_dpdfjoint({6, (size_t)m_bins, (size_t)m_bins}), 
     m_dpdfmove({6, (size_t)m_bins}), m_gradHmove(6), m_gradHjoint(6)
@@ -763,8 +763,9 @@ void RigidInformationComputer::updatedInputs()
     }
 	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-2*m_krad-1);
     
-    m_rangemove[0] = INFINITY;
-    m_rangemove[1] = -INFINITY;
+	// must include 0 because outside values get mapped to 0
+    m_rangemove[0] = 0;
+    m_rangemove[1] = 0;
     for(NDIter<double> it(m_moving); !it.eof(); ++it) {
         m_rangemove[0] = std::min(m_rangemove[0], *it);
         m_rangemove[1] = std::max(m_rangemove[1], *it);
@@ -813,12 +814,12 @@ void RigidInformationComputer::updatedInputs()
 int RigidInformationComputer::valueGrad(const VectorXd& params, 
         double& val, VectorXd& grad)
 {
-    double rx = params[0];
-    double ry = params[1];
-    double rz = params[2];
-    double sx = params[3];
-    double sy = params[4];
-    double sz = params[5];
+    double rx = params[0]*M_PI/180.;
+    double ry = params[1]*M_PI/180.;
+    double rz = params[2]*M_PI/180.;
+    double sx = params[3]*m_moving->spacing(0);
+    double sy = params[4]*m_moving->spacing(1);
+    double sz = params[5]*m_moving->spacing(2);
 #if defined DEBUG || defined VERYDEBUG
 	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: " 
 		<< sx << ", " << sy << ", " << sz << endl;
@@ -886,13 +887,13 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
             + (-cx + x)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
 
         // compute SUM_i dg/dv_i dv_i/dp
-        dgdPhi[0] = (dg_dx*dx_dRx + dg_dy*dy_dRx + dg_dz*dz_dRx);
-        dgdPhi[1] = (dg_dx*dx_dRy + dg_dy*dy_dRy + dg_dz*dz_dRy);
-        dgdPhi[2] = (dg_dx*dx_dRz + dg_dy*dy_dRz + dg_dz*dz_dRz);
+        dgdPhi[0] = (dg_dx*dx_dRx + dg_dy*dy_dRx + dg_dz*dz_dRx)*M_PI/180.;
+        dgdPhi[1] = (dg_dx*dx_dRy + dg_dy*dy_dRy + dg_dz*dz_dRy)*M_PI/180.;
+        dgdPhi[2] = (dg_dx*dx_dRz + dg_dy*dy_dRz + dg_dz*dz_dRz)*M_PI/180.;
 
-        dgdPhi[3] = dg_dx;
-        dgdPhi[4] = dg_dy;
-        dgdPhi[5] = dg_dz;
+        dgdPhi[3] = dg_dx*m_moving->spacing(0);
+        dgdPhi[4] = dg_dy*m_moving->spacing(1);
+        dgdPhi[5] = dg_dz*m_moving->spacing(2);
         
         // get actual values
         double valmove = m_move_get(cind[0], cind[1], cind[2]);
@@ -1047,12 +1048,12 @@ int RigidInformationComputer::grad(const VectorXd& params, VectorXd& grad)
  */
 int RigidInformationComputer::value(const VectorXd& params, double& val)
 {
-    double rx = params[0];
-    double ry = params[1];
-    double rz = params[2];
-    double sx = params[3];
-    double sy = params[4];
-    double sz = params[5];
+    double rx = params[0]*M_PI/180.;
+    double ry = params[1]*M_PI/180.;
+    double rz = params[2]*M_PI/180.;
+    double sx = params[3]*m_moving->spacing(0);
+    double sy = params[4]*m_moving->spacing(1);
+    double sz = params[5]*m_moving->spacing(2);
 #if defined DEBUG || defined VERYDEBUG
 	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: " 
 		<< sx << ", " << sy << ", " << sz << endl;
