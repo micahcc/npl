@@ -1537,7 +1537,6 @@ int rotateImageShearKern(ptr<NDArray> inout, double rx, double ry, double rz,
 		if(sheardim != -1)
 			shearImageKern(inout, sheardim, 3, shearvals, kern);
 
-		inout->write("shear"+to_string(sheardim)+".nii.gz");
 	}
 	
 	return 0;

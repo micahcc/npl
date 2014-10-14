@@ -117,11 +117,11 @@ int main()
     cerr << "Final Parameters: " << out << endl;
 	
 	for(size_t dd=0; dd<3; dd++) {
-		if(fabs(truerotate[dd] - out.rotation[dd]) > 0.01) {
+		if(fabs(truerotate[dd] - out.rotation[dd]) > 0.05) {
 			cerr << "Rotate " << dd << " differs!" << endl;
 			return -1;
 		}
-		if(fabs(trueshift[dd] - out.shift[dd]) > 0.01) {
+		if(fabs(trueshift[dd] - out.shift[dd]) > 0.05) {
 			cerr << "Shift " << dd << " differs!" << endl;
 			return -1;
 		}
