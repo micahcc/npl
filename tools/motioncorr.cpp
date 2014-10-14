@@ -101,13 +101,14 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 	// initialize optimizer
 //	LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
 	GradientOpt opt(6, vfunc, gfunc, vgfunc);
-	opt.opt_init_scale = 1;
+	opt.opt_init_scale = 0.01;
+	opt.opt_rdec_scale = 1;
 	opt.stop_Its = 10000;
-	opt.stop_X = 0.000001;
+	opt.stop_X = 0;
 	opt.stop_G = 0;
-	opt.stop_F = 0;
-//	opt.opt_ls_beta = 0.5;
-//	opt.opt_ls_s = 100;
+	opt.stop_F = 0.000001;
+//	opt.opt_ls_beta = 0.1;
+//	opt.opt_ls_s = 1;
 	opt.state_x.setZero();
 	Rigid3DTrans rigid;
 	for(size_t tt=0; tt<fmri->tlen(); tt++) {
@@ -138,13 +139,6 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 				comp.m_fixed = fixed[ii];
 				comp.updatedInputs();
 				
-//				comp.m_moving->write("moving_"+to_string(ii)+"_"+to_string(tt)
-//						+".nii.gz");
-//				comp.m_dmoving->write("dmoving_"+to_string(ii)+"_"+to_string(tt)
-//						+".nii.gz");
-//				comp.m_fixed->write("fixed_"+to_string(ii)+"_"+to_string(tt)
-//						+".nii.gz");
-				
 				// run the optimizer
 //				opt.stop_F_under = hardstops[ii];
 //				opt.reset_history();
@@ -152,12 +146,9 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 				cerr << Optimizer::explainStop(stopr) << endl;
 //				opt.optimize();
 
-//				cerr << setw(20) << "After Rigid: " << setw(4) << ii << " : " 
-//					<< opt.state_x.transpose() << endl;
+				cerr << setw(20) << "After Rigid: " << setw(4) << ii << " : " 
+					<< opt.state_x.transpose() << endl;
 			}
-//			cerr << setw(20) << "Final Rigid: " << setw(4) << tt << " : " 
-//				<< opt.state_x.transpose() << endl;
-//			cerr << "==========================================" << endl;
 
 			/******************************************************************
 			 * Results
@@ -167,17 +158,40 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 			m.resize(9, 0);
 			
 			// Convert to RAS
+			rigid.ras_coord = false;
 			for(size_t dd=0; dd<3; dd++) {
 				rigid.center[dd] = (comp.m_moving->dim(dd)-1)/2.;
-				rigid.rotation[dd] = opt.state_x[dd]*M_PI/180;
-				rigid.shift[dd] = opt.state_x[dd+3]/comp.m_moving->spacing(dd);
+				rigid.rotation[dd] = opt.state_x[dd];
+				rigid.shift[dd] = opt.state_x[dd+3];
 			}
+
+			//////////
+			// For Debugging Purpose
+			rigid.invert();
+			cerr << "APPLYING" << endl << rigid << endl;
+			rotateImageShearKern(comp.m_moving, rigid.rotation[0],
+					rigid.rotation[1], rigid.rotation[2]);
+			for(size_t dd=0; dd<3; dd++)
+				shiftImageKern(comp.m_moving, dd, rigid.shift[dd]);
+			comp.m_moving->write("corr_"+to_string(tt)+".nii.gz");
+			rigid.invert();
+			//////////
+			cout << setw(20) << "Final Rigid: " << setw(4) << tt << " :\n"  
+				<< rigid << endl;
 			rigid.toRASCoords(comp.m_moving);
 			for(size_t dd=0; dd<3; dd++) {
 				m[dd] = rigid.center[dd];
 				m[dd+3] = rigid.rotation[dd];
 				m[dd+6] = rigid.shift[dd];
 			}
+			cout << setw(20) << "Final Rigid: " << setw(4) << tt << " :\n"  
+				<< rigid << endl;
+
+			for(size_t dd=0; dd<9; dd++) { 
+				if(dd != 0) cout << ", ";
+				cout << m[dd];
+			}
+			cout << "\n==========================================" << endl;
 
 		}
 	}
@@ -243,7 +257,7 @@ int main(int argc, char** argv)
 	vector<vector<double>> motion;
 
 	// set up sigmas
-	vector<double> sigmas({2.5,1.25,0});
+	vector<double> sigmas({4,2,0});
 	if(a_sigmas.isSet()) 
 		sigmas.assign(a_sigmas.begin(), a_sigmas.end());
 	
@@ -319,11 +333,14 @@ int main(int argc, char** argv)
 			vit.set(iit[tt]);
 	
 		// Convert from RAS to index
+		rigid.ras_coord = true;
 		for(size_t dd=0; dd<3; dd++) {
 			rigid.center[dd] = motion[tt][dd];
 			rigid.rotation[dd] = motion[tt][dd+3];
 			rigid.shift[dd] = motion[tt][dd+6];
 		}
+		cerr << "vol: " << endl << *vol << endl;
+		cerr << "Rigid Transform: " << tt << "\n" << rigid <<endl;
 		rigid.toIndexCoords(vol, true);
 		rigid.invert();
 		cerr << "Rigid Transform: " << tt << "\n" << rigid <<endl;
