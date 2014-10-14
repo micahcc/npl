@@ -1009,9 +1009,6 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 	}
 
 #if defined DEBUG || defined VERYDEBUG
-    cerr << "Fixed  Entropy: " << m_Hfix << endl;
-    cerr << "Moving Entropy: " << m_Hmove<< endl;
-    cerr << "Joint  Entropy: " << m_Hjoint << endl;
     cerr << "ValueGrad() = " << val << " / " << grad.transpose() << endl;
 #endif
 
@@ -1145,9 +1142,6 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
 	}
 
 #if defined DEBUG || defined VERYDEBUG
-    cerr << "Fixed  Entropy: " << m_Hfix << endl;
-    cerr << "Moving Entropy: " << m_Hmove<< endl;
-    cerr << "Joint  Entropy: " << m_Hjoint << endl;
     cerr << "Value() = " << val << endl;
 #endif
    
