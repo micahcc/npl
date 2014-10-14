@@ -137,8 +137,9 @@ try {
 			"results very much. So a 5 here would resample the image to 5x5x5 "
 			"isotropic voxels.", false, 10, "pixsize", cmd);
 	TCLAP::ValueArg<double> a_lambda("R", "regweight", "Regularization weight "
-			"for ridge regression. Larger values will cause a smoother result",
-			false, 1.e-5, "ratio", cmd);
+			"for ridge regression. Larger values will force a smoother result,"
+			" and values closer to 1.",
+			false, 1.e-2, "real", cmd);
 	TCLAP::ValueArg<string> a_biasfield("b", "biasfield", "Bias Field Image.",
 			false, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_biasparams("B", "bparams", "Bias Field "
@@ -661,7 +662,7 @@ void preprocInputs(ptr<const MRImage> input,
 		if(m > 0.5) {
 			mit.set(1);
 		} else {
-			mit.set(0);
+			mit.set(0.000000001);
 		}
 	}
 }
