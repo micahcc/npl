@@ -99,17 +99,14 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 	auto gfunc = bind(&RigidCorrComputer::grad, &comp, _1, _2);
 	
 	// initialize optimizer
-//	LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
-	GradientOpt opt(6, vfunc, gfunc, vgfunc);
-	opt.opt_init_scale = 0.01;
-	opt.opt_rdec_scale = 1;
+	LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
 	opt.stop_Its = 10000;
-	opt.stop_X = 0;
+	opt.stop_X = 0.00001;
 	opt.stop_G = 0;
-	opt.stop_F = 0.0001;
-	opt.stop_F_under = 0.995;
-//	opt.opt_ls_beta = 0.1;
-//	opt.opt_ls_s = 1;
+	opt.stop_F = 0;
+	opt.opt_histsize = 2;
+	opt.opt_ls_beta = 0.5;
+	opt.opt_ls_s = 1;
 	opt.state_x.setZero();
 	Rigid3DTrans rigid;
 	for(size_t tt=0; tt<fmri->tlen(); tt++) {
@@ -142,7 +139,7 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 				
 				// run the optimizer
 //				opt.stop_F_under = hardstops[ii];
-//				opt.reset_history();
+				opt.reset_history();
 				StopReason stopr = opt.optimize();
 				cerr << Optimizer::explainStop(stopr) << endl;
 //				opt.optimize();
@@ -162,31 +159,33 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 			rigid.ras_coord = false;
 			for(size_t dd=0; dd<3; dd++) {
 				rigid.center[dd] = (comp.m_moving->dim(dd)-1)/2.;
-				rigid.rotation[dd] = opt.state_x[dd];
-				rigid.shift[dd] = opt.state_x[dd+3];
+				rigid.rotation[dd] = opt.state_x[dd]*M_PI/180;
+				rigid.shift[dd] = opt.state_x[dd+3]/comp.m_moving->spacing(dd);
 			}
 
 			//////////
 			// For Debugging Purpose
+			rigid.toRASCoords(comp.m_moving);
+			cout << setw(20) << "Final Rigid: " << setw(4) << tt << " :\n"  
+				<< rigid << endl;
 			rigid.invert();
+			rigid.toIndexCoords(comp.m_moving, true);
 			cerr << "APPLYING" << endl << rigid << endl;
 			rotateImageShearKern(comp.m_moving, rigid.rotation[0],
 					rigid.rotation[1], rigid.rotation[2]);
 			for(size_t dd=0; dd<3; dd++)
 				shiftImageKern(comp.m_moving, dd, rigid.shift[dd]);
 			comp.m_moving->write("corr_"+to_string(tt)+".nii.gz");
+			rigid.toRASCoords(comp.m_moving);
 			rigid.invert();
 			//////////
-			cout << setw(20) << "Final Rigid: " << setw(4) << tt << " :\n"  
-				<< rigid << endl;
-			rigid.toRASCoords(comp.m_moving);
+			cout << setw(20) << "Final Rigid (match previous): " << setw(4) <<
+				tt << " :\n"  << rigid << endl;
 			for(size_t dd=0; dd<3; dd++) {
 				m[dd] = rigid.center[dd];
 				m[dd+3] = rigid.rotation[dd];
 				m[dd+6] = rigid.shift[dd];
 			}
-			cout << setw(20) << "Final Rigid: " << setw(4) << tt << " :\n"  
-				<< rigid << endl;
 
 			for(size_t dd=0; dd<9; dd++) { 
 				if(dd != 0) cout << ", ";
@@ -258,12 +257,12 @@ int main(int argc, char** argv)
 	vector<vector<double>> motion;
 
 	// set up sigmas
-	vector<double> sigmas({4,2,0});
+	vector<double> sigmas({3,2,1,0.5});
 	if(a_sigmas.isSet()) 
 		sigmas.assign(a_sigmas.begin(), a_sigmas.end());
 	
 	// set up threshold
-	vector<double> thresh({0.999,0.999,0.999});
+	vector<double> thresh({0.999,0.999,0.999,0.999});
 	if(a_thresh.isSet()) 
 		thresh.assign(a_sigmas.begin(), a_sigmas.end());
 	for(auto& v: thresh) 
