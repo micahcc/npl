@@ -106,7 +106,8 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 	opt.stop_Its = 10000;
 	opt.stop_X = 0;
 	opt.stop_G = 0;
-	opt.stop_F = 0.000001;
+	opt.stop_F = 0.0001;
+	opt.stop_F_under = 0.995;
 //	opt.opt_ls_beta = 0.1;
 //	opt.opt_ls_s = 1;
 	opt.state_x.setZero();
