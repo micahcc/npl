@@ -98,7 +98,7 @@ try {
 			"moving image. ", false, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_transform("t", "transform", "File to write "
 			"transform parameters to. This will be a text file with 9 numbers "
-			"indicating the center point, ", false, "", "*.nii.gz", cmd);
+			"indicating the center point, ", false, "", "*.rtm", cmd);
 	
 	TCLAP::MultiArg<double> a_sigmas("s", "sigmas", "Smoothing standard "
 			"deviations. These are the steps of the registration.", false, 
