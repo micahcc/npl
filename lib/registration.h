@@ -467,7 +467,7 @@ int information3DDerivTest(double step, double tol,
  */
 std::ostream& operator<< (std::ostream& stream, const Rigid3DTrans& rigid)
 {
-    stream << "Rigid3DTransform ";
+    stream << "Rigid3DTrans ";
     if(rigid.ras_coord)
         stream << "(In RAS)\n";
     else 

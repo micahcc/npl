@@ -346,6 +346,11 @@ def build(bld):
 
     # Registration Testing
     bld.program(install_path='${PREFIX}/tests', features='test',
+            target='rigid_transform_test', 
+            source='rigid_transform_test.cpp', 
+            use='registration')
+
+    bld.program(install_path='${PREFIX}/tests', features='test',
             target='rigid_reg_test1', 
             source='rigid_reg_test1.cpp', 
             use='registration')
