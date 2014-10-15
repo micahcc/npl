@@ -2335,6 +2335,7 @@ ptr<NDArray> relabelConnected(ptr<NDArray> input)
  */
 ptr<NDArray> histEqualize(ptr<const NDArray> in)
 {
+	cerr << "Histogram equalizer is beta!" << endl;
 	auto out = in->copy();
 	vector<double> bins(sqrt(in->elements()));
 	double minv = INFINITY;
