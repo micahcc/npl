@@ -448,6 +448,16 @@ ptr<NDArray> relabelConnected(ptr<NDArray> input);
  */
 double otsuThresh(ptr<const NDArray> in);
 
+/**
+ * @brief Computes a histogram, then spaces out intensities so that each
+ * intensity has equal volume/area in the image.
+ *
+ * @param in Input image.
+ *
+ * @return Image that has been histogram equalized
+ */
+ptr<NDArray> histEqualize(ptr<const NDArray> in);
+
 /** @}  NDArrayUtilities */
 
 } // npl
