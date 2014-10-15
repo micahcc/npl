@@ -1167,27 +1167,24 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
  *
  * Inverse:
  * x = R^-1(y - s - c) + c
+ * x = R^-1(y - c) - R^-1 s + c
  *
  * So the new parameters, interms of the old are:
- * New c = s+c
- * New s = -s
+ * New c = c
+ * New s = -R^-1 s
  * New R = R^-1
  * 
- *
- *  TODO FIX THIS
  */
 void Rigid3DTrans::invert() 
 {
-	if(!ras_coord) 
-		throw INVALID_ARGUMENT("Its Bad To Invert in Index Coordinates");
+	Matrix3d Q = rotMatrix().inverse();
+
 	auto tmp_shift = shift;
-	auto tmp_center = center;
-	auto tmp_rotation = rotation;
-	shift = -tmp_shift;
-	center = tmp_center+tmp_shift;
-	rotation[2] = -tmp_rotation[2];
-	rotation[1] = -tmp_rotation[1];
-	rotation[0] = -tmp_rotation[0];
+	shift = -Q*tmp_shift;
+
+	rotation[1] = asin(Q(0,2));
+	rotation[2] = -Q(0,1)/cos(rotation[1]);
+	rotation[0] = -Q(1,2)/cos(rotation[1]);
 }
 
 /**
