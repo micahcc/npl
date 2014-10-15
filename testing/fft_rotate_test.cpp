@@ -103,8 +103,8 @@ int main()
 	
     // Shear/FFT Rotation 
 	cerr << "!Rotating with shears/FFT" << endl;
-    auto out2 = dynamic_pointer_cast<MRImage>(in->copy());
     c = clock();
+    auto out2 = dynamic_pointer_cast<MRImage>(in->copy());
 	rotateImageShearFFT(out2, Rx, Ry, Rz);
 	c = clock() - c;
 	out2->write("fft_rotated.nii.gz");
@@ -112,16 +112,16 @@ int main()
 	
     // Shear/FFT Rotation  using the rectangular window
     cerr << "!Rotating with shears/FFT/Rect Window" << endl;
-    auto out3 = dynamic_pointer_cast<MRImage>(in->copy());
     c = clock();
+    auto out3 = dynamic_pointer_cast<MRImage>(in->copy());
 	rotateImageShearFFT(out3, Rx, Ry, Rz, npl::rectWindow);
 	c = clock() - c;
 	out3->write("fft_rect_rotated.nii.gz");
 	cerr << "!Shear FFT Rect Rotate took " << c/(double)CLOCKS_PER_SEC << "s" << endl;
 	
     cerr << "!Rotating with shears/kernel" << endl;
-    auto out4 = dynamic_pointer_cast<MRImage>(in->copy());
     c = clock();
+    auto out4 = dynamic_pointer_cast<MRImage>(in->copy());
 	rotateImageShearKern(out4, Rx, Ry, Rz);
 	c = clock() - c;
 	out4->write("kshear_rotated.nii.gz");

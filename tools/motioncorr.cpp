@@ -81,11 +81,11 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 			fit.set(iit[reftime]);
 		}
 
-		double thresh = otsuThresh(fixed.back());
-		for(fit.goBegin(); !fit.eof(); ++fit) {
-			if(*fit < thresh)
-				fit.set(0);
-		}
+//		double thresh = otsuThresh(fixed.back());
+//		for(fit.goBegin(); !fit.eof(); ++fit) {
+//			if(*fit < thresh)
+//				fit.set(0);
+//		}
 		
 		for(size_t dd=0; dd<3; dd++) 
 			gaussianSmooth1D(fixed.back(), dd, sigmas[ii]);
@@ -107,11 +107,11 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 	// initialize optimizer
 	LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
 	opt.stop_Its = 10000;
-	opt.stop_X = 0.00001;
+	opt.stop_X = 0.0000000001;
 	opt.stop_G = 0;
 	opt.stop_F = 0;
 	opt.opt_histsize = 2;
-	opt.opt_ls_beta = 0.5;
+	opt.opt_ls_beta = 0.4;
 	opt.opt_ls_s = 1;
 	opt.state_x.setZero();
 	Rigid3DTrans rigid;
@@ -137,13 +137,13 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 				for(iit.goBegin(), mit.goBegin(); !iit.eof(); ++iit, ++mit) 
 					mit.set(iit[tt]);
 
-				double thresh = otsuThresh(comp.m_moving);
-				for(mit.goBegin(); !mit.eof(); ++mit) {
-					if(*mit < thresh) {
-						mit.set(0);
-					}
-				}
-				comp.m_moving->write("tmoving"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
+//				double thresh = otsuThresh(comp.m_moving);
+//				for(mit.goBegin(); !mit.eof(); ++mit) {
+//					if(*mit < thresh) {
+//						mit.set(0);
+//					}
+//				}
+//				comp.m_moving->write("tmoving"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
 
 				for(size_t dd=0; dd<3; dd++) 
 					gaussianSmooth1D(comp.m_moving, dd, sigmas[ii]);
@@ -154,9 +154,9 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 				// run the optimizer
 //				opt.stop_F_under = hardstops[ii];
 				opt.reset_history();
-				comp.m_fixed->write("fixed"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
-				comp.m_moving->write("moving"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
-				comp.m_dmoving->write("dmoving"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
+//				comp.m_fixed->write("fixed"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
+//				comp.m_moving->write("moving"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
+//				comp.m_dmoving->write("dmoving"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
 				StopReason stopr = opt.optimize();
 				cerr << Optimizer::explainStop(stopr) << endl;
 //				opt.optimize();
@@ -177,28 +177,12 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 			for(size_t dd=0; dd<3; dd++) {
 				rigid.center[dd] = (comp.m_moving->dim(dd)-1)/2.;
 				rigid.rotation[dd] = opt.state_x[dd]*M_PI/180;
-				rigid.shift[dd] = opt.state_x[dd+3]/comp.m_moving->spacing(dd);
+				rigid.shift[dd] = opt.state_x[dd+3]*comp.m_moving->spacing(dd);
 			}
 
-			//////////
-			// For Debugging Purpose
-			rigid.toRASCoords(comp.m_moving);
-			cout << setw(20) << "Final Rigid: " << setw(4) << tt << " :\n"  
-				<< rigid << endl;
 			rigid.invert();
-			cout << setw(20) << "Inverse Final Rigid: " << setw(4) << tt << " :\n"  
-				<< rigid << endl;
-			rigid.toIndexCoords(comp.m_moving, true);
-			cerr << "Index Final Rigid" << endl << rigid << endl;
-			rotateImageShearKern(comp.m_moving, rigid.rotation[0],
-					rigid.rotation[1], rigid.rotation[2]);
-			for(size_t dd=0; dd<3; dd++)
-				shiftImageKern(comp.m_moving, dd, rigid.shift[dd]);
-			comp.m_moving->write("corr_"+to_string(tt)+".nii.gz");
 			rigid.toRASCoords(comp.m_moving);
-			rigid.invert();
-			//////////
-			cout << setw(20) << "Final Rigid (match previous): " << setw(4) <<
+			cout << setw(20) << "Final Rigid: " << setw(4) <<
 				tt << " :\n"  << rigid << endl;
 			for(size_t dd=0; dd<3; dd++) {
 				m[dd] = rigid.center[dd];
@@ -276,7 +260,7 @@ int main(int argc, char** argv)
 	vector<vector<double>> motion;
 
 	// set up sigmas
-	vector<double> sigmas({3,2,1,0.5});
+	vector<double> sigmas({3,1.5,1,0});
 	if(a_sigmas.isSet()) 
 		sigmas.assign(a_sigmas.begin(), a_sigmas.end());
 	
@@ -360,7 +344,6 @@ int main(int argc, char** argv)
 		}
 		cerr << "vol: " << endl << *vol << endl;
 		cerr << "Rigid Transform: " << tt << "\n" << rigid <<endl;
-		rigid.invert();
 		rigid.toIndexCoords(vol, true);
 		cerr << "Rigid Transform: " << tt << "\n" << rigid <<endl;
 		
