@@ -26,7 +26,6 @@
 #include <Eigen/Dense>
 
 #include <memory>
-
 using std::shared_ptr;
 
 namespace npl {
@@ -42,7 +41,7 @@ namespace npl {
  * A computer is needed for every pair of Metric and Transform type.
  *
  */
- 
+
 /** @{ */
 
 /**
@@ -87,7 +86,7 @@ class RigidInformationComputer
      */
     int valueGrad(const Eigen::VectorXd& params, double& val, 
             Eigen::VectorXd& grad);
-    
+
     /**
      * @brief Computes the gradient of the correlation. Note that this
      * function just calls valueGrad because computing the
@@ -127,11 +126,22 @@ class RigidInformationComputer
     shared_ptr<MRImage> m_dmoving;
 
 	enum Metric {METRIC_MI, METRIC_VI, METRIC_NMI};
-    
+
 	/**
 	 * @brief Metric to use
 	 */
 	Metric m_metric;
+
+#ifdef VERYDEBUG
+    shared_ptr<MRImage> d_theta_x;
+    shared_ptr<MRImage> d_theta_y;
+    shared_ptr<MRImage> d_theta_z;
+    shared_ptr<MRImage> d_shift_x;
+    shared_ptr<MRImage> d_shift_y;
+    shared_ptr<MRImage> d_shift_z;
+    shared_ptr<MRImage> interpolated;
+    int callcount;
+#endif
 
     private:
 
@@ -152,20 +162,9 @@ class RigidInformationComputer
 
 	double m_center[3];
 
-#ifdef VERYDEBUG
-    shared_ptr<MRImage> d_theta_x;
-    shared_ptr<MRImage> d_theta_y;
-    shared_ptr<MRImage> d_theta_z;
-    shared_ptr<MRImage> d_shift_x;
-    shared_ptr<MRImage> d_shift_y;
-    shared_ptr<MRImage> d_shift_z;
-    shared_ptr<MRImage> interpolated;
-    int callcount;
-#endif
-    
     NDArrayStore<1, double> m_pdfmove;
     NDArrayStore<1, double> m_pdffix;
-    
+
     NDArrayStore<2, double> m_pdfjoint;
     NDArrayStore<3, double> m_dpdfjoint;
     NDArrayStore<2, double> m_dpdfmove;
@@ -221,7 +220,7 @@ class RigidCorrComputer
      */
     int valueGrad(const Eigen::VectorXd& params, double& val, 
             Eigen::VectorXd& grad);
-    
+
     /**
      * @brief Computes the gradient of the correlation. Note that this
      * function just calls valueGrad because computing the
@@ -254,15 +253,6 @@ class RigidCorrComputer
     shared_ptr<MRImage> m_moving;
     shared_ptr<MRImage> m_dmoving;
 
-    private:
-
-    // for interpolating moving image, and iterating fixed
-    LinInterp3DView<double> m_move_get;
-    LinInterp3DView<double> m_dmove_get;
-    NDConstIter<double> m_fit;
-
-	double m_center[3];
-    
 #ifdef VERYDEBUG
     shared_ptr<MRImage> d_theta_x;
     shared_ptr<MRImage> d_theta_y;
@@ -274,6 +264,15 @@ class RigidCorrComputer
     int callcount;
 #endif
 
+
+    private:
+
+    // for interpolating moving image, and iterating fixed
+    LinInterp3DView<double> m_move_get;
+    LinInterp3DView<double> m_dmove_get;
+    NDConstIter<double> m_fit;
+
+	double m_center[3];
     /**
      * @brief Negative of correlation (which will make it work with most
      * optimizers)
@@ -295,7 +294,7 @@ struct Rigid3DTrans
     Vector3d rotation; //Rx, Ry, Rz
     Vector3d shift;
     Vector3d center;
-   
+
     /**
      * @brief Indicates the stored transform is relative to physical coordintes
      * rather than index coordinates
@@ -354,7 +353,7 @@ struct Rigid3DTrans
      * @param in Source of index->world transform
      */
     void toRASCoords(shared_ptr<const MRImage> in);
-    
+
     /**
      * @brief Converts from world coordinates to index coordinates based on the
      * orientation stored in input image.
