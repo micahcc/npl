@@ -71,7 +71,7 @@ ptr<NDArray> derivative(ptr<const NDArray> in, size_t dir)
         throw std::invalid_argument("Input direction is outside range of "
                 "input dimensions in\n" + __FUNCTION_STR__);
 
-    auto out = dPtrCast<MRImage>(in->copy());
+    auto out = in->copy();
 
     vector<int64_t> index(in->ndim());
     NDConstView<double> inGet(in);
@@ -130,7 +130,7 @@ ptr<NDArray> derivative(ptr<const NDArray> in)
 {
     vector<size_t> osize(in->dim(), in->dim()+in->ndim());
     osize.push_back(in->ndim());
-    auto out = dPtrCast<MRImage>(in->copyCast(osize.size(), osize.data()));
+    auto out = in->copyCast(osize.size(), osize.data());
 
 	derivative(in, out);
     return out;
@@ -1683,8 +1683,8 @@ ptr<NDArray> pseudoPolarZoom(ptr<const NDArray> inimg, size_t prdim)
 	
 	// write out padded/FFT image
 	{
-		auto absimg = dPtrCast<MRImage>(out->copyCast(FLOAT64));
-		auto angimg = dPtrCast<MRImage>(out->copyCast(FLOAT64));
+		auto absimg = out->copyCast(FLOAT64);
+		auto angimg = out->copyCast(FLOAT64);
 
 		OrderIter<double> rit(absimg);
 		OrderIter<double> iit(angimg);
@@ -2324,6 +2324,53 @@ ptr<NDArray> relabelConnected(ptr<NDArray> input)
 
 	return output;
 };
+
+/**
+ * @brief Computes a histogram, then spaces out intensities so that each
+ * intensity has equal volume/area in the image.
+ *
+ * @param in Input image.
+ *
+ * @return Image that has been histogram equalized
+ */
+ptr<NDArray> histEqualize(ptr<const NDArray> in)
+{
+	auto out = in->copy();
+	vector<double> bins(sqrt(in->elements()));
+	double minv = INFINITY;
+	double maxv = -INFINITY;
+	for(FlatConstIter<double> iit(in); !iit.eof(); ++iit) {
+		minv = std::min(minv, *iit);
+		maxv = std::max(maxv, *iit);
+	}
+	double bwidth = 0.99999999*bins.size()/(maxv-minv);
+	for(FlatConstIter<double> iit(in); !iit.eof(); ++iit) 
+		bins[floor((*iit-minv)*bwidth)]++;
+
+	double cumsum = 0;
+	for(size_t bb=0; bb < bins.size(); bb++) {
+		bins[bb] /= in->elements();
+		double p = cumsum;
+		cumsum += bins[bb];
+		bins[bb] = p;
+	}
+
+	FlatIter<double> oit(out);
+	for(FlatConstIter<double> iit(in); !oit.eof(); ++oit, ++iit) {
+		double cbin = (*iit-minv)*bwidth;
+		int bin = floor(cbin);
+		double v;
+		if(bin == bins.size()-1) 
+			v = (1-cbin+bin)*bins[bin] + (cbin-bin);
+		else
+			v = (1-cbin+bin)*bins[bin] + (cbin-bin)*bins[bin+1];
+		oit.set(v);
+	}
+
+
+	return out;
+}
+
 /**
  * @brief Computes a threshold based on OTSU.
  *

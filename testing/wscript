@@ -376,6 +376,11 @@ def build(bld):
             source='smooth_test1.cpp', 
             use='mrimage_utils')
 
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='histeq_test', 
+            source='histeq_test.cpp', 
+            use='mrimage_utils')
+
     bld.program(install_path='${PREFIX}/tests',  features='test',
             target='concat_test1', 
             source='concat_test1.cpp', 
