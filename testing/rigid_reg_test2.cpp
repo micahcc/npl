@@ -89,14 +89,17 @@ shared_ptr<MRImage> squareImage()
 		++sit;
 	}
 
+	gaussianSmooth1D(in, 0, .1);
+	gaussianSmooth1D(in, 1, .1);
+	gaussianSmooth1D(in, 2, .1);
     return in;
 };
 
 int main()
 {
     // create test image
-    auto img = gaussianImage();
-    //auto img = squareImage();
+    auto img = squareImage();
+	img->write("rigid_reg_test2_original.nii.gz");
 	double trueshift[3] = {5,7,-2};
 	double truerotate[3] = {.1,.1,.2};
 
@@ -110,11 +113,22 @@ int main()
     cerr << "Input Image:\n" << *img << endl;
     cerr << "Rigidly Transformed Image:\n" << *moved << endl;
 
-    std::vector<double> sigma_schedule({4,2,0});
+    std::vector<double> sigma_schedule({4,2,1,0});
 	auto out = corReg3D(img, moved, sigma_schedule);
-
 	out.toIndexCoords(moved, true);
     cerr << "Final Parameters: " << out << endl;
+	
+	{
+	auto tmp = out;
+	tmp.toRASCoords(moved);
+	tmp.invert();
+	tmp.toIndexCoords(moved, true);
+    rotateImageShearKern(moved, tmp.rotation[0], tmp.rotation[1], tmp.rotation[2]);
+
+	for(size_t ii=0; ii<3; ii++)
+		shiftImageFFT(moved, ii, tmp.shift[ii]);
+	moved->write("rigid_reg_test2_inverse.nii.gz");
+	}
 	
 	for(size_t dd=0; dd<3; dd++) {
 		if(fabs(truerotate[dd] - out.rotation[dd]) > 0.05) {
@@ -126,6 +140,7 @@ int main()
 			return -1;
 		}
 	}
+    
     return 0;
 }
 

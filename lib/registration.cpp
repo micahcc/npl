@@ -39,6 +39,8 @@ using Eigen::AngleAxisd;
 using std::cerr;
 using std::endl;
 
+static int COUNT = 0;
+
 #ifdef VERYDEBUG
 #define DEBUGWRITE(FOO) FOO 
 #else
@@ -117,9 +119,12 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
         // initialize optimizer
         LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
         opt.stop_Its = 10000;
-        opt.stop_X = 0.00001;
+        opt.stop_X = 1e-8;
         opt.stop_G = 0;
         opt.stop_F = 0;
+		opt.opt_histsize = 2;
+		opt.opt_ls_beta = 0.4;
+		opt.opt_ls_s = 1;
 
         // grab the parameters from the previous iteration (or initialized)
         rigid.toIndexCoords(sm_moving, true);
@@ -146,7 +151,6 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
             rigid.shift[ii] = opt.state_x[ii+3]*sm_moving->spacing(ii);
             rigid.center[ii] = (sm_moving->dim(ii)-1)/2.;
         }
-
 //        cerr << "Finished Rigid (Index Coord): " << ii << endl;
 //        cerr << "Rotation: " << rigid.rotation.transpose() << endl;
 //        cerr << "Center : " << rigid.center.transpose() << endl;
@@ -348,11 +352,9 @@ RigidCorrComputer::RigidCorrComputer(
         shared_ptr<const MRImage> fixed, shared_ptr<const MRImage> moving,
         bool negate) :
     m_fixed(dPtrCast<MRImage>(fixed->copy())),
+    m_fixedbuff(dPtrCast<MRImage>(fixed->copy())),
     m_moving(dPtrCast<MRImage>(moving->copy())),
     m_dmoving(dPtrCast<MRImage>(derivative(moving))),
-    m_move_get(m_moving, CONSTZERO),
-    m_dmove_get(m_dmoving, CONSTZERO),
-    m_fit(m_fixed),
     m_negate(negate)
 {
     if(fixed->ndim() != 3)
@@ -362,23 +364,25 @@ RigidCorrComputer::RigidCorrComputer(
     
 	updatedInputs();
 
-#ifdef VERYDEBUG
-    m_moving->write("init_moving.nii.gz");
-    m_dmoving->write("init_moving.nii.gz");
-    m_fixed->write("init_fixed.nii.gz");
-    d_theta_x = dPtrCast<MRImage>(moving->copy());
-    d_theta_y = dPtrCast<MRImage>(moving->copy());
-    d_theta_z = dPtrCast<MRImage>(moving->copy());
-    d_shift_x = dPtrCast<MRImage>(moving->copy());
-    d_shift_y = dPtrCast<MRImage>(moving->copy());
-    d_shift_z = dPtrCast<MRImage>(moving->copy());
-    interpolated = dPtrCast<MRImage>(moving->copy());
-    interpolated->write("init_interpolated.nii.gz");
-    callcount = 0;
-#endif
-
+	m_moving->write("moving"+to_string(COUNT)+".nii.gz");
+	m_dmoving->write("dmoving"+to_string(COUNT)+".nii.gz");
     for(size_t ii=0; ii<3 && ii<moving->ndim(); ii++) 
 		m_center[ii] = (m_moving->dim(ii)-1)/2.;
+}
+
+void rigidApply(ptr<const MRImage> input, ptr<MRImage> output, double rx,
+		double ry, double rz, double sx, double sy, double sz)
+{
+	FlatIter<double> oit(output);
+	FlatConstIter<double> iit(input);
+	for(; !oit.eof() && !iit.eof(); ++oit, ++iit)
+		oit.set(*iit);
+	assert(iit.eof() && oit.eof());
+
+	rotateImageShearFFT(output, rx, ry, rz, rectWindow);
+	shiftImageFFT(output, 0, sx);
+	shiftImageFFT(output, 1, sy);
+	shiftImageFFT(output, 2, sz);
 }
 
 /**
@@ -388,9 +392,6 @@ RigidCorrComputer::RigidCorrComputer(
 void RigidCorrComputer::updatedInputs()
 {
 	derivative(m_moving, m_dmoving);
-    m_move_get.setArray(m_moving);
-    m_dmove_get.setArray(m_dmoving);
-    m_fit.setArray(m_fixed);
 }
 
 /**
@@ -405,28 +406,23 @@ void RigidCorrComputer::updatedInputs()
 int RigidCorrComputer::valueGrad(const VectorXd& params, 
         double& val, VectorXd& grad)
 {
+	assert(m_moving->matchingOrient(m_fixed, true));
+	assert(m_moving->matchingOrient(m_fixedbuff, true));
+
     double rx = params[0]*M_PI/180.;
     double ry = params[1]*M_PI/180.;
     double rz = params[2]*M_PI/180.;
     double sx = params[3]*m_moving->spacing(0);
     double sy = params[4]*m_moving->spacing(1);
     double sz = params[5]*m_moving->spacing(2);
+	rigidApply(m_fixed, m_fixedbuff, rx, ry, rz, sx, sy, sz);
+	m_fixedbuff->write("fixed"+to_string(COUNT)+".nii.gz");
+	COUNT++;
 
 //#if defined DEBUG || defined VERYDEBUG
 	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: " 
 		<< sx << ", " << sy << ", " << sz << endl;
 //#endif
-#ifdef VERYDEBUG
-    cerr << "ValGrad()" << endl;
-    Pixel3DView<double> d_ang_x(d_theta_x);
-    Pixel3DView<double> d_ang_y(d_theta_y);
-    Pixel3DView<double> d_ang_z(d_theta_z);
-    Pixel3DView<double> d_shi_x(d_shift_x);
-    Pixel3DView<double> d_shi_y(d_shift_y);
-    Pixel3DView<double> d_shi_z(d_shift_z);
-    Pixel3DView<double> acc(interpolated);
-#endif
-
     // for computing roted indices
 	double ind[3];
 	double cind[3];
@@ -440,13 +436,18 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
     double mov_ss = 0;
     double fix_ss = 0;
     double corr = 0;
-    for(m_fit.goBegin(); !m_fit.eof(); ++m_fit) {
-		m_fit.index(3, ind);
+
+	NDConstIter<double> fit(m_fixedbuff);
+	NDConstIter<double> mit(m_moving);
+	Vector3DConstIter<double> dit(m_dmoving);
+    for(; !fit.eof() && !mit.eof() && !dit.eof(); ++fit, ++mit, ++dit) {
+		fit.index(3, ind);
         // u = c + R^-1(v - s - c)
         // where u is the output index, v the input, c the center of rotation
         // and s the shift
-		// cind = center + rInv*(ind-shift-center); 
-        
+ 
+		// Need to pass x,y,z through the transform to find the 'real' position
+		// in the fixed image
         double x = ind[0];
         double y = ind[1];
         double z = ind[2];
@@ -454,15 +455,19 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
         double cx = m_center[0];
         double cy = m_center[1];
         double cz = m_center[2];
-        
-        cind[0] = cx + sx + (-cz + z)*sin(ry) + cos(ry)*((-cx + x)*cos(rz) +
-                (cy - y)*sin(rz));
-        cind[1] = cy + sy + (cz - z)*cos(ry)*sin(rx) + (-cx +
-                x)*(cos(rz)*sin(rx)*sin(ry) + cos(rx)*sin(rz)) + (-cy +
-                y)*(cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz));
-        cind[2] = cz + sz + (-cz + z)*cos(rx)*cos(ry) + (cx -
-                x)*(cos(rx)*cos(rz)*sin(ry) - sin(rx)*sin(rz)) + (-cy +
-                y)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
+
+		cind[0] = cx-(cx+sx-x)*cos(ry)*cos(rz)+
+				cos(rz)*((cz+sz-z)*cos(rx)-(cy+sy-y)*sin(rx))*sin(ry)-
+				((cy+sy-y)*cos(rx)+(cz+sz-z)*sin(rx))*sin(rz);
+		cind[1] = cy+cos(rz)*(-(cy+sy-y)*cos(rx)-(cz+sz-z)*sin(rx))+
+				(cx+sx-x)*cos(ry)*sin(rz)+
+				(-(cz+sz-z)*cos(rx)+(cy+sy-y)*sin(rx))*sin(ry)*sin(rz);
+		cind[2] = cz-(cz+sz-z)*cos(rx)*cos(ry)+(cy+sy-y)*cos(ry)*sin(rx)-
+				(cx+sx-x)*sin(ry);
+
+		x = cind[0];
+		y = cind[1];
+		z = cind[2];
 
         // Here we compute dg(v(u,p))/dp, where g is the image, u is the
         // coordinate in the fixed image, and p is the param. 
@@ -470,9 +475,9 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
         // dg/dv_i is the directional derivative in original space,
         // dv_i/dp is the derivative of the rotated coordinate system with
         // respect to a parameter
-        double dg_dx = m_dmove_get(cind[0], cind[1], cind[2], 0);
-        double dg_dy = m_dmove_get(cind[0], cind[1], cind[2], 1);
-        double dg_dz = m_dmove_get(cind[0], cind[1], cind[2], 2);
+        double dg_dx = dit[0];
+        double dg_dy = dit[1];
+        double dg_dz = dit[2];
 
         double dx_dRx = 0;
         double dy_dRx = (cz - z)*cos(rx)*cos(ry) + 
@@ -515,8 +520,8 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
         double dgdSz = (dg_dx*dx_dSz + dg_dy*dy_dSz + dg_dz*dz_dSz);
         
         // compute correlation, since it requires almost no additional work
-        double g = m_move_get(cind[0], cind[1], cind[2]);
-        double f = *m_fit;
+        double g = *mit;
+        double f = *fit;
         
         mov_sum += g;
         fix_sum += f;
@@ -524,23 +529,12 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
         fix_ss += f*f;
         corr += g*f;
 
-#ifdef VERYDEBUG
-        d_ang_x.set(ind[0], ind[1], ind[2], dgdRx);
-        d_ang_y.set(ind[0], ind[1], ind[2], dgdRy);
-        d_ang_z.set(ind[0], ind[1], ind[2], dgdRz);
-        d_shi_x.set(ind[0], ind[1], ind[2], dgdSx);
-        d_shi_y.set(ind[0], ind[1], ind[2], dgdSy);
-        d_shi_z.set(ind[0], ind[1], ind[2], dgdSz);
-        acc.set(ind[0], ind[1], ind[2], g);
-#endif
-     
-        grad[0] += (*m_fit)*dgdRx*M_PI/180.;
-        grad[1] += (*m_fit)*dgdRy*M_PI/180.;
-        grad[2] += (*m_fit)*dgdRz*M_PI/180.;
-        grad[3] += (*m_fit)*dgdSx*m_moving->spacing(0);
-        grad[4] += (*m_fit)*dgdSy*m_moving->spacing(1);
-        grad[5] += (*m_fit)*dgdSz*m_moving->spacing(2);
-     
+        grad[0] += f*dgdRx*M_PI/180.;
+        grad[1] += f*dgdRy*M_PI/180.;
+        grad[2] += f*dgdRz*M_PI/180.;
+        grad[3] += f*dgdSx*m_moving->spacing(0);
+        grad[4] += f*dgdSy*m_moving->spacing(1);
+        grad[5] += f*dgdSz*m_moving->spacing(2);
     }
 
     count = m_fixed->elements();
@@ -555,20 +549,8 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
     }
 
 //#if defined VERYDEBUG || defined DEBUG
-    cerr << "Value: " << val << endl;
-    cerr << "Gradient: " << grad.transpose() << endl;
+    cerr << "Value: " << val << " / " << "Gradient: " << grad.transpose() << endl;
 //#endif
-#ifdef VERYDEBUG
-    string sc = "_"+to_string(callcount);
-    d_theta_x->write("d_theta_x"+sc+".nii.gz");
-    d_theta_y->write("d_theta_y"+sc+".nii.gz");
-    d_theta_z->write("d_theta_z"+sc+".nii.gz");
-    d_shift_x->write("d_shift_x"+sc+".nii.gz");
-    d_shift_y->write("d_shift_y"+sc+".nii.gz");
-    d_shift_z->write("d_shift_z"+sc+".nii.gz");
-    interpolated->write("interp"+sc+".nii.gz");
-    callcount++;
-#endif
 
     return 0;
 }
@@ -613,13 +595,11 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
     double sx = params[3]*m_moving->spacing(0);
     double sy = params[4]*m_moving->spacing(1);
     double sz = params[5]*m_moving->spacing(2);
+	rigidApply(m_fixed, m_fixedbuff, rx, ry, rz, sx, sy, sz);
 //#if defined DEBUG || defined VERYDEBUG
 	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: " 
 		<< sx << ", " << sy << ", " << sz << endl;
 //#endif
-
-	double ind[3];
-	double cind[3];
 
     //  Resample Output and Compute Orientation. While actually resampling is
     //  optional, it helps with debugging
@@ -628,34 +608,11 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
     double ss1 = 0;
     double ss2 = 0;
     double corr = 0;
-	for(m_fit.goBegin(); !m_fit.eof(); ++m_fit) {
-		m_fit.index(3, ind);
-
-        // u = c + R^-1(v - s - c)
-        // where u is the output index, v the input, c the center of rotation
-        // and s the shift
-        double x = ind[0];
-        double y = ind[1];
-        double z = ind[2];
-
-        double cx = m_center[0];
-        double cy = m_center[1];
-        double cz = m_center[2];
-        
-        cind[0] = cx + sx + (-cz + z)*sin(ry) + cos(ry)*((-cx + x)*cos(rz) +
-                (cy - y)*sin(rz));
-        cind[1] = cy + sy + (cz - z)*cos(ry)*sin(rx) + (-cx +
-                x)*(cos(rz)*sin(rx)*sin(ry) + cos(rx)*sin(rz)) + (-cy +
-                y)*(cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz));
-        cind[2] = cz + sz + (-cz + z)*cos(rx)*cos(ry) + (cx -
-                x)*(cos(rx)*cos(rz)*sin(ry) - sin(rx)*sin(rz)) + (-cy +
-                y)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
-        
-        double a = m_move_get(cind[0], cind[1], cind[2]);
-#ifdef VERYDEBUG
-        acc.set(ind[0], ind[1], ind[2], a);
-#endif
-        double b = *m_fit;
+	FlatConstIter<double> fit(m_fixedbuff);
+	FlatConstIter<double> mit(m_moving);
+	for(; !fit.eof() && !mit.eof(); ++mit, ++fit) {
+        double a = *mit;
+        double b = *fit;
         sum1 += a;
         ss1 += a*a;
         sum2 += b;
@@ -670,11 +627,6 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 //#if defined VERYDEBUG || defined DEBUG
     cerr << "Value: " << val << endl;
 //#endif
-#ifdef VERYDEBUG
-    string sc = "_"+to_string(callcount);
-    interpolated->write("interp"+sc+".nii.gz");
-    callcount++;
-#endif 
     return 0;
 };
 

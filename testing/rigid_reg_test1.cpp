@@ -99,13 +99,13 @@ int main()
 
     // rotate it
     auto moved = dPtrCast<MRImage>(img->copy());
-    rotateImageShearFFT(moved, .1, .1, .2);
+    rotateImageShearFFT(moved, .01, .01, .02, hannWindow);
 
-    shiftImageFFT(moved, 0, 5);
-    shiftImageFFT(moved, 1, 7);
-    shiftImageFFT(moved, 2, -2);
+    shiftImageFFT(moved, 0, 1);
+    shiftImageFFT(moved, 1, 2);
+    shiftImageFFT(moved, 2, -1);
 
-    if(cor3DDerivTest(0.00001, 0.01, img, moved) != 0)
+    if(cor3DDerivTest(0.00000001, 0.01, img, moved) != 0)
         return -1;
     
     return 0;

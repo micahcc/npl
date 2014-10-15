@@ -250,27 +250,11 @@ class RigidCorrComputer
 	void updatedInputs();
 
     shared_ptr<MRImage> m_fixed;
+    shared_ptr<MRImage> m_fixedbuff;
     shared_ptr<MRImage> m_moving;
     shared_ptr<MRImage> m_dmoving;
 
-#ifdef VERYDEBUG
-    shared_ptr<MRImage> d_theta_x;
-    shared_ptr<MRImage> d_theta_y;
-    shared_ptr<MRImage> d_theta_z;
-    shared_ptr<MRImage> d_shift_x;
-    shared_ptr<MRImage> d_shift_y;
-    shared_ptr<MRImage> d_shift_z;
-    shared_ptr<MRImage> interpolated;
-    int callcount;
-#endif
-
-
     private:
-
-    // for interpolating moving image, and iterating fixed
-    LinInterp3DView<double> m_move_get;
-    LinInterp3DView<double> m_dmove_get;
-    NDConstIter<double> m_fit;
 
 	double m_center[3];
     /**
