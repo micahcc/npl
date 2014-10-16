@@ -52,14 +52,16 @@ using namespace npl;
  */
 vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 		const vector<double>& sigmas, double minstep, double maxstep, 
-		int histsize, double beta)
+		int histsize, double beta, int padsize)
 {
 	assert(fmri->ndim());
     using namespace std::placeholders;
     using std::bind;
 
 	// Initialize Variables
-	const size_t PADSIZE = 20;
+	if(padsize < 0)
+		padsize = 0;
+
 	Vector3DConstIter<double> iit(fmri); 
 	vector<vector<double>> motion;
 	double thresh = otsuThresh(fmri);
@@ -67,26 +69,26 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 	// extract reference volumes and pre-smooth
 	vector<size_t> vsize(fmri->dim(), fmri->dim()+fmri->ndim());
 	for(size_t dd=0; dd<vsize.size(); dd++) {
-		vsize[dd] += PADSIZE;
+		vsize[dd] += padsize;
 	}
 	vsize[3] = 0;
 
 	vector<pair<int64_t,int64_t>> roi(fmri->ndim()-1);
 	for(size_t dd=0; dd<vsize.size()-1; dd++) {
-		roi[dd].first = PADSIZE/2;
+		roi[dd].first = padsize/2;
 		roi[dd].second = roi[dd].first + fmri->dim(dd)-1;
 	}
 
 	// Registration Tools, create with placeholder images
-	auto tmp = dPtrCast<MRImage>(fmri->createAnother(3, vsize.data(), FLOAT32));
-	RigidCorrComputer comp(tmp, tmp, true);
+	auto vol = dPtrCast<MRImage>(fmri->createAnother(3, vsize.data(), FLOAT32));
+	RigidCorrComputer comp(true);
 
 	// Pre-Compute Fixed Smoothing
 	vector<ptr<MRImage>> fixed;
 	for(size_t ii=0; ii<sigmas.size(); ii++) {
 
-		// create padded image, that is smoothed
-		fixed.push_back(dPtrCast<MRImage>(tmp->createAnother()));
+		// create another padded image, then smooth
+		fixed.push_back(dPtrCast<MRImage>(vol->createAnother()));
 		
 		for(FlatIter<double> fit(fixed.back()); !fit.eof(); ++fit) 
 			fit.set(0);
@@ -139,9 +141,10 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 				 * Extract, threshold and Smooth Moving Volume, Set Fixed in
 				 * computer to Pre-Smoothed Version
 				 */
-				NDIter<double> mit(comp.m_moving);
+				NDIter<double> mit(vol);
 				mit.setROI(roi);
-				for(iit.goBegin(), mit.goBegin(); !iit.eof() && !mit.eof(); ++iit, ++mit) {
+				for(iit.goBegin(), mit.goBegin(); !iit.eof() && !mit.eof();
+								++iit, ++mit) {
 					double v = iit[tt];
 					if(v < thresh)
 						mit.set(0);
@@ -150,16 +153,13 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 				}
 
 				for(size_t dd=0; dd<3; dd++) 
-					gaussianSmooth1D(comp.m_moving, dd, sigmas[ii]);
+					gaussianSmooth1D(vol, dd, sigmas[ii]);
 
-				comp.m_fixed = fixed[ii];
-				comp.updatedInputs();
+				comp.setFixed(fixed[ii]);
+				comp.setMoving(vol);
 				
 				// run the optimizer
 				opt.reset_history();
-				comp.m_fixed->write("fixed"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
-				comp.m_moving->write("moving"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
-				comp.m_dmoving->write("dmoving"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
 				StopReason stopr = opt.optimize();
 				cerr << Optimizer::explainStop(stopr) << endl;
 			}
@@ -174,23 +174,13 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 			// Convert to RAS
 			rigid.ras_coord = false;
 			for(size_t dd=0; dd<3; dd++) {
-				rigid.center[dd] = (comp.m_moving->dim(dd)-1)/2.;
+				rigid.center[dd] = (vol->dim(dd)-1)/2.;
 				rigid.rotation[dd] = opt.state_x[dd]*M_PI/180;
-				rigid.shift[dd] = opt.state_x[dd+3]*comp.m_moving->spacing(dd);
+				rigid.shift[dd] = opt.state_x[dd+3]*vol->spacing(dd);
 			}
 
 			rigid.invert();
-
-		// Apply Rigid Transform
-			rotateImageShearKern(comp.m_moving, rigid.rotation[0], rigid.rotation[1], 
-					rigid.rotation[2]);
-			for(size_t dd=0; dd<3; dd++) 
-				shiftImageKern(comp.m_moving, dd, rigid.shift[dd]);
-			comp.m_moving->write("final_"+to_string(tt)+".nii.gz");
-
-			rigid.toRASCoords(comp.m_moving);
-			cout << setw(20) << "Final Rigid: " << setw(4) <<
-				tt << " :\n"  << rigid << endl;
+			rigid.toRASCoords(vol);
 			for(size_t dd=0; dd<3; dd++) {
 				m[dd] = rigid.center[dd];
 				m[dd+3] = rigid.rotation[dd];
@@ -248,6 +238,9 @@ int main(int argc, char** argv)
 			false, 5, "int", cmd);
 	TCLAP::ValueArg<double> a_beta("", "reduction", "Reduction in step size", 
 			false, 0.7, "float", cmd);
+	TCLAP::ValueArg<int> a_padsize("", "pad", "Number of pixels to pad during "
+			"registration. Reduces information lost, and stabilizes "
+			"registration (slightly).", false, 3, "pixels", cmd);
 
 	cmd.parse(argc, argv);
 
@@ -298,7 +291,7 @@ int main(int argc, char** argv)
 		// Compute Motion
 		motion = computeMotion(fmri, ref, sigmas, a_minstep.getValue(),
 				a_maxstep.getValue(), a_lbfgs_hist.getValue(),
-				a_beta.getValue());
+				a_beta.getValue(), a_padsize.getValue());
 	}
 
 	// Write to Motion File
@@ -352,10 +345,8 @@ int main(int argc, char** argv)
 		// Apply Rigid Transform
 		rotateImageShearKern(vol, rigid.rotation[0], rigid.rotation[1], 
 				rigid.rotation[2]);
-//		vol->write("rot_"+to_string(tt)+".nii.gz");
 		for(size_t dd=0; dd<3; dd++) 
 			shiftImageKern(vol, dd, rigid.shift[dd]);
-//		vol->write("shift_"+to_string(tt)+".nii.gz");
 
 		// Copy Result Back to input image
 		for(iit.goBegin(), vit.goBegin(); !iit.eof(); ++iit, ++vit) 

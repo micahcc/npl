@@ -417,12 +417,15 @@ public:
 		 * don't.
 		 *
 		 * @param other MRimage to compare.
+		 * @param checkdim Whether to enforce identical dimensionality. If this is
+		 * false then the first min(D1,D2) dimensions will be checked, if this is true
+		 * then mismatched dimensionality will cause this to return a false
 		 * @param checksize Whether to enforce identical size as well as orientation
 		 *
 		 * @return True if the two images have matching orientation information.
 		 */
-		virtual
-		bool matchingOrient(ptr<const MRImage> other, bool checksize) const;
+		virtual bool matchingOrient(ptr<const MRImage> other, bool checkdim,
+				bool checksize) const;
 
 		/********************************************
 		 * Output Functions
