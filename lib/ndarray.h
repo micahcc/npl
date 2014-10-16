@@ -52,7 +52,7 @@ class NDArray;
  ******************************************************************************/
 
 /**
- * \addtogroup NDarrayUtilities 
+ * \addtogroup NDarrayUtilities
  * @{
  */
 
@@ -92,7 +92,7 @@ ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype);
  *
  * @return New image, default orientation
  */
-ptr<NDArray> createNDArray(size_t ndim, const size_t* size, 
+ptr<NDArray> createNDArray(size_t ndim, const size_t* size,
         PixelT ptype, void* ptr, std::function<void(void*)> deleter);
 
 /**
@@ -107,15 +107,15 @@ ptr<NDArray> createNDArray(size_t ndim, const size_t* size,
  *
  * @return New image, default orientation
  */
-ptr<NDArray> createNDArray(const std::vector<size_t>& dim, 
+ptr<NDArray> createNDArray(const std::vector<size_t>& dim,
         PixelT ptype, void* ptr, std::function<void(void*)> deleter);
 
 /**
  * @brief Copy an roi from one image to another image. ROI's must be the same
- * size. 
+ * size.
  *
  * @param in Input image (copy pixels from this image)
- * @param inROIL Input ROI, lower bound 
+ * @param inROIL Input ROI, lower bound
  * @param inROIZ Input ROI, size
  * @param out Copy to copy pixels to
  * @param oROIL Output ROI, lower bound
@@ -123,7 +123,7 @@ ptr<NDArray> createNDArray(const std::vector<size_t>& dim,
  * @param newtype Type to cast pixels to during copy
  *
  */
-void copyROI(ptr<const NDArray> in, 
+void copyROI(ptr<const NDArray> in,
         const int64_t* inROIL, const size_t* inROIZ, ptr<NDArray> out,
         const int64_t* oROIL, const size_t* oROIZ, PixelT newtype);
 
@@ -147,7 +147,7 @@ std::ostream& operator<<(std::ostream &out, const NDArray& img);
 std::string pixelTtoString(PixelT type);
 
 /**
- * @brief Returns a pixeltype as described by the string. 
+ * @brief Returns a pixeltype as described by the string.
  *
  * @param type string to look up as a pixel type
  *
@@ -178,9 +178,53 @@ public:
 	virtual size_t dim(size_t dir) const = 0;
 	virtual const size_t* dim() const = 0;
 
-	// return type of stored value
+	/**
+	 * @brief Return enum PixelT type of pixels
+	 *
+	 * @return Type of values stored
+	 */
 	virtual PixelT type() const = 0;
+
+	/**
+	 * @brief Returns true if the stored type is FLOAT32, FLOAT64, or FLOAT128,
+	 * ie is a pure float type.
+	 *
+	 * @return True if the number can be represented by a long double
+	 */
+	bool floatType() const {
+		return type()==FLOAT32 || type()==FLOAT64 || type()==FLOAT128;
+	};
+
+	/**
+	 * @brief Returns true if the stored type is COMPLEX256, COMPLEX128, or
+	 * COMPLEX64, ie is a complex floating point type.
+	 *
+	 * @return True if the number can be represented by a complex<long double>
+	 */
+	bool complexType() const{
+		return type()==COMPLEX64|| type()==COMPLEX128|| type()==COMPLEX256;
+	};
+
+	/**
+	 * @brief Returns true if the stored type is a variant of signed integer .
+	 *
+	 * @return True if the number can be represented by an int64_t
+	 */
+	bool signedType() const {
+		return type()==INT8|| type()==INT16 || type()==INT32 || type()==INT64;
+	};
 	
+	/**
+	 * @brief Returns true if the stored type is a variant of unsigned signed
+	 * integer.
+	 *
+	 * @return True if the number can be represented by an size_t
+	 */
+	bool unsignedType() const {
+		return type()==UINT8||type()==UINT16||type()==UINT32||type()==UINT64;
+	};
+
+
 	ptr<NDArray> getPtr()  {
 		return shared_from_this();
 	};
@@ -198,7 +242,7 @@ public:
 	 * @return Copied array.
 	 */
 	virtual ptr<NDArray> copy() const = 0;
-    
+
     /**
      * @brief Creates an identical array, but does not initialize pixel values.
 	 *
@@ -222,7 +266,7 @@ public:
 
 	/**
 	 * @brief Create a new array that is the same underlying type as this, but
-     * with a different pixel type. 
+     * with a different pixel type.
 	 *
 	 * @param newtype Type of pixels in output array
 	 *
@@ -243,7 +287,7 @@ public:
 	 * @return Image with identical orientation and pixel type but different
      * size from this
 	 */
-    virtual ptr<NDArray> createAnother(size_t newdims, 
+    virtual ptr<NDArray> createAnother(size_t newdims,
             const size_t* newsize) const = 0;
 
 	/**
@@ -293,7 +337,7 @@ public:
      * @param len     Length of index/newsize arrays
      * @param index   Index to start copying from.
      * @param size Size of output image. Note length 0 dimensions will be
-     * removed, while length 1 dimensions will be left. 
+     * removed, while length 1 dimensions will be left.
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
@@ -306,7 +350,7 @@ public:
      *
      * @param len     Length of index/size arrays
      * @param size Size of output image. Note length 0 dimensions will be
-     * removed, while length 1 dimensions will be left. 
+     * removed, while length 1 dimensions will be left.
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
@@ -319,7 +363,7 @@ public:
      * @param len     Length of index/size arrays
      * @param index   Index to start copying from.
      * @param size Size of output image. Note length 0 dimensions will be
-     * removed, while length 1 dimensions will be left. 
+     * removed, while length 1 dimensions will be left.
      * @param newtype Pixel type of output image.
      *
      * @return Image with overlapping sections cast and copied from 'in'
@@ -333,14 +377,14 @@ public:
      *
      * @param len     Length of index/size arrays
      * @param size Size of output image. Note length 0 dimensions will be
-     * removed, while length 1 dimensions will be left. 
+     * removed, while length 1 dimensions will be left.
      * @param newtype Pixel type of output image.
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
-    virtual ptr<NDArray> extractCast(size_t len, const size_t* size, 
+    virtual ptr<NDArray> extractCast(size_t len, const size_t* size,
             PixelT newtype) const = 0;
-    
+
     /********************************************
      * Output Functions
      *******************************************/
@@ -354,7 +398,7 @@ public:
      * @return 0 if successful
      */
 	virtual int write(std::string filename, double version = 1) const = 0;
-    
+
     /********************************************
      * Helper Functions
      *******************************************/
@@ -454,7 +498,7 @@ public:
 	 * size should be exactly sizeof(T)*size[0]*size[1]*...*size[len-1]
 	 * @param deleter Function which should be used to delete ptr
 	 */
-	NDArrayStore(size_t len, const size_t* dim, T* ptr, 
+	NDArrayStore(size_t len, const size_t* dim, T* ptr,
             const std::function<void(void*)>& deleter);
 	
 	~NDArrayStore() { m_freefunc(_m_data); };
@@ -553,7 +597,7 @@ public:
 
 	/**
 	 * @brief Create a new array that is the same underlying type as this, but
-     * with a different pixel type. 
+     * with a different pixel type.
 	 *
 	 * @param newtype Type of pixels in output array
 	 *
@@ -574,7 +618,7 @@ public:
 	 * @return Image with identical orientation and pixel type but different
      * size from this
 	 */
-    virtual ptr<NDArray> createAnother(size_t newdims, 
+    virtual ptr<NDArray> createAnother(size_t newdims,
             const size_t* newsize) const;
 
 	/**
@@ -625,7 +669,7 @@ public:
      * @param len     Length of index/newsize arrays
      * @param index   Index to start copying from.
      * @param size Size of output image. Note length 0 dimensions will be
-     * removed, while length 1 dimensions will be left. 
+     * removed, while length 1 dimensions will be left.
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
@@ -636,12 +680,12 @@ public:
      * @brief Create a new array that is a copy of the input, possibly with new
      * dimensions or size. The new array will have all overlapping pixels
      * copied from the old array. The new array will have the same pixel type as
-     * the input array. Index assumed to be [0,0,...], so the output image will 
+     * the input array. Index assumed to be [0,0,...], so the output image will
      * start at the origin of this image.
      *
      * @param len     Length of index/size arrays
      * @param size Size of output image. Note length 0 dimensions will be
-     * removed, while length 1 dimensions will be left. 
+     * removed, while length 1 dimensions will be left.
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
@@ -656,7 +700,7 @@ public:
      * @param len     Length of index/size arrays
      * @param index   Index to start copying from.
      * @param size Size of output image. Note length 0 dimensions will be
-     * removed, while length 1 dimensions will be left. 
+     * removed, while length 1 dimensions will be left.
      * @param newtype Pixel type of output image.
      *
      * @return Image with overlapping sections cast and copied from 'in'
@@ -669,22 +713,22 @@ public:
      * @brief Create a new array that is a copy of the input, possibly with new
      * dimensions or size. The new array will have all overlapping pixels
      * copied from the old array. The new array will have the same pixel type as
-     * the input array. Index assumed to be [0,0,...], so the output image will 
+     * the input array. Index assumed to be [0,0,...], so the output image will
      * start at the origin of this image.
      *
      * @param len     Length of index/size arrays
      * @param size Size of output image. Note length 0 dimensions will be
-     * removed, while length 1 dimensions will be left. 
+     * removed, while length 1 dimensions will be left.
      * @param newtype Pixel type of output image.
      *
      * @return Image with overlapping sections cast and copied from 'in'
      */
-    virtual ptr<NDArray> extractCast(size_t len, const size_t* size, 
+    virtual ptr<NDArray> extractCast(size_t len, const size_t* size,
             PixelT newtype) const;
 	/*
 	 * Higher Level Operations
 	 */
-    
+
     /**
      * @brief Sets all elements to zero
      */

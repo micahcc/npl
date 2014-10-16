@@ -335,7 +335,7 @@ std::ostream& operator<<(std::ostream &out, const MRImage& img)
 		out << std::setw(4) << std::setprecision(3)
 			<< img.origin(ii);
 	}
-	out << "]\n"; 
+	out << "]\n";
 
     out << "Type: ";
 	switch(img.type()) {
@@ -664,8 +664,8 @@ ptr<MRImage> _copyCast(ptr<const MRImage> in, size_t newdims,
 
 /**
  * @brief Copies metadata from another image. This includes slice timing,
- * anything read from nifti files, spacing, orientation etc, but NOT 
- * pixel data, size, and dimensionality. 
+ * anything read from nifti files, spacing, orientation etc, but NOT
+ * pixel data, size, and dimensionality.
  *
  * @param in Other image to copy from
  */
@@ -687,47 +687,52 @@ void MRImage::copyMetadata(ptr<const MRImage> in)
  * @brief Returns true of the other image has matching orientation as this.
  * If checksize = true, then it will also check the size of the two images
  * and return true if both orientation and size match, and false if they
- * don't. 
+ * don't.
  *
  * @param other MRimage to compare.
+ * @param checkdim Whether to enforce identical dimensionality. If this is
+ * false then the first min(D1,D2) dimensions will be checked, if this is true
+ * then mismatched dimensionality will cause this to return a false
  * @param checksize Whether to enforce identical size as well as orientation
  *
  * @return True if the two images have matching orientation information.
  */
-bool MRImage::matchingOrient(ptr<const MRImage> other, bool checksize) const
+bool MRImage::matchingOrient(ptr<const MRImage> other, bool checkdim,
+		bool checksize) const
 {
-    if(ndim() != other->ndim())
+    if(checkdim && ndim() != other->ndim())
         return false;
-    
+
+	size_t rank = std::min(ndim(), other->ndim());
     double err = 0;
     double THRESH = 0.000001;
 
     // check spacing
     err = 0;
-    for(size_t dd=0; dd<ndim(); dd++) 
+    for(size_t dd=0; dd<rank; dd++)
         err += pow(spacing(dd)-other->spacing(dd),2);
     if(err > THRESH)
         return false;
 
     // Check Origin
     err = 0;
-    for(size_t dd=0; dd<ndim(); dd++) 
+    for(size_t dd=0; dd<rank; dd++)
         err += pow(origin(dd)-other->origin(dd),2);
     if(err > THRESH)
         return false;
-    
+
     // check direction
     err = 0;
-    for(size_t dd=0; dd<ndim(); dd++) {
-        for(size_t ee=0; ee<ndim(); ee++) {
-            err += pow(direction(dd,ee)-other->direction(dd,ee),2);
+    for(size_t dd=0; dd<rank; dd++) {
+		for(size_t ee=0; ee<rank; ee++) {
+			err += pow(direction(dd,ee)-other->direction(dd,ee),2);
         }
     }
     if(err > THRESH)
         return false;
-  
+
     if(checksize) {
-        for(size_t dd=0; dd<ndim(); dd++) {
+		for(size_t dd=0; dd<rank; dd++) {
             if(dim(dd) != other->dim(dd))
                 return false;
         }

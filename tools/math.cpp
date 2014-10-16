@@ -142,7 +142,7 @@ int main(int argc, char** argv)
 	for(auto fit = args.begin(); fit != args.end(); ++fit) {
 		auto img = readMRImage(fit->second);
 		
-		if(img->matchingOrient(out, true)) {
+		if(img->matchingOrient(out, false, true)) {
 			imgargs[fit->first] = NDConstView<double>(img);
 		} else {
 			vector<int64_t> ind(out->ndim());

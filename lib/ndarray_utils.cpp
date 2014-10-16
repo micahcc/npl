@@ -130,7 +130,7 @@ ptr<NDArray> derivative(ptr<const NDArray> in)
 {
     vector<size_t> osize(in->dim(), in->dim()+in->ndim());
     osize.push_back(in->ndim());
-    auto out = in->copyCast(osize.size(), osize.data());
+    auto out = in->createAnother(osize.size(), osize.data());
 
 	derivative(in, out);
     return out;
@@ -341,7 +341,7 @@ void gaussianSmooth1D(ptr<NDArray> inout, size_t dim,
 		it.goChunkBegin();
 		for(size_t ii=0; !it.eoc(); ++it, ++ii) 
 			ibuff[ii] = *it;
-		
+
 		// perform kernel math, writing to buffer
 		for(int ii=0; ii<(int)inout->dim(dim); ii++) {
 			double sum = 0;
