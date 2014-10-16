@@ -375,6 +375,11 @@ def build(bld):
             target='smooth_test1', 
             source='smooth_test1.cpp', 
             use='mrimage_utils')
+    
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='gaussmooth_test', 
+            source='gaussmooth_test.cpp', 
+            use='mrimage_utils')
 
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='histeq_test', 
