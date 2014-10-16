@@ -38,8 +38,6 @@
 using namespace std;
 using namespace npl;
 
-std::ostream_iterator<double> doubleoit(std::cout, ", ");
-
 /**
  * @brief Computes motion parameters from an fMRI image
  *
@@ -53,66 +51,76 @@ std::ostream_iterator<double> doubleoit(std::cout, ", ");
  * in radians, S = shift in index units): [CX, CY, CZ, RX, RY, RZ, SX, SY, SZ]
  */
 vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
-		const vector<double>& sigmas, const vector<double>& hardstops)
+		const vector<double>& sigmas, double minstep, double maxstep, 
+		int histsize, double beta)
 {
+	assert(fmri->ndim());
     using namespace std::placeholders;
     using std::bind;
 
+	// Initialize Variables
+	const size_t PADSIZE = 20;
+	Vector3DConstIter<double> iit(fmri); 
 	vector<vector<double>> motion;
+	double thresh = otsuThresh(fmri);
 	
 	// extract reference volumes and pre-smooth
 	vector<size_t> vsize(fmri->dim(), fmri->dim()+fmri->ndim());
+	for(size_t dd=0; dd<vsize.size(); dd++) {
+		vsize[dd] += PADSIZE;
+	}
 	vsize[3] = 0;
-	
-	auto refvol = dPtrCast<MRImage>(fmri->extractCast(4, vsize.data(),
-				FLOAT32));
 
-	// create working volume
-	auto movvol = dPtrCast<MRImage>(refvol->createAnother());
-	
+	vector<pair<int64_t,int64_t>> roi(fmri->ndim()-1);
+	for(size_t dd=0; dd<vsize.size()-1; dd++) {
+		roi[dd].first = PADSIZE/2;
+		roi[dd].second = roi[dd].first + fmri->dim(dd)-1;
+	}
+
+	// Registration Tools, create with placeholder images
+	auto tmp = dPtrCast<MRImage>(fmri->createAnother(3, vsize.data(), FLOAT32));
+	RigidCorrComputer comp(tmp, tmp, true);
+
 	// Pre-Compute Fixed Smoothing
 	vector<ptr<MRImage>> fixed;
 	for(size_t ii=0; ii<sigmas.size(); ii++) {
-		fixed.push_back(dPtrCast<MRImage>(dPtrCast<MRImage>(
-						fmri->extractCast(4, vsize.data(), FLOAT32))));
-		Vector3DConstIter<double> iit(fmri); 
-		FlatIter<double> fit(fixed.back());
-		for(iit.goBegin(), fit.goBegin(); !iit.eof(); ++iit, ++fit) {
-			fit.set(iit[reftime]);
-		}
 
-//		double thresh = otsuThresh(fixed.back());
-//		for(fit.goBegin(); !fit.eof(); ++fit) {
-//			if(*fit < thresh)
-//				fit.set(0);
-//		}
+		// create padded image, that is smoothed
+		fixed.push_back(dPtrCast<MRImage>(tmp->createAnother()));
 		
+		for(FlatIter<double> fit(fixed.back()); !fit.eof(); ++fit) 
+			fit.set(0);
+
+		NDIter<double> fit(fixed.back());
+		fit.setROI(roi);
+		for(iit.goBegin(), fit.goBegin(); !fit.eof() && !iit.eof(); 
+					++iit, ++fit) {
+			double v = iit[reftime];
+			if(v < thresh)
+				fit.set(0);
+			else
+				fit.set(v);
+		}
+		assert(fit.eof() && iit.eof());
+
 		for(size_t dd=0; dd<3; dd++) 
 			gaussianSmooth1D(fixed.back(), dd, sigmas[ii]);
-//		fixed.back()->write("fixed_"+to_string(ii)+".nii.gz");
 	}
-
-	// Registration Tools
-	RigidCorrComputer comp(refvol, movvol, true);
-
-	// Iterators
-	Vector3DConstIter<double> iit(fmri); /** Input Iterator */
-	Vector3DIter<double> mit(comp.m_moving);  /** Moving Volume Iterator */
 
 	// create value and gradient functions
 	auto vfunc = bind(&RigidCorrComputer::value, &comp, _1, _2);
 	auto vgfunc = bind(&RigidCorrComputer::valueGrad, &comp, _1, _2, _3);
 	auto gfunc = bind(&RigidCorrComputer::grad, &comp, _1, _2);
-	
+
 	// initialize optimizer
 	LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
-	opt.stop_Its = 10000;
-	opt.stop_X = 0.0000000001;
+	opt.stop_Its = 10000000;
+	opt.stop_X = minstep;
 	opt.stop_G = 0;
 	opt.stop_F = 0;
-	opt.opt_histsize = 2;
-	opt.opt_ls_beta = 0.4;
-	opt.opt_ls_s = 1;
+	opt.opt_histsize = histsize;
+	opt.opt_ls_beta = beta;
+	opt.opt_ls_s = maxstep;
 	opt.state_x.setZero();
 	Rigid3DTrans rigid;
 	for(size_t tt=0; tt<fmri->tlen(); tt++) {
@@ -125,25 +133,21 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 			/****************************************************************
 			 * Registration
 			 ***************************************************************/
-//			cerr << setw(20) << "Init Rigid:  " << setw(7) << " : " 
-//				<< opt.state_x.transpose() << endl;
-
 			for(size_t ii=0; ii<sigmas.size(); ii++) {
 
 				/* 
 				 * Extract, threshold and Smooth Moving Volume, Set Fixed in
 				 * computer to Pre-Smoothed Version
-				 * */
-				for(iit.goBegin(), mit.goBegin(); !iit.eof(); ++iit, ++mit) 
-					mit.set(iit[tt]);
-
-//				double thresh = otsuThresh(comp.m_moving);
-//				for(mit.goBegin(); !mit.eof(); ++mit) {
-//					if(*mit < thresh) {
-//						mit.set(0);
-//					}
-//				}
-//				comp.m_moving->write("tmoving"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
+				 */
+				NDIter<double> mit(comp.m_moving);
+				mit.setROI(roi);
+				for(iit.goBegin(), mit.goBegin(); !iit.eof() && !mit.eof(); ++iit, ++mit) {
+					double v = iit[tt];
+					if(v < thresh)
+						mit.set(0);
+					else
+						mit.set(v);
+				}
 
 				for(size_t dd=0; dd<3; dd++) 
 					gaussianSmooth1D(comp.m_moving, dd, sigmas[ii]);
@@ -152,17 +156,12 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 				comp.updatedInputs();
 				
 				// run the optimizer
-//				opt.stop_F_under = hardstops[ii];
 				opt.reset_history();
-//				comp.m_fixed->write("fixed"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
-//				comp.m_moving->write("moving"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
-//				comp.m_dmoving->write("dmoving"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
+				comp.m_fixed->write("fixed"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
+				comp.m_moving->write("moving"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
+				comp.m_dmoving->write("dmoving"+to_string(tt)+"_"+to_string(ii)+".nii.gz");
 				StopReason stopr = opt.optimize();
 				cerr << Optimizer::explainStop(stopr) << endl;
-//				opt.optimize();
-
-				cerr << setw(20) << "After Rigid: " << setw(4) << ii << " : " 
-					<< opt.state_x.transpose() << endl;
 			}
 
 			/******************************************************************
@@ -181,6 +180,14 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 			}
 
 			rigid.invert();
+
+		// Apply Rigid Transform
+			rotateImageShearKern(comp.m_moving, rigid.rotation[0], rigid.rotation[1], 
+					rigid.rotation[2]);
+			for(size_t dd=0; dd<3; dd++) 
+				shiftImageKern(comp.m_moving, dd, rigid.shift[dd]);
+			comp.m_moving->write("final_"+to_string(tt)+".nii.gz");
+
 			rigid.toRASCoords(comp.m_moving);
 			cout << setw(20) << "Final Rigid: " << setw(4) <<
 				tt << " :\n"  << rigid << endl;
@@ -233,9 +240,14 @@ int main(int argc, char** argv)
 	TCLAP::MultiArg<double> a_sigmas("s", "sigmas", "Smoothing standard "
 			"deviations. These are the steps of the registration.", false, 
 			"sd", cmd);
-	TCLAP::MultiArg<double> a_thresh("t", "thresh", "Stop threshold "
-			"for correlation at each step.", false, 
-			"corr", cmd);
+	TCLAP::ValueArg<double> a_minstep("", "minstep", "Minimum step", 
+			false, 1e-10, "float", cmd);
+	TCLAP::ValueArg<double> a_maxstep("", "maxstep", "Maximum step", 
+			false, 0.1, "float", cmd);
+	TCLAP::ValueArg<int> a_lbfgs_hist("", "hist", "History for L-BFGS", 
+			false, 5, "int", cmd);
+	TCLAP::ValueArg<double> a_beta("", "reduction", "Reduction in step size", 
+			false, 0.7, "float", cmd);
 
 	cmd.parse(argc, argv);
 
@@ -260,22 +272,10 @@ int main(int argc, char** argv)
 	vector<vector<double>> motion;
 
 	// set up sigmas
-	vector<double> sigmas({3,1.5,1,0});
+	vector<double> sigmas({3,1.5,1,0.5,0});
 	if(a_sigmas.isSet()) 
 		sigmas.assign(a_sigmas.begin(), a_sigmas.end());
 	
-	// set up threshold
-	vector<double> thresh({0.999,0.999,0.999,0.999});
-	if(a_thresh.isSet()) 
-		thresh.assign(a_sigmas.begin(), a_sigmas.end());
-	for(auto& v: thresh) 
-		v = -fabs(v);
-
-	if(thresh.size() != sigmas.size()) {
-		cerr << "Threshold and Sigmas must indicate the same number of steps\n";
-		return -1;
-	}
-
 	if(a_inmotion.isSet()) {
 		motion = readNumericCSV(a_inmotion.getValue());
 
@@ -296,7 +296,9 @@ int main(int argc, char** argv)
 
 	} else {
 		// Compute Motion
-		motion = computeMotion(fmri, ref, sigmas, thresh);
+		motion = computeMotion(fmri, ref, sigmas, a_minstep.getValue(),
+				a_maxstep.getValue(), a_lbfgs_hist.getValue(),
+				a_beta.getValue());
 	}
 
 	// Write to Motion File
