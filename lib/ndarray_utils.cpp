@@ -315,60 +315,46 @@ void gaussianSmooth1D(ptr<NDArray> inout, size_t dim,
 
     const auto gaussKern = [](double x) 
     {
-        const double PI = acos(-1);
-        const double den = 1./sqrt(2*PI);
+        const double den = 1./sqrt(2*M_PI);
         return den*exp(-x*x/(2));
     };
 
-	//TODO figure out how to scale this properly, including with stddev and
-	//spacing
 	if(dim >= inout->ndim()) {
 		throw std::out_of_range("Invalid dimension specified for 1D gaussian "
 				"smoothing");
 	}
 
 	std::vector<int64_t> index(dim, 0);
-	std::vector<double> buff(inout->dim(dim));
-
-	// for reading have the kernel iterator
-	KernelIter<double> kit(inout);
-	std::vector<size_t> radius(inout->ndim(), 0);
-	for(size_t dd=0; dd<inout->ndim(); dd++) {
-		if(dd == dim)
-			radius[dd] = round(2*stddev);
-	}
-	kit.setRadius(radius);
-	kit.goBegin();
+	std::vector<double> ibuff(inout->dim(dim));
+	std::vector<double> obuff(inout->dim(dim));
 
 	// calculate normalization factor
 	double normalize = 0;
-	int64_t rad = radius[dim];
-	for(int64_t ii=-rad; ii<=rad; ii++)
+	int rad = 3*stddev;
+	for(int ii=-rad; ii<=rad; ii++)
 		normalize += gaussKern(ii/stddev);
 
 	// for writing, have the regular iterator
-	OrderIter<double> it(inout);
-	it.setOrder(kit.getOrder());
-	it.goBegin();
-	while(!it.eof()) {
-
-		// perform kernel math, writing to buffer
-		for(size_t ii=0; ii<inout->dim(dim); ii++, ++kit) {
-			double tmp = 0;
-			for(size_t kk=0; kk<kit.ksize(); kk++) {
-				double dist = kit.offsetK(kk, dim);
-				double nval = kit[kk];
-				double stddist = dist/stddev;
-				double weighted = gaussKern(stddist)*nval/normalize;
-				tmp += weighted;
-			}
-			buff[ii] = tmp;
-		}
+	ChunkIter<double> it(inout);
+	it.setLineChunk(dim);
+	for(it.goBegin(); !it.eof(); it.nextChunk()) {
+		it.goChunkBegin();
+		for(size_t ii=0; !it.eoc(); ++it, ++ii) 
+			ibuff[ii] = *it;
 		
-		// write back out
-		for(size_t ii=0; ii<inout->dim(dim); ii++, ++it)
-			it.set(buff[ii]);
+		// perform kernel math, writing to buffer
+		for(int ii=0; ii<(int)inout->dim(dim); ii++) {
+			double sum = 0;
+			for(int kk=-rad; kk<=rad; kk++) {
+				if(kk+ii >= 0 && kk+ii < inout->dim(dim))
+					sum += ibuff[kk+ii]*gaussKern(kk/stddev);
+			}
+			obuff[ii] = sum/normalize;
+		}
 
+		it.goChunkBegin();
+		for(size_t ii=0; !it.eoc(); ++it, ++ii) 
+			it.set(obuff[ii]);
 	}
 }
 
