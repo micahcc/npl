@@ -263,15 +263,17 @@ Rigid3DTrans inforeg(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		auto sm_fixed = smoothDownsample(fixed, sigmas[ii]);
 		auto sm_moving = smoothDownsample(moving, sigmas[ii]);
 
-		RigidInformationComputer comp(sm_fixed, sm_moving, bins, rad, true);
+		RigidInformationComputer comp(true);
+		comp.setBins(bins, rad);
+		comp.setFixed(fixed);
+		comp.setMoving(fixed);
 
 		if(metric == "MI") 
-			comp.m_metric = RigidInformationComputer::METRIC_MI;
+			comp.m_metric = METRIC_MI;
 		else if(metric == "NMI") 
-			comp.m_metric = RigidInformationComputer::METRIC_NMI;
+			comp.m_metric = METRIC_NMI;
 		else if(metric == "VI") {
-			comp.m_metric = RigidInformationComputer::METRIC_VI;
-			comp.m_negate = false;
+			comp.m_metric = METRIC_VI;
 		}
 
 		// create value and gradient functions

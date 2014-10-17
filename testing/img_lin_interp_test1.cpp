@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file img_lin_interp_test.cpp
+ * @file img_lin_interp_test.cpp Tests the linear interpolator and compares
+ * the returned result with a known analytical function
  *
  *****************************************************************************/
 
