@@ -178,7 +178,11 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
 		DEBUGWRITE(sm_fixed->write("smooth_fixed_"+to_string(ii)+".nii.gz"));
 		DEBUGWRITE(sm_moving->write("smooth_moving_"+to_string(ii)+".nii.gz"));
 
-		RigidInformationComputer comp(sm_fixed, sm_moving, nbins, binradius, true);
+		RigidInformationComputer comp(true);
+		comp.setBins(nbins, binradius);
+		comp.setFixed(sm_fixed);
+		comp.setMoving(sm_moving);
+		comp.m_metric = METRIC_MI;
 
 		// create value and gradient functions
 		auto vfunc = bind(&RigidInformationComputer::value, &comp, _1, _2);
@@ -289,7 +293,11 @@ int information3DDerivTest(double step, double tol,
 		shared_ptr<const MRImage> in1, shared_ptr<const MRImage> in2)
 {
 	using namespace std::placeholders;
-	RigidInformationComputer comp(in1, in2, 128, 4, false);
+	RigidInformationComputer comp(false);
+	comp.setBins(128,4);
+	comp.m_metric = METRIC_MI;
+	comp.setFixed(in1);
+	comp.setMoving(in2);
 
 	auto vfunc = std::bind(&RigidInformationComputer::value, &comp, _1, _2);
 	auto gfunc = std::bind(&RigidInformationComputer::grad, &comp, _1, _2);
@@ -320,10 +328,9 @@ int information3DDerivTest(double step, double tol,
  *
  * @param fixed Fixed image. A copy of this will be made.
  * @param moving Moving image. A copy of this will be made.
- * @param negate Whether to use negative correlation (for instance to
- * minimize negative correlation using a gradient descent).
+ * @param compdiff Negate correlation to compute a difference measure
  */
-RigidCorrComputer::RigidCorrComputer(bool negate) : m_negate(negate)
+RigidCorrComputer::RigidCorrComputer(bool compdiff) : m_compdiff(compdiff)
 {
 }
 
@@ -339,6 +346,11 @@ RigidCorrComputer::RigidCorrComputer(bool negate) : m_negate(negate)
 int RigidCorrComputer::valueGrad(const VectorXd& params,
 		double& val, VectorXd& grad)
 {
+	if(!m_fixed) throw INVALID_ARGUMENT("ERROR must set fixed image before "
+				"computing value.");
+	if(!m_moving) throw INVALID_ARGUMENT("ERROR must set moving image before "
+				"computing value.");
+
 	double rx = params[0]*M_PI/180.;
 	double ry = params[1]*M_PI/180.;
 	double rz = params[2]*M_PI/180.;
@@ -346,27 +358,17 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 	double sy = params[4]*m_moving->spacing(1);
 	double sz = params[5]*m_moving->spacing(2);
 
-	//#if defined DEBUG || defined VERYDEBUG
+#if defined DEBUG || defined VERYDEBUG
 	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: "
 		<< sx << ", " << sy << ", " << sz << endl;
-	//#endif
-#ifdef VERYDEBUG
-	cerr << "ValGrad()" << endl;
-	Pixel3DView<double> d_ang_x(d_theta_x);
-	Pixel3DView<double> d_ang_y(d_theta_y);
-	Pixel3DView<double> d_ang_z(d_theta_z);
-	Pixel3DView<double> d_shi_x(d_shift_x);
-	Pixel3DView<double> d_shi_y(d_shift_y);
-	Pixel3DView<double> d_shi_z(d_shift_z);
-	Pixel3DView<double> acc(interpolated);
 #endif
-
+	
 	// for computing roted indices
 	double ind[3];
 	double cind[3];
 
-	//  Compute derivative Images (if debugging is enabled, otherwise just
-  //  compute the gradient)
+	// Compute derivative Images (if debugging is enabled, otherwise just
+	// compute the gradient)
 	grad.setZero();
 	size_t count = 0;
 	double mov_sum = 0;
@@ -377,9 +379,9 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 	for(m_fit.goBegin(); !m_fit.eof(); ++m_fit) {
 		m_fit.index(3, ind);
 		// u = c + R^-1(v - s - c)
-	// where u is the output index, v the input, c the center of rotation
-  // and s the shift
-  // cind = center + rInv*(ind-shift-center);
+		// where u is the output index, v the input, c the center of rotation
+		// and s the shift
+		// cind = center + rInv*(ind-shift-center);
 
 		double x = ind[0];
 		double y = ind[1];
@@ -399,11 +401,11 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 					y)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
 
 		// Here we compute dg(v(u,p))/dp, where g is the image, u is the
-	// coordinate in the fixed image, and p is the param.
-  // dg/dp = SUM_i dg/dv_i dv_i/dp, where v is the rotated coordinate, so
-  // dg/dv_i is the directional derivative in original space,
-  // dv_i/dp is the derivative of the rotated coordinate system with
-  // respect to a parameter
+		// coordinate in the fixed image, and p is the param.
+		// dg/dp = SUM_i dg/dv_i dv_i/dp, where v is the rotated coordinate, so
+		// dg/dv_i is the directional derivative in original space,
+		// dv_i/dp is the derivative of the rotated coordinate system with
+		// respect to a parameter
 		double dg_dx = m_dmove_get(cind[0], cind[1], cind[2], 0);
 		double dg_dy = m_dmove_get(cind[0], cind[1], cind[2], 1);
 		double dg_dz = m_dmove_get(cind[0], cind[1], cind[2], 2);
@@ -458,16 +460,6 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 		fix_ss += f*f;
 		corr += g*f;
 
-#ifdef VERYDEBUG
-		d_ang_x.set(ind[0], ind[1], ind[2], dgdRx);
-		d_ang_y.set(ind[0], ind[1], ind[2], dgdRy);
-		d_ang_z.set(ind[0], ind[1], ind[2], dgdRz);
-		d_shi_x.set(ind[0], ind[1], ind[2], dgdSx);
-		d_shi_y.set(ind[0], ind[1], ind[2], dgdSy);
-		d_shi_z.set(ind[0], ind[1], ind[2], dgdSz);
-		acc.set(ind[0], ind[1], ind[2], g);
-#endif
-
 		grad[0] += (*m_fit)*dgdRx*M_PI/180.;
 		grad[1] += (*m_fit)*dgdRy*M_PI/180.;
 		grad[2] += (*m_fit)*dgdRz*M_PI/180.;
@@ -483,27 +475,16 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 	double sd2 = sqrt(sample_var(count, fix_sum, fix_ss));
 	grad /= (count-1)*sd1*sd2;
 
-	if(m_negate) {
+	if(m_compdiff) {
 		grad = -grad;
 		val = -val;
 	}
 
-	//#if defined VERYDEBUG || defined DEBUG
+#if defined VERYDEBUG || defined DEBUG
 	cerr << "Value: " << val << endl;
 	cerr << "Gradient: " << grad.transpose() << endl;
-	//#endif
-#ifdef VERYDEBUG
-	string sc = "_"+to_string(callcount);
-	d_theta_x->write("d_theta_x"+sc+".nii.gz");
-	d_theta_y->write("d_theta_y"+sc+".nii.gz");
-	d_theta_z->write("d_theta_z"+sc+".nii.gz");
-	d_shift_x->write("d_shift_x"+sc+".nii.gz");
-	d_shift_y->write("d_shift_y"+sc+".nii.gz");
-	d_shift_z->write("d_shift_z"+sc+".nii.gz");
-	interpolated->write("interp"+sc+".nii.gz");
-	callcount++;
 #endif
-
+	
 	return 0;
 }
 
@@ -533,9 +514,13 @@ int RigidCorrComputer::grad(const VectorXd& params, VectorXd& grad)
  */
 int RigidCorrComputer::value(const VectorXd& params, double& val)
 {
-#ifdef VERYDEBUG
+	if(!m_fixed) throw INVALID_ARGUMENT("ERROR must set fixed image before "
+				"computing value.");
+	if(!m_moving) throw INVALID_ARGUMENT("ERROR must set moving image before "
+				"computing value.");
+
+#if defined VERYDEBUG || DEBUG
 	cerr << "Val()" << endl;
-	Pixel3DView<double> acc(interpolated);
 #endif
 
 	assert(m_fixed->ndim() == 3);
@@ -556,7 +541,7 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 	double cind[3];
 
 	//  Resample Output and Compute Orientation. While actually resampling is
-  //  optional, it helps with debugging
+	//  optional, it helps with debugging
 	double sum1 = 0;
 	double sum2 = 0;
 	double ss1 = 0;
@@ -566,8 +551,8 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 		m_fit.index(3, ind);
 
 		// u = c + R^-1(v - s - c)
-	// where u is the output index, v the input, c the center of rotation
-  // and s the shift
+		// where u is the output index, v the input, c the center of rotation
+		// and s the shift
 		double x = ind[0];
 		double y = ind[1];
 		double z = ind[2];
@@ -586,9 +571,6 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 					y)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
 
 		double a = m_move_get(cind[0], cind[1], cind[2]);
-#ifdef VERYDEBUG
-		acc.set(ind[0], ind[1], ind[2], a);
-#endif
 		double b = *m_fit;
 		sum1 += a;
 		ss1 += a*a;
@@ -598,16 +580,11 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 	}
 
 	val = sample_corr(m_fixed->elements(), sum1, sum2, ss1, ss2, corr);
-	if(m_negate)
+	if(m_compdiff)
 		val = -val;
 
-	//#if defined VERYDEBUG || defined DEBUG
+#if defined VERYDEBUG || defined DEBUG
 	cerr << "Value: " << val << endl;
-	//#endif
-#ifdef VERYDEBUG
-	string sc = "_"+to_string(callcount);
-	interpolated->write("interp"+sc+".nii.gz");
-	callcount++;
 #endif
 	return 0;
 };
@@ -619,6 +596,9 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
  */
 void RigidCorrComputer::setFixed(ptr<const MRImage> newfix)
 {
+	if(newfix->ndim() != 3)
+		throw INVALID_ARGUMENT("Fixed image is not 3D!");
+	
 	m_fixed = newfix;
 	m_fit.setArray(newfix);
 };
@@ -633,11 +613,14 @@ void RigidCorrComputer::setFixed(ptr<const MRImage> newfix)
  *
  * @param moving Input moving image (not modified)
  */
-void RigidCorrComputer::setMoving(ptr<const MRImage> newmov)
+void RigidCorrComputer::setMoving(ptr<const MRImage> newmove)
 {
-	m_moving = newmov;
+	if(newmove->ndim() != 3)
+		throw INVALID_ARGUMENT("Moving image is not 3D!");
+	
+	m_moving = newmove;
 
-	if(!m_dmoving || !newmov->matchingOrient(m_dmoving, false, true)) {
+	if(!m_dmoving || !newmove->matchingOrient(m_dmoving, false, true)) {
 #ifndef NDEBUG
 		cerr << "Allocating derivative image" << endl;
 #endif //NDEBUG
@@ -651,18 +634,6 @@ void RigidCorrComputer::setMoving(ptr<const MRImage> newmov)
 	m_dmove_get.setArray(m_dmoving);
 	for(size_t ii=0; ii<3 && ii<m_moving->ndim(); ii++)
 		m_center[ii] = (m_moving->dim(ii)-1)/2.;
-
-#ifdef VERYDEBUG
-	d_theta_x = dPtrCast<MRImage>(m_moving->createAnother());
-	d_theta_y = dPtrCast<MRImage>(m_moving->createAnother());
-	d_theta_z = dPtrCast<MRImage>(m_moving->createAnother());
-	d_shift_x = dPtrCast<MRImage>(m_moving->createAnother());
-	d_shift_y = dPtrCast<MRImage>(m_moving->createAnother());
-	d_shift_z = dPtrCast<MRImage>(m_moving->createAnother());
-	interpolated = dPtrCast<MRImage>(m_moving->copyCast(FLOAT32));
-	interpolated->write("init_interpolated.nii.gz");
-	callcount = 0;
-#endif
 }
 
 /****************************************************************************
@@ -677,95 +648,111 @@ void RigidCorrComputer::setMoving(ptr<const MRImage> newmov)
  *
  * @param fixed Fixed image. A copy of this will be made.
  * @param moving Moving image. A copy of this will be made.
- * @param negate Whether to use negative correlation (for instance to
- * minimize negative correlation using a gradient descent).
+ * @param compdiff negate MI and NMI to create an effective distance 
  */
-RigidInformationComputer::RigidInformationComputer(
-		shared_ptr<const MRImage> fixed, shared_ptr<const MRImage> moving,
-		int bins, int kernrad, bool negate) :
-	m_negate(negate),
-	m_fixed(dPtrCast<MRImage>(fixed->copy())),
-	m_moving(dPtrCast<MRImage>(moving->copy())),
-	m_dmoving(dPtrCast<MRImage>(derivative(moving))),
-	m_metric(METRIC_MI),
-	m_bins(bins), m_krad(kernrad),
-	m_move_get(m_moving, CONSTZERO), m_dmove_get(m_dmoving, CONSTZERO),
-	m_fit(m_fixed), m_pdfmove({(size_t)m_bins}), m_pdffix({(size_t)m_bins}),
-	m_pdfjoint({(size_t)m_bins,(size_t)m_bins}),
-	m_dpdfjoint({6, (size_t)m_bins, (size_t)m_bins}),
-	m_dpdfmove({6, (size_t)m_bins}), m_gradHmove(6), m_gradHjoint(6)
+RigidInformationComputer::RigidInformationComputer(bool compdiff) : 
+	m_compdiff(compdiff), m_metric(METRIC_MI), m_gradHjoint(6), m_gradHmove(6)
 {
-	if(fixed->ndim() != 3)
-		throw INVALID_ARGUMENT("Fixed image is not 3D!");
-	if(moving->ndim() != 3)
-		throw INVALID_ARGUMENT("Moving image is not 3D!");
-
-	// center
-	for(size_t ii=0; ii<3 && ii<moving->ndim(); ii++)
-		m_center[ii] = (m_moving->dim(ii)-1)/2.;
-
-	updatedInputs();
-
-#ifdef VERYDEBUG
-	m_moving->write("init_moving.nii.gz");
-	m_fixed->write("init_fixed.nii.gz");
-	d_theta_x = dPtrCast<MRImage>(moving->copy());
-	d_theta_y = dPtrCast<MRImage>(moving->copy());
-	d_theta_z = dPtrCast<MRImage>(moving->copy());
-	d_shift_x = dPtrCast<MRImage>(moving->copy());
-	d_shift_y = dPtrCast<MRImage>(moving->copy());
-	d_shift_z = dPtrCast<MRImage>(moving->copy());
-	interpolated = dPtrCast<MRImage>(moving->copy());
-	interpolated->write("init_interpolated.nii.gz");
-	callcount = 0;
-#endif
-
-	///////////////////////////
-  // Accessors
-  //////////////////////////
-  //    m_move_get.m_boundmethod = CONSTZERO;
-  //    m_dmove_get.m_boundmethod = CONSTZERO;
-
+	setBins(128, 4);
 }
 
 /**
- * @brief If the input has been modified then call this to input ranges, and
- * image derivative
+ * @brief Reallocates histograms and if m_fixed has been set, regenerates 
+ * histogram estimate of fixed pdf
+ *
+ * @param nbins Number of bins for marginal estimation
+ * @param krad Number of bins in kernel radius
  */
-void RigidInformationComputer::updatedInputs()
+void RigidInformationComputer::setBins(size_t nbins, size_t krad)
 {
-	//////////////////////////
-  // Moving Derivative
-  //////////////////////////
-	derivative(m_moving, m_dmoving);
+	// set number of bins
+	m_bins = nbins;
+	m_krad = krad;
 
-	//////////////////////////////////////
-  // compute ranges, and bin widths
-  //////////////////////////////////////
-	m_rangefix[0] = INFINITY;
-	m_rangefix[1] = -INFINITY;
-	for(NDIter<double> it(m_fixed); !it.eof(); ++it) {
-		m_rangefix[0] = std::min(m_rangefix[0], *it);
-		m_rangefix[1] = std::max(m_rangefix[1], *it);
+	// reallocate memory
+	m_pdfmove.resize({nbins});
+	m_pdffix.resize({nbins});
+	m_pdfjoint.resize({nbins, nbins});
+	m_dpdfjoint.resize({6, nbins, nbins});
+	m_dpdfmove.resize({6, nbins});
+
+	if(m_fixed) {
+		// if fixed hsa been set, recompute fixed entropy
+		setFixed(m_fixed);
 	}
-	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-2*m_krad-1);
+}
+
+/**
+ * @brief Sets the moving image for Information-Based comparison. This sets
+ * m_moving, m_move_get, d_moving, m_dmove_get and m_rangemove
+ *
+ * @param newmove New moving image
+ */
+void RigidInformationComputer::setMoving(ptr<const MRImage> newmove)
+{
+	if(newmove->ndim() != 3)
+		throw INVALID_ARGUMENT("Moving image is not 3D!");
+	
+	//////////////////////////////////////
+	// Setup accessors and Members Images
+	//////////////////////////////////////
+	m_moving = newmove;
+
+	if(!m_dmoving || !newmove->matchingOrient(m_dmoving, false, true)) {
+#ifndef NDEBUG
+		cerr << "Allocating derivative image" << endl;
+#endif //NDEBUG
+		m_dmoving = dPtrCast<MRImage>(derivative(m_moving));
+	} else {
+		// Just fill in existing image
+		derivative(m_moving, m_dmoving);
+	}
+
+	m_move_get.setArray(m_moving);
+	m_dmove_get.setArray(m_dmoving);
+	for(size_t ii=0; ii<3 && ii<m_moving->ndim(); ii++)
+		m_center[ii] = (m_moving->dim(ii)-1)/2.;
 
 	// must include 0 because outside values get mapped to 0
 	m_rangemove[0] = 0;
 	m_rangemove[1] = 0;
-	for(NDIter<double> it(m_moving); !it.eof(); ++it) {
+	for(NDConstIter<double> it(m_moving); !it.eof(); ++it) {
 		m_rangemove[0] = std::min(m_rangemove[0], *it);
 		m_rangemove[1] = std::max(m_rangemove[1], *it);
 	}
-	m_wmove = (m_rangemove[1]-m_rangemove[0])/(m_bins-2*m_krad-1);
-	double Nrecip = 1./m_fixed->elements();
+}
 
-	//////////////////////////////////
-  // compute marginals, entropies
-  //////////////////////////////////
+/**
+ * @brief Sets the fixed image for Information-Based comparison. This sets
+ * m_fixed, m_fit, m_rangefix, m_wfix, fills the histogram m_pdffix, and 
+ * computes m_Hfix
+ *
+ * @param newfixed New fixed image
+ */
+void RigidInformationComputer::setFixed(ptr<const MRImage> newfixed)
+{
+	if(newfixed->ndim() != 3)
+		throw INVALID_ARGUMENT("Fixed image is not 3D!");
+	
+	//////////////////////////////////////
+	// Set up Members
+	//////////////////////////////////////
+	m_fixed = newfixed;
+	m_fit.setArray(m_fixed);
+	
+	//////////////////////////////////////
+	// compute ranges, and bin widths
+	//////////////////////////////////////
+	m_rangefix[0] = INFINITY;
+	m_rangefix[1] = -INFINITY;
+	for(NDConstIter<double> it(m_fixed); !it.eof(); ++it) {
+		m_rangefix[0] = std::min(m_rangefix[0], *it);
+		m_rangefix[1] = std::max(m_rangefix[1], *it);
+	}
 
-  // fixed marginal pdf
-	for(NDIter<double> it(m_fixed); !it.eof(); ++it) {
+	// fixed marginal pdf
+	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-2*m_krad-1);
+	for(NDConstIter<double> it(m_fixed); !it.eof(); ++it) {
 		// compute bins
 		double cbin = ((*it)-m_rangefix[0])/m_wfix + m_krad;
 		int bin = round(cbin);
@@ -779,14 +766,11 @@ void RigidInformationComputer::updatedInputs()
 
 	// fixed entropy
 	m_Hfix = 0;
+	double Nrecip = 1./m_fixed->elements();
 	for(size_t ii=0; ii<m_bins; ii++) {
 		m_pdffix[ii] *= Nrecip;
 		m_Hfix -= m_pdffix[ii] > 0 ? m_pdffix[ii]*log(m_pdffix[ii]) : 0;
 	}
-
-	m_move_get.setArray(m_moving);
-	m_dmove_get.setArray(m_dmoving);
-	m_fit.setArray(m_fixed);
 }
 
 /**
@@ -801,22 +785,42 @@ void RigidInformationComputer::updatedInputs()
 int RigidInformationComputer::valueGrad(const VectorXd& params,
 		double& val, VectorXd& grad)
 {
+	if(!m_fixed) throw INVALID_ARGUMENT("ERROR must set fixed image before "
+				"computing value.");
+	if(!m_moving) throw INVALID_ARGUMENT("ERROR must set moving image before "
+				"computing value.");
+	
+	assert(m_pdfmove.dim(0) == m_bins);
+	assert(m_pdffix.dim(0) == m_bins);
+	assert(m_pdfjoint.dim(0) == m_bins);
+	assert(m_pdfjoint.dim(1) == m_bins);
+	
+	assert(m_dpdfjoint.dim(0) == 6);
+	assert(m_dpdfjoint.dim(1) == m_bins);
+	assert(m_dpdfjoint.dim(1) == m_bins);
+	
+	assert(m_dpdfmove.dim(0) == 6);
+	assert(m_dpdfmove.dim(1) == m_bins);
+
 	double rx = params[0]*M_PI/180.;
 	double ry = params[1]*M_PI/180.;
 	double rz = params[2]*M_PI/180.;
 	double sx = params[3]*m_moving->spacing(0);
 	double sy = params[4]*m_moving->spacing(1);
 	double sz = params[5]*m_moving->spacing(2);
-#if defined DEBUG || defined VERYDEBUG
+//#if defined DEBUG || defined VERYDEBUG
 	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: "
 		<< sx << ", " << sy << ", " << sz << endl;
-#endif
+//#endif
 
 	// Zero Everything
 	m_pdfmove.zero();
 	m_pdfjoint.zero();
 	m_dpdfmove.zero();
 	m_dpdfjoint.zero();
+
+	// compute updated moving width
+	m_wmove = (m_rangemove[1]-m_rangemove[0])/(m_bins-2*m_krad-1);
 
 	// for computing rotated indices
 	double cbinmove, cbinfix; //continuous
@@ -846,11 +850,11 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 					y)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
 
 		// Here we compute dg(v(u,p))/dp, where g is the image, u is the
-	// coordinate in the fixed image, and p is the param.
-  // dg/dp = SUM_i dg/dv_i dv_i/dp, where v is the rotated coordinate, so
-  // dg/dv_i is the directional derivative in original space,
-  // dv_i/dp is the derivative of the rotated coordinate system with
-  // respect to a parameter
+		// coordinate in the fixed image, and p is the param.
+		// dg/dp = SUM_i dg/dv_i dv_i/dp, where v is the rotated coordinate, so
+		// dg/dv_i is the directional derivative in original space,
+		// dv_i/dp is the derivative of the rotated coordinate system with
+		// respect to a parameter
 		double dg_dx = m_dmove_get(cind[0], cind[1], cind[2], 0);
 		double dg_dy = m_dmove_get(cind[0], cind[1], cind[2], 1);
 		double dg_dz = m_dmove_get(cind[0], cind[1], cind[2], 2);
@@ -924,10 +928,10 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 	}
 
 	///////////////////////
-  // Update Entropies
-  ///////////////////////
+	// Update Entropies
+	///////////////////////
 
-  // pdf's
+	// pdf's
 	double scale = 1./(m_fixed->elements());
 	for(size_t ii=0; ii<m_pdfmove.elements(); ii++)
 		m_pdfmove[ii] *= scale;
@@ -945,10 +949,10 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 		m_Hjoint -= m_pdfjoint[ii] > 0 ? m_pdfjoint[ii]*log(m_pdfjoint[ii]) : 0;
 
 	//////////////////////////////
-  // Update Gradient Entropies
-  //////////////////////////////
+	// Update Gradient Entropies
+	//////////////////////////////
 
-  // pdf's
+	// pdf's
 	double dscale = -1./(m_wmove*m_fixed->elements());
 	for(size_t ii=0; ii<m_dpdfmove.elements(); ii++)
 		m_dpdfmove[ii] *= dscale;
@@ -996,12 +1000,12 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 				m_gradHjoint[ii]*(m_Hfix+m_Hmove)/(m_Hjoint*m_Hjoint);
 	}
 
-#if defined DEBUG || defined VERYDEBUG
+//#if defined DEBUG || defined VERYDEBUG
 	cerr << "ValueGrad() = " << val << " / " << grad.transpose() << endl;
-#endif
+//#endif
 
-	// negate
-	if(m_negate) {
+	// negate if we are using a similarity measure
+	if(m_compdiff && (m_metric == METRIC_NMI || m_metric == METRIC_MI)) {
 		grad = -grad;
 		val = -val;
 	}
@@ -1035,16 +1039,33 @@ int RigidInformationComputer::grad(const VectorXd& params, VectorXd& grad)
  */
 int RigidInformationComputer::value(const VectorXd& params, double& val)
 {
+	if(!m_fixed) throw INVALID_ARGUMENT("ERROR must set fixed image before "
+				"computing value.");
+	if(!m_moving) throw INVALID_ARGUMENT("ERROR must set moving image before "
+				"computing value.");
+
+	assert(m_pdfmove.dim(0) == m_bins);
+	assert(m_pdffix.dim(0) == m_bins);
+	assert(m_pdfjoint.dim(0) == m_bins);
+	assert(m_pdfjoint.dim(1) == m_bins);
+	
+	assert(m_dpdfjoint.dim(0) == 6);
+	assert(m_dpdfjoint.dim(1) == m_bins);
+	assert(m_dpdfjoint.dim(1) == m_bins);
+	
+	assert(m_dpdfmove.dim(0) == 6);
+	assert(m_dpdfmove.dim(1) == m_bins);
+
 	double rx = params[0]*M_PI/180.;
 	double ry = params[1]*M_PI/180.;
 	double rz = params[2]*M_PI/180.;
 	double sx = params[3]*m_moving->spacing(0);
 	double sy = params[4]*m_moving->spacing(1);
 	double sz = params[5]*m_moving->spacing(2);
-#if defined DEBUG || defined VERYDEBUG
+//#if defined DEBUG || defined VERYDEBUG
 	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: "
 		<< sx << ", " << sy << ", " << sz << endl;
-#endif
+//#endif
 
 	// Zero
 	m_pdfmove.zero();
@@ -1129,12 +1150,12 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
 		val =  (m_Hfix+m_Hmove)/m_Hjoint;
 	}
 
-#if defined DEBUG || defined VERYDEBUG
+//#if defined DEBUG || defined VERYDEBUG
 	cerr << "Value() = " << val << endl;
-#endif
+//#endif
 
-	// negate
-	if(m_negate) {
+	// negate if we are using a similarity measure
+	if(m_compdiff && (m_metric == METRIC_NMI || m_metric == METRIC_MI)) {
 		val = -val;
 	}
 

@@ -43,13 +43,18 @@ namespace npl {
  */
 
 /** @{ */
+	
+/**
+ * @brief Information-based Metric to use
+ */
+enum Metric {METRIC_MI, METRIC_VI, METRIC_NMI, METRIC_COR};
 
 /**
  * @brief The Rigid MI Computer is used to compute the mutual information
  * and gradient of mutual information between two images. As the name implies,
  * it is designed for 6 parameter rigid transforms.
  *
- * Note, if you want to register you should set the m_negate variable, so that
+ * Note, if you want to register you should set the m_mindiff variable, so that
  * the negative of mutual information will be computed. Eventually this
  * functional will be somewhat generalized for all information-based metrics.
  */
@@ -69,11 +74,10 @@ public:
 	 * @param bins Number of bins during marginal density estimation (joint
 	 *                  with have nbins*nbins)
 	 * @param kernrad During parzen window, the radius of the smoothing kernel
-	 * @param negate Whether to use negative correlation (for instance to
+	 * @param mindiff Whether to use negative correlation (for instance to
+	 * register images)
 	 */
-	RigidInformationComputer(shared_ptr<const MRImage> fixed,
-			shared_ptr<const MRImage> moving,
-			int bins, int kernrad, bool negate = false);
+	RigidInformationComputer(bool mindiff);
 
 	/**
 	 * @brief Computes the gradient and value of the correlation.
@@ -110,148 +114,23 @@ public:
 	int value(const Eigen::VectorXd& params, double& val);
 
 	/**
-	 * @brief Negative of correlation (which will make it work with most
-	 * optimizers)
+	 * @brief Compute the difference of images (negate MI and NMI)
 	 */
-	bool m_negate;
-
-	/**
-	 * @brief Reinitialize derivative image. If the you change the moving image
-	 * you need to call this to recompute the derivative image.
-	 */
-	void updatedInputs();
-
-	const shared_ptr<MRImage> m_fixed;
-	const shared_ptr<MRImage> m_moving;
-	const shared_ptr<MRImage> m_dmoving;
-
-	enum Metric {METRIC_MI, METRIC_VI, METRIC_NMI};
+	bool m_compdiff;
 
 	/**
 	 * @brief Metric to use
 	 */
 	Metric m_metric;
 
-#ifdef VERYDEBUG
-	shared_ptr<MRImage> d_theta_x;
-	shared_ptr<MRImage> d_theta_y;
-	shared_ptr<MRImage> d_theta_z;
-	shared_ptr<MRImage> d_shift_x;
-	shared_ptr<MRImage> d_shift_y;
-	shared_ptr<MRImage> d_shift_z;
-	shared_ptr<MRImage> interpolated;
-	int callcount;
-#endif
-
-private:
-
 	/**
-	 * @brief Number of bins in marginal
+	 * @brief Reallocates histograms and if m_fixed has been set, regenerates 
+	 * histogram estimate of fixed pdf
+	 *
+	 * @param nbins Number of bins for marginal estimation
+	 * @param krad Number of bins in kernel radius
 	 */
-	int m_bins;
-
-	/**
-	 * @brief Parzen Window (kernel) radius
-	 */
-	int m_krad;
-
-	// for interpolating moving image, and iterating fixed
-	LinInterp3DView<double> m_move_get;
-	LinInterp3DView<double> m_dmove_get;
-	NDConstIter<double> m_fit;
-
-	double m_center[3];
-
-	NDArrayStore<1, double> m_pdfmove;
-	NDArrayStore<1, double> m_pdffix;
-
-	NDArrayStore<2, double> m_pdfjoint;
-	NDArrayStore<3, double> m_dpdfjoint;
-	NDArrayStore<2, double> m_dpdfmove;
-
-	vector<double> m_gradHmove;
-	vector<double> m_gradHjoint;
-	double m_Hfix;
-	double m_Hmove;
-	double m_Hjoint;
-
-	double m_rangemove[2];
-	double m_rangefix[2];
-	double m_wmove;
-	double m_wfix;
-};
-
-/**
- * @brief The Rigid Corr Computer is used to compute the correlation
- * and gradient of correlation between two images. As the name implies, it
- * is designed for 6 parameter rigid transforms.
- *
- * Requires that both setFixed and setMoving be set
- *
- * Note that if you want to use this for registration, you should set m_negate
- * to get the negative of correlation.
- */
-class RigidCorrComputer
-{
-public:
-
-	/**
-	 * @brief Constructor for the rigid correlation class. Note that
-	 * rigid rotation is assumed to be about the center of the fixed
-	 * image space. Also note that changed to the input images by the outside
-	 * will * be reflected in the registration images HOWEVER you need to call
-	 * reinit() if you change the inputs, otherwise the image gradients will
-	 * be incorrect.
-	 *
-	 * @param negate Whether to use negative correlation (for instance to
-	 * minimize negative correlation using a gradient descent).
-	 */
-	RigidCorrComputer(bool negate);
-
-	/**
-	 * @brief Computes the gradient and value of the correlation.
-	 *
-	 * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
-	 * @param val Value at the given rotation
-	 * @param grad Gradient at the given rotation
-	 *
-	 * @return 0 if successful
-	 */
-	int valueGrad(const Eigen::VectorXd& params, double& val,
-			Eigen::VectorXd& grad);
-
-	/**
-	 * @brief Computes the gradient of the correlation. Note that this
-	 * function just calls valueGrad because computing the
-	 * additional values are trivial
-	 *
-	 * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
-	 * @param grad Gradient at the given rotation
-	 *
-	 * @return 0 if successful
-	 */
-	int grad(const Eigen::VectorXd& params, Eigen::VectorXd& grad);
-
-	/**
-	 * @brief Computes the correlation.
-	 *
-	 * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
-	 * @param val Value at the given rotation
-	 *
-	 * @return 0 if successful
-	 */
-	int value(const Eigen::VectorXd& params, double& val);
-
-#ifdef VERYDEBUG
-	shared_ptr<MRImage> d_theta_x;
-	shared_ptr<MRImage> d_theta_y;
-	shared_ptr<MRImage> d_theta_z;
-	shared_ptr<MRImage> d_shift_x;
-	shared_ptr<MRImage> d_shift_y;
-	shared_ptr<MRImage> d_shift_z;
-	shared_ptr<MRImage> interpolated;
-	int callcount;
-#endif
+	void setBins(size_t nbins, size_t krad);
 
 	/**
 	 * @brief Set the fixed image for registration/comparison
@@ -287,6 +166,150 @@ public:
 	 */
 	ptr<const MRImage> getMoving() { return m_moving; };
 
+
+private:
+
+	shared_ptr<const MRImage> m_fixed;
+	shared_ptr<const MRImage> m_moving;
+	shared_ptr<MRImage> m_dmoving;
+
+	/**
+	 * @brief Number of bins in marginal
+	 */
+	int m_bins;
+
+	/**
+	 * @brief Parzen Window (kernel) radius
+	 */
+	int m_krad;
+
+	// for interpolating moving image, and iterating fixed
+	LinInterp3DView<double> m_move_get;
+	LinInterp3DView<double> m_dmove_get;
+	NDConstIter<double> m_fit;
+
+	double m_center[3];
+
+	NDArrayStore<1, double> m_pdfmove;
+	NDArrayStore<1, double> m_pdffix;
+
+	NDArrayStore<2, double> m_pdfjoint;
+	NDArrayStore<3, double> m_dpdfjoint;
+	NDArrayStore<2, double> m_dpdfmove;
+
+	vector<double> m_gradHjoint;
+	vector<double> m_gradHmove;
+
+	double m_Hfix;
+	double m_Hmove;
+	double m_Hjoint;
+
+	double m_rangemove[2];
+	double m_rangefix[2];
+	double m_wmove;
+	double m_wfix;
+};
+
+/**
+ * @brief The Rigid Corr Computer is used to compute the correlation
+ * and gradient of correlation between two images. As the name implies, it
+ * is designed for 6 parameter rigid transforms.
+ *
+ * Requires that both setFixed and setMoving be set
+ *
+ * Note that if you want to use this for registration, you should set m_mindiff
+ * to get the negative of correlation.
+ */
+class RigidCorrComputer
+{
+public:
+
+	/**
+	 * @brief Constructor for the rigid correlation class. Note that
+	 * rigid rotation is assumed to be about the center of the fixed
+	 * image space. Also note that changed to the input images by the outside
+	 * will * be reflected in the registration images HOWEVER you need to call
+	 * reinit() if you change the inputs, otherwise the image gradients will
+	 * be incorrect.
+	 *
+	 * @param mindiff Whether to use negative correlation (for instance to
+	 * minimize negative correlation using a gradient descent).
+	 */
+	RigidCorrComputer(bool mindiff);
+
+	/**
+	 * @brief Computes the gradient and value of the correlation.
+	 *
+	 * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
+	 * @param val Value at the given rotation
+	 * @param grad Gradient at the given rotation
+	 *
+	 * @return 0 if successful
+	 */
+	int valueGrad(const Eigen::VectorXd& params, double& val,
+			Eigen::VectorXd& grad);
+
+	/**
+	 * @brief Computes the gradient of the correlation. Note that this
+	 * function just calls valueGrad because computing the
+	 * additional values are trivial
+	 *
+	 * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
+	 * @param grad Gradient at the given rotation
+	 *
+	 * @return 0 if successful
+	 */
+	int grad(const Eigen::VectorXd& params, Eigen::VectorXd& grad);
+
+	/**
+	 * @brief Computes the correlation.
+	 *
+	 * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
+	 * @param val Value at the given rotation
+	 *
+	 * @return 0 if successful
+	 */
+	int value(const Eigen::VectorXd& params, double& val);
+
+	/**
+	 * @brief Set the fixed image for registration/comparison
+	 *
+	 * @param fixed Input fixed image (not modified)
+	 */
+	void setFixed(ptr<const MRImage> fixed);
+
+	/**
+	 * @brief Return the current fixed image.
+	 *
+	 */
+	ptr<const MRImage> getFixed() { return m_fixed; };
+
+	/**
+	 * @brief Set the moving image for comparison, note that setting this
+	 * triggers a derivative computation and so is slower than setFixed.
+	 *
+	 * Note that modification of the moving image outside this class without
+	 * re-calling setMoving is undefined and will result in an out-of-date
+	 * moving image derivative. THIS WILL BREAK GRADIENT CALCULATIONS.
+	 *
+	 * @param moving Input moving image (not modified)
+	 */
+	void setMoving(ptr<const MRImage> moving);
+
+	/**
+	 * @brief Return the current moving image.
+	 *
+	 * Note that modification of the moving image outside this class without
+	 * re-calling setMoving is undefined and will result in an out-of-date
+	 * moving image derivative. THIS WILL BREAK GRADIENT CALCULATIONS.
+	 */
+	ptr<const MRImage> getMoving() { return m_moving; };
+
+	/**
+	 * @brief Negative of correlation (which will make it work with most
+	 * optimizers)
+	 */
+	bool m_compdiff;
 private:
 
 	shared_ptr<const MRImage> m_fixed;
@@ -299,11 +322,6 @@ private:
 	NDConstIter<double> m_fit;
 
 	double m_center[3];
-	/**
-	 * @brief Negative of correlation (which will make it work with most
-	 * optimizers)
-	 */
-	bool m_negate;
 
 };
 
