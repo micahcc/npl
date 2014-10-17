@@ -348,12 +348,12 @@ int64_t NDArrayStore<D,T>::getLinIndex(const std::vector<int64_t>& index) const
 	
 /**
  * @brief Used instead of the normal mapper, we want all the upper dimensions
- * to be treated as flat
+ * to be treated as flat. 
  *
- * @param x
- * @param y
- * @param z
- * @param t
+ * @param x X index
+ * @param y Y index
+ * @param z Z index
+ * @param t Index in higher dimensions
  *
  * @return
  */
@@ -362,15 +362,16 @@ inline
 int64_t NDArrayStore<D,T>::getLinIndex(int64_t x, int64_t y, int64_t z,
 			int64_t t) const
 {
+	// Get index from first 3 dimensions
 	int64_t out = 0;
 	int64_t tmp[4] = {x,y,z,t};
-	for(size_t ii=0; ii<4; ii++) {
+	for(size_t ii=0; ii<3; ii++) {
 		assert(tmp[ii] >= 0 && tmp[ii] < dim(ii));
 		if(ii<D)
 			out += tmp[ii]*_m_stride[ii];
 	}
 
-	// assert(z < _m_stride[2]);
+	// add contribution form higher dimensions
 	out += t;
 	return out;
 };
