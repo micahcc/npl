@@ -461,6 +461,16 @@ public:
 	 * may not be fully used if a_args is longer than D. If it is shorter
 	 * then D then additional dimensions are left as size 1.
 	 */
+	NDArrayStore();
+
+	/**
+	 * @brief Constructor with initializer list. Orientation will be default
+	 * (direction = identity, spacing = 1, origin = 0).
+	 *
+	 * @param dim dimensions of input, the length of this initializer list
+	 * may not be fully used if a_args is longer than D. If it is shorter
+	 * then D then additional dimensions are left as size 1.
+	 */
 	NDArrayStore(const std::initializer_list<size_t>& dim);
 
 	/**
@@ -523,7 +533,21 @@ public:
 	virtual size_t dim(size_t dir) const;
 	virtual const size_t* dim() const;
 
+	/**
+	 * @brief Changes the dimensions (size) of the image. This does not affect
+	 * rank/dimensionality
+	 *
+	 * @param dim New size
+	 */
 	virtual void resize(const size_t dim[D]);
+	
+	/**
+	 * @brief Changes the dimensions (size) of the image. This does not affect
+	 * rank/dimensionality
+	 *
+	 * @param dim New size
+	 */
+	virtual void resize(std::initializer_list<size_t> dim);
 
 	// return the pixel type
 	virtual PixelT type() const;
