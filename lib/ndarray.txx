@@ -28,6 +28,15 @@
 namespace npl {
 
 template <size_t D, typename T>
+NDArrayStore<D,T>::NDArrayStore() : _m_data(NULL)
+{
+	for(size_t dd=0; dd<D; dd++) {
+		_m_stride[dd] = 0;
+		_m_dim[dd] = 0;
+	}
+}
+
+template <size_t D, typename T>
 NDArrayStore<D,T>::NDArrayStore(const std::initializer_list<size_t>& a_args) :
 			_m_data(NULL)
 {
@@ -127,6 +136,32 @@ void NDArrayStore<D,T>::graft(const size_t dim[D], T* ptr,
     m_freefunc = deleter;
 
 	updateStrides();
+}
+
+/**
+ * @brief If the size is different from the current size, then it allocates
+ * a new chunk of memory, fills it with zeros and then copies the values from
+ * the original image into the new image. If the size is the same, it does
+ * nothing.
+ *
+ * @tparam D Rank/Dimensionality of image
+ * @tparam T Type of pixels
+ * @param dim new size of image
+ */
+template <size_t D, typename T>
+void NDArrayStore<D,T>::resize(std::initializer_list<size_t> dim)
+{
+	// Copy Elements from lowest D members of dim, if dim is too short just
+	// fill in 1's for the remainder
+	size_t newdim[D];
+	size_t dd=0;
+	for(auto it=dim.begin(); it != dim.end() && dd < D; ++it, ++dd) 
+		newdim[dd] = *it;
+	for(; dd < D; ++dd)
+		newdim[dd] = 1;
+
+	// Call the main resize function
+	resize(newdim);
 }
 
 /**
