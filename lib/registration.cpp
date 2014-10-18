@@ -1163,6 +1163,318 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
 };
 
 
+/****************************************************************************
+ * Mutual Information/Normalize Mutual Information/Variation of Information
+ * Distortion Correction
+ ****************************************************************************/
+
+/**
+ * @brief Constructor for the rigid correlation class. Note that
+ * rigid rotation is assumed to be about the center of the fixed
+ * image space. If necessary the input moving image will be resampled.
+ * To the same space as the fixed image.
+ *
+ * @param fixed Fixed image. A copy of this will be made.
+ * @param moving Moving image. A copy of this will be made.
+ * @param compdiff negate MI and NMI to create an effective distance 
+ */
+DistortionCorrectionInformationComputer::
+			DistortionCorrectionInformationComputer(bool compdiff) : 
+			m_compdiff(compdiff), m_metric(METRIC_MI), m_gradHjoint(6),
+			m_gradHmove(6)
+{
+	setBins(128, 4);
+}
+
+/**
+ * @brief Reallocates histograms and if m_fixed has been set, regenerates 
+ * histogram estimate of fixed pdf
+ *
+ * @param nbins Number of bins for marginal estimation
+ * @param krad Number of bins in kernel radius
+ */
+void DistortionCorrectionInformationComputer::setBins(size_t nbins, size_t krad)
+{
+	// set number of bins
+	m_bins = nbins;
+	m_krad = krad;
+
+	// reallocate memory
+	m_pdfmove.resize({nbins});
+	m_pdffix.resize({nbins});
+	m_pdfjoint.resize({nbins, nbins});
+
+	m_dpdfjoint.resize({6, nbins, nbins});
+	m_dpdfmove.resize({6, nbins});
+
+	if(m_fixed) {
+		// if fixed hsa been set, recompute fixed entropy
+		setFixed(m_fixed);
+	}
+}
+
+/**
+ * @brief Sets the moving image for Information-Based comparison. This sets
+ * m_moving, m_move_get, d_moving, m_dmove_get and m_rangemove
+ *
+ * @param newmove New moving image
+ */
+void DistortionCorrectionInformationComputer::setMoving(
+		ptr<const MRImage> newmove)
+{
+	if(newmove->ndim() != 3)
+		throw INVALID_ARGUMENT("Moving image is not 3D!");
+	
+	//////////////////////////////////////
+	// Setup accessors and Members Images
+	//////////////////////////////////////
+	m_moving = newmove;
+
+	if(!m_dmoving || !newmove->matchingOrient(m_dmoving, false, true)) {
+#ifndef NDEBUG
+		cerr << "Allocating derivative image" << endl;
+#endif //NDEBUG
+		m_dmoving = dPtrCast<MRImage>(derivative(m_moving));
+	} else {
+		// Just fill in existing image
+		derivative(m_moving, m_dmoving);
+	}
+
+	m_move_get.setArray(m_moving);
+	m_dmove_get.setArray(m_dmoving);
+	for(size_t ii=0; ii<3 && ii<m_moving->ndim(); ii++)
+		m_center[ii] = (m_moving->dim(ii)-1)/2.;
+
+	// must include 0 because outside values get mapped to 0
+	m_rangemove[0] = 0;
+	m_rangemove[1] = 0;
+	for(NDConstIter<double> it(m_moving); !it.eof(); ++it) {
+		m_rangemove[0] = std::min(m_rangemove[0], *it);
+		m_rangemove[1] = std::max(m_rangemove[1], *it);
+	}
+}
+
+/**
+ * @brief Computes the thin-plate spline regulization value and gradient
+ *
+ * @param val Output Value
+ * @param grad Output Gradient
+ */
+void DistortionCorrectionInformationComputer::thinPlateSpline(
+		double& val, VectorXd& grad)
+{
+
+}
+
+/**
+ * @brief Computes the thin-plate spline regulization value 
+ *
+ * @param val Output Value
+ */
+void DistortionCorrectionInformationComputer::thinPlateSpline(
+		double& val)
+{
+
+}
+
+/**
+ * @brief Computes the sum of the determinant value and gradient
+ *
+ * @param val Output Value
+ * @param grad Output Gradient
+ */
+void DistortionCorrectionInformationComputer::jacobianDet(
+		double& val, VectorXd& grad)
+{
+
+}
+
+/**
+ * @brief Computes the sum of the jacobian determinant value 
+ *
+ * @param val Output Value
+ */
+void DistortionCorrectionInformationComputer::jacobianDet(
+		double& val)
+{
+
+}
+
+/**
+ * @brief Computes the metric value and gradient
+ *
+ * @param val Output Value
+ * @param grad Output Gradient
+ */
+void DistortionCorrectionInformationComputer::metric(double val, VectorXd& grad);
+
+/**
+ * @brief Computes the metric value
+ *
+ * @param val Output Value
+ */
+void DistortionCorrectionInformationComputer::metric(double val);
+
+
+/**
+ * @brief Sets the fixed image for Information-Based comparison. This sets
+ * m_fixed, m_fit, m_rangefix, m_wfix, fills the histogram m_pdffix, and 
+ * computes m_Hfix
+ *
+ * @param newfixed New fixed image
+ */
+void DistortionCorrectionInformationComputer::setFixed(ptr<const MRImage> newfixed)
+{
+	if(newfixed->ndim() != 3)
+		throw INVALID_ARGUMENT("Fixed image is not 3D!");
+	
+	//////////////////////////////////////
+	// Set up Members
+	//////////////////////////////////////
+	m_fixed = newfixed;
+	m_fit.setArray(m_fixed);
+	
+	//////////////////////////////////////
+	// compute ranges, and bin widths
+	//////////////////////////////////////
+	m_rangefix[0] = INFINITY;
+	m_rangefix[1] = -INFINITY;
+	for(NDConstIter<double> it(m_fixed); !it.eof(); ++it) {
+		m_rangefix[0] = std::min(m_rangefix[0], *it);
+		m_rangefix[1] = std::max(m_rangefix[1], *it);
+	}
+
+	// fixed marginal pdf
+	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-2*m_krad-1);
+	for(NDConstIter<double> it(m_fixed); !it.eof(); ++it) {
+		// compute bins
+		double cbin = ((*it)-m_rangefix[0])/m_wfix + m_krad;
+		int bin = round(cbin);
+
+		assert(bin+m_krad < m_bins);
+		assert(bin-m_krad >= 0);
+
+		for(int ii = bin-m_krad; ii <= bin+m_krad; ii++)
+			m_pdffix[ii] += B3kern(ii-cbin);
+	}
+
+	// fixed entropy
+	m_Hfix = 0;
+	double Nrecip = 1./m_fixed->elements();
+	for(size_t ii=0; ii<m_bins; ii++) {
+		m_pdffix[ii] *= Nrecip;
+		m_Hfix -= m_pdffix[ii] > 0 ? m_pdffix[ii]*log(m_pdffix[ii]) : 0;
+	}
+}
+
+/**
+ * @brief Computes the gradient and value of the correlation.
+ *
+ * @param x Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
+ * @param v Value at the given rotation
+ * @param g Gradient at the given rotation
+ *
+ * @return 0 if successful
+ */
+int DistortionCorrectionInformationComputer::valueGrad(const VectorXd& params,
+		double& val, VectorXd& grad)
+{
+	/*
+	 * Check That Everything Is Properly Initialized
+	 */
+	if(!m_fixed) throw INVALID_ARGUMENT("ERROR must set fixed image before "
+				"computing value.");
+	if(!m_moving) throw INVALID_ARGUMENT("ERROR must set moving image before "
+				"computing value.");
+	
+	/*
+	 * Compute the Gradient and Value
+	 */
+	VectorXd tmpgrad(grad.nrows()); // TODO CACHE
+
+	double tmp = 0;
+	grad.setZero();
+
+	// Compute and add Thin Plate Spline
+	if(m_tps_reg > 0) {
+		if(thinPlateSpline(tmp, tmpgrad) != 0) return -1;
+		value += m_tps_reg*tmp;
+		grad += m_tps_reg*tmpgrad;
+	}
+
+	// Compute and add Jacobian
+	if(m_jac_reg > 0) {
+		if(jacobianDet(tmp, tmpgrad) != 0) return -1;
+		value += m_jac_reg*tmp;
+		grad += m_jac_reg*tmpgrad;
+	}
+
+	// Compute and add Metric
+	if(metric(tmp, tmpgrad) != 0) return -1;
+	value += tmp;
+	grad += tmpgrad;
+
+	return 0;
+}
+
+/**
+ * @brief Computes the gradient of the correlation. Note that this
+ * function just calls valueGrad because computing the
+ * additional values are trivial
+ *
+ * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
+ * @param grad Gradient at the given rotation
+ *
+ * @return 0 if successful
+ */
+int DistortionCorrectionInformationComputer::grad(const VectorXd& params, VectorXd& grad)
+{
+	double v = 0;
+	return valueGrad(params, v, grad);
+}
+
+/**
+ * @brief Computes the correlation.
+ *
+ * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
+ * @param val Value at the given rotation
+ *
+ * @return 0 if successful
+ */
+int DistortionCorrectionInformationComputer::value(const VectorXd& params, double& val)
+{
+	/*
+	 * Check That Everything Is Properly Initialized
+	 */
+
+	
+
+
+	/*
+	 * Compute Value
+	 */
+	double tmp = 0;
+
+	// Compute and add Thin Plate Spline
+	if(m_tps_reg > 0) {
+		if(thinPlateSpline(tmp) != 0) return -1;
+		value += m_tps_reg*tmp;
+	}
+
+	// Compute and add Jacobian
+	if(m_jac_reg > 0) {
+		if(jacobianDet(tmp) != 0) return -1;
+		value += m_jac_reg*tmp;
+	}
+
+	// Compute and add Metric
+	if(metric(tmp) != 0) return -1;
+	value += tmp;
+
+	return 0;
+};
+
+
 /*********************************************************************
  * Rigid Transform Struct
  *********************************************************************/
