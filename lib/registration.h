@@ -326,6 +326,242 @@ private:
 };
 
 /**
+ * @brief The distortion correction MI Computer is used to compute the mutual
+ * information and gradient of mutual information between two images using 
+ * nonrigid, unidirectional, B-spline transform. 
+ *
+ * Note, if you want to register you should set the m_mindiff variable, so that
+ * the negative of mutual information will be computed. Eventually this
+ * functional will be somewhat generalized for all information-based metrics.
+ */
+class DistortionCorrectionInformationComputer
+{
+public:
+
+	/**
+	 * @brief Constructor for the rigid correlation class. Note that
+	 * rigid rotation is assumed to be about the center of the fixed
+	 * image space.  * If changes are made to the moving image, then call
+	 * reinit() to reinitialize the image derivative.
+	 *
+	 * @param fixed Fixed image. A copy of this will be made.
+	 * @param moving Moving image. A copy of this will be made.
+	 * minimize negative correlation using a gradient descent).
+	 * @param bins Number of bins during marginal density estimation (joint
+	 *                  with have nbins*nbins)
+	 * @param kernrad During parzen window, the radius of the smoothing kernel
+	 * @param mindiff Whether to use negative correlation (for instance to
+	 * register images)
+	 */
+	DistortionCorrectionInformationComputer(bool mindiff);
+
+	/**
+	 * @brief Computes the gradient and value of the correlation.
+	 *
+	 * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
+	 * @param val Value at the given rotation
+	 * @param grad Gradient at the given rotation
+	 *
+	 * @return 0 if successful
+	 */
+	int valueGrad(const Eigen::VectorXd& params, double& val,
+			Eigen::VectorXd& grad);
+
+	/**
+	 * @brief Computes the gradient of the correlation. Note that this
+	 * function just calls valueGrad because computing the
+	 * additional values are trivial
+	 *
+	 * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
+	 * @param grad Gradient at the given rotation
+	 *
+	 * @return 0 if successful
+	 */
+	int grad(const Eigen::VectorXd& params, Eigen::VectorXd& grad);
+
+	/**
+	 * @brief Computes the correlation.
+	 *
+	 * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
+	 * @param val Value at the given rotation
+	 *
+	 * @return 0 if successful
+	 */
+	int value(const Eigen::VectorXd& params, double& val);
+
+	/**
+	 * @brief Compute the difference of images (negate MI and NMI)
+	 */
+	bool m_compdiff;
+
+	/**
+	 * @brief Metric to use
+	 */
+	Metric m_metric;
+
+	/**
+	 * @brief Reallocates histograms and if m_fixed has been set, regenerates 
+	 * histogram estimate of fixed pdf
+	 *
+	 * @param nbins Number of bins for marginal estimation
+	 * @param krad Number of bins in kernel radius
+	 */
+	void setBins(size_t nbins, size_t krad);
+
+	/**
+	 * @brief Set the fixed image for registration/comparison
+	 *
+	 * @param fixed Input fixed image (not modified)
+	 */
+	void setFixed(ptr<const MRImage> fixed);
+
+	/**
+	 * @brief Return the current fixed image.
+	 *
+	 */
+	ptr<const MRImage> getFixed() { return m_fixed; };
+
+	/**
+	 * @brief Set the moving image for comparison, note that setting this
+	 * triggers a derivative computation and so is slower than setFixed.
+	 *
+	 * Note that modification of the moving image outside this class without
+	 * re-calling setMoving is undefined and will result in an out-of-date
+	 * moving image derivative. THIS WILL BREAK GRADIENT CALCULATIONS.
+	 *
+	 * @param moving Input moving image (not modified)
+	 */
+	void setMoving(ptr<const MRImage> moving);
+
+	/**
+	 * @brief Return the current moving image.
+	 *
+	 * Note that modification of the moving image outside this class without
+	 * re-calling setMoving is undefined and will result in an out-of-date
+	 * moving image derivative. THIS WILL BREAK GRADIENT CALCULATIONS.
+	 */
+	ptr<const MRImage> getMoving() { return m_moving; };
+
+
+private:
+
+	/**
+	 * @brief Computes the thin-plate spline regulization value and gradient
+	 *
+	 * @param val Output Value
+	 * @param grad Output Gradient
+	 */
+	void thinPlateSpline(double& val, VectorXd& grad);
+
+	/**
+	 * @brief Computes the thin-plate spline regulization value 
+	 *
+	 * @param val Output Value
+	 */
+	void thinPlateSpline(double& val);
+
+	/**
+	 * @brief Computes the sum of the determinant value and gradient
+	 *
+	 * @param val Output Value
+	 * @param grad Output Gradient
+	 */
+	void jacobianDet(double& val, VectorXd& grad);
+
+	/**
+	 * @brief Computes the sum of the jacobian determinant value 
+	 *
+	 * @param val Output Value
+	 */
+	void jacobianDet(double& val);
+
+	/**
+	 * @brief Computes the metric value and gradient
+	 *
+	 * @param val Output Value
+	 * @param grad Output Gradient
+	 */
+	void metric(double& val, VectorXd& grad);
+
+	/**
+	 * @brief Computes the metric value
+	 *
+	 * @param val Output Value
+	 */
+	void metric(double& val);
+
+
+	shared_ptr<const MRImage> m_fixed;
+	shared_ptr<const MRImage> m_moving;
+	shared_ptr<MRImage> m_dmoving;
+	shared_ptr<MRImage> m_field;
+
+	/**
+	 * @brief Number of bins in marginal
+	 */
+	int m_bins;
+
+	/**
+	 * @brief Parzen Window (kernel) radius
+	 */
+	int m_krad;
+
+	// for interpolating moving image, and iterating fixed
+	LinInterp3DView<double> m_move_get;
+	LinInterp3DView<double> m_dmove_get;
+	NDConstIter<double> m_fit;
+
+	double m_center[3];
+
+	/**
+	 * @brief Histogram of moving image
+	 */
+	NDArrayStore<1, double> m_pdfmove;
+
+	/**
+	 * @brief Histogram of fixed image
+	 */
+	NDArrayStore<1, double> m_pdffix;
+
+	/**
+	 * @brief X - fixed PDF, Y - moving PDF
+	 */
+	NDArrayStore<2, double> m_pdfjoint;
+
+	/**
+	 * @brief First 3 Dimensions match dimensions in m_field, last two match
+	 * the dimensios of m_pdfjoint
+	 */
+	MRImageStore<5, double> m_dpdfjoint;
+	
+	/**
+	 * @brief First 3 Dimensions match dimensions in m_field, last matches
+	 * m_pdfmove
+	 */
+	MRImageStore<4, double> m_dpdfmove;
+
+	/**
+	 * @brief Gradient of joint entropy at each knot
+	 */
+	MRImageStore<3, double> m_gradHjoint;
+	
+	/**
+	 * @brief Gradient of marginal entropy at each knot
+	 */
+	MRImageStore<3, double> m_gradHmove;
+
+	double m_Hfix;
+	double m_Hmove;
+	double m_Hjoint;
+
+	double m_rangemove[2];
+	double m_rangefix[2];
+	double m_wmove;
+	double m_wfix;
+};
+
+
+/**
  * @brief Struct for holding information about a rigid transform. Note that
  * rotation R = Rx*Ry*Rz, where Rx, Ry, and Rz are the rotations about x, y and
  * z aaxes, and the angles are stored (in radians) in the rotation member.
@@ -533,6 +769,11 @@ std::ostream& operator<< (std::ostream& stream, const Rigid3DTrans& rigid)
 
 	return stream;
 }
+
+//// Standard Typedefs, because some the names are long /////
+typedef RigidInformationComputer RigidInforComp;
+typedef RigidCorrComputer RigidCorrComp;
+typedef DistortionCorrectionInformationComputer DCInforComp;
 
 /** @} */
 
