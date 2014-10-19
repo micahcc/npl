@@ -516,10 +516,12 @@ public:
 	/*
 	 * get / set functions
 	 */
+	T& operator[](const int64_t* index);
 	T& operator[](const std::vector<int64_t>& index);
 	T& operator[](std::initializer_list<int64_t> index);
 	T& operator[](int64_t pixel);
 	
+	const T& operator[](const int64_t* index) const;
 	const T& operator[](const std::vector<int64_t>& index) const;
 	const T& operator[](std::initializer_list<int64_t> index) const;
 	const T& operator[](int64_t pixel) const;

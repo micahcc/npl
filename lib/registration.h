@@ -389,9 +389,24 @@ public:
 	int value(const Eigen::VectorXd& params, double& val);
 
 	/**
+	 * @brief Phase encode (distortion) dimensions
+	 */
+	int m_dir;
+
+	/**
 	 * @brief Compute the difference of images (negate MI and NMI)
 	 */
 	bool m_compdiff;
+
+	/**
+	 * @brief Thin-plate spline regularization weight
+	 */
+	double m_tps_reg;
+	
+	/**
+	 * @brief Jacobian regularization weight
+	 */
+	double m_jac_reg;
 
 	/**
 	 * @brief Metric to use
@@ -406,6 +421,14 @@ public:
 	 * @param krad Number of bins in kernel radius
 	 */
 	void setBins(size_t nbins, size_t krad);
+
+	/**
+	 * @brief Initializes knot spacing and if m_fixed has been set, then
+	 * initializes the m_deform image.
+	 *
+	 * @param space Spacing between knots, in physical coordinates
+	 */
+	void setKnotSpacing(double space);
 
 	/**
 	 * @brief Set the fixed image for registration/comparison
@@ -450,14 +473,14 @@ private:
 	 * @param val Output Value
 	 * @param grad Output Gradient
 	 */
-	void thinPlateSpline(double& val, VectorXd& grad);
+	int thinPlateSpline(double& val, VectorXd& grad);
 
 	/**
 	 * @brief Computes the thin-plate spline regulization value 
 	 *
 	 * @param val Output Value
 	 */
-	void thinPlateSpline(double& val);
+	int thinPlateSpline(double& val);
 
 	/**
 	 * @brief Computes the sum of the determinant value and gradient
@@ -465,14 +488,14 @@ private:
 	 * @param val Output Value
 	 * @param grad Output Gradient
 	 */
-	void jacobianDet(double& val, VectorXd& grad);
+	int jacobianDet(double& val, VectorXd& grad);
 
 	/**
 	 * @brief Computes the sum of the jacobian determinant value 
 	 *
 	 * @param val Output Value
 	 */
-	void jacobianDet(double& val);
+	int jacobianDet(double& val);
 
 	/**
 	 * @brief Computes the metric value and gradient
@@ -480,20 +503,25 @@ private:
 	 * @param val Output Value
 	 * @param grad Output Gradient
 	 */
-	void metric(double& val, VectorXd& grad);
+	int metric(double& val, VectorXd& grad);
 
 	/**
 	 * @brief Computes the metric value
 	 *
 	 * @param val Output Value
 	 */
-	void metric(double& val);
+	int metric(double& val);
 
+	/* Variables: 
+	 *
+	 * m_bins, m_krad
+	 *
+	 */
 
-	shared_ptr<const MRImage> m_fixed;
-	shared_ptr<const MRImage> m_moving;
-	shared_ptr<MRImage> m_dmoving;
-	shared_ptr<MRImage> m_field;
+	ptr<const MRImage> m_fixed;
+	ptr<const MRImage> m_moving;
+	ptr<MRImage> m_dmoving;
+	ptr<MRImage> m_deform;
 
 	/**
 	 * @brief Number of bins in marginal
@@ -505,57 +533,95 @@ private:
 	 */
 	int m_krad;
 
+	/**
+	 * @brief Spacing between knots in mm
+	 */
+	double m_knotspace;
+
 	// for interpolating moving image, and iterating fixed
+	VectorXd gradbuff;
 	LinInterp3DView<double> m_move_get;
 	LinInterp3DView<double> m_dmove_get;
 	NDConstIter<double> m_fit;
+	NDIter<double> m_dit;
 
-	double m_center[3];
-
-	/**
-	 * @brief Histogram of moving image
-	 */
-	NDArrayStore<1, double> m_pdfmove;
+	vector<double> m_movkern;
+	vector<double> m_fixkern;
 
 	/**
-	 * @brief Histogram of fixed image
+	 * @brief Histogram of moving image (initialized by setBins)
 	 */
-	NDArrayStore<1, double> m_pdffix;
+	NDArrayStore<1, float> m_pdfmove;
 
 	/**
-	 * @brief X - fixed PDF, Y - moving PDF
+	 * @brief Histogram of fixed image, (initialized by setBins)
 	 */
-	NDArrayStore<2, double> m_pdfjoint;
+	NDArrayStore<1, float> m_pdffix;
+
+	/**
+	 * @brief X - fixed PDF, Y - moving PDF (initialized by setBins)
+	 */
+	NDArrayStore<2, float> m_pdfjoint;
 
 	/**
 	 * @brief First 3 Dimensions match dimensions in m_field, last two match
-	 * the dimensios of m_pdfjoint
+	 * the dimensios of m_pdfjoint, (initialized by setKnotSpacing/setFixed)
 	 */
-	MRImageStore<5, double> m_dpdfjoint;
+	MRImageStore<5, float> m_dpdfjoint;
 	
 	/**
 	 * @brief First 3 Dimensions match dimensions in m_field, last matches
-	 * m_pdfmove
+	 * m_pdfmove, (initialized by setKnotSpacing/setFixed)
 	 */
-	MRImageStore<4, double> m_dpdfmove;
+	MRImageStore<4, float> m_dpdfmove;
 
 	/**
-	 * @brief Gradient of joint entropy at each knot
+	 * @brief Gradient of joint entropy at each knot. 
+	 * (initialized by setKnotSpacing/setFixed)
 	 */
-	MRImageStore<3, double> m_gradHjoint;
+	MRImageStore<3, float> m_gradHjoint;
 	
 	/**
 	 * @brief Gradient of marginal entropy at each knot
+	 * (initialized by setKnotSpacing/setFixed)
 	 */
-	MRImageStore<3, double> m_gradHmove;
+	MRImageStore<3, float> m_gradHmove;
 
-	double m_Hfix;
+	/**
+	 * @brief Entropy of fixed image (initialized by setFixed)
+	 */
+	double m_Hfix; 
+	
+	/**
+	 * @brief Entropy of moving image (updated by metric())
+	 */
 	double m_Hmove;
+	
+	/**
+	 * @brief Entropy of joint image (updated by metric())
+	 */
 	double m_Hjoint;
 
+	/**
+	 * @brief Min-Max values in moving image (updated in metric())
+	 */
 	double m_rangemove[2];
+
+	/**
+	 * @brief min-max values in fixed image (initialized in setFixed)
+	 */
 	double m_rangefix[2];
+
+	/**
+	 * @brief Width of bins in the marginal distribution for the moving image
+	 * (updated in metric())
+	 */
 	double m_wmove;
+	
+	/**
+	 * @brief Width of bins in the marginal distribution for the fixed image
+	 * (initialized in setFixed)
+	 */
 	double m_wfix;
 };
 
