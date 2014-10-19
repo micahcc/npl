@@ -576,6 +576,12 @@ int NDArrayStore<D,T>::writePixels(gzFile file) const
 	}
 	return 0;
 }
+
+template <size_t D, typename T>
+const T& NDArrayStore<D,T>::operator[](const int64_t* index) const
+{
+	return _m_data[getLinIndex(D, index)];
+}
 	
 template <size_t D, typename T>
 const T& NDArrayStore<D,T>::operator[](std::initializer_list<int64_t> index) const
@@ -593,6 +599,12 @@ template <size_t D, typename T>
 const T& NDArrayStore<D,T>::operator[](int64_t pixel) const
 {
 	return _m_data[pixel];
+}
+
+template <size_t D, typename T>
+T& NDArrayStore<D,T>::operator[](const int64_t* index)
+{
+	return _m_data[getLinIndex(D, index)];
 }
 
 template <size_t D, typename T>

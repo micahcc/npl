@@ -460,14 +460,21 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 		fix_ss += f*f;
 		corr += g*f;
 
-		grad[0] += (*m_fit)*dgdRx*M_PI/180.;
-		grad[1] += (*m_fit)*dgdRy*M_PI/180.;
-		grad[2] += (*m_fit)*dgdRz*M_PI/180.;
-		grad[3] += (*m_fit)*dgdSx*m_moving->spacing(0);
-		grad[4] += (*m_fit)*dgdSy*m_moving->spacing(1);
-		grad[5] += (*m_fit)*dgdSz*m_moving->spacing(2);
+		grad[0] += (*m_fit)*dgdRx;
+		grad[1] += (*m_fit)*dgdRy;
+		grad[2] += (*m_fit)*dgdRz;
+		grad[3] += (*m_fit)*dgdSx;
+		grad[4] += (*m_fit)*dgdSy;
+		grad[5] += (*m_fit)*dgdSz;
 
 	}
+
+	grad[0] *= M_PI/180.;
+    grad[1] *= M_PI/180.;
+    grad[2] *= M_PI/180.;
+    grad[3] *= m_moving->spacing(0);
+    grad[4] *= m_moving->spacing(1);
+	grad[5] *= m_moving->spacing(2);
 
 	count = m_fixed->elements();
 	val = sample_corr(count, mov_sum, fix_sum, mov_ss, fix_ss, corr);
@@ -1190,10 +1197,44 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
  */
 DistortionCorrectionInformationComputer::
 			DistortionCorrectionInformationComputer(bool compdiff) : 
-			m_compdiff(compdiff), m_metric(METRIC_MI), m_gradHjoint(6),
-			m_gradHmove(6)
+			m_compdiff(compdiff), m_metric(METRIC_MI)
 {
+	setKnotSpacing(10);
 	setBins(128, 4);
+	m_dir = 1;
+	m_tps_reg = 0;
+	m_jac_reg = 0;
+}
+
+/**
+ * @brief Initializes knot spacing and if m_fixed has been set, then
+ * initializes the m_deform image.
+ *
+ * @param space Spacing between knots, in physical coordinates
+ */
+void DistortionCorrectionInformationComputer::setKnotSpacing(double space)
+{
+	m_knotspace = space;
+	if(m_fixed) {
+		// Create Field Based on the Fixed Image
+		vector<size_t> dsize(m_fixed->ndim()+2);
+		for(size_t dd=0; dd<m_fixed->ndim(); dd++)
+			dsize[dd] = 4+m_fixed->dim(dd)*m_fixed->spacing(dd)/m_knotspace;
+		dsize[m_fixed->ndim()] = m_bins;
+		dsize[m_fixed->ndim()+1] = m_bins;
+
+		// Create Deform and Gradient of H at each Knot
+		m_deform = dPtrCast<MRImage>(m_fixed->createAnother(m_fixed->ndim(),
+					dsize.data(), FLOAT32));
+		gradbuff.resize(m_deform->elements());
+		m_dit.setArray(m_deform);
+		m_gradHjoint.resize(dsize.data());
+		m_gradHmove.resize(dsize.data());
+
+		// Create Derivates of Individual Bins
+		m_dpdfmove.resize(dsize.data());
+		m_dpdfjoint.resize(dsize.data());
+	}
 }
 
 /**
@@ -1205,20 +1246,22 @@ DistortionCorrectionInformationComputer::
  */
 void DistortionCorrectionInformationComputer::setBins(size_t nbins, size_t krad)
 {
+	if(m_bins <= m_krad*2) 
+		throw INVALID_ARGUMENT("m_bins must be > m_krad*2");
+
 	// set number of bins
 	m_bins = nbins;
 	m_krad = krad;
+	m_movkern.resize(m_krad*2+1);
+	m_fixkern.resize(m_krad*2+1);
 
 	// reallocate memory
 	m_pdfmove.resize({nbins});
 	m_pdffix.resize({nbins});
 	m_pdfjoint.resize({nbins, nbins});
-
-	m_dpdfjoint.resize({6, nbins, nbins});
-	m_dpdfmove.resize({6, nbins});
-
+	
 	if(m_fixed) {
-		// if fixed hsa been set, recompute fixed entropy
+		// if fixed hsa been set, recompute fixed entropy, and adjust field
 		setFixed(m_fixed);
 	}
 }
@@ -1252,8 +1295,6 @@ void DistortionCorrectionInformationComputer::setMoving(
 
 	m_move_get.setArray(m_moving);
 	m_dmove_get.setArray(m_dmoving);
-	for(size_t ii=0; ii<3 && ii<m_moving->ndim(); ii++)
-		m_center[ii] = (m_moving->dim(ii)-1)/2.;
 
 	// must include 0 because outside values get mapped to 0
 	m_rangemove[0] = 0;
@@ -1262,69 +1303,10 @@ void DistortionCorrectionInformationComputer::setMoving(
 		m_rangemove[0] = std::min(m_rangemove[0], *it);
 		m_rangemove[1] = std::max(m_rangemove[1], *it);
 	}
+
+	if(m_moving->m_phasedim >= 0)
+		m_dir = m_moving->m_phasedim;
 }
-
-/**
- * @brief Computes the thin-plate spline regulization value and gradient
- *
- * @param val Output Value
- * @param grad Output Gradient
- */
-void DistortionCorrectionInformationComputer::thinPlateSpline(
-		double& val, VectorXd& grad)
-{
-
-}
-
-/**
- * @brief Computes the thin-plate spline regulization value 
- *
- * @param val Output Value
- */
-void DistortionCorrectionInformationComputer::thinPlateSpline(
-		double& val)
-{
-
-}
-
-/**
- * @brief Computes the sum of the determinant value and gradient
- *
- * @param val Output Value
- * @param grad Output Gradient
- */
-void DistortionCorrectionInformationComputer::jacobianDet(
-		double& val, VectorXd& grad)
-{
-
-}
-
-/**
- * @brief Computes the sum of the jacobian determinant value 
- *
- * @param val Output Value
- */
-void DistortionCorrectionInformationComputer::jacobianDet(
-		double& val)
-{
-
-}
-
-/**
- * @brief Computes the metric value and gradient
- *
- * @param val Output Value
- * @param grad Output Gradient
- */
-void DistortionCorrectionInformationComputer::metric(double val, VectorXd& grad);
-
-/**
- * @brief Computes the metric value
- *
- * @param val Output Value
- */
-void DistortionCorrectionInformationComputer::metric(double val);
-
 
 /**
  * @brief Sets the fixed image for Information-Based comparison. This sets
@@ -1338,15 +1320,10 @@ void DistortionCorrectionInformationComputer::setFixed(ptr<const MRImage> newfix
 	if(newfixed->ndim() != 3)
 		throw INVALID_ARGUMENT("Fixed image is not 3D!");
 	
-	//////////////////////////////////////
-	// Set up Members
-	//////////////////////////////////////
 	m_fixed = newfixed;
 	m_fit.setArray(m_fixed);
 	
-	//////////////////////////////////////
-	// compute ranges, and bin widths
-	//////////////////////////////////////
+	// Compute Range of Values
 	m_rangefix[0] = INFINITY;
 	m_rangefix[1] = -INFINITY;
 	for(NDConstIter<double> it(m_fixed); !it.eof(); ++it) {
@@ -1365,7 +1342,7 @@ void DistortionCorrectionInformationComputer::setFixed(ptr<const MRImage> newfix
 		assert(bin-m_krad >= 0);
 
 		for(int ii = bin-m_krad; ii <= bin+m_krad; ii++)
-			m_pdffix[ii] += B3kern(ii-cbin);
+			m_pdffix[ii] += B3kern(ii-cbin, m_krad);
 	}
 
 	// fixed entropy
@@ -1375,7 +1352,468 @@ void DistortionCorrectionInformationComputer::setFixed(ptr<const MRImage> newfix
 		m_pdffix[ii] *= Nrecip;
 		m_Hfix -= m_pdffix[ii] > 0 ? m_pdffix[ii]*log(m_pdffix[ii]) : 0;
 	}
+
+	setKnotSpacing(m_knotspace);
 }
+
+/**
+ * @brief Computes the thin-plate spline regulization value and gradient
+ *
+ * @param val Output Value
+ * @param grad Output Gradient
+ */
+int DistortionCorrectionInformationComputer::thinPlateSpline(
+		double& val, VectorXd& grad)
+{
+	val = 0;
+	grad.setZero();
+	return 0;
+}
+
+/**
+ * @brief Computes the thin-plate spline regulization value 
+ *
+ * @param val Output Value
+ */
+int DistortionCorrectionInformationComputer::thinPlateSpline(
+		double& val)
+{
+	val = 0;
+	return 0;
+}
+
+/**
+ * @brief Computes the sum of the determinant value and gradient
+ *
+ * @param val Output Value
+ * @param grad Output Gradient
+ */
+int DistortionCorrectionInformationComputer::jacobianDet(
+		double& val, VectorXd& grad)
+{
+	val = 0;
+	grad.setZero();
+	return 0;
+}
+
+/**
+ * @brief Computes the sum of the jacobian determinant value 
+ *
+ * @param val Output Value
+ */
+int DistortionCorrectionInformationComputer::jacobianDet(
+		double& val)
+{
+	val = 0;
+	return 0;
+}
+
+// TODO if only 1D, simplify interpolation
+
+/**
+ * @brief Computes the metric value and gradient
+ *
+ * @param val Output Value 
+ * @param grad Output Gradient, in index coordinates (change of variables
+ * handled outside this function)
+ */
+int DistortionCorrectionInformationComputer::metric(
+		double& val, VectorXd& grad)
+{
+	//Zero Inputs
+	m_pdfmove.zero();
+	m_pdfjoint.zero();
+	m_dpdfmove.zero();
+	m_dpdfjoint.zero();
+	
+	// for computing distorted indices
+	double cbinmove, cbinfix; //continuous
+	int binmove, binfix; // nearest int
+	double fcind[3]; // Continuous index in fixed image
+	double dcind[3]; // Continuous index in deformation
+	int64_t dnind[3]; // Nearest knot to dcind
+	int64_t dind[5]; // last two dimensions are for bins
+	double pt[3];
+	double newminmax[2] = {0, m_rangemove[1]};
+	double Fm;   /** Moving Value */
+	double dFm;  /** Derivative Moving Value */
+	double Fc;   /** Intensity Corrected Moving Value */ 
+	double Ff;   /** Fixed Value Value */ 
+	int64_t roi_low[3];
+	size_t roi_len[3];
+
+	// compute updated moving width
+	m_wmove = (m_rangemove[1]-m_rangemove[0])/(m_bins-2*m_krad-1);
+	
+	// Compute Probabilities
+	for(m_fit.goBegin(); !m_fit.eof(); ++m_fit) {
+
+		// Compute Continuous Index of Point in Deform Image
+		m_fit.index(3, fcind);
+		m_fixed->indexToPoint(3, fcind, pt);
+		m_deform->pointToIndex(3, pt, dcind);
+		
+		// create ROI in kernel space
+		for(size_t dd=0; dd<3; dd++) {
+			dnind[dd] = round(dcind[dd]);
+			roi_low[dd] = dnind[dd]-2;
+			roi_len[dd] = 5;
+		}
+
+		/**********************************************************************
+		 * Compute Distortion at this point and compute un-distorted value/bins
+		 *********************************************************************/
+
+		// Sample B-Spline Value and Derivative at Current Position
+		double def = 0, ddef = 0;
+		m_dit.setROI(3, roi_len, roi_low);
+		for(m_dit.goBegin(); !m_dit.eof(); ++m_dit) {
+			m_dit.index(3, dind);
+			double weight = 1;
+			double dweight = 1;
+			for(size_t dd=0; dd<3; dd++) {
+				weight *= B3kern(dind[dd] - dcind[dd]);
+				dweight *= -dB3kern(dind[dd] - dcind[dd])/m_knotspace;
+			}
+			def += (*m_dit)*weight;
+			ddef += (*m_dit)*dweight;
+		}
+		fcind[m_dir] += def;
+
+		// get actual values
+		Fm = m_move_get.get(fcind[0], fcind[1], fcind[2]);
+		if(Fm < 1e-10) Fm = 0;
+		Fc = Fm*(1+ddef);
+		dFm = m_dmove_get.get(fcind[0], fcind[1], fcind[2]);
+		Ff = *m_fit;
+		
+		// compute the new range of values
+		newminmax[0] = min(newminmax[0], Fc);
+		newminmax[1] = max(newminmax[1], Fc);
+
+		// compute bins, clamp moving in case range increases
+		cbinfix = (Ff-m_rangefix[0])/m_wfix + m_krad;
+		binfix = round(cbinfix);
+		cbinmove = (Fc-m_rangemove[0])/m_wmove + m_krad;
+		binmove = clamp<int>(m_krad, m_bins-1-m_krad, round(cbinmove));
+		
+		/**************************************************************
+		 * Compute Marginal and Joint PDF's
+		 **************************************************************/
+
+		// Cache Kernel 
+		for(int ii = -m_krad; ii <= m_krad; ii++) {
+			m_fixkern[ii+m_krad] = B3kern(ii+binfix-cbinfix, m_krad);
+			m_movkern[ii+m_krad] = B3kern(ii+binmove-cbinmove, m_krad);
+		}
+
+		// Sum up Bins for Value Comp
+		for(int ii = -m_krad; ii <= m_krad; ii++) {
+			int64_t mpos = ii+binmove;
+			m_pdfmove[mpos] += m_movkern[ii+m_krad];
+			for(int jj = -m_krad; jj <= m_krad; jj++) {
+				int64_t fpos = jj+binfix;
+				m_pdfjoint[{mpos,fpos}] += m_movkern[ii+m_krad]*
+					m_fixkern[jj+m_krad];
+			}
+		}
+		
+		/**************************************************************
+		 * Compute Derivative of Marginal and Joint PDFs
+		 **************************************************************/
+			
+		// Switch Moving Kernel To Derivative
+		for(int ii = -m_krad; ii <= m_krad; ii++) 
+			m_movkern[ii+m_krad] = dB3kern(ii+binmove-cbinmove, m_krad);
+
+		assert(binfix+m_krad < m_bins);
+		assert(binmove+m_krad < m_bins);
+		assert(binfix-m_krad >= 0);
+		assert(binmove-m_krad >= 0);
+
+		/********************************************************
+		 * Add to Derivatives of Bins Within Reach of the Point
+		 *******************************************************/
+		m_dit.setROI(3, roi_len, roi_low);
+		for(m_dit.goBegin(); !m_dit.eof(); ++m_dit) {
+			m_dit.index(3, dind);
+
+			double dPHI_dphi = 1;
+			for(int ii = 0; ii < 3; ii++) 
+				dPHI_dphi *= B3kern(dind[ii]-dcind[ii]);
+
+			double dPHI_dydphi = 1;
+			for(int ii = 0; ii < 3; ii++) {
+				if(ii == m_dir)
+					dPHI_dydphi *= -dB3kern(dind[ii]-dcind[ii])/
+						m_deform->spacing(ii);
+				else
+					dPHI_dydphi *= B3kern(dind[ii]-dcind[ii]);
+			}
+
+			//replace 1+dPHI/dY with Fc/Fm (since that is the scale used)
+			double dg_dphi;
+			if(Fm <= 0)
+				dg_dphi = dFm*dPHI_dphi + Fm*dPHI_dydphi;
+			else
+				dg_dphi = dFm*dPHI_dphi*Fc/Fm + Fm*dPHI_dydphi;
+
+			assert(dg_dphi == dg_dphi);
+			for(int ii = -m_krad; ii <= m_krad; ii++) {
+				dind[3] = binmove+ii;
+				m_dpdfmove[dind] += dg_dphi*m_movkern[ii+m_krad];
+				for(int jj=-m_krad; jj<=m_krad; jj++) {
+					dind[4] = binfix+jj;
+					m_dpdfjoint[dind] += dg_dphi*m_movkern[ii+m_krad]*
+								m_fixkern[jj+m_krad];
+				}
+			}
+		}
+	}
+
+	///////////////////////
+	// Update Entropies
+	///////////////////////
+
+	// pdf's
+	double scale = 1./(m_fixed->elements());
+	for(size_t ii=0; ii<m_pdfmove.elements(); ii++)
+		m_pdfmove[ii] *= scale;
+	for(size_t ii=0; ii<m_pdfjoint.elements(); ii++)
+		m_pdfjoint[ii] *= scale;
+
+	// update m_Hmove
+	m_Hmove = 0;
+	for(int ii=0; ii<m_pdfmove.elements(); ii++)
+		m_Hmove -= m_pdfmove[ii] > 0 ? m_pdfmove[ii]*log(m_pdfmove[ii]) : 0;
+
+	// update m_Hjoint
+	m_Hjoint = 0;
+	for(int ii=0; ii<m_pdfjoint.elements(); ii++)
+		m_Hjoint -= m_pdfjoint[ii] > 0 ? m_pdfjoint[ii]*log(m_pdfjoint[ii]) : 0;
+
+	//////////////////////////////
+	// Update Gradient Entropies
+	//////////////////////////////
+
+	// pdf's
+	double dscale = -1./(m_wmove*m_fixed->elements());
+	for(size_t ii=0; ii<m_dpdfmove.elements(); ii++)
+		m_dpdfmove[ii] *= dscale;
+	for(size_t ii=0; ii<m_dpdfjoint.elements(); ii++)
+		m_dpdfjoint[ii] *= dscale;
+
+	// Hmove
+	m_dit.setROI(m_deform->ndim(), m_deform->dim());
+	for(m_dit.goBegin(); !m_dit.eof(); ++m_dit) {
+		m_dit.index(3, dind);
+		m_gradHmove[{dind[0],dind[1],dind[2]}] = 0;
+		for(size_t ii=0; ii<m_bins; ++ii){
+			dind[3] = ii;
+			double p = m_pdfmove[ii];
+			double dp = m_dpdfmove[dind];
+			double v = p > 0 ? dp*log(p) : 0;
+			m_gradHmove[{dind[0],dind[1],dind[2]}] -= v;
+		}
+	}
+
+	// Hjoint
+	for(m_dit.goBegin(); !m_dit.eof(); ++m_dit) {
+		m_dit.index(3, dind);
+		m_gradHjoint[{dind[0],dind[1],dind[2]}] = 0;
+		for(int64_t ii=0; ii<m_bins; ++ii){
+			dind[3] = ii;
+			for(int64_t jj=0; jj<m_bins; ++jj){
+				dind[4] = jj;
+				double p = m_pdfjoint[{ii,jj}];
+				double dp = m_dpdfjoint[dind];
+				double v = p > 0 ? dp*log(p) : 0;
+				m_gradHjoint[dind] -= v;
+			}
+		}
+	}
+
+	// update value and grad
+	if(m_metric == METRIC_MI) {
+		val = m_Hfix+m_Hmove-m_Hjoint;
+
+		// Fill Gradient From GradH Images
+		for(size_t ii=0; ii<m_deform->elements(); ii++)
+			grad[ii] = (m_gradHmove[ii]-m_gradHjoint[ii])*
+				m_moving->spacing(m_dir);
+
+	} else if(m_metric == METRIC_VI) {
+		val = 2*m_Hjoint-m_Hfix-m_Hmove;
+		for(size_t ii=0; ii<m_deform->elements(); ii++)
+			grad[ii] = (2*m_gradHjoint[ii] - m_gradHmove[ii])*
+				m_moving->spacing(m_dir);
+
+	} else if(m_metric == METRIC_NMI) {
+		val =  (m_Hfix+m_Hmove)/m_Hjoint;
+		for(size_t ii=0; ii<m_deform->elements(); ii++)
+			grad[ii] = m_moving->spacing(m_dir)*(m_gradHmove[ii]/m_Hjoint -
+				m_gradHjoint[ii]*(m_Hfix+m_Hmove)/(m_Hjoint*m_Hjoint));
+	}
+
+//#if defined DEBUG || defined VERYDEBUG
+	cerr << "ValueGrad() = " << val << " / " << grad.transpose() << endl;
+//#endif
+
+	// negate if we are using a similarity measure
+	if(m_compdiff && (m_metric == METRIC_NMI || m_metric == METRIC_MI)) {
+		grad = -grad;
+		val = -val;
+	}
+
+	// Update Range
+	m_rangemove[0] = newminmax[0];
+	m_rangemove[1] = newminmax[1];
+
+	return 0;
+}
+	
+
+/**
+ * @brief Computes the metric value
+ *
+ * @param val Output Value
+ */
+int DistortionCorrectionInformationComputer::metric(double& val)
+{
+	//Zero Inputs
+	m_pdfmove.zero();
+	m_pdfjoint.zero();
+	m_dpdfmove.zero();
+	m_dpdfjoint.zero();
+	
+	// for computing distorted indices
+	double cbinmove, cbinfix; //continuous
+	int binmove, binfix; // nearest int
+	double fcind[3]; // Continuous index in fixed image
+	double dcind[3]; // Continuous index in deformation
+	int64_t dind[5]; // last two dimensions are for bins
+	double pt[3];
+	double newminmax[2] = {0, m_rangemove[1]};
+	double Fm;   /** Moving Value */
+	double Fc;   /** Intensity Corrected Moving Value */ 
+	double Ff;   /** Fixed Value Value */ 
+	int64_t roi_low[3];
+	size_t roi_len[3];
+
+	// compute updated moving width
+	m_wmove = (m_rangemove[1]-m_rangemove[0])/(m_bins-2*m_krad-1);
+	
+	// Compute Probabilities
+	for(m_fit.goBegin(); !m_fit.eof(); ++m_fit) {
+
+		// Compute Continuous Index of Point in Deform Image
+		m_fit.index(3, fcind);
+		m_fixed->indexToPoint(3, fcind, pt);
+		m_deform->pointToIndex(3, pt, dcind);
+		
+		/**********************************************************************
+		 * Compute Distortion at this point and compute un-distorted value/bins
+		 *********************************************************************/
+
+		// Sample B-Spline Value and Derivative at Current Position
+		double def = 0, ddef = 0;
+		m_dit.setROI(3, roi_len, roi_low);
+		for(m_dit.goBegin(); !m_dit.eof(); ++m_dit) {
+			m_dit.index(3, dind);
+			double weight = 1;
+			double dweight = 1;
+			for(size_t dd=0; dd<3; dd++) {
+				weight *= B3kern(dind[dd] - dcind[dd]);
+				dweight *= -dB3kern(dind[dd] - dcind[dd])/m_knotspace;
+			}
+			def += (*m_dit)*weight;
+			ddef += (*m_dit)*dweight;
+		}
+		fcind[m_dir] += def;
+
+		// get actual values
+		Fm = m_move_get(fcind[0], fcind[1], fcind[2]);
+		if(Fm < 1e-10) Fm = 0;
+		Fc = Fm*(1+ddef);
+		Ff = *m_fit;
+		
+		// compute the new range of values
+		newminmax[0] = min(newminmax[0], Fc);
+		newminmax[1] = max(newminmax[1], Fc);
+
+		// compute bins, clamp moving in case range increases
+		cbinfix = (Ff-m_rangefix[0])/m_wfix + m_krad;
+		binfix = round(cbinfix);
+		cbinmove = (Fc-m_rangemove[0])/m_wmove + m_krad;
+		binmove = clamp<int>(m_krad, m_bins-1-m_krad, round(cbinmove));
+		
+		/**************************************************************
+		 * Compute Marginal and Joint PDF's
+		 **************************************************************/
+
+		// Cache Kernel 
+		for(int ii = -m_krad; ii <= m_krad; ii++) {
+			m_fixkern[ii+m_krad] = B3kern(ii+binfix-cbinfix, m_krad);
+			m_movkern[ii+m_krad] = B3kern(ii+binmove-cbinmove, m_krad);
+		}
+
+		// Sum up Bins for Value Comp
+		for(int ii = -m_krad; ii <= m_krad; ii++) {
+			int64_t mpos = ii+binmove;
+			m_pdfmove[mpos] += m_movkern[ii+m_krad];
+			for(int jj = -m_krad; jj <= m_krad; jj++) {
+				int64_t fpos = jj+binfix;
+				m_pdfjoint[{mpos,fpos}] += m_movkern[ii+m_krad]*
+					m_fixkern[jj+m_krad];
+			}
+		}
+	}
+
+	///////////////////////
+	// Update Entropies
+	///////////////////////
+
+	// pdf's
+	double scale = 1./(m_fixed->elements());
+	for(size_t ii=0; ii<m_pdfmove.elements(); ii++)
+		m_pdfmove[ii] *= scale;
+	for(size_t ii=0; ii<m_pdfjoint.elements(); ii++)
+		m_pdfjoint[ii] *= scale;
+
+	// update m_Hmove
+	m_Hmove = 0;
+	for(int ii=0; ii<m_pdfmove.elements(); ii++)
+		m_Hmove -= m_pdfmove[ii] > 0 ? m_pdfmove[ii]*log(m_pdfmove[ii]) : 0;
+
+	// update m_Hjoint
+	m_Hjoint = 0;
+	for(int ii=0; ii<m_pdfjoint.elements(); ii++)
+		m_Hjoint -= m_pdfjoint[ii] > 0 ? m_pdfjoint[ii]*log(m_pdfjoint[ii]) : 0;
+
+	// update value and grad
+	if(m_metric == METRIC_MI) {
+		val = m_Hfix+m_Hmove-m_Hjoint;
+	} else if(m_metric == METRIC_VI) {
+		val = 2*m_Hjoint-m_Hfix-m_Hmove;
+	} else if(m_metric == METRIC_NMI) {
+		val =  (m_Hfix+m_Hmove)/m_Hjoint;
+	}
+
+//#if defined DEBUG || defined VERYDEBUG
+	cerr << "Value() = " << val << endl;
+//#endif
+
+	// negate if we are using a similarity measure
+	if(m_compdiff && (m_metric == METRIC_NMI || m_metric == METRIC_MI)) 
+		val = -val;
+
+	// Update Range
+	m_rangemove[0] = newminmax[0];
+	m_rangemove[1] = newminmax[1];
+
+	return 0;
+}
+
 
 /**
  * @brief Computes the gradient and value of the correlation.
@@ -1396,36 +1834,62 @@ int DistortionCorrectionInformationComputer::valueGrad(const VectorXd& params,
 				"computing value.");
 	if(!m_moving) throw INVALID_ARGUMENT("ERROR must set moving image before "
 				"computing value.");
+	if(!m_moving->matchingOrient(m_fixed, true, true))
+		throw INVALID_ARGUMENT("ERROR input images must be in same index "
+				"space");
+
+	assert(m_bins > m_krad*2);
+
+	assert(m_pdfmove.dim(0) == m_bins);
+	assert(m_pdfjoint.dim(0) == m_bins); // Moving
+	assert(m_pdfjoint.dim(1) == m_bins); // Fixed
 	
+	assert(m_dpdfjoint->dim(0) == m_deform->dim(0));
+	assert(m_dpdfjoint->dim(1) == m_deform->dim(1));
+	assert(m_dpdfjoint->dim(2) == m_deform->dim(2));
+	assert(m_dpdfjoint->dim(3) == m_bins); // Moving PDF
+	assert(m_dpdfjoint->dim(4) == m_bins); // Fixed PDF 
+	
+	assert(m_dpdfmove->dim(0) == m_deform->dim(0));
+	assert(m_dpdfmove->dim(1) == m_deform->dim(1));
+	assert(m_dpdfmove->dim(2) == m_deform->dim(2));
+	assert(m_dpdfmove->dim(3) == m_bins); // Moving
+
+	// Fill Deform Image from params, change units to index space
+	m_dit.setROI(m_deform->ndim(), m_deform->dim());
+	m_dit.goBegin(); 
+	for(size_t ii=0; !m_dit.eof(); ++m_dit, ++ii) 
+		m_dit.set(params[ii]/m_moving->spacing(m_dir));
+
 	/*
 	 * Compute the Gradient and Value
 	 */
-	VectorXd tmpgrad(grad.nrows()); // TODO CACHE
-
 	double tmp = 0;
+	val  = 0;
 	grad.setZero();
 
 	// Compute and add Thin Plate Spline
 	if(m_tps_reg > 0) {
-		if(thinPlateSpline(tmp, tmpgrad) != 0) return -1;
-		value += m_tps_reg*tmp;
-		grad += m_tps_reg*tmpgrad;
+		if(thinPlateSpline(tmp, gradbuff) != 0) return -1;
+		val += m_tps_reg*tmp;
+		grad += m_tps_reg*gradbuff*m_moving->spacing(m_dir);
 	}
 
 	// Compute and add Jacobian
 	if(m_jac_reg > 0) {
-		if(jacobianDet(tmp, tmpgrad) != 0) return -1;
-		value += m_jac_reg*tmp;
-		grad += m_jac_reg*tmpgrad;
+		if(jacobianDet(tmp, gradbuff) != 0) return -1;
+		val += m_jac_reg*tmp;
+		grad += m_jac_reg*gradbuff*m_moving->spacing(m_dir);
 	}
 
 	// Compute and add Metric
-	if(metric(tmp, tmpgrad) != 0) return -1;
-	value += tmp;
-	grad += tmpgrad;
+	if(metric(tmp, gradbuff) != 0) return -1;
+	val += tmp;
+	grad += gradbuff*m_moving->spacing(m_dir);
 
 	return 0;
 }
+
 
 /**
  * @brief Computes the gradient of the correlation. Note that this
@@ -1453,33 +1917,50 @@ int DistortionCorrectionInformationComputer::grad(const VectorXd& params, Vector
  */
 int DistortionCorrectionInformationComputer::value(const VectorXd& params, double& val)
 {
-	/*
-	 * Check That Everything Is Properly Initialized
-	 */
+	/*************************************************************************
+	 * Check State
+	 ************************************************************************/
+	if(!m_fixed) throw INVALID_ARGUMENT("ERROR must set fixed image before "
+				"computing value.");
+	if(!m_moving) throw INVALID_ARGUMENT("ERROR must set moving image before "
+				"computing value.");
+	if(!m_moving->matchingOrient(m_fixed, true, true))
+		throw INVALID_ARGUMENT("ERROR input images must be in same index "
+				"space");
 
+	assert(m_bins > m_krad*2);
+
+	assert(m_pdfmove.dim(0) == m_bins);
+	assert(m_pdfjoint.dim(0) == m_bins); // Moving
+	assert(m_pdfjoint.dim(1) == m_bins); // Fixed
 	
-
+	// Fill Parameter Image, change units to index space
+	m_dit.setROI(m_deform->ndim(), m_deform->dim());
+	m_dit.goBegin(); 
+	for(size_t ii=0; !m_dit.eof(); ++m_dit, ++ii) 
+		m_dit.set(params[ii]/m_moving->spacing(m_dir));
 
 	/*
 	 * Compute Value
 	 */
-	double tmp = 0;
+	double tmp;
+	val = 0;
 
 	// Compute and add Thin Plate Spline
 	if(m_tps_reg > 0) {
 		if(thinPlateSpline(tmp) != 0) return -1;
-		value += m_tps_reg*tmp;
+		val += m_tps_reg*tmp;
 	}
 
 	// Compute and add Jacobian
 	if(m_jac_reg > 0) {
 		if(jacobianDet(tmp) != 0) return -1;
-		value += m_jac_reg*tmp;
+		val += m_jac_reg*tmp;
 	}
 
 	// Compute and add Metric
 	if(metric(tmp) != 0) return -1;
-	value += tmp;
+	val += tmp;
 
 	return 0;
 };

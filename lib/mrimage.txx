@@ -86,6 +86,15 @@ MRImageStore<D,T>::MRImageStore(size_t len, const size_t* size, T* ptr,
 	orientDefault();
 }
 
+template <size_t D,typename T>
+MRImageStore<D,T>::MRImageStore() : 
+	NDArrayStore<D,T>(), MRImage()
+{
+    m_direction.resize(D,D);
+    m_origin.resize(D);
+    m_spacing.resize(D);
+	orientDefault();
+}
 
 /**
  * @brief Default orientation (dir=ident, space=1 and origin=0), also resizes
