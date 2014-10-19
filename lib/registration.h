@@ -26,7 +26,6 @@
 #include <Eigen/Dense>
 
 #include <memory>
-using std::shared_ptr;
 
 namespace npl {
 
@@ -169,9 +168,9 @@ public:
 
 private:
 
-	shared_ptr<const MRImage> m_fixed;
-	shared_ptr<const MRImage> m_moving;
-	shared_ptr<MRImage> m_dmoving;
+	ptr<const MRImage> m_fixed;
+	ptr<const MRImage> m_moving;
+	ptr<MRImage> m_dmoving;
 
 	/**
 	 * @brief Number of bins in marginal
@@ -312,9 +311,9 @@ public:
 	bool m_compdiff;
 private:
 
-	shared_ptr<const MRImage> m_fixed;
-	shared_ptr<const MRImage> m_moving;
-	shared_ptr<MRImage> m_dmoving;
+	ptr<const MRImage> m_fixed;
+	ptr<const MRImage> m_moving;
+	ptr<MRImage> m_dmoving;
 
 	// for interpolating moving image, and iterating fixed
 	LinInterp3DView<double> m_move_get;
@@ -632,7 +631,7 @@ struct Rigid3DTrans
 	 *
 	 * @param in Source of index->world transform
 	 */
-	void toRASCoords(shared_ptr<const MRImage> in);
+	void toRASCoords(ptr<const MRImage> in);
 
 	/**
 	 * @brief Converts from world coordinates to index coordinates based on the
@@ -657,7 +656,7 @@ struct Rigid3DTrans
 	 * @param forcegridcenter Force the center to be the center of the grid
 	 * rather than using the location corresponding to the current center
 	 */
-	void toIndexCoords(shared_ptr<const MRImage> in, bool forcegridcenter);
+	void toIndexCoords(ptr<const MRImage> in, bool forcegridcenter);
 
 };
 
@@ -672,7 +671,7 @@ struct Rigid3DTrans
  *
  * @return      Motion corrected volume.
  */
-shared_ptr<MRImage> motionCorrect(shared_ptr<const MRImage> input, size_t ref);
+ptr<MRImage> motionCorrect(ptr<const MRImage> input, size_t ref);
 
 /**
  * @brief Performs correlation based registration between two 3D volumes. note
@@ -687,7 +686,7 @@ shared_ptr<MRImage> motionCorrect(shared_ptr<const MRImage> input, size_t ref);
  *
  * @return Output rigid transform
  */
-Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed, shared_ptr<const MRImage> moving,
+Rigid3DTrans corReg3D(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		const std::vector<double>& sigmas);
 
 /**
@@ -704,8 +703,8 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed, shared_ptr<const MRImage>
  *
  * @return          Rigid transform.
  */
-Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
-		shared_ptr<const MRImage> moving, const std::vector<double>& sigmas,
+Rigid3DTrans informationReg3D(ptr<const MRImage> fixed,
+		ptr<const MRImage> moving, const std::vector<double>& sigmas,
 		size_t nbins = 128, size_t binradius = 4);
 
 /**
@@ -719,8 +718,8 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
  *
  * @return 0 if success, -1 if failure
  */
-int cor3DDerivTest(double step, double tol, shared_ptr<const MRImage> in1,
-		shared_ptr<const MRImage> in2);
+int cor3DDerivTest(double step, double tol, ptr<const MRImage> in1,
+		ptr<const MRImage> in2);
 
 /**
  * @brief This function checks the validity of the derivative functions used
@@ -734,7 +733,7 @@ int cor3DDerivTest(double step, double tol, shared_ptr<const MRImage> in1,
  * @return 0 if success, -1 if failure
  */
 int information3DDerivTest(double step, double tol,
-		shared_ptr<const MRImage> in1, shared_ptr<const MRImage> in2);
+		ptr<const MRImage> in1, ptr<const MRImage> in2);
 
 /**
  * @brief Prints a rigid transform
