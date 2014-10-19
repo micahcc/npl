@@ -311,6 +311,40 @@ int information3DDerivTest(double step, double tol,
 	return 0;
 }
 
+/**
+ * @brief This function checks the validity of the derivative functions used
+ * to optimize between-image corrlation.
+ *
+ * @param step Test step size
+ * @param tol Tolerance in error between analytical and Numeric gratient
+ * @param in1 Image 1
+ * @param in2 Image 2
+ *
+ * @return 0 if success, -1 if failure
+ */
+int distcorDerivTest(double step, double tol,
+		shared_ptr<const MRImage> in1, shared_ptr<const MRImage> in2)
+{
+	using namespace std::placeholders;
+	DCInforComp comp(false);
+	comp.setBins(128,4);
+	comp.m_metric = METRIC_MI;
+	comp.setKnotSpacing(10);
+	comp.setFixed(in1);
+	comp.setMoving(in2);
+
+	auto vfunc = std::bind(&DCInforComp::value, &comp, _1, _2);
+	auto gfunc = std::bind(&DCInforComp::grad, &comp, _1, _2);
+
+	double error = 0;
+	VectorXd x = VectorXd::Ones(6);
+	if(testgrad(error, x, step, tol, vfunc, gfunc) != 0) {
+		return -1;
+	}
+
+	return 0;
+}
+
 
 /*********************************************************************
  * Registration Class Implementations
@@ -1252,8 +1286,6 @@ void DistortionCorrectionInformationComputer::setBins(size_t nbins, size_t krad)
 	// set number of bins
 	m_bins = nbins;
 	m_krad = krad;
-	m_movkern.resize(m_krad*2+1);
-	m_fixkern.resize(m_krad*2+1);
 
 	// reallocate memory
 	m_pdfmove.resize({nbins});
@@ -1501,30 +1533,18 @@ int DistortionCorrectionInformationComputer::metric(
 		 * Compute Marginal and Joint PDF's
 		 **************************************************************/
 
-		// Cache Kernel 
-		for(int ii = -m_krad; ii <= m_krad; ii++) {
-			m_fixkern[ii+m_krad] = B3kern(ii+binfix-cbinfix, m_krad);
-			m_movkern[ii+m_krad] = B3kern(ii+binmove-cbinmove, m_krad);
-		}
-
 		// Sum up Bins for Value Comp
-		for(int ii = -m_krad; ii <= m_krad; ii++) {
-			int64_t mpos = ii+binmove;
-			m_pdfmove[mpos] += m_movkern[ii+m_krad];
-			for(int jj = -m_krad; jj <= m_krad; jj++) {
-				int64_t fpos = jj+binfix;
-				m_pdfjoint[{mpos,fpos}] += m_movkern[ii+m_krad]*
-					m_fixkern[jj+m_krad];
+		for(int ii = binmove-m_krad; ii <= binmove+m_krad; ii++) {
+			m_pdfmove[ii] += B3kern(ii - cbinmove, m_krad);
+			for(int jj = binfix-m_krad; jj <= binfix+m_krad; jj++) {
+				m_pdfjoint[{ii,jj}] += B3kern(ii-cbinmove, m_krad)*
+					B3kern(jj-cbinfix, m_krad);
 			}
 		}
 		
 		/**************************************************************
 		 * Compute Derivative of Marginal and Joint PDFs
 		 **************************************************************/
-			
-		// Switch Moving Kernel To Derivative
-		for(int ii = -m_krad; ii <= m_krad; ii++) 
-			m_movkern[ii+m_krad] = dB3kern(ii+binmove-cbinmove, m_krad);
 
 		assert(binfix+m_krad < m_bins);
 		assert(binmove+m_krad < m_bins);
@@ -1559,13 +1579,13 @@ int DistortionCorrectionInformationComputer::metric(
 				dg_dphi = dFm*dPHI_dphi*Fc/Fm + Fm*dPHI_dydphi;
 
 			assert(dg_dphi == dg_dphi);
-			for(int ii = -m_krad; ii <= m_krad; ii++) {
+			for(int ii = binmove-m_krad; ii <= binmove+m_krad; ii++) {
 				dind[3] = binmove+ii;
-				m_dpdfmove[dind] += dg_dphi*m_movkern[ii+m_krad];
-				for(int jj=-m_krad; jj<=m_krad; jj++) {
+				m_dpdfmove[dind] += dg_dphi*dB3kern(ii-cbinmove, m_krad);
+				for(int jj = binfix-m_krad; jj <= binfix+m_krad; jj++) {
 					dind[4] = binfix+jj;
-					m_dpdfjoint[dind] += dg_dphi*m_movkern[ii+m_krad]*
-								m_fixkern[jj+m_krad];
+					m_dpdfjoint[dind] += dg_dphi*dB3kern(ii-cbinmove, m_krad)*
+								B3kern(jj-cbinfix, m_krad);
 				}
 			}
 		}
@@ -1750,21 +1770,13 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 		/**************************************************************
 		 * Compute Marginal and Joint PDF's
 		 **************************************************************/
-
-		// Cache Kernel 
-		for(int ii = -m_krad; ii <= m_krad; ii++) {
-			m_fixkern[ii+m_krad] = B3kern(ii+binfix-cbinfix, m_krad);
-			m_movkern[ii+m_krad] = B3kern(ii+binmove-cbinmove, m_krad);
-		}
-
+		
 		// Sum up Bins for Value Comp
-		for(int ii = -m_krad; ii <= m_krad; ii++) {
-			int64_t mpos = ii+binmove;
-			m_pdfmove[mpos] += m_movkern[ii+m_krad];
-			for(int jj = -m_krad; jj <= m_krad; jj++) {
-				int64_t fpos = jj+binfix;
-				m_pdfjoint[{mpos,fpos}] += m_movkern[ii+m_krad]*
-					m_fixkern[jj+m_krad];
+		for(int ii = binmove-m_krad; ii <= binmove+m_krad; ii++) {
+			m_pdfmove[ii] += B3kern(ii - cbinmove, m_krad);
+			for(int jj = binfix-m_krad; jj <= binfix+m_krad; jj++) {
+				m_pdfjoint[{ii,jj}] += B3kern(ii-cbinmove, m_krad)*
+					B3kern(jj-cbinfix, m_krad);
 			}
 		}
 	}
