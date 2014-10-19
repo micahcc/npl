@@ -240,7 +240,7 @@ double dLinKern(double x, double a)
 inline
 double B3kern(double x)
 {
-	switch((int)x) {
+	switch((int)floor(x)) {
 		case -2:
 			return 4./3. + 2.*x + x*x + x*x*x/6.;
 		break;
@@ -257,7 +257,6 @@ double B3kern(double x)
 			return 0;
 		break;
 	}
-	return 0;
 }
 
 /**
