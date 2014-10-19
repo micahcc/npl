@@ -240,18 +240,24 @@ double dLinKern(double x, double a)
 inline
 double B3kern(double x)
 {
-    switch((int)floor(x)) {
-        case -2:
-            return pow(2 + x,3)/6.;
-        case -1:
-            return (4 - 3*pow(x,2)*(2 + x))/6.;
-        case 0:
-            return (4 + 3*(-2 + x)*pow(x,2))/6.;
-        case 1:
-            return -pow(-2 + x,3)/6.;
-        default:
-            return 0;
-    }
+	switch((int)x) {
+		case -2:
+			return 4./3. + 2.*x + x*x + x*x*x/6.;
+		break;
+		case -1:
+			return 2./3. - x*x - x*x*x/2.;
+		break;
+		case 0:
+			return 2./3. - x*x + x*x*x/2.;
+		break;
+		case 1:
+			return 4./3. - 2*x + x*x - x*x*x/6.;
+		break;
+		default:
+			return 0;
+		break;
+	}
+	return 0;
 }
 
 /**
