@@ -761,7 +761,7 @@ void RigidInformationComputer::setFixed(ptr<const MRImage> newfixed)
 		assert(bin-m_krad >= 0);
 
 		for(int ii = bin-m_krad; ii <= bin+m_krad; ii++)
-			m_pdffix[ii] += B3kern(ii-cbin);
+			m_pdffix[ii] += B3kern(ii-cbin, m_krad);
 	}
 
 	// fixed entropy
@@ -789,16 +789,19 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 				"computing value.");
 	if(!m_moving) throw INVALID_ARGUMENT("ERROR must set moving image before "
 				"computing value.");
-	
+	if(!m_moving->matchingOrient(m_fixed, true, true))
+		throw INVALID_ARGUMENT("ERROR input images must be in same index "
+				"space");
+
 	assert(m_pdfmove.dim(0) == m_bins);
 	assert(m_pdffix.dim(0) == m_bins);
 	assert(m_pdfjoint.dim(0) == m_bins);
 	assert(m_pdfjoint.dim(1) == m_bins);
-	
+
 	assert(m_dpdfjoint.dim(0) == 6);
 	assert(m_dpdfjoint.dim(1) == m_bins);
 	assert(m_dpdfjoint.dim(1) == m_bins);
-	
+
 	assert(m_dpdfmove.dim(0) == 6);
 	assert(m_dpdfmove.dim(1) == m_bins);
 
@@ -903,25 +906,25 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 
 		// Value PDF
 		for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++)
-			m_pdfmove[jj] += B3kern(jj-cbinmove);
+			m_pdfmove[jj] += B3kern(jj-cbinmove, m_krad);
 
 		for(int ii = binfix-m_krad; ii <= binfix+m_krad; ii++) {
 			for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++)
-				m_pdfjoint[{ii,jj}] += B3kern(ii-cbinfix)*B3kern(jj-cbinmove);
+				m_pdfjoint[{ii,jj}] += B3kern(ii-cbinfix, m_krad)*
+					B3kern(jj-cbinmove, m_krad);
 		}
 
 		// Derivatives
-
 		for(int phi = 0; phi < 6; phi++) {
 			for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++)
-				m_dpdfmove[{phi,jj}] += dB3kern(jj-cbinmove)*dgdPhi[phi];
+				m_dpdfmove[{phi,jj}] += dB3kern(jj-cbinmove, m_krad)*dgdPhi[phi];
 		}
 
 		for(int phi = 0; phi < 6; phi++) {
 			for(int ii = binfix-m_krad; ii <= binfix+m_krad; ii++) {
 				for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++) {
-					m_dpdfjoint[{phi,ii,jj}] += B3kern(ii-cbinfix)*
-						dB3kern(jj-cbinmove)*dgdPhi[phi];
+					m_dpdfjoint[{phi,ii,jj}] += B3kern(ii-cbinfix, m_krad)*
+						dB3kern(jj-cbinmove, m_krad)*dgdPhi[phi];
 				}
 			}
 		}
@@ -1039,10 +1042,15 @@ int RigidInformationComputer::grad(const VectorXd& params, VectorXd& grad)
  */
 int RigidInformationComputer::value(const VectorXd& params, double& val)
 {
-	if(!m_fixed) throw INVALID_ARGUMENT("ERROR must set fixed image before "
+	if(!m_fixed) 
+		throw INVALID_ARGUMENT("ERROR must set fixed image before "
 				"computing value.");
-	if(!m_moving) throw INVALID_ARGUMENT("ERROR must set moving image before "
+	if(!m_moving) 
+		throw INVALID_ARGUMENT("ERROR must set moving image before "
 				"computing value.");
+	if(!m_moving->matchingOrient(m_fixed, true, true))
+		throw INVALID_ARGUMENT("ERROR input images must be in same index "
+				"space");
 
 	assert(m_pdfmove.dim(0) == m_bins);
 	assert(m_pdffix.dim(0) == m_bins);
@@ -1080,6 +1088,7 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
 	// Compute Probabilities
 	for(m_fit.goBegin(); !m_fit.eof(); ++m_fit) {
 		m_fit.index(3, ind);
+
 		double x = ind[0];
 		double y = ind[1];
 		double z = ind[2];
@@ -1114,11 +1123,12 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
 
 		//sum up kernel bins
 		for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++)
-			m_pdfmove[jj] += B3kern(jj-cbinmove);
+			m_pdfmove[jj] += B3kern(jj-cbinmove, m_krad);
 
 		for(int ii = binfix-m_krad; ii <= binfix+m_krad; ii++) {
 			for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++)
-				m_pdfjoint[{ii,jj}] += B3kern(ii-cbinfix)*B3kern(jj-cbinmove);
+				m_pdfjoint[{ii,jj}] += B3kern(ii-cbinfix, m_krad)*
+					B3kern(jj-cbinmove, m_krad);
 		}
 	}
 
