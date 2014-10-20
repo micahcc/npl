@@ -445,7 +445,7 @@ ptr<MRImage> createBiasField(ptr<const MRImage> in, double bspace)
 
 	// get spacing and size
 	for(size_t dd=0; dd<osize.size(); ++dd) {
-		osize[dd] = 2+in->dim(dd)*in->spacing(dd)/bspace;
+		osize[dd] = 4+ceil(in->dim(dd)*in->spacing(dd)/bspace);
 		spacing[dd] = bspace;
 	}
 
