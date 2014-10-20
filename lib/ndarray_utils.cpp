@@ -72,6 +72,23 @@ ptr<NDArray> derivative(ptr<const NDArray> in, size_t dir)
                 "input dimensions in\n" + __FUNCTION_STR__);
 
     auto out = in->copy();
+	derivative(in, out, dir);
+    return out;
+}
+
+/**
+ * @brief Computes the derivative of the image in the specified direction. 
+ *
+ * @param in    Input image/NDArray 
+ * @param dir   Specify the dimension
+ *
+ * @return      Image storing the directional derivative of in
+ */
+int derivative(ptr<const NDArray> in, ptr<NDArray> out, size_t dir)
+{
+    if(dir >= in->ndim())
+        throw std::invalid_argument("Input direction is outside range of "
+                "input dimensions in\n" + __FUNCTION_STR__);
 
     vector<int64_t> index(in->ndim());
     NDConstView<double> inGet(in);
@@ -110,7 +127,7 @@ ptr<NDArray> derivative(ptr<const NDArray> in, size_t dir)
             oit.set(dir, dy/dx);
     }
 
-    return out;
+    return 0;
 }
 
 /**

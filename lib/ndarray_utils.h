@@ -123,6 +123,23 @@ ptr<NDArray> derivative(ptr<const NDArray> in, size_t dir);
  *
  * @param in    Input image/NDArray 
  * @param out	Derivative of input
+ * @param dir	Direction of derivative
+ *
+ * @return 0 if successful
+ */
+int derivative(ptr<const NDArray> in, ptr<NDArray> out, size_t dir);
+
+/**
+ * @brief Computes the derivative of the image. Computes all  
+ * directional derivatives of the input image and the output
+ * image will have 1 higher dimension with derivative of 0 in the first volume
+ * 1 in the second and so on.
+ *
+ * Thus a 2D image will produce a [X,Y,2] image and a 3D image will produce a 
+ * [X,Y,Z,3] sized image.
+ *
+ * @param in    Input image/NDArray 
+ * @param out	Derivative of input
  *
  * @return 0 if successful
  */

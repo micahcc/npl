@@ -1350,15 +1350,22 @@ void DistortionCorrectionInformationComputer::setMoving(
 	// Setup accessors and Members Images
 	//////////////////////////////////////
 	m_moving = newmove;
+	
+	if(dir >= 0)
+		m_dir = dir;
+	else if(m_moving->m_phasedim >= 0)
+		m_dir = m_moving->m_phasedim;
+	else
+		m_dir = 1;
 
 	if(!m_dmoving || !newmove->matchingOrient(m_dmoving, false, true)) {
 #ifndef NDEBUG
 		cerr << "Allocating derivative image" << endl;
 #endif //NDEBUG
-		m_dmoving = dPtrCast<MRImage>(derivative(m_moving));
+		m_dmoving = dPtrCast<MRImage>(derivative(m_moving, m_dir));
 	} else {
 		// Just fill in existing image
-		derivative(m_moving, m_dmoving);
+		derivative(m_moving, m_dmoving, m_dir);
 	}
 
 	m_move_get.setArray(m_moving);
@@ -1372,12 +1379,6 @@ void DistortionCorrectionInformationComputer::setMoving(
 		m_rangemove[1] = std::max(m_rangemove[1], *it);
 	}
 
-	if(dir >= 0)
-		m_dir = dir;
-	else if(m_moving->m_phasedim >= 0)
-		m_dir = m_moving->m_phasedim;
-	else
-		m_dir = 1;
 }
 
 /**
