@@ -54,6 +54,7 @@ shared_ptr<MRImage> impulseImage()
 	view.set(index, 1);
     return in;
 }
+
 shared_ptr<MRImage> gaussianImage(double sx, double sy, double sz)
 {
     // create an image

@@ -285,13 +285,13 @@ double dB3kern(double x)
 {
 	switch((int)floor(x)) {
 		case -2:
-            return pow(2 + x,2)/2.;
+			return (4+4*x+x*x)/2.;
 		case -1:
-            return -(x*(4 + 3*x))/2.;
-        case 0:
-            return (x*(-4 + 3*x))/2.;
+			return -(4*x + 3*x*x)/2.;
+		case 0:
+			return (-4*x + 3*x*x)/2.;
 		case 1:
-            return -pow(-2 + x,2)/2.;
+			return -(x*x - 4*x + 4)/2.;
 		default:
 			return 0;
 	}

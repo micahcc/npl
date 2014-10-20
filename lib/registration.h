@@ -165,6 +165,12 @@ public:
 	 */
 	ptr<const MRImage> getMoving() { return m_moving; };
 
+	/**
+	 * @brief Returns the number of parameters that are being estimated
+	 *
+	 * @return Number of parameters that are being estimated;
+	 */
+	size_t nparam() { return 6; };
 
 private:
 
@@ -305,6 +311,13 @@ public:
 	ptr<const MRImage> getMoving() { return m_moving; };
 
 	/**
+	 * @brief Returns the number of parameters that are being estimated
+	 *
+	 * @return Number of parameters that are being estimated;
+	 */
+	size_t nparam() { return 6; };
+
+	/**
 	 * @brief Negative of correlation (which will make it work with most
 	 * optimizers)
 	 */
@@ -412,6 +425,13 @@ public:
 	 * @brief Metric to use
 	 */
 	Metric m_metric;
+
+	/**
+	 * @brief Returns the number of parameters (knots)
+	 *
+	 * @return Number of parameters that are being estimated;
+	 */
+	size_t nparam() { return m_deform ? m_deform->elements() : 0; };
 
 	/**
 	 * @brief Reallocates histograms and if m_fixed has been set, regenerates 
@@ -548,41 +568,41 @@ private:
 	/**
 	 * @brief Histogram of moving image (initialized by setBins)
 	 */
-	NDArrayStore<1, float> m_pdfmove;
+	NDArrayStore<1, double> m_pdfmove;
 
 	/**
 	 * @brief Histogram of fixed image, (initialized by setBins)
 	 */
-	NDArrayStore<1, float> m_pdffix;
+	NDArrayStore<1, double> m_pdffix;
 
 	/**
 	 * @brief X - fixed PDF, Y - moving PDF (initialized by setBins)
 	 */
-	NDArrayStore<2, float> m_pdfjoint;
+	NDArrayStore<2, double> m_pdfjoint;
 
 	/**
 	 * @brief First 3 Dimensions match dimensions in m_field, last two match
 	 * the dimensios of m_pdfjoint, (initialized by setKnotSpacing/setFixed)
 	 */
-	MRImageStore<5, float> m_dpdfjoint;
+	MRImageStore<5, double> m_dpdfjoint;
 	
 	/**
 	 * @brief First 3 Dimensions match dimensions in m_field, last matches
 	 * m_pdfmove, (initialized by setKnotSpacing/setFixed)
 	 */
-	MRImageStore<4, float> m_dpdfmove;
+	MRImageStore<4, double> m_dpdfmove;
 
 	/**
 	 * @brief Gradient of joint entropy at each knot. 
 	 * (initialized by setKnotSpacing/setFixed)
 	 */
-	MRImageStore<3, float> m_gradHjoint;
+	MRImageStore<3, double> m_gradHjoint;
 	
 	/**
 	 * @brief Gradient of marginal entropy at each knot
 	 * (initialized by setKnotSpacing/setFixed)
 	 */
-	MRImageStore<3, float> m_gradHmove;
+	MRImageStore<3, double> m_gradHmove;
 
 	/**
 	 * @brief Entropy of fixed image (initialized by setFixed)

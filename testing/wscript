@@ -370,6 +370,11 @@ def build(bld):
             source='rigid_reg_test4.cpp', 
             use='registration')
 
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='dc_reg_test1', 
+            source='dc_reg_test1.cpp', 
+            use='registration')
+
     # Test Basic Image Processing Functions
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='smooth_test1', 
