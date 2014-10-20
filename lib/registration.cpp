@@ -1490,6 +1490,7 @@ int DistortionCorrectionInformationComputer::metric(
 {
 	//Zero Inputs
 	m_pdfmove.zero();
+	m_pdffix.zero();
 	m_pdfjoint.zero();
 	m_dpdfmove.zero();
 	m_dpdfjoint.zero();
@@ -1615,9 +1616,8 @@ int DistortionCorrectionInformationComputer::metric(
 
 			assert(dg_dphi == dg_dphi);
 			for(int ii = binmove-m_krad; ii <= binmove+m_krad; ii++) {
-				dind[3] = ii;
-				m_dpdfmove[dind] += dg_dphi*dB3kern(ii-cbinmove, m_krad);
 				for(int jj = binfix-m_krad; jj <= binfix+m_krad; jj++) {
+					dind[3] = ii;
 					dind[4] = jj;
 					m_dpdfjoint[dind] += dg_dphi*dB3kern(ii-cbinmove, m_krad)*
 								B3kern(jj-cbinfix, m_krad);
@@ -1633,8 +1633,6 @@ int DistortionCorrectionInformationComputer::metric(
 	// pdf's
 	double scale = 0;
 	for(int64_t ii=0; ii<m_bins; ii++) {
-		m_pdfmove[ii] = 0;
-		m_pdffix[ii] = 0;
 		for(int64_t jj=0; jj<m_bins; jj++) {
 			m_pdffix[ii] += m_pdfjoint[{jj,ii}];
 			m_pdfmove[ii] += m_pdfjoint[{ii,jj}];
@@ -1643,12 +1641,12 @@ int DistortionCorrectionInformationComputer::metric(
 	}
 
 	scale = 1./scale;
-	for(size_t ii=0; ii<m_pdfmove.elements(); ii++) {
+	for(size_t ii=0; ii<m_bins; ii++) {
 		m_pdfmove[ii] *= scale;
+		m_pdffix[ii] *= scale;
 	}
 
-	for(size_t ii=0; ii<m_bins; ii++) {
-		m_pdffix[ii] *= scale;
+	for(size_t ii=0; ii<m_bins*m_bins; ii++) {
 		m_pdfjoint[ii] *= scale;
 	}
 
@@ -1668,10 +1666,11 @@ int DistortionCorrectionInformationComputer::metric(
 
 	// pdf's
 	scale = -scale/m_wmove;
-	for(size_t ii=0; ii<m_dpdfmove.elements(); ii++)
-		m_dpdfmove[ii] *= scale;
-	for(size_t ii=0; ii<m_dpdfjoint.elements(); ii++)
-		m_dpdfjoint[ii] *= scale;
+	for(Slicer it(m_dpdfjoint.ndim(), m_dpdfjoint.dim()); !it.eof(); ++it) {
+		m_dpdfjoint[*it] *= scale;
+		it.index(5, dind);
+		m_dpdfmove[dind] += m_dpdfjoint[*it];
+	}
 
 	// Hmove
 	m_dit.setROI(m_deform->ndim(), m_deform->dim());
@@ -1855,12 +1854,12 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 	}
 
 	scale = 1./scale;
-	for(size_t ii=0; ii<m_pdfmove.elements(); ii++) {
+	for(size_t ii=0; ii<m_bins; ii++) {
 		m_pdfmove[ii] *= scale;
+		m_pdffix[ii] *= scale;
 	}
 
-	for(size_t ii=0; ii<m_bins; ii++) {
-		m_pdffix[ii] *= scale;
+	for(size_t ii=0; ii<m_bins*m_bins; ii++) {
 		m_pdfjoint[ii] *= scale;
 	}
 
