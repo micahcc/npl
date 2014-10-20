@@ -82,7 +82,7 @@ int main()
 	auto origimg = gaussianImage(4, 4, 4);
 	origimg->write("gaussmooth_test_origimg.nii.gz");
     
-    if(distcorDerivTest(0.001, 0.001, distimg, origimg) != 0)
+    if(distcorDerivTest(0.0001, 0.01, distimg, origimg) != 0)
         return -1;
     return 0;
 }

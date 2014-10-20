@@ -1341,7 +1341,7 @@ void DistortionCorrectionInformationComputer::setBins(size_t nbins, size_t krad)
  * @param newmove New moving image
  */
 void DistortionCorrectionInformationComputer::setMoving(
-		ptr<const MRImage> newmove)
+		ptr<const MRImage> newmove, int dir)
 {
 	if(newmove->ndim() != 3)
 		throw INVALID_ARGUMENT("Moving image is not 3D!");
@@ -1372,8 +1372,12 @@ void DistortionCorrectionInformationComputer::setMoving(
 		m_rangemove[1] = std::max(m_rangemove[1], *it);
 	}
 
-	if(m_moving->m_phasedim >= 0)
+	if(dir >= 0)
+		m_dir = dir;
+	else if(m_moving->m_phasedim >= 0)
 		m_dir = m_moving->m_phasedim;
+	else
+		m_dir = 1;
 }
 
 /**
@@ -1397,28 +1401,6 @@ void DistortionCorrectionInformationComputer::setFixed(ptr<const MRImage> newfix
 	for(NDConstIter<double> it(m_fixed); !it.eof(); ++it) {
 		m_rangefix[0] = std::min(m_rangefix[0], *it);
 		m_rangefix[1] = std::max(m_rangefix[1], *it);
-	}
-
-	// fixed marginal pdf
-	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-2*m_krad-1);
-	for(NDConstIter<double> it(m_fixed); !it.eof(); ++it) {
-		// compute bins
-		double cbin = ((*it)-m_rangefix[0])/m_wfix + m_krad;
-		int bin = round(cbin);
-
-		assert(bin+m_krad < m_bins);
-		assert(bin-m_krad >= 0);
-
-		for(int ii = bin-m_krad; ii <= bin+m_krad; ii++)
-			m_pdffix[ii] += B3kern(ii-cbin, m_krad);
-	}
-
-	// fixed entropy
-	m_Hfix = 0;
-	double Nrecip = 1./m_fixed->elements();
-	for(size_t ii=0; ii<m_bins; ii++) {
-		m_pdffix[ii] *= Nrecip;
-		m_Hfix -= m_pdffix[ii] > 0 ? m_pdffix[ii]*log(m_pdffix[ii]) : 0;
 	}
 
 	setKnotSpacing(m_knotspace);
@@ -1513,6 +1495,7 @@ int DistortionCorrectionInformationComputer::metric(
 
 	// compute updated moving width
 	m_wmove = (m_rangemove[1]-m_rangemove[0])/(m_bins-2*m_krad-1);
+	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-2*m_krad-1);
 	
 	// Compute Probabilities
 	for(m_fit.goBegin(); !m_fit.eof(); ++m_fit) {
@@ -1542,12 +1525,15 @@ int DistortionCorrectionInformationComputer::metric(
 			double dweight = 1;
 			for(size_t dd=0; dd<3; dd++) {
 				weight *= B3kern(dind[dd] - dcind[dd]);
-				dweight *= -dB3kern(dind[dd] - dcind[dd])/m_knotspace;
+				if(dd == m_dir)
+					dweight *= -dB3kern(dind[dd] - dcind[dd])/m_knotspace;
+				else
+					dweight *= B3kern(dind[dd] - dcind[dd]);
 			}
 			def += (*m_dit)*weight;
 			ddef += (*m_dit)*dweight;
 		}
-		fcind[m_dir] += def;
+		fcind[m_dir] += def/m_moving->spacing(m_dir);
 
 		// get actual values
 		Fm = m_move_get.get(fcind[0], fcind[1], fcind[2]);
@@ -1609,7 +1595,7 @@ int DistortionCorrectionInformationComputer::metric(
 
 			//replace 1+dPHI/dY with Fc/Fm (since that is the scale used)
 			double dg_dphi;
-			if(Fm <= 0)
+			if(Fm <= 0) // 0/0 => 1
 				dg_dphi = dFm*dPHI_dphi + Fm*dPHI_dydphi;
 			else
 				dg_dphi = dFm*dPHI_dphi*Fc/Fm + Fm*dPHI_dydphi;
@@ -1772,6 +1758,7 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 
 	// compute updated moving width
 	m_wmove = (m_rangemove[1]-m_rangemove[0])/(m_bins-2*m_krad-1);
+	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-2*m_krad-1);
 	
 	// Compute Probabilities
 	for(m_fit.goBegin(); !m_fit.eof(); ++m_fit) {
@@ -1801,12 +1788,15 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 			double dweight = 1;
 			for(size_t dd=0; dd<3; dd++) {
 				weight *= B3kern(dind[dd] - dcind[dd]);
-				dweight *= -dB3kern(dind[dd] - dcind[dd])/m_knotspace;
+				if(dd == m_dir)
+					dweight *= -dB3kern(dind[dd] - dcind[dd])/m_knotspace;
+				else
+					dweight *= B3kern(dind[dd] - dcind[dd]);
 			}
 			def += (*m_dit)*weight;
 			ddef += (*m_dit)*dweight;
 		}
-		fcind[m_dir] += def;
+		fcind[m_dir] += def/m_moving->spacing(m_dir);
 
 		// get actual values
 		Fm = m_move_get(fcind[0], fcind[1], fcind[2]);
@@ -1942,11 +1932,11 @@ int DistortionCorrectionInformationComputer::valueGrad(const VectorXd& params,
 	assert(m_dpdfmove.dim(2) == m_deform->dim(2));
 	assert(m_dpdfmove.dim(3) == m_bins); // Moving
 
-	// Fill Deform Image from params, change units to index space
+	// Fill Deform Image from params
 	m_dit.setROI(m_deform->ndim(), m_deform->dim());
 	m_dit.goBegin();
 	for(size_t ii=0; !m_dit.eof(); ++m_dit, ++ii)
-		m_dit.set(params[ii]/m_moving->spacing(m_dir));
+		m_dit.set(params[ii]);
 
 	/*
 	 * Compute the Gradient and Value
@@ -1976,7 +1966,6 @@ int DistortionCorrectionInformationComputer::valueGrad(const VectorXd& params,
 	val += tmp;
 	grad += gradbuff;
 	cerr << "Post Metric Value/Grad: " << val << "/" << grad.transpose() << endl;
-	grad *= m_deform->spacing(m_dir);
 
 	return 0;
 }
@@ -2025,11 +2014,11 @@ int DistortionCorrectionInformationComputer::value(const VectorXd& params, doubl
 	assert(m_pdfjoint.dim(0) == m_bins); // Moving
 	assert(m_pdfjoint.dim(1) == m_bins); // Fixed
 	
-	// Fill Parameter Image, change units to index space
+	// Fill Parameter Image
 	m_dit.setROI(m_deform->ndim(), m_deform->dim());
 	m_dit.goBegin();
 	for(size_t ii=0; !m_dit.eof(); ++m_dit, ++ii)
-		m_dit.set(params[ii]/m_moving->spacing(m_dir));
+		m_dit.set(params[ii]);
 
 	/*
 	 * Compute Value

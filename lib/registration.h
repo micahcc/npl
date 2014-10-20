@@ -472,8 +472,9 @@ public:
 	 * moving image derivative. THIS WILL BREAK GRADIENT CALCULATIONS.
 	 *
 	 * @param moving Input moving image (not modified)
+	 * @param dir Direction of distortion (the dimension, must be >= 0)
 	 */
-	void setMoving(ptr<const MRImage> moving);
+	void setMoving(ptr<const MRImage> moving, int dir = -1);
 
 	/**
 	 * @brief Return the current moving image.

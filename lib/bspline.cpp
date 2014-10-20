@@ -62,6 +62,74 @@ struct CubicBSpline
 			it.set(0);
 	};
 
+	bool sample(size_t len, double* incindex, double* v, double* dv,
+			bool ras = false)
+	{
+		NDView<double> pvw(params);
+
+		// initialize variables
+		int ndim = params->ndim();
+        const size_t* dim = params->dim();
+
+        // convert RAS to index
+        vector<double> cindex(ndim, 0);
+		for(size_t dd=0; dd<len; dd++)
+			cindex[dd] = incindex[dd];
+
+        if(ras) 
+            params->pointToIndex(len, cindex.data(), cindex.data());
+
+		vector<int64_t> center(ndim, 0);
+		for(size_t dd=0; dd<ndim; dd++)
+			center[dd] = round(cindex[dd]);
+		vector<int64_t> index(ndim, 0);
+		const int KPOINTS = pow(5, ndim);
+
+		bool bounded = false;
+		bool iioutside = false;
+
+		// compute weighted pixval by iterating over neighbors, which are
+		// combinations of KPOINTS
+		double pixval = 0;
+		double weight = 0;
+		div_t result;
+		for(int ii = 0 ; ii < KPOINTS; ii++) {
+			weight = 1;
+
+			//set index
+			result.quot = ii;
+			iioutside = false;
+			for(int dd = 0; dd < ndim; dd++) {
+				result = std::div(result.quot, 5);
+				int offset = ((int64_t)results.rem) - 2; //[-2, 2]
+				index[dd] = center + offset;
+				weight *= B3kern(index[dd] - cindex[dd]);
+				iioutside = iioutside || index[dd] < 0 || index[dd] >= dim[dd];
+			}
+
+			// if the current point maps outside, then we need to deal with it
+			if(iioutside) {
+				if(m_boundmethod == ZEROFLUX) {
+					// clamp
+					for(size_t dd=0; dd<ndim; dd++)
+						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
+				} else if(m_boundmethod == WRAP) {
+					// wrap
+					for(size_t dd=0; dd<ndim; dd++)
+						index[dd] = wrap<int64_t>(0, dim[dd]-1, index[dd]);
+				} else {
+					// set wieght to zero, then just clamp
+					weight = 0;
+					for(size_t dd=0; dd<ndim; dd++)
+						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
+				}
+			}
+
+			pixval += weight*pvw[index];
+		}
+		return pixval;
+	};
+
 	double sample(size_t len, double* incindex, bool ras = false)
 	{
 		NDView<double> pvw(params);
@@ -88,7 +156,7 @@ struct CubicBSpline
 
 		// compute weighted pixval by iterating over neighbors, which are
 		// combinations of KPOINTS
-		T pixval = 0;
+		double pixval = 0;
 		double weight = 0;
 		div_t result;
 		for(int ii = 0 ; ii < KPOINTS; ii++) {
@@ -99,8 +167,9 @@ struct CubicBSpline
 			iioutside = false;
 			for(int dd = 0; dd < ndim; dd++) {
 				result = std::div(result.quot, 5);
-				index[dd] = center + ((int64_t)results.rem) - 2;
-				weight *= B3kern(index[dd] - cindex[dd]);
+				int offset = ((int64_t)results.rem) - 2; //[-2, 2]
+				index[dd] = center + offset;
+				weight *= -dB3kern(index[dd] - cindex[dd]);
 				iioutside = iioutside || index[dd] < 0 || index[dd] >= dim[dd];
 			}
 
@@ -124,9 +193,8 @@ struct CubicBSpline
 
 			pixval += weight*pvw[index];
 		}
-
 		return pixval;
-	}
+	};
 
 	ptr<MRImage> reconstruct(ptr<const MRImage> input)
 	{
