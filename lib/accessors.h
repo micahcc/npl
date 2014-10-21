@@ -1598,11 +1598,12 @@ public:
 	T get(size_t len, const double* incoord)
 	{
 		// figure out size of dimensions in parent
+		const size_t MAXDIM = 10;
 		const size_t* dim = this->parent->dim();
 		size_t ndim = this->parent->ndim();
-		assert(ndim < 10);
-		int64_t index[10];;
-		double cindex[10];;
+		assert(ndim < MAXDIM);
+		int64_t index[MAXDIM];;
+		double cindex[MAXDIM];;
 
 		// convert RAS to index
 		if(m_ras) {
@@ -1616,9 +1617,23 @@ public:
 					cindex[dd] = 0;
 			}
 		}
+		
+		const int KPOINTS = 1+m_radius*2;
+
+		// 1D version of the weights and indices
+		double karray[MAXDIM][KPOINTS];
+		int64_t indarray[MAXDIM][KPOINTS];
+
+		for(int dd = 0; dd < ndim; dd++) {
+			for(int64_t ii=-m_radius; ii<=m_radius; ii++){
+				int64_t i = round(cindex[dd])+ii;
+				indarray[dd][ii+m_radius] = i;
+				karray[dd][ii+m_radius] = lanczosKern(i-cindex[dd], m_radius);
+			}
+		}
 
 		// initialize variables
-		Counter<int, 10> count;
+		Counter<int, MAXDIM> count;
 		count.ndim = ndim;
 		for(size_t dd=0; dd<ndim; dd++)
 			count.sz[dd] = 1+m_radius*2;
@@ -1632,8 +1647,8 @@ public:
 
 			//set index
 			for(int dd = 0; dd < ndim; dd++) {
-				index[dd] = round(cindex[dd])-m_radius+count.pos[dd];
-				weight *= lanczosKern(index[dd]-cindex[dd], m_radius);
+				index[dd] = indarray[dd][count.pos[dd]];
+				weight *= karray[dd][count.pos[dd]];
 				iioutside = iioutside || index[dd] < 0 || index[dd] >= dim[dd];
 			}
 
@@ -1777,6 +1792,21 @@ public:
             tmp->pointToIndex(3, cindex, cindex);
         }
 
+		const int KPOINTS = 1+m_radius*2;
+		const int DIM = 3;
+
+		// 1D version of the weights and indices
+		double karray[DIM][KPOINTS];
+		int64_t indarray[DIM][KPOINTS];
+
+		for(int dd = 0; dd < DIM; dd++) {
+			for(int64_t ii=-m_radius; ii<=m_radius; ii++){
+				int64_t i = round(cindex[dd])+ii;
+				indarray[dd][ii+m_radius] = i;
+				karray[dd][ii+m_radius] = lanczosKern(i-cindex[dd], m_radius);
+			}
+		}
+
 		T pixval = 0;
 		Counter<int, 10> count;
 		count.ndim = ndim;
@@ -1791,8 +1821,8 @@ public:
 
 			//set index
 			for(int dd = 0; dd < ndim; dd++) {
-				index[dd] = round(cindex[dd]) - m_radius + count.pos[dd]; 
-				weight *= lanczosKern(index[dd] - cindex[dd], m_radius);
+				index[dd] = indarray[dd][count.pos[dd]];
+				weight *= karray[dd][count.pos[dd]];
 				iioutside = iioutside || index[dd] < 0 || index[dd] >= dim[dd];
 			}
 
