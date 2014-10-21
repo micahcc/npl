@@ -901,58 +901,44 @@ public:
 	{
 		// initialize variables
 		int ndim = this->parent->ndim();
+		assert(ndim <= 10);
         const size_t* dim = this->parent->dim();
+		int64_t index[10];;
+        double cindex[10];;
 
         // convert RAS to index
-        vector<double> cindex(incindex, incindex+len);
         if(m_ras) {
             auto tmp = dPtrCast<const MRImage>(this->parent);
-            tmp->pointToIndex(len, cindex.data(), cindex.data());
-        }
-
-		vector<int64_t> index(ndim, 0);
-		const int KPOINTS = 2;
-
-		// 1D version of the weights and indices
-		vector<vector<double>> karray(ndim, vector<double>(KPOINTS));
-		vector<vector<int64_t>> indarray(ndim, vector<int64_t>(KPOINTS));
-
-		for(int dd = 0; dd < ndim; dd++) {
-            double C = dd < len ? cindex[dd] : 0; 
-			indarray[dd][0] = floor(C);
-			indarray[dd][1] = indarray[dd][0]+1; //make sure they aren't the same
-			karray[dd][0] = linKern(indarray[dd][0]-C);
-			karray[dd][1] = linKern(indarray[dd][1]-C);
+            tmp->pointToIndex(len, incindex, cindex);
+		} else {
+			for(size_t dd=0; dd<ndim; dd++) {
+				if(dd < len)
+					cindex[dd] = incindex[dd];
+				else
+					cindex[dd] = 0;
+			}
 		}
-
-		bool iioutside = false;
-//		outside = false;
 
 		// compute weighted pixval by iterating over neighbors, which are
 		// combinations of KPOINTS
 		T pixval = 0;
-		double weight = 0;
-		div_t result;
-		for(int ii = 0 ; ii < pow(KPOINTS, ndim); ii++) {
-			weight = 1;
+		Counter<> count;
+		count.ndim = ndim;
+		for(size_t dd=0; dd<ndim; dd++)
+			count.sz[dd] = 2;
+
+		do {
+			double weight = 1;
+			bool iioutside = false;
 
 			//set index
-			result.quot = ii;
-			iioutside = false;
 			for(int dd = 0; dd < ndim; dd++) {
-				result = std::div(result.quot, KPOINTS);
-				weight *= karray[dd][result.rem];
-				index[dd] = indarray[dd][result.rem];
+				index[dd] = floor(cindex[dd]) + count.pos[dd];;
+				weight *= linKern(index[dd] - cindex[dd]);
 				iioutside = iioutside || index[dd] < 0 || index[dd] >= dim[dd];
 			}
 
-            // might prevent optimization, but also helps with NAN's in 0
-            // weighted regions
-            if(weight == 0)
-                continue;
-
 			// if the current point maps outside, then we need to deal with it
-//			outside = (weight != 0 && iioutside) || outside;
 			if(iioutside) {
 				if(m_boundmethod == ZEROFLUX) {
 					// clamp
@@ -970,9 +956,9 @@ public:
 				}
 			}
 
-			T v = this->castget(this->parent->__getAddr(index));
+			T v = this->castget(this->parent->__getAddr(ndim, index));
 			pixval += weight*v;
-		}
+		} while(count.advance());
 
 		return pixval;
 	}
@@ -1057,6 +1043,7 @@ public:
 
 		// initialize variables
 		double cindex[3] = {x,y,z};
+		int64_t index[3];
 
         // convert RAS to cindex
         if(m_ras) {
@@ -1064,68 +1051,47 @@ public:
             tmp->pointToIndex(3, cindex, cindex);
         }
 
-		int64_t index[3];
-		const int KPOINTS = 2;
-		const int DIM = 3;
-
-		// 1D version of the weights and indices
-		double karray[DIM][KPOINTS];
-		int64_t indarray[DIM][KPOINTS];
-
-		for(int dd = 0; dd < DIM; dd++) {
-			indarray[dd][0] = floor(cindex[dd]);
-			indarray[dd][1] = indarray[dd][0]+1; //make sure they aren't the same
-			karray[dd][0] = linKern(indarray[dd][0]-cindex[dd]);
-			karray[dd][1] = linKern(indarray[dd][1]-cindex[dd]);
-		}
-
 		bool iioutside = false;
-//		outside = false;
 
 		// compute weighted pixval by iterating over neighbors, which are
 		// combinations of KPOINTS
 		T pixval = 0;
-		double weight = 0;
-		div_t result;
-		for(int ii = 0 ; ii < pow(KPOINTS, DIM); ii++) {
-			weight = 1;
+		Counter<> count;
+		count.ndim = 3;
+		for(size_t dd=0; dd<count.ndim; dd++)
+			count.sz[dd] = 2;
+
+		do {
+			double weight = 1;
 
 			//set index
-			result.quot = ii;
-			iioutside = false;
-			for(int dd = 0; dd < DIM; dd++) {
-				result = std::div(result.quot, KPOINTS);
-				weight *= karray[dd][result.rem];
-				index[dd] = indarray[dd][result.rem];
+			for(int dd = 0; dd < 3; dd++) {
+				index[dd] = floor(cindex[dd]) + count.pos[dd];;
+				weight *= linKern(index[dd] - cindex[dd]);
 				iioutside = iioutside || index[dd] < 0 || index[dd] >= dim[dd];
 			}
-
-			// might prevent optimization
-			//			if(weight == 0)
-			//				continue;
-
+			
 			// if the current point maps outside, then we need to deal with it
-//			outside = (weight != 0 && iioutside) || outside;
 			if(iioutside) {
 				if(m_boundmethod == ZEROFLUX) {
 					// clamp
-					for(size_t dd=0; dd<DIM; dd++)
+					for(size_t dd=0; dd<3; dd++)
 						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
 				} else if(m_boundmethod == WRAP) {
 					// wrap
-					for(size_t dd=0; dd<DIM; dd++)
+					for(size_t dd=0; dd<3; dd++)
 						index[dd] = wrap<int64_t>(0, dim[dd]-1, index[dd]);
 				} else {
 					// set wieght to zero, then just clamp
 					weight = 0;
-					for(size_t dd=0; dd<DIM; dd++)
+					for(size_t dd=0; dd<3; dd++)
 						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
 				}
 			}
 
 			T v = this->castget(this->parent->__getAddr(index[0], index[1],index[2],t));
 			pixval += weight*v;
-		}
+		} while(count.advance());
 
 		return pixval;
 	}
@@ -1320,19 +1286,29 @@ public:
 	T get(size_t len, const double* incindex)
 	{
         // convert RAS to index
-        vector<double> cindex(incindex, incindex+len);
-        if(m_ras) {
+		size_t ndim = this->parent->ndim();
+		assert(ndim < 10);
+		double cindex[10];
+		int64_t index[10];
+        
+        // convert RAS to index
+		if(m_ras) {
             auto tmp = dPtrCast<const MRImage>(this->parent);
-            tmp->pointToIndex(len, cindex.data(), cindex.data());
-        }
+            tmp->pointToIndex(len, incindex, cindex);
+		} else {
+			for(size_t dd=0; dd<ndim; dd++) {
+				if(dd < len)
+					cindex[dd] = incindex[dd];
+				else
+					cindex[dd] = 0;
+			}
+		}
 
 
 		// initialize variables
-		size_t ndim = this->parent->ndim();
         const size_t* dim = this->parent->dim();
 
         // round values from cindex
-		vector<int64_t> index(ndim,0);
         if(m_boundmethod == ZEROFLUX) {
             // clamp
             for(size_t dd=0; dd<ndim; dd++) {
@@ -1354,7 +1330,7 @@ public:
             }
         }
 
-        return this->castget(this->parent->__getAddr(index));
+        return this->castget(this->parent->__getAddr(ndim, index));
 	}
 
 	/**
@@ -1623,49 +1599,41 @@ public:
 	{
 		// figure out size of dimensions in parent
 		const size_t* dim = this->parent->dim();
-        size_t ndim = this->parent->ndim();
+		size_t ndim = this->parent->ndim();
+		assert(ndim < 10);
+		int64_t index[10];;
+		double cindex[10];;
 
-        // convert RAS to index
-        vector<double> cindex(incoord, incoord+len);
-        if(m_ras) {
-            auto tmp = dPtrCast<const MRImage>(this->parent);
-            tmp->pointToIndex(len, cindex.data(), cindex.data());
-        }
-
-		// initialize variables
-		vector<int64_t> index(ndim, 0);
-		int kpoints = 1+m_radius*2;
-
-		// 1D version of the weights and indices
-		vector<vector<double>> karray(ndim, vector<double>(kpoints, 0));
-		vector<vector<int64_t>> indarray(ndim, vector<int64_t>(kpoints, 0));
-
-		for(int dd = 0; dd < ndim; dd++) {
-			for(int64_t ii=-m_radius; ii<=m_radius; ii++){
-                double C = dd < len ? cindex[dd] : 0; 
-				int64_t i = round(C)+ii;
-				indarray[dd][ii+m_radius] = i;
-				karray[dd][ii+m_radius] = lanczosKern(i-C, m_radius);
+		// convert RAS to index
+		if(m_ras) {
+			auto tmp = dPtrCast<const MRImage>(this->parent);
+			tmp->pointToIndex(len, incoord, cindex);
+		} else {
+			for(size_t dd=0; dd<ndim; dd++) {
+				if(dd < len)
+					cindex[dd] = incoord[dd];
+				else
+					cindex[dd] = 0;
 			}
 		}
 
-		bool iioutside = false;
+		// initialize variables
+		Counter<int, 10> count;
+		count.ndim = ndim;
+		for(size_t dd=0; dd<ndim; dd++)
+			count.sz[dd] = 1+m_radius*2;
 
 		// compute weighted pixval by iterating over neighbors, which are
 		// combinations of KPOINTS
 		T pixval = 0;
-		double weight = 0;
-		div_t result;
-		for(int ii = 0 ; ii < pow(kpoints, ndim); ii++) {
-			weight = 1;
+		do {
+			double weight = 1;
+			bool iioutside = false;
 
 			//set index
-			result.quot = ii;
-			iioutside = false;
 			for(int dd = 0; dd < ndim; dd++) {
-				result = std::div(result.quot, kpoints);
-				weight *= karray[dd][result.rem];
-				index[dd] = indarray[dd][result.rem];
+				index[dd] = round(cindex[dd])-m_radius+count.pos[dd];
+				weight *= lanczosKern(index[dd]-cindex[dd], m_radius);
 				iioutside = iioutside || index[dd] < 0 || index[dd] >= dim[dd];
 			}
 
@@ -1686,9 +1654,9 @@ public:
 				}
 			}
 
-			T v = this->castget(this->parent->__getAddr(index));
+			T v = this->castget(this->parent->__getAddr(ndim, index));
 			pixval += weight*v;
-		}
+		} while(count.advance());
 
 		return pixval;
 	}
@@ -1782,6 +1750,9 @@ public:
 	{
 		// figure out size of dimensions in parent
 		size_t dim[4];
+        double cindex[3] = {x,y,z};
+        int64_t index[3];
+		const int ndim = 3;
 		dim[0] = this->parent->dim(0);
 		dim[1] = this->parent->ndim() > 1 ? this->parent->dim(1) : 1;
 		dim[2] = this->parent->ndim() > 2 ? this->parent->dim(2) : 1;
@@ -1800,48 +1771,28 @@ public:
 			}
 		}
 
-		// initialize variables
-
-        double cindex[3] = {x,y,z};
         // convert RAS to cindex
         if(m_ras) {
             auto tmp = dPtrCast<const MRImage>(this->parent);
             tmp->pointToIndex(3, cindex, cindex);
         }
 
-		int64_t index[3];
-		const int KPOINTS = 1+m_radius*2;
-		const int DIM = 3;
-
-		// 1D version of the weights and indices
-		double karray[DIM][KPOINTS];
-		int64_t indarray[DIM][KPOINTS];
-
-		for(int dd = 0; dd < DIM; dd++) {
-			for(int64_t ii=-m_radius; ii<=m_radius; ii++){
-				int64_t i = round(cindex[dd])+ii;
-				indarray[dd][ii+m_radius] = i;
-				karray[dd][ii+m_radius] = lanczosKern(i-cindex[dd], m_radius);
-			}
-		}
-
-		bool iioutside = false;
+		T pixval = 0;
+		Counter<int, 10> count;
+		count.ndim = ndim;
+		for(size_t dd=0; dd<ndim; dd++)
+			count.sz[dd] = 1+m_radius*2;
 
 		// compute weighted pixval by iterating over neighbors, which are
 		// combinations of KPOINTS
-		T pixval = 0;
-		double weight = 0;
-		div_t result;
-		for(int ii = 0 ; ii < pow(KPOINTS, DIM); ii++) {
-			weight = 1;
+		do {
+			double weight = 1;
+			bool iioutside = false;
 
 			//set index
-			result.quot = ii;
-			iioutside = false;
-			for(int dd = 0; dd < DIM; dd++) {
-				result = std::div(result.quot, KPOINTS);
-				weight *= karray[dd][result.rem];
-				index[dd] = indarray[dd][result.rem];
+			for(int dd = 0; dd < ndim; dd++) {
+				index[dd] = round(cindex[dd]) - m_radius + count.pos[dd]; 
+				weight *= lanczosKern(index[dd] - cindex[dd], m_radius);
 				iioutside = iioutside || index[dd] < 0 || index[dd] >= dim[dd];
 			}
 
@@ -1849,23 +1800,23 @@ public:
 			if(iioutside) {
 				if(m_boundmethod == ZEROFLUX) {
 					// clamp
-					for(size_t dd=0; dd<DIM; dd++)
+					for(size_t dd=0; dd<ndim; dd++)
 						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
 				} else if(m_boundmethod == WRAP) {
 					// wrap
-					for(size_t dd=0; dd<DIM; dd++)
+					for(size_t dd=0; dd<ndim; dd++)
 						index[dd] = wrap<int64_t>(0, dim[dd]-1, index[dd]);
 				} else {
 					// set wieght to zero, then just clamp
 					weight = 0;
-					for(size_t dd=0; dd<DIM; dd++)
+					for(size_t dd=0; dd<ndim; dd++)
 						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
 				}
 			}
 
 			T v = this->castget(this->parent->__getAddr(index[0], index[1],index[2],t));
 			pixval += weight*v;
-		}
+		} while(count.advance());
 
 		return pixval;
 	}

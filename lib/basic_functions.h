@@ -26,6 +26,8 @@
 #include <cassert>
 #include <list>
 
+#include "macros.h"
+
 namespace npl {
 
 /**********************************************************
@@ -482,7 +484,93 @@ int64_t round357(int64_t in)
 	return in;
 }
 
+/**
+ * @brief Very basic counter that iterates over an ND region.
+ *
+ * Example usage:
+ *
+ * size_t ret = 0;
+ * size_t width = 5;
+ * Counter c;
+ * c.ndim = ndim;
+ * for(size_t ii=0; ii<ndim; ii++)
+ *   c.sz[ii] = width;
+ * 
+ * do {
+ *   double weight = 1;
+ *   for(int dd = 0; dd < ndim; dd++) 
+ *     weight *= c.pos[dd];
+ * } while(c.advance());
+ *
+ *
+ * @tparam T Type of size/position
+ * @tparam MAXDIM Maximum supported dimension, static array will be this size
+ */
+template <typename T = int, int MAXDIM=10>
+struct Counter
+{
+	T sz[MAXDIM];
+	T pos[MAXDIM];
+	T ndim;
+	
+	/**
+	 * @brief Default constructor. Just sizes pos to 0
+	 */
+	Counter() 
+	{ 
+		for(size_t dd=0; dd<MAXDIM; dd++) 
+			pos[dd] = 0;
+	};
 
+	/**
+	 * @brief Initialize counter with the specified dimension and stop point
+	 *
+	 * @param dim Number of dimensions
+	 * @param stop
+	 */
+	Counter(T dim, T* stop)
+	{
+		if(dim > MAXDIM)
+			throw INVALID_ARGUMENT("Dimension "+std::to_string(dim)+">="+
+					std::to_string(MAXDIM));
+
+		for(size_t dd=0; dd<dim; dd++) {
+			sz[dd] = stop[dd];
+			pos[dd] = 0;
+		}
+		ndim = dim;
+	};
+
+	/**
+	 * @brief Advance through ND-counter. 0,0,0 to 0,0,1 and so on. If roder is
+	 * true then this will start at 0,0,0 and then go to 1,0,0 then 2,0,0, etc.
+	 *
+	 * @param rorder Whether to reverse the order and do low dimension fastest
+	 *
+	 * @return 
+	 */
+	bool advance(bool rorder = false) {
+		if(rorder) {
+			for(int dd=0; dd<(int)ndim; dd++) {
+				pos[dd]++;
+				if(pos[dd] == sz[dd])
+					pos[dd] = 0;
+				else  
+					return true;
+			}
+		} else {
+			for(int dd=ndim-1; dd>= 0; dd--) {
+				pos[dd]++;
+				if(pos[dd] == sz[dd])
+					pos[dd] = 0;
+				else  
+					return true;
+			}
+		}
+		
+		return false;
+	};
+};
 
 } // npl
 
