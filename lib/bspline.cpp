@@ -23,10 +23,10 @@ struct CubicBSpline
 
 	CubicBSpline(ptr<const MRImage> overlay, double spacing)
 	{
-		setOverlay(overlay, spacing);
+		createOverlay(overlay, spacing);
 	};
 
-	setOverlay(ptr<const MRImage> overlay, double bspace)
+	createOverlay(ptr<const MRImage> overlay, double bspace)
 	{
 		size_t ndim = overlay->ndim();
 		VectorXd spacing(overlay->ndim());
@@ -40,7 +40,7 @@ struct CubicBSpline
 		}
 
 		params = dPtrCast<MRImage>(overlay->createAnother(
-					(osize.size(), osize.data(), FLOAT64));
+					osize.size(), osize.data(), FLOAT64));
 		params->setDirection(in->getDirection(), false);
 		params->setSpacing(spacing, false);
 
@@ -58,8 +58,6 @@ struct CubicBSpline
 		origin = ptc - in->getDirection()*(spacing.asDiagonal()*indc);
 		params->setOrigin(origin, false);
 
-		for(FlatIter<double> it(params); !it.eof(); ++it) 
-			it.set(0);
 	};
 
 	bool sample(size_t len, double* incindex, double* v, double* dv,
