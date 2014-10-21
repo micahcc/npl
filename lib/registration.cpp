@@ -1639,44 +1639,52 @@ int DistortionCorrectionInformationComputer::metric(
 
 	// update m_Hmove
 	m_Hmove = 0;
-	for(int ii=0; ii<m_pdfmove.elements(); ii++)
+	m_Hfix = 0;
+	for(int ii=0; ii<m_bins; ii++) {
 		m_Hmove -= m_pdfmove[ii] > 0 ? m_pdfmove[ii]*log(m_pdfmove[ii]) : 0;
+		m_Hfix -= m_pdffix[ii] > 0 ? m_pdffix[ii]*log(m_pdffix[ii]) : 0;
+	}
 
 	// update m_Hjoint
 	m_Hjoint = 0;
-	for(int ii=0; ii<m_pdfjoint.elements(); ii++)
+	for(int ii=0; ii<m_bins*m_bins; ii++)
 		m_Hjoint -= m_pdfjoint[ii] > 0 ? m_pdfjoint[ii]*log(m_pdfjoint[ii]) : 0;
 
 	//////////////////////////////
 	// Update Gradient Entropies
 	//////////////////////////////
 
-	// pdf's
+	// Sum Marginal from Derivative of Joint, note that derivative of joint
+	// is 5D, but Marginal is 4D, so we take the 4D index and sum along the
+	// 5th dimension
 	scale = -scale/m_wmove;
 	for(Slicer it(m_dpdfjoint.ndim(), m_dpdfjoint.dim()); !it.eof(); ++it) {
 		m_dpdfjoint[*it] *= scale;
-		it.index(5, dind);
+		it.index(4, dind);
 		m_dpdfmove[dind] += m_dpdfjoint[*it];
 	}
 
-	// Hmove
-	m_dit.setROI(m_deform->ndim(), m_deform->dim());
-	for(m_dit.goBegin(); !m_dit.eof(); ++m_dit) {
-		m_dit.index(3, dind);
-		m_gradHmove[{dind[0],dind[1],dind[2]}] = 0;
+	// Compute Gradient Marginal Entropy
+	for(Slicer it(m_gradHmove.ndim(), m_gradHmove.dim()); !it.eof(); ++it) {
+		// get 3D position in grad H, sum over the matching points in
+		// derivative of marginal probability
+		it.index(3, dind);
+		m_gradHmove[dind] = 0;
 		for(size_t ii=0; ii<m_bins; ++ii){
 			dind[3] = ii;
 			double p = m_pdfmove[ii];
 			double dp = m_dpdfmove[dind];
 			double v = p > 0 ? dp*(log(p)+1) : 0;
-			m_gradHmove[{dind[0],dind[1],dind[2]}] -= v;
+			m_gradHmove[dind] -= v;
 		}
 	}
 
-	// Hjoint
-	for(m_dit.goBegin(); !m_dit.eof(); ++m_dit) {
-		m_dit.index(3, dind);
-		m_gradHjoint[{dind[0],dind[1],dind[2]}] = 0;
+	// Compute Gradient Joint Entropy
+	for(Slicer it(m_gradHmove.ndim(), m_gradHmove.dim()); !it.eof(); ++it) {
+		// get 3D position in grad H, sum over the matching points in
+		// derivative of marginal probability
+		it.index(3, dind);
+		m_gradHjoint[dind] = 0;
 		for(int64_t ii=0; ii<m_bins; ++ii){
 			dind[3] = ii;
 			for(int64_t jj=0; jj<m_bins; ++jj){
@@ -1692,7 +1700,6 @@ int DistortionCorrectionInformationComputer::metric(
 	// update value and grad
 	if(m_metric == METRIC_MI) {
 		val = m_Hfix+m_Hmove-m_Hjoint;
-
 		// Fill Gradient From GradH Images
 		for(size_t ii=0; ii<m_deform->elements(); ii++)
 			grad[ii] = (m_gradHmove[ii]-m_gradHjoint[ii])*
@@ -1832,7 +1839,7 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 	// Update Entropies
 	///////////////////////
 
-	// pdf's
+	// Compute Marginals from Joint
 	double scale = 0;
 	for(int64_t ii=0; ii<m_bins; ii++) {
 		m_pdfmove[ii] = 0;
@@ -1844,17 +1851,19 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 		}
 	}
 
+	// Scale Marginals
 	scale = 1./scale;
 	for(size_t ii=0; ii<m_bins; ii++) {
 		m_pdfmove[ii] *= scale;
 		m_pdffix[ii] *= scale;
 	}
 
+	// Scale Joint
 	for(size_t ii=0; ii<m_bins*m_bins; ii++) {
 		m_pdfjoint[ii] *= scale;
 	}
 
-	// update m_Hmove, m_Hfix
+	// Compute Marginal Entropy
 	m_Hmove = 0;
 	m_Hfix = 0;
 	for(int ii=0; ii<m_bins; ii++) {
@@ -1862,7 +1871,7 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 		m_Hfix -= m_pdffix[ii] > 0 ? m_pdffix[ii]*log(m_pdffix[ii]) : 0;
 	}
 
-	// update m_Hjoint
+	// Compute Joint Entropy
 	m_Hjoint = 0;
 	for(int ii=0; ii<m_pdfjoint.elements(); ii++)
 		m_Hjoint -= m_pdfjoint[ii] > 0 ? m_pdfjoint[ii]*log(m_pdfjoint[ii]) : 0;
