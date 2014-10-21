@@ -47,6 +47,12 @@ enum PixelT {UNKNOWN_TYPE=0, UINT8=2, INT16=4, INT32=8, FLOAT32=16,
 
 class NDArray;
 
+/**
+ * @brief Defines the maximum supported dimension by image, used for 
+ * stack-allocations
+ */
+const size_t MAXDIM = 10;
+
 /******************************************************************************
  * Basic Functions.
  ******************************************************************************/

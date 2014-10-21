@@ -23,9 +23,9 @@
 
 #include <stdexcept>
 #include <memory>
-#include "npltypes.h"
 #include "ndarray.h"
 #include "slicer.h"
+#include "npltypes.h"
 
 namespace npl {
 

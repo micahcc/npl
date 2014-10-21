@@ -1873,6 +1873,370 @@ protected:
 };
 
 /**
+ * @brief This is a specialized viewer for computing the value of a B-Spline 
+ * interpolation from the parameters. Thus the input to the constructor or
+ * setArray must be a parameter image. 
+ *
+ * estimate(in) will generate the parameters that minimize the least squares
+ * difference from the given image (in).
+ *
+ * createOverlay(in) will create a new parameter array in params that extends 
+ * for two knots outside the input image (in)
+ *
+ * @tparam T Value to interpolate as 
+ */
+template<typename T>
+class BSplineView : public NDView<T>
+{
+public:
+	BSplineView(std::shared_ptr<MRImage> params,
+				BoundaryConditionT bound = ZEROFLUX)
+				: NDView<T>(params), m_boundmethod(bound), m_ras(false), 
+                m_radius(2)
+	{ };
+
+	BSplineView() : m_boundmethod(ZEROFLUX), m_ras(false), m_radius(2) {} ;
+	
+	void CubicBSpline::createOverlay(ptr<const MRImage> overlay, double bspace)
+	{
+		if(len > MAXDIM)
+			throw INVALID_ARGUMENT("Overlayed image exceeds MAXDIM");
+
+		size_t ndim = overlay->ndim();
+		assert(ndim <= MAXSIZE);
+		VectorXd spacing(overlay->ndim());
+		VectorXd origin(overlay->ndim());
+		size_t osize[MAXDIM];
+
+		// get spacing and size
+		for(size_t dd=0; dd<ndim; ++dd) {
+			osize[dd] = 4+ceil(overlay->dim(dd)*overlay->spacing(dd)/bspace);
+			spacing[dd] = bspace;
+		}
+
+		this->parent = dPtrCast<MRImage>(overlay->createAnother(
+					osize.size(), osize.data(), FLOAT64));
+		this->parent->setDirection(overlay->getDirection(), false);
+		this->parent->setSpacing(spacing, false);
+
+		// compute center of input
+		VectorXd indc(ndim); // center index
+		for(size_t dd=0; dd<ndim; dd++) 
+			indc[dd] = (overlay->dim(dd)-1.)/2.;
+		VectorXd ptc(ndim); // point center
+		overlay->indexToPoint(ndim, indc.array().data(), ptc.array().data());
+
+		// compute origin from center index (x_c) and center of input (c): 
+		// o = c-R(sx_c)
+		for(size_t dd=0; dd<ndim; dd++) 
+			indc[dd] = (osize[dd]-1.)/2.;
+		origin = ptc - overlay->getDirection()*(spacing.asDiagonal()*indc);
+		params->setOrigin(origin, false);
+
+	};
+
+	bool CubicBSpline::samplePoint(size_t len, double* pt, double& val, double& dval)
+	{
+		// initialize variables
+		int ndim = params->ndim();
+		const size_t* dim = params->dim();
+		assert(ndim <= MAXDIM);
+
+		// convert RAS to index
+		double cindex[MAXDIM];
+		params->pointToIndex(len, pt, cindex);
+		return return sampleIndex(ndim, cindex, val, dval);
+	}
+
+	bool CubicBSpline::sampleIndex(size_t len, double* incindex, double& val, double& dval)
+	{
+		// initialize variables
+		int ndim = params->ndim();
+		assert(ndim <= MAXDIM);
+		const size_t* dim = params->dim();
+
+		// convert RAS to index
+		double cindex[MAXDIM];
+		int64_t center[MAXDIM];
+		int64_t index[MAXDIM];
+
+		for(size_t dd=0; dd<ndim; dd++) {
+			if(dd<len)
+				cindex[dd] = incindex[dd];
+			else
+				cindex[dd] = 0;
+		}
+
+		Counter<> count;
+		count.ndim = ndim;
+		for(size_t dd=0; dd<ndim; dd++)
+			count.sz[dd] = 5;
+
+		dval = 0;
+		val = 0;
+		bool border = false;
+		do {
+			double weight = 1;
+			double dweight = 1;
+			bool iioutside = false;
+
+			//set index
+			for(int dd = 0; dd < ndim; dd++) {
+				index[dd] = floor(cindex[dd]) + count.pos[dd] - 2l;
+				weight *= B3kern(index[dd] - cindex[dd]);
+				dweight *= -dB3kern(index[dd] - cindex[dd]);
+				iioutside = iioutside || index[dd] < 0 || index[dd] >= dim[dd];
+			}
+
+			// if the current point maps outside, then we need to deal with it
+			if(iioutside) {
+				if(m_boundmethod == ZEROFLUX) {
+					// clamp
+					for(size_t dd=0; dd<ndim; dd++)
+						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
+				} else if(m_boundmethod == WRAP) {
+					// wrap
+					for(size_t dd=0; dd<ndim; dd++)
+						index[dd] = wrap<int64_t>(0, dim[dd]-1, index[dd]);
+				} else {
+					// set wieght to zero, then just clamp
+					weight = 0;
+					for(size_t dd=0; dd<ndim; dd++)
+						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
+				}
+			}
+
+			border |= iioutside;
+			T v = this->castget(this->parent->__getAddr(ndim, index));
+			pixval += weight*v;
+		} while(count.advance());
+
+		return pixval;
+	};
+
+	double CubicBSpline::samplePoint(size_t len, double* pt)
+	{
+		// initialize variables
+		int ndim = params->ndim();
+		const size_t* dim = params->dim();
+		assert(ndim <= MAXDIM);
+
+		// convert RAS to index
+		double cindex[MAXDIM];
+		params->pointToIndex(len, pt, cindex);
+		return sampleIndex(ndim, cindex);
+	}
+
+	double CubicBSpline::sampleIndex(size_t len, double* incindex)
+	{
+		// initialize variables
+		int ndim = params->ndim();
+		assert(ndim <= MAXDIM);
+		const size_t* dim = params->dim();
+
+		// convert RAS to index
+		double cindex[MAXDIM];
+		int64_t center[MAXDIM];
+		int64_t index[MAXDIM];
+
+		for(size_t dd=0; dd<ndim; dd++) {
+			if(dd<len)
+				cindex[dd] = incindex[dd];
+			else
+				cindex[dd] = 0;
+		}
+
+		T pixval = 0;
+		Counter<> count;
+		count.ndim = ndim;
+		for(size_t dd=0; dd<ndim; dd++)
+			count.sz[dd] = 5;
+
+		do {
+			double weight = 1;
+			bool iioutside = false;
+
+			//set index
+			for(int dd = 0; dd < ndim; dd++) {
+				index[dd] = floor(cindex[dd]) + count.pos[dd] - 2l;
+				weight *= B3kern(index[dd] - cindex[dd]);
+				iioutside = iioutside || index[dd] < 0 || index[dd] >= dim[dd];
+			}
+
+			// if the current point maps outside, then we need to deal with it
+			if(iioutside) {
+				if(m_boundmethod == ZEROFLUX) {
+					// clamp
+					for(size_t dd=0; dd<ndim; dd++)
+						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
+				} else if(m_boundmethod == WRAP) {
+					// wrap
+					for(size_t dd=0; dd<ndim; dd++)
+						index[dd] = wrap<int64_t>(0, dim[dd]-1, index[dd]);
+				} else {
+					// set wieght to zero, then just clamp
+					weight = 0;
+					for(size_t dd=0; dd<ndim; dd++)
+						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
+				}
+			}
+
+			T v = this->castget(this->parent->__getAddr(ndim, index));
+			pixval += weight*v;
+		} while(count.advance());
+
+		return pixval;
+	};
+
+	double CubicBSpline::sample(size_t len, double* incindex, bool ras = false)
+	{
+		NDView<double> pvw(params);
+
+		// initialize variables
+		int ndim = params->ndim();
+		const size_t* dim = params->dim();
+
+		// convert RAS to index
+		vector<double> cindex(ndim, 0);
+		for(size_t dd=0; dd<len; dd++)
+			cindex[dd] = incindex[dd];
+
+		if(ras) 
+			params->pointToIndex(len, cindex.data(), cindex.data());
+
+		vector<int64_t> center(ndim, 0);
+		for(size_t dd=0; dd<ndim; dd++)
+			center[dd] = round(cindex[dd]);
+		vector<int64_t> index(ndim, 0);
+		const int KPOINTS = pow(5, ndim);
+
+		bool iioutside = false;
+
+		// compute weighted pixval by iterating over neighbors, which are
+		// combinations of KPOINTS
+		double pixval = 0;
+		double weight = 0;
+		div_t result;
+		for(int ii = 0 ; ii < KPOINTS; ii++) {
+			weight = 1;
+
+			//set index
+			result.quot = ii;
+			iioutside = false;
+			for(int dd = 0; dd < ndim; dd++) {
+				result = std::div(result.quot, 5);
+				int offset = ((int64_t)results.rem) - 2; //[-2, 2]
+				index[dd] = center + offset;
+				weight *= -dB3kern(index[dd] - cindex[dd]);
+				iioutside = iioutside || index[dd] < 0 || index[dd] >= dim[dd];
+			}
+
+			// if the current point maps outside, then we need to deal with it
+			if(iioutside) {
+				if(m_boundmethod == ZEROFLUX) {
+					// clamp
+					for(size_t dd=0; dd<ndim; dd++)
+						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
+				} else if(m_boundmethod == WRAP) {
+					// wrap
+					for(size_t dd=0; dd<ndim; dd++)
+						index[dd] = wrap<int64_t>(0, dim[dd]-1, index[dd]);
+				} else {
+					// set wieght to zero, then just clamp
+					weight = 0;
+					for(size_t dd=0; dd<ndim; dd++)
+						index[dd] = clamp<int64_t>(0, dim[dd]-1, index[dd]);
+				}
+			}
+
+			pixval += weight*pvw[index];
+		}
+		return pixval;
+	};
+
+	ptr<MRImage> CubicBSpline::reconstruct(ptr<const MRImage> input)
+	{
+		if(params->getDirection() != input->getDirection()) {
+			throw INVALID_ARGUMENT("Input parameters and sample image do "
+					"not have identical direction matrices!");
+		}
+
+		auto out = dPtrCast<MRImage>(input->createAnother());
+
+		// for each kernel, iterate over the points in the neighborhood
+		size_t ndim = input->ndim();
+		vector<pair<int64_t,int64_t>> roi(ndim);
+		NDIter<double> pit(out); // iterator of pixels
+		vector<int64_t> pind(ndim); // index of pixel
+		vector<int64_t> ind(ndim); // index
+		vector<double> pt(ndim);   // point
+		vector<double> cind(ndim); // continuous index
+
+		vector<int> winsize(ndim);
+		vector<vector<double>> karray(ndim);
+		vector<vector<int>> iarray(ndim);
+		for(size_t dd=0; dd<ndim; dd++) {
+			winsize[dd] = 1+4*ceil(biasparams->spacing(dd)/out->spacing(dd));
+			karray[dd].resize(winsize[dd]);
+		}
+
+		// We go through each parameter, and compute the weight of the B-spline
+		// parameter at each pixel within the range (2 indexes in parameter
+		// space, 2*S_B/S_I indexs in pixel space)
+		for(NDConstIter<double> bit(biasparams); !bit.eof(); ++bit) {
+
+			// get continuous index of pixel
+			bit.index(ind.size(), ind.data());
+			biasparams->indexToPoint(ind.size(), ind.data(), pt.data());
+			out->pointToIndex(pt.size(), pt.data(), cind.data());
+
+			// construct weights / construct ROI
+			double dist = 0;
+			for(size_t dd=0; dd<ndim; dd++) {
+				pind[dd] = round(cind[dd]); //pind is the center
+				for(int ww=-winsize[dd]/2; ww<=winsize[dd]/2; ww++) {
+					dist = (pind[dd]+ww-cind[dd])*out->spacing(dd)/biasparams->spacing(dd);
+					karray[dd][ww+winsize[dd]/2] = B3kern(dist);
+				}
+				roi[dd].first = pind[dd]-winsize[dd]/2;
+				roi[dd].second = pind[dd]+winsize[dd]/2;
+			}
+
+			pit.setROI(roi);
+			for(pit.goBegin(); !pit.eof(); ++pit) {
+				pit.index(ind);
+				double w = 1;
+				for(size_t dd=0; dd<ndim; dd++)
+					w *= karray[dd][ind[dd]-pind[dd]+winsize[dd]/2];
+				pit.set(*pit + w*(*bit));
+			}
+		}
+
+		return out;
+	}
+
+	/**
+	 * @brief Return the parameter image.
+	 *
+	 * @return 
+	 */
+	ptr<MRImage> getParams() { return dPtrCast<MRImage>(this->parent); }; 
+
+	/**
+	 * @brief How to handle boundaries (ZEROFLUX for constant outside bounds,
+	 * ZERO for outside to be 0 and WRAP to wrap values, this might also be 
+	 * called periodic)
+	 */
+	BoundaryConditionT m_boundmethod;
+
+    /**
+     * @brief if true, then this assumes the inputs are RAS coordinates rather
+     * than indexes. Default is false
+     */
+    bool m_ras;
+}
+
+/**
  * @}
  */
 
