@@ -229,13 +229,14 @@ void Slicer::setROI(size_t len, const size_t* roisize, const int64_t* roistart)
 	for(size_t ii=0; ii<m_ndim ; ii++) {
 		if(ii < len) {
 			// clamp, to be <= 0...sizes[ii]-1
-			if(roistart) 
+			if(roistart) {
 				m_roi[ii].first = clamp<int64_t>(0, m_dim[ii]-1, roistart[ii]);
-			else 
+				m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, 
+						roistart[ii] + roisize[ii]-1);
+			} else {
 				m_roi[ii].first = 0;
-
-			m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, 
-					m_roi[ii].first + roisize[ii]-1);
+				m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, roisize[ii]-1);
+			}
 		} else {
 			// no specification, just make it all
 			m_roi[ii].first = 0;
@@ -970,13 +971,15 @@ void ChunkSlicer::setROI(size_t len, const size_t* roisize, const int64_t* roist
 	for(size_t ii=0; ii<m_ndim ; ii++) {
 		if(ii < len) {
 			// clamp, to be <= 0...sizes[ii]-1
-			if(roistart) 
+			if(roistart) {
 				m_roi[ii].first = clamp<int64_t>(0, m_dim[ii]-1, roistart[ii]);
-			else 
+				m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, 
+						roistart[ii] + roisize[ii]-1);
+			} else {
 				m_roi[ii].first = 0;
+				m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, roisize[ii]-1);
+			}
 
-			m_roi[ii].second = clamp<int64_t>(0, m_dim[ii]-1, 
-					m_roi[ii].first + roisize[ii]-1);
 		} else {
 			// no specification, just make it all
 			m_roi[ii].first = 0;

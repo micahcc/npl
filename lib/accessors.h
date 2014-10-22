@@ -1900,6 +1900,122 @@ protected:
 	int64_t m_radius;
 };
 
+
+
+/****************************************************************************
+ * BSpline
+ ***************************************************************************/
+
+
+/******************************************************************************
+ * When Computing Energy for B-Spline, we need the convolution of lagged knots
+ * so this function precomputes these then saves the result in a cached form.
+ * To access the cache simply provide the two offsets to bconv, dbconv, and
+ * ddbconv:
+ *
+ * bconv(-2,1);
+ * Example (AA'):
+ *
+ *    sum = 0;
+ *    for(int pp = -2; pp <= 2; pp++) { 
+ *    	for(int qq = -2; qq <= 2; qq++) { 
+ *    		for(int rr = -2; rr <= 2; rr++) { 
+ *    			for(int tt = -2; tt <= 2; tt++) { 
+ *    				for(int uu = -2; uu <= 2; uu++) { 
+ *    					for(int vv = -2; vv <= 2; vv++) { 
+ *    						double phi = knots[ll+pp+tt][mm+qq+uu][nn+rr+vv];
+ *    						sum += phi*ddbconv(pp, tt)*bconv(qq, uu)*bconv(rr, vv);
+ *    					}
+ *    				}
+ *    			}
+ *    		}
+ *    	}
+ *    }
+ *
+ *Example (DD'): 
+ *
+ *    sum = 0;
+ *    for(double xx = 2; xx < 6; xx += res) {
+ *    	cout << xx;
+ *    	for(double yy = 2; yy < 6; yy += res) {
+ *    		for(double zz = 2; zz < 6; zz += res) {
+ *    			double bl = B3kern(ll - xx);
+ *    			double bm = dB3kern(mm - yy);
+ *    			double bn = dB3kern(nn - zz);
+ *    			int iim = round(xx);
+ *    			int jjm = round(yy);
+ *    			int kkm = round(zz);
+ *    			for(int ii = iim - 2; ii <= iim + 2; ii++) {
+ *    				if(ii < 0 || ii >= 9)
+ *    					continue;
+ *    				for(int jj = jjm - 2; jj <= jjm + 2; jj++) {
+ *    					if(jj < 0 || jj >= 9)
+ *    						continue;
+ *    					for(int kk = kkm - 2; kk <= kkm + 2; kk++) {
+ *    						if(kk < 0 || kk >= 9)
+ *    							continue;
+ *    						double phi_abc = knots[ii][jj][kk];
+ *    						double bx = B3kern(ii - xx);
+ *    						double by = dB3kern(jj - yy);
+ *    						double bz = dB3kern(kk - zz);
+ *    						sum += phi_abc*bx*by*bz*bl*bm*bn;
+ *    					}
+ *    				}
+ *    			}
+ *    		}
+ *    	}
+ *    }
+ */
+
+
+//This is needed for the derivative of a regularization term
+//this function (U) is discussed in docs/bspline/fmri_dist_correct_2013-12-06.pdf
+//Equations 63, 64, 65
+class VConv 
+{
+	public:
+	VConv(int deriv = 0, double dalpha = 0.001)
+	{
+		double(*foo)(double) = NULL;
+		switch(deriv) {
+			case 2:
+				foo = ddB3kern;
+				break;
+			case 1:
+				foo = dB3kern;
+				break;
+			default:
+			case 0:
+				foo = B3kern;
+				break;
+		}
+
+		for(int tt = -2 ; tt <= 2; tt++) {
+			for(int pp = -2 ; pp <= 2; pp++) {
+				double sum = 0;
+				for(double alpha = -0.5; alpha < 0.5; alpha += dalpha) {
+					sum += foo(tt-alpha)*foo(pp-alpha);
+				}
+				m_mat[tt+2][pp+2] = sum*dalpha;
+			}
+		}
+
+	};
+
+	double m_mat[5][5];
+	const double& operator()(int tt, int pp) const
+	{
+		assert(tt <= 2 && tt >= -2);
+		assert(pp <= 2 && pp >= -2);
+		return m_mat[tt+2][pp+2];
+	}
+};
+
+const VConv vConv(0, 0.0001);
+const VConv dvConv(1, 0.0001);
+const VConv ddvConv(2, 0.0001);
+
+
 /**
  * @brief This is a specialized viewer for computing the value of a cubic
  * B-Spline interpolation from the parameters. Thus the input to the
@@ -1927,7 +2043,7 @@ public:
 	void createOverlay(ptr<const MRImage> overlay, double bspace)
 	{
 		size_t ndim = overlay->ndim();
-		assert(ndim <= MAXSIZE);
+		assert(ndim <= MAXDIM);
 		VectorXd spacing(overlay->ndim());
 		VectorXd origin(overlay->ndim());
 		size_t osize[MAXDIM];
@@ -1957,6 +2073,8 @@ public:
 			indc[dd] = (osize[dd]-1.)/2.;
 		origin = ptc - overlay->getDirection()*(spacing.asDiagonal()*indc);
 		params->setOrigin(origin, false);
+
+		this->setArray(params);
 	};
 
 	/**
@@ -1973,6 +2091,7 @@ public:
 	 */
 	bool get(size_t len, const double* point, int dir, double& val, double& dval)
 	{
+		assert(this->parent);
 		// initialize variables
 		int ndim = this->parent->ndim();
 		assert(ndim <= MAXDIM);
@@ -2056,6 +2175,7 @@ public:
 	 */
 	double sample(size_t len, double* point)
 	{
+		assert(this->parent);
 		// initialize variables
 		int ndim = this->parent->ndim();
 		assert(ndim <= MAXDIM);
@@ -2131,6 +2251,7 @@ public:
 	 */
 	ptr<MRImage> reconstruct(ptr<const MRImage> input)
 	{
+		assert(this->parent);
 		auto params = dPtrCast<MRImage>(this->parent);
 		if(params->getDirection() != input->getDirection())
 			return reconstructNotAligned(input);
@@ -2140,6 +2261,7 @@ public:
 
 	ptr<MRImage> reconstructNotAligned(ptr<const MRImage> input)
 	{
+		assert(this->parent);
 		(void)(input);
 		throw INVALID_ARGUMENT("Not yet implemented");
 		return NULL;
@@ -2147,6 +2269,7 @@ public:
 
 	ptr<MRImage> reconstructAligned(ptr<const MRImage> input)
 	{
+		assert(this->parent);
 		if(input->ndim() != this->parent->ndim()) {
 			throw INVALID_ARGUMENT("Not sure how to deal with different "
 					"dimensions for B-Spline right now");
@@ -2157,11 +2280,12 @@ public:
 		// for each kernel, iterate over the points in the neighborhood
 		size_t ndim = input->ndim();
 		assert(ndim <= MAXDIM);
-		int winsize[MAXDIM];
 		double cind[MAXDIM];
 		int64_t ind[MAXDIM];
 		double scale[MAXDIM];
 		int64_t center[MAXDIM];
+		size_t winsize[MAXDIM];
+		int64_t roistart[MAXDIM];
 
 		for(size_t dd=0; dd<ndim; dd++) {
 			winsize[dd] = ceil(5*params->spacing(dd)/out->spacing(dd));
@@ -2171,7 +2295,7 @@ public:
 		// We go through each parameter, and compute the weight of the B-spline
 		// parameter at each pixel within the range (2 indexes in parameter
 		// space, 2*S_B/S_I indexs in pixel space)
-		Counter<> counter(ndim, winsize);
+		NDIter<double> oit(out);
 		for(NDConstIter<double> bit(params); !bit.eof(); ++bit) {
 
 			// get continuous index of pixel
@@ -2180,24 +2304,320 @@ public:
 			out->pointToIndex(ndim, cind, cind);
 
 			// construct weights / construct ROI
-			double dist = 0;
-			for(size_t dd=0; dd<ndim; dd++)
+			for(size_t dd=0; dd<ndim; dd++) {
 				center[dd] = round(cind[dd]);
+				roistart[dd] = center[dd]-((int64_t)winsize[dd]/2);
+			}
 
-			do {
+			oit.setROI(ndim, winsize, roistart);
+			for(oit.goBegin(); !oit.eof(); ++oit) {
 				double weight = 1;
+				oit.index(ndim, ind);
 				for(size_t dd=0; dd<ndim; dd++) {
-					ind[dd] = center[dd] + counter.pos[dd] - winsize[dd]/2;
 					double dist = (ind[dd] - cind[dd])*scale[dd];
 					weight *= B3kern(dist);
 				}
-
-				NDView<T>::set(ndim, ind, NDView<T>::get(ndim, ind)+ weight*(*bit));
-			} while(counter.advance());
+				oit.set(oit.get()+(*bit)*weight);
+			}
 		}
 
 		return out;
 	};
+
+//	double thinPlateEnergy()
+//	{
+//		//iterate over the knots
+//		itk::NeighborhoodIterator<ImageT>::RadiusType radius;
+//		for(int ii = 0 ; ii < ImageT::ImageDimension ; ii++)
+//			radius[ii] = 2;
+//
+//		auto space = m_deform->GetSpacing();
+//
+//		double dphi2_dx2 = 0;
+//		double dphi2_dy2 = 0;
+//		double dphi2_dz2 = 0;
+//		double dphi2_dxz = 0;
+//		double dphi2_dxy = 0;
+//		double dphi2_dyz = 0;
+//		itk::NeighborhoodIterator<KnotT> dit(radius, m_deform, m_deform->GetRequestedRegion());
+//		KnotT::OffsetType off;
+//
+//		//integrate over all the knots
+//		dit.GoToBegin();
+//		while(!dit.IsAtEnd()) {
+//			for(int aa = -2; aa <= 2; aa++) { 
+//				for(int bb = -2; bb <= 2; bb++) { 
+//					for(int cc = -2; cc <= 2; cc++) { 
+//						for(int tt = -2; tt <= 2; tt++) { 
+//							for(int uu = -2; uu <= 2; uu++) { 
+//								for(int vv = -2; vv <= 2; vv++) { 
+//									double phi = 1;
+//									off[0] = tt;
+//									off[1] = uu;
+//									off[2] = vv;
+//									phi *= dit.GetPixel(off);
+//									off[0] = aa;
+//									off[1] = bb;
+//									off[2] = cc;
+//									phi *= dit.GetPixel(off);
+//									dphi2_dx2 += phi*ddvConv(aa, tt)*vConv(bb, uu)*vConv(cc, vv);
+//									dphi2_dy2 += phi*vConv(aa, tt)*ddvConv(bb, uu)*vConv(cc, vv);
+//									dphi2_dz2 += phi*vConv(aa, tt)*vConv(bb, uu)*ddvConv(cc, vv);
+//									dphi2_dxy += phi*dvConv(aa, tt)*dvConv(bb, uu)*vConv(cc, vv);
+//									dphi2_dyz += phi*vConv(aa, tt)*dvConv(bb, uu)*dvConv(cc, vv);
+//									dphi2_dxz += phi*dvConv(aa, tt)*vConv(bb, uu)*dvConv(cc, vv);
+//								}
+//							}
+//						}
+//					}
+//				}
+//			}
+//
+//			++dit;
+//		}
+//
+//		return  dphi2_dx2/pow(space[0],4) + 
+//			dphi2_dy2/pow(space[1],4) + 
+//			dphi2_dz2/pow(space[2],4) + 
+//			2*dphi2_dxy/(pow(space[0],2)*pow(space[1],2)) + 
+//			2*dphi2_dxz/(pow(space[0],2)*pow(space[2],2)) +
+//			2*dphi2_dyz/(pow(space[1],2)*pow(space[2],2));
+//	}
+//
+//	double thinPlateEnergy(double* grad)
+//	{
+//		assert(m_gradR->GetSpacing() == m_deform->GetSpacing());
+//		assert(m_gradR->GetDirection() == m_deform->GetDirection());
+//		assert(m_gradR->GetRequestedRegion() == m_deform->GetRequestedRegion());
+//
+//		//iterate over the knots
+//		itk::NeighborhoodIterator<ImageT>::RadiusType radius;
+//		for(int ii = 0 ; ii < ImageT::ImageDimension ; ii++)
+//			radius[ii] = 4;
+//
+//		auto space = m_deform->GetSpacing();
+//
+//		double tmp_dphi2_dx2 = 0;
+//		double tmp_dphi2_dy2 = 0;
+//		double tmp_dphi2_dz2 = 0;
+//		double tmp_dphi2_dxz = 0;
+//		double tmp_dphi2_dxy = 0;
+//		double tmp_dphi2_dyz = 0;
+//
+//		double dphi2_dx2 = 0;
+//		double dphi2_dy2 = 0;
+//		double dphi2_dz2 = 0;
+//		double dphi2_dxz = 0;
+//		double dphi2_dxy = 0;
+//		double dphi2_dyz = 0;
+//		double reg = 0;
+//
+//		itk::NeighborhoodIterator<KnotT> dit(radius, m_deform, m_deform->GetRequestedRegion());
+//		KnotT::OffsetType off = {{0, 0, 0}};
+//
+//		itk::ImageRegionIterator<KnotT> grit(m_gradR, m_gradR->GetRequestedRegion());
+//		dit.GoToBegin();
+//		grit.GoToBegin();
+//
+//		//integrate over all the knots
+//		while(!grit.IsAtEnd() && !dit.IsAtEnd()) {
+//			//sum over the surrounding knots
+//			tmp_dphi2_dx2 = 0;
+//			tmp_dphi2_dy2 = 0;
+//			tmp_dphi2_dz2 = 0;
+//			tmp_dphi2_dxz = 0;
+//			tmp_dphi2_dxy = 0;
+//			tmp_dphi2_dyz = 0;
+//			//sum over the surrounding knots 
+//			for(int aa = -2; aa <= 2; aa++) { 
+//				for(int bb = -2; bb <= 2; bb++) { 
+//					for(int cc = -2; cc <= 2; cc++) { 
+//						for(int tt = -2; tt <= 2; tt++) { 
+//							for(int uu = -2; uu <= 2; uu++) { 
+//								for(int vv = -2; vv <= 2; vv++) { 
+//									double phi = 0;
+//									off[0] = tt-aa;
+//									off[1] = uu-bb;
+//									off[2] = vv-cc;
+//									phi += dit.GetPixel(off);
+//									off[0] = aa-tt;
+//									off[1] = bb-uu;
+//									off[2] = cc-vv;
+//									phi += dit.GetPixel(off);
+//									tmp_dphi2_dx2 += phi*ddvConv(aa, tt)*vConv(bb, uu)*vConv(cc, vv);
+//									tmp_dphi2_dy2 += phi*vConv(aa, tt)*ddvConv(bb, uu)*vConv(cc, vv);
+//									tmp_dphi2_dz2 += phi*vConv(aa, tt)*vConv(bb, uu)*ddvConv(cc, vv);
+//									tmp_dphi2_dxy += phi*dvConv(aa, tt)*dvConv(bb, uu)*vConv(cc, vv);
+//									tmp_dphi2_dyz += phi*vConv(aa, tt)*dvConv(bb, uu)*dvConv(cc, vv);
+//									tmp_dphi2_dxz += phi*dvConv(aa, tt)*vConv(bb, uu)*dvConv(cc, vv);
+//
+//									phi = 1;
+//									off[0] = tt;
+//									off[1] = uu;
+//									off[2] = vv;
+//									phi *= dit.GetPixel(off);
+//									off[0] = aa;
+//									off[1] = bb;
+//									off[2] = cc;
+//									phi *= dit.GetPixel(off);
+//									dphi2_dx2 += phi*ddvConv(aa, tt)*vConv(bb, uu)*vConv(cc, vv);
+//									dphi2_dy2 += phi*vConv(aa, tt)*ddvConv(bb, uu)*vConv(cc, vv);
+//									dphi2_dz2 += phi*vConv(aa, tt)*vConv(bb, uu)*ddvConv(cc, vv);
+//									dphi2_dxy += phi*dvConv(aa, tt)*dvConv(bb, uu)*vConv(cc, vv);
+//									dphi2_dyz += phi*vConv(aa, tt)*dvConv(bb, uu)*dvConv(cc, vv);
+//									dphi2_dxz += phi*dvConv(aa, tt)*vConv(bb, uu)*dvConv(cc, vv);
+//								}
+//							}
+//						}
+//					}
+//				}
+//			}
+//
+//			reg = tmp_dphi2_dx2/pow(space[0],4) + 
+//				tmp_dphi2_dy2/pow(space[1],4) + 
+//				tmp_dphi2_dz2/pow(space[2],4) + 
+//				2*tmp_dphi2_dxy/(pow(space[0],2)*pow(space[1],2)) + 
+//				2*tmp_dphi2_dxz/(pow(space[0],2)*pow(space[2],2)) +
+//				2*tmp_dphi2_dyz/(pow(space[1],2)*pow(space[2],2));
+//			grit.Set(reg);
+//			++dit;
+//			++grit;
+//		}
+//
+//		return  dphi2_dx2/pow(space[0],4) + 
+//			dphi2_dy2/pow(space[1],4) + 
+//			dphi2_dz2/pow(space[2],4) + 
+//			2*dphi2_dxy/(pow(space[0],2)*pow(space[1],2)) + 
+//			2*dphi2_dxz/(pow(space[0],2)*pow(space[2],2)) +
+//			2*dphi2_dyz/(pow(space[1],2)*pow(space[2],2));
+//	}
+//
+//	/**
+//	 * @brief Computes the regularization term by integrating over the
+//	 * entire space for each knot. Thankfully integrals can be pre-computed
+//	 * (vConv, dvConv, ddvConv). See equations 66-71 in 
+//	 * docs/bspline/fmri_dist_correct_2013-12-06.pdf
+//	 *
+//	 * @return regularization value
+//	 */
+//	double BSplineDeform::computeJacobianReg()
+//	{
+//		//iterate over the knots
+//		itk::NeighborhoodIterator<ImageT>::RadiusType radius;
+//		for(int ii = 0 ; ii < ImageT::ImageDimension ; ii++)
+//			radius[ii] = 2;
+//
+//		auto space = m_deform->GetSpacing();
+//
+//		itk::NeighborhoodIterator<KnotT> dit(radius, m_deform, m_deform->GetRequestedRegion());
+//		dit.GoToBegin();
+//		KnotT::OffsetType off;
+//		double reg = 0;
+//		//integrate over all the knots
+//		while(!dit.IsAtEnd()) {
+//			//sum over the surrounding knots
+//			for(int aa = -2; aa <= 2; aa++) { 
+//				for(int bb = -2; bb <= 2; bb++) { 
+//					for(int cc = -2; cc <= 2; cc++) { 
+//						for(int tt = -2; tt <= 2; tt++) { 
+//							for(int uu = -2; uu <= 2; uu++) { 
+//								for(int vv = -2; vv <= 2; vv++) { 
+//									double phi = 1;
+//									off[0] = tt;
+//									off[1] = uu;
+//									off[2] = vv;
+//									phi *= dit.GetPixel(off);
+//									off[0] = aa;
+//									off[1] = bb;
+//									off[2] = cc;
+//									phi *= dit.GetPixel(off);
+//									if(m_dir == 0) 
+//										reg += phi*dvConv(aa, tt)*vConv(bb, uu)*vConv(cc, vv);
+//									else if(m_dir == 1) 
+//										reg += phi*vConv(aa, tt)*dvConv(bb, uu)*vConv(cc, vv);
+//									else if(m_dir == 2)
+//										reg += phi*vConv(aa, tt)*vConv(bb, uu)*dvConv(cc, vv);
+//								}
+//							}
+//						}
+//					}
+//				}
+//			}
+//			++dit;
+//		}
+//
+//		return  reg/pow(space[m_dir],2);
+//	}
+//
+//	/**
+//	 * @brief Computes the gradient of regularization for each of the knots.
+//	 * Thankfully integrals can be pre-computed
+//	 * (uConv, duConv, dduConv). See equations 54-59 in 
+//	 * docs/bspline/fmri_dist_correct_2013-12-06.pdf
+//	 *
+//	 * @param output gradient of each parameter with respect to the deform 
+//	 * 			regularization
+//	 */
+//	void BSplineDeform::computeJacobianRegGrad()
+//	{
+//		assert(m_gradJ->GetSpacing() == m_deform->GetSpacing());
+//		assert(m_gradJ->GetDirection() == m_deform->GetDirection());
+//		assert(m_gradJ->GetRequestedRegion() == m_deform->GetRequestedRegion());
+//
+//		//iterate over the knots
+//		itk::NeighborhoodIterator<ImageT>::RadiusType radius;
+//		for(int ii = 0 ; ii < ImageT::ImageDimension ; ii++)
+//			radius[ii] = 4;
+//
+//		auto space = m_deform->GetSpacing();
+//
+//		double dreg = 0;
+//
+//		itk::NeighborhoodIterator<KnotT> dit(radius, m_deform, m_deform->GetRequestedRegion());
+//		KnotT::OffsetType off = {{0, 0, 0}};
+//
+//		itk::ImageRegionIterator<KnotT> grit(m_gradJ, m_gradJ->GetRequestedRegion());
+//		dit.GoToBegin();
+//		grit.GoToBegin();
+//
+//		//integrate over all the knots
+//		while(!grit.IsAtEnd() && !dit.IsAtEnd()) {
+//			dreg = 0;
+//			//sum over the surrounding knots 
+//			for(int aa = -2; aa <= 2; aa++) { 
+//				for(int bb = -2; bb <= 2; bb++) { 
+//					for(int cc = -2; cc <= 2; cc++) { 
+//						for(int tt = -2; tt <= 2; tt++) { 
+//							for(int uu = -2; uu <= 2; uu++) { 
+//								for(int vv = -2; vv <= 2; vv++) { 
+//									double phi = 0;
+//									off[0] = aa-tt;
+//									off[1] = bb-uu;
+//									off[2] = cc-vv;
+//									phi += dit.GetPixel(off);
+//									off[0] = tt-aa;
+//									off[1] = uu-bb;
+//									off[2] = vv-cc;
+//									phi += dit.GetPixel(off);
+//									if(m_dir == 0)
+//										dreg += phi*dvConv(aa,tt)*vConv(bb,uu)*vConv(cc,vv);
+//									else if(m_dir == 1)
+//										dreg += phi*vConv(aa,tt)*dvConv(bb,uu)*vConv(cc,vv);
+//									else if(m_dir == 2)
+//										dreg += phi*vConv(aa,tt)*vConv(bb,uu)*dvConv(cc,vv);
+//								}
+//							}
+//						}
+//					}
+//				}
+//			}
+//
+//			dreg = dreg/pow(space[m_dir],2);
+//			grit.Set(dreg);
+//			++dit;
+//			++grit;
+//		}
+//	}
 
 	/**
 	 * @brief Return the parameter image.
