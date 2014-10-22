@@ -374,6 +374,14 @@ RigidCorrComputer::RigidCorrComputer(bool compdiff) : m_compdiff(compdiff)
 /**
  * @brief Computes the gradient and value of the correlation.
  *
+ * The basic gyst of this function is to compute dC/dP where p is a parameter.
+ * dC/dP = f*dg/dP = f*dg/dx*dx/dP
+ * where x is a 3d coordinate so that dg/dx is the gradient of the image
+ * and dx/dP is the jacobian of the coordinate system with respect to a
+ * change in parameter. For shift dx/dP is a diagonal matrix, for rotation
+ * dx/dR = derivative of rotation matrix wrt to a paremeter * (x-c) where
+ * x-c is the vector from the center of the image to the coodinate
+ *
  * @param x Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
  * @param v Value at the given rotation
  * @param g Gradient at the given rotation
@@ -399,10 +407,6 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: "
 		<< sx << ", " << sy << ", " << sz << endl;
 #endif
-	
-	// for computing roted indices
-	double ind[3];
-	double cind[3];
 
 	// Compute derivative Images (if debugging is enabled, otherwise just
 	// compute the gradient)
@@ -413,29 +417,50 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 	double mov_ss = 0;
 	double fix_ss = 0;
 	double corr = 0;
+
+	// Update Transform Matrix
+	Matrix3d rotation;
+	rotation(0,0) = cos(ry)*cos(rz);
+	rotation(0,1) = -cos(ry)*sin(rz);
+	rotation(0,2) = sin(ry);
+	rotation(1,0) = cos(rz)*sin(rx)*sin(ry)+cos(rx)*sin(rz);
+	rotation(1,1) = cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz);
+	rotation(1,2) = -cos(ry)*sin(rx);
+	rotation(2,0) = -cos(rx)*cos(rz)*sin(ry)+sin(rx)*sin(rz);
+	rotation(2,1) = cos(rz)*sin(rx)+cos(rx)*sin(ry)*sin(rz);
+	rotation(2,2) = cos(rx)*cos(ry);
+
+	Vector3d ind;
+	Vector3d cind;
+	Vector3d shift(sx, sy, sz);
+	Eigen::Map<Vector3d> center(m_center);
+
+	// dRigid/dRx, dRigid/dRy, dRigid/dRz = ddRx*(u-c), ddRy*(u-c) ...
+	Matrix3d ddRx, ddRy, ddRz;
+	ddRx <<0,0,0,cos(rx)*cos(rz)*sin(ry)-sin(rx)*sin(rz),
+		-(cos(rz)*sin(rx))-cos(rx)*sin(ry)*sin(rz),
+		-(cos(rx)*cos(ry)),cos(rz)*sin(rx)*sin(ry)+cos(rx)*sin(rz),
+		cos(rx)*cos(rz)-sin(rx)*sin(ry)*sin(rz),-(cos(ry)*sin(rx));
+	ddRy <<-(cos(rz)*sin(ry)),sin(ry)*sin(rz),cos(ry),cos(ry)*cos(rz)*sin(rx),
+		-(cos(ry)*sin(rx)*sin(rz)),sin(rx)*sin(ry),-(cos(rx)*cos(ry)*cos(rz)),
+		cos(rx)*cos(ry)*sin(rz),-(cos(rx)*sin(ry));
+	ddRz <<-(cos(ry)*sin(rz)),-(cos(ry)*cos(rz)),0,
+		cos(rx)*cos(rz)-sin(rx)*sin(ry)*sin(rz),
+		-(cos(rz)*sin(rx)*sin(ry))-cos(rx)*sin(rz),0,
+		cos(rz)*sin(rx)+cos(rx)*sin(ry)*sin(rz),
+		cos(rx)*cos(rz)*sin(ry)-sin(rx)*sin(rz),0;
+
+	Vector3d gradG; //dg/dx, dg/dy, dg/dz
+	Matrix3d dR; //dg/dRx, dg/dRy, dg/dRz
+	Vector3d dgdR;
+
 	for(m_fit.goBegin(); !m_fit.eof(); ++m_fit) {
-		m_fit.index(3, ind);
+		m_fit.index(3, ind.array().data());
 		// u = c + R^-1(v - s - c)
 		// where u is the output index, v the input, c the center of rotation
 		// and s the shift
 		// cind = center + rInv*(ind-shift-center);
-
-		double x = ind[0];
-		double y = ind[1];
-		double z = ind[2];
-
-		double cx = m_center[0];
-		double cy = m_center[1];
-		double cz = m_center[2];
-
-		cind[0] = cx + sx + (-cz + z)*sin(ry) + cos(ry)*((-cx + x)*cos(rz) +
-				(cy - y)*sin(rz));
-		cind[1] = cy + sy + (cz - z)*cos(ry)*sin(rx) + (-cx +
-				x)*(cos(rz)*sin(rx)*sin(ry) + cos(rx)*sin(rz)) + (-cy +
-					y)*(cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz));
-		cind[2] = cz + sz + (-cz + z)*cos(rx)*cos(ry) + (cx -
-				x)*(cos(rx)*cos(rz)*sin(ry) - sin(rx)*sin(rz)) + (-cy +
-					y)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
+		cind = rotation*(ind-center) + center + shift;
 
 		// Here we compute dg(v(u,p))/dp, where g is the image, u is the
 		// coordinate in the fixed image, and p is the param.
@@ -443,49 +468,16 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 		// dg/dv_i is the directional derivative in original space,
 		// dv_i/dp is the derivative of the rotated coordinate system with
 		// respect to a parameter
-		double dg_dx = m_dmove_get(cind[0], cind[1], cind[2], 0);
-		double dg_dy = m_dmove_get(cind[0], cind[1], cind[2], 1);
-		double dg_dz = m_dmove_get(cind[0], cind[1], cind[2], 2);
+		gradG[0] = m_dmove_get(cind[0], cind[1], cind[2], 0);
+		gradG[1] = m_dmove_get(cind[0], cind[1], cind[2], 1);
+		gradG[2] = m_dmove_get(cind[0], cind[1], cind[2], 2);
 
-		double dx_dRx = 0;
-		double dy_dRx = (cz - z)*cos(rx)*cos(ry) +
-			(-cx + x)*(cos(rx)*cos(rz)*sin(ry) - sin(rx)*sin(rz)) +
-			(cy - y)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
-		double dz_dRx = (cz - z)*cos(ry)*sin(rx) +
-			(-cx + x)*(cos(rz)*sin(rx)*sin(ry) + cos(rx)*sin(rz)) +
-			(-cy + y)*(cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz));
-
-		double dx_dRy = (-cz + z)*cos(ry) + sin(ry)*((cx - x)*cos(rz) + (-cy + y)*sin(rz));
-		double dy_dRy = sin(rx)*((-cz + z)*sin(ry) + cos(ry)*((-cx + x)*cos(rz) + (cy - y)*sin(rz)));
-		double dz_dRy = cos(rx)*((cz - z)*sin(ry) + cos(ry)*((cx - x)*cos(rz) + (-cy + y)*sin(rz)));
-
-		double dx_dRz = cos(ry)*((cy - y)*cos(rz) + (cx - x)*sin(rz));
-		double dy_dRz = (cy - y)*(cos(rz)*sin(rx)*sin(ry) + cos(rx)*sin(rz)) +
-			(-cx + x)*(cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz));
-		double dz_dRz =  (-cy + y)*(cos(rx)*cos(rz)*sin(ry) - sin(rx)*sin(rz))
-			+ (-cx + x)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
-
-		// derivative of coordinate system due
-		const double dx_dSx = 1;
-		const double dy_dSx = 0;
-		const double dz_dSx = 0;
-
-		const double dx_dSy = 0;
-		const double dy_dSy = 1;
-		const double dz_dSy = 0;
-
-		const double dx_dSz = 0;
-		const double dy_dSz = 0;
-		const double dz_dSz = 1;
+		dR.row(0) = ddRx*(ind-center);
+		dR.row(1) = ddRy*(ind-center);
+		dR.row(2) = ddRz*(ind-center);
 
 		// compute SUM_i dg/dv_i dv_i/dp
-		double dgdRx = (dg_dx*dx_dRx + dg_dy*dy_dRx + dg_dz*dz_dRx);
-		double dgdRy = (dg_dx*dx_dRy + dg_dy*dy_dRy + dg_dz*dz_dRy);
-		double dgdRz = (dg_dx*dx_dRz + dg_dy*dy_dRz + dg_dz*dz_dRz);
-
-		double dgdSx = (dg_dx*dx_dSx + dg_dy*dy_dSx + dg_dz*dz_dSx);
-		double dgdSy = (dg_dx*dx_dSy + dg_dy*dy_dSy + dg_dz*dz_dSy);
-		double dgdSz = (dg_dx*dx_dSz + dg_dy*dy_dSz + dg_dz*dz_dSz);
+		dgdR = dR*gradG;
 
 		// compute correlation, since it requires almost no additional work
 		double g = m_move_get(cind[0], cind[1], cind[2]);
@@ -497,12 +489,12 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 		fix_ss += f*f;
 		corr += g*f;
 
-		grad[0] += (*m_fit)*dgdRx;
-		grad[1] += (*m_fit)*dgdRy;
-		grad[2] += (*m_fit)*dgdRz;
-		grad[3] += (*m_fit)*dgdSx;
-		grad[4] += (*m_fit)*dgdSy;
-		grad[5] += (*m_fit)*dgdSz;
+		grad[0] += (*m_fit)*dgdR[0];
+		grad[1] += (*m_fit)*dgdR[1];
+		grad[2] += (*m_fit)*dgdR[2];
+		grad[3] += (*m_fit)*gradG[0];
+		grad[4] += (*m_fit)*gradG[1];
+		grad[5] += (*m_fit)*gradG[2];
 
 	}
 
@@ -528,7 +520,7 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 	cerr << "Value: " << val << endl;
 	cerr << "Gradient: " << grad.transpose() << endl;
 #endif
-	
+
 	return 0;
 }
 
@@ -581,8 +573,22 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 		<< sx << ", " << sy << ", " << sz << endl;
 	//#endif
 
-	double ind[3];
-	double cind[3];
+	// Update Transform Matrix
+	Matrix3d rotation;
+	rotation(0,0) = cos(ry)*cos(rz);
+	rotation(0,1) = -cos(ry)*sin(rz);
+	rotation(0,2) = sin(ry);
+	rotation(1,0) = cos(rz)*sin(rx)*sin(ry)+cos(rx)*sin(rz);
+	rotation(1,1) = cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz);
+	rotation(1,2) = -cos(ry)*sin(rx);
+	rotation(2,0) = -cos(rx)*cos(rz)*sin(ry)+sin(rx)*sin(rz);
+	rotation(2,1) = cos(rz)*sin(rx)+cos(rx)*sin(ry)*sin(rz);
+	rotation(2,2) = cos(rx)*cos(ry);
+
+	Vector3d shift(sx, sy, sz);
+	Eigen::Map<Vector3d> center(m_center);
+	Vector3d ind;
+	Vector3d cind;
 
 	//  Resample Output and Compute Orientation. While actually resampling is
 	//  optional, it helps with debugging
@@ -592,27 +598,12 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 	double ss2 = 0;
 	double corr = 0;
 	for(m_fit.goBegin(); !m_fit.eof(); ++m_fit) {
-		m_fit.index(3, ind);
+		m_fit.index(3, ind.array().data());
 
 		// u = c + R^-1(v - s - c)
 		// where u is the output index, v the input, c the center of rotation
 		// and s the shift
-		double x = ind[0];
-		double y = ind[1];
-		double z = ind[2];
-
-		double cx = m_center[0];
-		double cy = m_center[1];
-		double cz = m_center[2];
-
-		cind[0] = cx + sx + (-cz + z)*sin(ry) + cos(ry)*((-cx + x)*cos(rz) +
-				(cy - y)*sin(rz));
-		cind[1] = cy + sy + (cz - z)*cos(ry)*sin(rx) + (-cx +
-				x)*(cos(rz)*sin(rx)*sin(ry) + cos(rx)*sin(rz)) + (-cy +
-					y)*(cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz));
-		cind[2] = cz + sz + (-cz + z)*cos(rx)*cos(ry) + (cx -
-				x)*(cos(rx)*cos(rz)*sin(ry) - sin(rx)*sin(rz)) + (-cy +
-					y)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
+		cind = rotation*(ind-center)+center+shift;
 
 		double a = m_move_get(cind[0], cind[1], cind[2]);
 		double b = *m_fit;
@@ -642,7 +633,7 @@ void RigidCorrComputer::setFixed(ptr<const MRImage> newfix)
 {
 	if(newfix->ndim() != 3)
 		throw INVALID_ARGUMENT("Fixed image is not 3D!");
-	
+
 	m_fixed = newfix;
 	m_fit.setArray(newfix);
 };
@@ -661,7 +652,7 @@ void RigidCorrComputer::setMoving(ptr<const MRImage> newmove)
 {
 	if(newmove->ndim() != 3)
 		throw INVALID_ARGUMENT("Moving image is not 3D!");
-	
+
 	m_moving = newmove;
 
 	if(!m_dmoving || !newmove->matchingOrient(m_dmoving, false, true)) {
@@ -736,7 +727,7 @@ void RigidInformationComputer::setMoving(ptr<const MRImage> newmove)
 {
 	if(newmove->ndim() != 3)
 		throw INVALID_ARGUMENT("Moving image is not 3D!");
-	
+
 	//////////////////////////////////////
 	// Setup accessors and Members Images
 	//////////////////////////////////////
@@ -777,13 +768,13 @@ void RigidInformationComputer::setFixed(ptr<const MRImage> newfixed)
 {
 	if(newfixed->ndim() != 3)
 		throw INVALID_ARGUMENT("Fixed image is not 3D!");
-	
+
 	//////////////////////////////////////
 	// Set up Members
 	//////////////////////////////////////
 	m_fixed = newfixed;
 	m_fit.setArray(m_fixed);
-	
+
 	//////////////////////////////////////
 	// compute ranges, and bin widths
 	//////////////////////////////////////
@@ -838,6 +829,42 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 		<< sx << ", " << sy << ", " << sz << endl;
 //#endif
 
+	// Update Transform Matrix
+	Matrix3d rotation;
+	rotation(0,0) = cos(ry)*cos(rz);
+	rotation(0,1) = -cos(ry)*sin(rz);
+	rotation(0,2) = sin(ry);
+	rotation(1,0) = cos(rz)*sin(rx)*sin(ry)+cos(rx)*sin(rz);
+	rotation(1,1) = cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz);
+	rotation(1,2) = -cos(ry)*sin(rx);
+	rotation(2,0) = -cos(rx)*cos(rz)*sin(ry)+sin(rx)*sin(rz);
+	rotation(2,1) = cos(rz)*sin(rx)+cos(rx)*sin(ry)*sin(rz);
+	rotation(2,2) = cos(rx)*cos(ry);
+
+	Vector3d ind;
+	Vector3d cind;
+	Vector3d shift(sx, sy, sz);
+	Eigen::Map<Vector3d> center(m_center);
+
+	// dRigid/dRx, dRigid/dRy, dRigid/dRz = ddRx*(u-c), ddRy*(u-c) ...
+	Matrix3d ddRx, ddRy, ddRz;
+	ddRx <<0,0,0,cos(rx)*cos(rz)*sin(ry)-sin(rx)*sin(rz),
+		-(cos(rz)*sin(rx))-cos(rx)*sin(ry)*sin(rz),
+		-(cos(rx)*cos(ry)),cos(rz)*sin(rx)*sin(ry)+cos(rx)*sin(rz),
+		cos(rx)*cos(rz)-sin(rx)*sin(ry)*sin(rz),-(cos(ry)*sin(rx));
+	ddRy <<-(cos(rz)*sin(ry)),sin(ry)*sin(rz),cos(ry),cos(ry)*cos(rz)*sin(rx),
+		-(cos(ry)*sin(rx)*sin(rz)),sin(rx)*sin(ry),-(cos(rx)*cos(ry)*cos(rz)),
+		cos(rx)*cos(ry)*sin(rz),-(cos(rx)*sin(ry));
+	ddRz <<-(cos(ry)*sin(rz)),-(cos(ry)*cos(rz)),0,
+		cos(rx)*cos(rz)-sin(rx)*sin(ry)*sin(rz),
+		-(cos(rz)*sin(rx)*sin(ry))-cos(rx)*sin(rz),0,
+		cos(rz)*sin(rx)+cos(rx)*sin(ry)*sin(rz),
+		cos(rx)*cos(rz)*sin(ry)-sin(rx)*sin(rz),0;
+
+	Vector3d gradG; //dg/dx, dg/dy, dg/dz
+	Matrix3d dR; //dg/dRx, dg/dRy, dg/dRz
+	Vector3d dgdR;
+
 	// Zero Everything
 	m_pdfmove.zero();
 	m_pdffix.zero();
@@ -852,29 +879,17 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 	// for computing rotated indices
 	double cbinmove, cbinfix; //continuous
 	double binmove, binfix; // nearest int
-	double ind[3];
-	double cind[3];
 	double dgdPhi[6];
 
 	// Compute Probabilities
 	for(m_fit.goBegin(); !m_fit.eof(); ++m_fit) {
-		m_fit.index(3, ind);
-		double x = ind[0];
-		double y = ind[1];
-		double z = ind[2];
+		m_fit.index(3, ind.array().data());
 
-		double cx = m_center[0];
-		double cy = m_center[1];
-		double cz = m_center[2];
-
-		cind[0] = cx + sx + (-cz + z)*sin(ry) + cos(ry)*((-cx + x)*cos(rz) +
-				(cy - y)*sin(rz));
-		cind[1] = cy + sy + (cz - z)*cos(ry)*sin(rx) + (-cx +
-				x)*(cos(rz)*sin(rx)*sin(ry) + cos(rx)*sin(rz)) + (-cy +
-					y)*(cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz));
-		cind[2] = cz + sz + (-cz + z)*cos(rx)*cos(ry) + (cx -
-				x)*(cos(rx)*cos(rz)*sin(ry) - sin(rx)*sin(rz)) + (-cy +
-					y)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
+		// u = c + R^-1(v - s - c)
+		// where u is the output index, v the input, c the center of rotation
+		// and s the shift
+		// cind = center + rInv*(ind-shift-center);
+		cind = rotation*(ind-center) + center + shift;
 
 		// Here we compute dg(v(u,p))/dp, where g is the image, u is the
 		// coordinate in the fixed image, and p is the param.
@@ -882,44 +897,30 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 		// dg/dv_i is the directional derivative in original space,
 		// dv_i/dp is the derivative of the rotated coordinate system with
 		// respect to a parameter
-		double dg_dx = m_dmove_get(cind[0], cind[1], cind[2], 0);
-		double dg_dy = m_dmove_get(cind[0], cind[1], cind[2], 1);
-		double dg_dz = m_dmove_get(cind[0], cind[1], cind[2], 2);
+		gradG[0] = m_dmove_get(cind[0], cind[1], cind[2], 0);
+		gradG[1] = m_dmove_get(cind[0], cind[1], cind[2], 1);
+		gradG[2] = m_dmove_get(cind[0], cind[1], cind[2], 2);
 
-		double dx_dRx = 0;
-		double dy_dRx = (cz - z)*cos(rx)*cos(ry) +
-			(-cx + x)*(cos(rx)*cos(rz)*sin(ry) - sin(rx)*sin(rz)) +
-			(cy - y)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
-		double dz_dRx = (cz - z)*cos(ry)*sin(rx) +
-			(-cx + x)*(cos(rz)*sin(rx)*sin(ry) + cos(rx)*sin(rz)) +
-			(-cy + y)*(cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz));
-
-		double dx_dRy = (-cz + z)*cos(ry) + sin(ry)*((cx - x)*cos(rz) + (-cy + y)*sin(rz));
-		double dy_dRy = sin(rx)*((-cz + z)*sin(ry) + cos(ry)*((-cx + x)*cos(rz) + (cy - y)*sin(rz)));
-		double dz_dRy = cos(rx)*((cz - z)*sin(ry) + cos(ry)*((cx - x)*cos(rz) + (-cy + y)*sin(rz)));
-
-		double dx_dRz = cos(ry)*((cy - y)*cos(rz) + (cx - x)*sin(rz));
-		double dy_dRz = (cy - y)*(cos(rz)*sin(rx)*sin(ry) + cos(rx)*sin(rz)) +
-			(-cx + x)*(cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz));
-		double dz_dRz =  (-cy + y)*(cos(rx)*cos(rz)*sin(ry) - sin(rx)*sin(rz))
-			+ (-cx + x)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
+		dR.row(0) = ddRx*(ind-center);
+		dR.row(1) = ddRy*(ind-center);
+		dR.row(2) = ddRz*(ind-center);
 
 		// compute SUM_i dg/dv_i dv_i/dp
-		dgdPhi[0] = (dg_dx*dx_dRx + dg_dy*dy_dRx + dg_dz*dz_dRx)*M_PI/180.;
-		dgdPhi[1] = (dg_dx*dx_dRy + dg_dy*dy_dRy + dg_dz*dz_dRy)*M_PI/180.;
-		dgdPhi[2] = (dg_dx*dx_dRz + dg_dy*dy_dRz + dg_dz*dz_dRz)*M_PI/180.;
-
-		dgdPhi[3] = dg_dx*m_moving->spacing(0);
-		dgdPhi[4] = dg_dy*m_moving->spacing(1);
-		dgdPhi[5] = dg_dz*m_moving->spacing(2);
+		dgdR = dR*gradG;
+		dgdPhi[0] = dgdR[0];
+		dgdPhi[1] = dgdR[1];
+		dgdPhi[2] = dgdR[2];
+		dgdPhi[3] = gradG[0];
+		dgdPhi[4] = gradG[1];
+		dgdPhi[5] = gradG[2];
 
 		// get actual values
-		double valmove = m_move_get(cind[0], cind[1], cind[2]);
-		double valfix = *m_fit;
+		double g = m_move_get(cind[0], cind[1], cind[2]);
+		double f = *m_fit;
 
 		// compute bins
-		cbinfix = (valfix-m_rangefix[0])/m_wfix + m_krad;
-		cbinmove = (valmove-m_rangemove[0])/m_wmove + m_krad;
+		cbinfix = (f-m_rangefix[0])/m_wfix + m_krad;
+		cbinmove = (g-m_rangemove[0])/m_wmove + m_krad;
 		binfix = round(cbinfix);
 		binmove = round(cbinmove);
 
@@ -990,7 +991,7 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 	for(size_t ii=0; ii<m_dpdfjoint.elements(); ii++) {
 		m_dpdfjoint[ii] *= scale;
 	}
-	
+
 	// Hjoint
 	for(int pp=0; pp<6; pp++) {
 		m_gradHjoint[pp] = 0;
@@ -1031,6 +1032,13 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 			grad[ii] = m_gradHmove[ii]/m_Hjoint -
 				m_gradHjoint[ii]*(m_Hfix+m_Hmove)/(m_Hjoint*m_Hjoint);
 	}
+
+	grad[0] *= M_PI/180.;
+    grad[1] *= M_PI/180.;
+    grad[2] *= M_PI/180.;
+    grad[3] *= m_moving->spacing(0);
+    grad[4] *= m_moving->spacing(1);
+	grad[5] *= m_moving->spacing(2);
 
 //#if defined DEBUG || defined VERYDEBUG
 	cerr << "ValueGrad() = " << val << " / " << grad.transpose() << endl;
@@ -1085,11 +1093,11 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
 	assert(m_pdffix.dim(0) == m_bins);
 	assert(m_pdfjoint.dim(0) == m_bins);
 	assert(m_pdfjoint.dim(1) == m_bins);
-	
+
 	assert(m_dpdfjoint.dim(0) == 6);
 	assert(m_dpdfjoint.dim(1) == m_bins);
 	assert(m_dpdfjoint.dim(1) == m_bins);
-	
+
 	assert(m_dpdfmove.dim(0) == 6);
 	assert(m_dpdfmove.dim(1) == m_bins);
 
@@ -1103,7 +1111,24 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
 	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: "
 		<< sx << ", " << sy << ", " << sz << endl;
 //#endif
-	
+
+	// Update Transform Matrix
+	Matrix3d rotation;
+	rotation(0,0) = cos(ry)*cos(rz);
+	rotation(0,1) = -cos(ry)*sin(rz);
+	rotation(0,2) = sin(ry);
+	rotation(1,0) = cos(rz)*sin(rx)*sin(ry)+cos(rx)*sin(rz);
+	rotation(1,1) = cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz);
+	rotation(1,2) = -cos(ry)*sin(rx);
+	rotation(2,0) = -cos(rx)*cos(rz)*sin(ry)+sin(rx)*sin(rz);
+	rotation(2,1) = cos(rz)*sin(rx)+cos(rx)*sin(ry)*sin(rz);
+	rotation(2,2) = cos(rx)*cos(ry);
+
+	Vector3d shift(sx, sy, sz);
+	Eigen::Map<Vector3d> center(m_center);
+	Vector3d ind;
+	Vector3d cind;
+
 	// Zero
 	m_pdfmove.zero();
 	m_pdffix.zero();
@@ -1115,37 +1140,23 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
 	// for computing rotated indices
 	double cbinmove, cbinfix; //continuous
 	double binmove, binfix; // nearest int
-	double ind[3];
-	double cind[3];
 
 	// Compute Probabilities
 	for(m_fit.goBegin(); !m_fit.eof(); ++m_fit) {
-		m_fit.index(3, ind);
+		m_fit.index(3, ind.array().data());
 
-		double x = ind[0];
-		double y = ind[1];
-		double z = ind[2];
-
-		double cx = m_center[0];
-		double cy = m_center[1];
-		double cz = m_center[2];
-
-		cind[0] = cx + sx + (-cz + z)*sin(ry) + cos(ry)*((-cx + x)*cos(rz) +
-				(cy - y)*sin(rz));
-		cind[1] = cy + sy + (cz - z)*cos(ry)*sin(rx) + (-cx +
-				x)*(cos(rz)*sin(rx)*sin(ry) + cos(rx)*sin(rz)) + (-cy +
-					y)*(cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz));
-		cind[2] = cz + sz + (-cz + z)*cos(rx)*cos(ry) + (cx -
-				x)*(cos(rx)*cos(rz)*sin(ry) - sin(rx)*sin(rz)) + (-cy +
-					y)*(cos(rz)*sin(rx) + cos(rx)*sin(ry)*sin(rz));
+		// u = c + R^-1(v - s - c)
+		// where u is the output index, v the input, c the center of rotation
+		// and s the shift
+		cind = rotation*(ind-center)+center+shift;
 
 		// get actual values
-		double valmove = m_move_get(cind[0], cind[1], cind[2]);
-		double valfix = *m_fit;
+		double g = m_move_get(cind[0], cind[1], cind[2]);
+		double f = *m_fit;
 
 		// compute bins
-		cbinfix = (valfix-m_rangefix[0])/m_wfix + m_krad;
-		cbinmove = (valmove-m_rangemove[0])/m_wmove + m_krad;
+		cbinfix = (f-m_rangefix[0])/m_wfix + m_krad;
+		cbinmove = (g-m_rangemove[0])/m_wmove + m_krad;
 		binfix = round(cbinfix);
 		binmove = round(cbinmove);
 
@@ -1327,7 +1338,7 @@ void DistortionCorrectionInformationComputer::setBins(size_t nbins, size_t krad)
 	m_pdfmove.resize({nbins});
 	m_pdffix.resize({nbins});
 	m_pdfjoint.resize({nbins, nbins});
-	
+
 	if(m_fixed) {
 		// if fixed hsa been set, recompute fixed entropy, and adjust field
 		setFixed(m_fixed);
@@ -1345,12 +1356,12 @@ void DistortionCorrectionInformationComputer::setMoving(
 {
 	if(newmove->ndim() != 3)
 		throw INVALID_ARGUMENT("Moving image is not 3D!");
-	
+
 	//////////////////////////////////////
 	// Setup accessors and Members Images
 	//////////////////////////////////////
 	m_moving = newmove;
-	
+
 	if(dir >= 0)
 		m_dir = dir;
 	else if(m_moving->m_phasedim >= 0)
@@ -1392,10 +1403,10 @@ void DistortionCorrectionInformationComputer::setFixed(ptr<const MRImage> newfix
 {
 	if(newfixed->ndim() != 3)
 		throw INVALID_ARGUMENT("Fixed image is not 3D!");
-	
+
 	m_fixed = newfixed;
 	m_fit.setArray(m_fixed);
-	
+
 	// Compute Range of Values
 	m_rangefix[0] = INFINITY;
 	m_rangefix[1] = -INFINITY;
@@ -1477,7 +1488,7 @@ int DistortionCorrectionInformationComputer::metric(
 	m_pdfjoint.zero();
 	m_dpdfmove.zero();
 	m_dpdfjoint.zero();
-	
+
 	// for computing distorted indices
 	double cbinmove, cbinfix; //continuous
 	int binmove, binfix; // nearest int
@@ -1497,7 +1508,7 @@ int DistortionCorrectionInformationComputer::metric(
 	// compute updated moving width
 	m_wmove = (m_rangemove[1]-m_rangemove[0])/(m_bins-2*m_krad-1);
 	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-2*m_krad-1);
-	
+
 	// Compute Probabilities
 	for(m_fit.goBegin(); !m_fit.eof(); ++m_fit) {
 
@@ -1505,7 +1516,7 @@ int DistortionCorrectionInformationComputer::metric(
 		m_fit.index(3, fcind);
 		m_fixed->indexToPoint(3, fcind, pt);
 		m_deform->pointToIndex(3, pt, dcind);
-		
+
 		// create ROI in kernel space
 		for(size_t dd=0; dd<3; dd++) {
 			dnind[dd] = round(dcind[dd]);
@@ -1542,7 +1553,7 @@ int DistortionCorrectionInformationComputer::metric(
 		Fc = Fm*(1+ddef);
 		dFm = m_dmove_get.get(fcind[0], fcind[1], fcind[2]);
 		Ff = *m_fit;
-		
+
 		// compute the new range of values
 		newminmax[0] = min(newminmax[0], Fc);
 		newminmax[1] = max(newminmax[1], Fc);
@@ -1552,7 +1563,7 @@ int DistortionCorrectionInformationComputer::metric(
 		binfix = round(cbinfix);
 		cbinmove = (Fc-m_rangemove[0])/m_wmove + m_krad;
 		binmove = clamp<int>(m_krad, m_bins-1-m_krad, round(cbinmove));
-		
+
 		/**************************************************************
 		 * Compute Marginal and Joint PDF's
 		 **************************************************************/
@@ -1564,7 +1575,7 @@ int DistortionCorrectionInformationComputer::metric(
 					B3kern(jj-cbinfix, m_krad);
 			}
 		}
-		
+
 		/**************************************************************
 		 * Compute Derivative of Marginal and Joint PDFs
 		 **************************************************************/
@@ -1734,7 +1745,7 @@ int DistortionCorrectionInformationComputer::metric(
 
 	return 0;
 }
-	
+
 
 /**
  * @brief Computes the metric value
@@ -1748,7 +1759,7 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 	m_pdfjoint.zero();
 	m_dpdfmove.zero();
 	m_dpdfjoint.zero();
-	
+
 	// for computing distorted indices
 	double cbinmove, cbinfix; //continuous
 	int binmove, binfix; // nearest int
@@ -1767,7 +1778,7 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 	// compute updated moving width
 	m_wmove = (m_rangemove[1]-m_rangemove[0])/(m_bins-2*m_krad-1);
 	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-2*m_krad-1);
-	
+
 	// Compute Probabilities
 	for(m_fit.goBegin(); !m_fit.eof(); ++m_fit) {
 
@@ -1775,7 +1786,7 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 		m_fit.index(3, fcind);
 		m_fixed->indexToPoint(3, fcind, pt);
 		m_deform->pointToIndex(3, pt, dcind);
-		
+
 		// create ROI in kernel space
 		for(size_t dd=0; dd<3; dd++) {
 			dnind[dd] = round(dcind[dd]);
@@ -1811,7 +1822,7 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 		if(Fm < 1e-10) Fm = 0;
 		Fc = Fm*(1+ddef);
 		Ff = *m_fit;
-		
+
 		// compute the new range of values
 		newminmax[0] = min(newminmax[0], Fc);
 		newminmax[1] = max(newminmax[1], Fc);
@@ -1821,11 +1832,11 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 		binfix = round(cbinfix);
 		cbinmove = (Fc-m_rangemove[0])/m_wmove + m_krad;
 		binmove = clamp<int>(m_krad, m_bins-1-m_krad, round(cbinmove));
-		
+
 		/**************************************************************
 		 * Compute Marginal and Joint PDF's
 		 **************************************************************/
-		
+
 		// Sum up Bins for Value Comp
 		for(int ii = binmove-m_krad; ii <= binmove+m_krad; ii++) {
 			for(int jj = binfix-m_krad; jj <= binfix+m_krad; jj++) {
@@ -1929,13 +1940,13 @@ int DistortionCorrectionInformationComputer::valueGrad(const VectorXd& params,
 	assert(m_pdfmove.dim(0) == m_bins);
 	assert(m_pdfjoint.dim(0) == m_bins); // Moving
 	assert(m_pdfjoint.dim(1) == m_bins); // Fixed
-	
+
 	assert(m_dpdfjoint.dim(0) == m_deform->dim(0));
 	assert(m_dpdfjoint.dim(1) == m_deform->dim(1));
 	assert(m_dpdfjoint.dim(2) == m_deform->dim(2));
 	assert(m_dpdfjoint.dim(3) == m_bins); // Moving PDF
 	assert(m_dpdfjoint.dim(4) == m_bins); // Fixed PDF
-	
+
 	assert(m_dpdfmove.dim(0) == m_deform->dim(0));
 	assert(m_dpdfmove.dim(1) == m_deform->dim(1));
 	assert(m_dpdfmove.dim(2) == m_deform->dim(2));
@@ -2022,7 +2033,7 @@ int DistortionCorrectionInformationComputer::value(const VectorXd& params, doubl
 	assert(m_pdfmove.dim(0) == m_bins);
 	assert(m_pdfjoint.dim(0) == m_bins); // Moving
 	assert(m_pdfjoint.dim(1) == m_bins); // Fixed
-	
+
 	// Fill Parameter Image
 	m_dit.setROI(m_deform->ndim(), m_deform->dim());
 	m_dit.goBegin();
