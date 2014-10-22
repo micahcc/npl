@@ -2129,7 +2129,11 @@ public:
 			for(int dd = 0; dd < ndim; dd++) {
 				index[dd] = floor(cindex[dd]) + count.pos[dd] - 2l;
 				weight *= B3kern(index[dd] - cindex[dd]);
-				dweight *= -dB3kern(index[dd] - cindex[dd]);
+				if(dd == dir)
+					dweight *= -dB3kern(index[dd] - cindex[dd])/
+						getParams()->spacing(dd);
+				else
+					dweight *= B3kern(index[dd] - cindex[dd]);
 				iioutside = iioutside || index[dd] < 0 || index[dd] >= dim[dd];
 			}
 
@@ -2205,14 +2209,12 @@ public:
 		bool border = false;
 		do {
 			double weight = 1;
-			double dweight = 1;
 			bool iioutside = false;
 
 			//set index
 			for(int dd = 0; dd < ndim; dd++) {
 				index[dd] = floor(cindex[dd]) + count.pos[dd] - 2l;
 				weight *= B3kern(index[dd] - cindex[dd]);
-				dweight *= -dB3kern(index[dd] - cindex[dd]);
 				iioutside = iioutside || index[dd] < 0 || index[dd] >= dim[dd];
 			}
 
