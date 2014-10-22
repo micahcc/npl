@@ -21,9 +21,8 @@
 #include <memory>
 #include <ctime>
 
-#include "bspline.h"
 #include "iterators.h"
-#include "iterators.h"
+#include "accessors.h"
 
 using namespace std;
 using namespace npl;
@@ -58,18 +57,18 @@ int main()
 	auto img = squareImage();
 
 	vector<double> pt(img->ndim());
-	CubicBSpline spline;
-	spline.ras = true;
+	BSplineView<double> spline;
+	spline.m_ras = true;
 	spline.createOverlay(img, 10);
 	
 	// Randomly set parameters
-	for(FlatIter<double> it(spline.params); !it.eof(); ++it) 
+	for(FlatIter<double> it(spline.getParams()); !it.eof(); ++it) 
 		it.set(rand()/(double)RAND_MAX);
 
 	// Multiply Image By Sampled Spline
 	clock_t c = clock();
 	for(NDIter<double> it(img); !it.eof(); ++it) 
-		it.set((*it)*spline.sample(pt));
+		it.set((*it)*spline.sample(pt.size(), pt.data()));
 	c = clock() - c;
 	cerr << "Sampling Time: " << c << endl;
 
@@ -78,7 +77,7 @@ int main()
 		it.set(1./(*it));
 
 	c = clock();
-	spline.sample(sbspline);
+	sbspline = spline.reconstruct(sbspline);
 	for(FlatIter<double> it1(img), it2(sbspline); !it1.eof(); ++it1, ++it2) 
 		it1.set((*it1)*(*it2));
 	c = clock() - c;
