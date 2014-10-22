@@ -311,7 +311,7 @@ def build(bld):
 	bld.program(install_path='${PREFIX}/tests', features='test',
 			target='bspline_test', 
 			source='bspline_test.cpp', 
-			use='nplio npltypes bspline') 
+			use='nplio npltypes accessors') 
 
 	# Statistics tests
 	bld.program(install_path='${PREFIX}/tests', features='test',
