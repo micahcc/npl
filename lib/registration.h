@@ -42,7 +42,7 @@ namespace npl {
  */
 
 /** @{ */
-	
+
 /**
  * @brief Information-based Metric to use
  */
@@ -415,7 +415,7 @@ public:
 	 * @brief Thin-plate spline regularization weight
 	 */
 	double m_tps_reg;
-	
+
 	/**
 	 * @brief Jacobian regularization weight
 	 */
@@ -586,7 +586,7 @@ private:
 	 * the dimensios of m_pdfjoint, (initialized by setKnotSpacing/setFixed)
 	 */
 	MRImageStore<5, double> m_dpdfjoint;
-	
+
 	/**
 	 * @brief First 3 Dimensions match dimensions in m_field, last matches
 	 * m_pdfmove, (initialized by setKnotSpacing/setFixed)
@@ -598,7 +598,7 @@ private:
 	 * (initialized by setKnotSpacing/setFixed)
 	 */
 	MRImageStore<3, double> m_gradHjoint;
-	
+
 	/**
 	 * @brief Gradient of marginal entropy at each knot
 	 * (initialized by setKnotSpacing/setFixed)
@@ -609,12 +609,12 @@ private:
 	 * @brief Entropy of fixed image (initialized by setFixed)
 	 */
 	double m_Hfix; 
-	
+
 	/**
 	 * @brief Entropy of moving image (updated by metric())
 	 */
 	double m_Hmove;
-	
+
 	/**
 	 * @brief Entropy of joint image (updated by metric())
 	 */
@@ -635,7 +635,7 @@ private:
 	 * (updated in metric())
 	 */
 	double m_wmove;
-	
+
 	/**
 	 * @brief Width of bins in the marginal distribution for the fixed image
 	 * (initialized in setFixed)

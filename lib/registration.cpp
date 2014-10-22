@@ -1482,6 +1482,9 @@ int DistortionCorrectionInformationComputer::jacobianDet(
 int DistortionCorrectionInformationComputer::metric(
 		double& val, VectorXd& grad)
 {
+	BSplineView<double> bsp_vw(m_deform);
+	bsp_vw.m_ras = true;
+
 	//Zero Inputs
 	m_pdfmove.zero();
 	m_pdffix.zero();
@@ -1530,21 +1533,7 @@ int DistortionCorrectionInformationComputer::metric(
 
 		// Sample B-Spline Value and Derivative at Current Position
 		double def = 0, ddef = 0;
-		m_dit.setROI(3, roi_len, roi_low);
-		for(m_dit.goBegin(); !m_dit.eof(); ++m_dit) {
-			m_dit.index(3, dind);
-			double weight = 1;
-			double dweight = 1;
-			for(size_t dd=0; dd<3; dd++) {
-				weight *= B3kern(dind[dd] - dcind[dd]);
-				if(dd == m_dir)
-					dweight *= -dB3kern(dind[dd] - dcind[dd])/m_knotspace;
-				else
-					dweight *= B3kern(dind[dd] - dcind[dd]);
-			}
-			def += (*m_dit)*weight;
-			ddef += (*m_dit)*dweight;
-		}
+		bsp_vw.get(3, pt, m_dir, def, ddef);
 		fcind[m_dir] += def/m_moving->spacing(m_dir);
 
 		// get actual values
@@ -1754,6 +1743,10 @@ int DistortionCorrectionInformationComputer::metric(
  */
 int DistortionCorrectionInformationComputer::metric(double& val)
 {
+	// Views
+	BSplineView<double> bsp_vw(m_deform);
+	bsp_vw.m_ras = true;
+
 	//Zero Inputs
 	m_pdfmove.zero();
 	m_pdfjoint.zero();
@@ -1764,16 +1757,11 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 	double cbinmove, cbinfix; //continuous
 	int binmove, binfix; // nearest int
 	double fcind[3]; // Continuous index in fixed image
-	double dcind[3]; // Continuous index in deformation
-	int64_t dnind[3]; // Nearest knot to dcind
-	int64_t dind[5]; // last two dimensions are for bins
 	double pt[3];
 	double newminmax[2] = {0, m_rangemove[1]};
 	double Fm;   /** Moving Value */
 	double Fc;   /** Intensity Corrected Moving Value */
 	double Ff;   /** Fixed Value Value */
-	int64_t roi_low[3];
-	size_t roi_len[3];
 
 	// compute updated moving width
 	m_wmove = (m_rangemove[1]-m_rangemove[0])/(m_bins-2*m_krad-1);
@@ -1785,14 +1773,6 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 		// Compute Continuous Index of Point in Deform Image
 		m_fit.index(3, fcind);
 		m_fixed->indexToPoint(3, fcind, pt);
-		m_deform->pointToIndex(3, pt, dcind);
-
-		// create ROI in kernel space
-		for(size_t dd=0; dd<3; dd++) {
-			dnind[dd] = round(dcind[dd]);
-			roi_low[dd] = dnind[dd]-2;
-			roi_len[dd] = 5;
-		}
 
 		/**********************************************************************
 		 * Compute Distortion at this point and compute un-distorted value/bins
@@ -1800,21 +1780,7 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 
 		// Sample B-Spline Value and Derivative at Current Position
 		double def = 0, ddef = 0;
-		m_dit.setROI(3, roi_len, roi_low);
-		for(m_dit.goBegin(); !m_dit.eof(); ++m_dit) {
-			m_dit.index(3, dind);
-			double weight = 1;
-			double dweight = 1;
-			for(size_t dd=0; dd<3; dd++) {
-				weight *= B3kern(dind[dd] - dcind[dd]);
-				if(dd == m_dir)
-					dweight *= -dB3kern(dind[dd] - dcind[dd])/m_knotspace;
-				else
-					dweight *= B3kern(dind[dd] - dcind[dd]);
-			}
-			def += (*m_dit)*weight;
-			ddef += (*m_dit)*dweight;
-		}
+		bsp_vw.get(3, pt, m_dir, def, ddef);
 		fcind[m_dir] += def/m_moving->spacing(m_dir);
 
 		// get actual values
@@ -2001,7 +1967,8 @@ int DistortionCorrectionInformationComputer::valueGrad(const VectorXd& params,
  *
  * @return 0 if successful
  */
-int DistortionCorrectionInformationComputer::grad(const VectorXd& params, VectorXd& grad)
+int DistortionCorrectionInformationComputer::grad(const VectorXd& params,
+		VectorXd& grad)
 {
 	double v = 0;
 	return valueGrad(params, v, grad);
@@ -2015,7 +1982,8 @@ int DistortionCorrectionInformationComputer::grad(const VectorXd& params, Vector
  *
  * @return 0 if successful
  */
-int DistortionCorrectionInformationComputer::value(const VectorXd& params, double& val)
+int DistortionCorrectionInformationComputer::value(const VectorXd& params,
+		double& val)
 {
 	/*************************************************************************
 	 * Check State
