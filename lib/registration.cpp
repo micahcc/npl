@@ -319,11 +319,14 @@ int information3DDerivTest(double step, double tol,
  * @param tol Tolerance in error between analytical and Numeric gratient
  * @param in1 Image 1
  * @param in2 Image 2
+ * @param regj Jackobian weight 
+ * @param regt Thin-plate-spline weight
  *
  * @return 0 if success, -1 if failure
  */
 int distcorDerivTest(double step, double tol,
-		shared_ptr<const MRImage> in1, shared_ptr<const MRImage> in2)
+		shared_ptr<const MRImage> in1, shared_ptr<const MRImage> in2,
+		double regj, double regt)
 {
 	using namespace std::placeholders;
 	DCInforComp comp(false);
@@ -332,6 +335,8 @@ int distcorDerivTest(double step, double tol,
 	comp.setKnotSpacing(20);
 	comp.setFixed(in1);
 	comp.setMoving(in2);
+	comp.m_jac_reg = regj;
+	comp.m_tps_reg = regt;
 
 	auto vfunc = std::bind(&DCInforComp::value, &comp, _1, _2);
 	auto gfunc = std::bind(&DCInforComp::grad, &comp, _1, _2);
@@ -339,7 +344,7 @@ int distcorDerivTest(double step, double tol,
 	double error = 0;
 	VectorXd x(comp.nparam());
 	for(size_t ii=0; ii<x.rows(); ii++)
-		x[ii] = 5*rand()/(double)RAND_MAX;
+		x[ii] = 10*(rand()/(double)RAND_MAX-0.5);
 
 	if(testgrad(error, x, step, tol, vfunc, gfunc) != 0) {
 		return -1;
@@ -347,7 +352,6 @@ int distcorDerivTest(double step, double tol,
 
 	return 0;
 }
-
 
 /*********************************************************************
  * Registration Class Implementations
@@ -1419,60 +1423,6 @@ void DistortionCorrectionInformationComputer::setFixed(ptr<const MRImage> newfix
 }
 
 /**
- * @brief Computes the thin-plate spline regulization value and gradient
- *
- * @param val Output Value
- * @param grad Output Gradient
- */
-int DistortionCorrectionInformationComputer::thinPlateSpline(
-		double& val, VectorXd& grad)
-{
-	val = 0;
-	grad.setZero();
-	return 0;
-}
-
-/**
- * @brief Computes the thin-plate spline regulization value
- *
- * @param val Output Value
- */
-int DistortionCorrectionInformationComputer::thinPlateSpline(
-		double& val)
-{
-	val = 0;
-	return 0;
-}
-
-/**
- * @brief Computes the sum of the determinant value and gradient
- *
- * @param val Output Value
- * @param grad Output Gradient
- */
-int DistortionCorrectionInformationComputer::jacobianDet(
-		double& val, VectorXd& grad)
-{
-	val = 0;
-	grad.setZero();
-	return 0;
-}
-
-/**
- * @brief Computes the sum of the jacobian determinant value
- *
- * @param val Output Value
- */
-int DistortionCorrectionInformationComputer::jacobianDet(
-		double& val)
-{
-	val = 0;
-	return 0;
-}
-
-// TODO if only 1D, simplify interpolation
-
-/**
  * @brief Computes the metric value and gradient
  *
  * @param val Output Value
@@ -1918,36 +1868,38 @@ int DistortionCorrectionInformationComputer::valueGrad(const VectorXd& params,
 	assert(m_dpdfmove.dim(2) == m_deform->dim(2));
 	assert(m_dpdfmove.dim(3) == m_bins); // Moving
 
+	assert(m_deform->elements() == gradbuff.rows()); 
+	cerr << "Computing Value/Gradient" << endl;
+
 	// Fill Deform Image from params
-	m_dit.setROI(m_deform->ndim(), m_deform->dim());
-	m_dit.goBegin();
-	for(size_t ii=0; !m_dit.eof(); ++m_dit, ++ii)
-		m_dit.set(params[ii]);
+	FlatIter<double> dit(m_deform);
+	for(size_t ii=0; !dit.eof(); ++dit, ++ii)
+		dit.set(params[ii]);
 
 	/*
 	 * Compute the Gradient and Value
 	 */
-	double tmp = 0;
 	val  = 0;
+	size_t nparam = m_deform->elements();
 	grad.setZero();
+	BSplineView<double> b_vw(m_deform);
 
 	// Compute and add Thin Plate Spline
 	if(m_tps_reg > 0) {
-		if(thinPlateSpline(tmp, gradbuff) != 0) return -1;
-		val += m_tps_reg*tmp;
+		val += m_tps_reg*b_vw.thinPlateEnergy(nparam,gradbuff.array().data());
 		grad += m_tps_reg*gradbuff;
+		cerr << "Post TPS Value/Grad: " << val << "/" << grad.transpose() << endl;
 	}
-	cerr << "Post TPS Value/Grad: " << val << "/" << grad.transpose() << endl;
 
 	// Compute and add Jacobian
 	if(m_jac_reg > 0) {
-		if(jacobianDet(tmp, gradbuff) != 0) return -1;
-		val += m_jac_reg*tmp;
+		val += m_jac_reg*b_vw.jacobianDet(m_dir,nparam,gradbuff.array().data());
 		grad += m_jac_reg*gradbuff;
+		cerr << "Post Jac Value/Grad: " << val << "/" << grad.transpose() << endl;
 	}
-	cerr << "Post Jac Value/Grad: " << val << "/" << grad.transpose() << endl;
 
 	// Compute and add Metric
+	double tmp = 0;
 	if(metric(tmp, gradbuff) != 0) return -1;
 	val += tmp;
 	grad += gradbuff;
@@ -2003,32 +1955,31 @@ int DistortionCorrectionInformationComputer::value(const VectorXd& params,
 	assert(m_pdfjoint.dim(1) == m_bins); // Fixed
 
 	// Fill Parameter Image
-	m_dit.setROI(m_deform->ndim(), m_deform->dim());
-	m_dit.goBegin();
-	for(size_t ii=0; !m_dit.eof(); ++m_dit, ++ii)
-		m_dit.set(params[ii]);
+	FlatIter<double> dit(m_deform);
+	for(size_t ii=0; !dit.eof(); ++dit, ++ii)
+		dit.set(params[ii]);
 
 	/*
 	 * Compute Value
 	 */
-	double tmp;
 	val = 0;
+	BSplineView<double> b_vw(m_deform);
+	cerr << "Computing Value" << endl;
 
 	// Compute and add Thin Plate Spline
 	if(m_tps_reg > 0) {
-		if(thinPlateSpline(tmp) != 0) return -1;
-		val += m_tps_reg*tmp;
+		val += b_vw.thinPlateEnergy()*m_tps_reg;
+		cerr << "Post TPS Value: " << val << endl;
 	}
-	cerr << "Post TPS Value: " << val << endl;
 
 	// Compute and add Jacobian
 	if(m_jac_reg > 0) {
-		if(jacobianDet(tmp) != 0) return -1;
-		val += m_jac_reg*tmp;
+		val += b_vw.jacobianDet(m_dir)*m_jac_reg;
+		cerr << "Post Jac Value: " << val << endl;
 	}
-	cerr << "Post Jac Value: " << val << endl;
 
 	// Compute and add Metric
+	double tmp = 0;
 	if(metric(tmp) != 0) return -1;
 	val += tmp;
 	cerr << "Post Metric Value: " << val << endl;

@@ -511,14 +511,21 @@ struct Counter
 {
 	T sz[MAXDIM];
 	T pos[MAXDIM];
-	T ndim;
+	size_t ndim;
 	
 	/**
-	 * @brief Default constructor. Just sizes pos to 0
+	 * @brief Default constructor. Just sizes pos to 0. dim is the number of
+	 * dimensions to use/iterate over.
+	 *
+	 * @param dim
 	 */
-	Counter() 
+	Counter(size_t dim)
 	{ 
-		for(size_t dd=0; dd<MAXDIM; dd++) 
+		if(dim > MAXDIM)
+			throw INVALID_ARGUMENT("Dimension "+std::to_string(dim)+">="+
+					std::to_string(MAXDIM));
+		ndim = dim;
+		for(size_t dd=0; dd<ndim; dd++) 
 			pos[dd] = 0;
 	};
 
@@ -528,7 +535,7 @@ struct Counter
 	 * @param dim Number of dimensions
 	 * @param stop
 	 */
-	Counter(T dim, T* stop)
+	Counter(size_t dim, const T* stop)
 	{
 		if(dim > MAXDIM)
 			throw INVALID_ARGUMENT("Dimension "+std::to_string(dim)+">="+
