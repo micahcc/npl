@@ -961,7 +961,6 @@ public:
 		const size_t* dim = this->parent->dim();
 		int64_t index[MAXDIM];
 		double cindex[MAXDIM];
-		double weight;
 
 		// convert RAS to index
 		if(m_ras) {
@@ -977,36 +976,32 @@ public:
 		}
 
 		// If this is an on-grid point then reduce to sampling just 1 or 
-		// two values
+		// two values. To do this we reduce the size of the counter in 
+		// dimensions where the values are on grid, and simultaneously round
+		// (so that floor(cindex[dd]) = cindex[dd] = nearest)
 		int dir = 0;
 		int effdir = singledir(len, cindex, dir);
+		Counter<> count(ndim);
 		if(effdir == 0) {
-			for(size_t dd=0; dd<ndim; dd++)
-				index[dd] = round(cindex[dd]);
-			return this->castget(this->parent->__getAddr(ndim, index));
+			for(size_t dd=0; dd<ndim; dd++) {
+				count.sz[dd] = 1;
+				cindex[dd] = round(cindex[dd]);
+			}
 		} else if(effdir == 1){
 			for(size_t dd=0; dd<ndim; dd++) {
-				if(dd == dir) 
-					index[dd] = floor(cindex[dd]);
-				else
+				if(dd != dir) {
 					index[dd] = round(cindex[dd]);
+					count.sz[dd] = 1;
+				} else
+					count.sz[dd] = 2;
 			}
-
-			T a = this->castget(this->parent->__getAddr(ndim, index));
-			index[dir]++;
-			T b = this->castget(this->parent->__getAddr(ndim, index));
-			weight = linKern(index[dir] - cindex[dir]);
-			return (1-weight)*a + weight*b;
+		} else {
+			for(size_t dd=0; dd<ndim; dd++)
+				count.sz[dd] = 2;
 		}
 
-		// compute weighted pixval by iterating over neighbors, which are
-		// combinations of KPOINTS
+		// compute weighted pixval by iterating over neighbors
 		T pixval = 0;
-		Counter<> count;
-		count.ndim = ndim;
-		for(size_t dd=0; dd<ndim; dd++)
-			count.sz[dd] = 2;
-
 		do {
 			double weight = 1;
 			bool iioutside = false;
@@ -1108,7 +1103,6 @@ public:
 		dim[2] = this->parent->ndim() > 2 ? this->parent->dim(2) : 1;
 		dim[3] = this->parent->tlen();
 		size_t ndim = 4;
-		double weight = 1;
 
 		// deal with t being outside bounds
 		if(t < 0 || t >= dim[3]) {
@@ -1132,43 +1126,36 @@ public:
 			auto tmp = dPtrCast<const MRImage>(this->parent);
 			tmp->pointToIndex(3, cindex, cindex);
 		}
-		
+
 		// If this is an on-grid point then reduce to sampling just 1 or 
-		// two values
+		// two values. To do this we reduce the size of the counter in 
+		// dimensions where the values are on grid, and simultaneously round
+		// (so that floor(cindex[dd]) = cindex[dd] = nearest)
 		int dir = 0;
 		int effdir = singledir(4, cindex, dir);
+		Counter<> count(ndim);
 		if(effdir == 0) {
-			for(size_t dd=0; dd<ndim; dd++)
-				index[dd] = round(cindex[dd]);
-			return this->castget(this->parent->__getAddr(ndim, index));
+			for(size_t dd=0; dd<ndim; dd++) {
+				count.sz[dd] = 1;
+				cindex[dd] = round(cindex[dd]);
+			}
 		} else if(effdir == 1){
 			for(size_t dd=0; dd<ndim; dd++) {
-				if(dd == dir) 
-					index[dd] = floor(cindex[dd]);
-				else
+				if(dd != dir) {
 					index[dd] = round(cindex[dd]);
+					count.sz[dd] = 1;
+				} else
+					count.sz[dd] = 2;
 			}
-
-			T a = this->castget(this->parent->__getAddr(ndim, index));
-			index[dir]++;
-			T b = this->castget(this->parent->__getAddr(ndim, index));
-			weight = linKern(index[dir] - cindex[dir]);
-			return (1-weight)*a + weight*b;
+		} else {
+			for(size_t dd=0; dd<ndim; dd++)
+				count.sz[dd] = 2;
 		}
 
-
-		bool iioutside = false;
-
-		// compute weighted pixval by iterating over neighbors, which are
-		// combinations of KPOINTS
 		T pixval = 0;
-		Counter<> count;
-		count.ndim = 3;
-		for(size_t dd=0; dd<count.ndim; dd++)
-			count.sz[dd] = 2;
-
+		bool iioutside = false;
 		do {
-			weight = 1;
+			double weight = 1;
 
 			//set index
 			for(int dd = 0; dd < 3; dd++) {
@@ -1738,8 +1725,7 @@ public:
 		}
 
 		// initialize variables
-		Counter<int, MAXDIM> count;
-		count.ndim = ndim;
+		Counter<int, MAXDIM> count(ndim);
 		for(size_t dd=0; dd<ndim; dd++)
 			count.sz[dd] = 1+m_radius*2;
 
@@ -1913,8 +1899,7 @@ public:
 		}
 
 		T pixval = 0;
-		Counter<int, MAXDIM> count;
-		count.ndim = ndim;
+		Counter<int, MAXDIM> count(ndim);
 		for(size_t dd=0; dd<ndim; dd++)
 			count.sz[dd] = 1+m_radius*2;
 
@@ -2079,8 +2064,7 @@ public:
 			}
 		}
 
-		Counter<> count;
-		count.ndim = ndim;
+		Counter<> count(ndim);
 		for(size_t dd=0; dd<ndim; dd++)
 			count.sz[dd] = 5;
 
@@ -2167,8 +2151,7 @@ public:
 			}
 		}
 
-		Counter<> count;
-		count.ndim = ndim;
+		Counter<> count(ndim);
 		for(size_t dd=0; dd<ndim; dd++)
 			count.sz[dd] = 5;
 
@@ -2314,12 +2297,12 @@ public:
 		double ind2[3];
 
 		// Create a counter to iterate over [0,4] ie [-2,2] in 6 directions
-		Counter<int, 6> counter;
+		Counter<int, 6> counter(6);
 		for(size_t dd=0; dd<6;dd++)
 			counter.sz[dd] = 5;
 
 		//integrate over all the knots
-		Counter<int, 3> it(3, params->dim());
+		Counter<int64_t, 3> it(3, (int64_t*)params->dim());
 		do {	
 			do {
 				double phi = 1;
@@ -2348,20 +2331,23 @@ public:
 			} while(counter.advance());
 		} while(it.advance());
 
-		return  dphi2_dx2/pow(params->spacing(0),4) +
+		double v = dphi2_dx2/pow(params->spacing(0),4) +
 			dphi2_dy2/pow(params->spacing(1),4) +
 			dphi2_dz2/pow(params->spacing(2),4) +
 			2*dphi2_dxy/(pow(params->spacing(0),2)*pow(params->spacing(1),2)) +
 			2*dphi2_dxz/(pow(params->spacing(0),2)*pow(params->spacing(2),2)) +
 			2*dphi2_dyz/(pow(params->spacing(1),2)*pow(params->spacing(2),2));
+		return v;
 	};
 
-	double thinPlateGradEnergy(size_t len, double* grad)
+	double thinPlateEnergy(size_t len, double* grad)
 	{
 		using std::pow;
 
 		auto params = getParams();
-		assert(len == params->elements());
+		if(len != getParams()->elements())
+			throw INVALID_ARGUMENT("Incorrect length of grad array");
+
 		assert(params->ndim() == 3);
 	
 		double dphi2_dx2 = 0;
@@ -2377,12 +2363,12 @@ public:
 		double ind2[3];
 
 		// Create a counter to iterate over [0,4] ie [-2,2] in 6 directions
-		Counter<int, 6> counter;
+		Counter<int, 6> counter(6);
 		for(size_t dd=0; dd<6;dd++)
 			counter.sz[dd] = 5;
 
 		//integrate over all the knots
-		Counter<int, 3> it(3, params->dim());
+		Counter<int64_t, 3> it(3, (int64_t*)params->dim());
 		int ii = 0;
 		do {
 			double tmp_dphi2_dx2 = 0;
@@ -2442,12 +2428,13 @@ public:
 			grad[ii++] = reg;
 		} while(it.advance());
 
-		return  dphi2_dx2/pow(params->spacing(0),4) +
+		double v = dphi2_dx2/pow(params->spacing(0),4) +
 			dphi2_dy2/pow(params->spacing(1),4) +
 			dphi2_dz2/pow(params->spacing(2),4) +
 			2*dphi2_dxy/(pow(params->spacing(0),2)*pow(params->spacing(1),2)) +
 			2*dphi2_dxz/(pow(params->spacing(0),2)*pow(params->spacing(2),2)) +
 			2*dphi2_dyz/(pow(params->spacing(1),2)*pow(params->spacing(2),2));
+		return v;
 	};
 
 	/**
@@ -2458,7 +2445,7 @@ public:
 	 *
 	 * @return regularization value
 	 */
-	double computeJacobianReg(int dir)
+	double jacobianDet(int dir)
 	{
 		using std::pow;
 
@@ -2473,12 +2460,12 @@ public:
 		double reg = 0;
 
 		// Create a counter to iterate over [0,4] ie [-2,2] in 6 directions
-		Counter<int, 6> counter;
+		Counter<int, 6> counter(6);
 		for(size_t dd=0; dd<6;dd++)
 			counter.sz[dd] = 5;
 
 		//integrate over all the knots
-		Counter<int, 3> it(3, params->dim());
+		Counter<int64_t, 3> it(3, (int64_t*)params->dim());
 		do {	
 			do {
 				for(size_t dd=0; dd<3; dd++) {
@@ -2490,7 +2477,7 @@ public:
 				switch(dir) {
 				case 0:
 					reg += phi*
-						dvConv[counter.pos[0]][counter.pos[3]];
+						dvConv[counter.pos[0]][counter.pos[3]]*
 						 vConv[counter.pos[1]][counter.pos[4]]*
 						 vConv[counter.pos[2]][counter.pos[5]];
 				break;
@@ -2522,13 +2509,14 @@ public:
 	 * @param output gradient of each parameter with respect to the deform 
 	 * 			regularization
 	 */
-	double computeJacobianRegGrad(int dir, size_t len, double* grad)
+	double jacobianDet(int dir, size_t len, double* grad)
 	{
 		using std::pow;
 
 		auto params = getParams();
 		assert(params->ndim() == 3);
-		assert(len == params->elements());
+		if(len != getParams()->elements())
+			throw INVALID_ARGUMENT("Incorrect length of grad array");
 		
 		// We use NN interpolator because it is fast and handles boundary 
 		// conditions
@@ -2537,12 +2525,12 @@ public:
 		double ind2[3];
 
 		// Create a counter to iterate over [0,4] ie [-2,2] in 6 directions
-		Counter<int, 6> counter;
+		Counter<int, 6> counter(6);
 		for(size_t dd=0; dd<6;dd++)
 			counter.sz[dd] = 5;
 
 		//integrate over all the knots
-		Counter<int, 3> it(3, params->dim());
+		Counter<int64_t, 3> it(3, (int64_t*)params->dim());
 		
 		double reg = 0;
 		size_t ii=0;
@@ -2563,11 +2551,11 @@ public:
 					case 0:
 						reg += phi*
 							dvConv[counter.pos[0]][counter.pos[3]]*
-							 vConv[counter.pos[1]][counter.pos[4]];
+							 vConv[counter.pos[1]][counter.pos[4]]*
 							 vConv[counter.pos[2]][counter.pos[5]];
 						dreg += dphi*
 							dvConv[counter.pos[0]][counter.pos[3]]*
-							 vConv[counter.pos[1]][counter.pos[4]];
+							 vConv[counter.pos[1]][counter.pos[4]]*
 							 vConv[counter.pos[2]][counter.pos[5]];
 					break;
 					case 1:

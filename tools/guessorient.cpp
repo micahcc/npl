@@ -72,11 +72,13 @@ int main(int argc, char** argv)
 	 * Command Line
 	 */
 
-	TCLAP::CmdLine cmd("Computes the center of mass of the moving and fiexed "
-			"images, then aligns the orientation of the moving image so that "
-			"its axes align with the fixed image. This is no replacement for "
-			"registration but could be used to initialize incorrectly "
-			"oriented images.", ' ', __version__ );
+	TCLAP::CmdLine cmd("Computes the center of mass of the moving and fixed "
+			"images and shifts the moving image's origin so that the center "
+			"of masses line up. ONLY DO THIS ON SKULL-STRIPPED IMAGES "
+			"OTHERWISE THE NECK OR OUTSIDE TISSUE COULD VASTLY IMPACT "
+			"RESULTS. If the images are the same mode and subject then  you "
+			"can also use -R to orient that images' (DONT DO THIS IF THE "
+			"IMAGES OF DIFFERENT SUBJECTS OR MODALITIES)." ,' ', __version__ );
 
 	TCLAP::ValueArg<string> a_fixed("f", "fixed", "Fixed image.", true, "",
 			"*.nii.gz", cmd);
@@ -173,7 +175,7 @@ int main(int argc, char** argv)
 	}
 
 	// Perform rotation
-	MatrixXd newrotation = moving_axe.transpose().inverse()*fixed_axe.transpose();
+	MatrixXd newrotation = moving_axe.inverse()*fixed_axe;
 	cerr << "Changing Direction:\n" << origmoving->getDirection() << endl << endl;
 	origmoving->setDirection(newrotation, false);
 	cerr << "To:\n" << origmoving->getDirection() << endl << endl;

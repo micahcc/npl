@@ -487,37 +487,6 @@ public:
 
 
 private:
-
-	/**
-	 * @brief Computes the thin-plate spline regulization value and gradient
-	 *
-	 * @param val Output Value
-	 * @param grad Output Gradient
-	 */
-	int thinPlateSpline(double& val, VectorXd& grad);
-
-	/**
-	 * @brief Computes the thin-plate spline regulization value 
-	 *
-	 * @param val Output Value
-	 */
-	int thinPlateSpline(double& val);
-
-	/**
-	 * @brief Computes the sum of the determinant value and gradient
-	 *
-	 * @param val Output Value
-	 * @param grad Output Gradient
-	 */
-	int jacobianDet(double& val, VectorXd& grad);
-
-	/**
-	 * @brief Computes the sum of the jacobian determinant value 
-	 *
-	 * @param val Output Value
-	 */
-	int jacobianDet(double& val);
-
 	/**
 	 * @brief Computes the metric value and gradient
 	 *
@@ -827,11 +796,14 @@ int information3DDerivTest(double step, double tol,
  * @param tol Tolerance in error between analytical and Numeric gratient
  * @param in1 Image 1
  * @param in2 Image 2
+ * @param regj Jackobian weight 
+ * @param regt Thin-plate-spline weight
  *
  * @return 0 if success, -1 if failure
  */
 int distcorDerivTest(double step, double tol,
-		shared_ptr<const MRImage> in1, shared_ptr<const MRImage> in2);
+		shared_ptr<const MRImage> in1, shared_ptr<const MRImage> in2,
+		double regj = 0, double regt = 0);
 
 /**
  * @brief Prints a rigid transform
