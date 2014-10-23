@@ -1906,116 +1906,6 @@ protected:
  * BSpline
  ***************************************************************************/
 
-
-/******************************************************************************
- * When Computing Energy for B-Spline, we need the convolution of lagged knots
- * so this function precomputes these then saves the result in a cached form.
- * To access the cache simply provide the two offsets to bconv, dbconv, and
- * ddbconv:
- *
- * bconv(-2,1);
- * Example (AA'):
- *
- *    sum = 0;
- *    for(int pp = -2; pp <= 2; pp++) { 
- *    	for(int qq = -2; qq <= 2; qq++) { 
- *    		for(int rr = -2; rr <= 2; rr++) { 
- *    			for(int tt = -2; tt <= 2; tt++) { 
- *    				for(int uu = -2; uu <= 2; uu++) { 
- *    					for(int vv = -2; vv <= 2; vv++) { 
- *    						double phi = knots[ll+pp+tt][mm+qq+uu][nn+rr+vv];
- *    						sum += phi*ddbconv(pp, tt)*bconv(qq, uu)*bconv(rr, vv);
- *    					}
- *    				}
- *    			}
- *    		}
- *    	}
- *    }
- *
- *Example (DD'): 
- *
- *    sum = 0;
- *    for(double xx = 2; xx < 6; xx += res) {
- *    	cout << xx;
- *    	for(double yy = 2; yy < 6; yy += res) {
- *    		for(double zz = 2; zz < 6; zz += res) {
- *    			double bl = B3kern(ll - xx);
- *    			double bm = dB3kern(mm - yy);
- *    			double bn = dB3kern(nn - zz);
- *    			int iim = round(xx);
- *    			int jjm = round(yy);
- *    			int kkm = round(zz);
- *    			for(int ii = iim - 2; ii <= iim + 2; ii++) {
- *    				if(ii < 0 || ii >= 9)
- *    					continue;
- *    				for(int jj = jjm - 2; jj <= jjm + 2; jj++) {
- *    					if(jj < 0 || jj >= 9)
- *    						continue;
- *    					for(int kk = kkm - 2; kk <= kkm + 2; kk++) {
- *    						if(kk < 0 || kk >= 9)
- *    							continue;
- *    						double phi_abc = knots[ii][jj][kk];
- *    						double bx = B3kern(ii - xx);
- *    						double by = dB3kern(jj - yy);
- *    						double bz = dB3kern(kk - zz);
- *    						sum += phi_abc*bx*by*bz*bl*bm*bn;
- *    					}
- *    				}
- *    			}
- *    		}
- *    	}
- *    }
- */
-
-
-//This is needed for the derivative of a regularization term
-//this function (U) is discussed in docs/bspline/fmri_dist_correct_2013-12-06.pdf
-//Equations 63, 64, 65
-class VConv 
-{
-	public:
-	VConv(int deriv = 0, double dalpha = 0.001)
-	{
-		double(*foo)(double) = NULL;
-		switch(deriv) {
-			case 2:
-				foo = ddB3kern;
-				break;
-			case 1:
-				foo = dB3kern;
-				break;
-			default:
-			case 0:
-				foo = B3kern;
-				break;
-		}
-
-		for(int tt = -2 ; tt <= 2; tt++) {
-			for(int pp = -2 ; pp <= 2; pp++) {
-				double sum = 0;
-				for(double alpha = -0.5; alpha < 0.5; alpha += dalpha) {
-					sum += foo(tt-alpha)*foo(pp-alpha);
-				}
-				m_mat[tt+2][pp+2] = sum*dalpha;
-			}
-		}
-
-	};
-
-	double m_mat[5][5];
-	const double& operator()(int tt, int pp) const
-	{
-		assert(tt <= 2 && tt >= -2);
-		assert(pp <= 2 && pp >= -2);
-		return m_mat[tt+2][pp+2];
-	}
-};
-
-const VConv vConv(0, 0.0001);
-const VConv dvConv(1, 0.0001);
-const VConv ddvConv(2, 0.0001);
-
-
 /**
  * @brief This is a specialized viewer for computing the value of a cubic
  * B-Spline interpolation from the parameters. Thus the input to the
@@ -2326,300 +2216,312 @@ public:
 		return out;
 	};
 
-//	double thinPlateEnergy()
-//	{
-//		//iterate over the knots
-//		itk::NeighborhoodIterator<ImageT>::RadiusType radius;
-//		for(int ii = 0 ; ii < ImageT::ImageDimension ; ii++)
-//			radius[ii] = 2;
-//
-//		auto space = m_deform->GetSpacing();
-//
-//		double dphi2_dx2 = 0;
-//		double dphi2_dy2 = 0;
-//		double dphi2_dz2 = 0;
-//		double dphi2_dxz = 0;
-//		double dphi2_dxy = 0;
-//		double dphi2_dyz = 0;
-//		itk::NeighborhoodIterator<KnotT> dit(radius, m_deform, m_deform->GetRequestedRegion());
-//		KnotT::OffsetType off;
-//
-//		//integrate over all the knots
-//		dit.GoToBegin();
-//		while(!dit.IsAtEnd()) {
-//			for(int aa = -2; aa <= 2; aa++) { 
-//				for(int bb = -2; bb <= 2; bb++) { 
-//					for(int cc = -2; cc <= 2; cc++) { 
-//						for(int tt = -2; tt <= 2; tt++) { 
-//							for(int uu = -2; uu <= 2; uu++) { 
-//								for(int vv = -2; vv <= 2; vv++) { 
-//									double phi = 1;
-//									off[0] = tt;
-//									off[1] = uu;
-//									off[2] = vv;
-//									phi *= dit.GetPixel(off);
-//									off[0] = aa;
-//									off[1] = bb;
-//									off[2] = cc;
-//									phi *= dit.GetPixel(off);
-//									dphi2_dx2 += phi*ddvConv(aa, tt)*vConv(bb, uu)*vConv(cc, vv);
-//									dphi2_dy2 += phi*vConv(aa, tt)*ddvConv(bb, uu)*vConv(cc, vv);
-//									dphi2_dz2 += phi*vConv(aa, tt)*vConv(bb, uu)*ddvConv(cc, vv);
-//									dphi2_dxy += phi*dvConv(aa, tt)*dvConv(bb, uu)*vConv(cc, vv);
-//									dphi2_dyz += phi*vConv(aa, tt)*dvConv(bb, uu)*dvConv(cc, vv);
-//									dphi2_dxz += phi*dvConv(aa, tt)*vConv(bb, uu)*dvConv(cc, vv);
-//								}
-//							}
-//						}
-//					}
-//				}
-//			}
-//
-//			++dit;
-//		}
-//
-//		return  dphi2_dx2/pow(space[0],4) + 
-//			dphi2_dy2/pow(space[1],4) + 
-//			dphi2_dz2/pow(space[2],4) + 
-//			2*dphi2_dxy/(pow(space[0],2)*pow(space[1],2)) + 
-//			2*dphi2_dxz/(pow(space[0],2)*pow(space[2],2)) +
-//			2*dphi2_dyz/(pow(space[1],2)*pow(space[2],2));
-//	}
-//
-//	double thinPlateEnergy(double* grad)
-//	{
-//		assert(m_gradR->GetSpacing() == m_deform->GetSpacing());
-//		assert(m_gradR->GetDirection() == m_deform->GetDirection());
-//		assert(m_gradR->GetRequestedRegion() == m_deform->GetRequestedRegion());
-//
-//		//iterate over the knots
-//		itk::NeighborhoodIterator<ImageT>::RadiusType radius;
-//		for(int ii = 0 ; ii < ImageT::ImageDimension ; ii++)
-//			radius[ii] = 4;
-//
-//		auto space = m_deform->GetSpacing();
-//
-//		double tmp_dphi2_dx2 = 0;
-//		double tmp_dphi2_dy2 = 0;
-//		double tmp_dphi2_dz2 = 0;
-//		double tmp_dphi2_dxz = 0;
-//		double tmp_dphi2_dxy = 0;
-//		double tmp_dphi2_dyz = 0;
-//
-//		double dphi2_dx2 = 0;
-//		double dphi2_dy2 = 0;
-//		double dphi2_dz2 = 0;
-//		double dphi2_dxz = 0;
-//		double dphi2_dxy = 0;
-//		double dphi2_dyz = 0;
-//		double reg = 0;
-//
-//		itk::NeighborhoodIterator<KnotT> dit(radius, m_deform, m_deform->GetRequestedRegion());
-//		KnotT::OffsetType off = {{0, 0, 0}};
-//
-//		itk::ImageRegionIterator<KnotT> grit(m_gradR, m_gradR->GetRequestedRegion());
-//		dit.GoToBegin();
-//		grit.GoToBegin();
-//
-//		//integrate over all the knots
-//		while(!grit.IsAtEnd() && !dit.IsAtEnd()) {
-//			//sum over the surrounding knots
-//			tmp_dphi2_dx2 = 0;
-//			tmp_dphi2_dy2 = 0;
-//			tmp_dphi2_dz2 = 0;
-//			tmp_dphi2_dxz = 0;
-//			tmp_dphi2_dxy = 0;
-//			tmp_dphi2_dyz = 0;
-//			//sum over the surrounding knots 
-//			for(int aa = -2; aa <= 2; aa++) { 
-//				for(int bb = -2; bb <= 2; bb++) { 
-//					for(int cc = -2; cc <= 2; cc++) { 
-//						for(int tt = -2; tt <= 2; tt++) { 
-//							for(int uu = -2; uu <= 2; uu++) { 
-//								for(int vv = -2; vv <= 2; vv++) { 
-//									double phi = 0;
-//									off[0] = tt-aa;
-//									off[1] = uu-bb;
-//									off[2] = vv-cc;
-//									phi += dit.GetPixel(off);
-//									off[0] = aa-tt;
-//									off[1] = bb-uu;
-//									off[2] = cc-vv;
-//									phi += dit.GetPixel(off);
-//									tmp_dphi2_dx2 += phi*ddvConv(aa, tt)*vConv(bb, uu)*vConv(cc, vv);
-//									tmp_dphi2_dy2 += phi*vConv(aa, tt)*ddvConv(bb, uu)*vConv(cc, vv);
-//									tmp_dphi2_dz2 += phi*vConv(aa, tt)*vConv(bb, uu)*ddvConv(cc, vv);
-//									tmp_dphi2_dxy += phi*dvConv(aa, tt)*dvConv(bb, uu)*vConv(cc, vv);
-//									tmp_dphi2_dyz += phi*vConv(aa, tt)*dvConv(bb, uu)*dvConv(cc, vv);
-//									tmp_dphi2_dxz += phi*dvConv(aa, tt)*vConv(bb, uu)*dvConv(cc, vv);
-//
-//									phi = 1;
-//									off[0] = tt;
-//									off[1] = uu;
-//									off[2] = vv;
-//									phi *= dit.GetPixel(off);
-//									off[0] = aa;
-//									off[1] = bb;
-//									off[2] = cc;
-//									phi *= dit.GetPixel(off);
-//									dphi2_dx2 += phi*ddvConv(aa, tt)*vConv(bb, uu)*vConv(cc, vv);
-//									dphi2_dy2 += phi*vConv(aa, tt)*ddvConv(bb, uu)*vConv(cc, vv);
-//									dphi2_dz2 += phi*vConv(aa, tt)*vConv(bb, uu)*ddvConv(cc, vv);
-//									dphi2_dxy += phi*dvConv(aa, tt)*dvConv(bb, uu)*vConv(cc, vv);
-//									dphi2_dyz += phi*vConv(aa, tt)*dvConv(bb, uu)*dvConv(cc, vv);
-//									dphi2_dxz += phi*dvConv(aa, tt)*vConv(bb, uu)*dvConv(cc, vv);
-//								}
-//							}
-//						}
-//					}
-//				}
-//			}
-//
-//			reg = tmp_dphi2_dx2/pow(space[0],4) + 
-//				tmp_dphi2_dy2/pow(space[1],4) + 
-//				tmp_dphi2_dz2/pow(space[2],4) + 
-//				2*tmp_dphi2_dxy/(pow(space[0],2)*pow(space[1],2)) + 
-//				2*tmp_dphi2_dxz/(pow(space[0],2)*pow(space[2],2)) +
-//				2*tmp_dphi2_dyz/(pow(space[1],2)*pow(space[2],2));
-//			grit.Set(reg);
-//			++dit;
-//			++grit;
-//		}
-//
-//		return  dphi2_dx2/pow(space[0],4) + 
-//			dphi2_dy2/pow(space[1],4) + 
-//			dphi2_dz2/pow(space[2],4) + 
-//			2*dphi2_dxy/(pow(space[0],2)*pow(space[1],2)) + 
-//			2*dphi2_dxz/(pow(space[0],2)*pow(space[2],2)) +
-//			2*dphi2_dyz/(pow(space[1],2)*pow(space[2],2));
-//	}
-//
-//	/**
-//	 * @brief Computes the regularization term by integrating over the
-//	 * entire space for each knot. Thankfully integrals can be pre-computed
-//	 * (vConv, dvConv, ddvConv). See equations 66-71 in 
-//	 * docs/bspline/fmri_dist_correct_2013-12-06.pdf
-//	 *
-//	 * @return regularization value
-//	 */
-//	double BSplineDeform::computeJacobianReg()
-//	{
-//		//iterate over the knots
-//		itk::NeighborhoodIterator<ImageT>::RadiusType radius;
-//		for(int ii = 0 ; ii < ImageT::ImageDimension ; ii++)
-//			radius[ii] = 2;
-//
-//		auto space = m_deform->GetSpacing();
-//
-//		itk::NeighborhoodIterator<KnotT> dit(radius, m_deform, m_deform->GetRequestedRegion());
-//		dit.GoToBegin();
-//		KnotT::OffsetType off;
-//		double reg = 0;
-//		//integrate over all the knots
-//		while(!dit.IsAtEnd()) {
-//			//sum over the surrounding knots
-//			for(int aa = -2; aa <= 2; aa++) { 
-//				for(int bb = -2; bb <= 2; bb++) { 
-//					for(int cc = -2; cc <= 2; cc++) { 
-//						for(int tt = -2; tt <= 2; tt++) { 
-//							for(int uu = -2; uu <= 2; uu++) { 
-//								for(int vv = -2; vv <= 2; vv++) { 
-//									double phi = 1;
-//									off[0] = tt;
-//									off[1] = uu;
-//									off[2] = vv;
-//									phi *= dit.GetPixel(off);
-//									off[0] = aa;
-//									off[1] = bb;
-//									off[2] = cc;
-//									phi *= dit.GetPixel(off);
-//									if(m_dir == 0) 
-//										reg += phi*dvConv(aa, tt)*vConv(bb, uu)*vConv(cc, vv);
-//									else if(m_dir == 1) 
-//										reg += phi*vConv(aa, tt)*dvConv(bb, uu)*vConv(cc, vv);
-//									else if(m_dir == 2)
-//										reg += phi*vConv(aa, tt)*vConv(bb, uu)*dvConv(cc, vv);
-//								}
-//							}
-//						}
-//					}
-//				}
-//			}
-//			++dit;
-//		}
-//
-//		return  reg/pow(space[m_dir],2);
-//	}
-//
-//	/**
-//	 * @brief Computes the gradient of regularization for each of the knots.
-//	 * Thankfully integrals can be pre-computed
-//	 * (uConv, duConv, dduConv). See equations 54-59 in 
-//	 * docs/bspline/fmri_dist_correct_2013-12-06.pdf
-//	 *
-//	 * @param output gradient of each parameter with respect to the deform 
-//	 * 			regularization
-//	 */
-//	void BSplineDeform::computeJacobianRegGrad()
-//	{
-//		assert(m_gradJ->GetSpacing() == m_deform->GetSpacing());
-//		assert(m_gradJ->GetDirection() == m_deform->GetDirection());
-//		assert(m_gradJ->GetRequestedRegion() == m_deform->GetRequestedRegion());
-//
-//		//iterate over the knots
-//		itk::NeighborhoodIterator<ImageT>::RadiusType radius;
-//		for(int ii = 0 ; ii < ImageT::ImageDimension ; ii++)
-//			radius[ii] = 4;
-//
-//		auto space = m_deform->GetSpacing();
-//
-//		double dreg = 0;
-//
-//		itk::NeighborhoodIterator<KnotT> dit(radius, m_deform, m_deform->GetRequestedRegion());
-//		KnotT::OffsetType off = {{0, 0, 0}};
-//
-//		itk::ImageRegionIterator<KnotT> grit(m_gradJ, m_gradJ->GetRequestedRegion());
-//		dit.GoToBegin();
-//		grit.GoToBegin();
-//
-//		//integrate over all the knots
-//		while(!grit.IsAtEnd() && !dit.IsAtEnd()) {
-//			dreg = 0;
-//			//sum over the surrounding knots 
-//			for(int aa = -2; aa <= 2; aa++) { 
-//				for(int bb = -2; bb <= 2; bb++) { 
-//					for(int cc = -2; cc <= 2; cc++) { 
-//						for(int tt = -2; tt <= 2; tt++) { 
-//							for(int uu = -2; uu <= 2; uu++) { 
-//								for(int vv = -2; vv <= 2; vv++) { 
-//									double phi = 0;
-//									off[0] = aa-tt;
-//									off[1] = bb-uu;
-//									off[2] = cc-vv;
-//									phi += dit.GetPixel(off);
-//									off[0] = tt-aa;
-//									off[1] = uu-bb;
-//									off[2] = vv-cc;
-//									phi += dit.GetPixel(off);
-//									if(m_dir == 0)
-//										dreg += phi*dvConv(aa,tt)*vConv(bb,uu)*vConv(cc,vv);
-//									else if(m_dir == 1)
-//										dreg += phi*vConv(aa,tt)*dvConv(bb,uu)*vConv(cc,vv);
-//									else if(m_dir == 2)
-//										dreg += phi*vConv(aa,tt)*vConv(bb,uu)*dvConv(cc,vv);
-//								}
-//							}
-//						}
-//					}
-//				}
-//			}
-//
-//			dreg = dreg/pow(space[m_dir],2);
-//			grit.Set(dreg);
-//			++dit;
-//			++grit;
-//		}
-//	}
+	double thinPlateEnergy()
+	{
+		using std::pow;
+
+		auto params = getParams();
+		assert(params->ndim() == 3);
+	
+		double dphi2_dx2 = 0;
+		double dphi2_dy2 = 0;
+		double dphi2_dz2 = 0;
+		double dphi2_dxz = 0;
+		double dphi2_dxy = 0;
+		double dphi2_dyz = 0;
+
+		// We use NN interpolator because it is fast and handles boundary 
+		// conditions
+		NNInterpNDView<double> dvw(params);
+		double ind1[3];
+		double ind2[3];
+
+		// Create a counter to iterate over [0,4] ie [-2,2] in 6 directions
+		Counter<int, 6> counter;
+		for(size_t dd=0; dd<6;dd++)
+			counter.sz[dd] = 5;
+
+		//integrate over all the knots
+		Counter<int, 3> it(3, params->dim());
+		do {	
+			do {
+				double phi = 1;
+				double Vat   = vConv  [counter.pos[0]][counter.pos[3]];
+				double Vbu   = vConv  [counter.pos[1]][counter.pos[4]];
+				double Vcv   = vConv  [counter.pos[2]][counter.pos[5]];
+				double dVat  = dvConv [counter.pos[0]][counter.pos[3]];
+				double dVbu  = dvConv [counter.pos[1]][counter.pos[4]];
+				double dVcv  = dvConv [counter.pos[2]][counter.pos[5]];
+				double ddVat = ddvConv[counter.pos[0]][counter.pos[3]];
+				double ddVbu = ddvConv[counter.pos[1]][counter.pos[4]];
+				double ddVcv = ddvConv[counter.pos[2]][counter.pos[5]];
+
+				for(size_t dd=0; dd<3; dd++) {
+					ind1[dd] = it.pos[dd] + counter.pos[dd] - 2;
+					ind2[dd] = it.pos[dd] + counter.pos[dd+3] - 2;
+				}
+				phi = dvw.get(3, ind1)*dvw.get(3, ind2);
+				
+				dphi2_dx2 += phi*ddVat*Vbu*Vcv;
+				dphi2_dy2 += phi*Vat*ddVbu*Vcv;
+				dphi2_dz2 += phi*Vat*Vbu*ddVcv;
+				dphi2_dxy += phi*dVat*dVbu*Vcv;
+				dphi2_dyz += phi*Vat*dVbu*dVcv;
+				dphi2_dxz += phi*dVat*Vbu*dVcv;
+			} while(counter.advance());
+		} while(it.advance());
+
+		return  dphi2_dx2/pow(params->spacing(0),4) +
+			dphi2_dy2/pow(params->spacing(1),4) +
+			dphi2_dz2/pow(params->spacing(2),4) +
+			2*dphi2_dxy/(pow(params->spacing(0),2)*pow(params->spacing(1),2)) +
+			2*dphi2_dxz/(pow(params->spacing(0),2)*pow(params->spacing(2),2)) +
+			2*dphi2_dyz/(pow(params->spacing(1),2)*pow(params->spacing(2),2));
+	};
+
+	double thinPlateGradEnergy(size_t len, double* grad)
+	{
+		using std::pow;
+
+		auto params = getParams();
+		assert(len == params->elements());
+		assert(params->ndim() == 3);
+	
+		double dphi2_dx2 = 0;
+		double dphi2_dy2 = 0;
+		double dphi2_dz2 = 0;
+		double dphi2_dxz = 0;
+		double dphi2_dxy = 0;
+		double dphi2_dyz = 0;
+		double reg = 0;
+
+		NNInterpNDView<double> dvw(params);
+		double ind1[3];
+		double ind2[3];
+
+		// Create a counter to iterate over [0,4] ie [-2,2] in 6 directions
+		Counter<int, 6> counter;
+		for(size_t dd=0; dd<6;dd++)
+			counter.sz[dd] = 5;
+
+		//integrate over all the knots
+		Counter<int, 3> it(3, params->dim());
+		int ii = 0;
+		do {
+			double tmp_dphi2_dx2 = 0;
+			double tmp_dphi2_dy2 = 0;
+			double tmp_dphi2_dz2 = 0;
+			double tmp_dphi2_dxz = 0;
+			double tmp_dphi2_dxy = 0;
+			double tmp_dphi2_dyz = 0;
+			do {
+				double phi = 0;
+				double Vat   = vConv  [counter.pos[0]][counter.pos[3]];
+				double Vbu   = vConv  [counter.pos[1]][counter.pos[4]];
+				double Vcv   = vConv  [counter.pos[2]][counter.pos[5]];
+				double dVat  = dvConv [counter.pos[0]][counter.pos[3]];
+				double dVbu  = dvConv [counter.pos[1]][counter.pos[4]];
+				double dVcv  = dvConv [counter.pos[2]][counter.pos[5]];
+				double ddVat = ddvConv[counter.pos[0]][counter.pos[3]];
+				double ddVbu = ddvConv[counter.pos[1]][counter.pos[4]];
+				double ddVcv = ddvConv[counter.pos[2]][counter.pos[5]];
+
+				// Variables to Compute the Value
+				for(size_t dd=0; dd<3; dd++) {
+					ind1[dd] = it.pos[dd] + counter.pos[dd] - 2;
+					ind2[dd] = it.pos[dd] + counter.pos[dd+3] - 2;
+				}
+				phi = dvw.get(3, ind1)*dvw.get(3, ind2);
+				
+				dphi2_dx2 += phi*ddVat*Vbu*Vcv;
+				dphi2_dy2 += phi*Vat*ddVbu*Vcv;
+				dphi2_dz2 += phi*Vat*Vbu*ddVcv;
+				dphi2_dxy += phi*dVat*dVbu*Vcv;
+				dphi2_dyz += phi*Vat*dVbu*dVcv;
+				dphi2_dxz += phi*dVat*Vbu*dVcv;
+
+				// Variables to Compute the Derivative
+				for(size_t dd=0; dd<3; dd++) {
+					ind1[dd] = it.pos[dd] + counter.pos[dd] - counter.pos[dd+3];
+					ind2[dd] = it.pos[dd] + counter.pos[dd+3] - counter.pos[dd];
+				}
+				phi = dvw.get(3, ind1)+dvw.get(3, ind2);
+				
+				tmp_dphi2_dx2 += phi*ddVat*Vbu*Vcv;
+				tmp_dphi2_dy2 += phi*Vat*ddVbu*Vcv;
+				tmp_dphi2_dz2 += phi*Vat*Vbu*ddVcv;
+				tmp_dphi2_dxy += phi*dVat*dVbu*Vcv;
+				tmp_dphi2_dyz += phi*Vat*dVbu*dVcv;
+				tmp_dphi2_dxz += phi*dVat*Vbu*dVcv;
+
+			} while(counter.advance());
+
+			reg = tmp_dphi2_dx2/pow(params->spacing(0),4) + 
+				tmp_dphi2_dy2/pow(params->spacing(1),4) + 
+				tmp_dphi2_dz2/pow(params->spacing(2),4) + 
+				2*tmp_dphi2_dxy/(pow(params->spacing(0),2)*pow(params->spacing(1),2)) +
+				2*tmp_dphi2_dxz/(pow(params->spacing(0),2)*pow(params->spacing(2),2)) +
+				2*tmp_dphi2_dyz/(pow(params->spacing(1),2)*pow(params->spacing(2),2));
+			grad[ii++] = reg;
+		} while(it.advance());
+
+		return  dphi2_dx2/pow(params->spacing(0),4) +
+			dphi2_dy2/pow(params->spacing(1),4) +
+			dphi2_dz2/pow(params->spacing(2),4) +
+			2*dphi2_dxy/(pow(params->spacing(0),2)*pow(params->spacing(1),2)) +
+			2*dphi2_dxz/(pow(params->spacing(0),2)*pow(params->spacing(2),2)) +
+			2*dphi2_dyz/(pow(params->spacing(1),2)*pow(params->spacing(2),2));
+	};
+
+	/**
+	 * @brief Computes the regularization term by integrating over the
+	 * entire space for each knot. Thankfully integrals can be pre-computed
+	 * (vConv, dvConv, ddvConv). See equations 66-71 in 
+	 * docs/bspline/fmri_dist_correct_2013-12-06.pdf
+	 *
+	 * @return regularization value
+	 */
+	double computeJacobianReg(int dir)
+	{
+		using std::pow;
+
+		auto params = getParams();
+		assert(params->ndim() == 3);
+	
+		// We use NN interpolator because it is fast and handles boundary 
+		// conditions
+		NNInterpNDView<double> dvw(params);
+		double ind1[3];
+		double ind2[3];
+		double reg = 0;
+
+		// Create a counter to iterate over [0,4] ie [-2,2] in 6 directions
+		Counter<int, 6> counter;
+		for(size_t dd=0; dd<6;dd++)
+			counter.sz[dd] = 5;
+
+		//integrate over all the knots
+		Counter<int, 3> it(3, params->dim());
+		do {	
+			do {
+				for(size_t dd=0; dd<3; dd++) {
+					ind1[dd] = it.pos[dd] + counter.pos[dd] - 2;
+					ind2[dd] = it.pos[dd] + counter.pos[dd+3] - 2;
+				}
+				double phi = dvw.get(3, ind1)*dvw.get(3, ind2);
+
+				switch(dir) {
+				case 0:
+					reg += phi*
+						dvConv[counter.pos[0]][counter.pos[3]];
+						 vConv[counter.pos[1]][counter.pos[4]]*
+						 vConv[counter.pos[2]][counter.pos[5]];
+				break;
+				case 1:
+					reg += phi*
+						 vConv[counter.pos[0]][counter.pos[3]]*
+						dvConv[counter.pos[1]][counter.pos[4]]*
+						 vConv[counter.pos[2]][counter.pos[5]];
+				break;
+				case 2:
+					reg += phi*
+						 vConv[counter.pos[0]][counter.pos[3]]*
+						 vConv[counter.pos[1]][counter.pos[4]]*
+						dvConv[counter.pos[2]][counter.pos[5]];
+				break;
+				}
+			} while(counter.advance());
+		} while(it.advance());
+
+		return reg/pow(params->spacing(dir),2);
+	};
+
+	/**
+	 * @brief Computes the gradient of regularization for each of the knots.
+	 * Thankfully integrals can be pre-computed
+	 * (uConv, duConv, dduConv). See equations 54-59 in 
+	 * docs/bspline/fmri_dist_correct_2013-12-06.pdf
+	 *
+	 * @param output gradient of each parameter with respect to the deform 
+	 * 			regularization
+	 */
+	double computeJacobianRegGrad(int dir, size_t len, double* grad)
+	{
+		using std::pow;
+
+		auto params = getParams();
+		assert(params->ndim() == 3);
+		assert(len == params->elements());
+		
+		// We use NN interpolator because it is fast and handles boundary 
+		// conditions
+		NNInterpNDView<double> dvw(params);
+		double ind1[3];
+		double ind2[3];
+
+		// Create a counter to iterate over [0,4] ie [-2,2] in 6 directions
+		Counter<int, 6> counter;
+		for(size_t dd=0; dd<6;dd++)
+			counter.sz[dd] = 5;
+
+		//integrate over all the knots
+		Counter<int, 3> it(3, params->dim());
+		
+		double reg = 0;
+		size_t ii=0;
+		do {
+			double dreg = 0;
+			do {
+				double phi = 1;
+				double dphi = 1;
+				
+				for(size_t dd=0; dd<3; dd++) {
+					ind1[dd] = it.pos[dd] + counter.pos[dd+3] - counter.pos[dd];
+					ind2[dd] = it.pos[dd] + counter.pos[dd] - counter.pos[dd+3];
+				}
+				phi = dvw.get(3, ind1)*dvw.get(3, ind2);
+				dphi = dvw.get(3, ind1)+dvw.get(3, ind2);
+
+				switch(dir) {
+					case 0:
+						reg += phi*
+							dvConv[counter.pos[0]][counter.pos[3]]*
+							 vConv[counter.pos[1]][counter.pos[4]];
+							 vConv[counter.pos[2]][counter.pos[5]];
+						dreg += dphi*
+							dvConv[counter.pos[0]][counter.pos[3]]*
+							 vConv[counter.pos[1]][counter.pos[4]];
+							 vConv[counter.pos[2]][counter.pos[5]];
+					break;
+					case 1:
+						reg += phi*
+							 vConv[counter.pos[0]][counter.pos[3]]*
+							dvConv[counter.pos[1]][counter.pos[4]]*
+							 vConv[counter.pos[2]][counter.pos[5]];
+						dreg += dphi*
+							 vConv[counter.pos[0]][counter.pos[3]]*
+							dvConv[counter.pos[1]][counter.pos[4]]*
+							 vConv[counter.pos[2]][counter.pos[5]];
+					break;
+					case 2:
+						reg += phi*
+							 vConv[counter.pos[0]][counter.pos[3]]*
+							 vConv[counter.pos[1]][counter.pos[4]]*
+							dvConv[counter.pos[2]][counter.pos[5]];
+						dreg += dphi*
+							 vConv[counter.pos[0]][counter.pos[3]]*
+							 vConv[counter.pos[1]][counter.pos[4]]*
+							dvConv[counter.pos[2]][counter.pos[5]];
+					break;
+				}
+			} while(counter.advance());
+
+			
+			grad[ii++] = dreg/pow(params->spacing(dir),2);
+		} while(it.advance());
+
+		return reg/pow(params->spacing(dir),2);
+	};
 
 	/**
 	 * @brief Return the parameter image.
@@ -2640,6 +2542,25 @@ public:
 	 * than indexes. Default is false
 	 */
 	bool m_ras;
+
+	double vConv[5][5] = {
+		{0.000031001984126984125,0.0010788690476190477,0.0013950892857142857,0.0000992063492063492,0.},
+		{0.0010788690476190477,0.058643353174603174,0.11707589285714286,0.02101934523809524,0.0000992063492063492},
+		{0.0013950892857142857,0.11707589285714286,0.362016369047619,0.11707589285714286,0.0013950892857142857},
+		{0.0000992063492063492,0.02101934523809524,0.11707589285714286,0.058643353174603174,0.0010788690476190477},
+		{0.,0.0000992063492063492,0.0013950892857142857,0.0010788690476190477,0.000031001984126984125}};
+	double dvConv[5][5] = {
+		{0.0015625,0.013541666666666667,-0.0109375,-0.004166666666666667,0.},
+		{0.013541666666666667,0.24479166666666666,-0.07604166666666666,-0.178125,-0.004166666666666667},
+		{-0.0109375,-0.07604166666666666,0.17395833333333333,-0.07604166666666666,-0.0109375},
+		{-0.004166666666666667,-0.178125,-0.07604166666666666,0.24479166666666666,0.013541666666666667},
+		{0.,-0.004166666666666667,-0.0109375,0.013541666666666667,0.0015625}};
+	double ddvConv[5][5] = {
+		{0.041666666666666664,0.,-0.125,0.08333333333333333,0.},
+		{0.,0.4166666666666667,-0.75,0.25,0.08333333333333333},
+		{-0.125,-0.75,1.75,-0.75,-0.125},
+		{0.08333333333333333,0.25,-0.75,0.4166666666666667,0.},
+		{0.,0.08333333333333333,-0.125,0.,0.041666666666666664}};
 };
 
 /**
