@@ -119,6 +119,7 @@ try {
 	 *************************************************************************/
 
 	// fixed image
+	cout << "Reading Inputs...";
 	ptr<MRImage> fixed = readMRImage(a_fixed.getValue());
 	fixed = dPtrCast<MRImage>(fixed->copyCast(min(fixed->ndim(),3UL), 
 				fixed->dim(), FLOAT32));
@@ -127,6 +128,7 @@ try {
 	ptr<MRImage> in_moving = readMRImage(a_moving.getValue());
 	auto moving = dPtrCast<MRImage>(fixed->createAnother());
 
+	cout << "Done\nPutting Moving Image into Fixed Space...";
 	vector<int64_t> ind(fixed->ndim());
 	vector<double> point(fixed->ndim());
 	LanczosInterpNDView<double> interp(in_moving);
@@ -137,7 +139,7 @@ try {
 		moving->indexToPoint(ind.size(), ind.data(), point.data());
 		mit.set(interp.get(point));
 	}
-	//	moving->write("resampled.nii.gz");
+	moving->write("resampled.nii.gz");
 
 	// set up sigmas
 	vector<double> sigmas({3,1.5,0});
@@ -149,12 +151,16 @@ try {
 	 */
 	Rigid3DTrans rigid;
 	if(a_metric.getValue() == "COR") {
+		cout << "Done\nRigidly Registering with correlation..." << endl;
 		rigid = correg(fixed, moving, sigmas);
 	} else if(a_metric.getValue() == "MI") {
+		cout << "Done\nRigidly Registering with " << a_metric.getValue() 
+			<< "..." << endl;
 		rigid = inforeg(fixed, moving, sigmas, a_bins.getValue(),
 				a_parzen.getValue(), a_metric.getValue()); 
 	}
 
+	cout << "Finished\nWriting output.";
 	if(a_transform.isSet()) {
 		ofstream ofs(a_transform.getValue().c_str());
 		if(!ofs.is_open()) {
@@ -186,6 +192,7 @@ try {
 			shiftImageKern(in_moving, dd, rigid.shift[dd]);
 		in_moving->write(a_out.getValue());
 	}
+	cout << "Done" << endl;
 
 } catch (TCLAP::ArgException &e)  // catch any exceptions
 { std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
@@ -201,7 +208,7 @@ Rigid3DTrans correg(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 	rigid.rotation.setZero();
 	rigid.shift.setZero();
 	rigid.ras_coord = true;
-
+	double met = 0;
 	for(size_t ii=0; ii<sigmas.size(); ii++) {
 		// smooth and downsample input images
 		auto sm_fixed = smoothDownsample(fixed, sigmas[ii]);
@@ -232,7 +239,12 @@ Rigid3DTrans correg(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 
 		// run the optimizer
 		StopReason stopr = opt.optimize();
+		cout << "Sigma: " << sigmas[ii] << endl;
+		vfunc(opt.state_x, met);
+		cout <<"Start Metric: " << met << endl;
 		cerr << Optimizer::explainStop(stopr) << endl;
+		vfunc(opt.state_x, met);
+		cout << "Stop Metric: " << met << endl;
 
 		// set values from parameters, and convert to RAS coordinate so that no
 		// matter the sampling after smoothing the values remain
@@ -258,7 +270,9 @@ Rigid3DTrans inforeg(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 	rigid.rotation.setZero();
 	rigid.shift.setZero();
 
+	double met = 0;
 	for(size_t ii=0; ii<sigmas.size(); ii++) {
+		cout << "Sigma: " << sigmas[ii] << endl;
 		// smooth and downsample input images
 		auto sm_fixed = smoothDownsample(fixed, sigmas[ii]);
 		auto sm_moving = smoothDownsample(moving, sigmas[ii]);
@@ -296,8 +310,13 @@ Rigid3DTrans inforeg(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		}
 
 		// run the optimizer
+		cout << "Sigma: " << sigmas[ii] << endl;
+		vfunc(opt.state_x, met);
+		cout <<"Start Metric: " << met << endl;
 		StopReason stopr = opt.optimize();
 		cerr << Optimizer::explainStop(stopr) << endl;
+		vfunc(opt.state_x, met);
+		cout <<"Stop Metric: " << met << endl;
 
 		// set values from parameters, and convert to RAS coordinate so that no
 		// matter the sampling after smoothing the values remain
