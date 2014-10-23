@@ -60,6 +60,33 @@ namespace npl {
  *
  * @{
  */
+	
+/**
+ * @brief Returns number of interpolation dimensions required to sample 
+ * at the continuous index. If only one off-grid dimension exists then
+ * it is returned in dir and 1 is returned. If more than 1 off-grid
+ * coordinate exists then the first will be returned in dir. If none then 0
+ * will be returned and dir will be set to 0
+ *
+ * @param len Length of index array
+ * @param index Continuous index
+ * @param dir Direction that will need to be interpolated
+ *
+ * @return effective number of interpolation dimensions 
+ */
+static int singledir(size_t len, const double* index, int& dir)
+{
+	dir = 0;
+	size_t ndir = 0;
+	for(size_t dd=0; dd<len; dd++) {
+		if(fabs(round(index[dd])-index[dd]) > 1E-10) {
+			ndir++;
+			dir = dd;
+		}
+	}
+	return ndir;
+};
+
 
 /**
  * @brief This is a basic accessor class, which allows for accessing
@@ -928,12 +955,13 @@ public:
 	 */
 	T get(size_t len, const double* incindex)
 	{
-		// initialize variables
+		// Initialize variables
 		int ndim = this->parent->ndim();
 		assert(ndim <= MAXDIM);
 		const size_t* dim = this->parent->dim();
 		int64_t index[MAXDIM];
 		double cindex[MAXDIM];
+		double weight;
 
 		// convert RAS to index
 		if(m_ras) {
@@ -946,6 +974,29 @@ public:
 				else
 					cindex[dd] = 0;
 			}
+		}
+
+		// If this is an on-grid point then reduce to sampling just 1 or 
+		// two values
+		int dir = 0;
+		int effdir = singledir(len, cindex, dir);
+		if(effdir == 0) {
+			for(size_t dd=0; dd<ndim; dd++)
+				index[dd] = round(cindex[dd]);
+			return this->castget(this->parent->__getAddr(ndim, index));
+		} else if(effdir == 1){
+			for(size_t dd=0; dd<ndim; dd++) {
+				if(dd == dir) 
+					index[dd] = floor(cindex[dd]);
+				else
+					index[dd] = round(cindex[dd]);
+			}
+
+			T a = this->castget(this->parent->__getAddr(ndim, index));
+			index[dir]++;
+			T b = this->castget(this->parent->__getAddr(ndim, index));
+			weight = linKern(index[dir] - cindex[dir]);
+			return (1-weight)*a + weight*b;
 		}
 
 		// compute weighted pixval by iterating over neighbors, which are
@@ -1002,7 +1053,7 @@ public:
 	bool m_ras;
 
 protected:
-
+	
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 * doesn't make sense for interpolation
@@ -1056,6 +1107,8 @@ public:
 		dim[1] = this->parent->ndim() > 1 ? this->parent->dim(1) : 1;
 		dim[2] = this->parent->ndim() > 2 ? this->parent->dim(2) : 1;
 		dim[3] = this->parent->tlen();
+		size_t ndim = 4;
+		double weight = 1;
 
 		// deal with t being outside bounds
 		if(t < 0 || t >= dim[3]) {
@@ -1071,14 +1124,38 @@ public:
 		}
 
 		// initialize variables
-		double cindex[3] = {x,y,z};
-		int64_t index[3];
+		double cindex[4] = {x,y,z,(double)t};
+		int64_t index[4] = {0,0,0,t};
 
 		// convert RAS to cindex
 		if(m_ras) {
 			auto tmp = dPtrCast<const MRImage>(this->parent);
 			tmp->pointToIndex(3, cindex, cindex);
 		}
+		
+		// If this is an on-grid point then reduce to sampling just 1 or 
+		// two values
+		int dir = 0;
+		int effdir = singledir(4, cindex, dir);
+		if(effdir == 0) {
+			for(size_t dd=0; dd<ndim; dd++)
+				index[dd] = round(cindex[dd]);
+			return this->castget(this->parent->__getAddr(ndim, index));
+		} else if(effdir == 1){
+			for(size_t dd=0; dd<ndim; dd++) {
+				if(dd == dir) 
+					index[dd] = floor(cindex[dd]);
+				else
+					index[dd] = round(cindex[dd]);
+			}
+
+			T a = this->castget(this->parent->__getAddr(ndim, index));
+			index[dir]++;
+			T b = this->castget(this->parent->__getAddr(ndim, index));
+			weight = linKern(index[dir] - cindex[dir]);
+			return (1-weight)*a + weight*b;
+		}
+
 
 		bool iioutside = false;
 
@@ -1091,7 +1168,7 @@ public:
 			count.sz[dd] = 2;
 
 		do {
-			double weight = 1;
+			weight = 1;
 
 			//set index
 			for(int dd = 0; dd < 3; dd++) {

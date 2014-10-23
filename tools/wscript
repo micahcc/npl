@@ -72,6 +72,10 @@ def build(bld):
 			source = 'remove_regressors.cpp', 
 			use = 'tclap mrimage nplio statistics')
 
+	bld.program(target = 'nplGuessOrient', 
+			source = 'guessorient.cpp', 
+			use = 'tclap utility mrimage nplio eigen')
+
 	bld.program(target = 'nplSelectVolumes', 
 			source = 'extractTimePoints.cpp', 
 			use = 'tclap utility mrimage nplio')

@@ -145,6 +145,11 @@ def build(bld):
 			use='mrimage_utils mrimage accessors iterators')
 
 	bld.program(install_path='${PREFIX}/tests', features='test', 
+			target='img_lin_interp_test5', 
+			source='img_lin_interp_test5.cpp', 
+			use='mrimage_utils')
+
+	bld.program(install_path='${PREFIX}/tests', features='test', 
 			target='img_lanczos_interp_test1', 
 			source='img_lanczos_interp_test1.cpp', 
 			use='mrimage_utils')
