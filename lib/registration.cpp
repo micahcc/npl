@@ -151,6 +151,10 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
  *
  * @param fixed     Image which will be the target of registration.
  * @param moving    Image which will be rotated then shifted to match fixed.
+ * @param sigmas array of standard deviations to use
+ * @param nbins number of bins for estimation of marginal pdf's
+ * @param binrarius Radius of kernel in pdf density estimation
+ * @param metric metric to use (default is MI)
  *
  * @return          4x4 Matrix, indicating rotation about the center then
  *                  shift. Rotation matrix is the first 3x3 and shift is the
@@ -158,7 +162,7 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
  */
 Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
 		shared_ptr<const MRImage> moving, const std::vector<double>& sigmas,
-		size_t nbins, size_t binradius)
+		size_t nbins, size_t binradius, string metric)
 {
 	using namespace std::placeholders;
 	using std::bind;
@@ -182,7 +186,14 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
 		comp.setBins(nbins, binradius);
 		comp.setFixed(sm_fixed);
 		comp.setMoving(sm_moving);
-		comp.m_metric = METRIC_MI;
+
+		if(metric == "MI") 
+			comp.m_metric = METRIC_MI;
+		else if(metric == "NMI") 
+			comp.m_metric = METRIC_NMI;
+		else if(metric == "VI") {
+			comp.m_metric = METRIC_VI;
+		}
 
 		// create value and gradient functions
 		auto vfunc = bind(&RigidInformationComputer::value, &comp, _1, _2);
