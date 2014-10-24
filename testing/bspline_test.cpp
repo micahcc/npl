@@ -72,7 +72,7 @@ int main()
 	for(NDIter<double> it(img); !it.eof(); ++it) {
 		it.index(pt.size(), pt.data());
 		img->indexToPoint(pt.size(), pt.data(), pt.data());
-		it.set((*it)-spline.sample(pt.size(), pt.data()));
+		it.set((*it)-spline.get(pt.size(), pt.data()));
 	}
 	c = clock() - c;
 	cerr << "Sampling Time: " << c << endl;
