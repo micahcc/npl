@@ -355,19 +355,10 @@ class DistortionCorrectionInformationComputer
 public:
 
 	/**
-	 * @brief Constructor for the rigid correlation class. Note that
-	 * rigid rotation is assumed to be about the center of the fixed
-	 * image space.  * If changes are made to the moving image, then call
-	 * reinit() to reinitialize the image derivative.
+	 * @brief Constructor for the distortion correction class. 
 	 *
-	 * @param fixed Fixed image. A copy of this will be made.
-	 * @param moving Moving image. A copy of this will be made.
-	 * minimize negative correlation using a gradient descent).
-	 * @param bins Number of bins during marginal density estimation (joint
-	 *                  with have nbins*nbins)
-	 * @param kernrad During parzen window, the radius of the smoothing kernel
-	 * @param mindiff Whether to use negative correlation (for instance to
-	 * register images)
+	 * @param mindiff Minimize difference? Set to true if you are using
+	 * this for registration
 	 */
 	DistortionCorrectionInformationComputer(bool mindiff);
 
@@ -452,7 +443,7 @@ public:
 	 *
 	 * @param space Spacing between knots, in physical coordinates
 	 */
-	void setKnotSpacing(double space);
+	void initializeKnots(double space);
 
 	/**
 	 * @brief Set the fixed image for registration/comparison
@@ -489,6 +480,12 @@ public:
 	 */
 	ptr<const MRImage> getMoving() { return m_moving; };
 
+	/**
+	 * @brief Returns the current deformation
+	 *
+	 * @return 
+	 */
+	ptr<MRImage> getDeform() { return m_deform; };
 
 private:
 	/**
@@ -556,25 +553,25 @@ private:
 
 	/**
 	 * @brief First 3 Dimensions match dimensions in m_field, last two match
-	 * the dimensios of m_pdfjoint, (initialized by setKnotSpacing/setFixed)
+	 * the dimensios of m_pdfjoint, (initialized by initializeKnots/setFixed)
 	 */
 	MRImageStore<5, double> m_dpdfjoint;
 
 	/**
 	 * @brief First 3 Dimensions match dimensions in m_field, last matches
-	 * m_pdfmove, (initialized by setKnotSpacing/setFixed)
+	 * m_pdfmove, (initialized by initializeKnots/setFixed)
 	 */
 	MRImageStore<4, double> m_dpdfmove;
 
 	/**
 	 * @brief Gradient of joint entropy at each knot. 
-	 * (initialized by setKnotSpacing/setFixed)
+	 * (initialized by initializeKnots/setFixed)
 	 */
 	MRImageStore<3, double> m_gradHjoint;
 
 	/**
 	 * @brief Gradient of marginal entropy at each knot
-	 * (initialized by setKnotSpacing/setFixed)
+	 * (initialized by initializeKnots/setFixed)
 	 */
 	MRImageStore<3, double> m_gradHmove;
 
