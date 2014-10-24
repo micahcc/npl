@@ -105,8 +105,10 @@ int main()
     shiftImageFFT(moved, 1, 7);
     shiftImageFFT(moved, 2, -2);
 
-    if(cor3DDerivTest(0.00001, 0.01, img, moved) != 0)
+    if(cor3DDerivTest(0.1, 0.09, img, moved) != 0) {
+		cerr << "Error too large" << endl;
         return -1;
+	}
     
     return 0;
 }

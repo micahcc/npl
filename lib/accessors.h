@@ -1102,7 +1102,6 @@ public:
 		dim[1] = this->parent->ndim() > 1 ? this->parent->dim(1) : 1;
 		dim[2] = this->parent->ndim() > 2 ? this->parent->dim(2) : 1;
 		dim[3] = this->parent->tlen();
-		size_t ndim = 4;
 
 		// deal with t being outside bounds
 		if(t < 0 || t >= dim[3]) {
@@ -1132,15 +1131,15 @@ public:
 		// dimensions where the values are on grid, and simultaneously round
 		// (so that floor(cindex[dd]) = cindex[dd] = nearest)
 		int dir = 0;
-		int effdir = singledir(4, cindex, dir);
-		Counter<> count(ndim);
+		int effdir = singledir(3, cindex, dir);
+		Counter<> count(3);
 		if(effdir == 0) {
-			for(size_t dd=0; dd<ndim; dd++) {
+			for(size_t dd=0; dd<3; dd++) {
 				count.sz[dd] = 1;
 				cindex[dd] = round(cindex[dd]);
 			}
 		} else if(effdir == 1){
-			for(size_t dd=0; dd<ndim; dd++) {
+			for(size_t dd=0; dd<3; dd++) {
 				if(dd != dir) {
 					index[dd] = round(cindex[dd]);
 					count.sz[dd] = 1;
@@ -1148,7 +1147,7 @@ public:
 					count.sz[dd] = 2;
 			}
 		} else {
-			for(size_t dd=0; dd<ndim; dd++)
+			for(size_t dd=0; dd<3; dd++)
 				count.sz[dd] = 2;
 		}
 

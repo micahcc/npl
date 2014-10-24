@@ -110,8 +110,10 @@ int main()
     for(NDIter<double> it(moved); !it.eof(); ++it) 
         it.set(-it.get());
     
-    if(information3DDerivTest(0.001, 0.001, img, moved) != 0)
+    if(information3DDerivTest(0.1, 0.06, img, moved) != 0) {
+		cerr << "Error too large" << endl;
         return -1;
+	}
     return 0;
 }
 

@@ -393,6 +393,18 @@ double sec(double v)
 }
 
 
+inline
+double degToRad(double rad)
+{
+	return rad*M_PI/180.;
+}
+
+inline
+double radToDeg(double rad)
+{
+	return rad*180./M_PI;
+}
+
 /**
  * @brief Highest order bit
  *
