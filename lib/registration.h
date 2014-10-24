@@ -39,6 +39,10 @@ namespace npl {
  *
  * A computer is needed for every pair of Metric and Transform type.
  *
+ * Note that for rigid computers the state_x variable will store the final
+ * result. The first 3 parameters are the rotation about the X, Y, Z axes, in
+ * degrees. The second 3 will be the shift in X, Y, Z in mm.
+ *
  */
 
 /** @{ */
