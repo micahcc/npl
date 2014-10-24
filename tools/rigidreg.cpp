@@ -167,7 +167,6 @@ try {
 			moving->indexToPoint(ind.size(), ind.data(), point.data());
 			mit.set(interp.get(point));
 		}
-		moving->write("resampled.nii.gz");
 
 		// set up sigmas
 		vector<double> sigmas({3,1.5,0});
@@ -180,10 +179,10 @@ try {
 		if(a_metric.getValue() == "COR") {
 			cout << "Done\nRigidly Registering with correlation..." << endl;
 			rigid = correg(fixed, moving, sigmas);
-		} else if(a_metric.getValue() == "MI") {
+		} else {
 			cout << "Done\nRigidly Registering with " << a_metric.getValue() 
 				<< "..." << endl;
-			rigid = inforeg(fixed, moving, sigmas, a_bins.getValue(),
+			rigid = informationReg3D(fixed, moving, sigmas, a_bins.getValue(),
 					a_parzen.getValue(), a_metric.getValue()); 
 		}
 		cout << "Finished\n.";
@@ -302,75 +301,75 @@ Rigid3DTrans correg(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 	return rigid;
 };
 
-Rigid3DTrans inforeg(ptr<const MRImage> fixed, ptr<const MRImage> moving, 
-		const vector<double>& sigmas, int bins, int rad, string metric)
-{
-	using namespace std::placeholders;
-	using std::bind;
-	Rigid3DTrans rigid;
-	rigid.center.setZero();
-	rigid.rotation.setZero();
-	rigid.shift.setZero();
-
-	double met = 0;
-	for(size_t ii=0; ii<sigmas.size(); ii++) {
-		cout << "Sigma: " << sigmas[ii] << endl;
-		// smooth and downsample input images
-		auto sm_fixed = smoothDownsample(fixed, sigmas[ii]);
-		auto sm_moving = smoothDownsample(moving, sigmas[ii]);
-
-		RigidInformationComputer comp(true);
-		comp.setBins(bins, rad);
-		comp.setFixed(fixed);
-		comp.setMoving(fixed);
-
-		if(metric == "MI") 
-			comp.m_metric = METRIC_MI;
-		else if(metric == "NMI") 
-			comp.m_metric = METRIC_NMI;
-		else if(metric == "VI") {
-			comp.m_metric = METRIC_VI;
-		}
-
-		// create value and gradient functions
-		auto vfunc = bind(&RigidInformationComputer::value, &comp, _1, _2);
-		auto vgfunc = bind(&RigidInformationComputer::valueGrad, &comp, _1, _2, _3);
-		auto gfunc = bind(&RigidInformationComputer::grad, &comp, _1, _2);
-
-		// initialize optimizer
-		LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
-		opt.stop_Its = 10000;
-		opt.stop_X = 0.00001;
-		opt.stop_G = 0;
-		opt.stop_F = 0;
-
-		// grab the parameters from the previous iteration (or initialized)
-		rigid.toIndexCoords(sm_moving, true);
-		for(size_t ii=0; ii<3; ii++) {
-			opt.state_x[ii] = radToDeg(rigid.rotation[ii]);
-			opt.state_x[ii+3] = rigid.shift[ii]*sm_moving->spacing(ii);
-		}
-
-		// run the optimizer
-		cout << "Sigma: " << sigmas[ii] << endl;
-		vfunc(opt.state_x, met);
-		cout <<"Start Metric: " << met << endl;
-		StopReason stopr = opt.optimize();
-		cerr << Optimizer::explainStop(stopr) << endl;
-		vfunc(opt.state_x, met);
-		cout <<"Stop Metric: " << met << endl;
-
-		// set values from parameters, and convert to RAS coordinate so that no
-		// matter the sampling after smoothing the values remain
-		for(size_t ii=0; ii<3; ii++) {
-			rigid.rotation[ii] = degToRad(opt.state_x[ii]);
-			rigid.shift[ii] = opt.state_x[ii+3]/sm_moving->spacing(ii);
-			rigid.center[ii] = (sm_moving->dim(ii)-1)/2.;
-		}
-
-		rigid.toRASCoords(sm_moving);
-	}
-
-	return rigid;
-};
+//Rigid3DTrans inforeg(ptr<const MRImage> fixed, ptr<const MRImage> moving, 
+//		const vector<double>& sigmas, int bins, int rad, string metric)
+//{
+//	using namespace std::placeholders;
+//	using std::bind;
+//	Rigid3DTrans rigid;
+//	rigid.center.setZero();
+//	rigid.rotation.setZero();
+//	rigid.shift.setZero();
+//
+//	double met = 0;
+//	for(size_t ii=0; ii<sigmas.size(); ii++) {
+//		cout << "Sigma: " << sigmas[ii] << endl;
+//		// smooth and downsample input images
+//		auto sm_fixed = smoothDownsample(fixed, sigmas[ii]);
+//		auto sm_moving = smoothDownsample(moving, sigmas[ii]);
+//
+//		RigidInformationComputer comp(true);
+//		comp.setBins(bins, rad);
+//		comp.setFixed(fixed);
+//		comp.setMoving(fixed);
+//
+//		if(metric == "MI") 
+//			comp.m_metric = METRIC_MI;
+//		else if(metric == "NMI") 
+//			comp.m_metric = METRIC_NMI;
+//		else if(metric == "VI") {
+//			comp.m_metric = METRIC_VI;
+//		}
+//
+//		// create value and gradient functions
+//		auto vfunc = bind(&RigidInformationComputer::value, &comp, _1, _2);
+//		auto vgfunc = bind(&RigidInformationComputer::valueGrad, &comp, _1, _2, _3);
+//		auto gfunc = bind(&RigidInformationComputer::grad, &comp, _1, _2);
+//
+//		// initialize optimizer
+//		LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
+//		opt.stop_Its = 10000;
+//		opt.stop_X = 0.00001;
+//		opt.stop_G = 0;
+//		opt.stop_F = 0;
+//
+//		// grab the parameters from the previous iteration (or initialized)
+//		rigid.toIndexCoords(sm_moving, true);
+//		for(size_t ii=0; ii<3; ii++) {
+//			opt.state_x[ii] = radToDeg(rigid.rotation[ii]);
+//			opt.state_x[ii+3] = rigid.shift[ii]*sm_moving->spacing(ii);
+//		}
+//
+//		// run the optimizer
+//		cout << "Sigma: " << sigmas[ii] << endl;
+//		vfunc(opt.state_x, met);
+//		cout <<"Start Metric: " << met << endl;
+//		StopReason stopr = opt.optimize();
+//		cerr << Optimizer::explainStop(stopr) << endl;
+//		vfunc(opt.state_x, met);
+//		cout <<"Stop Metric: " << met << endl;
+//
+//		// set values from parameters, and convert to RAS coordinate so that no
+//		// matter the sampling after smoothing the values remain
+//		for(size_t ii=0; ii<3; ii++) {
+//			rigid.rotation[ii] = degToRad(opt.state_x[ii]);
+//			rigid.shift[ii] = opt.state_x[ii+3]/sm_moving->spacing(ii);
+//			rigid.center[ii] = (sm_moving->dim(ii)-1)/2.;
+//		}
+//
+//		rigid.toRASCoords(sm_moving);
+//	}
+//
+//	return rigid;
+//};
 

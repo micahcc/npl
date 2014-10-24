@@ -757,12 +757,13 @@ Rigid3DTrans corReg3D(ptr<const MRImage> fixed, ptr<const MRImage> moving,
  * @param nbins     Number of bins during marginal density estimation (joint
  *                  with have nbins*nbins)
  * @param binradius During parzen window, the radius of the smoothing kernel
+ * @param metric metric to use (default is MI)
  *
  * @return          Rigid transform.
  */
 Rigid3DTrans informationReg3D(ptr<const MRImage> fixed,
 		ptr<const MRImage> moving, const std::vector<double>& sigmas,
-		size_t nbins = 128, size_t binradius = 4);
+		size_t nbins = 128, size_t binradius = 4, std::string metric = "MI");
 
 /**
  * @brief This function checks the validity of the derivative functions used
