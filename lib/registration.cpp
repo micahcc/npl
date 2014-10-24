@@ -242,6 +242,84 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
 	return rigid;
 };
 
+/**
+ * @brief Information based registration between two 3D volumes. note
+ * that the two volumes should have identical sampling and identical
+ * orientation. 
+ *
+ * @param fixed Image which will be the target of registration. 
+ * @param moving Image which will be rotated then shifted to match fixed.
+ * @param dir direction/dimension of distortion
+ * @param bspace Spacing of B-Spline knots (in mm)
+ * @param sigmas Standard deviation of smoothing at each level
+ * @param nbins Number of bins in marginal PDF
+ * @param binradius radius of parzen window, to smooth pdf
+ * @param metric Type of information based metric to use
+ *
+ * @return parameters of bspline
+ */
+ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving, 
+		int dir, double bspace, const std::vector<double>& sigmas,
+		size_t nbins, size_t binradius, Metric metric)
+{
+	using namespace std::placeholders;
+	using std::bind;
+	size_t pp;
+
+	// make sure the input image has matching properties
+	if(!fixed->matchingOrient(moving, true, true))
+		throw std::invalid_argument("Input images have mismatching pixels "
+				"in\n" + __FUNCTION_STR__);
+
+	// Create Distortion Correction Computer
+	DistortionCorrectionInformationComputer comp(true);
+	comp.setBins(nbins, binradius);
+	comp.m_metric = metric;
+	
+	// Need to provide gridding for bspline image
+	comp.setFixed(fixed);
+	comp.initializeKnots(bspace);
+
+	// create value and gradient functions
+	auto vfunc = bind(&DistortionCorrectionInformationComputer::value, &comp, _1, _2);
+	auto vgfunc = bind(&DistortionCorrectionInformationComputer::valueGrad, &comp, _1, _2, _3);
+	auto gfunc = bind(&DistortionCorrectionInformationComputer::grad, &comp, _1, _2);
+
+	for(size_t ii=0; ii<sigmas.size(); ii++) {
+		// smooth and downsample input images
+		auto sm_fixed = smoothDownsample(fixed, sigmas[ii]);
+		auto sm_moving = smoothDownsample(moving, sigmas[ii]);
+		DEBUGWRITE(sm_fixed->write("smooth_fixed_"+to_string(ii)+".nii.gz"));
+		DEBUGWRITE(sm_moving->write("smooth_moving_"+to_string(ii)+".nii.gz"));
+	
+		comp.setFixed(sm_fixed);
+		comp.setMoving(sm_moving, dir);
+
+		// initialize optimizer
+		LBFGSOpt opt(comp.nparam(), vfunc, gfunc, vgfunc);
+		opt.stop_Its = 10000;
+		opt.stop_X = 0.00001;
+		opt.stop_G = 0;
+		opt.stop_F = 0;
+
+		// grab the parameters from the previous iteration (or initialized)
+		pp = 0;
+		for(FlatConstIter<double> pit(comp.getDeform()); !pit.eof(); ++pit, ++pp)
+			opt.state_x[pp] = *pit;
+
+		// run the optimizer
+		StopReason stopr = opt.optimize();
+		cerr << Optimizer::explainStop(stopr) << endl;
+
+		// set values from parameters, and convert to RAS coordinate so that no
+		// matter the sampling after smoothing the values remain
+		pp = 0;
+		for(FlatIter<double> pit(comp.getDeform()); !pit.eof(); ++pit, ++pp)
+			pit.set(opt.state_x[pp]);
+	}
+
+	return comp.getDeform();
+};
 
 /*****************************************************************************
  * Derivative Testers
@@ -332,7 +410,7 @@ int distcorDerivTest(double step, double tol,
 	DCInforComp comp(false);
 	comp.setBins(256,4);
 	comp.m_metric = METRIC_MI;
-	comp.setKnotSpacing(20);
+	comp.initializeKnots(20);
 	comp.setFixed(in1);
 	comp.setMoving(in2);
 	comp.m_jac_reg = regj;
@@ -1251,7 +1329,7 @@ DistortionCorrectionInformationComputer::
 			DistortionCorrectionInformationComputer(bool compdiff) :
 			m_compdiff(compdiff), m_metric(METRIC_MI)
 {
-	setKnotSpacing(10);
+	m_knotspace = 10;
 	setBins(128, 4);
 	m_dir = 1;
 	m_tps_reg = 0;
@@ -1264,62 +1342,67 @@ DistortionCorrectionInformationComputer::
  *
  * @param space Spacing between knots, in physical coordinates
  */
-void DistortionCorrectionInformationComputer::setKnotSpacing(double space)
+void DistortionCorrectionInformationComputer::initializeKnots(double space)
 {
 	m_knotspace = space;
-	if(m_fixed) {
-		size_t ndim = m_fixed->ndim();
+	if(!m_fixed) {
+		throw INVALID_ARGUMENT("Error, cannot set knot spacing without a "
+			"fixed image for reference! Set fixed image template before "
+			"initializeKnots. Later changes to fixed image will not affect "
+			"the knot image.");
+	} 
+	
+	size_t ndim = m_fixed->ndim();
 
-		VectorXd spacing(ndim);
-		VectorXd origin(ndim);
-		vector<size_t> osize(ndim+2, 0);
+	VectorXd spacing(ndim);
+	VectorXd origin(ndim);
+	vector<size_t> osize(ndim+2, 0);
 
-		// get spacing and size
-		for(size_t dd=0; dd<ndim; ++dd) {
-			osize[dd] = 4+ceil(m_fixed->dim(dd)*m_fixed->spacing(dd)/space);
-			spacing[dd] = space;
-		}
-		osize[m_fixed->ndim()] = m_bins;
-		osize[m_fixed->ndim()+1] = m_bins;
-
-		/************************
-		 * Create Deform
-		 ************************/
-		m_deform = createMRImage(ndim, osize.data(), FLOAT64);
-		m_deform->setDirection(m_fixed->getDirection(), false);
-		m_deform->setSpacing(spacing, false);
-
-		// compute center of input
-		VectorXd indc(ndim);
-		for(size_t dd=0; dd<ndim; dd++)
-			indc[dd] = (m_fixed->dim(dd)-1.)/2.;
-		VectorXd ptc(ndim); // point center
-		m_fixed->indexToPoint(ndim, indc.array().data(), ptc.array().data());
-
-		// compute origin from center index (x_c) and center of input (c):
-		// o = c-R(sx_c)
-		for(size_t dd=0; dd<ndim; dd++)
-			indc[dd] = (osize[dd]-1.)/2.;
-		origin = ptc - m_fixed->getDirection()*(spacing.asDiagonal()*indc);
-		m_deform->setOrigin(origin, false);
-
-		for(FlatIter<double> it(m_deform); !it.eof(); ++it)
-			it.set(0);
-
-		/*************************************
-		 * Create buffers for gradient
-		 *************************************/
-		gradbuff.resize(m_deform->elements());
-		m_dit.setArray(m_deform);
-		m_gradHjoint.resize(osize.data());
-		m_gradHmove.resize(osize.data());
-
-		// Create Derivates of Individual Bins
-		m_dpdfmove.resize(osize.data());
-		m_dpdfjoint.resize(osize.data());
-
-		m_deform->write("deform.nii.gz");
+	// get spacing and size
+	for(size_t dd=0; dd<ndim; ++dd) {
+		osize[dd] = 4+ceil(m_fixed->dim(dd)*m_fixed->spacing(dd)/space);
+		spacing[dd] = space;
 	}
+	osize[m_fixed->ndim()] = m_bins;
+	osize[m_fixed->ndim()+1] = m_bins;
+
+	/************************
+	 * Create Deform
+	 ************************/
+	m_deform = createMRImage(ndim, osize.data(), FLOAT64);
+	m_deform->setDirection(m_fixed->getDirection(), false);
+	m_deform->setSpacing(spacing, false);
+
+	// compute center of input
+	VectorXd indc(ndim);
+	for(size_t dd=0; dd<ndim; dd++)
+		indc[dd] = (m_fixed->dim(dd)-1.)/2.;
+	VectorXd ptc(ndim); // point center
+	m_fixed->indexToPoint(ndim, indc.array().data(), ptc.array().data());
+
+	// compute origin from center index (x_c) and center of input (c):
+	// o = c-R(sx_c)
+	for(size_t dd=0; dd<ndim; dd++)
+		indc[dd] = (osize[dd]-1.)/2.;
+	origin = ptc - m_fixed->getDirection()*(spacing.asDiagonal()*indc);
+	m_deform->setOrigin(origin, false);
+
+	for(FlatIter<double> it(m_deform); !it.eof(); ++it)
+		it.set(0);
+
+	/*************************************
+	 * Create buffers for gradient
+	 *************************************/
+	gradbuff.resize(m_deform->elements());
+	m_dit.setArray(m_deform);
+	m_gradHjoint.resize(osize.data());
+	m_gradHmove.resize(osize.data());
+
+	// Create Derivates of Individual Bins
+	m_dpdfmove.resize(osize.data());
+	m_dpdfjoint.resize(osize.data());
+
+	m_deform->write("deform.nii.gz");
 }
 
 /**
@@ -1418,8 +1501,6 @@ void DistortionCorrectionInformationComputer::setFixed(ptr<const MRImage> newfix
 		m_rangefix[0] = std::min(m_rangefix[0], *it);
 		m_rangefix[1] = std::max(m_rangefix[1], *it);
 	}
-
-	setKnotSpacing(m_knotspace);
 }
 
 /**

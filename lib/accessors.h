@@ -2128,7 +2128,7 @@ public:
 	 *
 	 * @return Value at point
 	 */
-	double sample(size_t len, double* point)
+	double get(size_t len, double* point)
 	{
 		assert(this->parent);
 		// initialize variables
