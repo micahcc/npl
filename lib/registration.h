@@ -127,7 +127,7 @@ public:
 	Metric m_metric;
 
 	/**
-	 * @brief Reallocates histograms and if m_fixed has been set, regenerates 
+	 * @brief Reallocates histograms and if m_fixed has been set, regenerates
 	 * histogram estimate of fixed pdf
 	 *
 	 * @param nbins Number of bins for marginal estimation
@@ -343,8 +343,8 @@ private:
 
 /**
  * @brief The distortion correction MI Computer is used to compute the mutual
- * information and gradient of mutual information between two images using 
- * nonrigid, unidirectional, B-spline transform. 
+ * information and gradient of mutual information between two images using
+ * nonrigid, unidirectional, B-spline transform.
  *
  * Note, if you want to register you should set the m_mindiff variable, so that
  * the negative of mutual information will be computed. Eventually this
@@ -355,7 +355,7 @@ class DistortionCorrectionInformationComputer
 public:
 
 	/**
-	 * @brief Constructor for the distortion correction class. 
+	 * @brief Constructor for the distortion correction class.
 	 *
 	 * @param mindiff Minimize difference? Set to true if you are using
 	 * this for registration
@@ -429,7 +429,7 @@ public:
 	size_t nparam() { return m_deform ? m_deform->elements() : 0; };
 
 	/**
-	 * @brief Reallocates histograms and if m_fixed has been set, regenerates 
+	 * @brief Reallocates histograms and if m_fixed has been set, regenerates
 	 * histogram estimate of fixed pdf
 	 *
 	 * @param nbins Number of bins for marginal estimation
@@ -483,7 +483,7 @@ public:
 	/**
 	 * @brief Returns the current deformation
 	 *
-	 * @return 
+	 * @return
 	 */
 	ptr<MRImage> getDeform() { return m_deform; };
 
@@ -503,7 +503,7 @@ private:
 	 */
 	int metric(double& val);
 
-	/* Variables: 
+	/* Variables:
 	 *
 	 * m_bins, m_krad
 	 *
@@ -564,7 +564,7 @@ private:
 	MRImageStore<4, double> m_dpdfmove;
 
 	/**
-	 * @brief Gradient of joint entropy at each knot. 
+	 * @brief Gradient of joint entropy at each knot.
 	 * (initialized by initializeKnots/setFixed)
 	 */
 	MRImageStore<3, double> m_gradHjoint;
@@ -578,7 +578,7 @@ private:
 	/**
 	 * @brief Entropy of fixed image (initialized by setFixed)
 	 */
-	double m_Hfix; 
+	double m_Hfix;
 
 	/**
 	 * @brief Entropy of moving image (updated by metric())
@@ -763,6 +763,26 @@ Rigid3DTrans informationReg3D(ptr<const MRImage> fixed,
 		size_t nbins = 128, size_t binradius = 4, std::string metric = "MI");
 
 /**
+ * @brief Information based registration between two 3D volumes. note
+ * that the two volumes should have identical sampling and identical
+ * orientation.
+ *
+ * @param fixed Image which will be the target of registration.
+ * @param moving Image which will be rotated then shifted to match fixed.
+ * @param dir direction/dimension of distortion
+ * @param bspace Spacing of B-Spline knots (in mm)
+ * @param sigmas Standard deviation of smoothing at each level
+ * @param nbins Number of bins in marginal PDF
+ * @param binradius radius of parzen window, to smooth pdf
+ * @param metric Type of information based metric to use
+ *
+ * @return parameters of bspline
+ */
+ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
+		int dir, double bspace, const std::vector<double>& sigmas,
+		size_t nbins = 128, size_t binradius = 4, std::string metric = "MI");
+
+/**
  * @brief This function checks the validity of the derivative functions used
  * to optimize between-image corrlation.
  *
@@ -798,7 +818,7 @@ int information3DDerivTest(double step, double tol,
  * @param tol Tolerance in error between analytical and Numeric gratient
  * @param in1 Image 1
  * @param in2 Image 2
- * @param regj Jackobian weight 
+ * @param regj Jackobian weight
  * @param regt Thin-plate-spline weight
  *
  * @return 0 if success, -1 if failure

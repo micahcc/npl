@@ -187,9 +187,9 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
 		comp.setFixed(sm_fixed);
 		comp.setMoving(sm_moving);
 
-		if(metric == "MI") 
+		if(metric == "MI")
 			comp.m_metric = METRIC_MI;
-		else if(metric == "NMI") 
+		else if(metric == "NMI")
 			comp.m_metric = METRIC_NMI;
 		else if(metric == "VI") {
 			comp.m_metric = METRIC_VI;
@@ -256,9 +256,9 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
 /**
  * @brief Information based registration between two 3D volumes. note
  * that the two volumes should have identical sampling and identical
- * orientation. 
+ * orientation.
  *
- * @param fixed Image which will be the target of registration. 
+ * @param fixed Image which will be the target of registration.
  * @param moving Image which will be rotated then shifted to match fixed.
  * @param dir direction/dimension of distortion
  * @param bspace Spacing of B-Spline knots (in mm)
@@ -269,9 +269,9 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
  *
  * @return parameters of bspline
  */
-ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving, 
+ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		int dir, double bspace, const std::vector<double>& sigmas,
-		size_t nbins, size_t binradius, Metric metric)
+		size_t nbins, size_t binradius, string metric)
 {
 	using namespace std::placeholders;
 	using std::bind;
@@ -285,8 +285,15 @@ ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 	// Create Distortion Correction Computer
 	DistortionCorrectionInformationComputer comp(true);
 	comp.setBins(nbins, binradius);
-	comp.m_metric = metric;
-	
+
+	if(metric == "MI")
+		comp.m_metric = METRIC_MI;
+	else if(metric == "NMI")
+		comp.m_metric = METRIC_NMI;
+	else if(metric == "VI") {
+		comp.m_metric = METRIC_VI;
+	}
+
 	// Need to provide gridding for bspline image
 	comp.setFixed(fixed);
 	comp.initializeKnots(bspace);
@@ -408,7 +415,7 @@ int information3DDerivTest(double step, double tol,
  * @param tol Tolerance in error between analytical and Numeric gratient
  * @param in1 Image 1
  * @param in2 Image 2
- * @param regj Jackobian weight 
+ * @param regj Jackobian weight
  * @param regt Thin-plate-spline weight
  *
  * @return 0 if success, -1 if failure
@@ -419,11 +426,11 @@ int distcorDerivTest(double step, double tol,
 {
 	using namespace std::placeholders;
 	DCInforComp comp(false);
-	comp.setBins(256,4);
+	comp.setBins(256,8);
 	comp.m_metric = METRIC_MI;
-	comp.initializeKnots(20);
 	comp.setFixed(in1);
 	comp.setMoving(in2);
+	comp.initializeKnots(20);
 	comp.m_jac_reg = regj;
 	comp.m_tps_reg = regt;
 
@@ -1367,7 +1374,7 @@ void DistortionCorrectionInformationComputer::initializeKnots(double space)
 			"fixed image for reference! Set fixed image template before "
 			"initializeKnots. Later changes to fixed image will not affect "
 			"the knot image.");
-	} 
+	}
 	
 	size_t ndim = m_fixed->ndim();
 
@@ -1968,7 +1975,7 @@ int DistortionCorrectionInformationComputer::valueGrad(const VectorXd& params,
 	assert(m_dpdfmove.dim(2) == m_deform->dim(2));
 	assert(m_dpdfmove.dim(3) == m_bins); // Moving
 
-	assert(m_deform->elements() == gradbuff.rows()); 
+	assert(m_deform->elements() == gradbuff.rows());
 	cerr << "Computing Value/Gradient" << endl;
 
 	// Fill Deform Image from params
