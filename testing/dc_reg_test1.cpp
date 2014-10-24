@@ -82,8 +82,10 @@ int main()
 	auto origimg = gaussianImage(4, 4, 4);
 	origimg->write("gaussmooth_test_origimg.nii.gz");
     
-    if(distcorDerivTest(0.0001, 0.005, distimg, origimg) != 0)
+    if(distcorDerivTest(0.1, 0.5, distimg, origimg) != 0) {
+		cerr << "Error too large" << endl;
         return -1;
+	}
     return 0;
 }
 
