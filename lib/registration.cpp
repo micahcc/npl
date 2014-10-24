@@ -204,8 +204,8 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
 		// grab the parameters from the previous iteration (or initialized)
 		rigid.toIndexCoords(sm_moving, true);
 		for(size_t ii=0; ii<3; ii++) {
-			opt.state_x[ii] = rigid.rotation[ii]*180/M_PI;
-			opt.state_x[ii+3] = rigid.shift[ii]/sm_moving->spacing(ii);
+			opt.state_x[ii] = radToDeg(rigid.rotation[ii]);
+			opt.state_x[ii+3] = rigid.shift[ii]*sm_moving->spacing(ii);
 			assert(rigid.center[ii] == (sm_moving->dim(ii)-1.)/2.);
 		}
 
@@ -219,10 +219,10 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
 		cerr << Optimizer::explainStop(stopr) << endl;
 
 		// set values from parameters, and convert to RAS coordinate so that no
-	// matter the sampling after smoothing the values remain
+		// matter the sampling after smoothing the values remain
 		for(size_t ii=0; ii<3; ii++) {
-			rigid.rotation[ii] = opt.state_x[ii]*M_PI/180;
-			rigid.shift[ii] = opt.state_x[ii+3]*sm_moving->spacing(ii);
+			rigid.rotation[ii] = degToRad(opt.state_x[ii]);
+			rigid.shift[ii] = opt.state_x[ii+3]/sm_moving->spacing(ii);
 			rigid.center[ii] = (sm_moving->dim(ii)-1)/2.;
 		}
 
@@ -826,12 +826,13 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 	assert(m_dpdfmove.dim(0) == 6);
 	assert(m_dpdfmove.dim(1) == m_bins);
 
+	// Degrees -> Radians, mm -> index
 	double rx = params[0]*M_PI/180.;
 	double ry = params[1]*M_PI/180.;
 	double rz = params[2]*M_PI/180.;
-	double sx = params[3]*m_moving->spacing(0);
-	double sy = params[4]*m_moving->spacing(1);
-	double sz = params[5]*m_moving->spacing(2);
+	double sx = params[3]/m_moving->spacing(0);
+	double sy = params[4]/m_moving->spacing(1);
+	double sz = params[5]/m_moving->spacing(2);
 //#if defined DEBUG || defined VERYDEBUG
 	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: "
 		<< sx << ", " << sy << ", " << sz << endl;
@@ -1041,12 +1042,13 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 				m_gradHjoint[ii]*(m_Hfix+m_Hmove)/(m_Hjoint*m_Hjoint);
 	}
 
+	// We scale by this on input, so we need to scale gradient by it ...
 	grad[0] *= M_PI/180.;
-    grad[1] *= M_PI/180.;
-    grad[2] *= M_PI/180.;
-    grad[3] *= m_moving->spacing(0);
-    grad[4] *= m_moving->spacing(1);
-	grad[5] *= m_moving->spacing(2);
+	grad[1] *= M_PI/180.;
+	grad[2] *= M_PI/180.;
+	grad[3] /= m_moving->spacing(0);
+	grad[4] /= m_moving->spacing(1);
+	grad[5] /= m_moving->spacing(2);
 
 //#if defined DEBUG || defined VERYDEBUG
 	cerr << "ValueGrad() = " << val << " / " << grad.transpose() << endl;
@@ -1112,9 +1114,9 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
 	double rx = params[0]*M_PI/180.;
 	double ry = params[1]*M_PI/180.;
 	double rz = params[2]*M_PI/180.;
-	double sx = params[3]*m_moving->spacing(0);
-	double sy = params[4]*m_moving->spacing(1);
-	double sz = params[5]*m_moving->spacing(2);
+	double sx = params[3]/m_moving->spacing(0);
+	double sy = params[4]/m_moving->spacing(1);
+	double sz = params[5]/m_moving->spacing(2);
 //#if defined DEBUG || defined VERYDEBUG
 	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: "
 		<< sx << ", " << sy << ", " << sz << endl;
@@ -1808,6 +1810,7 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 	for(int ii=0; ii<m_pdfjoint.elements(); ii++)
 		m_Hjoint -= m_pdfjoint[ii] > 0 ? m_pdfjoint[ii]*log(m_pdfjoint[ii]) : 0;
 
+	cerr << m_Hjoint << ", " << m_Hmove << ", " << m_Hfix << endl;
 	// update value and grad
 	if(m_metric == METRIC_MI) {
 		val = m_Hfix+m_Hmove-m_Hjoint;
