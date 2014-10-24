@@ -87,8 +87,11 @@ try {
 			"a fixed one. For a 4D input, the 0'th volume will be used", ' ',
 			__version__ );
 
-	TCLAP::ValueArg<string> a_fixed("f", "fixed", "Fixed image.", true, "",
+	TCLAP::ValueArg<string> a_fixed("f", "fixed", "Fixed image.", false, "",
 			"*.nii.gz", cmd);
+	TCLAP::ValueArg<string> a_apply("a", "apply", "Apply transform. Instead "
+			"of performing rigid registration apply the provided transform", 
+			false, "", "*.rtm", cmd);
 	TCLAP::ValueArg<string> a_moving("m", "moving", "Moving image. ", true, 
 			"", "*.nii.gz", cmd);
 
@@ -99,6 +102,9 @@ try {
 	TCLAP::ValueArg<string> a_transform("t", "transform", "File to write "
 			"transform parameters to. This will be a text file with 9 numbers "
 			"indicating the center point, ", false, "", "*.rtm", cmd);
+	TCLAP::SwitchArg a_resample("R", "resample", "Apply rigid  "
+			"transform in pixel space instead of the default, which is to "
+			"just modify the image's orientation", cmd);
 
 	TCLAP::MultiArg<double> a_sigmas("s", "sigmas", "Smoothing standard "
 			"deviations. These are the steps of the registration.", false, 
@@ -120,47 +126,74 @@ try {
 
 	// fixed image
 	cout << "Reading Inputs...";
-	ptr<MRImage> fixed = readMRImage(a_fixed.getValue());
-	fixed = dPtrCast<MRImage>(fixed->copyCast(min(fixed->ndim(),3UL), 
-				fixed->dim(), FLOAT32));
-
+	
 	// moving image, resample to fixed space
 	ptr<MRImage> in_moving = readMRImage(a_moving.getValue());
-	auto moving = dPtrCast<MRImage>(fixed->createAnother());
-
-	cout << "Done\nPutting Moving Image into Fixed Space...";
-	vector<int64_t> ind(fixed->ndim());
-	vector<double> point(fixed->ndim());
-	LanczosInterpNDView<double> interp(in_moving);
-	interp.m_ras = true;
-	for(NDIter<double> mit(moving); !mit.eof(); ++mit) {
-		// get point of mit
-		mit.index(ind.size(), ind.data());
-		moving->indexToPoint(ind.size(), ind.data(), point.data());
-		mit.set(interp.get(point));
-	}
-	moving->write("resampled.nii.gz");
-
-	// set up sigmas
-	vector<double> sigmas({3,1.5,0});
-	if(a_sigmas.isSet()) 
-		sigmas.assign(a_sigmas.begin(), a_sigmas.end());
-
-	/* 
-	 * Perform Registration
-	 */
 	Rigid3DTrans rigid;
-	if(a_metric.getValue() == "COR") {
-		cout << "Done\nRigidly Registering with correlation..." << endl;
-		rigid = correg(fixed, moving, sigmas);
-	} else if(a_metric.getValue() == "MI") {
-		cout << "Done\nRigidly Registering with " << a_metric.getValue() 
-			<< "..." << endl;
-		rigid = inforeg(fixed, moving, sigmas, a_bins.getValue(),
-				a_parzen.getValue(), a_metric.getValue()); 
+	
+	if(a_apply.isSet()) {
+		ifstream ifs(a_apply.getValue().c_str());
+		if(!ifs.is_open()) {
+			cerr<<"Error opening "<< a_apply.getValue()<<" for reading\n";
+			return -1;
+		}
+		for(size_t ii=0; ii<3; ii++) 
+			ifs >> rigid.center[ii];
+
+		for(size_t ii=0; ii<3; ii++) 
+			ifs >> rigid.rotation[ii];
+
+		for(size_t ii=0; ii<3; ii++) 
+			ifs >> rigid.shift[ii];
+
+		rigid.ras_coord = true;
+		cout << "Read Transform: " << endl << rigid << endl;
+	} else if(a_fixed.isSet()) {
+		ptr<MRImage> fixed = readMRImage(a_fixed.getValue());
+		fixed = dPtrCast<MRImage>(fixed->copyCast(min(fixed->ndim(),3UL), 
+					fixed->dim(), FLOAT32));
+
+		// Downsample moving image
+		auto moving = dPtrCast<MRImage>(fixed->createAnother());
+
+		cout << "Done\nMoving Image to Fixed Space using Lanczos interp...";
+		vector<int64_t> ind(fixed->ndim());
+		vector<double> point(fixed->ndim());
+		LanczosInterpNDView<double> interp(in_moving);
+		interp.m_ras = true;
+		for(NDIter<double> mit(moving); !mit.eof(); ++mit) {
+			// get point of mit
+			mit.index(ind.size(), ind.data());
+			moving->indexToPoint(ind.size(), ind.data(), point.data());
+			mit.set(interp.get(point));
+		}
+		moving->write("resampled.nii.gz");
+
+		// set up sigmas
+		vector<double> sigmas({3,1.5,0});
+		if(a_sigmas.isSet()) 
+			sigmas.assign(a_sigmas.begin(), a_sigmas.end());
+
+		/* 
+		 * Perform Registration
+		 */
+		if(a_metric.getValue() == "COR") {
+			cout << "Done\nRigidly Registering with correlation..." << endl;
+			rigid = correg(fixed, moving, sigmas);
+		} else if(a_metric.getValue() == "MI") {
+			cout << "Done\nRigidly Registering with " << a_metric.getValue() 
+				<< "..." << endl;
+			rigid = inforeg(fixed, moving, sigmas, a_bins.getValue(),
+					a_parzen.getValue(), a_metric.getValue()); 
+		}
+		cout << "Finished\n.";
+	} else {
+		cerr << "Either --fixed or --apply must be set, otherwise we can't "
+			"create a transform!" << endl;
+		return -1;
 	}
 
-	cout << "Finished\nWriting output.";
+	cout << "Writing output...";
 	if(a_transform.isSet()) {
 		ofstream ofs(a_transform.getValue().c_str());
 		if(!ofs.is_open()) {
@@ -184,12 +217,21 @@ try {
 	}
 
 	if(a_out.isSet()) {
-		// Apply Rigid Transform
-		rigid.toRASCoords(in_moving);
-		rotateImageShearKern(in_moving, rigid.rotation[0], 
-				rigid.rotation[1], rigid.rotation[2]);
-		for(size_t dd=0; dd<3; dd++) 
-			shiftImageKern(in_moving, dd, rigid.shift[dd]);
+		if(a_resample.isSet()) {
+			// Apply Rigid Transform
+			rigid.toIndexCoords(in_moving, true);
+			rotateImageShearKern(in_moving, rigid.rotation[0], 
+					rigid.rotation[1], rigid.rotation[2]);
+			for(size_t dd=0; dd<3; dd++) 
+				shiftImageKern(in_moving, dd, rigid.shift[dd]);
+		} else {
+			VectorXd origin = rigid.rotMatrix()*
+						in_moving->getOrigin().head<3>() + rigid.shift;
+			MatrixXd dir = rigid.rotMatrix()*
+						in_moving->getDirection().block<3,3>(0,0);
+			in_moving->setOrigin(origin, false);
+			in_moving->setDirection(dir, false);
+		}
 		in_moving->write(a_out.getValue());
 	}
 	cout << "Done" << endl;
@@ -233,8 +275,8 @@ Rigid3DTrans correg(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		// grab the parameters from the previous iteration (or initialized)
 		rigid.toIndexCoords(sm_moving, true);
 		for(size_t ii=0; ii<3; ii++) {
-			opt.state_x[ii] = rigid.rotation[ii];
-			opt.state_x[ii+3] = rigid.shift[ii];
+			opt.state_x[ii] = radToDeg(rigid.rotation[ii]);
+			opt.state_x[ii+3] = rigid.shift[ii]*sm_moving->spacing(ii);
 		}
 
 		// run the optimizer
@@ -249,8 +291,8 @@ Rigid3DTrans correg(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		// set values from parameters, and convert to RAS coordinate so that no
 		// matter the sampling after smoothing the values remain
 		for(size_t ii=0; ii<3; ii++) {
-			rigid.rotation[ii] = opt.state_x[ii];
-			rigid.shift[ii] = opt.state_x[ii+3];
+			rigid.rotation[ii] = degToRad(opt.state_x[ii]);
+			rigid.shift[ii] = opt.state_x[ii+3]/sm_moving->spacing(ii);
 			rigid.center[ii] = (sm_moving->dim(ii)-1)/2.;
 		}
 
@@ -305,8 +347,8 @@ Rigid3DTrans inforeg(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		// grab the parameters from the previous iteration (or initialized)
 		rigid.toIndexCoords(sm_moving, true);
 		for(size_t ii=0; ii<3; ii++) {
-			opt.state_x[ii] = rigid.rotation[ii];
-			opt.state_x[ii+3] = rigid.shift[ii];
+			opt.state_x[ii] = radToDeg(rigid.rotation[ii]);
+			opt.state_x[ii+3] = rigid.shift[ii]*sm_moving->spacing(ii);
 		}
 
 		// run the optimizer
@@ -321,8 +363,8 @@ Rigid3DTrans inforeg(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		// set values from parameters, and convert to RAS coordinate so that no
 		// matter the sampling after smoothing the values remain
 		for(size_t ii=0; ii<3; ii++) {
-			rigid.rotation[ii] = opt.state_x[ii];
-			rigid.shift[ii] = opt.state_x[ii+3];
+			rigid.rotation[ii] = degToRad(opt.state_x[ii]);
+			rigid.shift[ii] = opt.state_x[ii+3]/sm_moving->spacing(ii);
 			rigid.center[ii] = (sm_moving->dim(ii)-1)/2.;
 		}
 
