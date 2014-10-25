@@ -185,7 +185,7 @@ double wingaussWindow(double x, double a, double sd)
 inline
 double wingaussWindow(double x, double a)
 {
-	const double sd = 8;
+	const double sd = 10;
 	if(fabs(x) < a)
 		return exp(-x*x*sd*sd/(a*a))-exp(-sd*sd);
 	else

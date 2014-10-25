@@ -76,13 +76,9 @@ int main()
 //    img2 = smoothDownsample(img, .1);
 //    img2->write("smooth_small.nii.gz");
 //
-    auto space = img->getSpacing();
-	for(size_t ii=0; ii<img->ndim(); ii++)
-		space[ii] = 5;
-	auto img2 = resample(img, space.array().data(), win);
+    auto img2 = smoothDownsample(img, 5);
     img2->write("smooth_medium1.nii.gz");
 //    
-//    img2 = smoothDownsample(img, 5);
 //    img2->write("smooth_large.nii.gz");
 //
     // adjust the spacing
@@ -95,16 +91,13 @@ int main()
 //    img2 = smoothDownsample(img, .001);
 //    img->write("smooth_tiny2.nii.gz");
 //    
-//    img2 = smoothDownsample(img, .1);
 //    img2->write("smooth_small2.nii.gz");
 //    
-	for(size_t ii=0; ii<img->ndim(); ii++)
-		space[ii] = 10;
-	img2 = resample(img, space.array().data(), win);
+    img2 = smoothDownsample(img, .1);
     img2->write("smooth_medium2.nii.gz");
 //    
-//    img2 = smoothDownsample(img, 10);
-//    img2->write("smooth_huge2.nii.gz");
+    img2 = smoothDownsample(img, 10);
+    img2->write("smooth_huge2.nii.gz");
 
     return 0;
 }
