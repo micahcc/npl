@@ -151,6 +151,10 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
  *
  * @param fixed     Image which will be the target of registration.
  * @param moving    Image which will be rotated then shifted to match fixed.
+ * @param sigmas array of standard deviations to use
+ * @param nbins number of bins for estimation of marginal pdf's
+ * @param binrarius Radius of kernel in pdf density estimation
+ * @param metric metric to use (default is MI)
  *
  * @return          4x4 Matrix, indicating rotation about the center then
  *                  shift. Rotation matrix is the first 3x3 and shift is the
@@ -158,7 +162,7 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
  */
 Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
 		shared_ptr<const MRImage> moving, const std::vector<double>& sigmas,
-		size_t nbins, size_t binradius)
+		size_t nbins, size_t binradius, string metric)
 {
 	using namespace std::placeholders;
 	using std::bind;
@@ -182,7 +186,14 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
 		comp.setBins(nbins, binradius);
 		comp.setFixed(sm_fixed);
 		comp.setMoving(sm_moving);
-		comp.m_metric = METRIC_MI;
+
+		if(metric == "MI")
+			comp.m_metric = METRIC_MI;
+		else if(metric == "NMI")
+			comp.m_metric = METRIC_NMI;
+		else if(metric == "VI") {
+			comp.m_metric = METRIC_VI;
+		}
 
 		// create value and gradient functions
 		auto vfunc = bind(&RigidInformationComputer::value, &comp, _1, _2);
@@ -245,9 +256,9 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
 /**
  * @brief Information based registration between two 3D volumes. note
  * that the two volumes should have identical sampling and identical
- * orientation. 
+ * orientation.
  *
- * @param fixed Image which will be the target of registration. 
+ * @param fixed Image which will be the target of registration.
  * @param moving Image which will be rotated then shifted to match fixed.
  * @param dir direction/dimension of distortion
  * @param bspace Spacing of B-Spline knots (in mm)
@@ -258,9 +269,9 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
  *
  * @return parameters of bspline
  */
-ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving, 
+ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		int dir, double bspace, const std::vector<double>& sigmas,
-		size_t nbins, size_t binradius, Metric metric)
+		size_t nbins, size_t binradius, string metric)
 {
 	using namespace std::placeholders;
 	using std::bind;
@@ -274,8 +285,15 @@ ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 	// Create Distortion Correction Computer
 	DistortionCorrectionInformationComputer comp(true);
 	comp.setBins(nbins, binradius);
-	comp.m_metric = metric;
-	
+
+	if(metric == "MI")
+		comp.m_metric = METRIC_MI;
+	else if(metric == "NMI")
+		comp.m_metric = METRIC_NMI;
+	else if(metric == "VI") {
+		comp.m_metric = METRIC_VI;
+	}
+
 	// Need to provide gridding for bspline image
 	comp.setFixed(fixed);
 	comp.initializeKnots(bspace);
@@ -289,8 +307,8 @@ ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		// smooth and downsample input images
 		auto sm_fixed = smoothDownsample(fixed, sigmas[ii]);
 		auto sm_moving = smoothDownsample(moving, sigmas[ii]);
-		DEBUGWRITE(sm_fixed->write("smooth_fixed_"+to_string(ii)+".nii.gz"));
-		DEBUGWRITE(sm_moving->write("smooth_moving_"+to_string(ii)+".nii.gz"));
+		sm_fixed->write("smooth_fixed_"+to_string(ii)+".nii.gz");
+		sm_moving->write("smooth_moving_"+to_string(ii)+".nii.gz");
 	
 		comp.setFixed(sm_fixed);
 		comp.setMoving(sm_moving, dir);
@@ -397,7 +415,7 @@ int information3DDerivTest(double step, double tol,
  * @param tol Tolerance in error between analytical and Numeric gratient
  * @param in1 Image 1
  * @param in2 Image 2
- * @param regj Jackobian weight 
+ * @param regj Jackobian weight
  * @param regt Thin-plate-spline weight
  *
  * @return 0 if success, -1 if failure
@@ -408,11 +426,11 @@ int distcorDerivTest(double step, double tol,
 {
 	using namespace std::placeholders;
 	DCInforComp comp(false);
-	comp.setBins(256,4);
+	comp.setBins(256,8);
 	comp.m_metric = METRIC_MI;
-	comp.initializeKnots(20);
 	comp.setFixed(in1);
 	comp.setMoving(in2);
+	comp.initializeKnots(20);
 	comp.m_jac_reg = regj;
 	comp.m_tps_reg = regt;
 
@@ -1356,7 +1374,7 @@ void DistortionCorrectionInformationComputer::initializeKnots(double space)
 			"fixed image for reference! Set fixed image template before "
 			"initializeKnots. Later changes to fixed image will not affect "
 			"the knot image.");
-	} 
+	}
 	
 	size_t ndim = m_fixed->ndim();
 
@@ -1959,7 +1977,7 @@ int DistortionCorrectionInformationComputer::valueGrad(const VectorXd& params,
 	assert(m_dpdfmove.dim(2) == m_deform->dim(2));
 	assert(m_dpdfmove.dim(3) == m_bins); // Moving
 
-	assert(m_deform->elements() == gradbuff.rows()); 
+	assert(m_deform->elements() == gradbuff.rows());
 	cerr << "Computing Value/Gradient" << endl;
 
 	// Fill Deform Image from params
