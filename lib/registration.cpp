@@ -1543,8 +1543,14 @@ int DistortionCorrectionInformationComputer::metric(
 	double dFm;  /** Derivative Moving Value */
 	double Fc;   /** Intensity Corrected Moving Value */
 	double Ff;   /** Fixed Value Value */
-	int64_t roi_low[3];
-	size_t roi_len[3];
+
+	vector<double> probweight(m_krad*m_krad);
+	vector<double> invspace(m_deform->ndim());
+	for(size_t dd=0; dd<m_deform->ndim(); dd++)
+		invspace[dd] = 1./m_deform->spacing(dd);
+	
+	Counter<> neighbors(3);
+	for(size_t dd=0; dd<3; dd++) neighbors.sz[dd] = 5;
 
 	// compute updated moving width
 	m_wmove = (m_rangemove[1]-m_rangemove[0])/(m_bins-2*m_krad-1);
@@ -1561,8 +1567,6 @@ int DistortionCorrectionInformationComputer::metric(
 		// create ROI in kernel space
 		for(size_t dd=0; dd<3; dd++) {
 			dnind[dd] = round(dcind[dd]);
-			roi_low[dd] = dnind[dd]-2;
-			roi_len[dd] = 5;
 		}
 
 		/**********************************************************************
@@ -1596,9 +1600,11 @@ int DistortionCorrectionInformationComputer::metric(
 		 **************************************************************/
 
 		// Sum up Bins for Value Comp
-		for(int ii = binmove-m_krad; ii <= binmove+m_krad; ii++) {
+		for(int ii = binmove-m_krad, zz=0; ii <= binmove+m_krad; ii++) {
 			for(int jj = binfix-m_krad; jj <= binfix+m_krad; jj++) {
 				m_pdfjoint[{ii,jj}] += B3kern(ii-cbinmove, m_krad)*
+					B3kern(jj-cbinfix, m_krad);
+				probweight[zz++] = dB3kern(ii-cbinmove, m_krad)*
 					B3kern(jj-cbinfix, m_krad);
 			}
 		}
@@ -1615,24 +1621,21 @@ int DistortionCorrectionInformationComputer::metric(
 		/********************************************************
 		 * Add to Derivatives of Bins Within Reach of the Point
 		 *******************************************************/
-		m_dit.setROI(3, roi_len, roi_low);
-		for(m_dit.goBegin(); !m_dit.eof(); ++m_dit) {
-			m_dit.index(3, dind);
-
+		do {
 			double dPHI_dphi = 1;
 			for(int ii = 0; ii < 3; ii++)
-				dPHI_dphi *= B3kern(dind[ii]-dcind[ii]);
+				dPHI_dphi *= B3kern(dnind[ii]+neighbors.pos[ii]-2-dcind[ii]);
 
 			double dPHI_dydphi = 1;
 			for(int ii = 0; ii < 3; ii++) {
 				if(ii == m_dir)
-					dPHI_dydphi *= -dB3kern(dind[ii]-dcind[ii])/
-						m_deform->spacing(ii);
+					dPHI_dydphi *= -invspace[ii]*dB3kern(dnind[ii]+
+							neighbors.pos[ii]-2-dcind[ii]);
 				else
-					dPHI_dydphi *= B3kern(dind[ii]-dcind[ii]);
+					dPHI_dydphi *= B3kern(dnind[ii]+neighbors.pos[ii]-2-
+							dcind[ii]);
 			}
-
-			//replace 1+dPHI/dY with Fc/Fm (since that is the scale used)
+			
 			double dg_dphi;
 			if(Fm <= 0) // 0/0 => 1
 				dg_dphi = dFm*dPHI_dphi + Fm*dPHI_dydphi;
@@ -1640,15 +1643,14 @@ int DistortionCorrectionInformationComputer::metric(
 				dg_dphi = dFm*dPHI_dphi*Fc/Fm + Fm*dPHI_dydphi;
 
 			assert(dg_dphi == dg_dphi);
-			for(int ii = binmove-m_krad; ii <= binmove+m_krad; ii++) {
+			for(int ii = binmove-m_krad, zz=0; ii <= binmove+m_krad; ii++) {
 				for(int jj = binfix-m_krad; jj <= binfix+m_krad; jj++) {
 					dind[3] = ii;
 					dind[4] = jj;
-					m_dpdfjoint[dind] += dg_dphi*dB3kern(ii-cbinmove, m_krad)*
-								B3kern(jj-cbinfix, m_krad);
+					m_dpdfjoint[dind] += dg_dphi*probweight[zz++];
 				}
 			}
-		}
+		} while(neighbors.advance());
 	}
 
 	///////////////////////
