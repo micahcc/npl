@@ -38,24 +38,6 @@ using namespace std;
 #define VERYDEBUG
 #include "macros.h"
 
-
-/**
- * @brief Information based registration between two 3D volumes. note
- * that the two volumes should have identical sampling and identical
- * orientation. 
- *
- * @param fixed Image which will be the target of registration. 
- * @param moving Image which will be rotated then shifted to match fixed.
- * @param sigmas Standard deviation of smoothing at each level
- * @param bins Number of bins in marginal PDF
- * @param parzrad radius of parzen window, to smooth pdf
- * @param metric Type of information based metric to use
- *
- * @return parameters of bspline
- */
-ptr<MRImage> distortionCorr(ptr<const MRImage> fixed, ptr<const MRImage> moving,
-		const std::vector<double>& sigmas, int bins, int parzrad, string metric);
-
 int main(int argc, char** argv)
 {
 try {
@@ -81,7 +63,7 @@ try {
 			"parameters and the the phase encoding direction set to the "
 			"direction of deformation." , false, "", "*.nii", cmd);
 
-	TCLAP::MultiArg<double> a_sigmas("s", "sigmas", "Smoothing standard "
+	TCLAP::MultiArg<double> a_sigmas("S", "sigmas", "Smoothing standard "
 			"deviations at each step of the registration.", false, 
 			"sd", cmd);
 
@@ -89,6 +71,8 @@ try {
 			"x or y or z etc.... By default the phase encode direction of "
 			"the moving image will be used (if set).", false, 200,
 			"n", cmd);
+	TCLAP::ValueArg<double> a_bspace("s", "bspline-space", 
+			"Spacing of B-Spline knots." , false, 200, "n", cmd);
 	TCLAP::ValueArg<int> a_bins("b", "bins", "Bins to use in information "
 			"metric to estimate the joint distribution. This is the "
 			"the number of bins in the marginal distribution.", false, 200,
@@ -99,7 +83,7 @@ try {
 	cmd.parse(argc, argv);
 
 	// set up sigmas
-	vector<double> sigmas({3,2,1,0});
+	vector<double> sigmas({5,1,0});
 	if(a_sigmas.isSet()) 
 		sigmas.assign(a_sigmas.begin(), a_sigmas.end());
 
@@ -108,17 +92,19 @@ try {
 	 *************************************************************************/
 
 	// fixed image
-	cout << "Reading Inputs...";
+	cerr << "Reading Inputs...";
 	ptr<MRImage> fixed, moving, in_moving;
 	{
-	ptr<MRImage> fixed = readMRImage(a_fixed.getValue());
-	ptr<MRImage> in_moving = readMRImage(a_moving.getValue());
+	ptr<MRImage> in_fixed = readMRImage(a_fixed.getValue());
+	in_moving = readMRImage(a_moving.getValue());
+	cerr << "Done" << endl;
+	size_t ndim = min(in_fixed->ndim(), in_moving->ndim());
 
-	size_t ndim = min(fixed->ndim(), in_moving->ndim());
-	auto moving = dPtrCast<MRImage>(in_moving->copyCast(ndim, in_moving->dim(), 
-				FLOAT32));
+	cerr << "Extracting first " << ndim << " dims of Moving Image" << endl;
+	moving = dPtrCast<MRImage>(in_moving->copyCast(ndim, in_moving->dim(), 
+				FLOAT64));
 
-	cout << "Done\nPutting Fixed Image into Moving Space...";
+	cerr << "Done\nPutting Fixed Image into Moving Space...";
 
 	// Create Copy of Moving image, then sample input fixed image on its grid
 	fixed = dPtrCast<MRImage>(moving->createAnother());
@@ -138,8 +124,8 @@ try {
 		// sample 
 		it.set(interp.get(point));
 	}
-	fixed->write("resampled.nii.gz");
 	}
+	cerr << "Done" << endl;
 
 	// Get direction
 	int dir = moving->m_phasedim;
@@ -150,7 +136,7 @@ try {
 			return -1;
 		}
 		dir = a_dir.getValue() - (int)'x';
-	else if(dir < 0) {
+	} else if(dir < 0) {
 		cerr << "Error, no direction set, and no phase-encode direction set "
 			"in moving image!" << endl;
 		return -1;
@@ -163,19 +149,11 @@ try {
 	if(a_metric.getValue() == "COR") {
 		cerr << "COR not yet implemented!" << endl;
 	} else {
-		cout << "Done\nRigidly Registering with " << a_metric.getValue() 
+		cout << "Done\nNon-Rigidly Registering with " << a_metric.getValue() 
 			<< "..." << endl;
-		Metric metric;
-		
-		if(a_metric.getValue() == "MI")
-			metric = METRIC_MI;
-		else if(a_metric.getValue() == "NMI")
-			metric = METRIC_NMI;
-		else if(a_metric.getValue() == "VI")
-			metric = METRIC_VI;
 
-		transform = distortionCorr(fixed, moving, dir, sigmas,
-				a_bins.getValue(), a_parzen.getValue(), metric); 
+		transform = infoDistCor(fixed, moving, dir, a_bspace.getValue(), sigmas,
+				a_bins.getValue(), a_parzen.getValue(), a_metric.getValue());
 	}
 
 	fixed.reset();
@@ -204,7 +182,7 @@ try {
 		// Iterate over output, and pply transform
 		for(NDIter<double> it(out); !it.eof(); ++it) {
 			it.index(cind);
-			out->indexToPoint(cind, pt);
+			out->indexToPoint(cind.size(), cind.data(), pt.data());
 			bvw.get(pt.size(), pt.data(), transform->m_phasedim, def, ddef);
 			cind[dir] += def;
 			it.set(mvw.get(cind)*(1+ddef));
