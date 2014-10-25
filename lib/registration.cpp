@@ -1562,7 +1562,7 @@ int DistortionCorrectionInformationComputer::metric(
 	double Fc;   /** Intensity Corrected Moving Value */
 	double Ff;   /** Fixed Value Value */
 
-	vector<double> probweight(m_krad*m_krad);
+	vector<double> probweight((2*m_krad+1)*(2*m_krad+1));
 	vector<double> invspace(m_deform->ndim());
 	for(size_t dd=0; dd<m_deform->ndim(); dd++)
 		invspace[dd] = 1./m_deform->spacing(dd);
@@ -1640,18 +1640,19 @@ int DistortionCorrectionInformationComputer::metric(
 		 * Add to Derivatives of Bins Within Reach of the Point
 		 *******************************************************/
 		do {
+			for(size_t dd=0; dd<3; dd++)
+				dind[dd] = dnind[dd] + neighbors.pos[dd] - 2;
+
 			double dPHI_dphi = 1;
 			for(int ii = 0; ii < 3; ii++)
-				dPHI_dphi *= B3kern(dnind[ii]+neighbors.pos[ii]-2-dcind[ii]);
+				dPHI_dphi *= B3kern(dind[ii]-dcind[ii]);
 
 			double dPHI_dydphi = 1;
 			for(int ii = 0; ii < 3; ii++) {
 				if(ii == m_dir)
-					dPHI_dydphi *= -invspace[ii]*dB3kern(dnind[ii]+
-							neighbors.pos[ii]-2-dcind[ii]);
+					dPHI_dydphi *= -invspace[ii]*dB3kern(dind[ii]-dcind[ii]);
 				else
-					dPHI_dydphi *= B3kern(dnind[ii]+neighbors.pos[ii]-2-
-							dcind[ii]);
+					dPHI_dydphi *= B3kern(dind[ii]-dcind[ii]);
 			}
 			
 			double dg_dphi;

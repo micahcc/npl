@@ -17,6 +17,7 @@
  *
  *****************************************************************************/
 
+#include "basic_functions.h"
 #include "mrimage.h"
 #include "iterators.h"
 #include "accessors.h"
@@ -58,6 +59,12 @@ shared_ptr<MRImage> testimage()
     return in;
 }
 
+inline 
+double win(double x, double a)
+{
+	return wingaussWindow(x, a, 8);
+}
+
 int main()
 {
     auto img = testimage();
@@ -68,8 +75,11 @@ int main()
 //    
 //    img2 = smoothDownsample(img, .1);
 //    img2->write("smooth_small.nii.gz");
-//    
-    auto img2 = smoothDownsample(img, 1);
+//
+    auto space = img->getSpacing();
+	for(size_t ii=0; ii<img->ndim(); ii++)
+		space[ii] = 5;
+	auto img2 = resample(img, space.array().data(), win);
     img2->write("smooth_medium1.nii.gz");
 //    
 //    img2 = smoothDownsample(img, 5);
@@ -88,7 +98,9 @@ int main()
 //    img2 = smoothDownsample(img, .1);
 //    img2->write("smooth_small2.nii.gz");
 //    
-    img2 = smoothDownsample(img, 5);
+	for(size_t ii=0; ii<img->ndim(); ii++)
+		space[ii] = 10;
+	img2 = resample(img, space.array().data(), win);
     img2->write("smooth_medium2.nii.gz");
 //    
 //    img2 = smoothDownsample(img, 10);

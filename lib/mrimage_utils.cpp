@@ -456,8 +456,8 @@ ptr<MRImage> smoothDownsample(ptr<const MRImage> in, double sigma)
             double normf = 1./sqrt(psize[dd]*dsize[dd]);
             // positive frequencies
             for(ii=0; ii<dsize[dd]/2; ii++) {
-                double ff = ii/(double)psize[dd];
-                double w = exp(-M_PI*M_PI*ff*ff*2*sd[dd]*sd[dd]);
+                double ff = ii/(double)dsize[dd];
+                double w = hannWindow(ff, 0.5)*exp(-ff*ff*sd[dd]*sd[dd]/2);
                 buffer1[ii][0] = buffer2[ii][0]*w*normf;
                 buffer1[ii][1] = buffer2[ii][1]*w*normf;
             }
@@ -465,8 +465,8 @@ ptr<MRImage> smoothDownsample(ptr<const MRImage> in, double sigma)
             // negative frequencies
             for(ii=dsize[dd]/2; ii<dsize[dd]; ii++) {
                 int64_t jj = psize[dd]-(dsize[dd]-ii);
-                double ff = -(dsize[dd]-ii)/(double)psize[dd];
-                double w = exp(-M_PI*M_PI*ff*ff*2*sd[dd]*sd[dd]);
+                double ff = -(dsize[dd]-ii)/(double)dsize[dd];
+                double w = hannWindow(ff, 0.5)*exp(-ff*ff*sd[dd]*sd[dd]/2);
                 buffer1[ii][0] = buffer2[jj][0]*w*normf;
                 buffer1[ii][1] = buffer2[jj][1]*w*normf;
             }
