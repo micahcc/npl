@@ -307,8 +307,8 @@ ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		// smooth and downsample input images
 		auto sm_fixed = smoothDownsample(fixed, sigmas[ii]);
 		auto sm_moving = smoothDownsample(moving, sigmas[ii]);
-		DEBUGWRITE(sm_fixed->write("smooth_fixed_"+to_string(ii)+".nii.gz"));
-		DEBUGWRITE(sm_moving->write("smooth_moving_"+to_string(ii)+".nii.gz"));
+		sm_fixed->write("smooth_fixed_"+to_string(ii)+".nii.gz");
+		sm_moving->write("smooth_moving_"+to_string(ii)+".nii.gz");
 	
 		comp.setFixed(sm_fixed);
 		comp.setMoving(sm_moving, dir);

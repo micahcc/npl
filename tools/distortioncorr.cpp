@@ -83,7 +83,7 @@ try {
 	cmd.parse(argc, argv);
 
 	// set up sigmas
-	vector<double> sigmas({3,2,1,0});
+	vector<double> sigmas({5,1,0});
 	if(a_sigmas.isSet()) 
 		sigmas.assign(a_sigmas.begin(), a_sigmas.end());
 
@@ -92,17 +92,19 @@ try {
 	 *************************************************************************/
 
 	// fixed image
-	cout << "Reading Inputs...";
+	cerr << "Reading Inputs...";
 	ptr<MRImage> fixed, moving, in_moving;
 	{
 	ptr<MRImage> in_fixed = readMRImage(a_fixed.getValue());
-	ptr<MRImage> in_moving = readMRImage(a_moving.getValue());
+	in_moving = readMRImage(a_moving.getValue());
+	cerr << "Done" << endl;
+	size_t ndim = min(in_fixed->ndim(), in_moving->ndim());
 
-	size_t ndim = min(fixed->ndim(), in_moving->ndim());
-	auto moving = dPtrCast<MRImage>(in_moving->copyCast(ndim, in_moving->dim(), 
-				FLOAT32));
+	cerr << "Extracting first " << ndim << " dims of Moving Image" << endl;
+	moving = dPtrCast<MRImage>(in_moving->copyCast(ndim, in_moving->dim(), 
+				FLOAT64));
 
-	cout << "Done\nPutting Fixed Image into Moving Space...";
+	cerr << "Done\nPutting Fixed Image into Moving Space...";
 
 	// Create Copy of Moving image, then sample input fixed image on its grid
 	fixed = dPtrCast<MRImage>(moving->createAnother());
@@ -122,8 +124,8 @@ try {
 		// sample 
 		it.set(interp.get(point));
 	}
-	fixed->write("resampled.nii.gz");
 	}
+	cerr << "Done" << endl;
 
 	// Get direction
 	int dir = moving->m_phasedim;
@@ -147,7 +149,7 @@ try {
 	if(a_metric.getValue() == "COR") {
 		cerr << "COR not yet implemented!" << endl;
 	} else {
-		cout << "Done\nRigidly Registering with " << a_metric.getValue() 
+		cout << "Done\nNon-Rigidly Registering with " << a_metric.getValue() 
 			<< "..." << endl;
 
 		transform = infoDistCor(fixed, moving, dir, a_bspace.getValue(), sigmas,
