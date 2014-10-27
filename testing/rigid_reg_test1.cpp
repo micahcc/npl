@@ -94,21 +94,29 @@ shared_ptr<MRImage> squareImage()
 
 int main()
 {
-    // create test image
-    auto img = gaussianImage();
+	// create test image
+	auto img = gaussianImage();
 
-    // rotate it
-    auto moved = dPtrCast<MRImage>(img->copy());
-    rotateImageShearFFT(moved, .1, .1, .2);
+	// rotate it
+	auto moved = dPtrCast<MRImage>(img->copy());
+	rotateImageShearFFT(moved, .1, .1, .2);
 
-    shiftImageFFT(moved, 0, 5);
-    shiftImageFFT(moved, 1, 7);
-    shiftImageFFT(moved, 2, -2);
+	shiftImageFFT(moved, 0, 5);
+	shiftImageFFT(moved, 1, 7);
+	shiftImageFFT(moved, 2, -2);
 
-    if(cor3DDerivTest(0.1, 0.09, img, moved) != 0) {
+	if(cor3DDerivTest(0.1, 0.09, img, moved) != 0) {
 		cerr << "Error too large" << endl;
-        return -1;
+		return -1;
 	}
-    
-    return 0;
+
+	img = smoothDownsample(img, 4);
+	moved = smoothDownsample(moved, 4);
+
+	if(cor3DDerivTest(0.1, 0.09, img, moved) != 0) {
+		cerr << "Error too large" << endl;
+		return -1;
+	}
+
+	return 0;
 }
