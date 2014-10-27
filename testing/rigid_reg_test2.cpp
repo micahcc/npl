@@ -95,8 +95,8 @@ shared_ptr<MRImage> squareImage()
 int main()
 {
     // create test image
-    //auto img = gaussianImage();
-    auto img = squareImage();
+    auto img = gaussianImage();
+    //auto img = squareImage();
 	double trueshift[3] = {5,7,-2};
 	double truerotate[3] = {.1,.1,.2};
 
@@ -110,7 +110,7 @@ int main()
     cerr << "Input Image:\n" << *img << endl;
     cerr << "Rigidly Transformed Image:\n" << *moved << endl;
 
-    std::vector<double> sigma_schedule({3,1.5,0.1});
+    std::vector<double> sigma_schedule({4,2,0});
 	auto out = corReg3D(img, moved, sigma_schedule);
 
 	out.toIndexCoords(moved, true);
