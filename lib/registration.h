@@ -514,6 +514,15 @@ private:
 	ptr<MRImage> m_dmoving;
 	ptr<MRImage> m_deform;
 
+	ptr<MRImage> m_move_cache;
+	ptr<MRImage> m_dmove_cache;
+	ptr<MRImage> m_corr_cache;
+
+	/**
+	 * @brief Updates m_move_cache, m_dmove_cache, m_corr_cache and m_rangemove
+	 */
+	void updateCaches();
+
 	/**
 	 * @brief Number of bins in marginal
 	 */
@@ -531,10 +540,6 @@ private:
 
 	// for interpolating moving image, and iterating fixed
 	VectorXd gradbuff;
-	LinInterp3DView<double> m_move_get;
-	LinInterp3DView<double> m_dmove_get;
-	NDConstIter<double> m_fit;
-	NDIter<double> m_dit;
 
 	/**
 	 * @brief Histogram of moving image (initialized by setBins)
