@@ -197,8 +197,7 @@ public:
 	 */
 	T get() const
 	{
-		m_linpos;
-		return *this;
+		return castget(parent->__getAddr(m_linpos));
 	};
 	
 	/**

@@ -112,7 +112,6 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform,
 	// going back and forth. Since the mapping from sub to atlas is ground truth
 	// we need to keep checking until we find a point in the subject that maps
 	// to our current atlas location
-	assert(iit.tlen() == 3);
 	for(Vector3DIter<double> iit(idef); !iit.eof(); ++iit) {
 
 		iit.index(3, cind);

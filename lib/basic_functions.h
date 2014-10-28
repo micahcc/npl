@@ -168,6 +168,7 @@ double freqGaussian(double x, double sd)
 		return exp(-x*x*2*M_PI*M_PI*sd*sd);
 }
 
+/*
  * @brief Sinc function centered at 0, with radius a, range should be = 2a.
  * Zero < -a, > a
  *

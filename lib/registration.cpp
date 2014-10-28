@@ -51,25 +51,6 @@ namespace npl {
  * Registration Functions
  *****************************************************************/
 /**
- * @brief Performs motion correction on a set of volumes. Each 3D volume is
- * extracted and linearly registered with the ref volume.
- *
- * @param input 3+D volume (set of 3D volumes, all higher dimensions are
- *              treated equally as separate volumes).
- * @param ref   Reference t, all images will be registered to the specified
- *              timepoint
- *
- * @return      Motion corrected volume.
- */
-shared_ptr<MRImage> motionCorrect(shared_ptr<const MRImage> input, size_t ref)
-{
-
-	(void)input;
-	(void)ref;
-	return NULL;
-};
-
-/**
  * @brief Performs correlation based registration between two 3D volumes. note
  * that the two volumes should have identical sampling and identical
  * orientation. If that is not the case, an exception will be thrown.
