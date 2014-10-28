@@ -62,29 +62,29 @@ using std::vector;
 void writeComplex(std::string basename, ptr<const MRImage> in, 
         bool absPhase)
 {
-    auto img1 = dPtrCast<MRImage>(in->copyCast(FLOAT64));
-    auto img2 = dPtrCast<MRImage>(in->copyCast(FLOAT64));
+	auto img1 = dPtrCast<MRImage>(in->copyCast(FLOAT64));
+	auto img2 = dPtrCast<MRImage>(in->copyCast(FLOAT64));
 
-    OrderIter<double> it1(img1);
-    OrderIter<double> it2(img2);
-    OrderConstIter<cdouble_t> init(in);
-    for(; !init.eof(); ++init, ++it1, ++it2) {
-        if(absPhase) {
-            it1.set(abs(*init));
-            it2.set(arg(*init));
-        } else {
-            it1.set((*init).real());
-            it2.set((*init).imag());
-        }
-    }
+	OrderIter<double> it1(img1);
+	OrderIter<double> it2(img2);
+	OrderConstIter<cdouble_t> init(in);
+	for(; !init.eof(); ++init, ++it1, ++it2) {
+		if(absPhase) {
+			it1.set(abs(*init));
+			it2.set(arg(*init));
+		} else {
+			it1.set((*init).real());
+			it2.set((*init).imag());
+		}
+	}
 
-    if(absPhase) {
-        img1->write(basename + "_abs.nii.gz");
-        img2->write(basename + "_ang.nii.gz");
-    } else {
-        img1->write(basename + "_re.nii.gz");
-        img2->write(basename + "_im.nii.gz");
-    }
+	if(absPhase) {
+		img1->write(basename + "_abs.nii.gz");
+		img2->write(basename + "_ang.nii.gz");
+	} else {
+		img1->write(basename + "_re.nii.gz");
+		img2->write(basename + "_im.nii.gz");
+	}
 }
 
 /**
@@ -98,72 +98,72 @@ void writeComplex(std::string basename, ptr<const MRImage> in,
  * COMPLEX128/CDOUBLE type
  */
 ptr<MRImage> fft_forward(ptr<const MRImage> in, 
-        const std::vector<size_t>& in_osize)
+		const std::vector<size_t>& in_osize)
 {
 
-    // make sure osize matches input dimensions
-    vector<size_t> osize(in_osize);
-    osize.resize(in->ndim(), 1);
-    size_t ndim = osize.size();
+	// make sure osize matches input dimensions
+	vector<size_t> osize(in_osize);
+	osize.resize(in->ndim(), 1);
+	size_t ndim = osize.size();
 
-    // create padded NDArray, allocated with fftw
-    size_t opixels = 1;
-    vector<int> osize32(ndim);
-    for(size_t ii=0; ii<ndim; ii++) {
-        opixels *= osize[ii];
-        osize32[ii] = osize[ii];
+	// create padded NDArray, allocated with fftw
+	size_t opixels = 1;
+	vector<int> osize32(ndim);
+	for(size_t ii=0; ii<ndim; ii++) {
+		opixels *= osize[ii];
+		osize32[ii] = osize[ii];
 
-        if(osize[ii] < in->dim(ii)) 
-            throw std::invalid_argument("Input image larger than output size!"
-                    " In\n" + __FUNCTION_STR__);
-    }
+		if(osize[ii] < in->dim(ii)) 
+			throw std::invalid_argument("Input image larger than output size!"
+					" In\n" + __FUNCTION_STR__);
+	}
 
-    auto outbuff = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*opixels);
-    auto output = createMRImage(osize.size(), osize.data(), CDOUBLE,
-            outbuff, [](void* ptr) {fftw_free(ptr);});
-    output->copyMetadata(in);
-    
-    // create ND FFTW Plan
-    auto fwd = fftw_plan_dft((int)ndim, osize32.data(), outbuff, outbuff, 
-            FFTW_FORWARD, FFTW_MEASURE);
-    for(size_t ii=0; ii<opixels; ii++) {
-        outbuff[ii][0] = 0;
-        outbuff[ii][1] = 0;
-    }
-    
-    // fill padded from input
-    OrderConstIter<cdouble_t> iit(in);
-    OrderIter<cdouble_t> pit(output);
-    pit.setROI(ndim, in->dim());
-    pit.setOrder(iit.getOrder());
-    for(iit.goBegin(), pit.goBegin(); !iit.eof() && !pit.eof(); ++pit, ++iit) 
-        pit.set(*iit);
-    assert(iit.eof() && pit.eof());
+	auto outbuff = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*opixels);
+	auto output = createMRImage(osize.size(), osize.data(), CDOUBLE,
+			outbuff, [](void* ptr) {fftw_free(ptr);});
+	output->copyMetadata(in);
 
-    DEBUGWRITE(writeComplex("forward_prefft", output));
+	// create ND FFTW Plan
+	auto fwd = fftw_plan_dft((int)ndim, osize32.data(), outbuff, outbuff, 
+			FFTW_FORWARD, FFTW_MEASURE);
+	for(size_t ii=0; ii<opixels; ii++) {
+		outbuff[ii][0] = 0;
+		outbuff[ii][1] = 0;
+	}
 
-    // fourier transform
-    fftw_execute(fwd);
+	// fill padded from input
+	OrderConstIter<cdouble_t> iit(in);
+	OrderIter<cdouble_t> pit(output);
+	pit.setROI(ndim, in->dim());
+	pit.setOrder(iit.getOrder());
+	for(iit.goBegin(), pit.goBegin(); !iit.eof() && !pit.eof(); ++pit, ++iit) 
+		pit.set(*iit);
+	assert(iit.eof() && pit.eof());
+
+	DEBUGWRITE(writeComplex("forward_prefft", output));
+
+	// fourier transform
+	fftw_execute(fwd);
 
 #ifndef NDEBUG
-    OrderIter<cdouble_t> it(output);;
-    for(size_t ii=0; !it.eof(); ii++, ++it) {
-        cdouble_t tmp(*it);
-        assert(tmp.real() == outbuff[ii][0]);
-        assert(tmp.imag() == outbuff[ii][1]);
-    }
+	OrderIter<cdouble_t> it(output);;
+	for(size_t ii=0; !it.eof(); ii++, ++it) {
+		cdouble_t tmp(*it);
+		assert(tmp.real() == outbuff[ii][0]);
+		assert(tmp.imag() == outbuff[ii][1]);
+	}
 #endif 
 
-    // normalize
-    double normf = 1./opixels;
-    for(size_t ii=0; ii<opixels; ii++) {
-        outbuff[ii][0] = normf*outbuff[ii][0];
-        outbuff[ii][1] = normf*outbuff[ii][1];
-    }
+	// normalize
+	double normf = 1./opixels;
+	for(size_t ii=0; ii<opixels; ii++) {
+		outbuff[ii][0] = normf*outbuff[ii][0];
+		outbuff[ii][1] = normf*outbuff[ii][1];
+	}
 
-    DEBUGWRITE(writeComplex("forward_postfft", output));
+	DEBUGWRITE(writeComplex("forward_postfft", output));
 
-    return output;
+	return output;
 }
 
 /**
@@ -178,80 +178,80 @@ ptr<MRImage> fft_forward(ptr<const MRImage> in,
  * COMPLEX128/CDOUBLE type
  */
 ptr<MRImage> fft_backward(ptr<const MRImage> in,
-        const std::vector<size_t>& in_osize)
+		const std::vector<size_t>& in_osize)
 {
 
-    // make sure osize matches input dimensions
-    vector<size_t> osize(in_osize);
-    osize.resize(in->ndim(), 1);
-    size_t ndim = osize.size();
+	// make sure osize matches input dimensions
+	vector<size_t> osize(in_osize);
+	osize.resize(in->ndim(), 1);
+	size_t ndim = osize.size();
 
-    // create output NDArray, allocated with fftw
-    size_t opixels = 1;
-    vector<int> osize32(ndim);
-    for(size_t ii=0; ii<ndim; ii++) {
-        opixels *= osize[ii];
-        osize32[ii] = osize[ii];
-    }
+	// create output NDArray, allocated with fftw
+	size_t opixels = 1;
+	vector<int> osize32(ndim);
+	for(size_t ii=0; ii<ndim; ii++) {
+		opixels *= osize[ii];
+		osize32[ii] = osize[ii];
+	}
 
-    auto outbuff = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*opixels);
-    auto output = createMRImage(osize.size(), osize.data(), CDOUBLE,
-            outbuff, [](void* ptr) {fftw_free(ptr);});
-    output->copyMetadata(in);
-    
-    // create ND FFTW Plan
-    auto plan = fftw_plan_dft((int)ndim, osize32.data(), outbuff, outbuff, 
-            FFTW_BACKWARD, FFTW_MEASURE);
-    for(size_t ii=0; ii<opixels; ii++) {
-        outbuff[ii][0] = 0;
-        outbuff[ii][1] = 0;
-    }
+	auto outbuff = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*opixels);
+	auto output = createMRImage(osize.size(), osize.data(), CDOUBLE,
+			outbuff, [](void* ptr) {fftw_free(ptr);});
+	output->copyMetadata(in);
 
-    // fill padded from input
-    NDConstView<cdouble_t> iacc(in);
-    OrderIter<cdouble_t> it(output);
-    vector<int64_t> iindex(ndim);
-    vector<int64_t> oindex(ndim);
-    for(it.goBegin(); !it.eof(); ++it) {
-        it.index(oindex);
+	// create ND FFTW Plan
+	auto plan = fftw_plan_dft((int)ndim, osize32.data(), outbuff, outbuff, 
+			FFTW_BACKWARD, FFTW_MEASURE);
+	for(size_t ii=0; ii<opixels; ii++) {
+		outbuff[ii][0] = 0;
+		outbuff[ii][1] = 0;
+	}
 
-        // if the curent oindex doesn't exist in the input (due to output size
-        // being larger than input size), then leave as 0
-        bool skip = false;
+	// fill padded from input
+	NDConstView<cdouble_t> iacc(in);
+	OrderIter<cdouble_t> it(output);
+	vector<int64_t> iindex(ndim);
+	vector<int64_t> oindex(ndim);
+	for(it.goBegin(); !it.eof(); ++it) {
+		it.index(oindex);
 
-        // compute input index, handling frequency unrwrapping
-        int64_t ilen, olen;
-        for(size_t dd=0; dd<ndim; dd++) {
-            ilen = in->dim(dd);
-            olen = output->dim(dd);
+		// if the curent oindex doesn't exist in the input (due to output size
+	// being larger than input size), then leave as 0
+		bool skip = false;
 
-            if(oindex[dd] < olen/2) {
-                iindex[dd] = oindex[dd];
-                if(iindex[dd] >= ilen/2) {
-                    skip = true;
-                    break;
-                }
-            } else  {
-                // negative frequencies
-                iindex[dd] = ilen-(olen-oindex[dd]); 
-                if(iindex[dd] < ilen/2) {
-                    skip = true;
-                    break;
-                }
-            }
+		// compute input index, handling frequency unrwrapping
+		int64_t ilen, olen;
+		for(size_t dd=0; dd<ndim; dd++) {
+			ilen = in->dim(dd);
+			olen = output->dim(dd);
 
-        }
+			if(oindex[dd] < olen/2) {
+				iindex[dd] = oindex[dd];
+				if(iindex[dd] >= ilen/2) {
+					skip = true;
+					break;
+				}
+			} else  {
+				// negative frequencies
+				iindex[dd] = ilen-(olen-oindex[dd]); 
+				if(iindex[dd] < ilen/2) {
+					skip = true;
+					break;
+				}
+			}
 
-        if(skip)
-            continue;
+		}
 
-        it.set(iacc[iindex]);
-    }
-    
-    // fourier transform
-    fftw_execute(plan);
+		if(skip)
+			continue;
 
-    return output;
+		it.set(iacc[iindex]);
+	}
+
+	// fourier transform
+	fftw_execute(plan);
+
+	return output;
 }
 
 /**
@@ -356,7 +356,7 @@ ptr<MRImage> resample(ptr<const MRImage> in, double* spacing,
 		// update ROI
 		roi[dd] = osize[dd];
 		DBG3(cerr << isize[dd] << "->" << osize[dd] << endl);
-	//	writeComplex("working"+to_string(dd), working);
+//		writeComplex("working"+to_string(dd), working);
 	}
 
 	// copy roi into output
@@ -387,118 +387,118 @@ ptr<MRImage> resample(ptr<const MRImage> in, double* spacing,
 ptr<MRImage> smoothDownsample(ptr<const MRImage> in, double sigma)
 {
 
-    size_t ndim = in->ndim();
+	size_t ndim = in->ndim();
 
-    // convert mm to indices
-    DBG3(cerr << "StdDev: " << sigma << "\n, Smoothing in Index Space:\n");
-    vector<double> sd(ndim, sigma);
-    for(size_t ii=0; ii<ndim; ii++) {
-        sd[ii] /= in->spacing(ii);
-        DBG3(cerr << ii << ": FWHM: " << sd_to_fwhm(sd[ii]) << " SD: " 
-            << sd[ii] << endl);
-    }
+	// convert mm to indices
+	DBG3(cerr << "StdDev: " << sigma << "\n, Smoothing in Index Space:\n");
+	vector<double> sd(ndim, sigma);
+	for(size_t ii=0; ii<ndim; ii++) {
+		sd[ii] /= in->spacing(ii);
+		DBG3(cerr << ii << ": FWHM: " << sd_to_fwhm(sd[ii]) << " SD: " 
+				<< sd[ii] << endl);
+	}
 
 
-    // create downsampled image
-    vector<size_t> isize(in->dim(), in->dim()+ndim);
-    vector<size_t> psize(ndim);
-    vector<size_t> dsize(ndim);
-    vector<size_t> osize(ndim);
-    size_t linelen = 0;
-    for(size_t dd=0; dd<ndim; dd++) {
-        // compute ratio
-        double ratio;
-        if(sd_to_fwhm(sd[dd]) < 2)
-            ratio = 1;
-        else
-            ratio = 2/sd_to_fwhm(sd[dd]);
+	// create downsampled image
+	vector<size_t> isize(in->dim(), in->dim()+ndim);
+	vector<size_t> psize(ndim);
+	vector<size_t> dsize(ndim);
+	vector<size_t> osize(ndim);
+	size_t linelen = 0;
+	for(size_t dd=0; dd<ndim; dd++) {
+		// compute ratio
+		double ratio;
+		if(sd[dd] < 1)
+			ratio = 1;
+		else
+			ratio = 1./sd[dd];
 
-        psize[dd] = round2(isize[dd]*2);
-        dsize[dd] = round2(psize[dd]*ratio);
-        double pratio = ((double)psize[dd])/((double)isize[dd]);
-        osize[dd] = round(dsize[dd]/pratio);
-        
-        if(psize[dd] > linelen)
-            linelen = psize[dd];
+		psize[dd] = round2(isize[dd]*2);
+		dsize[dd] = round2(psize[dd]*ratio);
+		double pratio = ((double)psize[dd])/((double)isize[dd]);
+		osize[dd] = round(dsize[dd]/pratio);
 
-        assert(psize[dd] >= dsize[dd]);
-        assert(osize[dd] <= isize[dd]);
-    }
+		if(psize[dd] > linelen)
+			linelen = psize[dd];
 
-    vector<size_t> roi(in->dim(), in->dim()+ndim);
-    auto working = dPtrCast<MRImage>(in->copy());
-    auto buffer1 = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*linelen*2);
-    auto buffer2 = &buffer1[linelen];
-    for(size_t dd=0; dd<ndim; dd++) {
-        auto fwd = fftw_plan_dft_1d((int)psize[dd], buffer1, buffer2,
-                FFTW_FORWARD, FFTW_MEASURE);
-        auto bwd = fftw_plan_dft_1d((int)dsize[dd], buffer1, buffer2,
-                FFTW_BACKWARD, FFTW_MEASURE);
+		assert(psize[dd] >= dsize[dd]);
+		assert(osize[dd] <= isize[dd]);
+	}
 
-        // extract line
-        ChunkIter<cdouble_t> it(working);
-        it.setROI(roi.size(), roi.data());
-        it.setLineChunk(dd);
-        for(it.goBegin(); !it.eof(); it.nextChunk()) {
-            int64_t ii=0;
-            for(it.goChunkBegin(), ii=0; !it.eoc(); ++it, ++ii) {
-                buffer1[ii][0] = (*it).real();
-                buffer1[ii][1] = (*it).imag();
-            }
-            for(; ii<psize[dd]; ii++){
-                buffer1[ii][0] = 0;
-                buffer1[ii][1] = 0;
-            }
+	vector<size_t> roi(in->dim(), in->dim()+ndim);
+	auto working = dPtrCast<MRImage>(in->copy());
+	auto buffer1 = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*linelen*2);
+	auto buffer2 = &buffer1[linelen];
+	for(size_t dd=0; dd<ndim; dd++) {
+		auto fwd = fftw_plan_dft_1d((int)psize[dd], buffer1, buffer2,
+				FFTW_FORWARD, FFTW_MEASURE);
+		auto bwd = fftw_plan_dft_1d((int)dsize[dd], buffer1, buffer2,
+				FFTW_BACKWARD, FFTW_MEASURE);
 
-            // fourier tansform line
-            fftw_execute(fwd);
+		// extract line
+		ChunkIter<cdouble_t> it(working);
+		it.setROI(roi.size(), roi.data());
+		it.setLineChunk(dd);
+		for(it.goBegin(); !it.eof(); it.nextChunk()) {
+			int64_t ii=0;
+			for(it.goChunkBegin(), ii=0; !it.eoc(); ++it, ++ii) {
+				buffer1[ii][0] = (*it).real();
+				buffer1[ii][1] = (*it).imag();
+			}
+			for(; ii<psize[dd]; ii++){
+				buffer1[ii][0] = 0;
+				buffer1[ii][1] = 0;
+			}
 
-            double normf = 1./sqrt(psize[dd]*dsize[dd]);
-            // positive frequencies
-            for(ii=0; ii<dsize[dd]/2; ii++) {
-                double ff = ii/(double)psize[dd];
-                double w = exp(-M_PI*M_PI*ff*ff*2*sd[dd]*sd[dd]);
-                buffer1[ii][0] = buffer2[ii][0]*w*normf;
-                buffer1[ii][1] = buffer2[ii][1]*w*normf;
-            }
+			// fourier tansform line
+			fftw_execute(fwd);
 
-            // negative frequencies
-            for(ii=dsize[dd]/2; ii<dsize[dd]; ii++) {
-                int64_t jj = psize[dd]-(dsize[dd]-ii);
-                double ff = -(dsize[dd]-ii)/(double)psize[dd];
-                double w = exp(-M_PI*M_PI*ff*ff*2*sd[dd]*sd[dd]);
-                buffer1[ii][0] = buffer2[jj][0]*w*normf;
-                buffer1[ii][1] = buffer2[jj][1]*w*normf;
-            }
+			double normf = 1./sqrt(psize[dd]*dsize[dd]);
+			// positive frequencies
+			for(ii=0; ii<dsize[dd]/2; ii++) {
+				double ff = ii/(double)psize[dd];
+				double w = exp(-M_PI*M_PI*ff*ff*2*sd[dd]*sd[dd]);
+				buffer1[ii][0] = buffer2[ii][0]*w*normf;
+				buffer1[ii][1] = buffer2[ii][1]*w*normf;
+			}
 
-            // inverse fourier tansform
-            fftw_execute(bwd);
+			// negative frequencies
+			for(ii=dsize[dd]/2; ii<dsize[dd]; ii++) {
+				int64_t jj = psize[dd]-(dsize[dd]-ii);
+				double ff = -(dsize[dd]-ii)/(double)psize[dd];
+				double w = exp(-M_PI*M_PI*ff*ff*2*sd[dd]*sd[dd]);
+				buffer1[ii][0] = buffer2[jj][0]*w*normf;
+				buffer1[ii][1] = buffer2[jj][1]*w*normf;
+			}
 
-            // write out (and zero extra area)
-            for(it.goChunkBegin(), ii=0; ii<dsize[dd]; ++it, ++ii) {
-                cdouble_t tmp(buffer2[ii][0], buffer2[ii][1]);
-                it.set(tmp);
-            }
-            for(; !it.eoc(); ++it){
-                cdouble_t tmp(0, 0);
-                it.set(tmp);
-            }
-        }
+			// inverse fourier tansform
+			fftw_execute(bwd);
 
-        // update ROI
-        roi[dd] = osize[dd];
-        DBG3(cerr << isize[dd] << "->" << osize[dd] << endl);
-    }
+			// write out (and zero extra area)
+			for(it.goChunkBegin(), ii=0; ii<dsize[dd]; ++it, ++ii) {
+				cdouble_t tmp(buffer2[ii][0], buffer2[ii][1]);
+				it.set(tmp);
+			}
+			for(; !it.eoc(); ++it){
+				cdouble_t tmp(0, 0);
+				it.set(tmp);
+			}
+		}
 
-    // copy roi into output
-    auto out = dPtrCast<MRImage>(working->copyCast(osize.size(), osize.data()));
+		// update ROI
+		roi[dd] = osize[dd];
+		DBG3(cerr << isize[dd] << "->" << osize[dd] << endl);
+	}
 
-    // set spacing
-    for(size_t dd=0; dd<in->ndim(); dd++) 
-        out->spacing(dd) *= ((double)psize[dd])/((double)dsize[dd]);
+	// copy roi into output
+	auto out = dPtrCast<MRImage>(working->copyCast(osize.size(), osize.data()));
 
-    fftw_free(buffer1);
-    return out;
+	// set spacing
+	for(size_t dd=0; dd<in->ndim(); dd++) 
+		out->spacing(dd) *= ((double)psize[dd])/((double)dsize[dd]);
+
+	fftw_free(buffer1);
+	return out;
 }
 
 /**
@@ -516,12 +516,12 @@ void gaussianSmooth1D(ptr<MRImage> inout, size_t dim,
 	if(stddev <= 0)
 		return;
 
-    const auto gaussKern = [](double x) 
-    {
-        const double PI = acos(-1);
-        const double den = 1./sqrt(2*PI);
-        return den*exp(-x*x/(2));
-    };
+	const auto gaussKern = [](double x) 
+	{
+	  const double PI = acos(-1);
+	  const double den = 1./sqrt(2*PI);
+	  return den*exp(-x*x/(2));
+  };
 
 	if(dim >= inout->ndim()) {
 		throw std::out_of_range("Invalid dimension specified for 1D gaussian "
@@ -566,7 +566,7 @@ void gaussianSmooth1D(ptr<MRImage> inout, size_t dim,
 			}
 			buff[ii] = tmp;
 		}
-		
+
 		// write back out
 		for(size_t ii=0; ii<inout->dim(dim); ii++, ++it)
 			it.set(buff[ii]);

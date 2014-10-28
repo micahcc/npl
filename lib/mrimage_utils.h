@@ -57,13 +57,14 @@ std::ostream& operator<<(std::ostream &out, const MRImage& img);
  ****************************************************************************/
 
 /**
- * @brief Gaussian smooths an image in 1 direction.
+ * @brief Gaussian smooths an image in 1 direction. Questionable whether it
+ * works. Seems to shift image.
  *
  * @param inout Input/Output image
  * @param dim Direction to smooth in
  * @param stddev in real space, for example millimeters.
  */
-void gaussianSmooth1D(ptr<MRImage> inout, size_t dim, double stddev);
+//void gaussianSmooth1D(ptr<MRImage> inout, size_t dim, double stddev);
 
 
 /******************************************************
