@@ -1396,7 +1396,6 @@ void DistortionCorrectionInformationComputer::initializeKnots(double space)
 	 * Create buffers for gradient
 	 *************************************/
 	gradbuff.resize(m_deform->elements());
-	m_dit.setArray(m_deform);
 	m_gradHjoint.resize(osize.data());
 	m_gradHmove.resize(osize.data());
 
@@ -1468,9 +1467,6 @@ void DistortionCorrectionInformationComputer::setMoving(
 		derivative(m_moving, m_dmoving, m_dir);
 	}
 
-	m_move_get.setArray(m_moving);
-	m_dmove_get.setArray(m_dmoving);
-
 	// must include 0 because outside values get mapped to 0
 	m_rangemove[0] = 0;
 	m_rangemove[1] = 0;
@@ -1479,6 +1475,48 @@ void DistortionCorrectionInformationComputer::setMoving(
 		m_rangemove[1] = std::max(m_rangemove[1], *it);
 	}
 
+	m_move_cache = dPtrCast<MRImage>(m_moving->createAnother());
+	m_corr_cache = dPtrCast<MRImage>(m_moving->createAnother());
+	m_dmove_cache = dPtrCast<MRImage>(m_dmoving->createAnother());
+}
+
+void DistortionCorrectionInformationComputer::updateCaches()
+{
+	m_rangemove[0] = 0;
+	m_rangemove[1] = 0;
+	LinInterp3DView<double> move_vw(m_moving);
+	LinInterp3DView<double> dmove_vw(m_dmoving);
+	BSplineView<double> bsp_vw(m_deform);
+	bsp_vw.m_boundmethod = ZEROFLUX;
+	bsp_vw.m_ras = true;
+
+	// Compute Probabilities
+	double mcind[3]; // index in moving image
+	double dcind[3]; // index in distortion image
+	double pt[3]; // point 
+	for(NDIter<double> dmit(m_dmove_cache), mit(m_move_cache), cit(m_corr_cache); 
+				!mit.eof(); ++dmit, ++mit, ++cit) {
+
+		// Compute Continuous Index of Point in Deform Image
+		dmit.index(3, mcind);
+		m_move_cache->indexToPoint(3, mcind, pt);
+		m_deform->pointToIndex(3, pt, dcind);
+
+		// Sample B-Spline Value and Derivative at Current Position
+		double def = 0, ddef = 0;
+		bsp_vw.get(3, pt, m_dir, def, ddef);
+		mcind[m_dir] += def/m_moving->spacing(m_dir);
+
+		// get actual values
+		double Fm = move_vw.get(mcind[0], mcind[1], mcind[2]);
+		if(Fm < 1e-10 || ddef < -1) Fm = 0;
+		mit.set(Fm);
+		cit.set(Fm*(1+ddef));
+		dmit.set(dmove_vw.get(mcind[0], mcind[1], mcind[2]));
+
+		m_rangemove[0] = std::min(m_rangemove[0], cit.get());
+		m_rangemove[1] = std::max(m_rangemove[1], cit.get());
+	}
 }
 
 /**
@@ -1494,7 +1532,6 @@ void DistortionCorrectionInformationComputer::setFixed(ptr<const MRImage> newfix
 		throw INVALID_ARGUMENT("Fixed image is not 3D!");
 
 	m_fixed = newfixed;
-	m_fit.setArray(m_fixed);
 
 	// Compute Range of Values
 	m_rangefix[0] = INFINITY;
@@ -1515,10 +1552,6 @@ void DistortionCorrectionInformationComputer::setFixed(ptr<const MRImage> newfix
 int DistortionCorrectionInformationComputer::metric(
 		double& val, VectorXd& grad)
 {
-	BSplineView<double> bsp_vw(m_deform);
-	bsp_vw.m_boundmethod = ZEROFLUX;
-	bsp_vw.m_ras = true;
-
 	//Zero Inputs
 	m_pdfmove.zero();
 	m_pdffix.zero();
@@ -1534,7 +1567,6 @@ int DistortionCorrectionInformationComputer::metric(
 	int64_t dnind[3]; // Nearest knot to dcind
 	int64_t dind[5]; // last two dimensions are for bins
 	double pt[3];
-	double newminmax[2] = {0, m_rangemove[1]};
 	double Fm;   /** Moving Value */
 	double dFm;  /** Derivative Moving Value */
 	double Fc;   /** Intensity Corrected Moving Value */
@@ -1548,48 +1580,43 @@ int DistortionCorrectionInformationComputer::metric(
 	Counter<> neighbors(3);
 	for(size_t dd=0; dd<3; dd++) neighbors.sz[dd] = 5;
 
+	// Compute Updated Version of Distortion-Corrected Image
+	updateCaches();
+
+	// Create Iterators/ Viewers
+	NDConstIter<double> cit(m_corr_cache);
+	NDConstIter<double> mit(m_move_cache);
+	NDConstIter<double> dmit(m_dmove_cache);
+	NDConstIter<double> fit(m_fixed);
+	
+	BSplineView<double> bsp_vw(m_deform);
+	bsp_vw.m_boundmethod = ZEROFLUX;
+	bsp_vw.m_ras = true;
+
 	// compute updated moving width
 	m_wmove = (m_rangemove[1]-m_rangemove[0])/(m_bins-2*m_krad-1);
 	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-2*m_krad-1);
 
 	// Compute Probabilities
-	for(m_fit.goBegin(); !m_fit.eof(); ++m_fit) {
+	for(cit.goBegin(), dmit.goBegin(), mit.goBegin(), fit.goBegin(); 
+			!fit.eof(); ++cit, ++mit, ++fit, ++dmit) {
 
 		// Compute Continuous Index of Point in Deform Image
-		m_fit.index(3, fcind);
+		fit.index(3, fcind);
 		m_fixed->indexToPoint(3, fcind, pt);
 		m_deform->pointToIndex(3, pt, dcind);
 
-		// create ROI in kernel space
-		for(size_t dd=0; dd<3; dd++) {
-			dnind[dd] = round(dcind[dd]);
-		}
-
-		/**********************************************************************
-		 * Compute Distortion at this point and compute un-distorted value/bins
-		 *********************************************************************/
-
-		// Sample B-Spline Value and Derivative at Current Position
-		double def = 0, ddef = 0;
-		bsp_vw.get(3, pt, m_dir, def, ddef);
-		fcind[m_dir] += def/m_moving->spacing(m_dir);
-
 		// get actual values
-		Fm = m_move_get.get(fcind[0], fcind[1], fcind[2]);
-		if(Fm < 1e-10) Fm = 0;
-		Fc = Fm*(1+ddef);
-		dFm = m_dmove_get.get(fcind[0], fcind[1], fcind[2]);
-		Ff = *m_fit;
+		Fm = mit.get();
+		Fc = cit.get();
+		dFm = dmit.get();
+		Ff = fit.get();
 
-		// compute the new range of values
-		newminmax[0] = min(newminmax[0], Fc);
-		newminmax[1] = max(newminmax[1], Fc);
-
-		// compute bins, clamp moving in case range increases
+		// compute bins
 		cbinfix = (Ff-m_rangefix[0])/m_wfix + m_krad;
 		binfix = round(cbinfix);
 		cbinmove = (Fc-m_rangemove[0])/m_wmove + m_krad;
-		binmove = clamp<int>(m_krad, m_bins-1-m_krad, round(cbinmove));
+		binmove = round(cbinmove);
 
 		/**************************************************************
 		 * Compute Marginal and Joint PDF's
@@ -1608,11 +1635,14 @@ int DistortionCorrectionInformationComputer::metric(
 		/**************************************************************
 		 * Compute Derivative of Marginal and Joint PDFs
 		 **************************************************************/
-
 		assert(binfix+m_krad < m_bins);
 		assert(binmove+m_krad < m_bins);
 		assert(binfix-m_krad >= 0);
 		assert(binmove-m_krad >= 0);
+		
+		// Find center
+		for(size_t dd=0; dd<3; dd++) 
+			dnind[dd] = round(dcind[dd]);
 
 		/********************************************************
 		 * Add to Derivatives of Bins Within Reach of the Point
@@ -1765,10 +1795,6 @@ int DistortionCorrectionInformationComputer::metric(
 		val = -val;
 	}
 
-	// Update Range
-	m_rangemove[0] = newminmax[0];
-	m_rangemove[1] = newminmax[1];
-
 	return 0;
 }
 
@@ -1796,52 +1822,42 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 	double cbinmove, cbinfix; //continuous
 	int binmove, binfix; // nearest int
 	double fcind[3]; // Continuous index in fixed image
-	double pt[3];
-	double newminmax[2] = {0, m_rangemove[1]};
-	double Fm;   /** Moving Value */
 	double Fc;   /** Intensity Corrected Moving Value */
 	double Ff;   /** Fixed Value Value */
+	
+	// Compute Updated Version of Distortion-Corrected Image
+	updateCaches();
+	
+	// Create Iterators/ Viewers
+	NDConstIter<double> cit(m_corr_cache);
+	NDConstIter<double> mit(m_move_cache);
+	NDConstIter<double> dmit(m_dmove_cache);
+	NDConstIter<double> fit(m_fixed);
 
 	// compute updated moving width
 	m_wmove = (m_rangemove[1]-m_rangemove[0])/(m_bins-2*m_krad-1);
 	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-2*m_krad-1);
 
 	// Compute Probabilities
-	for(m_fit.goBegin(); !m_fit.eof(); ++m_fit) {
+	for(cit.goBegin(), dmit.goBegin(), mit.goBegin(), fit.goBegin(); 
+			!fit.eof(); ++cit, ++mit, ++fit, ++dmit) {
 
 		// Compute Continuous Index of Point in Deform Image
-		m_fit.index(3, fcind);
-		m_fixed->indexToPoint(3, fcind, pt);
-
-		/**********************************************************************
-		 * Compute Distortion at this point and compute un-distorted value/bins
-		 *********************************************************************/
-
-		// Sample B-Spline Value and Derivative at Current Position
-		double def = 0, ddef = 0;
-		bsp_vw.get(3, pt, m_dir, def, ddef);
-		fcind[m_dir] += def/m_moving->spacing(m_dir);
+		fit.index(3, fcind);
 
 		// get actual values
-		Fm = m_move_get(fcind[0], fcind[1], fcind[2]);
-		if(Fm < 1e-10) Fm = 0;
-		Fc = Fm*(1+ddef);
-		Ff = *m_fit;
+		Fc = cit.get();
+		Ff = fit.get();
 
-		// compute the new range of values
-		newminmax[0] = min(newminmax[0], Fc);
-		newminmax[1] = max(newminmax[1], Fc);
-
-		// compute bins, clamp moving in case range increases
+		// compute bins
 		cbinfix = (Ff-m_rangefix[0])/m_wfix + m_krad;
 		binfix = round(cbinfix);
 		cbinmove = (Fc-m_rangemove[0])/m_wmove + m_krad;
-		binmove = clamp<int>(m_krad, m_bins-1-m_krad, round(cbinmove));
+		binmove = round(cbinmove);
 
 		/**************************************************************
-		 * Compute Marginal and Joint PDF's
+		 * Compute Joint PDF
 		 **************************************************************/
-
 		// Sum up Bins for Value Comp
 		for(int ii = binmove-m_krad; ii <= binmove+m_krad; ii++) {
 			for(int jj = binfix-m_krad; jj <= binfix+m_krad; jj++) {
@@ -1907,10 +1923,6 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 	// negate if we are using a similarity measure
 	if(m_compdiff && (m_metric == METRIC_NMI || m_metric == METRIC_MI))
 		val = -val;
-
-	// Update Range
-	m_rangemove[0] = newminmax[0];
-	m_rangemove[1] = newminmax[1];
 
 	return 0;
 }
