@@ -154,6 +154,20 @@ double sincWindow(double x, double a)
 }
 
 /**
+ * @brief Gaussian function in the frequency domain. Note that the standard
+ * deviation is in the time domain.
+ *
+ * @param x distance from center
+ * @param sd standard deviation
+ *
+ * @return weight
+ */
+inline
+double freqGaussian(double x, double sd)
+{
+		return exp(-x*x*2*M_PI*M_PI*sd*sd);
+}
+
  * @brief Sinc function centered at 0, with radius a, range should be = 2a.
  * Zero < -a, > a
  *
