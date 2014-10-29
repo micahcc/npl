@@ -76,8 +76,10 @@ std::ostream& operator<<(std::ostream &out, const MRImage& img);
  * @brief Performs smoothing in each dimension, then downsamples so that pixel
  * spacing is roughly equal to FWHM.
  *
+ * /todo less memory allocation, reuse fftw_alloc data
+ *
  * @param in    Input image
- * @param sigma Standard deviation for smoothing
+ * @param sd Standard deviation for smoothing
  *
  * @return  Smoothed and downsampled image
  */

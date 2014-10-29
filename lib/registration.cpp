@@ -116,8 +116,15 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
 			rigid.shift[ii] = opt.state_x[ii+3]/sm_moving->spacing(ii);
 			rigid.center[ii] = (sm_moving->dim(ii)-1)/2.;
 		}
+		
+		rotateImageShearKern(sm_moving, rigid.rotation[0], 
+				rigid.rotation[1], rigid.rotation[2]);
+		for(size_t dd=0; dd<3; dd++) 
+			shiftImageKern(sm_moving, dd, rigid.shift[dd]);
+		sm_moving->write("smooth_moved_"+to_string(ii)+".nii.gz");
 
 		rigid.toRASCoords(sm_moving);
+		cerr << "Post Rigid: " << ii << rigid << endl;
 	}
 
 	return rigid;
