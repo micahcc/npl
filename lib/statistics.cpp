@@ -83,6 +83,62 @@ void apply(double* dst, const double* src,  double(*func)(double), size_t sz)
  *
  * @return 		RxP matrix, where P is the number of principal components
  */
+MatrixXd pcacov(const MatrixXd& cov, double varth)
+{
+    varth=1-varth; 
+
+    double totalv = 0; // total variance
+    int outdim = 0;
+
+#ifndef NDEBUG
+    std::cout << "Computing ..." << std::endl;
+#endif //DEBUG
+    JacobiSVD<MatrixXd> svd(X, Eigen::ComputeThinU);
+#ifndef NDEBUG
+    std::cout << "Done" << std::endl;
+#endif //DEBUG
+	
+    const VectorXd& W = svd.singularValues();
+    const MatrixXd& U = svd.matrixU();
+    //only keep dimensions with variance passing the threshold
+    for(size_t ii=0; ii<W.rows(); ii++)
+        totalv += W[ii]*W[ii];
+
+    double sum = 0;
+    for(outdim = 0; outdim < W.rows() && sum < totalv*varth; outdim++) 
+        sum += W[outdim]*W[outdim];
+#ifndef NDEBUG
+    std::cout << "Output Dimensions: " << outdim 
+            << "\nCreating Reduced MatrixXd..." << std::endl;
+#endif //DEBUG
+
+    MatrixXd Xr(X.rows(), outdim);
+	for(int rr=0; rr<X.rows(); rr++) {
+		for(int cc=0; cc<outdim ; cc++) {
+			Xr(rr,cc) = U(rr, cc);
+		}
+	}
+#ifndef NDEBUG
+	std::cout  << "  Done" << std::endl;
+#endif 
+
+    return Xr;
+}
+
+/**
+ * @brief Computes the Principal Components of input matrix X
+ *
+ * Outputs reduced dimension (fewer cols) in output. Note that prio to this,
+ * the columns of X should be 0 mean. 
+ *
+ * @param X 	RxC matrix where each column row is a sample, each column a
+ *              dimension (or feature). The number of columns in the output
+ *              will be fewer because there will be fewer features
+ * @param varth Variance threshold. Don't include dimensions after this percent
+ *              of the variance has been explained.
+ *
+ * @return 		RxP matrix, where P is the number of principal components
+ */
 MatrixXd pca(const MatrixXd& X, double varth)
 {
     varth=1-varth; 
