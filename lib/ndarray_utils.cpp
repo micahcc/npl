@@ -21,7 +21,7 @@
  * need to cast the output using dPtrCast<MRImage>(out).
  * mrimage_utils.h is for more specific image-processing algorithm, this if for
  * generally data of any dimension, without regard to orientation.
- * 
+ *
  ******************************************************************************/
 
 #include "ndarray_utils.h"
@@ -32,8 +32,8 @@
 #include "basic_functions.h"
 #include "chirpz.h"
 
-#include <Eigen/Geometry> 
-#include <Eigen/Dense> 
+#include <Eigen/Geometry>
+#include <Eigen/Dense>
 
 #include "fftw3.h"
 
@@ -58,9 +58,9 @@ using Eigen::Vector3d;
 using Eigen::AngleAxisd;
 
 /**
- * @brief Computes the derivative of the image in the specified direction. 
+ * @brief Computes the derivative of the image in the specified direction.
  *
- * @param in    Input image/NDArray 
+ * @param in    Input image/NDArray
  * @param dir   Specify the dimension
  *
  * @return      Image storing the directional derivative of in
@@ -77,9 +77,9 @@ ptr<NDArray> derivative(ptr<const NDArray> in, size_t dir)
 }
 
 /**
- * @brief Computes the derivative of the image in the specified direction. 
+ * @brief Computes the derivative of the image in the specified direction.
  *
- * @param in    Input image/NDArray 
+ * @param in    Input image/NDArray
  * @param dir   Specify the dimension
  *
  * @return      Image storing the directional derivative of in
@@ -100,7 +100,7 @@ int derivative(ptr<const NDArray> in, ptr<NDArray> out, size_t dir)
 
         double dx = 0;
         double dy = 0;
-        
+
         // before
         if(index[dir] == 0) {
             dy -= inGet[index];
@@ -131,17 +131,17 @@ int derivative(ptr<const NDArray> in, ptr<NDArray> out, size_t dir)
 }
 
 /**
- * @brief Computes the derivative of the image. Computes all  
+ * @brief Computes the derivative of the image. Computes all
  * directional derivatives of the input image and the output
  * image will have 1 higher dimension with derivative of 0 in the first volume
  * 1 in the second and so on.
  *
- * Thus a 2D image will produce a [X,Y,2] image and a 3D image will produce a 
+ * Thus a 2D image will produce a [X,Y,2] image and a 3D image will produce a
  * [X,Y,Z,3] sized image.
  *
- * @param in    Input image/NDArray 
+ * @param in    Input image/NDArray
  *
- * @return 
+ * @return
  */
 ptr<NDArray> derivative(ptr<const NDArray> in)
 {
@@ -154,26 +154,26 @@ ptr<NDArray> derivative(ptr<const NDArray> in)
 }
 
 /**
- * @brief Computes the derivative of the image. Computes all  
+ * @brief Computes the derivative of the image. Computes all
  * directional derivatives of the input image and the output
  * image will have 1 higher dimension with derivative of 0 in the first volume
  * 1 in the second and so on.
  *
- * Thus a 2D image will produce a [X,Y,2] image and a 3D image will produce a 
+ * Thus a 2D image will produce a [X,Y,2] image and a 3D image will produce a
  * [X,Y,Z,3] sized image.
  *
- * @param in    Input image/NDArray 
+ * @param in    Input image/NDArray
  * @param out	Derivative of input
  *
  * @return 0 if successful
  */
 int derivative(ptr<const NDArray> in, ptr<NDArray> out)
 {
-	if(out->ndim() != in->ndim()+1) 
+	if(out->ndim() != in->ndim()+1)
 		throw INVALID_ARGUMENT("Output (derivative) should have 1 extra dimension "
 				"compared to input.");
 	for(size_t dd=0; dd<in->ndim(); dd++) {
-		if(out->dim(dd) != in->dim(dd))  
+		if(out->dim(dd) != in->dim(dd))
 			throw INVALID_ARGUMENT("Input and Output sizes differ");
 	}
 
@@ -288,7 +288,7 @@ bool comparable(const NDArray* left, const NDArray* right, bool* elL, bool* elR)
 			}
 		}
 	}
-	
+
 	for(size_t ii = 0; ii < right->ndim(); ii++) {
 		if(ii < left->ndim()) {
 			if(right->dim(ii) != left->dim(ii)) {
@@ -299,7 +299,7 @@ bool comparable(const NDArray* left, const NDArray* right, bool* elL, bool* elR)
 			}
 		}
 	}
-	
+
 	if(ret) {
 		leftEL = false;
 		rightEL = false;
@@ -327,10 +327,10 @@ bool comparable(const NDArray* left, const NDArray* right, bool* elL, bool* elR)
 void gaussianSmooth1D(ptr<NDArray> inout, size_t dim,
 		double stddev)
 {
-	if(stddev <= 0) 
+	if(stddev <= 0)
 		return;
 
-    const auto gaussKern = [](double x) 
+    const auto gaussKern = [](double x)
     {
         const double den = 1./sqrt(2*M_PI);
         return den*exp(-x*x/(2));
@@ -356,7 +356,7 @@ void gaussianSmooth1D(ptr<NDArray> inout, size_t dim,
 	it.setLineChunk(dim);
 	for(it.goBegin(); !it.eof(); it.nextChunk()) {
 		it.goChunkBegin();
-		for(size_t ii=0; !it.eoc(); ++it, ++ii) 
+		for(size_t ii=0; !it.eoc(); ++it, ++ii)
 			ibuff[ii] = *it;
 
 		// perform kernel math, writing to buffer
@@ -370,7 +370,7 @@ void gaussianSmooth1D(ptr<NDArray> inout, size_t dim,
 		}
 
 		it.goChunkBegin();
-		for(size_t ii=0; !it.eoc(); ++it, ++ii) 
+		for(size_t ii=0; !it.eoc(); ++it, ++ii)
 			it.set(obuff[ii]);
 	}
 }
@@ -392,7 +392,7 @@ ptr<NDArray> erode(ptr<NDArray> in, size_t reps)
 	auto out = in->copy();
 	for(size_t rr=0; rr<reps; ++rr) {
 		std::swap(prev, out);
-		
+
 		KernelIter<int> it(prev);
 		it.setRadius(1);
 		OrderIter<int> oit(out);
@@ -434,7 +434,7 @@ ptr<NDArray> dilate(ptr<NDArray> in, size_t reps)
 	auto out = in->copy();
 	for(size_t rr=0; rr<reps; ++rr) {
 		std::swap(prev, out);
-		
+
 		KernelIter<int> it(prev);
 		it.setRadius(1);
 		OrderIter<int> oit(out);
@@ -468,7 +468,7 @@ ptr<NDArray> dilate(ptr<NDArray> in, size_t reps)
 }
 
 /********************
- * Image Shifting 
+ * Image Shifting
  ********************/
 
 /**
@@ -498,8 +498,8 @@ void shiftImageKern(ptr<NDArray> inout, size_t dd, double dist,
 
 	for(iit.goBegin(), oit.goBegin(); !iit.isEnd() ; ){
 
-		// fill buffer 
-		for(size_t tt=0; tt<inout->dim(dd); ++iit, tt++) 
+		// fill buffer
+		for(size_t tt=0; tt<inout->dim(dd); ++iit, tt++)
 			buf[tt] = *iit;
 
 		// fill from line
@@ -539,9 +539,9 @@ void shiftImageFFT(ptr<NDArray> inout, size_t dim, double dist,
 	size_t paddiff = padsize-inout->dim(dim);
 	auto ibuffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*padsize);
 	auto obuffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*padsize);
-	fftw_plan fwd = fftw_plan_dft_1d((int)padsize, ibuffer, obuffer, 
+	fftw_plan fwd = fftw_plan_dft_1d((int)padsize, ibuffer, obuffer,
 			FFTW_FORWARD, FFTW_MEASURE);
-	fftw_plan rev = fftw_plan_dft_1d((int)padsize, ibuffer, obuffer, 
+	fftw_plan rev = fftw_plan_dft_1d((int)padsize, ibuffer, obuffer,
 			FFTW_BACKWARD, FFTW_MEASURE);
 
 	// need copy data into center of buffer, create iterator that moves
@@ -552,7 +552,7 @@ void shiftImageFFT(ptr<NDArray> inout, size_t dim, double dist,
 	oit.setOrder({dim});
 
 	for(iit.goBegin(), oit.goBegin(); !iit.isEnd() ;) {
-		// zero buffer 
+		// zero buffer
 		for(size_t tt=0; tt<padsize; tt++) {
 			ibuffer[tt][0] = 0;
 			ibuffer[tt][1] = 0;
@@ -590,18 +590,18 @@ void shiftImageFFT(ptr<NDArray> inout, size_t dim, double dist,
 		// fill line from buffer
 		for(size_t tt=0; tt<inout->dim(dim); ++oit, tt++) {
 			cdouble_t tmp(obuffer[tt+paddiff/2][0], obuffer[tt+paddiff/2][1]);
-			oit.set(tmp); 
+			oit.set(tmp);
 		}
 	}
 }
 
 /********************
- * Image Shearing 
+ * Image Shearing
  ********************/
 
 /**
  * @brief Performs a shear on the image where the sheared dimension (dim) will
- * be shifted depending on the index in other dimensions (dist). 
+ * be shifted depending on the index in other dimensions (dist).
  * (in units of pixels). Uses Lanczos interpolation.
  *
  * @param inout Input/output image
@@ -610,7 +610,7 @@ void shiftImageFFT(ptr<NDArray> inout, size_t dim, double dist,
  * @param dist Distance terms to travel. Shift[dim] = x0*dist[0]+x1*dist[1] ...
  * @param kern 1D interpolation kernel
  */
-void shearImageKern(ptr<NDArray> inout, size_t dim, size_t len, 
+void shearImageKern(ptr<NDArray> inout, size_t dim, size_t len,
         double* dist, double(*kern)(double,double))
 {
 	assert(dim < inout->ndim());
@@ -632,7 +632,7 @@ void shearImageKern(ptr<NDArray> inout, size_t dim, size_t len,
 	std::vector<int64_t> index(inout->ndim());
 	for(iit.goBegin(), oit.goBegin(); !iit.isEnd() ; ){
 		iit.index(index.size(), index.data());
-		
+
 		// calculate line shift
 		double lineshift = 0;
 		for(size_t ii=0; ii<len; ii++) {
@@ -640,8 +640,8 @@ void shearImageKern(ptr<NDArray> inout, size_t dim, size_t len,
 				lineshift += dist[ii]*(index[ii]-center[ii]);
 		}
 
-		// fill buffer 
-		for(size_t tt=0; tt<inout->dim(dim); ++iit, tt++) 
+		// fill buffer
+		for(size_t tt=0; tt<inout->dim(dim); ++iit, tt++)
 			buf[tt] = *iit;
 
 		// fill from line
@@ -663,7 +663,7 @@ void shearImageKern(ptr<NDArray> inout, size_t dim, size_t len,
 
 /**
  * @brief Performs a shear on the image where the sheared dimension (dim) will
- * be shifted depending on the index in other dimensions (dist). 
+ * be shifted depending on the index in other dimensions (dist).
  * (in units of pixels), using FFT.
  *
  * @param inout Input/output image
@@ -682,9 +682,9 @@ void shearImageFFT(ptr<NDArray> inout, size_t dim, size_t len, double* dist,
 	size_t padsize = round2(2*inout->dim(dim));
 	size_t paddiff = padsize-inout->dim(dim);
 	auto buffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*padsize);
-	fftw_plan fwd = fftw_plan_dft_1d((int)padsize, buffer, buffer, 
+	fftw_plan fwd = fftw_plan_dft_1d((int)padsize, buffer, buffer,
 			FFTW_FORWARD, FFTW_MEASURE);
-	fftw_plan rev = fftw_plan_dft_1d((int)padsize, buffer, buffer, 
+	fftw_plan rev = fftw_plan_dft_1d((int)padsize, buffer, buffer,
 			FFTW_BACKWARD, FFTW_MEASURE);
 	std::vector<double> center(inout->ndim());
 	for(size_t ii=0; ii<center.size(); ii++) {
@@ -705,7 +705,7 @@ void shearImageFFT(ptr<NDArray> inout, size_t dim, size_t len, double* dist,
 				lineshift += dist[ii]*(index[ii]-center[ii]);
 		}
 
-		// zero buffer 
+		// zero buffer
 		for(size_t tt=0; tt<padsize; tt++) {
 			buffer[tt][0] = 0;
 			buffer[tt][1] = 0;
@@ -744,7 +744,7 @@ void shearImageFFT(ptr<NDArray> inout, size_t dim, size_t len, double* dist,
 		it.goChunkBegin();
 		for(size_t tt=0; !it.isChunkEnd(); ++it, tt++) {
 			cdouble_t tmp(buffer[tt+paddiff/2][0], buffer[tt+paddiff/2][1]);
-			it.set(tmp); 
+			it.set(tmp);
 		}
 	}
 }
@@ -755,7 +755,7 @@ double getMaxShear(const Matrix3d& in)
 	for(size_t ii=0; ii<3; ii++) {
 		for(size_t jj=0; jj<3; jj++) {
 			if(ii != jj) {
-				if(fabs(in(ii,jj)) > mval) 
+				if(fabs(in(ii,jj)) > mval)
 					mval = fabs(in(ii,jj));
 			}
 		}
@@ -786,13 +786,13 @@ int shearYZXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	sx (0,2) = -csc(x)*sin(z)+cot(x)*sec(y)*sin(z)+cos(z)*tan(y);
 	sy2(1,0) = -cot(z)+csc(z)*sec(y);
 	sy2(1,2) = -csc(z)*tan(y)+sec(y)*(-csc(x)+cot(x)*sec(y)+cot(z)*tan(y));
-	
+
 	terms.clear();
 	terms.push_back(sy1);
 	terms.push_back(sz);
 	terms.push_back(sx);
 	terms.push_back(sy2);
-	
+
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
@@ -803,7 +803,7 @@ int shearYZXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				*maxshear = mv;
 		}
 	}
-	
+
 	//*construct*matrices*
 	Matrix3d rotation;
 	rotation = AngleAxisd(x, Vector3d::UnitX())*
@@ -843,7 +843,7 @@ int shearXYZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	terms.push_back(sy);
 	terms.push_back(sz);
 	terms.push_back(sx2);
-	
+
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
@@ -854,7 +854,7 @@ int shearXYZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				*maxshear = mv;
 		}
 	}
-	
+
 	//*construct*matrices*
 	Matrix3d rotation;
 	rotation = AngleAxisd(x, Vector3d::UnitX())*
@@ -894,7 +894,7 @@ int shearXZYX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	terms.push_back(sz);
 	terms.push_back(sy);
 	terms.push_back(sx2);
-	
+
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
@@ -905,7 +905,7 @@ int shearXZYX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				*maxshear = mv;
 		}
 	}
-	
+
 	//*construct*matrices*
 	Matrix3d rotation;
 	rotation = AngleAxisd(x, Vector3d::UnitX())*
@@ -945,7 +945,7 @@ int shearZXYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	terms.push_back(sx);
 	terms.push_back(sy);
 	terms.push_back(sz2);
-	
+
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
@@ -956,7 +956,7 @@ int shearZXYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				*maxshear = mv;
 		}
 	}
-	
+
 	//*construct*matrices*
 	Matrix3d rotation;
 	rotation = AngleAxisd(x, Vector3d::UnitX())*
@@ -996,7 +996,7 @@ int shearZYXZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	terms.push_back(sy);
 	terms.push_back(sx);
 	terms.push_back(sz2);
-	
+
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
@@ -1007,7 +1007,7 @@ int shearZYXZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				*maxshear = mv;
 		}
 	}
-	
+
 	//*construct*matrices*
 	Matrix3d rotation;
 	rotation = AngleAxisd(x, Vector3d::UnitX())*
@@ -1047,7 +1047,7 @@ int shearYXZY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	terms.push_back(sx);
 	terms.push_back(sz);
 	terms.push_back(sy2);
-	
+
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
@@ -1058,7 +1058,7 @@ int shearYXZY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				*maxshear = mv;
 		}
 	}
-	
+
 	//*construct*matrices*
 	Matrix3d rotation;
 	rotation = AngleAxisd(x, Vector3d::UnitX())*
@@ -1096,19 +1096,19 @@ int shearYXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	Matrix3d sx = Matrix3d::Identity();
 	Matrix3d sy2 = Matrix3d::Identity();
 	Matrix3d shearProduct = Matrix3d::Identity();
-	
+
 	sy1(1,0) = tan(Rz/2.);
 	sy1(1,2) = 0;
 	sx (0,1) = -sin(Rz);
 	sx (0,2) = 0;
 	sy2(1,0) = tan(Rz/2.);
 	sy2(1,2) = 0;
-	
+
 	terms.clear();
 	terms.push_back(sy1);
 	terms.push_back(sx);
 	terms.push_back(sy2);
-	
+
 	//*construct*matrices*
 	Matrix3d rotation;
 	rotation = AngleAxisd(Rx, Vector3d::UnitX())*
@@ -1132,7 +1132,7 @@ int shearYXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	if(err)
 		*err = (rotation-shearProduct).cwiseAbs().sum();
 
-	
+
 	return 0;
 }
 
@@ -1154,14 +1154,14 @@ int shearXZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	Matrix3d sz  = Matrix3d::Identity();
 	Matrix3d sx2 = Matrix3d::Identity();
 	Matrix3d shearProduct = Matrix3d::Identity();
-	
+
 	sx1(0,1) = 0;
 	sx1(0,2) = tan(Ry/2.);
 	sz (2,0) = -sin(Ry);
 	sz (2,1) = 0;
 	sx2(0,1) = 0;
 	sx2(0,2) = tan(Ry/2.);
-	
+
 	terms.clear();
 	terms.push_back(sx1);
 	terms.push_back(sz);
@@ -1189,7 +1189,7 @@ int shearXZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	DBG3(cerr << "Error:\n" << (rotation-shearProduct).cwiseAbs() << endl);
 	if(err)
 		*err = (rotation-shearProduct).cwiseAbs().sum();
-	
+
 	return 0;
 }
 
@@ -1218,12 +1218,12 @@ int shearZYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	sy (1,2) = -sin(Rx);
 	sz2(2,0) = 0;
 	sz2(2,1) = tan(Rx/2.);
-	
+
 	terms.clear();
 	terms.push_back(sz1);
 	terms.push_back(sy);
 	terms.push_back(sz2);
-	
+
 	if(maxshear) {
 		*maxshear = 0;
 		for(auto v:terms) {
@@ -1234,7 +1234,7 @@ int shearZYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				*maxshear = mv;
 		}
 	}
-	
+
 	//*construct*matrices*
 	Matrix3d rotation;
 	rotation = AngleAxisd(Rx, Vector3d::UnitX())*
@@ -1251,7 +1251,7 @@ int shearZYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 }
 
 /**
- * @brief Decomposes a euler angle rotation using the rotation matrix made up 
+ * @brief Decomposes a euler angle rotation using the rotation matrix made up
  * of R = Rx*Ry*Rz. Note that this would be multiplying the input vector by Rz
  * then Ry, then Rx. This does not support angles > PI/4. To do that, you
  * should first do bulk rotation using 90 degree rotations (which requires not
@@ -1273,7 +1273,7 @@ int shearDecompose(std::list<Matrix3d>& bestshears, double Rx, double Ry, double
 	double err, maxshear;
 	double bestmshear = SHEARMAX;
 	std::list<Matrix3d> ltmp;
-	
+
 	// single angles first
 	if(fabs(Rx) < ANGMIN && fabs(Ry) < ANGMIN) {
         DBG3(cerr << "Chose YXY" << endl);
@@ -1311,42 +1311,42 @@ int shearDecompose(std::list<Matrix3d>& bestshears, double Rx, double Ry, double
 		bestshears.clear();
 		bestshears.splice(bestshears.end(), ltmp);
 	}
-	
+
 	shearYXZY(ltmp, &err, &maxshear, Rx, Ry, Rz);
 	if(err < ERRTOL && maxshear < bestmshear) {
 		bestmshear = maxshear;
 		bestshears.clear();
 		bestshears.splice(bestshears.end(), ltmp);
 	}
-	
+
 	shearXYZX(ltmp, &err, &maxshear, Rx, Ry, Rz);
 	if(err < ERRTOL && maxshear < bestmshear) {
 		bestmshear = maxshear;
 		bestshears.clear();
 		bestshears.splice(bestshears.end(), ltmp);
 	}
-	
+
 	shearXZYX(ltmp, &err, &maxshear, Rx, Ry, Rz);
 	if(err < ERRTOL && maxshear < bestmshear) {
 		bestmshear = maxshear;
 		bestshears.clear();
 		bestshears.splice(bestshears.end(), ltmp);
 	}
-	
+
 	shearZYXZ(ltmp, &err, &maxshear, Rx, Ry, Rz);
 	if(err < ERRTOL && maxshear < bestmshear) {
 		bestmshear = maxshear;
 		bestshears.clear();
 		bestshears.splice(bestshears.end(), ltmp);
 	}
-	
+
 	shearZXYZ(ltmp, &err, &maxshear, Rx, Ry, Rz);
 	if(err < ERRTOL && maxshear < bestmshear) {
 		bestmshear = maxshear;
 		bestshears.clear();
 		bestshears.splice(bestshears.end(), ltmp);
 	}
-	
+
 	if(bestmshear <= SHEARMAX) {
 		DBG3(cerr << "Best Shear:" << bestmshear << endl);
 		return 0;
@@ -1357,8 +1357,8 @@ int shearDecompose(std::list<Matrix3d>& bestshears, double Rx, double Ry, double
 
 /**
  * @brief Tests all the shear decomposition functions.
- * Given a rotation, it computes shear versions of the rotation matrix and 
- * the error. The error should be very near 0 unless the reconstruction is 
+ * Given a rotation, it computes shear versions of the rotation matrix and
+ * the error. The error should be very near 0 unless the reconstruction is
  * NAN.
  *
  * @param Rx Rotation about x axis (first)
@@ -1374,7 +1374,7 @@ int shearTest(double Rx, double Ry, double Rz)
 	double ERRTOL = 0.0001;
 	std::list<Matrix3d> terms;
 	double err, maxshear;
-	
+
 	// single angles first
 	shearYXY(terms, &err, &maxshear, Rx, Ry, Rz);
 	cerr << "YXY maxshear: " << maxshear << endl;
@@ -1389,7 +1389,7 @@ int shearTest(double Rx, double Ry, double Rz)
 		cerr << "Err: " << err << endl;
 		return -1;
 	}
-	
+
 	shearZYZ(terms, &err, &maxshear, Rx, Ry, Rz);
 	cerr << "ZYZ maxshear: " << maxshear << endl;
 	if(isnormal(err) && err > ERRTOL) {
@@ -1403,42 +1403,42 @@ int shearTest(double Rx, double Ry, double Rz)
 		cerr << "Err: " << err << endl;
 		return -1;
 	}
-	
+
 	shearYXZY(terms, &err, &maxshear, Rx, Ry, Rz);
 	cerr << "YXZY maxshear: " << maxshear << endl;
 	if(isnormal(err) && err > ERRTOL) {
 		cerr << "Err: " << err << endl;
 		return -1;
 	}
-	
+
 	shearXYZX(terms, &err, &maxshear, Rx, Ry, Rz);
 	cerr << "XYZX maxshear: " << maxshear << endl;
 	if(isnormal(err) && err > ERRTOL) {
 		cerr << "Err: " << err << endl;
 		return -1;
 	}
-	
+
 	shearXZYX(terms, &err, &maxshear, Rx, Ry, Rz);
 	cerr << "XZYX maxshear: " << maxshear << endl;
 	if(isnormal(err) && err > ERRTOL) {
 		cerr << "Err: " << err << endl;
 		return -1;
 	}
-	
+
 	shearZYXZ(terms, &err, &maxshear, Rx, Ry, Rz);
 	cerr << "ZYXZ maxshear: " << maxshear << endl;
 	if(isnormal(err) && err > ERRTOL) {
 		cerr << "Err: " << err << endl;
 		return -1;
 	}
-	
+
 	shearZXYZ(terms, &err, &maxshear, Rx, Ry, Rz);
 	cerr << "ZXYZ maxshear: " << maxshear << endl;
 	if(isnormal(err) && err > ERRTOL) {
 		cerr << "Err: " << err << endl;
 		return -1;
 	}
-	
+
 	return 0;
 }
 
@@ -1456,9 +1456,9 @@ int shearTest(double Rx, double Ry, double Rz)
  * @param rz Rotation around z, radians
  * @param in Input image
  *
- * @return 
+ * @return
  */
-ptr<NDArray> linearRotate(double rx, double ry, double rz, 
+ptr<NDArray> linearRotate(double rx, double ry, double rz,
 		ptr<const NDArray> in)
 {
 	Matrix3d m;
@@ -1472,7 +1472,7 @@ ptr<NDArray> linearRotate(double rx, double ry, double rz,
 	Vector3d ind;
 	Vector3d cind;
 	Vector3d center;
-	for(size_t ii=0; ii<3 && ii<in->ndim(); ii++) 
+	for(size_t ii=0; ii<3 && ii<in->ndim(); ii++)
 		center[ii] = (in->dim(ii)-1)/2.;
 
 	for(Vector3DIter<double> it(out); !it.isEnd(); ++it) {
@@ -1480,7 +1480,7 @@ ptr<NDArray> linearRotate(double rx, double ry, double rz,
 		cind = m*(ind-center)+center;
 
 		// set for each t
-		for(size_t tt = 0; tt<in->tlen(); tt++) 
+		for(size_t tt = 0; tt<in->tlen(); tt++)
 			it.set(tt, lin(cind[0], cind[1], cind[2], tt));
 	}
 
@@ -1541,7 +1541,7 @@ int rotateImageShearKern(ptr<NDArray> inout, double rx, double ry, double rz,
 			shearImageKern(inout, sheardim, 3, shearvals, kern);
 
 	}
-	
+
 	return 0;
 }
 
@@ -1599,7 +1599,7 @@ int rotateImageShearFFT(ptr<NDArray> inout, double rx, double ry, double rz,
 		if(sheardim != -1)
 			shearImageFFT(inout, sheardim, 3, shearvals, window);
 	}
-	
+
 	return 0;
 }
 
@@ -1608,7 +1608,7 @@ int rotateImageShearFFT(ptr<NDArray> inout, double rx, double ry, double rz,
  *********************************/
 
 // upsample in anglular directions
-ptr<NDArray> pphelp_padFFT(ptr<const NDArray> in, 
+ptr<NDArray> pphelp_padFFT(ptr<const NDArray> in,
 		const std::vector<double>& upsamp)
 {
 	std::vector<size_t> osize(in->ndim(), 0);
@@ -1624,9 +1624,9 @@ ptr<NDArray> pphelp_padFFT(ptr<const NDArray> in,
 
 	// fourier transform
 	for(size_t dd = 0; dd < oimg->ndim(); dd++) {
-		fftw_plan fwd = fftw_plan_dft_1d((int)osize[dd], buffer, buffer, 
+		fftw_plan fwd = fftw_plan_dft_1d((int)osize[dd], buffer, buffer,
 				FFTW_FORWARD, FFTW_MEASURE);
-		
+
 		ChunkIter<cdouble_t> it(oimg);
 		it.setLineChunk(dd);
 		for(it.goBegin(); !it.eof() ; it.nextChunk()) {
@@ -1640,7 +1640,7 @@ ptr<NDArray> pphelp_padFFT(ptr<const NDArray> in,
 
 			// fourier transform
 			fftw_execute(fwd);
-			
+
 			// copy/shift
 			// F += N/2 (even), for N = 4:
 			// 0 -> 2 (f =  0)
@@ -1660,7 +1660,7 @@ ptr<NDArray> pphelp_padFFT(ptr<const NDArray> in,
 	}
 
 	fftw_free(buffer);
-	
+
 	return oimg;
 }
 
@@ -1683,7 +1683,7 @@ ptr<NDArray> pseudoPolarZoom(ptr<const NDArray> inimg, size_t prdim)
 	upsample[prdim] = 1;
 
 	ptr<NDArray> out = pphelp_padFFT(inimg, upsample);
-	
+
 	// write out padded/FFT image
 	{
 		auto absimg = out->copyCast(FLOAT64);
@@ -1705,14 +1705,14 @@ ptr<NDArray> pseudoPolarZoom(ptr<const NDArray> inimg, size_t prdim)
 	}
 
 	// declare variables
-	std::vector<int64_t> index(out->ndim()); 
+	std::vector<int64_t> index(out->ndim());
 
 	// compute/initialize buffer
 	size_t buffsize = [&]
 	{
 		size_t m = 0;
 		for(size_t dd=0; dd<out->ndim(); dd++) {
-			if(dd != prdim) 
+			if(dd != prdim)
 				m = max(out->dim(dd), m);
 		}
 		return m*2;
@@ -1726,7 +1726,7 @@ ptr<NDArray> pseudoPolarZoom(ptr<const NDArray> inimg, size_t prdim)
 			continue;
 
 		size_t isize = out->dim(dd);
-		
+
 		ChunkIter<cdouble_t> it(out);
 		it.setLineChunk(dd);
 		it.setOrder({prdim}, true); // make pseudoradius slowest
@@ -1746,7 +1746,7 @@ ptr<NDArray> pseudoPolarZoom(ptr<const NDArray> inimg, size_t prdim)
 			// zoom
 			assert(buffsize >= isize*2);
 			zoom(isize, &buffer[0], &buffer[isize], alpha);
-			
+
 			// copy from buffer back to output
 			it.goChunkBegin();
 			for(size_t ii=0; !it.eoc(); ii++, ++it) {
@@ -1780,14 +1780,14 @@ ptr<NDArray> pseudoPolar(ptr<const NDArray> in, size_t prdim)
 	ptr<NDArray> out = pphelp_padFFT(in, upsample);
 
 	// declare variables
-	std::vector<int64_t> index(out->ndim()); 
+	std::vector<int64_t> index(out->ndim());
 
 	// compute/initialize buffer
 	size_t buffsize = [&]
 	{
 		size_t m = 0;
 		for(size_t dd=0; dd<in->ndim(); dd++) {
-			if(dd != prdim) 
+			if(dd != prdim)
 				m = std::max(out->dim(dd), m);
 		}
 		return m*30;
@@ -1809,7 +1809,7 @@ ptr<NDArray> pseudoPolar(ptr<const NDArray> in, size_t prdim)
 				FFTW_BACKWARD, FFTW_MEASURE);
 
 		assert(buffsize >= usize+3*uppadsize);
-		
+
 		ChunkIter<cdouble_t> it(out);
 		it.setLineChunk(dd);
 		it.setOrder({prdim}, true); // make pseudoradius slowest
@@ -1820,9 +1820,9 @@ ptr<NDArray> pseudoPolar(ptr<const NDArray> in, size_t prdim)
 			// recompute chirps if alpha changed
 			alpha = 2*(index[prdim]/(out->dim(prdim)-1)) - 1;
 			if(alpha != prevAlpha) {
-				createChirp(uppadsize, prechirp, usize, 1, alpha, 
+				createChirp(uppadsize, prechirp, usize, 1, alpha,
 						false, false);
-				createChirp(uppadsize, postchirp, usize, 1, alpha, 
+				createChirp(uppadsize, postchirp, usize, 1, alpha,
 						true, false);
 				createChirp(uppadsize, convchirp, usize, 1, -alpha,
 						true, true);
@@ -1842,11 +1842,11 @@ ptr<NDArray> pseudoPolar(ptr<const NDArray> in, size_t prdim)
 				current[ii][0] *= norm;
 				current[ii][1] *= norm;
 			}
-		
+
 			// compute chirpz transform
 			chirpzFFT(usize, usize, current, uppadsize, &buffer[usize],
 						prechirp, convchirp, postchirp);
-			
+
 			// copy from buffer back to output
 			it.goChunkBegin();
 			for(size_t ii=0; !it.eoc(); ii++, ++it) {
@@ -1902,9 +1902,9 @@ void fillCircle(ptr<NDArray> inout, double radius, double alpha)
         for(size_t dd=0; dd<inout->ndim(); dd++) {
             dist += fabs(pow(index[dd]-(inout->dim(dd)-1.)/2.,alpha));
         }
-        if(dist <= rsqr) 
+        if(dist <= rsqr)
             it.set(1);
-        else 
+        else
             it.set(0);
     }
 }
@@ -1953,7 +1953,7 @@ void fillGaussian(ptr<NDArray> inout)
  */
 ptr<NDArray> concat(const vector<ptr<NDArray>>& images, size_t dir)
 {
-    if(images.size() == 0) 
+    if(images.size() == 0)
         throw INVALID_ARGUMENT("Input image array had size zero!");
 
     if(images[0]->type() == RGBA32 || images[0]->type() == RGB24 ||
@@ -1962,12 +1962,12 @@ ptr<NDArray> concat(const vector<ptr<NDArray>>& images, size_t dir)
         throw INVALID_ARGUMENT("Concatination of tuple-types has not yet "
                 "been implemented");
     }
-    
+
     if(dir >= images[0]->ndim()) {
         throw INVALID_ARGUMENT("Input direction dim is greater than input "
                 "images dimensions!");
     }
-    
+
     size_t ndim = images[0]->ndim();
     vector<size_t> osize(images[0]->dim(), images[0]->dim()+ndim);
 
@@ -1976,7 +1976,7 @@ ptr<NDArray> concat(const vector<ptr<NDArray>>& images, size_t dir)
     for(const auto& v: images) {
         // check sizes
         for(size_t dd=0; dd<ndim; dd++) {
-            if(dd != dir && v->dim(dd) != osize[dd]) 
+            if(dd != dir && v->dim(dd) != osize[dd])
                 throw INVALID_ARGUMENT("Input image have different sizes!");
         }
         osize[dir] += v->dim(dir);
@@ -1984,7 +1984,7 @@ ptr<NDArray> concat(const vector<ptr<NDArray>>& images, size_t dir)
 
     // create output image
     ptr<NDArray> oimg = images[0]->copyCast(osize.size(), osize.data());
-    
+
     // iterate through, make highest dimension slowest
     NDIter<double> oit(oimg);
     vector<size_t> order;
@@ -2032,7 +2032,7 @@ ptr<NDArray> concat(const vector<ptr<NDArray>>& images, size_t dir)
  */
 ptr<NDArray> concatElevate(const vector<ptr<NDArray>>& images)
 {
-    if(images.size() == 0) 
+    if(images.size() == 0)
         throw INVALID_ARGUMENT("Input image array had size zero!");
 
     if(images[0]->type() == RGBA32 || images[0]->type() == RGB24 ||
@@ -2041,7 +2041,7 @@ ptr<NDArray> concatElevate(const vector<ptr<NDArray>>& images)
         throw INVALID_ARGUMENT("Concatination of tuple-types has not yet "
                 "been implemented");
     }
-    
+
     // concatinate in a new dimension
     size_t ndim = images[0]->ndim()+1;
     vector<size_t> osize(images[0]->dim(), images[0]->dim()+images[0]->ndim());
@@ -2050,11 +2050,11 @@ ptr<NDArray> concatElevate(const vector<ptr<NDArray>>& images)
     // check sizes
     for(const auto& v: images) {
         for(size_t dd=0; dd<ndim-1; dd++) {
-            if(v->dim(dd) != osize[dd]) 
+            if(v->dim(dd) != osize[dd])
                 throw INVALID_ARGUMENT("Input image have different sizes!");
         }
     }
-    
+
     // create output image
     ptr<NDArray> oimg = images[0]->copyCast(osize.size(), osize.data());
 
@@ -2084,7 +2084,7 @@ ptr<NDArray> concatElevate(const vector<ptr<NDArray>>& images)
             ++iit;
         }
     }
-    
+
     assert(imgii == images.size());
     assert(iit.eof());
 
@@ -2121,10 +2121,10 @@ ptr<NDArray> sobelEdge(ptr<const NDArray> img)
     // kernel iterator to get neighbors of the coordesponding output point
     KernelIter<double> kit(img);
     kit.setRadius(1);
-    
+
     // chunk up by volumes
     ChunkIter<double> oit(out);
-    oit.setChunkSize(ndim, img->dim(), true); 
+    oit.setChunkSize(ndim, img->dim(), true);
     oit.setOrder(kit.getOrder());
     vector<int64_t> index(ndim+1);
     for(oit.goBegin(); !oit.eof(); oit.nextChunk()) {
@@ -2167,7 +2167,7 @@ ptr<NDArray> sobelEdge(ptr<const NDArray> img)
  *
  * @param img Input image
  *
- * @return 
+ * @return
  */
 ptr<NDArray> collapseSum(ptr<const NDArray> img, size_t dim, bool doabs)
 {
@@ -2177,7 +2177,7 @@ ptr<NDArray> collapseSum(ptr<const NDArray> img, size_t dim, bool doabs)
 
     vector<size_t> osize(img->ndim()-1);
     for(size_t ii=0, jj=0; ii<img->ndim(); ii++) {
-        if(ii != dim) 
+        if(ii != dim)
             osize[jj++] = img->dim(ii);
     }
 
@@ -2190,14 +2190,14 @@ ptr<NDArray> collapseSum(ptr<const NDArray> img, size_t dim, bool doabs)
     iit.setLineChunk(dim);
     for(iit.goBegin(); !iit.eof(); iit.nextChunk()) {
         double sum = 0;
-        for(; !iit.eoc(); ++iit) 
+        for(; !iit.eoc(); ++iit)
             sum += doabs ? fabs(*iit) : *iit;
 
         iit.index(index1);
-        
+
         // convert index
         for(size_t ii=0, jj=0; ii<img->ndim(); ii++) {
-            if(ii != dim) 
+            if(ii != dim)
                 index2[jj++] = index1[ii];
         }
         oac.set(index2, sum);
@@ -2263,7 +2263,7 @@ ptr<NDArray> relabelConnected(ptr<NDArray> input)
 
 			pval = iac[ind];
 			npval = oac[ind];
-			
+
 			// found a connection
 			if(pval == *iit) {
 
@@ -2271,7 +2271,7 @@ ptr<NDArray> relabelConnected(ptr<NDArray> input)
 				// (which must have been labeled because it is before us)
 				if(newlabel == 0) {
 					newlabel = oac[ind];
-				
+
 				// this pixel has already been claimed by another
 				} else if(npval != newlabel) {
 					auto ret1 = equivalent.insert({newlabel, npval});
@@ -2300,7 +2300,7 @@ ptr<NDArray> relabelConnected(ptr<NDArray> input)
 
 		oit.set(newlabel);
 	}
-	
+
 	//second pass
 	maxlabel = 1;
 	for(oit.goBegin() ;!oit.eof(); ++oit) {
@@ -2348,7 +2348,7 @@ ptr<NDArray> histEqualize(ptr<const NDArray> in)
 		maxv = std::max(maxv, *iit);
 	}
 	double bwidth = 0.99999999*bins.size()/(maxv-minv);
-	for(FlatConstIter<double> iit(in); !iit.eof(); ++iit) 
+	for(FlatConstIter<double> iit(in); !iit.eof(); ++iit)
 		bins[floor((*iit-minv)*bwidth)]++;
 
 	double cumsum = 0;
@@ -2364,7 +2364,7 @@ ptr<NDArray> histEqualize(ptr<const NDArray> in)
 		double cbin = (*iit-minv)*bwidth;
 		int bin = floor(cbin);
 		double v;
-		if(bin == bins.size()-1) 
+		if(bin == bins.size()-1)
 			v = (1-cbin+bin)*bins[bin] + (cbin-bin);
 		else
 			v = (1-cbin+bin)*bins[bin] + (cbin-bin)*bins[bin+1];
@@ -2380,7 +2380,7 @@ ptr<NDArray> histEqualize(ptr<const NDArray> in)
  *
  * @param in Input image.
  *
- * @return Threshold 
+ * @return Threshold
  */
 double otsuThresh(ptr<const NDArray> in)
 {
@@ -2392,7 +2392,7 @@ double otsuThresh(ptr<const NDArray> in)
 		maxv = std::max(maxv, *fit);
 	}
 	double bwidth = 0.99999999*bins.size()/(maxv-minv);
-	for(FlatConstIter<double> fit(in); !fit.eof(); ++fit) 
+	for(FlatConstIter<double> fit(in); !fit.eof(); ++fit)
 		bins[floor((*fit-minv)*bwidth)]++;
 
 	for(size_t bb=0; bb < bins.size(); bb++) {
@@ -2405,7 +2405,7 @@ double otsuThresh(ptr<const NDArray> in)
 	size_t max_t = 0;
 	for(tt=0; tt<bins.size(); tt++) {
 		prob1 = 0;
-		for(size_t bb=0; bb<tt; bb++) 
+		for(size_t bb=0; bb<tt; bb++)
 			prob1 += bins[bb];
 		mu1 = 0;
 		for(size_t bb=0; bb<tt; bb++)
@@ -2413,7 +2413,7 @@ double otsuThresh(ptr<const NDArray> in)
 		mu1 /= prob1;
 
 		prob2 = 0;
-		for(size_t bb=tt; bb<bins.size(); bb++) 
+		for(size_t bb=tt; bb<bins.size(); bb++)
 			prob2 += bins[bb];
 		mu2 = 0;
 		for(size_t bb=tt; bb<bins.size(); bb++)
@@ -2428,6 +2428,259 @@ double otsuThresh(ptr<const NDArray> in)
 	}
 
 	return max_t/bwidth + minv;
+}
+
+/**
+ * @brief Computes the mean-squared-error between two images. They should
+ * be identically gridded.
+ *
+ * @param a Input 1
+ * @param b Input 2
+ * @param mask If not null then only compare areas within the masked region
+ *
+ * @return Error between images
+ */
+double mse(ptr<const NDArray> a, ptr<const NDArray> b, ptr<const NDArray> mask)
+{
+	assert(a->ndim() == b->ndim());
+	for(size_t ii=0; ii<a->ndim(); ii++)
+		assert(a->dim(ii) == b->dim(ii));
+	if(mask) {
+		assert(mask->ndim() == b->ndim());
+		for(size_t ii=0; ii<b->ndim(); ii++)
+			assert(mask->dim(ii) == b->dim(ii));
+	}
+
+	FlatConstIter<double> it1(a);
+	FlatConstIter<double> it2(b);
+	FlatConstIter<double> itm;
+	if(mask) {
+		itm.setArray(mask);
+		itm.goBegin();
+	}
+
+	double error = 0;
+	size_t count = 0;
+	for(it1.goBegin(), it2.goBegin(); !it1.eof() && !it2.eof(); ++it1, ++it2) {
+		if(!mask || *itm > 0) {
+			error += ((*it1)-(*it2))*((*it1)-(*it2));
+			count++;
+		}
+		if(mask)
+			++itm;
+	}
+	error /= count;
+
+	return error;
+}
+
+/**
+ * @brief Computes the correlation between two images. They should
+ * be identically gridded.
+ *
+ * @param a Input 1
+ * @param b Input 2
+ * @param mask If not null then only compare areas within the masked region
+ *
+ * @return Correlation of images
+ */
+double corr(ptr<const NDArray> a, ptr<const NDArray> b, ptr<const NDArray> mask)
+{
+	assert(a->ndim() == b->ndim());
+	for(size_t ii=0; ii<a->ndim(); ii++)
+		assert(a->dim(ii) == b->dim(ii));
+	if(mask) {
+		assert(mask->ndim() == b->ndim());
+		for(size_t ii=0; ii<b->ndim(); ii++)
+			assert(mask->dim(ii) == b->dim(ii));
+	}
+
+	FlatConstIter<double> it1(a);
+	FlatConstIter<double> it2(b);
+	FlatConstIter<double> itm;
+	if(mask) {
+		itm.setArray(mask);
+		itm.goBegin();
+	}
+
+	double m1 = 0;
+	double m2 = 0;
+	int count = 0;
+	double s1 = 0;
+	double s2 = 0;
+	double cor = 0;
+	for(it1.goBegin(), it2.goBegin(); !it1.eof() && !it2.eof(); ++it1, ++it2) {
+		if(!mask || *itm > 0) {
+			cor += it1.get()*it2.get();
+			s1 += it1.get()*it1.get();
+			s2 += it2.get()*it2.get();
+			m1 += it1.get();
+			m2 += it2.get();
+			count++;
+		}
+		if(mask)
+			++itm;
+	}
+	s1 = sqrt(sample_var(count, m1, s1));
+	s2 = sqrt(sample_var(count, m2, s2));
+	m1 /= count;
+	m2 /= count;
+
+	cor = (cor-count*m1*m2)/((count-1)*s1*s2);
+	return cor;
+}
+
+/**
+ * @brief Computes the information based difference/similarity between two
+ * images. They should be identically gridded.
+ *
+ * @param a Input 1
+ * @param b Input 2
+ * @param bins Number of bins in histogram PDF estimation (marginal, joint is
+ * squared of this)
+ * @param krad the radius of the parzen window
+ * @param m metric to use (ie MI or NMI)
+ * @param mask If not null then only compare areas within the masked region
+ *
+ * @return Information-based metric of two images
+ */
+double information(ptr<const NDArray> a, ptr<const NDArray> b,
+		int m_bins, int m_krad, Metric m, ptr<const NDArray> mask)
+{
+	assert(a->ndim() == b->ndim());
+	for(size_t ii=0; ii<a->ndim(); ii++)
+		assert(a->dim(ii) == b->dim(ii));
+	if(mask) {
+		assert(mask->ndim() == b->ndim());
+		for(size_t ii=0; ii<b->ndim(); ii++)
+			assert(mask->dim(ii) == b->dim(ii));
+	}
+
+	FlatConstIter<double> it1(a);
+	FlatConstIter<double> it2(b);
+	FlatConstIter<double> itm;
+	if(mask) {
+		itm.setArray(mask);
+		itm.goBegin();
+	}
+
+	double range1[2] = {INFINITY, -INFINITY};
+	double range2[2] = {INFINITY, -INFINITY};
+	for(it1.goBegin(), it2.goBegin(); !it1.eof() && !it2.eof(); ++it1, ++it2) {
+		if(!mask || *itm > 0) {
+			range1[0] = std::min(range1[0], *it1);
+			range2[0] = std::min(range2[0], *it2);
+			range1[1] = std::max(range1[1], *it1);
+			range2[1] = std::max(range2[1], *it2);
+		}
+	}
+
+	//continuous bin locations
+	double cbin1, cbin2;
+
+	//set bin widths
+	double wid1 = (range1[1]-range1[0])/(m_bins-2*m_krad-1);
+	double wid2 = (range2[1]-range2[0])/(m_bins-2*m_krad-1);
+
+	std::vector<double> joint(m_bins*m_bins, 0);
+	if(mask) itm.goBegin();
+	for(it1.goBegin(), it2.goBegin(); !it1.eof() && !it2.eof(); ++it1, ++it2) {
+		if(mask && itm.get() > 0) {
+			++itm;
+			continue;
+		}
+
+		//bin Fa, Fc
+		double f1 = *it1;
+		double f2 = *it2;
+
+		cbin1 = (f1-range1[0])/wid1 + m_krad;
+		cbin2 = (f2-range2[0])/wid2 + m_krad;
+		int bin1 = round(cbin1);
+		int bin2 = round(cbin2);
+
+		//sum up kernel bins
+		for(int ii = bin1-m_krad; ii <= bin1+m_krad; ii++) {
+			for(int jj = bin2-m_krad; jj <= bin2+m_krad; jj++)
+				joint[ii*m_bins+jj] += B3kern(ii-cbin1, m_krad)*
+					B3kern(jj-cbin2, m_krad);
+		}
+	}
+
+	//normalize
+	double total = 0;
+	for(int ii = 0 ; ii < (int)joint.size(); ii++)
+		total += joint[ii];
+
+	for(int ii = 0 ; ii < (int)joint.size(); ii++)
+		joint[ii] /= total;
+
+	std::vector<double> marg1(m_bins, 0);
+	std::vector<double> marg2(m_bins, 0);
+
+	//marginalize
+	for(int ii = 0 ; ii < (int)marg1.size(); ii++) {
+		for(int jj = 0 ; jj < (int)marg2.size(); jj++) {
+			marg1[ii] += joint[ii*m_bins+jj];
+			marg2[jj] += joint[ii*m_bins+jj];
+		}
+	}
+
+	double entj = 0;
+	for(int ii = 0 ; ii < m_bins*m_bins; ii++) {
+		if(joint[ii] > 0)
+			entj -= joint[ii]*log(joint[ii]);
+	}
+
+	double ent1 = 0;
+	for(int ii = 0 ; ii < m_bins; ii++) {
+		if(marg1[ii] > 0)
+			ent1 -= marg1[ii]*log(marg1[ii]);
+	}
+
+	double ent2 = 0;
+	for(int ii = 0 ; ii < m_bins; ii++) {
+		if(marg2[ii] > 0)
+			ent2 -= marg2[ii]*log(marg2[ii]);
+	}
+
+	double mi = 0;
+	for(int ii = 0 ; ii < m_bins; ii++) {
+		for(int jj = 0 ; jj < m_bins; jj++) {
+			if(joint[ii*m_bins+jj] > 0)
+				mi += joint[ii*m_bins+jj]*log(joint[ii*m_bins+jj]/
+						(marg1[ii]*marg2[jj]));
+		}
+	}
+
+	double maxent = std::max(ent1, ent2);
+
+	switch(m) {
+		case METRIC_NMI:
+			if(ent1+ent2 == entj || entj == 0)
+				return 1;
+			else
+				return (ent1+ent2)/entj;
+			break;
+
+		case METRIC_REDUNDANCY:
+			return mi/(ent1+ent2);
+			break;
+
+		case METRIC_NMIMETRIC:
+			return 1-mi/maxent;
+			break;
+		case METRIC_DUALTC:
+			return mi/entj;
+			break;
+		case METRIC_VI:
+			return entj-mi;
+			break;
+		case METRIC_MI:
+		default:
+			return mi;
+	}
+	return 0;
 }
 
 } // npl

@@ -24,6 +24,7 @@
 #define MRIMAGE_UTILS_H
 
 #include "ndarray.h"
+#include "mrimage.h"
 #include "basic_functions.h"
 #include "npltypes.h"
 
@@ -80,19 +81,19 @@ std::ostream& operator<<(std::ostream &out, const MRImage& img);
  *
  * @return  Smoothed and downsampled image
  */
-ptr<MRImage> smoothDownsample(ptr<const MRImage> in, 
+ptr<MRImage> smoothDownsample(ptr<const MRImage> in,
         double sigma);
 
 /**
  * @brief Performs fourier resampling using fourier transform and the provided window function.
  *
  * @param in Input image
- * @param spacing Desired output spacing 
+ * @param spacing Desired output spacing
  * @param window Window function  to reduce ringing
  *
  * @return  Smoothed and downsampled image
  */
-ptr<MRImage> resample(ptr<const MRImage> in, double* spacing, 
+ptr<MRImage> resample(ptr<const MRImage> in, double* spacing,
 		double(*window)(double, double) = hannWindow);
 
 /******************************************************
@@ -112,7 +113,7 @@ ptr<MRImage> shiftImage(ptr<MRImage> in, size_t len, double* vect);
 
 /**
  * @brief Writes a pair of images, one real, one imaginary or if absPhase is
- * set to true then an absolute image and a phase image. 
+ * set to true then an absolute image and a phase image.
  *
  * @param basename Base filename _abs.nii.gz and _phase.nii.gz or _re.nii.gz
  * and _im.nii.gz will be appended, depending on absPhase
@@ -120,7 +121,7 @@ ptr<MRImage> shiftImage(ptr<MRImage> in, size_t len, double* vect);
  * @param absPhase Whether the break up into absolute and phase rather than
  * re/imaginary
  */
-void writeComplex(std::string basename, ptr<const MRImage> in, 
+void writeComplex(std::string basename, ptr<const MRImage> in,
         bool absPhase = false);
 
 /**
@@ -133,7 +134,7 @@ void writeComplex(std::string basename, ptr<const MRImage> in,
  * @return Frequency domain of input. Note the output will be
  * COMPLEX128/CDOUBLE type
  */
-ptr<MRImage> fft_forward(ptr<const MRImage> in, 
+ptr<MRImage> fft_forward(ptr<const MRImage> in,
         const std::vector<size_t>& in_osize);
 
 /**

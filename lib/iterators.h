@@ -179,7 +179,7 @@ public:
 		--m_linpos;
 		return *this;
 	};
-	
+
 	/**
 	 * @brief Dereference operator
 	 *
@@ -189,7 +189,7 @@ public:
 	{
 		return castget(parent->__getAddr(m_linpos));
 	};
-	
+
 	/**
 	 * @brief Dereference operator
 	 *
@@ -199,7 +199,7 @@ public:
 	{
 		return castget(parent->__getAddr(m_linpos));
 	};
-	
+
 	/**
 	 * @brief Dereference operator
 	 *
@@ -209,7 +209,7 @@ public:
 	{
 		castset(parent->__getAddr(m_linpos), v);
 	};
-	
+
 	/**
 	 * @brief Go to beginning of iteration
 	 */
@@ -219,22 +219,22 @@ public:
 	 * @brief Go to end of iteration
 	 */
 	void goEnd() { m_linpos=parent->elements(); };
-	
+
 	/**
 	 * @brief Are we one past the last element?
 	 */
 	bool isEnd() const { return m_linpos==parent->elements(); };
-	
+
 	/**
 	 * @brief Are we one past the last element?
 	 */
 	bool eof() const { return m_linpos==parent->elements(); };
-	
+
 	/**
 	 * @brief Are we at the first element
 	 */
 	bool isBegin() const { return m_linpos == 0; };
-	
+
 	/**
 	 * @brief Whether the position and parent are the same as another
 	 *
@@ -258,7 +258,7 @@ public:
 	{
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is before the other.
@@ -271,7 +271,7 @@ public:
 	{
 		return parent == other.parent && m_linpos < other.m_linpos;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is after the other.
@@ -284,7 +284,7 @@ public:
 	{
 		return parent == other.parent && m_linpos > other.m_linpos;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is the same or before the other.
@@ -297,7 +297,7 @@ public:
 	{
 		return parent == other.parent && m_linpos <= other.m_linpos;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is the same or after the other.
@@ -317,14 +317,14 @@ private:
 	{
 		return (T)(*((U*)ptr));
 	};
-	
+
 	template <typename U>
 	static void castsetStatic(void* ptr, const T& val)
 	{
 		(*((U*)ptr)) = (U)val;
 	};
 
-	
+
 	std::shared_ptr<NDArray> parent;
 
 	T (*castget)(void* ptr);
@@ -437,7 +437,7 @@ public:
 		--m_linpos;
 		return *this;
 	};
-	
+
 	/**
 	 * @brief Dereference operator
 	 *
@@ -447,7 +447,7 @@ public:
 	{
 		return castget(parent->__getAddr(m_linpos));
 	};
-	
+
 	/**
 	 * @brief Dereference operator
 	 *
@@ -455,10 +455,9 @@ public:
 	 */
 	T get() const
 	{
-		m_linpos;
-		return *this;
+		return castget(parent->__getAddr(m_linpos));
 	};
-	
+
 	/**
 	 * @brief Go to beginning of iteration
 	 */
@@ -468,22 +467,22 @@ public:
 	 * @brief Go to end of iteration
 	 */
 	void goEnd() { m_linpos=parent->elements(); };
-	
+
 	/**
 	 * @brief Are we one past the last element?
 	 */
 	bool isEnd() const { return m_linpos==parent->elements(); };
-	
+
 	/**
 	 * @brief Are we one past the last element?
 	 */
 	bool eof() const { return m_linpos==parent->elements(); };
-	
+
 	/**
 	 * @brief Are we at the first element
 	 */
 	bool isBegin() const { return m_linpos == 0; };
-	
+
 	/**
 	 * @brief Whether the position and parent are the same as another
 	 *
@@ -507,7 +506,7 @@ public:
 	{
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is before the other.
@@ -520,7 +519,7 @@ public:
 	{
 		return parent == other.parent && m_linpos < other.m_linpos;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is after the other.
@@ -533,7 +532,7 @@ public:
 	{
 		return parent == other.parent && m_linpos > other.m_linpos;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is the same or before the other.
@@ -546,7 +545,7 @@ public:
 	{
 		return parent == other.parent && m_linpos <= other.m_linpos;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is the same or after the other.
@@ -566,7 +565,7 @@ private:
 	{
 		return (T)(*((U*)ptr));
 	};
-	
+
 	std::shared_ptr<const NDArray> parent;
 
 	T (*castget)(void* ptr);
@@ -677,7 +676,7 @@ public:
 		Slicer::operator--();
 		return *this;
 	};
-	
+
 	/**
 	 * @brief Dereference operator
 	 *
@@ -687,7 +686,7 @@ public:
 	{
 		return castget(parent->__getAddr(Slicer::operator*()));
 	};
-	
+
 	/**
 	 * @brief Dereference operator
 	 *
@@ -697,7 +696,7 @@ public:
 	{
 		return castget(parent->__getAddr(Slicer::operator*()));
 	};
-	
+
 	/**
 	 * @brief Go to beginning of iteration
 	 */
@@ -707,22 +706,22 @@ public:
 	 * @brief Go to end of iteration
 	 */
 	void goEnd() { Slicer::goEnd(); };
-	
+
 	/**
 	 * @brief Are we one past the last element?
 	 */
 	bool isEnd() const { return Slicer::isEnd(); };
-	
+
 	/**
 	 * @brief Are we one past the last element?
 	 */
 	bool eof() const { return Slicer::isEnd(); };
-	
+
 	/**
 	 * @brief Are we at the first element
 	 */
 	bool isBegin() const { return Slicer::isBegin(); };
-	
+
 	/**
 	 * @brief Whether the position and parent are the same as another
 	 *
@@ -746,7 +745,7 @@ public:
 	{
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is before the other.
@@ -767,7 +766,7 @@ public:
 
 		return false;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is after the other.
@@ -788,7 +787,7 @@ public:
 
 		return false;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is the same or before the other.
@@ -807,7 +806,7 @@ public:
 
 		return *this < other;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is the same or after the other.
@@ -833,7 +832,7 @@ private:
 	{
 		return (T)(*((U*)ptr));
 	};
-	
+
 	std::shared_ptr<const NDArray> parent;
 
 	T (*castget)(void* ptr);
@@ -958,7 +957,7 @@ public:
 		Slicer::operator--();
 		return *this;
 	};
-	
+
 	/**
 	 * @brief Dereference operator
 	 *
@@ -968,7 +967,7 @@ public:
 	{
 		return castget(parent->__getAddr(Slicer::operator*()));
 	};
-	
+
 	/**
 	 * @brief Dereference operator
 	 *
@@ -978,7 +977,7 @@ public:
 	{
 		return castget(parent->__getAddr(Slicer::operator*()));
 	};
-	
+
 	/**
 	 * @brief Dereference operator
 	 *
@@ -998,22 +997,22 @@ public:
 	 * @brief Go to end of iteration
 	 */
 	void goEnd() { Slicer::goEnd(); };
-	
+
 	/**
 	 * @brief Are we one past the last element?
 	 */
 	bool isEnd() const { return Slicer::isEnd(); };
-	
+
 	/**
 	 * @brief Are we one past the last element?
 	 */
 	bool eof() const { return Slicer::isEnd(); };
-	
+
 	/**
 	 * @brief Are we at the first element
 	 */
 	bool isBegin() const { return Slicer::isBegin(); };
-	
+
 	/**
 	 * @brief Whether the position and parent are the same as another
 	 *
@@ -1037,7 +1036,7 @@ public:
 	{
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is before the other.
@@ -1058,7 +1057,7 @@ public:
 
 		return false;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is after the other.
@@ -1079,7 +1078,7 @@ public:
 
 		return false;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is the same or before the other.
@@ -1098,7 +1097,7 @@ public:
 
 		return *this < other;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is the same or after the other.
@@ -1124,14 +1123,14 @@ private:
 	{
 		return (T)(*((U*)ptr));
 	};
-	
+
 	template <typename U>
 	static void castsetStatic(void* ptr, const T& val)
 	{
 		(*((U*)ptr)) = (U)val;
 	};
 
-	
+
 	std::shared_ptr<NDArray> parent;
 
 	T (*castget)(void* ptr);
@@ -1185,7 +1184,7 @@ template <typename T = double>
 class ChunkConstIter : public ChunkSlicer 
 {
 public:
-	
+
     /**
      * @brief Default constructor. Note, this will segfault if you don't use
      * setArray to set the target NDArray/Image.
@@ -1301,7 +1300,7 @@ public:
 		ChunkSlicer::prevChunk();
 		return *this;
 	};
-	
+
 	/**
 	 * @brief Dereference operator
 	 *
@@ -1311,7 +1310,7 @@ public:
 	{
 		return castget(parent->__getAddr(ChunkSlicer::operator*()));
 	};
-	
+
 	/**
 	 * @brief Dereference operator
 	 *
@@ -1321,7 +1320,7 @@ public:
 	{
 		return castget(parent->__getAddr(ChunkSlicer::operator*()));
 	};
-	
+
 	/**
 	 * @brief Go to beginning of iteration
 	 */
@@ -1331,22 +1330,22 @@ public:
 	 * @brief Go to end of iteration
 	 */
 	void goEnd() { ChunkSlicer::goEnd(); };
-	
+
 	/**
 	 * @brief Are we one past the last element?
 	 */
 	bool isEnd() const { return ChunkSlicer::isEnd(); };
-	
+
 	/**
 	 * @brief Are we one past the last element?
 	 */
 	bool eof() const { return ChunkSlicer::isEnd(); };
-	
+
 	/**
 	 * @brief Are we at the first element
 	 */
 	bool isBegin() const { return ChunkSlicer::isBegin(); };
-	
+
 	/**
 	 * @brief Whether the position and parent are the same as another
 	 *
@@ -1370,7 +1369,7 @@ public:
 	{
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is before the other.
@@ -1391,7 +1390,7 @@ public:
 
 		return false;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is after the other.
@@ -1412,7 +1411,7 @@ public:
 
 		return false;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is the same or before the other.
@@ -1431,7 +1430,7 @@ public:
 
 		return *this < other;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is the same or after the other.
@@ -1457,7 +1456,7 @@ private:
 	{
 		return (T)(*((U*)ptr));
 	};
-	
+
 	std::shared_ptr<const NDArray> parent;
 
 	T (*castget)(void* ptr);
@@ -1473,7 +1472,7 @@ template <typename T = double>
 class ChunkIter : public ChunkSlicer
 {
 public:
-	
+
     /**
      * @brief Default constructor. Note, this will segfault if you don't use
      * setArray to set the target NDArray/Image.
@@ -1606,7 +1605,7 @@ public:
 		ChunkSlicer::prevChunk();
 		return *this;
 	};
-	
+
 	/**
 	 * @brief Dereference operator
 	 *
@@ -1616,7 +1615,7 @@ public:
 	{
 		return castget(parent->__getAddr(ChunkSlicer::operator*()));
 	};
-	
+
 	/**
 	 * @brief Dereference operator
 	 *
@@ -1626,7 +1625,7 @@ public:
 	{
 		return castget(parent->__getAddr(ChunkSlicer::operator*()));
 	};
-	
+
 	/**
 	 * @brief Dereference operator
 	 *
@@ -1646,22 +1645,22 @@ public:
 	 * @brief Go to end of iteration
 	 */
 	void goEnd() { ChunkSlicer::goEnd(); };
-	
+
 	/**
 	 * @brief Are we one past the last element?
 	 */
 	bool isEnd() const { return ChunkSlicer::isEnd(); };
-	
+
 	/**
 	 * @brief Are we one past the last element?
 	 */
 	bool eof() const { return ChunkSlicer::isEnd(); };
-	
+
 	/**
 	 * @brief Are we at the first element
 	 */
 	bool isBegin() const { return ChunkSlicer::isBegin(); };
-	
+
 	/**
 	 * @brief Whether the position and parent are the same as another
 	 *
@@ -1685,7 +1684,7 @@ public:
 	{
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is before the other.
@@ -1706,7 +1705,7 @@ public:
 
 		return false;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is after the other.
@@ -1727,7 +1726,7 @@ public:
 
 		return false;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is the same or before the other.
@@ -1746,7 +1745,7 @@ public:
 
 		return *this < other;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is the same or after the other.
@@ -1772,14 +1771,14 @@ private:
 	{
 		return (T)(*((U*)ptr));
 	};
-	
+
 	template <typename U>
 	static void castsetStatic(void* ptr, const T& val)
 	{
 		(*((U*)ptr)) = (U)val;
 	};
 
-	
+
 	std::shared_ptr<NDArray> parent;
 
 	T (*castget)(void* ptr);
@@ -1821,7 +1820,7 @@ public:
      * setArray to set the target NDArray/Image.
      */
     KernelIter() {};
-	
+
     KernelIter(std::shared_ptr<const NDArray> in)
 	{
         setArray(in);
@@ -1909,7 +1908,7 @@ public:
 		KSlicer::operator--();
 		return *this;
 	};
-	
+
 	/**
 	 * @brief Dereference operator, get center pixel value
 	 *
@@ -1919,7 +1918,7 @@ public:
 	{
 		return castget(parent->__getAddr(KSlicer::operator*()));
 	};
-	
+
 	/**
 	 * @brief Same as dereference operator, get center pixel value
 	 *
@@ -1929,7 +1928,7 @@ public:
 	{
 		return castget(parent->__getAddr(KSlicer::getC()));
 	};
-	
+
 	/**
 	 * @brief Dereference (get) the pixel at the k'th offset position. To
      * figure out WHERE this pixel is in relation to the center use offsetK
@@ -1940,7 +1939,7 @@ public:
 	{
 		return castget(parent->__getAddr(KSlicer::getK(k)));
 	};
-	
+
 	/**
 	 * @brief Dereference (get) the pixel at the k'th offset position. To
      * figure out WHERE this pixel is in relation to the center use offsetK
@@ -1951,7 +1950,7 @@ public:
 	{
 		return castget(parent->__getAddr(KSlicer::getK(k)));
 	};
-	
+
 	/**
 	 * @brief Whether the position and parent are the same as another
 	 *
@@ -1975,7 +1974,7 @@ public:
 	{
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is before the other.
@@ -1996,7 +1995,7 @@ public:
 
 		return false;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is after the other.
@@ -2017,7 +2016,7 @@ public:
 
 		return false;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is the same or before the other.
@@ -2036,7 +2035,7 @@ public:
 
 		return *this < other;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is the same or after the other.
@@ -2062,7 +2061,7 @@ private:
 	{
 		return (T)(*((U*)ptr));
 	};
-	
+
 	std::shared_ptr<const NDArray> parent;
 
 	T (*castget)(void* ptr);
@@ -2081,7 +2080,7 @@ template <typename T = double>
 class Vector3DIter : public Slicer
 {
 public:
-	
+
     /**
      * @brief Default constructor. Note, this will segfault if you don't use
      * setArray to set the target NDArray/Image.
@@ -2104,7 +2103,7 @@ public:
 			roi[ii].first = 0;
 			roi[ii].second = in->dim(ii)-1;
 		}
-		
+
 		// don't iterate in higher dimensions
 		for(size_t ii=3; ii<in->ndim(); ii++) {
 			roi[ii].first = 0;
@@ -2207,7 +2206,7 @@ public:
 		Slicer::operator--();
 		return *this;
 	};
-	
+
 	/**
 	 * @brief Dereference operator
 	 *
@@ -2217,7 +2216,7 @@ public:
 	{
 		return castget(parent->__getAddr(Slicer::operator*()));
 	};
-	
+
 	/**
 	 * @brief Get value at ith element of vector
 	 *
@@ -2227,7 +2226,7 @@ public:
 	{
 		return castget(parent->__getAddr(Slicer::operator*()+i));
 	};
-	
+
 	/**
 	 * @brief Get value at ith element of vector
 	 *
@@ -2237,7 +2236,7 @@ public:
 	{
 		return castget(parent->__getAddr(Slicer::operator*()+i));
 	};
-	
+
 	/**
 	 * @brief Set the value at the ith element of thevector
 	 *
@@ -2246,7 +2245,7 @@ public:
 	{
 		this->castset(parent->__getAddr(Slicer::operator*()+i), v);
 	};
-	
+
 	/**
 	 * @brief Set the value at the 0th element of the vector
 	 *
@@ -2265,22 +2264,22 @@ public:
 	 * @brief Go to end of iteration
 	 */
 	void goEnd() { Slicer::goEnd(); };
-	
+
 	/**
 	 * @brief Are we one past the last element?
 	 */
 	bool isEnd() const { return Slicer::isEnd(); };
-	
+
 	/**
 	 * @brief Are we one past the last element?
 	 */
 	bool eof() const { return Slicer::isEnd(); };
-	
+
 	/**
 	 * @brief Are we at the first element
 	 */
 	bool isBegin() const { return Slicer::isBegin(); };
-	
+
 	/**
 	 * @brief Whether the position and parent are the same as another
 	 *
@@ -2304,7 +2303,7 @@ public:
 	{
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is before the other.
@@ -2325,7 +2324,7 @@ public:
 
 		return false;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is after the other.
@@ -2346,7 +2345,7 @@ public:
 
 		return false;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is the same or before the other.
@@ -2365,7 +2364,7 @@ public:
 
 		return *this < other;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is the same or after the other.
@@ -2393,14 +2392,14 @@ private:
 	{
 		return (T)(*((U*)ptr));
 	};
-	
+
 	template <typename U>
 	static void castsetStatic(void* ptr, const T& val)
 	{
 		(*((U*)ptr)) = (U)val;
 	};
 
-	
+
 	std::shared_ptr<NDArray> parent;
 
 	T (*castget)(void* ptr);
@@ -2443,7 +2442,7 @@ public:
 			roi[ii].first = 0;
 			roi[ii].second = in->dim(ii)-1;
 		}
-		
+
 		// don't iterate in higher dimensions
 		for(size_t ii=3; ii<in->ndim(); ii++) {
 			roi[ii].first = 0;
@@ -2529,7 +2528,7 @@ public:
 		Slicer::operator--();
 		return *this;
 	};
-	
+
 	/**
 	 * @brief Dereference operator
 	 *
@@ -2539,7 +2538,7 @@ public:
 	{
 		return castget(parent->__getAddr(Slicer::operator*()));
 	};
-	
+
 	/**
 	 * @brief Get value at ith element of vector
 	 *
@@ -2549,7 +2548,7 @@ public:
 	{
 		return castget(parent->__getAddr(Slicer::operator*()+i));
 	};
-	
+
 	/**
 	 * @brief Get value at ith element of vector
 	 *
@@ -2559,7 +2558,7 @@ public:
 	{
 		return castget(parent->__getAddr(Slicer::operator*()+i));
 	};
-	
+
 	/**
 	 * @brief Go to beginning of iteration
 	 */
@@ -2569,22 +2568,22 @@ public:
 	 * @brief Go to end of iteration
 	 */
 	void goEnd() { Slicer::goEnd(); };
-	
+
 	/**
 	 * @brief Are we one past the last element?
 	 */
 	bool isEnd() const { return Slicer::isEnd(); };
-	
+
 	/**
 	 * @brief Are we one past the last element?
 	 */
 	bool eof() const { return Slicer::isEnd(); };
-	
+
 	/**
 	 * @brief Are we at the first element
 	 */
 	bool isBegin() const { return Slicer::isBegin(); };
-	
+
 	/**
 	 * @brief Whether the position and parent are the same as another
 	 *
@@ -2608,7 +2607,7 @@ public:
 	{
 		return parent != other.parent || this->m_linpos != other.m_linpos;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is before the other.
@@ -2629,7 +2628,7 @@ public:
 
 		return false;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is after the other.
@@ -2650,7 +2649,7 @@ public:
 
 		return false;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is the same or before the other.
@@ -2669,7 +2668,7 @@ public:
 
 		return *this < other;
 	};
-	
+
 	/**
 	 * @brief If the parents are different then false, if they are the same,
 	 * returns whether this iterator is the same or after the other.
@@ -2697,7 +2696,7 @@ private:
 	{
 		return (T)(*((U*)ptr));
 	};
-	
+
 	std::shared_ptr<const NDArray> parent;
 
 	T (*castget)(void* ptr);

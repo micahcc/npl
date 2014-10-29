@@ -114,7 +114,7 @@ int main()
     cerr << "Input Image:\n" << *img << endl;
     cerr << "Rigidly Transformed Image:\n" << *moved << endl;
 
-    std::vector<double> sigma_schedule({3,1.5,0});
+    std::vector<double> sigma_schedule({5,3,2,1,0});
     auto out = informationReg3D(img, moved, sigma_schedule);
 	out.toIndexCoords(moved, true);
     cerr << "Final Parameters: " << out << endl;

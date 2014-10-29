@@ -475,6 +475,54 @@ double otsuThresh(ptr<const NDArray> in);
  */
 ptr<NDArray> histEqualize(ptr<const NDArray> in);
 
+/*************************************************
+ * Image/Array Comparisons
+ *************************************************/
+
+/**
+ * @brief Computes the mean-squared-error between two images. They should
+ * be identically gridded.
+ *
+ * @param a Input 1
+ * @param b Input 2
+ * @param mask If not null then only compare areas within the masked region
+ *
+ * @return Error between images
+ */
+double mse(ptr<const NDArray> a, ptr<const NDArray> b, 
+		ptr<const NDArray> mask = NULL);
+
+/**
+ * @brief Computes the correlation between two images. They should
+ * be identically gridded.
+ *
+ * @param a Input 1
+ * @param b Input 2
+ * @param mask If not null then only compare areas within the masked region
+ *
+ * @return Correlation of images
+ */
+double corr(ptr<const NDArray> a, ptr<const NDArray> b, 
+		ptr<const NDArray> mask = NULL);
+
+/**
+ * @brief Computes the information based difference/similarity between two
+ * images. They should be identically gridded.
+ *
+ * @param a Input 1
+ * @param b Input 2
+ * @param bins Number of bins in histogram PDF estimation (marginal, joint is
+ * squared of this)
+ * @param krad the radius of the parzen window
+ * @param m metric to use (ie MI or NMI)
+ * @param mask If not null then only compare areas within the masked region
+ *
+ * @return Information-based metric of two images
+ */
+double information(ptr<const NDArray> a, ptr<const NDArray> b, 
+		int bins = 100, int krad = 4, Metric m = METRIC_MI, 
+		ptr<const NDArray> mask = NULL);
+
 /** @}  NDArrayUtilities */
 
 } // npl

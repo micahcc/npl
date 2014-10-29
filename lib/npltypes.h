@@ -33,6 +33,12 @@ using Eigen::Vector3d;
 using Eigen::Matrix;
 
 /**
+ * @brief Information-based Metric to use
+ */
+enum Metric {METRIC_MI, METRIC_VI, METRIC_NMI, METRIC_COR, METRIC_REDUNDANCY,
+	METRIC_NMIMETRIC, METRIC_DUALTC};
+
+/**
  * @brief Make the shared_ptr name shorter...
  *
  * @tparam T Type we are pointing at
