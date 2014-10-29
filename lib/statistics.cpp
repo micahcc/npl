@@ -70,6 +70,67 @@ void apply(double* dst, const double* src,  double(*func)(double), size_t sz)
 }
 
 /**
+ * @brief Computes the Principal Components of input matrix X using the
+ * covariance matrix.
+ *
+ * Outputs projections in the columns of a matrix. 
+ *
+ * @param cov 	Covariance matrix of XtX
+ * @param varth Variance threshold. Don't include dimensions after this percent
+ *              of the variance has been explained.
+ *
+ * @return 		RxP matrix, where P is the number of principal components
+ */
+MatrixXd pcacov(const MatrixXd& cov, double varth)
+{
+	assert(cov.rows() == cov.cols());
+    int outdim = 0;
+
+#ifndef NDEBUG
+    std::cout << "Computing ..." << std::endl;
+#endif //DEBUG
+    JacobiSVD<MatrixXd> svd(X, Eigen::ComputeThinU);
+#ifndef NDEBUG
+    std::cout << "Done" << std::endl;
+#endif //DEBUG
+	
+	double total = 0;
+	Eigen::SelfAdjointEigenSolver<MatrixXd> solver(cov);
+	for(int64_t ii=solver.eigenvalues().rows()-1; ii>=0; ii--) {
+		assert(solver.eigenvalues()[ii] >= 0);
+		total += solver.eigenvalues()[ii];
+	}
+
+	double sum = 0;
+	size_t ndim = 0;
+	for(int64_t ii=solver.eigenvalues().rows()-1; ii>=0; ii--) {
+		sum += solver.eigenvalues()[ii];
+		if(sum / total < varth)
+			ndim++;
+		else 
+			break;
+	}
+
+#ifndef NDEBUG
+    std::cout << "Output Dimensions: " << ndim 
+            << "\nCreating Reduced MatrixXd..." << std::endl;
+#endif //DEBUG
+
+	MatrixXd out(cov.rows(), ndim);
+	for(int64_t ii=solver.eigenvalues().rows()-1, jj=0; ii>=0; ii--, jj++) {
+		for(size_t rr=0; rr<cov.rows(); rr++) {
+			out(rr, jj) = solver.eigenvectors()(rr, ii)
+		}
+	}
+
+#ifndef NDEBUG
+	std::cout  << "  Done" << std::endl;
+#endif 
+
+    return out;
+}
+
+/**
  * @brief Computes the Principal Components of input matrix X
  *
  * Outputs reduced dimension (fewer cols) in output. Note that prio to this,
