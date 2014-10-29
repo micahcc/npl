@@ -154,6 +154,45 @@ double sincWindow(double x, double a)
 }
 
 /**
+ * @brief Gaussian function that drops to 95% windowed with the hann window
+ * to sure it drops to 0 at the highest frequency.
+ * Zero < -a, > a
+ *
+ * @param x distance from center
+ * @param a radius
+ *
+ * @return weight
+ */
+inline
+double wingaussWindow(double x, double a, double sd)
+{
+	if(fabs(x) < a)
+		return exp(-x*x*2*M_PI*M_PI*sd*sd/(a*a));
+	else
+		return 0;
+}
+
+/**
+ * @brief Gaussian function that drops to 95% windowed with the hann window
+ * to sure it drops to 0 at the highest frequency.
+ * Zero < -a, > a
+ *
+ * @param x distance from center
+ * @param a radius
+ *
+ * @return weight
+ */
+inline
+double wingaussWindow(double x, double a)
+{
+	const double sd = 5;
+	if(fabs(x) < a)
+		return exp(-x*x*2*M_PI*M_PI*sd*sd/(a*a));
+	else
+		return 0;
+}
+
+/**
  * @brief Sinc function centered at 0, with radius a, range should be = 2a.
  * Zero < -a, > a
  *

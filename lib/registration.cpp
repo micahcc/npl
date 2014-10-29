@@ -135,8 +135,15 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
 			rigid.shift[ii] = opt.state_x[ii+3]/sm_moving->spacing(ii);
 			rigid.center[ii] = (sm_moving->dim(ii)-1)/2.;
 		}
+		
+		rotateImageShearKern(sm_moving, rigid.rotation[0], 
+				rigid.rotation[1], rigid.rotation[2]);
+		for(size_t dd=0; dd<3; dd++) 
+			shiftImageKern(sm_moving, dd, rigid.shift[dd]);
+		sm_moving->write("smooth_moved_"+to_string(ii)+".nii.gz");
 
 		rigid.toRASCoords(sm_moving);
+		cerr << "Post Rigid: " << ii << rigid << endl;
 	}
 
 	return rigid;
@@ -504,10 +511,10 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 	double sy = params[4]/m_moving->spacing(1);
 	double sz = params[5]/m_moving->spacing(2);
 
-#if defined DEBUG || defined VERYDEBUG
-	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: "
+//#if defined DEBUG || defined VERYDEBUG
+	cerr << "VALGRAD Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: "
 		<< sx << ", " << sy << ", " << sz << endl;
-#endif
+//#endif
 
 	// Compute derivative Images (if debugging is enabled, otherwise just
 	// compute the gradient)
@@ -613,15 +620,15 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 	double sd2 = sqrt(sample_var(count, fix_sum, fix_ss));
 	grad /= (count-1)*sd1*sd2;
 
-	if(m_compdiff) {
-		grad = -grad;
-		val = -val;
-	}
-
 //#if defined VERYDEBUG || defined DEBUG
 	cerr << "Value: " << val << endl;
 	cerr << "Gradient: " << grad.transpose() << endl;
 //#endif
+
+	if(m_compdiff) {
+		grad = -grad;
+		val = -val;
+	}
 
 	return 0;
 }
@@ -657,10 +664,6 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 	if(!m_moving) throw INVALID_ARGUMENT("ERROR must set moving image before "
 				"computing value.");
 
-#if defined VERYDEBUG || DEBUG
-	cerr << "Val()" << endl;
-#endif
-
 	assert(m_fixed->ndim() == 3);
 	assert(m_moving->ndim() == 3);
 
@@ -673,7 +676,7 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 	double sz = params[5]/m_moving->spacing(2);
 	
 	//#if defined DEBUG || defined VERYDEBUG
-	cerr << "Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: "
+	cerr << "VAL() Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: "
 		<< sx << ", " << sy << ", " << sz << endl;
 	//#endif
 
@@ -719,12 +722,13 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 	}
 
 	val = sample_corr(m_fixed->elements(), sum1, sum2, ss1, ss2, corr);
-	if(m_compdiff)
-		val = -val;
 
 //#if defined VERYDEBUG || defined DEBUG
 	cerr << "Value: " << val << endl;
 //#endif
+
+	if(m_compdiff)
+		val = -val;
 	return 0;
 };
 
@@ -1562,7 +1566,7 @@ int DistortionCorrectionInformationComputer::metric(
 	double Fc;   /** Intensity Corrected Moving Value */
 	double Ff;   /** Fixed Value Value */
 
-	vector<double> probweight(m_krad*m_krad);
+	vector<double> probweight((2*m_krad+1)*(2*m_krad+1));
 	vector<double> invspace(m_deform->ndim());
 	for(size_t dd=0; dd<m_deform->ndim(); dd++)
 		invspace[dd] = 1./m_deform->spacing(dd);
@@ -1640,18 +1644,19 @@ int DistortionCorrectionInformationComputer::metric(
 		 * Add to Derivatives of Bins Within Reach of the Point
 		 *******************************************************/
 		do {
+			for(size_t dd=0; dd<3; dd++)
+				dind[dd] = dnind[dd] + neighbors.pos[dd] - 2;
+
 			double dPHI_dphi = 1;
 			for(int ii = 0; ii < 3; ii++)
-				dPHI_dphi *= B3kern(dnind[ii]+neighbors.pos[ii]-2-dcind[ii]);
+				dPHI_dphi *= B3kern(dind[ii]-dcind[ii]);
 
 			double dPHI_dydphi = 1;
 			for(int ii = 0; ii < 3; ii++) {
 				if(ii == m_dir)
-					dPHI_dydphi *= -invspace[ii]*dB3kern(dnind[ii]+
-							neighbors.pos[ii]-2-dcind[ii]);
+					dPHI_dydphi *= -invspace[ii]*dB3kern(dind[ii]-dcind[ii]);
 				else
-					dPHI_dydphi *= B3kern(dnind[ii]+neighbors.pos[ii]-2-
-							dcind[ii]);
+					dPHI_dydphi *= B3kern(dind[ii]-dcind[ii]);
 			}
 			
 			double dg_dphi;

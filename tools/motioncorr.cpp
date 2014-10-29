@@ -176,7 +176,7 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 			for(size_t dd=0; dd<3; dd++) {
 				rigid.center[dd] = (vol->dim(dd)-1)/2.;
 				rigid.rotation[dd] = opt.state_x[dd]*M_PI/180;
-				rigid.shift[dd] = opt.state_x[dd+3]*vol->spacing(dd);
+				rigid.shift[dd] = opt.state_x[dd+3]/vol->spacing(dd);
 			}
 
 			rigid.invert();
