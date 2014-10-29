@@ -1,6 +1,10 @@
 
 def build(bld):
 	# todo rename
+	bld.program(target = 'nplCompare', 
+			source = 'imgcompare.cpp', 
+			use = 'ndarray_utils tclap nplio iterators accessors')
+
 	bld.program(target = 'nplBiasFieldCorrect', 
 			source = 'biascorrect.cpp', 
 			use = 'mrimage_utils tclap nplio iterators accessors')

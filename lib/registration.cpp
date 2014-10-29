@@ -297,7 +297,7 @@ ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		// initialize optimizer
 		LBFGSOpt opt(comp.nparam(), vfunc, gfunc, vgfunc);
 		opt.stop_Its = 10000;
-		opt.stop_X = 0.00001;
+		opt.stop_X = 0.000001;
 		opt.stop_G = 0;
 		opt.stop_F = 0;
 

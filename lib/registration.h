@@ -48,11 +48,6 @@ namespace npl {
 /** @{ */
 
 /**
- * @brief Information-based Metric to use
- */
-enum Metric {METRIC_MI, METRIC_VI, METRIC_NMI, METRIC_COR};
-
-/**
  * @brief The Rigid MI Computer is used to compute the mutual information
  * and gradient of mutual information between two images. As the name implies,
  * it is designed for 6 parameter rigid transforms.
