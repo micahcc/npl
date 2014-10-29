@@ -1653,14 +1653,15 @@ int DistortionCorrectionInformationComputer::metric(
 
 			double dPHI_dphi = 1;
 			for(int ii = 0; ii < 3; ii++)
-				dPHI_dphi *= B3kern(dind[ii]-dcind[ii]);
+				dPHI_dphi *= B3kern(dnind[ii]+neighbors.pos[ii]-2-dcind[ii]);
 
 			double dPHI_dydphi = 1;
 			for(int ii = 0; ii < 3; ii++) {
 				if(ii == m_dir)
 					dPHI_dydphi *= -invspace[ii]*dB3kern(dind[ii]-dcind[ii]);
 				else
-					dPHI_dydphi *= B3kern(dind[ii]-dcind[ii]);
+					dPHI_dydphi *= B3kern(dnind[ii]+neighbors.pos[ii]-2-
+							dcind[ii]);
 			}
 			
 			double dg_dphi;
