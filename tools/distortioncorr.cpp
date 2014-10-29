@@ -63,6 +63,11 @@ try {
 			"parameters and the the phase encoding direction set to the "
 			"direction of deformation." , false, "", "*.nii", cmd);
 
+	TCLAP::ValueArg<double> a_jacreg("J", "jacreg", "Jacobian regularizer "
+			"weight", false, 0.00001, "lambda", cmd);
+	TCLAP::ValueArg<double> a_tpsreg("T", "tpsreg", "Thin-Plate-Spline (TPS) "
+			"regularizer weight", false, 0.0001, "lambda", cmd);
+
 	TCLAP::MultiArg<double> a_sigmas("S", "sigmas", "Smoothing standard "
 			"deviations at each step of the registration.", false, 
 			"sd", cmd);
@@ -152,7 +157,8 @@ try {
 		cout << "Done\nNon-Rigidly Registering with " << a_metric.getValue() 
 			<< "..." << endl;
 
-		transform = infoDistCor(fixed, moving, dir, a_bspace.getValue(), sigmas,
+		transform = infoDistCor(fixed, moving, dir, a_bspace.getValue(), 
+				a_jacreg.getValue(), a_tpsreg.getValue(), sigmas,
 				a_bins.getValue(), a_parzen.getValue(), a_metric.getValue());
 	}
 

@@ -84,18 +84,16 @@ void apply(double* dst, const double* src,  double(*func)(double), size_t sz)
 MatrixXd pcacov(const MatrixXd& cov, double varth)
 {
 	assert(cov.rows() == cov.cols());
-    int outdim = 0;
 
 #ifndef NDEBUG
     std::cout << "Computing ..." << std::endl;
 #endif //DEBUG
-    JacobiSVD<MatrixXd> svd(X, Eigen::ComputeThinU);
+	Eigen::SelfAdjointEigenSolver<MatrixXd> solver(cov);
 #ifndef NDEBUG
     std::cout << "Done" << std::endl;
 #endif //DEBUG
 	
 	double total = 0;
-	Eigen::SelfAdjointEigenSolver<MatrixXd> solver(cov);
 	for(int64_t ii=solver.eigenvalues().rows()-1; ii>=0; ii--) {
 		assert(solver.eigenvalues()[ii] >= 0);
 		total += solver.eigenvalues()[ii];
@@ -119,7 +117,7 @@ MatrixXd pcacov(const MatrixXd& cov, double varth)
 	MatrixXd out(cov.rows(), ndim);
 	for(int64_t ii=solver.eigenvalues().rows()-1, jj=0; ii>=0; ii--, jj++) {
 		for(size_t rr=0; rr<cov.rows(); rr++) {
-			out(rr, jj) = solver.eigenvectors()(rr, ii)
+			out(rr, jj) = solver.eigenvectors()(rr, ii);
 		}
 	}
 
