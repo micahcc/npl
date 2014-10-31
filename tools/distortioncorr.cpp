@@ -57,7 +57,10 @@ try {
 	TCLAP::ValueArg<string> a_metric("M", "metric", "Metric to use. "
 			"(NMI, MI, VI, COR-unimplemented)", false, "", "metric", cmd);
 	TCLAP::ValueArg<string> a_out("o", "out", "Registered version of "
-			"moving image. ", false, "", "*.nii.gz", cmd);
+			"moving image. Note that if the input is 4D, this will NOT "
+			"apply the distortion to multiple time-points. To do that use "
+			"nplApplyDeform (which will handle motion correctly).", 
+			false, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_transform("t", "transform", "File to write "
 			"transform parameters to. This will be a nifti image the B-spline "
 			"parameters and the the phase encoding direction set to the "
@@ -98,33 +101,35 @@ try {
 
 	// fixed image
 	cerr << "Reading Inputs...";
-	ptr<MRImage> fixed, moving, in_moving;
+	ptr<MRImage> moving, in_moving;
+	ptr<MRImage> fixed = readMRImage(a_fixed.getValue());
+	size_t ndim;
 	{
-	ptr<MRImage> in_fixed = readMRImage(a_fixed.getValue());
 	in_moving = readMRImage(a_moving.getValue());
 	cerr << "Done" << endl;
-	size_t ndim = min(in_fixed->ndim(), in_moving->ndim());
+	ndim = min(fixed->ndim(), in_moving->ndim());
+	
+	cerr << "Extracting first " << ndim << " dims of Fixed Image" << endl;
+	fixed = dPtrCast<MRImage>(fixed->copyCast(ndim, fixed->dim(), FLOAT32));
 
 	cerr << "Extracting first " << ndim << " dims of Moving Image" << endl;
-	moving = dPtrCast<MRImage>(in_moving->copyCast(ndim, in_moving->dim(), 
-				FLOAT64));
+	in_moving = dPtrCast<MRImage>(in_moving->copyCast(ndim, in_moving->dim(),
+				FLOAT32));
 
-	cerr << "Done\nPutting Fixed Image into Moving Space...";
-
-	// Create Copy of Moving image, then sample input fixed image on its grid
-	fixed = dPtrCast<MRImage>(moving->createAnother());
+	cerr << "Done\nPutting Moving Image into Fixed Space...";
+	moving = dPtrCast<MRImage>(fixed->createAnother());
 	vector<int64_t> ind(ndim);
 	vector<double> point(ndim);
 	
 	// Create Interpolator, ensuring that radius is at least 1 pixel in the
 	// output space 
-	LanczosInterpNDView<double> interp(in_fixed);
-	interp.setRadius(ceil(in_moving->spacing(0)/in_fixed->spacing(0)));
+	LanczosInterpNDView<double> interp(in_moving);
+	interp.setRadius(ceil(fixed->spacing(0)/in_moving->spacing(0)));
 	interp.m_ras = true;
-	for(NDIter<double> it(fixed); !it.eof(); ++it) {
+	for(NDIter<double> it(moving); !it.eof(); ++it) {
 		// get point 
 		it.index(ind.size(), ind.data());
-		fixed->indexToPoint(ind.size(), ind.data(), point.data());
+		moving->indexToPoint(ind.size(), ind.data(), point.data());
 
 		// sample 
 		it.set(interp.get(point));
@@ -162,9 +167,6 @@ try {
 				a_bins.getValue(), a_parzen.getValue(), a_metric.getValue());
 	}
 
-	fixed.reset();
-	moving.reset();
-
 	cout << "Finished\nWriting output.";
 	if(a_transform.isSet()) 
 		transform->write(a_transform.getValue());
@@ -180,12 +182,12 @@ try {
 		LanczosInterpNDView<double> mvw(in_moving);
 
 		// Temps
-		vector<double> cind(in_moving->ndim());
-		vector<double> pt(in_moving->ndim());
+		vector<double> cind(ndim);
+		vector<double> pt(ndim);
 		double def;
 		double ddef;
 
-		// Iterate over output, and pply transform
+		// Iterate over output, and apply transform
 		for(NDIter<double> it(out); !it.eof(); ++it) {
 			it.index(cind);
 			out->indexToPoint(cind.size(), cind.data(), pt.data());
