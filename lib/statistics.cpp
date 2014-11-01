@@ -89,13 +89,12 @@ MatrixXd pcacov(const MatrixXd& cov, double varth)
 #ifndef NDEBUG
     std::cout << "Computing ..." << std::endl;
 #endif //DEBUG
-    JacobiSVD<MatrixXd> svd(X, Eigen::ComputeThinU);
+	Eigen::SelfAdjointEigenSolver<MatrixXd> solver(cov);
 #ifndef NDEBUG
     std::cout << "Done" << std::endl;
 #endif //DEBUG
 	
 	double total = 0;
-	Eigen::SelfAdjointEigenSolver<MatrixXd> solver(cov);
 	for(int64_t ii=solver.eigenvalues().rows()-1; ii>=0; ii--) {
 		assert(solver.eigenvalues()[ii] >= 0);
 		total += solver.eigenvalues()[ii];
@@ -135,6 +134,8 @@ MatrixXd pcacov(const MatrixXd& cov, double varth)
  *
  * Outputs reduced dimension (fewer cols) in output. Note that prio to this,
  * the columns of X should be 0 mean. 
+ *
+ * TODO put math here
  *
  * @param X 	RxC matrix where each column row is a sample, each column a
  *              dimension (or feature). The number of columns in the output
@@ -1688,5 +1689,109 @@ int fastSearchFindDP(const MatrixXf& samples, double thresh, double outthresh,
 // //   }
 //    return beta;
 //}
+
+
+/**
+ * @brief Band Lanczos Methof for Hessian Matrices
+ *
+ * p initial guesses (b_1...b_p) 
+ * set v_k = b_k for k = 1,2,...p
+ * set p_c = p
+ * set I = nullset
+ * for j = 1,2, ..., until convergence or p_c = 0; do
+ * (3) compute ||v_j||
+ *     decide if v_j should be deflated, if yes, then
+ *         if j - p_c > 0, set I = I union {j-p_c}
+ *         set p_c = p_c-1. If p_c = 0, set j = j-1 and STOP
+ *         for k = j, j+1, ..., j+p_c-1, set v_k = v_{k+1}
+ *         return to step (3)
+ *     set t(j,j-p_c) = ||v_j|| and normalize v_j = v_j/t(j,j-p_c)
+ *     for k = j+1, j+2, ..., j+p_c-1, set 
+ *         t(j,k-p_c) = v_j^*v_k and v_k = v_k - v_j t(j,k-p_c)
+ *     compute v(j+p_c) = Av_j
+ *     set k_0 = max{1,j-p_c}. For k = k_0, k_0+1,...,j-1, set 
+ *         t(k,j) = conjugate(t(j,k)) and v_{j+p_c} = v_{j+p_c}-v_k t(k,j)
+ *     for k in (I union {j}) (in ascending order), set 
+ *         t(k,j) = v^*_k v_{j+p_c} and v_{j+p_c} = v_{j+p_c} - v_k t(k,j)
+ *     for k in I, set s(j,k) = conjugate(t(k,j))
+ *     set T_j^(pr) = T_j + S_j = [t(i,k)] + [s(i,k)] for (i,k=1,2,3...j)
+ *     test for convergence
+ * end for
+ *
+ * @param V input/output the initial and final vectors
+ */
+void bandlanczos(list<VectorXd>& V)
+{
+	// TODO fill V with random values
+
+	int64_t pc = V.size();
+	vector<bool> I(V.size(), false);
+	list<VectorXd>::iterator Vk, Vj, Vjpc;
+
+	// Size?
+	// sparse MatrixXd T(V.size(), V.size());
+	// sparse MatrixXd S(V.size(), V.size());
+
+	Vj = V.begin();
+	for(int64_t jj=0; pc >= 0; jj++) {
+		// compute norm(vj)
+		double vnorm = Vj->norm();
+		if(vnorm < DTOL) {
+			/* Deflate */
+			if(jj - pc >= 0) I[jj-pc] = true;
+			if(--pc < 0) {
+				jj--;
+				break;
+			}
+
+			//erase Vj and return to beginning with jj unchanged
+			Vj = V.erase(Vj);
+			jj--;
+		}
+
+		// set t(j,j-pc) = norm(vj) and normalize vj
+		if(jj-pc >= 0)
+			T(jj, jj-pc) = vnorm;
+		(*Vj) /= vnorm;
+
+		Vk = Vj; ++Vk;
+		for(int64_t kk=jj+1; kk<jj+pc; kk++, ++Vk) {
+			double val = (Vj->transpose()*(*Vk));
+			if(kk - pc >= 0) T(jj, kk-pc) = val;
+			*Vk -= (*Vj)*val;
+		}
+		Vjpc = Vk;
+		*Vjpc = A*(*Vj);
+		k0 = max(0, jj-pc);
+		
+		Vk = V.begin();
+		for(int64_t kk=0; kk<k0; kk++, ++Vk) continue;
+		for(int64_t kk=k0; kk<jj; kk++) {
+			T(kk, jj) = T(jj,kk);
+			*Vjpc -= (*Vk)*T(kk,jj);
+		}
+
+		// iterator through k for (I UNION j)
+		// temporarily add j to I
+		bool jval = I[jj];
+		I[jj] = true;
+		Vk = V.begin(); 
+		for(int64_t kk=0; kk<I.size(); ++Vk, kk++) {
+			if(I[kk]) {
+				T(kk,jj) = (Vk->transpose())*(*Vjpc);
+				*Vjpc -= (*Vk)*T(kk,jj);
+			}
+		}
+		I[jj] = jval;
+
+		Vk = V.begin();
+		for(int64_t kk=0; kk<I.size(); ++Vk, kk++) {
+			if(I[kk]) 
+				S(jj,kk) = T(kk, jj);
+		}
+
+		T.col(jj) += S.col(j);
+	}
+}
 
 } // NPL
