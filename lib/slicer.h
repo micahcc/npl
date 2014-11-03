@@ -640,8 +640,7 @@ public:
 	 *
 	 * @param dd Dimension of image to sample index of
 	 */
-	inline
-	int64_t index(size_t dd) const
+	inline int64_t index(size_t dd) const
 	{
 		assert(dd<m_ndim);
 		return m_pos[dd];
@@ -652,8 +651,7 @@ public:
 	 *
 	 * @return returns linear index
 	 */
-	inline 
-	size_t linIndex() const
+	inline size_t linIndex() const
 	{
 		return m_linpos;
 	}
@@ -996,8 +994,7 @@ public:
 	 *
 	 * @return returns linear index
 	 */
-	inline 
-	int64_t linIndex() const
+	inline int64_t linIndex() const
 	{
 		return m_linpos[m_center];
 	}
