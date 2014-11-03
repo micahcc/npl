@@ -45,6 +45,24 @@ MatrixXd reduce(shared_ptr<const MRImage> in)
     return X_ic;
 }
 
+
+// Idea:
+// Reduce Data using PCA
+// Perform ICA on reduced-dimensional data
+//
+// PCA:
+// XW = P
+//
+// X - each row is a sample
+// P - each row is a reduced dimension sample
+// W - projects X into lower dimensional space
+//
+// example: X is 100x5
+//          T is 100x2
+//          W is 5x2
+// 
+
+
 int main(int argc, char** argv)
 {
 	try {
@@ -69,10 +87,10 @@ int main(int argc, char** argv)
 			true, "*.nii.gz", cmd);
 	TCLAP::ValueArg<int> a_time_append("t", "time-appends", "Number of images "
 			"to append in the matrix of images, in the time direction.", false,
-			0, "int", cmd);
+			1, "int", cmd);
 	TCLAP::ValueArg<int> a_space_append("s", "space-appends", "Number of images "
 			"to append in the matrix of images, in the space direction.", false,
-			0, "int", cmd);
+			1, "int", cmd);
 
     TCLAP::ValueArg<string> a_components("o", "out-components", "Output "
             "Independent Components as a 1x1xCxT image.",
@@ -94,6 +112,8 @@ int main(int argc, char** argv)
 		cerr << "Need to provide at least 1 input image!" << endl;
 		return -1;
 	}
+	size_t multT = a_time_append.getValue();
+	size_t multV = a_voxel_append.getValue();
 
 	if(a_spatial_ica.isSet()) {
 		cout << "Performing Spatial ICA" << endl;
@@ -104,137 +124,148 @@ int main(int argc, char** argv)
 		VectorXd mu;
 		MatrixXd timecat;
 		
-		// fill Matrix with values from inputs, skip first (just use already-read)
+		// fill Matrix with values from inputs
 		size_t subT = 0;
 		size_t subV = 0;
 		size_t totalT = 0;
 		size_t totalV = 0;
-		size_t ii = 0;
-		for(size_t ss = 0; ss < a_space_append.getValue(); ss++) {
-			for(size_t tt = 0; tt < a_time_append.getValue(); tt++, ii++) {
-				auto img = readMRImage(a_in.getValue()[ii]);
+		cout << "Computing Covariance Matrix" << endl;
+		for(size_t ss = 0; ss < multV; ss++) {
+			cout << "Group (row)" << ss << endl;
+			for(size_t tt = 0; tt < multT; tt++) {
+				cout << "Subject " << a_in.getValue()[ss*multT + tt] << endl;
+				auto img = readMRImage(a_in.getValue()[ss*multT + tt]);
 
 				// Initialize subT/subV on first round
 				if(subT == 0 && subV == 0) {
 					subT = img->tlen();
 					subV = img->elements()/img->tlen();
-					cov.resize(subT, subT);
-					row.resize(subT);
-					mu.resize(subT);
-					timecat.resize(subV*a_space_append.getValue(), subT);
+					cov.resize(multT*subT, multT*subT);
+					mu.resize(multT*subT);
+					timecat.resize(subV, subT*multT);
 				}
 
 				// Check Input Size
-				if(img->tlen() != subT) {
+				if(!SubT || img->tlen() != subT) {
 					cerr << "Image has different number of timepoints from the "
-						"rest " << a_in.getValue()[ii] << endl;
+						"rest " << a_in.getValue()[tt] << endl;
 					return -1;
 				}
-				if(img->elements()/img->tlen() != subV) {
+				if(!subV || img->elements()/img->tlen() != subV) {
 					cerr << "Image has different number of voxels from the "
-						"rest " << a_in.getValue()[ii] << endl;
+						"rest " << a_in.getValue()[tt] << endl;
 					return -1;
 				}
 
-				// Add each timeseries to the matrix
-				size_t r = 0;
-				for(Vector3DIter<double> it(img); !it.eof(); ++r, ++it) {
-					for(size_t c=0; c<img->tlen(); c++) 
-						row[c] = it[c];
-					mu += row;
-					cov += row.transpose()*row;
+				// Add each timeseries timecat
+				size_t rr = 0;
+				for(Vector3DIter<double> it(img); !it.eof(); ++rr, ++it) {
+					// iterate over subjects time
+					for(size_t st=0; st<img->tlen(); st++) 
+						timecat(rr, st+tt*subT) = it[st];
 				}
 			}
+
+			// Compute Mu/Cov from Timecat
+			mu += (timecat.colSums()).transpose();
+			cov += timecat.transpose()*timecat;
 		}
 
-		// fill, zero mean the timeseries
-		MatrixXd data(T, N);
-		ChunkConstIter<double> it(in); 
-		it.setLineChunk(3);
-		for(size_t xx=0; !it.eof(); it.nextChunk(), ++xx) {
-			double tmp = 0;
-			for(size_t tt=0; !it.eoc(); ++it) {
-				data(tt,xx) = *it;
-				tmp += *it;
-			}
-			tmp = 1./tmp;
-			for(size_t tt=0; !it.eoc(); ++it) 
-				data(tt,xx) = data(tt,xx)*tmp;
-		}
+		mu /= subV*multV;
+		cov = cov/(subV*multV) - mu*mu.transpose();
 
 		// perform PCA
 		std::cerr << "PCA...";
-		MatrixXd X_pc = pca(data, 0.01);
+		MatrixXd X_pc = pcacov(cov, 0.01);
 		std::cerr << "Done " << endl;
+		data.resize(multV*subV, X_pc.cols());
     
-		// perform ICA
-		std::cerr << "ICA...";
-		MatrixXd X_ic = ica(X_pc, 0.01);
-		std::cerr << "Done" << endl;
+		// Now go back and create reduced dataset
+		for(size_t ss = 0; ss < multV; ss++) {
+			for(size_t tt = 0; tt < multT; tt++) {
+				auto img = readMRImage(a_in.getValue()[ss*multT + tt]);
 
+				// Check Input Size
+				if(!SubT || img->tlen() != subT) {
+					cerr << "Image has different number of timepoints from the "
+						"rest " << a_in.getValue()[tt] << endl;
+					return -1;
+				}
+				if(!subV || img->elements()/img->tlen() != subV) {
+					cerr << "Image has different number of voxels from the "
+						"rest " << a_in.getValue()[tt] << endl;
+					return -1;
+				}
+
+				// Add each timeseries timecat
+				size_t rr = 0;
+				for(Vector3DIter<double> it(img); !it.eof(); ++rr, ++it) {
+					// iterate over subjects time
+					for(size_t st=0; st<img->tlen(); st++) 
+						timecat(rr, st+tt*subT) = it[st];
+				}
+			}
+
+			// Project Timecat 
+			data.block(ss*subV, subV, 0, X_pc.cols()) = X_pc*timecat;
+		}
 	} else {
-		// SVD Method (since presumably there will be more timepoints than
-		// voxels)
+		// SVD Method (since presumably there will be more voxels than 
+		// timepoints)
 		cout << "Performing Temporal ICA" << endl;
 
-		MatrixXd data;
 		size_t times = 0;
 		size_t voxels = 0;
 		size_t row = 0;
 		size_t col = 0;
 		size_t rr = 0;
 		size_t cc = 0;
-		for(size_t ii = 0; ii<a_in.getValue().size(); ++ii) {
-			auto tmp = readMRImage(a_in.getValue()[ii]);
-			data.resize(data.rows()+times, data.cols()+voxels);
+		for(size_t ss = 0; ss < multV; ss++) {
+			cout << "Group (col)" << ss << endl;
+			for(size_t tt = 0; tt < multT; tt++) {
+				cout << "Subject " << a_in.getValue()[ss*multT + tt] << endl;
+				auto img = readMRImage(a_in.getValue()[ss*multT + tt]);
 
-			rr = 0;
-			cc = 0;
-			for(Vector3DIter<double> it(tmp); !it.eof(); ++it) {
-				cc = 0;
-				for(size_t tt=0; tt<tmp->tlen(); cc++, tt++) {
-					data(times+tt, 
+				// Initialize subT/subV on first round
+				if(subT == 0 && subV == 0) {
+					subT = img->tlen();
+					subV = img->elements()/img->tlen();
+					data.resize(subT*multT, subV*multV);
+				}
+
+				// Check Input Size
+				if(!SubT || img->tlen() != subT) {
+					cerr << "Image has different number of timepoints from the "
+						"rest " << a_in.getValue()[tt] << endl;
+					return -1;
+				}
+				if(!subV || img->elements()/img->tlen() != subV) {
+					cerr << "Image has different number of voxels from the "
+						"rest " << a_in.getValue()[tt] << endl;
+					return -1;
+				}
+
+				// Add each timeseries to data
+				size_t rr = 0;
+				for(Vector3DIter<double> it(img); !it.eof(); ++rr, ++it) {
+					// iterate over subjects time
+					for(size_t st=0; st<img->tlen(); st++) 
+						data(tt*subT + st, subV*ss + rr) = it[st];
 				}
 			}
-			
-			// fill starting at T, V
-			times += tmp->tlen();
-			voxels += tmp->elements()/tmp->tlen();
-			
-			col++;
-			if(col >= a_time_append.getValue())
-				col = 0;
 		}
+
 		
-		// fill Matrix with values from input
-		size_t T = in->tlen();
-		size_t N = in->elements()/T;
-
-		// fill, zero mean the timeseries
-		MatrixXd data(T, N);
-		ChunkConstIter<double> it(in); 
-		it.setLineChunk(3);
-		for(size_t xx=0; !it.eof(); it.nextChunk(), ++xx) {
-			double tmp = 0;
-			for(size_t tt=0; !it.eoc(); ++it) {
-				data(tt,xx) = *it;
-				tmp += *it;
-			}
-			tmp = 1./tmp;
-			for(size_t tt=0; !it.eoc(); ++it) 
-				data(tt,xx) = data(tt,xx)*tmp;
-		}
-
 		// perform PCA
 		std::cerr << "PCA...";
-		MatrixXd X_pc = pca(data, 0.01);
+		data = pca(data, 0.01);
 		std::cerr << "Done " << endl;
-    
-		// perform ICA
-		std::cerr << "ICA...";
-		MatrixXd X_ic = ica(X_pc, 0.01);
-		std::cerr << "Done" << endl;
 	}
+
+	// perform ICA
+	std::cerr << "ICA...";
+	MatrixXd X_ic = ica(X_pc, 0.01);
+	std::cerr << "Done" << endl;
 
 //    // 
 //	MatrixXd regressors = reduce(inimg);

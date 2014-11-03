@@ -78,11 +78,13 @@ std::ostream& operator<<(std::ostream &out, const MRImage& img);
  *
  * @param in    Input image
  * @param sigma Standard deviation for smoothing
+ * @param spacing Ouptut image spacing (isotropic). If this is <= 0, then sigma
+ * will be used, which is a very conservative downsampling.
  *
  * @return  Smoothed and downsampled image
  */
 ptr<MRImage> smoothDownsample(ptr<const MRImage> in,
-        double sigma);
+			double sigma, double spacing = -1);
 
 /**
  * @brief Performs fourier resampling using fourier transform and the provided window function.
