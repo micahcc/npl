@@ -1792,7 +1792,7 @@ int DistortionCorrectionInformationComputer::metric(
 	}
 
 //#if defined DEBUG || defined VERYDEBUG
-	cerr << "ValueGrad() = " << val << " / " << grad.transpose() << endl;
+	cerr << "ValueGrad() = " << val << " / " << grad.norm() << endl;
 //#endif
 
 	// negate if we are using a similarity measure
@@ -1995,14 +1995,14 @@ int DistortionCorrectionInformationComputer::valueGrad(const VectorXd& params,
 	if(m_tps_reg > 0) {
 		val += m_tps_reg*b_vw.thinPlateEnergy(nparam,gradbuff.array().data());
 		grad += m_tps_reg*gradbuff;
-		cerr << "Post TPS Value/Grad: " << val << "/" << grad.transpose() << endl;
+		cerr << "Post TPS Value/Grad: " << val << "/" << grad.norm() << endl;
 	}
 
 	// Compute and add Jacobian
 	if(m_jac_reg > 0) {
 		val += m_jac_reg*b_vw.jacobianDet(m_dir,nparam,gradbuff.array().data());
 		grad += m_jac_reg*gradbuff;
-		cerr << "Post Jac Value/Grad: " << val << "/" << grad.transpose() << endl;
+		cerr << "Post Jac Value/Grad: " << val << "/" << grad.norm() << endl;
 	}
 
 	// Compute and add Metric
@@ -2010,7 +2010,7 @@ int DistortionCorrectionInformationComputer::valueGrad(const VectorXd& params,
 	if(metric(tmp, gradbuff) != 0) return -1;
 	val += tmp;
 	grad += gradbuff;
-	cerr << "Post Metric Value/Grad: " << val << "/" << grad.transpose() << endl;
+	cerr << "Post Metric Value/Grad: " << val << "/" << grad.norm() << endl;
 
 	return 0;
 }
