@@ -380,10 +380,12 @@ ptr<MRImage> resample(ptr<const MRImage> in, double* spacing,
  *
  * @param in    Input image
  * @param sigma Standard deviation for smoothing
+ * @param spacing Ouptut image spacing (isotropic). If this is <= 0, then sigma
+ * will be used, which is a very conservative downsampling.
  *
  * @return  Smoothed and downsampled image
  */
-ptr<MRImage> smoothDownsample(ptr<const MRImage> in, double sigma)
+ptr<MRImage> smoothDownsample(ptr<const MRImage> in, double sigma, double spacing)
 {
 	size_t ndim = in->ndim();
 
@@ -393,10 +395,13 @@ ptr<MRImage> smoothDownsample(ptr<const MRImage> in, double sigma)
 	vector<int64_t> rsize(in->ndim()); // truncated/padded frequency domain length
 	vector<int64_t> osize(ndim); // output size
 
+	if(spacing <= 0)
+		spacing = sigma;
+
 	int64_t linelen = 0;
 	for(size_t dd=0; dd<ndim; dd++) {
 		// compute ratio
-		double ratio = in->spacing(dd)/sigma;
+		double ratio = in->spacing(dd)/spacing;
 		if(ratio > 1)
 			ratio = 1;
 		psize[dd] = round2(2*isize[dd]);

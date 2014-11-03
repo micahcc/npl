@@ -251,6 +251,26 @@ public:
 		return m_pos[dd];
 	};
 
+	/**
+	 * @brief get linear position of current point
+	 *
+	 * @return returns linear index
+	 */
+	inline size_t linIndex() const
+	{
+		return m_linpos;
+	}
+
+	/**
+	 * @brief get stride in specified dimension
+	 *
+	 * @return returns stride (change in linear index given a position)
+	 */
+	inline int64_t getStride(size_t dd)
+	{
+		assert(dd < m_ndim); return m_strides[dd]; 
+	};
+
 	/***********************************************
 	 *
 	 * Modification
@@ -621,11 +641,33 @@ public:
 	 * @param dd Dimension of image to sample index of
 	 */
 	inline
-		int64_t index(size_t dd) const
-		{
-			assert(dd<m_ndim);
-			return m_pos[dd];
-		};
+	int64_t index(size_t dd) const
+	{
+		assert(dd<m_ndim);
+		return m_pos[dd];
+	};
+
+	/**
+	 * @brief get linear position of current point
+	 *
+	 * @return returns linear index
+	 */
+	inline 
+	size_t linIndex() const
+	{
+		return m_linpos;
+	}
+
+	/**
+	 * @brief get stride in specified dimension
+	 *
+	 * @return returns stride (change in linear index given a position)
+	 */
+	inline int64_t getStride(size_t dd)
+	{ 
+		assert(dd < m_ndim); 
+		return m_strides[dd]; 
+	};
 
 	/***********************************************
 	 *
@@ -948,7 +990,28 @@ public:
 	 * @return true if we are at the end
 	 */
 	bool eof() const { return m_end; };
+	
+	/**
+	 * @brief get linear position of current point
+	 *
+	 * @return returns linear index
+	 */
+	inline 
+	int64_t linIndex() const
+	{
+		return m_linpos[m_center];
+	}
 
+	/**
+	 * @brief get stride in specified dimension
+	 *
+	 * @return returns stride (change in linear index given a position)
+	 */
+	inline int64_t getStride(size_t dd) 
+	{
+		assert(dd < m_ndim); 
+		return m_strides[dd]; 
+	};
 
 	/*************************************
 	 * Movement

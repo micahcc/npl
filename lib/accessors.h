@@ -60,33 +60,6 @@ namespace npl {
  *
  * @{
  */
-	
-/**
- * @brief Returns number of interpolation dimensions required to sample 
- * at the continuous index. If only one off-grid dimension exists then
- * it is returned in dir and 1 is returned. If more than 1 off-grid
- * coordinate exists then the first will be returned in dir. If none then 0
- * will be returned and dir will be set to 0
- *
- * @param len Length of index array
- * @param index Continuous index
- * @param dir Direction that will need to be interpolated
- *
- * @return effective number of interpolation dimensions 
- */
-static int singledir(size_t len, const double* index, int& dir)
-{
-	dir = 0;
-	size_t ndir = 0;
-	for(size_t dd=0; dd<len; dd++) {
-		if(fabs(round(index[dd])-index[dd]) > 1E-10) {
-			ndir++;
-			dir = dd;
-		}
-	}
-	return ndir;
-};
-
 
 /**
  * @brief This is a basic accessor class, which allows for accessing
@@ -975,30 +948,9 @@ public:
 			}
 		}
 
-		// If this is an on-grid point then reduce to sampling just 1 or 
-		// two values. To do this we reduce the size of the counter in 
-		// dimensions where the values are on grid, and simultaneously round
-		// (so that floor(cindex[dd]) = cindex[dd] = nearest)
-		int dir = 0;
-		int effdir = singledir(len, cindex, dir);
 		Counter<> count(ndim);
-		if(effdir == 0) {
-			for(size_t dd=0; dd<ndim; dd++) {
-				count.sz[dd] = 1;
-				cindex[dd] = round(cindex[dd]);
-			}
-		} else if(effdir == 1){
-			for(size_t dd=0; dd<ndim; dd++) {
-				if(dd != dir) {
-					index[dd] = round(cindex[dd]);
-					count.sz[dd] = 1;
-				} else
-					count.sz[dd] = 2;
-			}
-		} else {
-			for(size_t dd=0; dd<ndim; dd++)
-				count.sz[dd] = 2;
-		}
+		for(size_t dd=0; dd<ndim; dd++)
+			count.sz[dd] = 2;
 
 		// compute weighted pixval by iterating over neighbors
 		T pixval = 0;
@@ -1126,30 +1078,9 @@ public:
 			tmp->pointToIndex(3, cindex, cindex);
 		}
 
-		// If this is an on-grid point then reduce to sampling just 1 or 
-		// two values. To do this we reduce the size of the counter in 
-		// dimensions where the values are on grid, and simultaneously round
-		// (so that floor(cindex[dd]) = cindex[dd] = nearest)
-		int dir = 0;
-		int effdir = singledir(3, cindex, dir);
 		Counter<> count(3);
-		if(effdir == 0) {
-			for(size_t dd=0; dd<3; dd++) {
-				count.sz[dd] = 1;
-				cindex[dd] = round(cindex[dd]);
-			}
-		} else if(effdir == 1){
-			for(size_t dd=0; dd<3; dd++) {
-				if(dd != dir) {
-					index[dd] = round(cindex[dd]);
-					count.sz[dd] = 1;
-				} else
-					count.sz[dd] = 2;
-			}
-		} else {
-			for(size_t dd=0; dd<3; dd++)
-				count.sz[dd] = 2;
-		}
+		for(size_t dd=0; dd<3; dd++)
+			count.sz[dd] = 2;
 
 		T pixval = 0;
 		bool iioutside = false;
