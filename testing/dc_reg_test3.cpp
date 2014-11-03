@@ -39,7 +39,7 @@ shared_ptr<MRImage> squareImage()
 {
     // create test image
 	int64_t index[3];
-	size_t sz[] = {32, 32, 32};
+	size_t sz[] = {20, 19, 21};
 	auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, FLOAT64);
 
 	// fill with square
@@ -95,7 +95,8 @@ int main()
 	distorted->write("dcrt3_distorted.nii.gz");
 
 	vector<double> sigmas({5, 4, 3, 2, 1, 0.5, 0});
-	auto p = infoDistCor(origimg, distorted, dir, 10, sigmas, 100, 4, "MI");
+	auto p = infoDistCor(origimg, distorted, dir, 10, 1e-12, 1e-5, sigmas, 
+			100, 4, "MI");
 	
 	cerr << "True Params:\n" << *b_vw.getParams() << endl;
 	cerr << "Est Params:\n" << *p << endl;

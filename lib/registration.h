@@ -771,6 +771,8 @@ Rigid3DTrans informationReg3D(ptr<const MRImage> fixed,
  * @param moving Image which will be rotated then shifted to match fixed.
  * @param dir direction/dimension of distortion
  * @param bspace Spacing of B-Spline knots (in mm)
+ * @param jac jacobian regularizer weight
+ * @param tps thin-plate-spline regularizer weight
  * @param sigmas Standard deviation of smoothing at each level
  * @param nbins Number of bins in marginal PDF
  * @param binradius radius of parzen window, to smooth pdf
@@ -779,7 +781,8 @@ Rigid3DTrans informationReg3D(ptr<const MRImage> fixed,
  * @return parameters of bspline
  */
 ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
-		int dir, double bspace, const std::vector<double>& sigmas,
+		int dir, double bspace, double jac, double tps,
+		const std::vector<double>& sigmas,
 		size_t nbins = 128, size_t binradius = 4, std::string metric = "MI");
 
 /**

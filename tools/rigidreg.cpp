@@ -116,8 +116,8 @@ try {
 		cout << "Read Transform: " << endl << rigid << endl;
 	} else if(a_fixed.isSet()) {
 		ptr<MRImage> fixed = readMRImage(a_fixed.getValue());
-		fixed = dPtrCast<MRImage>(fixed->copyCast(min(fixed->ndim(),3UL), 
-					fixed->dim(), FLOAT32));
+		size_t ndim = min(fixed->ndim(), in_moving->ndim());
+		fixed = dPtrCast<MRImage>(fixed->copyCast(ndim, fixed->dim(), FLOAT32));
 
 		// Downsample moving image
 		auto moving = dPtrCast<MRImage>(fixed->createAnother());

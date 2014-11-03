@@ -47,7 +47,7 @@ double gaussGen(double x, double y, double z, double xsz, double ysz, double zsz
 shared_ptr<MRImage> gaussianImage(double sx, double sy, double sz)
 {
     // create an image
-    size_t size[] = {32,32,32};
+    size_t size[] = {12,16,17};
     int64_t index[3];
     auto in = createMRImage(sizeof(size)/sizeof(size_t), size, FLOAT32);
 
@@ -82,11 +82,11 @@ int main()
 	auto origimg = gaussianImage(4, 4, 4);
 	origimg->write("gaussmooth_test_origimg.nii.gz");
     
-    if(distcorDerivTest(0.001, 0.09, distimg, origimg, 0, 100) != 0)
+    if(distcorDerivTest(0.001, 0.12, distimg, origimg, 0, 100) != 0)
         return -1;
-    if(distcorDerivTest(0.001, 0.24, distimg, origimg, 100, 0) != 0)
+    if(distcorDerivTest(0.001, 0.30, distimg, origimg, 100, 0) != 0)
         return -1;
-    if(distcorDerivTest(0.001, 0.19, distimg, origimg, 100, 100) != 0)
+    if(distcorDerivTest(0.001, 0.24, distimg, origimg, 100, 100) != 0)
         return -1;
     return 0;
 }

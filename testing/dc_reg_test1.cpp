@@ -47,7 +47,7 @@ double gaussGen(double x, double y, double z, double xsz, double ysz, double zsz
 shared_ptr<MRImage> gaussianImage(double sx, double sy, double sz)
 {
     // create an image
-    size_t size[] = {32,32,32};
+    size_t size[] = {12,16,17};
     int64_t index[3];
     auto in = createMRImage(sizeof(size)/sizeof(size_t), size, FLOAT32);
 
