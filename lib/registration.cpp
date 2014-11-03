@@ -292,8 +292,10 @@ ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 	for(size_t ii=0; ii<sigmas.size(); ii++) {
 		// smooth and downsample input images
 		cerr << "Sigma: " << sigmas[ii] << endl;
-		auto sm_fixed = smoothDownsample(fixed, sigmas[ii]);
-		auto sm_moving = smoothDownsample(moving, sigmas[ii]);
+		auto sm_fixed = smoothDownsample(fixed, sigmas[ii], sigmas[ii]*2.355);
+		auto sm_moving = smoothDownsample(moving, sigmas[ii]*2.355);
+		cerr << "Fixed: " << *sm_fixed << endl;
+		cerr << "Moving: " << *sm_moving << endl;
 		DEBUGWRITE(sm_fixed->write("smooth_fixed_"+to_string(ii)+".nii.gz"));
 		DEBUGWRITE(sm_moving->write("smooth_moving_"+to_string(ii)+".nii.gz"));
 	
@@ -1490,35 +1492,54 @@ void DistortionCorrectionInformationComputer::updateCaches()
 {
 	m_rangemove[0] = 0;
 	m_rangemove[1] = 0;
-	LinInterp3DView<double> move_vw(m_moving);
-	LinInterp3DView<double> dmove_vw(m_dmoving);
+	NDConstView<double> move_vw(m_moving);
+	NDConstView<double> dmove_vw(m_dmoving);
 	BSplineView<double> bsp_vw(m_deform);
 	bsp_vw.m_boundmethod = ZEROFLUX;
 	bsp_vw.m_ras = true;
 
 	// Compute Probabilities
-	double mcind[3]; // index in moving image
+	size_t dirlen = m_corr_cache->dim(m_dir);
 	double dcind[3]; // index in distortion image
+	int64_t mind[3] ;
 	double pt[3]; // point 
+	double Fm = 0;
+	double dFm = 0;
 	for(NDIter<double> dmit(m_dmove_cache), mit(m_move_cache), cit(m_corr_cache); 
-				!mit.eof(); ++dmit, ++mit, ++cit) {
+			!mit.eof(); ++dmit, ++mit, ++cit) {
 
 		// Compute Continuous Index of Point in Deform Image
-		dmit.index(3, mcind);
-		m_move_cache->indexToPoint(3, mcind, pt);
+		dmit.index(3, mind);
+		m_move_cache->indexToPoint(3, mind, pt);
 		m_deform->pointToIndex(3, pt, dcind);
 
 		// Sample B-Spline Value and Derivative at Current Position
 		double def = 0, ddef = 0;
 		bsp_vw.get(3, pt, m_dir, def, ddef);
-		mcind[m_dir] += def/m_moving->spacing(m_dir);
 
-		// get actual values
-		double Fm = move_vw.get(mcind[0], mcind[1], mcind[2]);
+		// get linear index
+		double cind = mind[m_dir] + def/m_moving->spacing(m_dir);
+		int64_t below = (int64_t)floor(cind);
+		int64_t above = below + 1;
+		Fm = 0;
+		dFm = 0;
+
+		// get values
+		if(below >= 0 && below < dirlen) {
+			mind[m_dir] = below;
+			dFm += dmove_vw.get(3, mind)*linKern(below-cind);
+			Fm += move_vw.get(3, mind)*linKern(below-cind);
+		}
+		if(above >= 0 && above < dirlen) {
+			mind[m_dir] = above;
+			dFm += dmove_vw.get(3, mind)*linKern(above-cind);
+			Fm += move_vw.get(3, mind)*linKern(above-cind);
+		}
+
 		if(Fm < 1e-10 || ddef < -1) Fm = 0;
 		mit.set(Fm);
 		cit.set(Fm*(1+ddef));
-		dmit.set(dmove_vw.get(mcind[0], mcind[1], mcind[2]));
+		dmit.set(dFm);
 
 		m_rangemove[0] = std::min(m_rangemove[0], cit.get());
 		m_rangemove[1] = std::max(m_rangemove[1], cit.get());
@@ -1578,6 +1599,7 @@ int DistortionCorrectionInformationComputer::metric(
 	double Fc;   /** Intensity Corrected Moving Value */
 	double Ff;   /** Fixed Value Value */
 
+	// probweight cached derivative of p wrt to the center parameter
 	vector<double> probweight((2*m_krad+1)*(2*m_krad+1));
 	vector<double> invspace(m_deform->ndim());
 	for(size_t dd=0; dd<m_deform->ndim(); dd++)
@@ -1671,7 +1693,7 @@ int DistortionCorrectionInformationComputer::metric(
 			
 			double dg_dphi;
 			if(Fm <= 0) // 0/0 => 1
-				dg_dphi = dFm*dPHI_dphi + Fm*dPHI_dydphi;
+				dg_dphi = dFm*dPHI_dphi;
 			else
 				dg_dphi = dFm*dPHI_dphi*Fc/Fm + Fm*dPHI_dydphi;
 
@@ -1681,6 +1703,7 @@ int DistortionCorrectionInformationComputer::metric(
 					dind[3] = ii;
 					dind[4] = jj;
 					m_dpdfjoint[dind] += dg_dphi*probweight[zz++];
+
 				}
 			}
 		} while(neighbors.advance());
@@ -1693,6 +1716,8 @@ int DistortionCorrectionInformationComputer::metric(
 	// pdf's
 	double scale = 0;
 	for(int64_t ii=0; ii<m_bins; ii++) {
+		m_pdffix[ii] = 0;
+		m_pdfmove[ii] = 0;
 		for(int64_t jj=0; jj<m_bins; jj++) {
 			m_pdffix[ii] += m_pdfjoint[{jj,ii}];
 			m_pdfmove[ii] += m_pdfjoint[{ii,jj}];
