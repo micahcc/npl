@@ -1719,78 +1719,78 @@ int fastSearchFindDP(const MatrixXf& samples, double thresh, double outthresh,
  *
  * @param V input/output the initial and final vectors
  */
-void bandlanczos(list<VectorXd>& V)
-{
-	// TODO fill V with random values
-
-	int64_t pc = V.size();
-	vector<bool> I(V.size(), false);
-	list<VectorXd>::iterator Vk, Vj, Vjpc;
-
-	// Size?
-	// sparse MatrixXd T(V.size(), V.size());
-	// sparse MatrixXd S(V.size(), V.size());
-
-	Vj = V.begin();
-	for(int64_t jj=0; pc >= 0; jj++) {
-		// compute norm(vj)
-		double vnorm = Vj->norm();
-		if(vnorm < DTOL) {
-			/* Deflate */
-			if(jj - pc >= 0) I[jj-pc] = true;
-			if(--pc < 0) {
-				jj--;
-				break;
-			}
-
-			//erase Vj and return to beginning with jj unchanged
-			Vj = V.erase(Vj);
-			jj--;
-		}
-
-		// set t(j,j-pc) = norm(vj) and normalize vj
-		if(jj-pc >= 0)
-			T(jj, jj-pc) = vnorm;
-		(*Vj) /= vnorm;
-
-		Vk = Vj; ++Vk;
-		for(int64_t kk=jj+1; kk<jj+pc; kk++, ++Vk) {
-			double val = (Vj->transpose()*(*Vk));
-			if(kk - pc >= 0) T(jj, kk-pc) = val;
-			*Vk -= (*Vj)*val;
-		}
-		Vjpc = Vk;
-		*Vjpc = A*(*Vj);
-		k0 = max(0, jj-pc);
-		
-		Vk = V.begin();
-		for(int64_t kk=0; kk<k0; kk++, ++Vk) continue;
-		for(int64_t kk=k0; kk<jj; kk++) {
-			T(kk, jj) = T(jj,kk);
-			*Vjpc -= (*Vk)*T(kk,jj);
-		}
-
-		// iterator through k for (I UNION j)
-		// temporarily add j to I
-		bool jval = I[jj];
-		I[jj] = true;
-		Vk = V.begin(); 
-		for(int64_t kk=0; kk<I.size(); ++Vk, kk++) {
-			if(I[kk]) {
-				T(kk,jj) = (Vk->transpose())*(*Vjpc);
-				*Vjpc -= (*Vk)*T(kk,jj);
-			}
-		}
-		I[jj] = jval;
-
-		Vk = V.begin();
-		for(int64_t kk=0; kk<I.size(); ++Vk, kk++) {
-			if(I[kk]) 
-				S(jj,kk) = T(kk, jj);
-		}
-
-		T.col(jj) += S.col(j);
-	}
-}
+//void bandlanczos(list<VectorXd>& V)
+//{
+//	// TODO fill V with random values
+//	double DTOL = 1e-20;
+//	int64_t pc = V.size();
+//	vector<bool> I(V.size(), false);
+//	list<VectorXd>::iterator Vk, Vj, Vjpc;
+//
+//	// Size?
+//	// sparse MatrixXd T(V.size(), V.size());
+//	// sparse MatrixXd S(V.size(), V.size());
+//
+//	Vj = V.begin();
+//	for(int64_t jj=0; pc >= 0; jj++) {
+//		// compute norm(vj)
+//		double vnorm = Vj->norm();
+//		if(vnorm < DTOL) {
+//			/* Deflate */
+//			if(jj - pc >= 0) I[jj-pc] = true;
+//			if(--pc < 0) {
+//				jj--;
+//				break;
+//			}
+//
+//			//erase Vj and return to beginning with jj unchanged
+//			Vj = V.erase(Vj);
+//			jj--;
+//		}
+//
+//		// set t(j,j-pc) = norm(vj) and normalize vj
+//		if(jj-pc >= 0)
+//			T(jj, jj-pc) = vnorm;
+//		(*Vj) /= vnorm;
+//
+//		Vk = Vj; ++Vk;
+//		for(int64_t kk=jj+1; kk<jj+pc; kk++, ++Vk) {
+//			double val = (Vj->transpose()*(*Vk));
+//			if(kk - pc >= 0) T(jj, kk-pc) = val;
+//			*Vk -= (*Vj)*val;
+//		}
+//		Vjpc = Vk;
+//		*Vjpc = A*(*Vj);
+//		k0 = max(0, jj-pc);
+//		
+//		Vk = V.begin();
+//		for(int64_t kk=0; kk<k0; kk++, ++Vk) continue;
+//		for(int64_t kk=k0; kk<jj; kk++) {
+//			T(kk, jj) = T(jj,kk);
+//			*Vjpc -= (*Vk)*T(kk,jj);
+//		}
+//
+//		// iterator through k for (I UNION j)
+//		// temporarily add j to I
+//		bool jval = I[jj];
+//		I[jj] = true;
+//		Vk = V.begin(); 
+//		for(int64_t kk=0; kk<I.size(); ++Vk, kk++) {
+//			if(I[kk]) {
+//				T(kk,jj) = (Vk->transpose())*(*Vjpc);
+//				*Vjpc -= (*Vk)*T(kk,jj);
+//			}
+//		}
+//		I[jj] = jval;
+//
+//		Vk = V.begin();
+//		for(int64_t kk=0; kk<I.size(); ++Vk, kk++) {
+//			if(I[kk]) 
+//				S(jj,kk) = T(kk, jj);
+//		}
+//
+//		T.col(jj) += S.col(j);
+//	}
+//}
 
 } // NPL
