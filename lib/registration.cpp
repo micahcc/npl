@@ -1698,11 +1698,12 @@ int DistortionCorrectionInformationComputer::metric(
 				dg_dphi = dFm*dPHI_dphi*Fc/Fm + Fm*dPHI_dydphi;
 
 			assert(dg_dphi == dg_dphi);
-			size_t lindex = m_dpdfjoint.getLinIndex(3, dind);
 			for(int ii = binmove-m_krad, zz=0; ii <= binmove+m_krad; ii++) {
 				for(int jj = binfix-m_krad; jj <= binfix+m_krad; jj++) {
-					m_dpdfjoint[lindex + m_bins*binmove + binfix] +=
-						dg_dphi*probweight[zz++];
+					dind[3] = ii;
+					dind[4] = jj;
+					m_dpdfjoint[dind] += dg_dphi*probweight[zz++];
+
 				}
 			}
 		} while(neighbors.advance());
