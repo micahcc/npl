@@ -95,8 +95,8 @@ shared_ptr<MRImage> squareImage()
 int main()
 {
     // create test image
-    auto img = gaussianImage();
-    //auto img = squareImage();
+    //auto img = gaussianImage();
+    auto img = squareImage();
 	double trueshift[3] = {5,7,-2};
 	double truerotate[3] = {.1,.1,.2};
 
