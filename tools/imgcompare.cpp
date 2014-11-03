@@ -80,19 +80,28 @@ int main(int argc, char* argv[])
 	img1 = dPtrCast<MRImage>(img1->extractCast(ndim, img1->dim()));
 	img2 = dPtrCast<MRImage>(img2->extractCast(ndim, img2->dim()));
 
-	{
-	auto img2r = dPtrCast<MRImage>(img1->createAnother(img2->type()));
-	//resample images together
-	vector<double> indpt(ndim);
-	LanczosInterpNDView<double> vw2(img2);
-	vw2.m_ras = true;
-	for(NDIter<double> it(img2r); !it.eof(); ++it) {
-		it.index(indpt.size(), indpt.data());
-		img2r->indexToPoint(indpt.size(), indpt.data(), indpt.data());
-		it.set(vw2.get(indpt.size(), indpt.data()));
+	for(size_t dd=0; dd<ndim; dd++) {
+		if(img1->dim(dd) != img2->dim(dd)) {
+			cerr << "Image dimension mismatch!" << endl; 
+			return -1;
+		}
 	}
-	img2 = img2r;
-	}
+	// TODO FIX THIS, doesn't work for 4D images
+//	{
+//	auto img2r = dPtrCast<MRImage>(img1->createAnother(img2->type()));
+//	//resample images together
+//	vector<double> pt(ndim);
+//	vector<double> cind(ndim);
+//	LanczosInterpNDView<double> vw2(img2);
+//	vw2.m_ras = true;
+//	for(NDIter<double> it(img2r); !it.eof(); ++it) {
+//		it.index(cind.size(), cind.data());
+//		img2r->indexToPoint(cind.size(), cind.data(), pt.data());
+//		cerr <<vw2.get(pt.size(), pt.data())<<endl;
+//		it.set(vw2.get(pt.size(), pt.data()));
+//	}
+//	img2 = img2r;
+//	}
 
 	// Read Mask and Resample into Image 1 space
 	ptr<MRImage> mask;
@@ -140,6 +149,7 @@ int main(int argc, char* argv[])
 
 	// Compare
 	double sim = 0;
+	cerr << "Perfoming Comparison" << endl;
 	if(a_method.getValue() == "mse") 
 		sim = mse(img1, img2, mask);
 	else if(a_method.getValue() == "mi")

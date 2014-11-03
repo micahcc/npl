@@ -2525,6 +2525,11 @@ double corr(ptr<const NDArray> a, ptr<const NDArray> b, ptr<const NDArray> mask)
 	s2 = sqrt(sample_var(count, m2, s2));
 	m1 /= count;
 	m2 /= count;
+	cerr << "Count: " << count << endl;
+	cerr << "Mean 1: " << m1 << endl;
+	cerr << "Mean 2: " << m2 << endl;
+	cerr << "Std 1: " << s1 << endl;
+	cerr << "Std 2: " << s2 << endl;
 
 	cor = (cor-count*m1*m2)/((count-1)*s1*s2);
 	return cor;

@@ -91,7 +91,7 @@ try {
 	cmd.parse(argc, argv);
 
 	// set up sigmas
-	vector<double> sigmas({5,1,0});
+	vector<double> sigmas({3,1.5,.5});
 	if(a_sigmas.isSet()) 
 		sigmas.assign(a_sigmas.begin(), a_sigmas.end());
 
