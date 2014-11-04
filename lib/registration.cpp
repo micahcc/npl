@@ -39,6 +39,10 @@ using Eigen::AngleAxisd;
 using std::cerr;
 using std::endl;
 
+//#define CLOCK(S) S
+#define CLOCK(S)
+
+
 #ifdef VERYDEBUG
 #define DEBUGWRITE(FOO) FOO
 #else
@@ -298,7 +302,7 @@ ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		cerr << "Moving: " << *sm_moving << endl;
 		DEBUGWRITE(sm_fixed->write("smooth_fixed_"+to_string(ii)+".nii.gz"));
 		DEBUGWRITE(sm_moving->write("smooth_moving_"+to_string(ii)+".nii.gz"));
-	
+
 		comp.setFixed(sm_fixed);
 		comp.setMoving(sm_moving, dir);
 
@@ -656,7 +660,7 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 	double sx = params[3]/m_moving->spacing(0);
 	double sy = params[4]/m_moving->spacing(1);
 	double sz = params[5]/m_moving->spacing(2);
-	
+
 	//#if defined DEBUG || defined VERYDEBUG
 	cerr << "VAL() Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: "
 		<< sx << ", " << sy << ", " << sz << endl;
@@ -1020,17 +1024,17 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 		assert(binfix-m_krad >= 0);
 		assert(binmove-m_krad >= 0);
 
-		for(int ii = binmove-m_krad; ii <= binmove+m_krad; ii++) {
-			for(int jj = binfix-m_krad; jj <= binfix+m_krad; jj++)
-				m_pdfjoint[{ii,jj}] += B3kern(ii-cbinmove, m_krad)*
-					B3kern(jj-cbinfix, m_krad);
+		for(int ii = binfix-m_krad; ii <= binfix+m_krad; ii++)
+			for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++) {
+				m_pdfjoint[{ii,jj}] += B3kern(ii-cbinfix, m_krad)*
+					B3kern(jj-cbinmove, m_krad);
 		}
 
 		for(int phi = 0; phi < 6; phi++) {
-			for(int ii = binmove-m_krad; ii <= binmove+m_krad; ii++) {
-				for(int jj = binfix-m_krad; jj <= binfix+m_krad; jj++) {
-					m_dpdfjoint[{phi,ii,jj}] += B3kern(jj-cbinfix, m_krad)*
-						dB3kern(ii-cbinmove, m_krad)*dgdPhi[phi];
+			for(int ii = binfix-m_krad; ii <= binfix+m_krad; ii++) {
+				for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++) {
+					m_dpdfjoint[{phi,ii,jj}] += B3kern(ii-cbinfix, m_krad)*
+						dB3kern(jj-cbinmove, m_krad)*dgdPhi[phi];
 				}
 			}
 		}
@@ -1040,24 +1044,21 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 	// Update Entropies
 	///////////////////////
 
-	// pdf's
+	// Scale
+	size_t tbins = m_bins*m_bins;
 	double scale = 0;
-	for(int64_t ii=0; ii<m_bins; ii++) {
-		for(int64_t jj=0; jj<m_bins; jj++) {
-			m_pdffix[ii] += m_pdfjoint[{jj,ii}];
-			m_pdfmove[ii] += m_pdfjoint[{ii,jj}];
-			scale += m_pdfjoint[{ii,jj}];
-		}
-	}
-
+	for(size_t ii=0; ii<tbins; ii++)
+		scale += m_pdfjoint[ii];
 	scale = 1./scale;
-	for(size_t ii=0; ii<m_bins; ii++) {
-		m_pdfmove[ii] *= scale;
-		m_pdffix[ii] *= scale;
-	}
-
-	for(size_t ii=0; ii<m_bins*m_bins; ii++) {
+	for(size_t ii=0; ii<tbins; ii++)
 		m_pdfjoint[ii] *= scale;
+
+	// marginals
+	for(int64_t ii=0, bb=0; ii<m_bins; ii++) {
+		for(int64_t jj=0; jj<m_bins; jj++, bb++) {
+			m_pdffix[ii] += m_pdfjoint[bb];
+			m_pdfmove[jj] += m_pdfjoint[bb];
+		}
 	}
 
 	// update m_Hmove, m_Hfix
@@ -1070,39 +1071,47 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 
 	// update m_Hjoint
 	m_Hjoint = 0;
-	for(int ii=0; ii<m_bins*m_bins; ii++)
+	for(int ii=0; ii<tbins; ii++)
 		m_Hjoint -= m_pdfjoint[ii] > 0 ? m_pdfjoint[ii]*log(m_pdfjoint[ii]) : 0;
 
 	//////////////////////////////
 	// Update Gradient Entropies
 	//////////////////////////////
-
-	// pdf's
 	scale = -scale/m_wmove;
-	for(size_t ii=0; ii<m_dpdfjoint.elements(); ii++) {
+	size_t dpjsz = m_dpdfjoint.elements();
+	for(size_t ii=0; ii<dpjsz; ii++)
 		m_dpdfjoint[ii] *= scale;
-	}
 
-	// Hjoint
-	for(int pp=0; pp<6; pp++) {
-		m_gradHjoint[pp] = 0;
-		for(int ii=0; ii<m_bins; ii++) {
-			for(int jj=0; jj<m_bins; jj++) {
-				double p = m_pdfjoint[{ii,jj}];
-				double dp = m_dpdfjoint[{pp,ii,jj}];
-				m_gradHjoint[pp] -= p > 0 ? dp*(log(p)+1) : 0;
-				m_dpdfmove[{pp, ii}] += dp;
+	size_t nparams = m_gradHmove.size();
+	for(size_t pp=0; pp < nparams; pp++) {
+		size_t jstart = pp*tbins;
+		size_t mstart = pp*m_bins;
+		for(int64_t ii=0, bb=0; ii<m_bins; ii++) {
+			for(int64_t jj=0; jj<m_bins; jj++, bb++) {
+				m_dpdfmove[mstart+jj] += m_dpdfjoint[jstart+bb];
 			}
 		}
 	}
 
-	// Hmove
-	for(int pp=0; pp<6; pp++) {
+	// Compute Gradient Marginal Entropy
+	for(size_t pp=0, dd=0; pp<nparams; pp++) {
 		m_gradHmove[pp] = 0;
-		for(int jj=0; jj<m_bins; jj++) {
-			double p = m_pdfmove[jj];
-			double dp = m_dpdfmove[{pp,jj}];
-			m_gradHmove[pp] -= p > 0 ? dp*(log(p)+1) : 0;
+		for(size_t ii=0; ii<m_bins; ii++, dd++) {
+			double p = m_pdfmove[ii];
+			double dp = m_dpdfmove[dd];
+			double v = p > 0 ? dp*(log(p)+1) : 0;
+			m_gradHmove[pp] -= v;
+		}
+	}
+
+	// Compute Gradient Joint Entropy
+	for(size_t pp=0, dd=0; pp<nparams; pp++) {
+		m_gradHjoint[pp] = 0;
+		for(size_t bb=0; bb<tbins; bb++, dd++) {
+			double p = m_pdfjoint[bb];
+			double dp = m_dpdfjoint[dd];
+			double v = p > 0 ? dp*(log(p)+1) : 0;
+			m_gradHjoint[pp] -= v;
 		}
 	}
 
@@ -1264,24 +1273,21 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
 		}
 	}
 
-	// pdf's
+	// Scale
+	size_t tbins = m_bins*m_bins;
 	double scale = 0;
-	for(int64_t ii=0; ii<m_bins; ii++) {
-		for(int64_t jj=0; jj<m_bins; jj++) {
-			m_pdffix[ii] += m_pdfjoint[{jj,ii}];
-			m_pdfmove[ii] += m_pdfjoint[{ii,jj}];
-			scale += m_pdfjoint[{ii,jj}];
-		}
-	}
-
+	for(size_t ii=0; ii<tbins; ii++)
+		scale += m_pdfjoint[ii];
 	scale = 1./scale;
-	for(size_t ii=0; ii<m_bins; ii++) {
-		m_pdfmove[ii] *= scale;
-		m_pdffix[ii] *= scale;
-	}
-
-	for(size_t ii=0; ii<m_bins*m_bins; ii++) {
+	for(size_t ii=0; ii<tbins; ii++)
 		m_pdfjoint[ii] *= scale;
+
+	// marginals
+	for(int64_t ii=0, bb=0; ii<m_bins; ii++) {
+		for(int64_t jj=0; jj<m_bins; jj++, bb++) {
+			m_pdffix[ii] += m_pdfjoint[bb];
+			m_pdfmove[jj] += m_pdfjoint[bb];
+		}
 	}
 
 	// update m_Hmove
@@ -1294,9 +1300,8 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
 
 	// update m_Hjoint
 	m_Hjoint = 0;
-	for(int ii=0; ii<m_pdfjoint.elements(); ii++) {
+	for(int ii=0; ii<tbins; ii++)
 		m_Hjoint -= m_pdfjoint[ii] > 0 ? m_pdfjoint[ii]*log(m_pdfjoint[ii]) : 0;
-	}
 
 	// update value
 	if(m_metric == METRIC_MI) {
@@ -1361,7 +1366,7 @@ void DistortionCorrectionInformationComputer::initializeKnots(double space)
 			"initializeKnots. Later changes to fixed image will not affect "
 			"the knot image.");
 	}
-	
+
 	size_t ndim = m_fixed->ndim();
 
 	VectorXd spacing(ndim);
@@ -1502,10 +1507,10 @@ void DistortionCorrectionInformationComputer::updateCaches()
 	size_t dirlen = m_corr_cache->dim(m_dir);
 	double dcind[3]; // index in distortion image
 	int64_t mind[3] ;
-	double pt[3]; // point 
+	double pt[3]; // point
 	double Fm = 0;
 	double dFm = 0;
-	for(NDIter<double> dmit(m_dmove_cache), mit(m_move_cache), cit(m_corr_cache); 
+	for(NDIter<double> dmit(m_dmove_cache), mit(m_move_cache), cit(m_corr_cache);
 			!mit.eof(); ++dmit, ++mit, ++cit) {
 
 		// Compute Continuous Index of Point in Deform Image
@@ -1579,6 +1584,7 @@ void DistortionCorrectionInformationComputer::setFixed(ptr<const MRImage> newfix
 int DistortionCorrectionInformationComputer::metric(
 		double& val, VectorXd& grad)
 {
+	CLOCK(clock_t c = clock());
 	//Zero Inputs
 	m_pdfmove.zero();
 	m_pdffix.zero();
@@ -1600,23 +1606,29 @@ int DistortionCorrectionInformationComputer::metric(
 	double Ff;   /** Fixed Value Value */
 
 	// probweight cached derivative of p wrt to the center parameter
-	vector<double> probweight((2*m_krad+1)*(2*m_krad+1));
+	vector<double> dmovweight(2*m_krad+1);
+	vector<double> movweight(2*m_krad+1);
+	vector<double> fixweight(2*m_krad+1);
 	vector<double> invspace(m_deform->ndim());
 	for(size_t dd=0; dd<m_deform->ndim(); dd++)
 		invspace[dd] = 1./m_deform->spacing(dd);
-	
+
 	Counter<> neighbors(3);
 	for(size_t dd=0; dd<3; dd++) neighbors.sz[dd] = 5;
 
 	// Compute Updated Version of Distortion-Corrected Image
+	CLOCK(c = clock());
 	updateCaches();
+	CLOCK(c = clock() - c);
+	CLOCK(cerr << "Apply() Time:" << c << endl);
+	CLOCK(c = clock());
 
 	// Create Iterators/ Viewers
 	NDConstIter<double> cit(m_corr_cache);
 	NDConstIter<double> mit(m_move_cache);
 	NDConstIter<double> dmit(m_dmove_cache);
 	NDConstIter<double> fit(m_fixed);
-	
+
 	BSplineView<double> bsp_vw(m_deform);
 	bsp_vw.m_boundmethod = ZEROFLUX;
 	bsp_vw.m_ras = true;
@@ -1626,7 +1638,7 @@ int DistortionCorrectionInformationComputer::metric(
 	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-2*m_krad-1);
 
 	// Compute Probabilities
-	for(cit.goBegin(), dmit.goBegin(), mit.goBegin(), fit.goBegin(); 
+	for(cit.goBegin(), dmit.goBegin(), mit.goBegin(), fit.goBegin();
 			!fit.eof(); ++cit, ++mit, ++fit, ++dmit) {
 
 		// Compute Continuous Index of Point in Deform Image
@@ -1650,13 +1662,18 @@ int DistortionCorrectionInformationComputer::metric(
 		 * Compute Marginal and Joint PDF's
 		 **************************************************************/
 
+		for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++)
+			dmovweight[jj-binmove+m_krad] = dB3kern(jj-cbinmove, m_krad);
+		for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++) 
+			movweight[jj-binmove+m_krad] = B3kern(jj-cbinmove, m_krad);
+		for(int ii = binfix-m_krad; ii <= binfix+m_krad; ii++)
+			fixweight[ii-binfix+m_krad] = B3kern(ii-cbinfix, m_krad);
+
 		// Sum up Bins for Value Comp
-		for(int ii = binmove-m_krad, zz=0; ii <= binmove+m_krad; ii++) {
-			for(int jj = binfix-m_krad; jj <= binfix+m_krad; jj++) {
-				m_pdfjoint[{ii,jj}] += B3kern(ii-cbinmove, m_krad)*
-					B3kern(jj-cbinfix, m_krad);
-				probweight[zz++] = dB3kern(ii-cbinmove, m_krad)*
-					B3kern(jj-cbinfix, m_krad);
+		for(int ii = binfix-m_krad; ii <= binfix+m_krad; ii++) {
+			for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++) {
+				m_pdfjoint[{ii,jj}] += movweight[jj-binmove+m_krad]*
+					fixweight[ii-binfix+m_krad];
 			}
 		}
 
@@ -1667,17 +1684,20 @@ int DistortionCorrectionInformationComputer::metric(
 		assert(binmove+m_krad < m_bins);
 		assert(binfix-m_krad >= 0);
 		assert(binmove-m_krad >= 0);
-		
+
 		// Find center
-		for(size_t dd=0; dd<3; dd++) 
+		for(size_t dd=0; dd<3; dd++)
 			dnind[dd] = round(dcind[dd]);
 
 		/********************************************************
 		 * Add to Derivatives of Bins Within Reach of the Point
 		 *******************************************************/
-		do {
-			for(size_t dd=0; dd<3; dd++)
-				dind[dd] = dnind[dd] + neighbors.pos[dd] - 2;
+		for(dind[0] = max<int64_t>(0,dnind[0]-2); dind[0] <
+				min<int64_t>(m_deform->dim(0),dnind[0]+2); dind[0]++) {
+		for(dind[1] = max<int64_t>(0,dnind[1]-2); dind[1] <
+				min<int64_t>(m_deform->dim(1),dnind[1]+2); dind[1]++) {
+		for(dind[2] = max<int64_t>(0,dnind[2]-2); dind[2] <
+				min<int64_t>(m_deform->dim(2),dnind[2]+2); dind[2]++) {
 
 			double dPHI_dphi = 1;
 			for(int ii = 0; ii < 3; ii++)
@@ -1690,7 +1710,7 @@ int DistortionCorrectionInformationComputer::metric(
 				else
 					dPHI_dydphi *= B3kern(dind[ii]-dcind[ii]);
 			}
-			
+
 			double dg_dphi;
 			if(Fm <= 0) // 0/0 => 1
 				dg_dphi = dFm*dPHI_dphi;
@@ -1698,42 +1718,60 @@ int DistortionCorrectionInformationComputer::metric(
 				dg_dphi = dFm*dPHI_dphi*Fc/Fm + Fm*dPHI_dydphi;
 
 			assert(dg_dphi == dg_dphi);
-			for(int ii = binmove-m_krad, zz=0; ii <= binmove+m_krad; ii++) {
-				for(int jj = binfix-m_krad; jj <= binfix+m_krad; jj++) {
+			for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++) {
+				double tmp = dg_dphi*dmovweight[jj-binmove+m_krad];
+				dind[3] = jj;
+				m_dpdfmove[dind] += tmp;
+				for(int ii = binfix-m_krad; ii <= binfix+m_krad; ii++) {
 					dind[3] = ii;
 					dind[4] = jj;
-					m_dpdfjoint[dind] += dg_dphi*probweight[zz++];
+					m_dpdfjoint[dind] += tmp*fixweight[ii-binfix+m_krad];
 
 				}
 			}
-		} while(neighbors.advance());
+		}
+		}
+		}
 	}
 
 	///////////////////////
 	// Update Entropies
 	///////////////////////
 
-	// pdf's
+	// scale
+	size_t tbins = m_bins*m_bins;
 	double scale = 0;
-	for(int64_t ii=0; ii<m_bins; ii++) {
-		m_pdffix[ii] = 0;
-		m_pdfmove[ii] = 0;
-		for(int64_t jj=0; jj<m_bins; jj++) {
-			m_pdffix[ii] += m_pdfjoint[{jj,ii}];
-			m_pdfmove[ii] += m_pdfjoint[{ii,jj}];
-			scale += m_pdfjoint[{ii,jj}];
+	for(size_t ii=0; ii<tbins; ii++)
+		scale += m_pdfjoint[ii];
+	scale = 1./scale;
+	for(size_t ii=0; ii<tbins; ii++)
+		m_pdfjoint[ii] *= scale;
+
+	// marginals
+	for(int64_t ii=0, bb=0; ii<m_bins; ii++) {
+		for(int64_t jj=0; jj<m_bins; jj++, bb++) {
+			m_pdffix[ii] += m_pdfjoint[bb];
+			m_pdfmove[jj] += m_pdfjoint[bb];
 		}
 	}
 
-	scale = 1./scale;
-	for(size_t ii=0; ii<m_bins; ii++) {
-		m_pdfmove[ii] *= scale;
-		m_pdffix[ii] *= scale;
-	}
+	//////////////////////////////
+	// Update Gradient Entropies
+	//////////////////////////////
 
-	for(size_t ii=0; ii<m_bins*m_bins; ii++) {
-		m_pdfjoint[ii] *= scale;
-	}
+	scale = -scale/m_wmove;
+	size_t dpjsz = m_dpdfjoint.elements();
+	for(size_t ii=0; ii<dpjsz; ii++)
+		m_dpdfjoint[ii] *= scale;
+	size_t dpmsz = m_dpdfmove.elements();
+	for(size_t ii=0; ii<dpmsz; ii++)
+		m_dpdfmove[ii] *= scale;
+
+	size_t nparams = m_gradHmove.elements();
+
+	CLOCK(c = clock() - c);
+	CLOCK(cerr << "dPDF() Time: " << c << endl);
+	CLOCK(c = clock());
 
 	// update m_Hmove
 	m_Hmove = 0;
@@ -1745,73 +1783,56 @@ int DistortionCorrectionInformationComputer::metric(
 
 	// update m_Hjoint
 	m_Hjoint = 0;
-	for(int ii=0; ii<m_bins*m_bins; ii++)
+	for(int ii=0; ii<tbins; ii++)
 		m_Hjoint -= m_pdfjoint[ii] > 0 ? m_pdfjoint[ii]*log(m_pdfjoint[ii]) : 0;
 
-	//////////////////////////////
-	// Update Gradient Entropies
-	//////////////////////////////
-
-	// Sum Marginal from Derivative of Joint, note that derivative of joint
-	// is 5D, but Marginal is 4D, so we take the 4D index and sum along the
-	// 5th dimension
-	scale = -scale/m_wmove;
-	for(Slicer it(m_dpdfjoint.ndim(), m_dpdfjoint.dim()); !it.eof(); ++it) {
-		m_dpdfjoint[*it] *= scale;
-		it.index(4, dind);
-		m_dpdfmove[dind] += m_dpdfjoint[*it];
-	}
 
 	// Compute Gradient Marginal Entropy
-	for(Slicer it(m_gradHmove.ndim(), m_gradHmove.dim()); !it.eof(); ++it) {
-		// get 3D position in grad H, sum over the matching points in
-		// derivative of marginal probability
-		it.index(3, dind);
-		m_gradHmove[dind] = 0;
-		for(size_t ii=0; ii<m_bins; ++ii){
-			dind[3] = ii;
-			double p = m_pdfmove[ii];
-			double dp = m_dpdfmove[dind];
-			double v = p > 0 ? dp*(log(p)+1) : 0;
-			m_gradHmove[dind] -= v;
-		}
+	m_gradHmove.zero();
+	for(int64_t ii=0; ii<m_bins; ii++) {
+		double p = m_pdfmove[ii];
+		if(p <= 0)
+			continue;
+		double lp = (log(p)+1);
+		for(int64_t pp=0; pp<nparams; pp++)
+			m_gradHmove[pp] -= lp*m_dpdfmove[pp*m_bins + ii];
 	}
 
 	// Compute Gradient Joint Entropy
-	for(Slicer it(m_gradHmove.ndim(), m_gradHmove.dim()); !it.eof(); ++it) {
-		// get 3D position in grad H, sum over the matching points in
-		// derivative of marginal probability
-		it.index(3, dind);
-		m_gradHjoint[dind] = 0;
-		for(int64_t ii=0; ii<m_bins; ++ii){
-			dind[3] = ii;
-			for(int64_t jj=0; jj<m_bins; ++jj){
-				dind[4] = jj;
-				double p = m_pdfjoint[{ii,jj}];
-				double dp = m_dpdfjoint[dind];
-				double v = p > 0 ? dp*(log(p)+1) : 0;
-				m_gradHjoint[dind] -= v;
-			}
-		}
+	m_gradHjoint.zero();
+	for(size_t ii=0; ii<tbins; ii++) {
+		double p = m_pdfjoint[ii];
+		if(p <= 0)
+			continue;
+		double lp = (log(p)+1);
+		for(size_t pp=0; pp<nparams; pp++)
+			m_gradHjoint[pp] -= lp*m_dpdfjoint[pp*tbins + ii];
 	}
+
+	CLOCK(c = clock() - c);
+	CLOCK(cerr << "dH() Time: " << c << endl);
+	CLOCK(c = clock());
 
 	// update value and grad
 	if(m_metric == METRIC_MI) {
+		size_t elements = m_deform->elements();
 		val = m_Hfix+m_Hmove-m_Hjoint;
 		// Fill Gradient From GradH Images
-		for(size_t ii=0; ii<m_deform->elements(); ii++)
+		for(size_t ii=0; ii<elements; ii++)
 			grad[ii] = (m_gradHmove[ii]-m_gradHjoint[ii])*
 				m_moving->spacing(m_dir);
 
 	} else if(m_metric == METRIC_VI) {
+		size_t elements = m_deform->elements();
 		val = 2*m_Hjoint-m_Hfix-m_Hmove;
-		for(size_t ii=0; ii<m_deform->elements(); ii++)
+		for(size_t ii=0; ii<elements; ii++)
 			grad[ii] = (2*m_gradHjoint[ii] - m_gradHmove[ii])*
 				m_moving->spacing(m_dir);
 
 	} else if(m_metric == METRIC_NMI) {
+		size_t elements = m_deform->elements();
 		val =  (m_Hfix+m_Hmove)/m_Hjoint;
-		for(size_t ii=0; ii<m_deform->elements(); ii++)
+		for(size_t ii=0; ii<elements; ii++)
 			grad[ii] = m_moving->spacing(m_dir)*(m_gradHmove[ii]/m_Hjoint -
 				m_gradHjoint[ii]*(m_Hfix+m_Hmove)/(m_Hjoint*m_Hjoint));
 	}
@@ -1855,10 +1876,14 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 	double fcind[3]; // Continuous index in fixed image
 	double Fc;   /** Intensity Corrected Moving Value */
 	double Ff;   /** Fixed Value Value */
-	
+
 	// Compute Updated Version of Distortion-Corrected Image
+	CLOCK(auto c = clock());
 	updateCaches();
-	
+	CLOCK(c = clock() - c);
+	CLOCK(cerr << "Apply() Time: " << c << endl);
+	CLOCK(c = clock());
+
 	// Create Iterators/ Viewers
 	NDConstIter<double> cit(m_corr_cache);
 	NDConstIter<double> mit(m_move_cache);
@@ -1870,7 +1895,7 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-2*m_krad-1);
 
 	// Compute Probabilities
-	for(cit.goBegin(), dmit.goBegin(), mit.goBegin(), fit.goBegin(); 
+	for(cit.goBegin(), dmit.goBegin(), mit.goBegin(), fit.goBegin();
 			!fit.eof(); ++cit, ++mit, ++fit, ++dmit) {
 
 		// Compute Continuous Index of Point in Deform Image
@@ -1890,10 +1915,10 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 		 * Compute Joint PDF
 		 **************************************************************/
 		// Sum up Bins for Value Comp
-		for(int ii = binmove-m_krad; ii <= binmove+m_krad; ii++) {
-			for(int jj = binfix-m_krad; jj <= binfix+m_krad; jj++) {
-				m_pdfjoint[{ii,jj}] += B3kern(ii-cbinmove, m_krad)*
-					B3kern(jj-cbinfix, m_krad);
+		for(int ii = binfix-m_krad; ii <= binfix+m_krad; ii++) {
+			for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++) {
+				m_pdfjoint[{ii,jj}] += B3kern(jj-cbinmove, m_krad)*
+					B3kern(ii-cbinfix, m_krad);
 			}
 		}
 	}
@@ -1902,27 +1927,27 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 	// Update Entropies
 	///////////////////////
 
-	// Compute Marginals from Joint
+	// Scale
+	size_t tbins = m_bins*m_bins;
 	double scale = 0;
-	for(int64_t ii=0; ii<m_bins; ii++) {
-		for(int64_t jj=0; jj<m_bins; jj++) {
-			m_pdffix[ii] += m_pdfjoint[{jj,ii}];
-			m_pdfmove[ii] += m_pdfjoint[{ii,jj}];
-			scale += m_pdfjoint[{ii,jj}];
+	for(size_t ii=0; ii<tbins; ii++)
+		scale += m_pdfjoint[ii];
+	scale = 1./scale;
+	for(size_t ii=0; ii<tbins; ii++)
+		m_pdfjoint[ii] *= scale;
+
+	// marginals
+	for(int64_t ii=0, bb=0; ii<m_bins; ii++) {
+		for(int64_t jj=0; jj<m_bins; jj++, bb++) {
+			m_pdffix[ii] += m_pdfjoint[bb];
+			m_pdfmove[jj] += m_pdfjoint[bb];
 		}
 	}
 
-	// Scale Marginals
-	scale = 1./scale;
-	for(size_t ii=0; ii<m_bins; ii++) {
-		m_pdfmove[ii] *= scale;
-		m_pdffix[ii] *= scale;
-	}
-
 	// Scale Joint
-	for(size_t ii=0; ii<m_bins*m_bins; ii++) {
-		m_pdfjoint[ii] *= scale;
-	}
+	CLOCK(c = clock() - c);
+	CLOCK(cerr << "PDF() Time: " << c << endl);
+	CLOCK(c = clock());
 
 	// Compute Marginal Entropy
 	m_Hmove = 0;
@@ -1934,10 +1959,10 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 
 	// Compute Joint Entropy
 	m_Hjoint = 0;
-	for(int ii=0; ii<m_pdfjoint.elements(); ii++)
+	size_t elem = m_pdfjoint.elements();
+	for(int ii=0; ii<elem; ii++)
 		m_Hjoint -= m_pdfjoint[ii] > 0 ? m_pdfjoint[ii]*log(m_pdfjoint[ii]) : 0;
 
-	cerr << m_Hjoint << ", " << m_Hmove << ", " << m_Hfix << endl;
 	// update value and grad
 	if(m_metric == METRIC_MI) {
 		val = m_Hfix+m_Hmove-m_Hjoint;
@@ -1950,6 +1975,9 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 //#if defined DEBUG || defined VERYDEBUG
 	cerr << "Value() = " << val << endl;
 //#endif
+	CLOCK(c = clock() - c);
+	CLOCK(cerr << "H() Time: " << c << endl);
+	CLOCK(c = clock());
 
 	// negate if we are using a similarity measure
 	if(m_compdiff && (m_metric == METRIC_NMI || m_metric == METRIC_MI))
@@ -2000,7 +2028,6 @@ int DistortionCorrectionInformationComputer::valueGrad(const VectorXd& params,
 	assert(m_dpdfmove.dim(3) == m_bins); // Moving
 
 	assert(m_deform->elements() == gradbuff.rows());
-	cerr << "Computing Value/Gradient" << endl;
 
 	// Fill Deform Image from params
 	FlatIter<double> dit(m_deform);
@@ -2020,14 +2047,12 @@ int DistortionCorrectionInformationComputer::valueGrad(const VectorXd& params,
 	if(m_tps_reg > 0) {
 		val += m_tps_reg*b_vw.thinPlateEnergy(nparam,gradbuff.array().data());
 		grad += m_tps_reg*gradbuff;
-		cerr << "Post TPS Value/Grad: " << val << "/" << grad.norm() << endl;
 	}
 
 	// Compute and add Jacobian
 	if(m_jac_reg > 0) {
 		val += m_jac_reg*b_vw.jacobianDet(m_dir,nparam,gradbuff.array().data());
 		grad += m_jac_reg*gradbuff;
-		cerr << "Post Jac Value/Grad: " << val << "/" << grad.norm() << endl;
 	}
 
 	// Compute and add Metric
@@ -2035,7 +2060,6 @@ int DistortionCorrectionInformationComputer::valueGrad(const VectorXd& params,
 	if(metric(tmp, gradbuff) != 0) return -1;
 	val += tmp;
 	grad += gradbuff;
-	cerr << "Post Metric Value/Grad: " << val << "/" << grad.norm() << endl;
 
 	return 0;
 }
@@ -2097,25 +2121,21 @@ int DistortionCorrectionInformationComputer::value(const VectorXd& params,
 	val = 0;
 	BSplineView<double> b_vw(m_deform);
 	b_vw.m_boundmethod = ZEROFLUX;
-	cerr << "Computing Value" << endl;
 
 	// Compute and add Thin Plate Spline
 	if(m_tps_reg > 0) {
 		val += b_vw.thinPlateEnergy()*m_tps_reg;
-		cerr << "Post TPS Value: " << val << endl;
 	}
 
 	// Compute and add Jacobian
 	if(m_jac_reg > 0) {
 		val += b_vw.jacobianDet(m_dir)*m_jac_reg;
-		cerr << "Post Jac Value: " << val << endl;
 	}
 
 	// Compute and add Metric
 	double tmp = 0;
 	if(metric(tmp) != 0) return -1;
 	val += tmp;
-	cerr << "Post Metric Value: " << val << endl;
 
 	return 0;
 };
