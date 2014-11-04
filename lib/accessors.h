@@ -1000,7 +1000,7 @@ public:
 	bool m_ras;
 
 protected:
-	
+
 	/**
 	 * @brief Gets value at array index and then casts to T
 	 * doesn't make sense for interpolation
@@ -2212,7 +2212,7 @@ public:
 
 		auto params = getParams();
 		assert(params->ndim() == 3);
-	
+
 		double dphi2_dx2 = 0;
 		double dphi2_dy2 = 0;
 		double dphi2_dz2 = 0;
@@ -2233,7 +2233,7 @@ public:
 
 		//integrate over all the knots
 		Counter<int64_t, 3> it(3, (int64_t*)params->dim());
-		do {	
+		do {
 			do {
 				double phi = 1;
 				double Vat   = vConv  [counter.pos[0]][counter.pos[3]];
@@ -2251,7 +2251,7 @@ public:
 					ind2[dd] = it.pos[dd] + counter.pos[dd+3] - 2;
 				}
 				phi = dvw.get(3, ind1)*dvw.get(3, ind2);
-				
+
 				dphi2_dx2 += phi*ddVat*Vbu*Vcv;
 				dphi2_dy2 += phi*Vat*ddVbu*Vcv;
 				dphi2_dz2 += phi*Vat*Vbu*ddVcv;
@@ -2267,6 +2267,7 @@ public:
 			2*dphi2_dxy/(pow(params->spacing(0),2)*pow(params->spacing(1),2)) +
 			2*dphi2_dxz/(pow(params->spacing(0),2)*pow(params->spacing(2),2)) +
 			2*dphi2_dyz/(pow(params->spacing(1),2)*pow(params->spacing(2),2));
+
 		return v;
 	};
 
@@ -2279,7 +2280,7 @@ public:
 			throw INVALID_ARGUMENT("Incorrect length of grad array");
 
 		assert(params->ndim() == 3);
-	
+
 		double dphi2_dx2 = 0;
 		double dphi2_dy2 = 0;
 		double dphi2_dz2 = 0;
@@ -2325,7 +2326,7 @@ public:
 					ind2[dd] = it.pos[dd] + counter.pos[dd+3] - 2;
 				}
 				phi = dvw.get(3, ind1)*dvw.get(3, ind2);
-				
+
 				dphi2_dx2 += phi*ddVat*Vbu*Vcv;
 				dphi2_dy2 += phi*Vat*ddVbu*Vcv;
 				dphi2_dz2 += phi*Vat*Vbu*ddVcv;
@@ -2339,7 +2340,7 @@ public:
 					ind2[dd] = it.pos[dd] + counter.pos[dd+3] - counter.pos[dd];
 				}
 				phi = dvw.get(3, ind1)+dvw.get(3, ind2);
-				
+
 				tmp_dphi2_dx2 += phi*ddVat*Vbu*Vcv;
 				tmp_dphi2_dy2 += phi*Vat*ddVbu*Vcv;
 				tmp_dphi2_dz2 += phi*Vat*Vbu*ddVcv;
@@ -2364,6 +2365,7 @@ public:
 			2*dphi2_dxy/(pow(params->spacing(0),2)*pow(params->spacing(1),2)) +
 			2*dphi2_dxz/(pow(params->spacing(0),2)*pow(params->spacing(2),2)) +
 			2*dphi2_dyz/(pow(params->spacing(1),2)*pow(params->spacing(2),2));
+
 		return v;
 	};
 
@@ -2381,7 +2383,7 @@ public:
 
 		auto params = getParams();
 		assert(params->ndim() == 3);
-	
+
 		// We use NN interpolator because it is fast and handles boundary 
 		// conditions
 		NNInterpNDView<double> dvw(params);
@@ -2396,7 +2398,7 @@ public:
 
 		//integrate over all the knots
 		Counter<int64_t, 3> it(3, (int64_t*)params->dim());
-		do {	
+		do {
 			do {
 				for(size_t dd=0; dd<3; dd++) {
 					ind1[dd] = it.pos[dd] + counter.pos[dd] - 2;
@@ -2447,7 +2449,7 @@ public:
 		assert(params->ndim() == 3);
 		if(len != getParams()->elements())
 			throw INVALID_ARGUMENT("Incorrect length of grad array");
-		
+
 		// We use NN interpolator because it is fast and handles boundary 
 		// conditions
 		NNInterpNDView<double> dvw(params);
@@ -2461,7 +2463,7 @@ public:
 
 		//integrate over all the knots
 		Counter<int64_t, 3> it(3, (int64_t*)params->dim());
-		
+
 		double reg = 0;
 		size_t ii=0;
 		do {
@@ -2469,7 +2471,7 @@ public:
 			do {
 				double phi = 1;
 				double dphi = 1;
-				
+
 				for(size_t dd=0; dd<3; dd++) {
 					ind1[dd] = it.pos[dd] + counter.pos[dd+3] - counter.pos[dd];
 					ind2[dd] = it.pos[dd] + counter.pos[dd] - counter.pos[dd+3];
@@ -2511,7 +2513,6 @@ public:
 				}
 			} while(counter.advance());
 
-			
 			grad[ii++] = dreg/pow(params->spacing(dir),2);
 		} while(it.advance());
 
