@@ -253,13 +253,19 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
  * @param nbins Number of bins in marginal PDF
  * @param binradius radius of parzen window, to smooth pdf
  * @param metric Type of information based metric to use
+ * @param hist length of history to keep
+ * @param stopx Minimum step size before stopping
+ * @param beta Fraction of previous step size to consider for next step size.
+ * Essentially this decides how quickly to reduce step sizes (note 1 would mean
+ * NO reduction and would continue forever, 0 would do 1 step then stop)
  *
  * @return parameters of bspline
  */
 ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		int dir, double bspace, double jac, double tps,
 		const std::vector<double>& sigmas,
-		size_t nbins, size_t binradius, string metric)
+		size_t nbins, size_t binradius, string metric,
+		size_t hist, double stopx, double beta)
 {
 	using namespace std::placeholders;
 	using std::bind;
@@ -309,9 +315,11 @@ ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		// initialize optimizer
 		LBFGSOpt opt(comp.nparam(), vfunc, gfunc, vgfunc);
 		opt.stop_Its = 10000;
-		opt.stop_X = 0.000001;
 		opt.stop_G = 0;
 		opt.stop_F = 0;
+		opt.stop_X = stopx;
+		opt.opt_histsize = hist;
+		opt.opt_ls_beta = beta;
 
 		// grab the parameters from the previous iteration (or initialized)
 		pp = 0;
@@ -356,11 +364,11 @@ int cor3DDerivTest(double step, double tol,
 	comp.setMoving(in2);
 
 	auto vfunc = std::bind(&RigidCorrComputer::value, &comp, _1, _2);
-	auto gfunc = std::bind(&RigidCorrComputer::grad, &comp, _1, _2);
+	auto vgfunc = std::bind(&RigidCorrComputer::valueGrad, &comp, _1, _2, _3);
 
 	double error = 0;
 	VectorXd x = VectorXd::Ones(6);
-	if(testgrad(error, x, step, tol, vfunc, gfunc) != 0) {
+	if(testgrad(error, x, step, tol, vfunc, vgfunc) != 0) {
 		return -1;
 	}
 
@@ -389,11 +397,11 @@ int information3DDerivTest(double step, double tol,
 	comp.setMoving(in2);
 
 	auto vfunc = std::bind(&RigidInformationComputer::value, &comp, _1, _2);
-	auto gfunc = std::bind(&RigidInformationComputer::grad, &comp, _1, _2);
+	auto vgfunc = std::bind(&RigidInformationComputer::valueGrad, &comp, _1, _2, _3);
 
 	double error = 0;
 	VectorXd x = VectorXd::Ones(6);
-	if(testgrad(error, x, step, tol, vfunc, gfunc) != 0) {
+	if(testgrad(error, x, step, tol, vfunc, vgfunc) != 0) {
 		return -1;
 	}
 
@@ -428,14 +436,14 @@ int distcorDerivTest(double step, double tol,
 	comp.m_tps_reg = regt;
 
 	auto vfunc = std::bind(&DCInforComp::value, &comp, _1, _2);
-	auto gfunc = std::bind(&DCInforComp::grad, &comp, _1, _2);
+	auto vgfunc = std::bind(&DCInforComp::valueGrad, &comp, _1, _2, _3);
 
 	double error = 0;
 	VectorXd x(comp.nparam());
 	for(size_t ii=0; ii<x.rows(); ii++)
 		x[ii] = 10*(rand()/(double)RAND_MAX-0.5);
 
-	if(testgrad(error, x, step, tol, vfunc, gfunc) != 0) {
+	if(testgrad(error, x, step, tol, vfunc, vgfunc) != 0) {
 		return -1;
 	}
 
