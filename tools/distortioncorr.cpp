@@ -88,6 +88,18 @@ try {
 	TCLAP::ValueArg<int> a_parzen("r", "radius", "Radius in parzen window "
 			"for bins", false, 5, "n", cmd);
 
+	TCLAP::ValueArg<double> a_stopx("x", "minstep", "Minimum step (change in "
+			"parameters, x) to consider taking. If steps drop below this size, "
+			"optimization stops." , false, 1e-5, "stepsize", cmd);
+	TCLAP::ValueArg<double> a_beta("B", "beta", "Beta in linesearch. This is "
+			"the fraction of the previous step size to consider. So if "
+			"the linesearch starts at 1, the second step size will be B, "
+			"the third will be B^2 and so on.", false, 0.5, "beta", cmd);
+	TCLAP::ValueArg<int> a_hist("H", "history", "History for LBFGS to "
+			"use when estimating Hessian. More will be more computationally "
+			"taxing and less gradient-descent like, but potentially reducing "
+			"the number of steps to the minimum.", false, 8, "n", cmd);
+
 	cmd.parse(argc, argv);
 
 	// set up sigmas
@@ -108,7 +120,7 @@ try {
 	in_moving = readMRImage(a_moving.getValue());
 	cerr << "Done" << endl;
 	ndim = min(fixed->ndim(), in_moving->ndim());
-	
+
 	cerr << "Extracting first " << ndim << " dims of Fixed Image" << endl;
 	fixed = dPtrCast<MRImage>(fixed->copyCast(ndim, fixed->dim(), FLOAT32));
 
@@ -120,7 +132,7 @@ try {
 	moving = dPtrCast<MRImage>(fixed->createAnother());
 	vector<int64_t> ind(ndim);
 	vector<double> point(ndim);
-	
+
 	// Create Interpolator, ensuring that radius is at least 1 pixel in the
 	// output space 
 	LanczosInterpNDView<double> interp(in_moving);
@@ -151,7 +163,7 @@ try {
 			"in moving image!" << endl;
 		return -1;
 	}
-	
+
 	/*************************************************************************
 	 * Registration
 	 *************************************************************************/
@@ -164,7 +176,8 @@ try {
 
 		transform = infoDistCor(fixed, moving, dir, a_bspace.getValue(), 
 				a_jacreg.getValue(), a_tpsreg.getValue(), sigmas,
-				a_bins.getValue(), a_parzen.getValue(), a_metric.getValue());
+				a_bins.getValue(), a_parzen.getValue(), a_metric.getValue(),
+				a_hist.getValue(), a_stopx.getValue(), a_beta.getValue());
 	}
 
 	cout << "Finished\nWriting output.";
@@ -175,7 +188,7 @@ try {
 		// Apply Rigid Transform.
 		// Copy input moving then sample
 		auto out = dPtrCast<MRImage>(in_moving->copyCast(FLOAT32));
-		
+
 		// Create Sampler for Transform and moving view
 		BSplineView<double> bvw(transform);
 		bvw.m_ras = true;
