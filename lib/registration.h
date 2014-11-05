@@ -777,13 +777,19 @@ Rigid3DTrans informationReg3D(ptr<const MRImage> fixed,
  * @param nbins Number of bins in marginal PDF
  * @param binradius radius of parzen window, to smooth pdf
  * @param metric Type of information based metric to use
+ * @param hist length of history to keep
+ * @param stopx Minimum step size before stopping
+ * @param beta Fraction of previous step size to consider for next step size.
+ * Essentially this decides how quickly to reduce step sizes (note 1 would mean
+ * NO reduction and would continue forever, 0 would do 1 step then stop)
  *
  * @return parameters of bspline
  */
 ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		int dir, double bspace, double jac, double tps,
 		const std::vector<double>& sigmas,
-		size_t nbins = 128, size_t binradius = 4, std::string metric = "MI");
+		size_t nbins = 128, size_t binradius = 4, string metric = "MI",
+		size_t hist = 8, double stopx = 1e-5, double beta = 0.5);
 
 /**
  * @brief This function checks the validity of the derivative functions used

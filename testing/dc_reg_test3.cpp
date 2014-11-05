@@ -39,15 +39,15 @@ shared_ptr<MRImage> squareImage()
 {
     // create test image
 	int64_t index[3];
-	size_t sz[] = {20, 19, 21};
+	size_t sz[] = {32, 32, 32};
 	auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, FLOAT64);
 
 	// fill with square
 	OrderIter<double> sit(in);
 	while(!sit.eof()) {
 		sit.index(3, index);
-		if(index[0] > sz[0]/4 && index[0] < 2*sz[0]/3 && 
-				index[1] > sz[1]/5 && index[1] < sz[1]/2 && 
+		if(index[0] > sz[0]/4 && index[0] < 2*sz[0]/3 &&
+				index[1] > sz[1]/5 && index[1] < sz[1]/2 &&
 				index[2] > sz[2]/3 && index[2] < 2*sz[2]/3) {
 			sit.set(1);
 		} else {
@@ -90,14 +90,14 @@ int main()
 		double Fc = Fm*(1+ddef);
 		it.set(Fc);
 	}
-	
+
 	// create image with gaussian kernel in it
 	distorted->write("dcrt3_distorted.nii.gz");
 
 	vector<double> sigmas({5, 4, 3, 2, 1, 0.5, 0});
-	auto p = infoDistCor(origimg, distorted, dir, 10, 1e-12, 1e-5, sigmas, 
+	auto p = infoDistCor(origimg, distorted, dir, 10, 0, 0, sigmas,
 			100, 4, "MI");
-	
+
 	cerr << "True Params:\n" << *b_vw.getParams() << endl;
 	cerr << "Est Params:\n" << *p << endl;
 
@@ -119,9 +119,9 @@ int main()
 	}
 	undistorted->write("dcrt3_undistorted.nii.gz");
 
-	for(FlatIter<double> oit(origimg), eit(undistorted); !eit.eof(); 
+	for(FlatIter<double> oit(origimg), eit(undistorted); !eit.eof();
 			++eit, ++oit) {
-		if(fabs(oit.get() - eit.get()) > 0.7) {
+		if(fabs(oit.get() - eit.get()) > 0.9) {
 			cerr << "Difference in distortion-corrected!" << endl;
 			return -1;
 		}
