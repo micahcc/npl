@@ -2234,10 +2234,11 @@ public:
 		//integrate over all the knots
 		Counter<int64_t, 3> it(3, (int64_t*)params->dim());
 		do {
-			double phi_abc = dvw.get(3, it.pos);
+			double phi_ijk = dvw.get(3, it.pos);
 			do {
 				for(size_t dd=0; dd<3; dd++)
 					ind1[dd] = it.pos[dd] + counter.pos[dd] - 4;
+				double phi_lmn = dvw.get(3, ind1);
 
 				double xv = U200[counter.pos[0]][counter.pos[1]][counter.pos[2]];
 				double yv = U200[counter.pos[1]][counter.pos[0]][counter.pos[2]];
@@ -2245,13 +2246,13 @@ public:
 				double xyv = U110[counter.pos[0]][counter.pos[1]][counter.pos[2]];
 				double xzv = U110[counter.pos[0]][counter.pos[2]][counter.pos[1]];
 				double yzv = U110[counter.pos[1]][counter.pos[2]][counter.pos[0]];
-				double phi_lmn = dvw.get(3, ind1);
-				dphi2_dx2 += phi_abc*phi_lmn*xv;
-				dphi2_dy2 += phi_abc*phi_lmn*yv;
-				dphi2_dz2 += phi_abc*phi_lmn*zv;
-				dphi2_dxy += phi_abc*phi_lmn*xyv;
-				dphi2_dyz += phi_abc*phi_lmn*yzv;
-				dphi2_dxz += phi_abc*phi_lmn*xzv;
+
+				dphi2_dx2 += phi_ijk*phi_lmn*xv;
+				dphi2_dy2 += phi_ijk*phi_lmn*yv;
+				dphi2_dz2 += phi_ijk*phi_lmn*zv;
+				dphi2_dxy += phi_ijk*phi_lmn*xyv;
+				dphi2_dyz += phi_ijk*phi_lmn*yzv;
+				dphi2_dxz += phi_ijk*phi_lmn*xzv;
 			} while(counter.advance());
 		} while(it.advance());
 
@@ -2284,69 +2285,64 @@ public:
 		double reg = 0;
 
 		NNInterpNDView<double> dvw(params);
-		double ind1[3];
+		double ind[3];
 		double ind2[3];
 
 		// Create a counter to iterate over [0,4] ie [-2,2] in 6 directions
-		Counter<int, 6> counter(6);
-		for(size_t dd=0; dd<6;dd++)
-			counter.sz[dd] = 5;
+		Counter<int, 3> counter(3);
+		for(size_t dd=0; dd<3;dd++)
+			counter.sz[dd] = 9;
 
 		//integrate over all the knots
-		Counter<int64_t, 3> it(3, (int64_t*)params->dim());
 		int ii = 0;
+		Counter<int64_t, 3> it(3, (int64_t*)params->dim());
+		ii = 0;
 		do {
+			// iterate through abc
 			double tmp_dphi2_dx2 = 0;
 			double tmp_dphi2_dy2 = 0;
 			double tmp_dphi2_dz2 = 0;
 			double tmp_dphi2_dxz = 0;
 			double tmp_dphi2_dxy = 0;
 			double tmp_dphi2_dyz = 0;
+			double phi_ijk = dvw.get(3, it.pos);
+
+			// for all the neighbors of abc, get
 			do {
-				double phi = 0;
-				double Vat   = vConv  [counter.pos[0]][counter.pos[3]];
-				double Vbu   = vConv  [counter.pos[1]][counter.pos[4]];
-				double Vcv   = vConv  [counter.pos[2]][counter.pos[5]];
-				double dVat  = dvConv [counter.pos[0]][counter.pos[3]];
-				double dVbu  = dvConv [counter.pos[1]][counter.pos[4]];
-				double dVcv  = dvConv [counter.pos[2]][counter.pos[5]];
-				double ddVat = ddvConv[counter.pos[0]][counter.pos[3]];
-				double ddVbu = ddvConv[counter.pos[1]][counter.pos[4]];
-				double ddVcv = ddvConv[counter.pos[2]][counter.pos[5]];
+				for(size_t dd=0; dd<3; dd++)
+					ind[dd] = it.pos[dd] + (counter.pos[dd] - 4);
+				double phi_lmn = dvw.get(3, ind);
 
-				// Variables to Compute the Value
-				for(size_t dd=0; dd<3; dd++) {
-					ind1[dd] = it.pos[dd] + counter.pos[dd] - 2;
-					ind2[dd] = it.pos[dd] + counter.pos[dd+3] - 2;
-				}
-				phi = dvw.get(3, ind1)*dvw.get(3, ind2);
+				for(size_t dd=0; dd<3; dd++)
+					ind[dd] = it.pos[dd] - (counter.pos[dd] - 4);
+				double phi_abc = dvw.get(3, ind);
 
-				dphi2_dx2 += phi*ddVat*Vbu*Vcv;
-				dphi2_dy2 += phi*Vat*ddVbu*Vcv;
-				dphi2_dz2 += phi*Vat*Vbu*ddVcv;
-				dphi2_dxy += phi*dVat*dVbu*Vcv;
-				dphi2_dyz += phi*Vat*dVbu*dVcv;
-				dphi2_dxz += phi*dVat*Vbu*dVcv;
+				double xv = U200[counter.pos[0]][counter.pos[1]][counter.pos[2]];
+				double yv = U200[counter.pos[1]][counter.pos[0]][counter.pos[2]];
+				double zv = U200[counter.pos[2]][counter.pos[1]][counter.pos[0]];
+				double xyv = U110[counter.pos[0]][counter.pos[1]][counter.pos[2]];
+				double xzv = U110[counter.pos[0]][counter.pos[2]][counter.pos[1]];
+				double yzv = U110[counter.pos[1]][counter.pos[2]][counter.pos[0]];
 
-				// Variables to Compute the Derivative
-				for(size_t dd=0; dd<3; dd++) {
-					ind1[dd] = it.pos[dd] + counter.pos[dd] - counter.pos[dd+3];
-					ind2[dd] = it.pos[dd] + counter.pos[dd+3] - counter.pos[dd];
-				}
-				phi = dvw.get(3, ind1)+dvw.get(3, ind2);
+				tmp_dphi2_dx2 += phi_abc*xv  + phi_lmn*xv;
+				tmp_dphi2_dy2 += phi_abc*yv  + phi_lmn*yv;
+				tmp_dphi2_dz2 += phi_abc*zv  + phi_lmn*zv;
+				tmp_dphi2_dxy += phi_abc*xyv + phi_lmn*xyv;
+				tmp_dphi2_dyz += phi_abc*yzv + phi_lmn*yzv;
+				tmp_dphi2_dxz += phi_abc*xzv + phi_lmn*xzv;
 
-				tmp_dphi2_dx2 += phi*ddVat*Vbu*Vcv;
-				tmp_dphi2_dy2 += phi*Vat*ddVbu*Vcv;
-				tmp_dphi2_dz2 += phi*Vat*Vbu*ddVcv;
-				tmp_dphi2_dxy += phi*dVat*dVbu*Vcv;
-				tmp_dphi2_dyz += phi*Vat*dVbu*dVcv;
-				tmp_dphi2_dxz += phi*dVat*Vbu*dVcv;
+				dphi2_dx2 += phi_ijk*phi_lmn*xv;
+				dphi2_dy2 += phi_ijk*phi_lmn*yv;
+				dphi2_dz2 += phi_ijk*phi_lmn*zv;
+				dphi2_dxy += phi_ijk*phi_lmn*xyv;
+				dphi2_dyz += phi_ijk*phi_lmn*yzv;
+				dphi2_dxz += phi_ijk*phi_lmn*xzv;
 
 			} while(counter.advance());
 
-			reg = tmp_dphi2_dx2/pow(params->spacing(0),4) + 
-				tmp_dphi2_dy2/pow(params->spacing(1),4) + 
-				tmp_dphi2_dz2/pow(params->spacing(2),4) + 
+			reg = tmp_dphi2_dx2/pow(params->spacing(0),4) +
+				tmp_dphi2_dy2/pow(params->spacing(1),4) +
+				tmp_dphi2_dz2/pow(params->spacing(2),4) +
 				2*tmp_dphi2_dxy/(pow(params->spacing(0),2)*pow(params->spacing(1),2)) +
 				2*tmp_dphi2_dxz/(pow(params->spacing(0),2)*pow(params->spacing(2),2)) +
 				2*tmp_dphi2_dyz/(pow(params->spacing(1),2)*pow(params->spacing(2),2));
