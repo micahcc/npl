@@ -504,12 +504,6 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 	double sy = params[4]/m_moving->spacing(1);
 	double sz = params[5]/m_moving->spacing(2);
 	
-	// take the shift (which is aligned to moving grid) and change to RAS, 
-	// then back to fixed-grid aligned 
-	Vector3d fshift(sx, sy, sz);
-	m_moving->orientVector(3, fshift.array().data(), fshift.array().data());
-	m_fixed->disOrientVector(3, fshift.array().data(), fshift.array().data());
-
 //#if defined DEBUG || defined VERYDEBUG
 	cerr << "VALGRAD Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: "
 		<< sx << ", " << sy << ", " << sz << endl;
@@ -541,9 +535,6 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 	Vector3d cind;
 	Vector3d shift(sx, sy, sz);
 	Eigen::Map<Vector3d> center(m_center);
-	Vector3d fcenter;
-	m_moving->indexToPoint(3, center.array().data(), fcenter.array().data());
-	m_fixed->pointToIndex(3, fcenter.array().data(), fcenter.array().data());
 
 	// dRigid/dRx, dRigid/dRy, dRigid/dRz = ddRx*(u-c), ddRy*(u-c) ...
 	Matrix3d ddRx, ddRy, ddRz;
@@ -581,18 +572,15 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 		gradG[1] = dmit[1];
 		gradG[2] = dmit[2];
 
-		m_moving->indexToPoint(3, ind.array().data(), ind.array().data());
-		m_fixed->pointToIndex(3, ind.array().data(), ind.array().data());
-
 		// u = c + R^-1(v - s - c)
 		// where u is the output index, v the input, c the center of rotation
 		// and s the shift
 		// cind = center + rInv*(ind-shift-center);
-		cind = Rinv*(ind-fshift-fcenter) + fcenter;
+		cind = Rinv*(ind-shift-center) + center;
 
-		dR.row(0) = ddRx*(cind-fcenter);
-		dR.row(1) = ddRy*(cind-fcenter);
-		dR.row(2) = ddRz*(cind-fcenter);
+		dR.row(0) = ddRx*(cind-center);
+		dR.row(1) = ddRy*(cind-center);
+		dR.row(2) = ddRz*(cind-center);
 		
 		// compute SUM_i dg/dv_i dv_i/dp
 		dgdR = dR*gradG;
@@ -685,16 +673,11 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 	double sy = params[4]/m_moving->spacing(1);
 	double sz = params[5]/m_moving->spacing(2);
 
-	// take the shift (which is aligned to moving grid) and change to RAS, 
-	// then back to fixed-grid aligned 
-	Vector3d fshift(sx, sy, sz);
-	m_moving->orientVector(3, fshift.array().data(), fshift.array().data());
-	m_fixed->disOrientVector(3, fshift.array().data(), fshift.array().data());
-
 	//#if defined DEBUG || defined VERYDEBUG
 	cerr << "VAL() Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: "
 		<< sx << ", " << sy << ", " << sz << endl;
 	//#endif
+	Vector3d shift(sx, sy, sz);
 
 	// Update Transform Matrix
 	Matrix3d Rinv;
@@ -709,9 +692,6 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 	Rinv(2, 2) = cos(rx)*cos(ry);
 
 	Eigen::Map<Vector3d> center(m_center);
-	Vector3d fcenter;
-	m_moving->indexToPoint(3, center.array().data(), fcenter.array().data());
-	m_fixed->pointToIndex(3, fcenter.array().data(), fcenter.array().data());
 
 	Vector3d ind;
 	Vector3d cind;
@@ -727,14 +707,11 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 	Vector3DConstIter<double> mit(m_moving);
 	for(; !mit.eof(); ++mit) {
 		mit.index(3, ind.array().data());
-		m_moving->indexToPoint(3, ind.array().data(), ind.array().data());
-		m_fixed->pointToIndex(3, ind.array().data(), ind.array().data());
 
 		// u = c + R^-1(v - s - c)
 		// where u is the output index, v the input, c the center of rotation
 		// and s the shift
-//		cind = Rinv*(ind-fcenter) + fcenter - fshift;
-		cind = fcenter + Rinv*(ind-fcenter-fshift);
+		cind = center + Rinv*(ind-center-shift);
 
 		double a = mit[0];
 		double b = fix_vw(cind[0], cind[1], cind[2]);
@@ -765,9 +742,13 @@ void RigidCorrComputer::setFixed(ptr<const MRImage> newfix)
 {
 	if(newfix->ndim() != 3)
 		throw INVALID_ARGUMENT("Fixed image is not 3D!");
+	
+	if(m_moving && !m_fixed->matchingOrient(m_moving, true, true)) {
+		throw INVALID_ARGUMENT("Moving and Fixed Images must have the same "
+				"orientation and gred!");
+	}
 
 	m_fixed = newfix;
-	m_fit.setArray(newfix);
 };
 
 /**
@@ -786,6 +767,12 @@ void RigidCorrComputer::setMoving(ptr<const MRImage> newmove)
 		throw INVALID_ARGUMENT("Moving image is not 3D!");
 
 	m_moving = newmove;
+	
+	// check that moving and fixed images are in the same space
+	if(m_fixed && !m_moving->matchingOrient(m_fixed, true, true)) {
+		throw INVALID_ARGUMENT("Moving and Fixed Images must have the same "
+				"orientation and gred!");
+	}
 
 	if(!m_dmoving || !newmove->matchingOrient(m_dmoving, false, true)) {
 #ifndef NDEBUG
@@ -797,8 +784,6 @@ void RigidCorrComputer::setMoving(ptr<const MRImage> newmove)
 		derivative(m_moving, m_dmoving);
 	}
 
-	m_move_get.setArray(m_moving);
-	m_dmove_get.setArray(m_dmoving);
 	for(size_t ii=0; ii<3 && ii<m_moving->ndim(); ii++)
 		m_center[ii] = (m_moving->dim(ii)-1)/2.;
 }
