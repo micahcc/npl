@@ -503,6 +503,12 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 	double sx = params[3]/m_moving->spacing(0);
 	double sy = params[4]/m_moving->spacing(1);
 	double sz = params[5]/m_moving->spacing(2);
+	
+	// take the shift (which is aligned to moving grid) and change to RAS, 
+	// then back to fixed-grid aligned 
+	Vector3d fshift(sx, sy, sz);
+	m_moving->orientVector(3, fshift.array().data(), fshift.array().data());
+	m_fixed->disOrientVector(3, fshift.array().data(), fshift.array().data());
 
 //#if defined DEBUG || defined VERYDEBUG
 	cerr << "VALGRAD Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: "
@@ -520,21 +526,24 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 	double corr = 0;
 
 	// Update Transform Matrix
-	Matrix3d rotation;
-	rotation(0,0) = cos(ry)*cos(rz);
-	rotation(0,1) = -cos(ry)*sin(rz);
-	rotation(0,2) = sin(ry);
-	rotation(1,0) = cos(rz)*sin(rx)*sin(ry)+cos(rx)*sin(rz);
-	rotation(1,1) = cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz);
-	rotation(1,2) = -cos(ry)*sin(rx);
-	rotation(2,0) = -cos(rx)*cos(rz)*sin(ry)+sin(rx)*sin(rz);
-	rotation(2,1) = cos(rz)*sin(rx)+cos(rx)*sin(ry)*sin(rz);
-	rotation(2,2) = cos(rx)*cos(ry);
+	Matrix3d Rinv;
+	Rinv(0, 0) = cos(ry)*cos(rz);;
+	Rinv(0, 1) = cos(rz)*sin(rx)*sin(ry)+cos(rx)*sin(rz);
+	Rinv(0, 2) = -cos(rx)*cos(rz)*sin(ry)+sin(rx)*sin(rz);
+	Rinv(1, 0) = -cos(ry)*sin(rz);
+	Rinv(1, 1) = cos(rx)*cos(rz)-sin(rx)*sin(ry)*sin(rz);
+	Rinv(1, 2) = cos(rz)*sin(rx)+cos(rx)*sin(ry)*sin(rz);
+	Rinv(2, 0) = sin(ry);
+	Rinv(2, 1) = -cos(ry)*sin(rx);
+	Rinv(2, 2) = cos(rx)*cos(ry);
 
 	Vector3d ind;
 	Vector3d cind;
 	Vector3d shift(sx, sy, sz);
 	Eigen::Map<Vector3d> center(m_center);
+	Vector3d fcenter;
+	m_moving->indexToPoint(3, center.array().data(), fcenter.array().data());
+	m_fixed->pointToIndex(3, fcenter.array().data(), fcenter.array().data());
 
 	// dRigid/dRx, dRigid/dRy, dRigid/dRz = ddRx*(u-c), ddRy*(u-c) ...
 	Matrix3d ddRx, ddRy, ddRz;
@@ -555,34 +564,42 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 	Matrix3d dR; //dg/dRx, dg/dRy, dg/dRz
 	Vector3d dgdR;
 
-	for(m_fit.goBegin(); !m_fit.eof(); ++m_fit) {
-		m_fit.index(3, ind.array().data());
-		// u = c + R^-1(v - s - c)
-		// where u is the output index, v the input, c the center of rotation
-		// and s the shift
-		// cind = center + rInv*(ind-shift-center);
-		cind = rotation*(ind-center) + center + shift;
+	NDConstIter<double> mit(m_moving);
+	Vector3DConstIter<double> dmit(m_dmoving);
+	LinInterp3DView<double> fix_vw(m_fixed);
+	for(; !mit.eof() && !dmit.eof(); ++mit, ++dmit) {
 
+		mit.index(3, ind.array().data());
+
+		dR.row(0) = ddRx*(ind-center);
+		dR.row(1) = ddRy*(ind-center);
+		dR.row(2) = ddRz*(ind-center);
+		
 		// Here we compute dg(v(u,p))/dp, where g is the image, u is the
 		// coordinate in the fixed image, and p is the param.
 		// dg/dp = SUM_i dg/dv_i dv_i/dp, where v is the rotated coordinate, so
 		// dg/dv_i is the directional derivative in original space,
 		// dv_i/dp is the derivative of the rotated coordinate system with
 		// respect to a parameter
-		gradG[0] = m_dmove_get(cind[0], cind[1], cind[2], 0);
-		gradG[1] = m_dmove_get(cind[0], cind[1], cind[2], 1);
-		gradG[2] = m_dmove_get(cind[0], cind[1], cind[2], 2);
+		gradG[0] = dmit[0];
+		gradG[1] = dmit[1];
+		gradG[2] = dmit[2];
 
-		dR.row(0) = ddRx*(ind-center);
-		dR.row(1) = ddRy*(ind-center);
-		dR.row(2) = ddRz*(ind-center);
+		m_moving->indexToPoint(3, ind.array().data(), ind.array().data());
+		m_fixed->pointToIndex(3, ind.array().data(), ind.array().data());
+
+		// u = c + R^-1(v - s - c)
+		// where u is the output index, v the input, c the center of rotation
+		// and s the shift
+		// cind = center + rInv*(ind-shift-center);
+		cind = Rinv*(ind-fshift-fcenter) + fcenter;
 
 		// compute SUM_i dg/dv_i dv_i/dp
 		dgdR = dR*gradG;
 
 		// compute correlation, since it requires almost no additional work
-		double g = m_move_get(cind[0], cind[1], cind[2]);
-		double f = *m_fit;
+		double g = *mit;;
+		double f = fix_vw(cind[0], cind[1], cind[2]);
 
 		mov_sum += g;
 		fix_sum += f;
@@ -590,12 +607,12 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 		fix_ss += f*f;
 		corr += g*f;
 
-		grad[0] += (*m_fit)*dgdR[0];
-		grad[1] += (*m_fit)*dgdR[1];
-		grad[2] += (*m_fit)*dgdR[2];
-		grad[3] += (*m_fit)*gradG[0];
-		grad[4] += (*m_fit)*gradG[1];
-		grad[5] += (*m_fit)*gradG[2];
+		grad[0] += f*dgdR[0];
+		grad[1] += f*dgdR[1];
+		grad[2] += f*dgdR[2];
+		grad[3] += f*gradG[0];
+		grad[4] += f*gradG[1];
+		grad[5] += f*gradG[2];
 
 	}
 
