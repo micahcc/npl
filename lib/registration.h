@@ -326,12 +326,7 @@ private:
 	ptr<const MRImage> m_fixed;
 	ptr<const MRImage> m_moving;
 	ptr<MRImage> m_dmoving;
-
-	// for interpolating moving image, and iterating fixed
-	LinInterp3DView<double> m_move_get;
-	LinInterp3DView<double> m_dmove_get;
-	NDConstIter<double> m_fit;
-
+	
 	double m_center[3];
 
 };
