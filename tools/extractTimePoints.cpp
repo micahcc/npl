@@ -229,6 +229,7 @@ int filter(string infile, string ofile, const vector<bool>& keepers)
 
 int main(int argc, char* argv[])
 {
+	cerr << "Version: " << __version__ << endl;
 	try {
 		/* 
 		 * Command Line 

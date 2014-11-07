@@ -369,6 +369,7 @@ shared_ptr<MRImage> smoothOutsideMask(shared_ptr<MRImage> deform,
 
 int main(int argc, char** argv)
 {
+	cerr << "Version: " << __version__ << endl;
 	try {
 	/*
 	 * Command Line

@@ -55,6 +55,7 @@ void regressOutLS(VectorXd& signal, const MatrixXd& X, const MatrixXd& Xinv)
 
 int main(int argc, char** argv)
 {
+	cerr << "Version: " << __version__ << endl;
 	try {
 	/*
 	 * Command Line

@@ -106,6 +106,7 @@ ptr<MRImage> reconstructBiasField(ptr<const MRImage> biasparams,
  */
 int main(int argc, char** argv)
 {
+	cerr << "Version: " << __version__ << endl;
 try {
 	/*
 	 * Command Line
@@ -121,7 +122,7 @@ try {
 			"mask based on the image mean will be used", false, "", "*.nii.gz",
 			cmd);
 	TCLAP::ValueArg<double> a_spacing("s", "spacing", "Space between knots "
-			"for bias-field estimation.", false, 40, "mm", cmd);
+			"for bias-field estimation.", false, 30, "mm", cmd);
 	TCLAP::ValueArg<double> a_downspace("d", "downsample", "Spacing in "
 			"downsampled image. This is primarily to speed up processing. "
 			"Because the problem is already overdetermined this doesn't impact "
@@ -130,7 +131,7 @@ try {
 	TCLAP::ValueArg<double> a_lambda("R", "regweight", "Regularization weight "
 			"for ridge regression. Larger values will force a smoother result,"
 			" and values closer to 1.",
-			false, 1.e-2, "real", cmd);
+			false, 1.e-1, "real", cmd);
 	TCLAP::ValueArg<string> a_biasfield("b", "biasfield", "Bias Field Image.",
 			false, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_biasparams("B", "bparams", "Bias Field "

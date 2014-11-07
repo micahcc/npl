@@ -57,6 +57,7 @@ void genPoints(ptr<const MRImage> scale, ptr<const MRImage> vimg, double pct,
 
 int main(int argc, char** argv)
 {
+	cerr << "Version: " << __version__ << endl;
 	try {
 	/*
 	 * Command Line
