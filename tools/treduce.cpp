@@ -45,7 +45,8 @@ using namespace std;
 
 int main(int argc, char* argv[])
 {
-try {
+	cerr << "Version: " << __version__ << endl;
+	try {
 	/* 
 	 * Command Line 
 	 */

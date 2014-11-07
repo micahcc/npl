@@ -36,6 +36,7 @@ using namespace std;
 
 int main(int argc, char* argv[])
 {
+	cerr << "Version: " << __version__ << endl;
 	try {
 	
 	TCLAP::CmdLine cmd("This program takes two images and directly compares "

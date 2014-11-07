@@ -40,6 +40,7 @@ using namespace std;
 
 int main(int argc, char** argv)
 {
+	cerr << "Version: " << __version__ << endl;
 try {
 	/*
 	 * Command Line
@@ -100,6 +101,11 @@ try {
 			"taxing and less gradient-descent like, but potentially reducing "
 			"the number of steps to the minimum.", false, 8, "n", cmd);
 
+	TCLAP::SwitchArg a_otsu("O", "otsu-thresh", "Threshold original images "
+			"using otsu thresholding. This reduces computation time by "
+			"creating more zero-gradient points in the image. (Which are "
+			"ignored in certain calculations)", cmd);
+
 	cmd.parse(argc, argv);
 
 	// set up sigmas
@@ -113,41 +119,38 @@ try {
 
 	// fixed image
 	cerr << "Reading Inputs...";
-	ptr<MRImage> moving, in_moving;
-	ptr<MRImage> fixed = readMRImage(a_fixed.getValue());
+	ptr<MRImage> moving = readMRImage(a_moving.getValue());
+	ptr<MRImage> in_fixed = readMRImage(a_fixed.getValue());
 	size_t ndim;
-	{
-	in_moving = readMRImage(a_moving.getValue());
 	cerr << "Done" << endl;
-	ndim = min(fixed->ndim(), in_moving->ndim());
+	ndim = min(in_fixed->ndim(), moving->ndim());
 
 	cerr << "Extracting first " << ndim << " dims of Fixed Image" << endl;
-	fixed = dPtrCast<MRImage>(fixed->copyCast(ndim, fixed->dim(), FLOAT32));
+	in_fixed = dPtrCast<MRImage>(in_fixed->copyCast(ndim, in_fixed->dim(), FLOAT32));
 
 	cerr << "Extracting first " << ndim << " dims of Moving Image" << endl;
-	in_moving = dPtrCast<MRImage>(in_moving->copyCast(ndim, in_moving->dim(),
-				FLOAT32));
+	moving = dPtrCast<MRImage>(moving->copyCast(ndim, moving->dim(), FLOAT32));
 
-	cerr << "Done\nPutting Moving Image into Fixed Space...";
-	moving = dPtrCast<MRImage>(fixed->createAnother());
+	cerr << "Done\nPutting Fixed image in Moving Space...";
+	auto fixed = dPtrCast<MRImage>(moving->createAnother());
 	vector<int64_t> ind(ndim);
 	vector<double> point(ndim);
 
 	// Create Interpolator, ensuring that radius is at least 1 pixel in the
 	// output space 
-	LanczosInterpNDView<double> interp(in_moving);
-	interp.setRadius(ceil(fixed->spacing(0)/in_moving->spacing(0)));
+	LanczosInterpNDView<double> interp(in_fixed);
+	interp.setRadius(3*ceil(moving->spacing(0)/in_fixed->spacing(0)));
 	interp.m_ras = true;
-	for(NDIter<double> it(moving); !it.eof(); ++it) {
+	for(NDIter<double> it(fixed); !it.eof(); ++it) {
 		// get point 
 		it.index(ind.size(), ind.data());
-		moving->indexToPoint(ind.size(), ind.data(), point.data());
+		fixed->indexToPoint(ind.size(), ind.data(), point.data());
 
 		// sample 
 		it.set(interp.get(point));
 	}
-	}
 	cerr << "Done" << endl;
+	in_fixed.reset();
 
 	// Get direction
 	int dir = moving->m_phasedim;
@@ -162,6 +165,21 @@ try {
 		cerr << "Error, no direction set, and no phase-encode direction set "
 			"in moving image!" << endl;
 		return -1;
+	}
+	moving->write("common_moving.nii.gz");
+	fixed->write("common_fixedd.nii.gz");
+
+	// Threshold
+	if(a_otsu.isSet()) {
+		double t = otsuThresh(fixed);
+		for(FlatIter<double> it(fixed); !it.eof(); ++it) 
+			if(it.get() <= t) it.set(0);
+
+		t = otsuThresh(moving);
+		for(FlatIter<double> it(moving); !it.eof(); ++it) 
+			if(it.get() <= t) it.set(0);
+		moving->write("otsu_moving.nii.gz");
+		fixed->write("otsufixed.nii.gz");
 	}
 
 	/*************************************************************************
@@ -187,12 +205,12 @@ try {
 	if(a_out.isSet()) {
 		// Apply Rigid Transform.
 		// Copy input moving then sample
-		auto out = dPtrCast<MRImage>(in_moving->copyCast(FLOAT32));
+		auto out = dPtrCast<MRImage>(moving->copy());
 
 		// Create Sampler for Transform and moving view
 		BSplineView<double> bvw(transform);
 		bvw.m_ras = true;
-		LanczosInterpNDView<double> mvw(in_moving);
+		LanczosInterpNDView<double> mvw(moving);
 
 		// Temps
 		vector<double> cind(ndim);

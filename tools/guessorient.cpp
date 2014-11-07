@@ -66,6 +66,7 @@ MatrixXd computeAxes(ptr<const MRImage> in, const VectorXd& center);
 
 int main(int argc, char** argv)
 {
+	cerr << "Version: " << __version__ << endl;
 	try {
 
 	/*

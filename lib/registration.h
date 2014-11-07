@@ -666,6 +666,13 @@ struct Rigid3DTrans
 	Matrix3d rotMatrix();
 
 	/**
+	 * @brief Constructs rotation vector from rotation matrix
+	 *
+	 * @param rot Rotation matrix
+	 */
+	void setRotation(const Matrix3d& rot);
+
+	/**
 	 * @brief Converts to world coordinates based on the orientation stored in
 	 * input image.
 	 *

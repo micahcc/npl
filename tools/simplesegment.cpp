@@ -35,6 +35,7 @@ using namespace npl;
 	
 int main(int argc, char** argv)
 {
+	cerr << "Version: " << __version__ << endl;
 	try {
 	/*
 	 * Command Line

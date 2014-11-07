@@ -57,6 +57,7 @@ void usage(int status)
 
 int main(int argc, char** argv)
 {
+	cerr << "Version: " << __version__ << endl;
     if(argc == 1) {
         usage(0);
         return 0;

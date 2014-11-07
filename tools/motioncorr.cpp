@@ -201,6 +201,7 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 
 int main(int argc, char** argv)
 {
+	cerr << "Version: " << __version__ << endl;
 	try {
 	/*
 	 * Command Line

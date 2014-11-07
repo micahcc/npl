@@ -29,6 +29,7 @@
 #include <algorithm>
 
 #include <Eigen/Dense>
+#include <Eigen/Geometry> 
 
 using Eigen::VectorXd;
 using Eigen::Vector3d;
@@ -304,10 +305,8 @@ ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		cerr << "Sigma: " << sigmas[ii] << endl;
 		auto sm_fixed = smoothDownsample(fixed, sigmas[ii], sigmas[ii]*2.355);
 		auto sm_moving = smoothDownsample(moving, sigmas[ii]*2.355);
-		cerr << "Fixed: " << *sm_fixed << endl;
-		cerr << "Moving: " << *sm_moving << endl;
-		DEBUGWRITE(sm_fixed->write("smooth_fixed_"+to_string(ii)+".nii.gz"));
-		DEBUGWRITE(sm_moving->write("smooth_moving_"+to_string(ii)+".nii.gz"));
+		sm_fixed->write("smooth_fixed_"+to_string(ii)+".nii.gz");
+		sm_moving->write("smooth_moving_"+to_string(ii)+".nii.gz");
 
 		comp.setFixed(sm_fixed);
 		comp.setMoving(sm_moving, dir);
@@ -1688,6 +1687,9 @@ int DistortionCorrectionInformationComputer::metric(
 		/**************************************************************
 		 * Compute Derivative of Marginal and Joint PDFs
 		 **************************************************************/
+		if(dFm == 0 && Fm == 0)
+			continue;
+
 		assert(binfix+m_krad < m_bins);
 		assert(binmove+m_krad < m_bins);
 		assert(binfix-m_krad >= 0);
@@ -2176,9 +2178,7 @@ void Rigid3DTrans::invert()
 	auto tmp_shift = shift;
 	shift = -Q*tmp_shift;
 
-	rotation[1] = asin(Q(0,2));
-	rotation[2] = -Q(0,1)/cos(rotation[1]);
-	rotation[0] = -Q(1,2)/cos(rotation[1]);
+	rotation = Q.eulerAngles(0,1,2);
 }
 
 /**
@@ -2194,6 +2194,16 @@ Matrix3d Rigid3DTrans::rotMatrix()
 		AngleAxisd(rotation[2], Vector3d::UnitZ());
 	return ret;
 };
+	
+/**
+ * @brief Constructs rotation vector from rotation matrix
+ *
+ * @param rot Rotation matrix
+ */
+void Rigid3DTrans::setRotation(const Matrix3d& rot)
+{
+	rotation = rot.eulerAngles(0, 1, 2);
+}
 
 /**
  * @brief Converts to world coordinates based on the orientation stored in

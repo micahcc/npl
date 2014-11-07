@@ -17,6 +17,10 @@ def build(bld):
 			source = 'rigidreg.cpp', 
 			use = 'mrimage_utils registration lbfgs tclap nplio iterators accessors')
 
+	bld.program(target = 'nplOrientToTransform', 
+			source = 'gettransform.cpp', 
+			use = 'mrimage_utils registration lbfgs tclap nplio iterators accessors')
+
 	bld.program(target = 'nplDistortionCorr', 
 			source = 'distortioncorr.cpp', 
 			use = 'mrimage_utils registration lbfgs tclap nplio iterators accessors')

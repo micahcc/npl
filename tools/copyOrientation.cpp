@@ -21,6 +21,7 @@
 #include <tclap/CmdLine.h>
 #include <string>
 #include <stdexcept>
+#include <iostream>
 
 #include "mrimage.h"
 #include "nplio.h"
@@ -28,9 +29,12 @@
 using std::string;
 using namespace npl;
 using std::shared_ptr;
+using std::endl;
+using std::cerr;
 
 int main(int argc, char** argv)
 {
+	cerr << "Version: " << __version__ << endl;
 	try {
 	/*
 	 * Command Line
@@ -54,12 +58,12 @@ int main(int argc, char** argv)
 	 *********/
 	std::shared_ptr<MRImage> from(readMRImage(a_from.getValue()));
 	std::shared_ptr<MRImage> to(readMRImage(a_to.getValue()));
-	
+
 	auto out = to->cloneImage();
     out->setOrient(from->getOrigin(), from->getSpacing(),
             from->getDirection());
 	out->write(a_out.getValue());
-	
+
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
 }

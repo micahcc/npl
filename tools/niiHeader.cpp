@@ -19,12 +19,17 @@
 
 #include <version.h>
 #include <string>
+#include <iostream>
 
 #include "mrimage.h"
 #include "nplio.h"
 
+using std::endl;
+using std::cerr;
+
 int main(int argc, char** argv)
 {
+	cerr << "Version: " << __version__ << endl;
 	if(argc <= 1) {
 		return -1;
 	}
