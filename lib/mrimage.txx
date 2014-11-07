@@ -1004,12 +1004,7 @@ int MRImageStore<D,T>::orientVector(size_t len, const double* xyz,
         vInd[ii] = 0;
 
     // apply transform
-    // vpoint = m_direction*(vindex.array()*spacing.array())+origin;
-    for(size_t rr = 0; rr<D; rr++) {
-        vRAS[rr] = 0;
-        for(size_t cc = 0; cc < D; cc++) 
-            vRAS[rr] += m_direction(rr,cc)*vInd[cc]*spacing(cc);
-    }
+    vRAS = m_direction*(vInd.array()*m_spacing.array()).matrix();
     
     // copy out
     for(size_t ii=0; ii<len; ii++) 
@@ -1047,14 +1042,7 @@ int MRImageStore<D,T>::disOrientVector(size_t len, const double* ras,
         vRAS[ii] = 0;
 
     // apply transform
-    // vindex = (m_inv_direction*(vpoint-origin)).array()/spacing.array();
-    for(size_t rr = 0; rr<D; rr++) {
-        vInd[rr] = 0;
-        for(size_t cc = 0; cc < D; cc++) 
-            vInd[rr] += m_inv_direction(rr,cc)*vRAS[cc];
-
-        vInd[rr] /= spacing(rr);
-    }
+    vInd = (m_inv_direction*vRAS).array()/m_spacing.array();
     
     // copy out
     for(size_t ii=0; ii<len; ii++) 
