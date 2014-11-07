@@ -710,10 +710,13 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 	Vector3DConstIter<double> mit(m_moving);
 	for(; !mit.eof(); ++mit) {
 		mit.index(3, ind.array().data());
+		m_moving->indexToPoint(3, ind.array().data(), ind.array().data());
+		m_fixed->pointToIndex(3, ind.array().data(), ind.array().data());
 
 		// u = c + R^-1(v - s - c)
 		// where u is the output index, v the input, c the center of rotation
 		// and s the shift
+//		cind = Rinv*(ind-fcenter) + fcenter - fshift;
 		cind = fcenter + Rinv*(ind-fcenter-fshift);
 
 		double a = mit[0];
@@ -725,7 +728,7 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 		corr += a*b;
 	}
 
-	val = sample_corr(m_fixed->elements(), sum1, sum2, ss1, ss2, corr);
+	val = sample_corr(m_moving->elements(), sum1, sum2, ss1, ss2, corr);
 
 //#if defined VERYDEBUG || defined DEBUG
 	cerr << "Value: " << val << endl;
