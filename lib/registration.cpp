@@ -668,25 +668,34 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 	double sy = params[4]/m_moving->spacing(1);
 	double sz = params[5]/m_moving->spacing(2);
 
+	// take the shift (which is aligned to moving grid) and change to RAS, 
+	// then back to fixed-grid aligned 
+	Vector3d fshift(sx, sy, sz);
+	m_moving->orientVector(3, fshift.array().data(), fshift.array().data());
+	m_fixed->disOrientVector(3, fshift.array().data(), fshift.array().data());
+
 	//#if defined DEBUG || defined VERYDEBUG
 	cerr << "VAL() Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: "
 		<< sx << ", " << sy << ", " << sz << endl;
 	//#endif
 
 	// Update Transform Matrix
-	Matrix3d rotation;
-	rotation(0,0) = cos(ry)*cos(rz);
-	rotation(0,1) = -cos(ry)*sin(rz);
-	rotation(0,2) = sin(ry);
-	rotation(1,0) = cos(rz)*sin(rx)*sin(ry)+cos(rx)*sin(rz);
-	rotation(1,1) = cos(rx)*cos(rz) - sin(rx)*sin(ry)*sin(rz);
-	rotation(1,2) = -cos(ry)*sin(rx);
-	rotation(2,0) = -cos(rx)*cos(rz)*sin(ry)+sin(rx)*sin(rz);
-	rotation(2,1) = cos(rz)*sin(rx)+cos(rx)*sin(ry)*sin(rz);
-	rotation(2,2) = cos(rx)*cos(ry);
+	Matrix3d Rinv;
+	Rinv(0, 0) = cos(ry)*cos(rz);;
+	Rinv(0, 1) = cos(rz)*sin(rx)*sin(ry)+cos(rx)*sin(rz);
+	Rinv(0, 2) = -cos(rx)*cos(rz)*sin(ry)+sin(rx)*sin(rz);
+	Rinv(1, 0) = -cos(ry)*sin(rz);
+	Rinv(1, 1) = cos(rx)*cos(rz)-sin(rx)*sin(ry)*sin(rz);
+	Rinv(1, 2) = cos(rz)*sin(rx)+cos(rx)*sin(ry)*sin(rz);
+	Rinv(2, 0) = sin(ry);
+	Rinv(2, 1) = -cos(ry)*sin(rx);
+	Rinv(2, 2) = cos(rx)*cos(ry);
 
-	Vector3d shift(sx, sy, sz);
 	Eigen::Map<Vector3d> center(m_center);
+	Vector3d fcenter;
+	m_moving->indexToPoint(3, center.array().data(), fcenter.array().data());
+	m_fixed->pointToIndex(3, fcenter.array().data(), fcenter.array().data());
+
 	Vector3d ind;
 	Vector3d cind;
 
@@ -697,16 +706,18 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 	double ss1 = 0;
 	double ss2 = 0;
 	double corr = 0;
-	for(m_fit.goBegin(); !m_fit.eof(); ++m_fit) {
-		m_fit.index(3, ind.array().data());
+	LinInterp3DView<double> fix_vw(m_fixed);
+	Vector3DConstIter<double> mit(m_moving);
+	for(; !mit.eof(); ++mit) {
+		mit.index(3, ind.array().data());
 
 		// u = c + R^-1(v - s - c)
 		// where u is the output index, v the input, c the center of rotation
 		// and s the shift
-		cind = rotation*(ind-center)+center+shift;
+		cind = fcenter + Rinv*(ind-fcenter-fshift);
 
-		double a = m_move_get(cind[0], cind[1], cind[2]);
-		double b = *m_fit;
+		double a = mit[0];
+		double b = fix_vw(cind[0], cind[1], cind[2]);
 		sum1 += a;
 		ss1 += a*a;
 		sum2 += b;
