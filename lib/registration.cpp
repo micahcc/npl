@@ -562,6 +562,12 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 
 		mit.index(3, ind.array().data());
 
+		// u = c + R^-1(v - s - c)
+		// where u is the output index, v the input, c the center of rotation
+		// and s the shift
+		// cind = center + rInv*(ind-shift-center);
+		cind = Rinv*(ind-shift-center) + center;
+
 		// Here we compute dg(v(u,p))/dp, where g is the image, u is the
 		// coordinate in the fixed image, and p is the param.
 		// dg/dp = SUM_i dg/dv_i dv_i/dp, where v is the rotated coordinate, so
@@ -571,12 +577,6 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 		gradG[0] = dmit[0];
 		gradG[1] = dmit[1];
 		gradG[2] = dmit[2];
-
-		// u = c + R^-1(v - s - c)
-		// where u is the output index, v the input, c the center of rotation
-		// and s the shift
-		// cind = center + rInv*(ind-shift-center);
-		cind = Rinv*(ind-shift-center) + center;
 
 		dR.row(0) = ddRx*(cind-center);
 		dR.row(1) = ddRy*(cind-center);
@@ -767,7 +767,7 @@ void RigidCorrComputer::setMoving(ptr<const MRImage> newmove)
 		throw INVALID_ARGUMENT("Moving image is not 3D!");
 
 	m_moving = newmove;
-	
+
 	// check that moving and fixed images are in the same space
 	if(m_fixed && !m_moving->matchingOrient(m_fixed, true, true)) {
 		throw INVALID_ARGUMENT("Moving and Fixed Images must have the same "
