@@ -571,10 +571,6 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 
 		mit.index(3, ind.array().data());
 
-		dR.row(0) = ddRx*(ind-center);
-		dR.row(1) = ddRy*(ind-center);
-		dR.row(2) = ddRz*(ind-center);
-		
 		// Here we compute dg(v(u,p))/dp, where g is the image, u is the
 		// coordinate in the fixed image, and p is the param.
 		// dg/dp = SUM_i dg/dv_i dv_i/dp, where v is the rotated coordinate, so
@@ -594,6 +590,10 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 		// cind = center + rInv*(ind-shift-center);
 		cind = Rinv*(ind-fshift-fcenter) + fcenter;
 
+		dR.row(0) = ddRx*(cind-fcenter);
+		dR.row(1) = ddRy*(cind-fcenter);
+		dR.row(2) = ddRz*(cind-fcenter);
+		
 		// compute SUM_i dg/dv_i dv_i/dp
 		dgdR = dR*gradG;
 
