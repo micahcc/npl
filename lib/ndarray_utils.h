@@ -493,6 +493,18 @@ double mse(ptr<const NDArray> a, ptr<const NDArray> b,
 		ptr<const NDArray> mask = NULL);
 
 /**
+ * @brief Computes the dice coefficent between two labelmap images. They should
+ * be identically gridded.
+ *
+ * @param a Input 1
+ * @param b Input 2
+ * @param mask If not null then only compare areas within the masked region
+ *
+ * @return Similarity of labels
+ */
+double dice(ptr<const NDArray> a, ptr<const NDArray> b, ptr<const NDArray> mask);
+
+/**
  * @brief Computes the correlation between two images. They should
  * be identically gridded.
  *

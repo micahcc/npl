@@ -2453,7 +2453,7 @@ double mse(ptr<const NDArray> a, ptr<const NDArray> b, ptr<const NDArray> mask)
 
 	FlatConstIter<double> it1(a);
 	FlatConstIter<double> it2(b);
-	FlatConstIter<double> itm;
+	FlatConstIter<int64_t> itm;
 	if(mask) {
 		itm.setArray(mask);
 		itm.goBegin();
@@ -2497,7 +2497,7 @@ double corr(ptr<const NDArray> a, ptr<const NDArray> b, ptr<const NDArray> mask)
 
 	FlatConstIter<double> it1(a);
 	FlatConstIter<double> it2(b);
-	FlatConstIter<double> itm;
+	FlatConstIter<int64_t> itm;
 	if(mask) {
 		itm.setArray(mask);
 		itm.goBegin();
@@ -2536,6 +2536,48 @@ double corr(ptr<const NDArray> a, ptr<const NDArray> b, ptr<const NDArray> mask)
 }
 
 /**
+ * @brief Computes the dice coefficent between two labelmap images. They should
+ * be identically gridded.
+ *
+ * @param a Input 1
+ * @param b Input 2
+ * @param mask If not null then only compare areas within the masked region
+ *
+ * @return Similarity of labels
+ */
+double dice(ptr<const NDArray> a, ptr<const NDArray> b, ptr<const NDArray> mask)
+{
+	assert(a->ndim() == b->ndim());
+	for(size_t ii=0; ii<a->ndim(); ii++)
+		assert(a->dim(ii) == b->dim(ii));
+	if(mask) {
+		assert(mask->ndim() == b->ndim());
+		for(size_t ii=0; ii<b->ndim(); ii++)
+			assert(mask->dim(ii) == b->dim(ii));
+	}
+
+	FlatConstIter<int64_t> it1(a);
+	FlatConstIter<int64_t> it2(b);
+	FlatConstIter<int64_t> itm;
+	if(mask) {
+		itm.setArray(mask);
+		itm.goBegin();
+	}
+
+	int same = 0;
+	int count = 0;
+	for(it1.goBegin(), it2.goBegin(); !it1.eof() && !it2.eof(); ++it1, ++it2) {
+		if(!mask || *itm > 0) {
+			if(*it1 == *it2) 
+				same++;
+			count++;
+		}
+		if(mask) ++itm;
+	}
+	return (same)/(double)count;
+}
+
+/**
  * @brief Computes the information based difference/similarity between two
  * images. They should be identically gridded.
  *
@@ -2563,7 +2605,7 @@ double information(ptr<const NDArray> a, ptr<const NDArray> b,
 
 	FlatConstIter<double> it1(a);
 	FlatConstIter<double> it2(b);
-	FlatConstIter<double> itm;
+	FlatConstIter<int64_t> itm;
 	if(mask) {
 		itm.setArray(mask);
 		itm.goBegin();
