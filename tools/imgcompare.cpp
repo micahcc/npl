@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
 			"process (apprxomating histogram for MI)", false, 8, "radius", cmd);
 
 	std::vector<string> allowed({"cor","mse", "mi", "nmi", "redund", "mim", 
-				"dcor", "mid", "zcor"});
+				"dcor", "mid", "zcor", "dice"});
 	TCLAP::ValuesConstraint<string> allowedVals( allowed );
 	TCLAP::ValueArg<string> a_method("m", "metric", "Comparison metric. "
 			"Options include correlation (cor), z-score transform "
@@ -176,7 +176,9 @@ int main(int argc, char* argv[])
 		sim = .5*log((1+sim)/(1-sim));
 	} else if(a_method.getValue() == "cor")
 		sim = corr(img1, img2, mask);
-	else
+	else if(a_method.getValue() == "dice") {
+		sim = dice(img1, img2, mask);
+	} else
 		return 0;
 
 	cout << sim << endl;
