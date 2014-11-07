@@ -95,7 +95,7 @@ shared_ptr<MRImage> squareImage()
 int main()
 {
     // create test image
-    auto img = gaussianImage();
+    auto img = squareImage();
 
     // rotate it
     auto moved = dPtrCast<MRImage>(img->copy());

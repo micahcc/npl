@@ -598,7 +598,7 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 		dgdR = dR*gradG;
 
 		// compute correlation, since it requires almost no additional work
-		double g = *mit;;
+		double g = *mit;
 		double f = fix_vw(cind[0], cind[1], cind[2]);
 
 		mov_sum += g;
@@ -624,7 +624,7 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 	grad[4] /= m_moving->spacing(1);
 	grad[5] /= m_moving->spacing(2);
 
-	count = m_fixed->elements();
+	count = m_moving->elements();
 	val = sample_corr(count, mov_sum, fix_sum, mov_ss, fix_ss, corr);
 	double sd1 = sqrt(sample_var(count, mov_sum, mov_ss));
 	double sd2 = sqrt(sample_var(count, fix_sum, fix_ss));
