@@ -169,19 +169,6 @@ try {
 	moving->write("common_moving.nii.gz");
 	fixed->write("common_fixedd.nii.gz");
 
-	// Threshold
-	if(a_otsu.isSet()) {
-		double t = otsuThresh(fixed);
-		for(FlatIter<double> it(fixed); !it.eof(); ++it) 
-			if(it.get() <= t) it.set(0);
-
-		t = otsuThresh(moving);
-		for(FlatIter<double> it(moving); !it.eof(); ++it) 
-			if(it.get() <= t) it.set(0);
-		moving->write("otsu_moving.nii.gz");
-		fixed->write("otsufixed.nii.gz");
-	}
-
 	/*************************************************************************
 	 * Registration
 	 *************************************************************************/
@@ -192,7 +179,8 @@ try {
 		cout << "Done\nNon-Rigidly Registering with " << a_metric.getValue() 
 			<< "..." << endl;
 
-		transform = infoDistCor(fixed, moving, dir, a_bspace.getValue(), 
+		transform = infoDistCor(fixed, moving, a_otsu.isSet(),
+				dir, a_bspace.getValue(), 
 				a_jacreg.getValue(), a_tpsreg.getValue(), sigmas,
 				a_bins.getValue(), a_parzen.getValue(), a_metric.getValue(),
 				a_hist.getValue(), a_stopx.getValue(), a_beta.getValue());

@@ -1050,7 +1050,7 @@ shared_ptr<NDArray> readJSONImage(gzFile file, bool verbose, bool makearray)
  * on, it will try to load image using different reader functions until one
  * suceeds.
  *
- * @param filename Name of input file to read
+ * @param fn Name of input file to read
  * @param verbose Whether to print out information as the file is read
  * @param nopixeldata Don't actually read the pixel data, just the header and
  * create the image. So if you want to copy an image's orientation and
@@ -1059,15 +1059,15 @@ shared_ptr<NDArray> readJSONImage(gzFile file, bool verbose, bool makearray)
  *
  * @return Loaded image
  */
-ptr<MRImage> readMRImage(std::string filename, bool verbose, bool nopixeldata)
+ptr<MRImage> readMRImage(std::string fn, bool verbose, bool nopixeldata)
 {
 #if ZLIB_VERNUM >= 0x1280
 	const size_t BSIZE = 1024*1024; //1M
 #endif
-	auto gz = gzopen(filename.c_str(), "rb");
+	auto gz = gzopen(fn.c_str(), "rb");
 
 	if(!gz) {
-		throw std::ios_base::failure("Could not open " + filename + " for reading");
+		throw std::ios_base::failure("Could not open " + fn + " for reading");
 		return NULL;
 	}
 #if ZLIB_VERNUM >= 0x1280
@@ -1077,11 +1077,11 @@ ptr<MRImage> readMRImage(std::string filename, bool verbose, bool nopixeldata)
 	ptr<NDArray> out;
 	
     // remove .gz to find the "real" format,
-	if(filename.substr(filename.size()-3, 3) == ".gz") {
-		filename = filename.substr(0, filename.size()-3);
+	if(fn.size()> 3 && fn.substr(fn.size()-3, 3) == ".gz") {
+		fn = fn.substr(0, fn.size()-3);
 	}
 	
-	if(filename.substr(filename.size()-4, 4) == ".nii") {
+	if(fn.size() > 4 && fn.substr(fn.size()-4, 4) == ".nii") {
         //////////////////////////
         // Read Nifti Data
         //////////////////////////
@@ -1089,7 +1089,7 @@ ptr<MRImage> readMRImage(std::string filename, bool verbose, bool nopixeldata)
             gzclose(gz);
             return dPtrCast<MRImage>(out);
         }
-    } else if(filename.substr(filename.size()-5, 5) == ".json") {
+    } else if(fn.size() > 5 && fn.substr(fn.size()-5, 5) == ".json") {
         //////////////////////////
         // Read JSON data
         //////////////////////////
@@ -1098,20 +1098,19 @@ ptr<MRImage> readMRImage(std::string filename, bool verbose, bool nopixeldata)
             return dPtrCast<MRImage>(out);
         }
 	} else {
-		std::cerr << "Unknown filetype: " << filename.substr(filename.rfind('.'))
-			<< std::endl;
+		std::cerr << "Unknown filetype: " << fn << std::endl;
 		gzclose(gz);
-        throw std::ios_base::failure("Error reading " + filename );
+        throw std::ios_base::failure("Error reading " + fn );
 	}
 
-    throw std::ios_base::failure("Error reading " + filename );
+    throw std::ios_base::failure("Error reading " + fn );
 	return NULL;
 }
 
 /**
  * @brief Reads an array. Can read nifti's but orientation won't be read.
  *
- * @param filename Name of input file to read
+ * @param fn Name of input file to read
  * @param verbose Whether to print out information as the file is read
  * @param nopixeldata Don't actually read the pixel data, just the header and
  * create the image. So if you want to copy an image's orientation and
@@ -1120,15 +1119,15 @@ ptr<MRImage> readMRImage(std::string filename, bool verbose, bool nopixeldata)
  *
  * @return Loaded image
  */
-ptr<NDArray> readNDArray(std::string filename, bool verbose, bool nopixeldata)
+ptr<NDArray> readNDArray(std::string fn, bool verbose, bool nopixeldata)
 {
 #if ZLIB_VERNUM >= 0x1280
 	const size_t BSIZE = 1024*1024; //1M
 #endif
-	auto gz = gzopen(filename.c_str(), "rb");
+	auto gz = gzopen(fn.c_str(), "rb");
 
 	if(!gz) {
-		throw std::ios_base::failure("Could not open " + filename + " for readin");
+		throw std::ios_base::failure("Could not open " + fn + " for readin");
 		return NULL;
 	}
 #if ZLIB_VERNUM >= 0x1280
@@ -1138,16 +1137,16 @@ ptr<NDArray> readNDArray(std::string filename, bool verbose, bool nopixeldata)
 	ptr<NDArray> out;
 	
     // remove .gz to find the "real" format,
-	if(filename.substr(filename.size()-3, 3) == ".gz") {
-		filename = filename.substr(0, filename.size()-3);
+	if(fn.size() > 3 && fn.substr(fn.size()-3, 3) == ".gz") {
+		fn = fn.substr(0, fn.size()-3);
 	}
 	
-	if(filename.substr(filename.size()-4, 4) == ".nii") {
+	if(fn.size() > 4 && fn.substr(fn.size()-4, 4) == ".nii") {
         if((out = readNiftiImage(gz, verbose, true, nopixeldata))) {
             gzclose(gz);
             return out;
         }
-    } else if(filename.substr(filename.size()-5, 5) == ".json") {
+    } else if(fn.size() > 5 && fn.substr(fn.size()-5, 5) == ".json") {
         //////////////////////////
         // Read JSON data
         //////////////////////////
@@ -1156,13 +1155,12 @@ ptr<NDArray> readNDArray(std::string filename, bool verbose, bool nopixeldata)
             return out;
         }
 	} else {
-		std::cerr << "Unknown filetype: " << filename.substr(filename.rfind('.'))
-			<< std::endl;
+		std::cerr << "Unknown filetype: " << fn << std::endl;
 		gzclose(gz);
-        throw std::ios_base::failure("Error reading " + filename );
+        throw std::ios_base::failure("Error reading " + fn );
 	}
 
-    throw std::ios_base::failure("Error reading " + filename );
+    throw std::ios_base::failure("Error reading " + fn);
 	return NULL;
 }
 

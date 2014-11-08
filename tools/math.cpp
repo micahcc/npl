@@ -129,7 +129,8 @@ int main(int argc, char** argv)
 	{
 	auto ptr = dPtrCast<MRImage>(readMRImage(args[refimg]));
 	if(type == UNKNOWN_TYPE) {
-		out = dPtrCast<MRImage>(ptr->createAnother());
+		cerr << "Defaulting to double type" << endl;
+		out = dPtrCast<MRImage>(ptr->createAnother(FLOAT64));
 	} else {
 		out = dPtrCast<MRImage>(ptr->createAnother(type));
 	}

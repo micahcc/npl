@@ -2376,6 +2376,35 @@ ptr<NDArray> histEqualize(ptr<const NDArray> in)
 }
 
 /**
+ * @brief Thresholds the image, changing everything below t to 0
+ *
+ * @param in Input image.
+ * @param t Threshold to apply to the image.
+ *
+ * @return Threshold image
+ */
+ptr<NDArray> threshold(ptr<const NDArray> in, double t)
+{
+	auto out = in->copy();
+	threshold(out, t);
+	return out;
+}
+
+/**
+ * @brief Thresholds the image, changing everything below t to 0
+ *
+ * @param in Input image.
+ * @param t Threshold to apply to the image.
+ */
+void thresholdIP(ptr<NDArray> in, double t)
+{
+	for(FlatIter<double> it(in); !it.eof(); ++it) {
+		if(*it < t)
+			it.set(0);
+	}
+}
+
+/**
  * @brief Computes a threshold based on OTSU.
  *
  * @param in Input image.
