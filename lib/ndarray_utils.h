@@ -466,6 +466,26 @@ ptr<NDArray> relabelConnected(ptr<NDArray> input);
 double otsuThresh(ptr<const NDArray> in);
 
 /**
+ * @brief Thresholds the image, changing everything below t to 0
+ *
+ * @param in Input image.
+ * @param t Threshold to apply to the image.
+ *
+ * @return Threshold image
+ */
+ptr<NDArray> threshold(ptr<const NDArray> in, double t);
+
+/**
+ * @brief Thresholds the image, changing everything below t to 0.
+ *
+ * In place (IP) version
+ *
+ * @param in Input image.
+ * @param t Threshold to apply to the image.
+ */
+void thresholdIP(ptr<NDArray> in, double t);
+
+/**
  * @brief Computes a histogram, then spaces out intensities so that each
  * intensity has equal volume/area in the image.
  *

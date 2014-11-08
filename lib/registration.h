@@ -771,6 +771,7 @@ Rigid3DTrans informationReg3D(ptr<const MRImage> fixed,
  *
  * @param fixed Image which will be the target of registration.
  * @param moving Image which will be rotated then shifted to match fixed.
+ * @param otsu perform OTSU thresholding on images after downsampling
  * @param dir direction/dimension of distortion
  * @param bspace Spacing of B-Spline knots (in mm)
  * @param jac jacobian regularizer weight
@@ -788,7 +789,7 @@ Rigid3DTrans informationReg3D(ptr<const MRImage> fixed,
  * @return parameters of bspline
  */
 ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
-		int dir, double bspace, double jac, double tps,
+		bool otsu, int dir, double bspace, double jac, double tps,
 		const std::vector<double>& sigmas,
 		size_t nbins = 128, size_t binradius = 4, string metric = "MI",
 		size_t hist = 8, double stopx = 1e-5, double beta = 0.5);

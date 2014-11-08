@@ -29,7 +29,7 @@
 #include <algorithm>
 
 #include <Eigen/Dense>
-#include <Eigen/Geometry> 
+#include <Eigen/Geometry>
 
 using Eigen::VectorXd;
 using Eigen::Vector3d;
@@ -246,6 +246,7 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
  *
  * @param fixed Image which will be the target of registration.
  * @param moving Image which will be rotated then shifted to match fixed.
+ * @param otsu perform otsu thresholding of the input images
  * @param dir direction/dimension of distortion
  * @param bspace Spacing of B-Spline knots (in mm)
  * @param jac jacobian regularizer weight
@@ -263,7 +264,7 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
  * @return parameters of bspline
  */
 ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
-		int dir, double bspace, double jac, double tps,
+		bool otsu, int dir, double bspace, double jac, double tps,
 		const std::vector<double>& sigmas,
 		size_t nbins, size_t binradius, string metric,
 		size_t hist, double stopx, double beta)
@@ -305,8 +306,14 @@ ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		cerr << "Sigma: " << sigmas[ii] << endl;
 		auto sm_fixed = smoothDownsample(fixed, sigmas[ii], sigmas[ii]*2.355);
 		auto sm_moving = smoothDownsample(moving, sigmas[ii]*2.355);
-		sm_fixed->write("smooth_fixed_"+to_string(ii)+".nii.gz");
-		sm_moving->write("smooth_moving_"+to_string(ii)+".nii.gz");
+
+		// Threshold
+		if(otsu) {
+			thresholdIP(sm_fixed, otsuThresh(sm_fixed));
+			thresholdIP(sm_moving, otsuThresh(sm_moving));
+			sm_fixed->write("smooth_fixed_"+to_string(ii)+".nii.gz");
+			sm_moving->write("smooth_moving_"+to_string(ii)+".nii.gz");
+		}
 
 		comp.setFixed(sm_fixed);
 		comp.setMoving(sm_moving, dir);
@@ -503,7 +510,7 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 	double sx = params[3]/m_moving->spacing(0);
 	double sy = params[4]/m_moving->spacing(1);
 	double sz = params[5]/m_moving->spacing(2);
-	
+
 //#if defined DEBUG || defined VERYDEBUG
 	cerr << "VALGRAD Rotation: " << rx << ", " << ry << ", " << rz << ", Shift: "
 		<< sx << ", " << sy << ", " << sz << endl;
@@ -581,7 +588,7 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 		dR.row(0) = ddRx*(cind-center);
 		dR.row(1) = ddRy*(cind-center);
 		dR.row(2) = ddRz*(cind-center);
-		
+
 		// compute SUM_i dg/dv_i dv_i/dp
 		dgdR = dR*gradG;
 
@@ -742,7 +749,7 @@ void RigidCorrComputer::setFixed(ptr<const MRImage> newfix)
 {
 	if(newfix->ndim() != 3)
 		throw INVALID_ARGUMENT("Fixed image is not 3D!");
-	
+
 	if(m_moving && !m_fixed->matchingOrient(m_moving, true, true)) {
 		throw INVALID_ARGUMENT("Moving and Fixed Images must have the same "
 				"orientation and gred!");
@@ -1687,7 +1694,7 @@ int DistortionCorrectionInformationComputer::metric(
 
 		for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++)
 			dmovweight[jj-binmove+m_krad] = dB3kern(jj-cbinmove, m_krad);
-		for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++) 
+		for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++)
 			movweight[jj-binmove+m_krad] = B3kern(jj-cbinmove, m_krad);
 		for(int ii = binfix-m_krad; ii <= binfix+m_krad; ii++)
 			fixweight[ii-binfix+m_krad] = B3kern(ii-cbinfix, m_krad);
@@ -2210,7 +2217,7 @@ Matrix3d Rigid3DTrans::rotMatrix()
 		AngleAxisd(rotation[2], Vector3d::UnitZ());
 	return ret;
 };
-	
+
 /**
  * @brief Constructs rotation vector from rotation matrix
  *

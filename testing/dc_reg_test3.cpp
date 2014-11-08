@@ -95,7 +95,7 @@ int main()
 	distorted->write("dcrt3_distorted.nii.gz");
 
 	vector<double> sigmas({5, 4, 3, 2, 1, 0.5, 0});
-	auto p = infoDistCor(origimg, distorted, dir, 10, 0, 0, sigmas,
+	auto p = infoDistCor(origimg, distorted, false, dir, 10, 0, 0, sigmas,
 			100, 4, "MI");
 
 	cerr << "True Params:\n" << *b_vw.getParams() << endl;
