@@ -36,6 +36,7 @@
 #include <cassert>
 #include <memory>
 #include <cstring>
+#include <cmath>
 
 namespace npl {
 
@@ -402,7 +403,7 @@ ptr<MRImage> smoothDownsample(ptr<const MRImage> in, double sigma, double spacin
 	for(size_t dd=0; dd<ndim; dd++) {
 		// compute ratio
 		double ratio = in->spacing(dd)/spacing;
-		if(ratio > 1 || isnan(ratio) || isinf(ratio))
+		if(ratio > 1 || std::isnan(ratio) || std::isinf(ratio))
 			ratio = 1;
 		psize[dd] = round2(2*isize[dd]);
 		osize[dd] = ceil(isize[dd]*ratio);

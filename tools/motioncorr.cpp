@@ -32,6 +32,7 @@
 #include "iterators.h"
 #include "accessors.h"
 #include "ndarray_utils.h"
+#include "mrimage_utils.h"
 #include "version.h"
 #include "macros.h"
 
@@ -86,14 +87,7 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 	// Pre-Compute Fixed Smoothing
 	vector<ptr<MRImage>> fixed;
 	for(size_t ii=0; ii<sigmas.size(); ii++) {
-
-		// create another padded image, then smooth
-		fixed.push_back(dPtrCast<MRImage>(vol->createAnother()));
-		
-		for(FlatIter<double> fit(fixed.back()); !fit.eof(); ++fit) 
-			fit.set(0);
-
-		NDIter<double> fit(fixed.back());
+		NDIter<double> fit(vol);
 		fit.setROI(roi);
 		for(iit.goBegin(), fit.goBegin(); !fit.eof() && !iit.eof(); 
 					++iit, ++fit) {
@@ -103,10 +97,9 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 			else
 				fit.set(v);
 		}
-		assert(fit.eof() && iit.eof());
 
-		for(size_t dd=0; dd<3; dd++) 
-			gaussianSmooth1D(fixed.back(), dd, sigmas[ii]);
+		// create another padded image, then smooth
+		fixed.push_back(smoothDownsample(vol, sigmas[ii]));
 	}
 
 	// create value and gradient functions
@@ -124,6 +117,7 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 	opt.opt_ls_beta = beta;
 	opt.opt_ls_s = maxstep;
 	opt.state_x.setZero();
+
 	Rigid3DTrans rigid;
 	for(size_t tt=0; tt<fmri->tlen(); tt++) {
 		cerr << "Time " << tt << " / " << fmri->tlen() << endl;
@@ -151,17 +145,34 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 					else
 						mit.set(v);
 				}
-
-				for(size_t dd=0; dd<3; dd++) 
-					gaussianSmooth1D(vol, dd, sigmas[ii]);
+				auto sm_moving = smoothDownsample(vol, sigmas[ii]);
 
 				comp.setFixed(fixed[ii]);
-				comp.setMoving(vol);
-				
+				comp.setMoving(sm_moving);
+
+				// grab the parameters from the previous iteration (or initialized)
+				rigid.toIndexCoords(sm_moving, true);
+				for(size_t ii=0; ii<3; ii++) {
+					opt.state_x[ii] = radToDeg(rigid.rotation[ii]);
+					opt.state_x[ii+3] = rigid.shift[ii]*sm_moving->spacing(ii);
+					assert(rigid.center[ii] == (sm_moving->dim(ii)-1.)/2.);
+				}
+
 				// run the optimizer
 				opt.reset_history();
 				StopReason stopr = opt.optimize();
 				cerr << Optimizer::explainStop(stopr) << endl;
+
+				// set values from parameters, and convert to RAS coordinate so that no
+				// matter the sampling after smoothing the values remain
+				for(size_t ii=0; ii<3; ii++) {
+					rigid.rotation[ii] = degToRad(opt.state_x[ii]);
+					rigid.shift[ii] = opt.state_x[ii+3]/sm_moving->spacing(ii);
+					rigid.center[ii] = (sm_moving->dim(ii)-1)/2.;
+				}
+
+				rigid.toRASCoords(sm_moving);
+
 			}
 
 			/******************************************************************
