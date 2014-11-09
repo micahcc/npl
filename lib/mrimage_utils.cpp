@@ -402,7 +402,7 @@ ptr<MRImage> smoothDownsample(ptr<const MRImage> in, double sigma, double spacin
 	for(size_t dd=0; dd<ndim; dd++) {
 		// compute ratio
 		double ratio = in->spacing(dd)/spacing;
-		if(ratio > 1)
+		if(ratio > 1 || isnan(ratio) || isinf(ratio))
 			ratio = 1;
 		psize[dd] = round2(2*isize[dd]);
 		osize[dd] = ceil(isize[dd]*ratio);

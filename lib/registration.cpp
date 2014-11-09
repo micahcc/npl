@@ -305,7 +305,7 @@ ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		// smooth and downsample input images
 		cerr << "Sigma: " << sigmas[ii] << endl;
 		auto sm_fixed = smoothDownsample(fixed, sigmas[ii], sigmas[ii]*2.355);
-		auto sm_moving = smoothDownsample(moving, sigmas[ii]*2.355);
+		auto sm_moving = smoothDownsample(moving, sigmas[ii], sigmas[ii]*2.355);
 
 		// Threshold
 		if(otsu) {
@@ -1519,7 +1519,7 @@ void DistortionCorrectionInformationComputer::setMoving(
 	}
 
 	m_move_cache = dPtrCast<MRImage>(m_moving->createAnother());
-	m_corr_cache = dPtrCast<MRImage>(m_moving->createAnother());
+	m_corr_cache = dPtrCast<MRImage>(m_moving->createAnother()); // DYING HERE
 	m_dmove_cache = dPtrCast<MRImage>(m_dmoving->createAnother());
 }
 
