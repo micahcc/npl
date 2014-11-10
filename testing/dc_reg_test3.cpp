@@ -39,7 +39,7 @@ shared_ptr<MRImage> squareImage()
 {
     // create test image
 	int64_t index[3];
-	size_t sz[] = {32, 32, 32};
+	size_t sz[] = {40, 40, 40};
 	auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, FLOAT64);
 
 	// fill with square
@@ -64,7 +64,7 @@ int main()
 	double ind[3];
 	double pt[3];
 	double def, ddef;
-	int dir = 0;
+	int dir = 1;
     auto origimg = squareImage();
 	origimg->write("dcrt3_original.nii.gz");
 	LinInterp3DView<double> orig_vw(origimg);
