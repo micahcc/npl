@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file iterators.h Iterators for images. Each is templated by the type that 
+ * @file iterators.h Iterators for images. Each is templated by the type that
  * the pixels are viewed as (rather than the actual stored pixel type).
  *
  *****************************************************************************/
@@ -30,11 +30,11 @@
 namespace npl {
 
 
- /** \defgroup Iterators Iterators for NDarray/Image 
+ /** \defgroup Iterators Iterators for NDarray/Image
  *
- * Iterators are similar to accessors in that they perform casting, however 
- * they also advance through pixels. Thus they are designed to walk over the 
- * image or array space. 
+ * Iterators are similar to accessors in that they perform casting, however
+ * they also advance through pixels. Thus they are designed to walk over the
+ * image or array space.
  *
  * A simple example:
  * \code{.cpp}
@@ -80,7 +80,7 @@ public:
         setArray(in);
 	};
 
-    void setArray(ptr<NDArray> in) 
+    void setArray(ptr<NDArray> in)
     {
         parent = in;
         m_linpos = 0;
@@ -187,7 +187,10 @@ public:
 	 */
 	T operator*() const
 	{
-		return castget(parent->__getAddr(m_linpos));
+		auto ptr = parent->__getAddr(m_linpos);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -197,7 +200,10 @@ public:
 	 */
 	T get() const
 	{
-		return castget(parent->__getAddr(m_linpos));
+		auto ptr = parent->__getAddr(m_linpos);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -207,7 +213,10 @@ public:
 	 */
 	void set(T v) const
 	{
-		castset(parent->__getAddr(m_linpos), v);
+		auto ptr = parent->__getAddr(m_linpos);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		castset(ptr, v);
 	};
 
 	/**
@@ -355,7 +364,7 @@ public:
         setArray(in);
 	};
 
-    void setArray(ptr<const NDArray> in) 
+    void setArray(ptr<const NDArray> in)
     {
         parent = in;
         m_linpos = 0;
@@ -445,7 +454,10 @@ public:
 	 */
 	T operator*() const
 	{
-		return castget(parent->__getAddr(m_linpos));
+		auto ptr = parent->__getAddr(m_linpos);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -455,7 +467,10 @@ public:
 	 */
 	T get() const
 	{
-		return castget(parent->__getAddr(m_linpos));
+		auto ptr = parent->__getAddr(m_linpos);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -589,12 +604,12 @@ public:
      */
     NDConstIter() {};
 
-	NDConstIter(std::shared_ptr<const NDArray> in) 
+	NDConstIter(std::shared_ptr<const NDArray> in)
 	{
         setArray(in);
 	};
 
-    void setArray(ptr<const NDArray> in) 
+    void setArray(ptr<const NDArray> in)
     {
 		setDim(in->ndim(), in->dim());
         parent = in;
@@ -684,7 +699,10 @@ public:
 	 */
 	T operator*() const
 	{
-		return castget(parent->__getAddr(Slicer::operator*()));
+		auto ptr = parent->__getAddr(Slicer::operator*());
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -694,7 +712,10 @@ public:
 	 */
 	T get() const
 	{
-		return castget(parent->__getAddr(Slicer::operator*()));
+		auto ptr = parent->__getAddr(Slicer::operator*());
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -853,12 +874,12 @@ public:
      */
     NDIter() {};
 
-	NDIter(std::shared_ptr<NDArray> in) 
+	NDIter(std::shared_ptr<NDArray> in)
 	{
         setArray(in);
 	};
 
-    void setArray(ptr<NDArray> in) 
+    void setArray(ptr<NDArray> in)
     {
         parent = in;
         setDim(in->ndim(), in->dim());
@@ -965,7 +986,10 @@ public:
 	 */
 	T operator*() const
 	{
-		return castget(parent->__getAddr(Slicer::operator*()));
+		auto ptr = parent->__getAddr(Slicer::operator*());
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -975,7 +999,10 @@ public:
 	 */
 	T get() const
 	{
-		return castget(parent->__getAddr(Slicer::operator*()));
+		auto ptr = parent->__getAddr(Slicer::operator*());
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -985,7 +1012,10 @@ public:
 	 */
 	void set(T v)
 	{
-		this->castset(parent->__getAddr(Slicer::operator*()), v);
+		auto ptr = parent->__getAddr(Slicer::operator*());
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		this->castset(ptr, v);
 	};
 
 	/**
@@ -1154,13 +1184,13 @@ template<class T> using OrderIter = NDIter<T>;
 template<class T> using OrderConstIter = NDConstIter<T>;
 
 /**
- * @brief Constant iterator for NDArray. This is slightly different from order 
- * iterator in that the ROI may be broken down into chunks. When the end of a 
- * chunk is reached, no more iteration can be performed until nextChunk() is 
- * called. isEnd() will return false until nextChunk() is called while the 
+ * @brief Constant iterator for NDArray. This is slightly different from order
+ * iterator in that the ROI may be broken down into chunks. When the end of a
+ * chunk is reached, no more iteration can be performed until nextChunk() is
+ * called. isEnd() will return false until nextChunk() is called while the
  * current chunk is at the last available. Note that if setBreaks
  * uses an array that is smaller than input dimension, then the whole of
- * the dimension will be used. 
+ * the dimension will be used.
  *
  * Usage:
  *
@@ -1181,7 +1211,7 @@ template<class T> using OrderConstIter = NDConstIter<T>;
  * @tparam T
  */
 template <typename T = double>
-class ChunkConstIter : public ChunkSlicer 
+class ChunkConstIter : public ChunkSlicer
 {
 public:
 
@@ -1191,7 +1221,7 @@ public:
      */
     ChunkConstIter() {};
 
-	ChunkConstIter(std::shared_ptr<const NDArray> in) 
+	ChunkConstIter(std::shared_ptr<const NDArray> in)
 	{
         setArray(in);
 	};
@@ -1308,7 +1338,10 @@ public:
 	 */
 	T operator*() const
 	{
-		return castget(parent->__getAddr(ChunkSlicer::operator*()));
+		auto ptr = parent->__getAddr(ChunkSlicer::operator*());
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -1318,7 +1351,10 @@ public:
 	 */
 	T get() const
 	{
-		return castget(parent->__getAddr(ChunkSlicer::operator*()));
+		auto ptr = parent->__getAddr(ChunkSlicer::operator*());
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -1479,7 +1515,7 @@ public:
      */
     ChunkIter() {};
 
-	ChunkIter(std::shared_ptr<NDArray> in) 
+	ChunkIter(std::shared_ptr<NDArray> in)
 	{
         setArray(in);
 	};
@@ -1585,7 +1621,7 @@ public:
 	};
 
 	/**
-	 * @brief NextChunk 
+	 * @brief NextChunk
 	 *
 	 * @return new value
 	 */
@@ -1613,7 +1649,10 @@ public:
 	 */
 	T operator*() const
 	{
-		return castget(parent->__getAddr(ChunkSlicer::operator*()));
+		auto ptr = parent->__getAddr(ChunkSlicer::operator*());
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -1623,7 +1662,10 @@ public:
 	 */
 	T get() const
 	{
-		return castget(parent->__getAddr(ChunkSlicer::operator*()));
+		auto ptr = parent->__getAddr(ChunkSlicer::operator*());
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -1633,7 +1675,10 @@ public:
 	 */
 	void set(T v)
 	{
-		this->castset(parent->__getAddr(ChunkSlicer::operator*()), v);
+		auto ptr = parent->__getAddr(ChunkSlicer::operator*());
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		this->castset(ptr, v);
 	};
 
 	/**
@@ -1826,7 +1871,7 @@ public:
         setArray(in);
 	};
 
-    void setArray(ptr<const NDArray> in) 
+    void setArray(ptr<const NDArray> in)
     {
 		setDim(in->ndim(), in->dim());
         parent = in;
@@ -1916,7 +1961,10 @@ public:
 	 */
 	T operator*() const
 	{
-		return castget(parent->__getAddr(KSlicer::operator*()));
+		auto ptr = parent->__getAddr(KSlicer::operator*());
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -1926,7 +1974,10 @@ public:
 	 */
 	T getC() const
 	{
-		return castget(parent->__getAddr(KSlicer::getC()));
+		auto ptr = parent->__getAddr(KSlicer::getC());
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -1937,7 +1988,10 @@ public:
 	 */
 	T getK(int64_t k) const
 	{
-		return castget(parent->__getAddr(KSlicer::getK(k)));
+		auto ptr = parent->__getAddr(KSlicer::getK(k));
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -1948,7 +2002,10 @@ public:
 	 */
 	T operator[](int64_t k) const
 	{
-		return castget(parent->__getAddr(KSlicer::getK(k)));
+		auto ptr = parent->__getAddr(KSlicer::getK(k));
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -2087,12 +2144,12 @@ public:
      */
     Vector3DIter() {};
 
-	Vector3DIter(std::shared_ptr<NDArray> in) 
+	Vector3DIter(std::shared_ptr<NDArray> in)
 	{
         setArray(in);
 	};
 
-    void setArray(ptr<NDArray> in) 
+    void setArray(ptr<NDArray> in)
     {
 		setDim(in->ndim(), in->dim());
         parent = in;
@@ -2214,7 +2271,10 @@ public:
 	 */
 	T operator*() const
 	{
-		return castget(parent->__getAddr(Slicer::operator*()));
+		auto ptr = parent->__getAddr(Slicer::operator*());
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -2224,7 +2284,10 @@ public:
 	 */
 	T get(int64_t i = 0) const
 	{
-		return castget(parent->__getAddr(Slicer::operator*()+i));
+		auto ptr = parent->__getAddr(Slicer::operator*()+1);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -2234,7 +2297,10 @@ public:
 	 */
 	T operator[](int64_t i) const
 	{
-		return castget(parent->__getAddr(Slicer::operator*()+i));
+		auto ptr = parent->__getAddr(Slicer::operator*()+i);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -2243,7 +2309,10 @@ public:
 	 */
 	void set(int64_t i, T v)
 	{
-		this->castset(parent->__getAddr(Slicer::operator*()+i), v);
+		auto ptr = parent->__getAddr(Slicer::operator*()+i);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		this->castset(ptr, v);
 	};
 
 	/**
@@ -2252,7 +2321,10 @@ public:
 	 */
 	void set(T v)
 	{
-		this->castset(parent->__getAddr(Slicer::operator*()), v);
+		auto ptr = parent->__getAddr(Slicer::operator*());
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		this->castset(ptr, v);
 	};
 
 	/**
@@ -2426,12 +2498,12 @@ public:
      */
 	Vector3DConstIter() {};
 
-	Vector3DConstIter(std::shared_ptr<const NDArray> in) 
+	Vector3DConstIter(std::shared_ptr<const NDArray> in)
 	{
         setArray(in);
 	};
-    
-    void setArray(ptr<const NDArray> in) 
+
+    void setArray(ptr<const NDArray> in)
     {
 		setDim(in->ndim(), in->dim());
         parent = in;
@@ -2536,7 +2608,10 @@ public:
 	 */
 	T operator*() const
 	{
-		return castget(parent->__getAddr(Slicer::operator*()));
+		auto ptr = parent->__getAddr(Slicer::operator*());
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -2546,7 +2621,10 @@ public:
 	 */
 	T get(int64_t i = 0) const
 	{
-		return castget(parent->__getAddr(Slicer::operator*()+i));
+		auto ptr = parent->__getAddr(Slicer::operator*()+i);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -2556,7 +2634,10 @@ public:
 	 */
 	T operator[](int64_t i) const
 	{
-		return castget(parent->__getAddr(Slicer::operator*()+i));
+		auto ptr = parent->__getAddr(Slicer::operator*()+i);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**

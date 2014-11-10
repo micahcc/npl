@@ -162,7 +162,10 @@ public:
 	 */
 	T operator[](int64_t index)
 	{
-		return castget(this->parent->__getAddr(index));
+		auto ptr = this->parent->__getAddr(index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -174,7 +177,10 @@ public:
 	 */
 	T get(const std::vector<int64_t>& index)
 	{
-		return castget(this->parent->__getAddr(index));
+		auto ptr = this->parent->__getAddr(index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -187,7 +193,10 @@ public:
 	 */
 	T get(size_t len, int64_t* index)
 	{
-		return castget(this->parent->__getAddr(len, index));
+		auto ptr = this->parent->__getAddr(len, index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -199,7 +208,10 @@ public:
 	 */
 	T operator[](const std::vector<int64_t>& index)
 	{
-		return castget(this->parent->__getAddr(index));
+		auto ptr = this->parent->__getAddr(index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -213,7 +225,10 @@ public:
 	 */
 	void set(size_t len, const int64_t* index, T v)
 	{
-		return castset(this->parent->__getAddr(len, index), v);
+		auto ptr = this->parent->__getAddr(len, index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castset(ptr, v);
 	};
 
 	/**
@@ -226,7 +241,10 @@ public:
 	 */
 	void set(const std::vector<int64_t>& index, T v)
 	{
-		return castset(this->parent->__getAddr(index), v);
+		auto ptr = this->parent->__getAddr(index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castset(ptr, v);
 	};
 
 	/**
@@ -239,7 +257,10 @@ public:
 	 */
 	void set(int64_t index, T v)
 	{
-		return castset(this->parent->__getAddr(index), v);
+		auto ptr = this->parent->__getAddr(index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castset(ptr, v);
 	};
 
 	int64_t tlen() { return this->parent->tlen(); };
@@ -386,7 +407,10 @@ public:
 	 */
 	T operator[](int64_t index)
 	{
-		return castget(this->parent->__getAddr(index));
+		auto ptr = this->parent->__getAddr(index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -398,7 +422,10 @@ public:
 	 */
 	T get(const std::vector<int64_t>& index)
 	{
-		return castget(this->parent->__getAddr(index));
+		auto ptr = this->parent->__getAddr(index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -411,7 +438,10 @@ public:
 	 */
 	T get(size_t len, int64_t* index)
 	{
-		return castget(this->parent->__getAddr(len, index));
+		auto ptr = this->parent->__getAddr(len, index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -423,7 +453,10 @@ public:
 	 */
 	T operator[](const std::vector<int64_t>& index)
 	{
-		return castget(this->parent->__getAddr(index));
+		auto ptr = this->parent->__getAddr(index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	int64_t tlen() { return this->parent->tlen(); };
@@ -483,7 +516,10 @@ public:
 	 */
 	T operator()(int64_t x=0, int64_t y=0, int64_t z=0)
 	{
-		return this->castget(this->parent->__getAddr(x,y,z,0));
+		auto ptr = this->parent->__getAddr(x,y,z,0);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return this->castget(ptr);
 	};
 
 	/**
@@ -493,7 +529,10 @@ public:
 	 */
 	T get(int64_t x, int64_t y, int64_t z)
 	{
-		return this->castget(this->parent->__getAddr(x,y,z,0));
+		auto ptr = this->parent->__getAddr(x,y,z,0);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return this->castget(ptr);
 	};
 
 	/**
@@ -503,7 +542,10 @@ public:
 	 */
 	void set(int64_t x, int64_t y, int64_t z, T v)
 	{
-		this->castset(this->parent->__getAddr(x,y,z,0), v);
+		auto ptr = this->parent->__getAddr(x,y,z,0);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		this->castset(ptr, v);
 	};
 
 protected:
@@ -536,10 +578,13 @@ public:
 	 * @return value
 	 */
 	virtual
-		T operator()(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
-		{
-			return this->castget(this->parent->__getAddr(x,y,z,t));
-		};
+	T operator()(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
+	{
+		auto ptr = this->parent->__getAddr(x,y,z,t);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return this->castget(ptr);
+	};
 
 	/**
 	 * @brief Gets value at array index and then casts to T
@@ -547,10 +592,13 @@ public:
 	 * @return value
 	 */
 	virtual
-		T get(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
-		{
-			return this->castget(this->parent->__getAddr(x,y,z,t));
-		};
+	T get(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
+	{
+		auto ptr = this->parent->__getAddr(x,y,z,t);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return this->castget(ptr);
+	};
 
 private:
 	//////////////////////////////////////////////////////
@@ -564,7 +612,10 @@ private:
 	 */
 	T operator[](int64_t index)
 	{
-		return castget(this->parent->__getAddr(index));
+		auto ptr = this->parent->__getAddr(index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -576,7 +627,10 @@ private:
 	 */
 	T get(const std::vector<int64_t>& index)
 	{
-		return castget(this->parent->__getAddr(index));
+		auto ptr = this->parent->__getAddr(index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -589,7 +643,10 @@ private:
 	 */
 	T get(size_t len, int64_t* index)
 	{
-		return castget(this->parent->__getAddr(len, index));
+		auto ptr = this->parent->__getAddr(len, index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -601,7 +658,10 @@ private:
 	 */
 	T operator[](const std::vector<int64_t>& index)
 	{
-		return castget(this->parent->__getAddr(index));
+		auto ptr = this->parent->__getAddr(index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 };
@@ -628,7 +688,10 @@ public:
 	 */
 	T operator()(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
-		return this->castget(this->parent->__getAddr(x,y,z,t));
+		auto ptr = this->parent->__getAddr(x,y,z,t);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return this->castget(ptr);
 	};
 
 	/**
@@ -638,7 +701,10 @@ public:
 	 */
 	T get(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
-		return this->castget(this->parent->__getAddr(x,y,z,t));
+		auto ptr = this->parent->__getAddr(x,y,z,t);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return this->castget(ptr);
 	};
 
 	/**
@@ -648,7 +714,10 @@ public:
 	 */
 	void set(int64_t x, int64_t y, int64_t z, int64_t t, T v)
 	{
-		this->castset(this->parent->__getAddr(x,y,z,t), v);
+		auto ptr = this->parent->__getAddr(x,y,z,t);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		this->castset(ptr, v);
 	};
 private:
 	//////////////////////////////////////////////////////
@@ -662,7 +731,10 @@ private:
 	 */
 	T operator[](int64_t index)
 	{
-		return castget(this->parent->__getAddr(index));
+		auto ptr = this->parent->__getAddr(index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -674,7 +746,10 @@ private:
 	 */
 	T get(const std::vector<int64_t>& index)
 	{
-		return castget(this->parent->__getAddr(index));
+		auto ptr = this->parent->__getAddr(index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -687,7 +762,10 @@ private:
 	 */
 	T get(size_t len, int64_t* index)
 	{
-		return castget(this->parent->__getAddr(len, index));
+		auto ptr = this->parent->__getAddr(len, index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -699,7 +777,10 @@ private:
 	 */
 	T operator[](const std::vector<int64_t>& index)
 	{
-		return castget(this->parent->__getAddr(index));
+		auto ptr = this->parent->__getAddr(index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	/**
@@ -713,7 +794,10 @@ private:
 	 */
 	void set(size_t len, const int64_t* index, T v)
 	{
-		return castset(this->parent->__getAddr(len, index), v);
+		auto ptr = this->parent->__getAddr(len, index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castset(ptr, v);
 	};
 
 	/**
@@ -726,7 +810,10 @@ private:
 	 */
 	void set(const std::vector<int64_t>& index, T v)
 	{
-		return castset(this->parent->__getAddr(index), v);
+		auto ptr = this->parent->__getAddr(index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castset(ptr, v);
 	};
 
 	/**
@@ -739,7 +826,10 @@ private:
 	 */
 	void set(int64_t index, T v)
 	{
-		return castset(this->parent->__getAddr(index), v);
+		auto ptr = this->parent->__getAddr(index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castset(ptr, v);
 	};
 
 };
@@ -983,7 +1073,10 @@ public:
 				}
 			}
 
-			T v = this->castget(this->parent->__getAddr(ndim, index));
+			auto ptr = this->parent->__getAddr(ndim, index);
+			assert(ptr >= this->parent->__getAddr(0) &&
+					ptr < this->parent->__getAddr(this->parent->elements()));
+			T v = this->castget(ptr);
 			pixval += weight*v;
 		} while(count.advance());
 
@@ -1112,7 +1205,10 @@ public:
 				}
 			}
 
-			T v = this->castget(this->parent->__getAddr(index[0], index[1],index[2],t));
+			auto ptr = this->parent->__getAddr(index[0], index[1],index[2],t);
+			assert(ptr >= this->parent->__getAddr(0) &&
+					ptr < this->parent->__getAddr(this->parent->elements()));
+			T v = this->castget(ptr);
 			pixval += weight*v;
 		} while(count.advance());
 
@@ -1353,7 +1449,10 @@ public:
 			}
 		}
 
-		return this->castget(this->parent->__getAddr(ndim, index));
+		auto ptr = this->parent->__getAddr(ndim, index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return this->castget(ptr);
 	}
 
 	/**
@@ -1386,7 +1485,10 @@ private:
 	 */
 	T operator[](int64_t index)
 	{
-		return castget(this->parent->__getAddr(index));
+		auto ptr = this->parent->__getAddr(index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 };
 
@@ -1475,7 +1577,10 @@ public:
 			}
 		}
 
-		return this->castget(this->parent->__getAddr(i,j,k,t));
+		auto ptr = this->parent->__getAddr(i,j,k,t);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return this->castget(ptr);
 	};
 
 	/**
@@ -1690,7 +1795,10 @@ public:
 				}
 			}
 
-			T v = this->castget(this->parent->__getAddr(ndim, index));
+			auto ptr = this->parent->__getAddr(ndim, index);
+			assert(ptr >= this->parent->__getAddr(0) &&
+					ptr < this->parent->__getAddr(this->parent->elements()));
+			T v = this->castget(ptr);
 			pixval += weight*v;
 		} while(count.advance());
 
@@ -1714,7 +1822,10 @@ protected:
 	 */
 	T operator[](int64_t index)
 	{
-		return castget(this->parent->__getAddr(index));
+		auto ptr = this->parent->__getAddr(index);
+		assert(ptr >= this->parent->__getAddr(0) &&
+				ptr < this->parent->__getAddr(this->parent->elements()));
+		return castget(ptr);
 	};
 
 	int64_t m_radius;
@@ -1864,7 +1975,10 @@ public:
 				}
 			}
 
-			T v = this->castget(this->parent->__getAddr(index[0], index[1],index[2],t));
+			auto ptr = this->parent->__getAddr(index[0], index[1],index[2],t);
+			assert(ptr >= this->parent->__getAddr(0) &&
+					ptr < this->parent->__getAddr(this->parent->elements()));
+			T v = this->castget(ptr);
 			pixval += weight*v;
 		} while(count.advance());
 
@@ -2040,7 +2154,10 @@ public:
 			border |= iioutside;
 
 			// Compute Values
-			T v = this->castget(this->parent->__getAddr(ndim, index));
+			auto ptr = this->parent->__getAddr(ndim, index);
+			assert(ptr >= this->parent->__getAddr(0) &&
+					ptr < this->parent->__getAddr(this->parent->elements()));
+			T v = this->castget(ptr);
 			dval += dweight*v;
 			val += weight*v;
 		} while(count.advance());
@@ -2117,7 +2234,10 @@ public:
 			}
 
 			border |= iioutside;
-			T v = this->castget(this->parent->__getAddr(ndim, index));
+			auto ptr = this->parent->__getAddr(ndim, index);
+			assert(ptr >= this->parent->__getAddr(0) &&
+					ptr < this->parent->__getAddr(this->parent->elements()));
+			T v = this->castget(ptr);
 			val += weight*v;
 		} while(count.advance());
 
@@ -2220,7 +2340,7 @@ public:
 		double dphi2_dxy = 0;
 		double dphi2_dyz = 0;
 
-		// We use NN interpolator because it is fast and handles boundary 
+		// We use NN interpolator because it is fast and handles boundary
 		// conditions
 		NNInterpNDView<double> dvw(params);
 		double ind[3];
@@ -2360,7 +2480,7 @@ public:
 	/**
 	 * @brief Computes the regularization term by integrating over the
 	 * entire space for each knot. Thankfully integrals can be pre-computed
-	 * (vConv, dvConv, ddvConv). See equations 66-71 in 
+	 * (vConv, dvConv, ddvConv). See equations 66-71 in
 	 * docs/bspline/fmri_dist_correct_2013-12-06.pdf
 	 *
 	 * @return regularization value
@@ -2372,7 +2492,7 @@ public:
 		auto params = getParams();
 		assert(params->ndim() == 3);
 
-		// We use NN interpolator because it is fast and handles boundary 
+		// We use NN interpolator because it is fast and handles boundary
 		// conditions
 		NNInterpNDView<double> dvw(params);
 		double ind[3];
@@ -2415,10 +2535,10 @@ public:
 	/**
 	 * @brief Computes the gradient of regularization for each of the knots.
 	 * Thankfully integrals can be pre-computed
-	 * (uConv, duConv, dduConv). See equations 54-59 in 
+	 * (uConv, duConv, dduConv). See equations 54-59 in
 	 * docs/bspline/fmri_dist_correct_2013-12-06.pdf
 	 *
-	 * @param output gradient of each parameter with respect to the deform 
+	 * @param output gradient of each parameter with respect to the deform
 	 * 			regularization
 	 */
 	double jacobianDet(int dir, size_t len, double* grad)
@@ -2430,7 +2550,7 @@ public:
 		if(len != getParams()->elements())
 			throw INVALID_ARGUMENT("Incorrect length of grad array");
 
-		// We use NN interpolator because it is fast and handles boundary 
+		// We use NN interpolator because it is fast and handles boundary
 		// conditions
 		NNInterpNDView<double> dvw(params);
 		double ind[3];
@@ -2520,7 +2640,7 @@ public:
 		{0.08333333333333333,0.25,-0.75,0.4166666666666667,0.},
 		{0.,0.08333333333333333,-0.125,0.,0.041666666666666664}};
 
-	double U200[9][9][9] = 
+	double U200[9][9][9] =
 {{{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
   {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
   {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
@@ -2995,7 +3115,7 @@ public:
   {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
   {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}}};
 
-	double U110[9][9][9] = 
+	double U110[9][9][9] =
 {{{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
 	{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
 	{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
@@ -3470,7 +3590,7 @@ public:
 	{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
 	{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}}};
 
-double U100[9][9][9] = 
+double U100[9][9][9] =
 {{{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
   {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
   {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
