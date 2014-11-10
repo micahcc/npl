@@ -59,6 +59,7 @@ using Eigen::AngleAxisd;
 
 /**
  * @brief Computes the derivative of the image in the specified direction.
+ * The output will be the same size as the input.
  *
  * @param in    Input image/NDArray
  * @param dir   Specify the dimension
@@ -67,13 +68,49 @@ using Eigen::AngleAxisd;
  */
 ptr<NDArray> derivative(ptr<const NDArray> in, size_t dir)
 {
-    if(dir >= in->ndim())
-        throw std::invalid_argument("Input direction is outside range of "
-                "input dimensions in\n" + __FUNCTION_STR__);
+	if(dir >= in->ndim())
+		throw std::invalid_argument("Input direction is outside range of "
+				"input dimensions in\n" + __FUNCTION_STR__);
 
-    auto out = in->copy();
-	derivative(in, out, dir);
-    return out;
+	auto out = in->copy();
+	vector<int64_t> index(in->ndim());
+	NDConstView<double> inGet(in);
+
+	NDIter<double> oit(out);
+	for(oit.goBegin(); !oit.eof(); ++oit) {
+		// get index
+		oit.index(index.size(), index.data());
+
+		double dx = 0;
+		double dy = 0;
+
+		// before
+		if(index[dir] == 0) {
+			dy -= inGet[index];
+		} else {
+			index[dir]--;
+			dy -= inGet[index];
+			dx++;
+			index[dir]++;
+		}
+
+		// after
+		if(index[dir] == in->dim(dir)-1) {
+			dy += inGet[index];
+		} else {
+			index[dir]++;
+			dy += inGet[index];
+			dx++;
+		}
+
+		// set
+		if(fabs(dy) < 0.00000000001)
+			oit.set(0);
+		else
+			oit.set(dy/dx);
+	}
+
+	return out;
 }
 
 /**
@@ -86,48 +123,53 @@ ptr<NDArray> derivative(ptr<const NDArray> in, size_t dir)
  */
 int derivative(ptr<const NDArray> in, ptr<NDArray> out, size_t dir)
 {
-    if(dir >= in->ndim())
-        throw std::invalid_argument("Input direction is outside range of "
-                "input dimensions in\n" + __FUNCTION_STR__);
+	if(out->ndim() != in->ndim() + 1 || out->dim(in->ndim()) != in->ndim()){
+		throw INVALID_ARGUMENT("Input derivative image should have 1 extra "
+				"dimension of length = input dim");
+	}
+	if(dir >= in->ndim()) {
+		throw INVALID_ARGUMENT("Input direction is outside range of "
+				"input dimensions in");
+	}
 
-    vector<int64_t> index(in->ndim());
-    NDConstView<double> inGet(in);
+	vector<int64_t> index(in->ndim());
+	NDConstView<double> inGet(in);
 
-    Vector3DIter<double> oit(out);
-    for(oit.goBegin(); !oit.eof(); ++oit) {
-        // get index
-        oit.index(index.size(), index.data());
+	Vector3DIter<double> oit(out);
+	for(oit.goBegin(); !oit.eof(); ++oit) {
+		// get index
+		oit.index(index.size(), index.data());
 
-        double dx = 0;
-        double dy = 0;
+		double dx = 0;
+		double dy = 0;
 
-        // before
-        if(index[dir] == 0) {
-            dy -= inGet[index];
-        } else {
-            index[dir]--;
-            dy -= inGet[index];
-            dx++;
-            index[dir]++;
-        }
+		// before
+		if(index[dir] == 0) {
+			dy -= inGet[index];
+		} else {
+			index[dir]--;
+			dy -= inGet[index];
+			dx++;
+			index[dir]++;
+		}
 
-        // after
-        if(index[dir] == in->dim(dir)-1) {
-            dy += inGet[index];
-        } else {
-            index[dir]++;
-            dy += inGet[index];
-            dx++;
-        }
+		// after
+		if(index[dir] == in->dim(dir)-1) {
+			dy += inGet[index];
+		} else {
+			index[dir]++;
+			dy += inGet[index];
+			dx++;
+		}
 
-        // set
-        if(fabs(dy) < 0.00000000001)
-            oit.set(dir, 0);
-        else
-            oit.set(dir, dy/dx);
-    }
+		// set
+		if(fabs(dy) < 0.00000000001)
+			oit.set(dir, 0);
+		else
+			oit.set(dir, dy/dx);
+	}
 
-    return 0;
+	return 0;
 }
 
 /**
@@ -145,12 +187,12 @@ int derivative(ptr<const NDArray> in, ptr<NDArray> out, size_t dir)
  */
 ptr<NDArray> derivative(ptr<const NDArray> in)
 {
-    vector<size_t> osize(in->dim(), in->dim()+in->ndim());
-    osize.push_back(in->ndim());
-    auto out = in->createAnother(osize.size(), osize.data());
+	vector<size_t> osize(in->dim(), in->dim()+in->ndim());
+	osize.push_back(in->ndim());
+	auto out = in->createAnother(osize.size(), osize.data());
 
 	derivative(in, out);
-    return out;
+	return out;
 }
 
 /**
@@ -177,48 +219,48 @@ int derivative(ptr<const NDArray> in, ptr<NDArray> out)
 			throw INVALID_ARGUMENT("Input and Output sizes differ");
 	}
 
-    vector<int64_t> index(in->ndim());
-    NDConstView<double> inGet(in);
+	vector<int64_t> index(in->ndim());
+	NDConstView<double> inGet(in);
 
-    Vector3DIter<double> oit(out);
-    for(oit.goBegin(); !oit.eof(); ++oit) {
-        // get index
-        oit.index(index.size(), index.data());
+	Vector3DIter<double> oit(out);
+	for(oit.goBegin(); !oit.eof(); ++oit) {
+		// get index
+		oit.index(index.size(), index.data());
 
-        // compute derivative in each direction
-        for(size_t dd=0; dd<in->ndim(); dd++) {
-            double dx = 0;
-            double dy = 0;
+		// compute derivative in each direction
+		for(size_t dd=0; dd<in->ndim(); dd++) {
+			double dx = 0;
+			double dy = 0;
 
-            // before
-            if(index[dd] == 0) {
-                dy -= inGet[index];
-            } else {
-                index[dd]--;
-                dy -= inGet[index];
-                dx++;
-                index[dd]++;
-            }
+			// before
+			if(index[dd] == 0) {
+				dy -= inGet[index];
+			} else {
+				index[dd]--;
+				dy -= inGet[index];
+				dx++;
+				index[dd]++;
+			}
 
-            // after
-            if(index[dd] == in->dim(dd)-1) {
-                dy += inGet[index];
-            } else {
-                index[dd]++;
-                dy += inGet[index];
-                dx++;
-                index[dd]--;
-            }
+			// after
+			if(index[dd] == in->dim(dd)-1) {
+				dy += inGet[index];
+			} else {
+				index[dd]++;
+				dy += inGet[index];
+				dx++;
+				index[dd]--;
+			}
 
-            // set
-            if(fabs(dy) < 0.00000000001)
-                oit.set(dd, 0);
-            else
-                oit.set(dd, dy/dx);
-        }
-    }
+			// set
+			if(fabs(dy) < 0.00000000001)
+				oit.set(dd, 0);
+			else
+				oit.set(dd, dy/dx);
+		}
+	}
 
-    return 0;
+	return 0;
 }
 
 //ptr<NDArray> ppfft(ptr<NDArray> in, size_t len, size_t* dims)
