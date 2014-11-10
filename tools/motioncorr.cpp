@@ -243,13 +243,13 @@ int main(int argc, char** argv)
 			"deviations. These are the steps of the registration.", false, 
 			"sd", cmd);
 	TCLAP::ValueArg<double> a_minstep("", "minstep", "Minimum step", 
-			false, 1e-10, "float", cmd);
+			false, 1e-3, "float", cmd);
 	TCLAP::ValueArg<double> a_maxstep("", "maxstep", "Maximum step", 
-			false, 0.1, "float", cmd);
+			false, 1, "float", cmd);
 	TCLAP::ValueArg<int> a_lbfgs_hist("", "hist", "History for L-BFGS", 
-			false, 5, "int", cmd);
+			false, 4, "int", cmd);
 	TCLAP::ValueArg<double> a_beta("", "reduction", "Reduction in step size", 
-			false, 0.7, "float", cmd);
+			false, 0.35, "float", cmd);
 	TCLAP::ValueArg<int> a_padsize("", "pad", "Number of pixels to pad during "
 			"registration. Reduces information lost, and stabilizes "
 			"registration (slightly).", false, 3, "pixels", cmd);
@@ -277,7 +277,7 @@ int main(int argc, char** argv)
 	vector<vector<double>> motion;
 
 	// set up sigmas
-	vector<double> sigmas({3,1.5,1,0.5,0});
+	vector<double> sigmas({2,1,0.5});
 	if(a_sigmas.isSet()) 
 		sigmas.assign(a_sigmas.begin(), a_sigmas.end());
 	
