@@ -780,16 +780,7 @@ void RigidCorrComputer::setMoving(ptr<const MRImage> newmove)
 		throw INVALID_ARGUMENT("Moving and Fixed Images must have the same "
 				"orientation and gred!");
 	}
-
-	if(!m_dmoving || !newmove->matchingOrient(m_dmoving, false, true)) {
-#ifndef NDEBUG
-		cerr << "Allocating derivative image" << endl;
-#endif //NDEBUG
-		m_dmoving = dPtrCast<MRImage>(derivative(m_moving));
-	} else {
-		// Just fill in existing image
-		derivative(m_moving, m_dmoving);
-	}
+	m_dmoving = dPtrCast<MRImage>(derivative(m_moving));
 
 	for(size_t ii=0; ii<3 && ii<m_moving->ndim(); ii++)
 		m_center[ii] = (m_moving->dim(ii)-1)/2.;
@@ -856,16 +847,7 @@ void RigidInformationComputer::setMoving(ptr<const MRImage> newmove)
 	// Setup accessors and Members Images
 	//////////////////////////////////////
 	m_moving = newmove;
-
-	if(!m_dmoving || !newmove->matchingOrient(m_dmoving, false, true)) {
-#ifndef NDEBUG
-		cerr << "Allocating derivative image" << endl;
-#endif //NDEBUG
-		m_dmoving = dPtrCast<MRImage>(derivative(m_moving));
-	} else {
-		// Just fill in existing image
-		derivative(m_moving, m_dmoving);
-	}
+	m_dmoving = dPtrCast<MRImage>(derivative(m_moving));
 
 	m_move_get.setArray(m_moving);
 	m_dmove_get.setArray(m_dmoving);
@@ -1500,15 +1482,7 @@ void DistortionCorrectionInformationComputer::setMoving(
 	else
 		m_dir = 1;
 
-	if(!m_dmoving || !newmove->matchingOrient(m_dmoving, false, true)) {
-#ifndef NDEBUG
-		cerr << "Allocating derivative image" << endl;
-#endif //NDEBUG
-		m_dmoving = dPtrCast<MRImage>(derivative(m_moving, m_dir));
-	} else {
-		// Just fill in existing image
-		derivative(m_moving, m_dmoving, m_dir);
-	}
+	m_dmoving = dPtrCast<MRImage>(derivative(m_moving, m_dir));
 
 	// must include 0 because outside values get mapped to 0
 	m_rangemove[0] = 0;
