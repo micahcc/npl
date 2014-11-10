@@ -114,88 +114,6 @@ ptr<NDArray> derivative(ptr<const NDArray> in, size_t dir)
 }
 
 /**
- * @brief Computes the derivative of the image in the specified direction.
- *
- * @param in    Input image/NDArray
- * @param dir   Specify the dimension
- *
- * @return      Image storing the directional derivative of in
- */
-int derivative(ptr<const NDArray> in, ptr<NDArray> out, size_t dir)
-{
-	if(out->ndim() != in->ndim() + 1 || out->dim(in->ndim()) != in->ndim()){
-		throw INVALID_ARGUMENT("Input derivative image should have 1 extra "
-				"dimension of length = input dim");
-	}
-	if(dir >= in->ndim()) {
-		throw INVALID_ARGUMENT("Input direction is outside range of "
-				"input dimensions in");
-	}
-
-	vector<int64_t> index(in->ndim());
-	NDConstView<double> inGet(in);
-
-	Vector3DIter<double> oit(out);
-	for(oit.goBegin(); !oit.eof(); ++oit) {
-		// get index
-		oit.index(index.size(), index.data());
-
-		double dx = 0;
-		double dy = 0;
-
-		// before
-		if(index[dir] == 0) {
-			dy -= inGet[index];
-		} else {
-			index[dir]--;
-			dy -= inGet[index];
-			dx++;
-			index[dir]++;
-		}
-
-		// after
-		if(index[dir] == in->dim(dir)-1) {
-			dy += inGet[index];
-		} else {
-			index[dir]++;
-			dy += inGet[index];
-			dx++;
-		}
-
-		// set
-		if(fabs(dy) < 0.00000000001)
-			oit.set(dir, 0);
-		else
-			oit.set(dir, dy/dx);
-	}
-
-	return 0;
-}
-
-/**
- * @brief Computes the derivative of the image. Computes all
- * directional derivatives of the input image and the output
- * image will have 1 higher dimension with derivative of 0 in the first volume
- * 1 in the second and so on.
- *
- * Thus a 2D image will produce a [X,Y,2] image and a 3D image will produce a
- * [X,Y,Z,3] sized image.
- *
- * @param in    Input image/NDArray
- *
- * @return
- */
-ptr<NDArray> derivative(ptr<const NDArray> in)
-{
-	vector<size_t> osize(in->dim(), in->dim()+in->ndim());
-	osize.push_back(in->ndim());
-	auto out = in->createAnother(osize.size(), osize.data());
-
-	derivative(in, out);
-	return out;
-}
-
-/**
  * @brief Computes the derivative of the image. Computes all
  * directional derivatives of the input image and the output
  * image will have 1 higher dimension with derivative of 0 in the first volume
@@ -261,6 +179,30 @@ int derivative(ptr<const NDArray> in, ptr<NDArray> out)
 	}
 
 	return 0;
+}
+
+
+/**
+ * @brief Computes the derivative of the image. Computes all
+ * directional derivatives of the input image and the output
+ * image will have 1 higher dimension with derivative of 0 in the first volume
+ * 1 in the second and so on.
+ *
+ * Thus a 2D image will produce a [X,Y,2] image and a 3D image will produce a
+ * [X,Y,Z,3] sized image.
+ *
+ * @param in    Input image/NDArray
+ *
+ * @return
+ */
+ptr<NDArray> derivative(ptr<const NDArray> in)
+{
+	vector<size_t> osize(in->dim(), in->dim()+in->ndim());
+	osize.push_back(in->ndim());
+	auto out = in->createAnother(osize.size(), osize.data());
+
+	derivative(in, out);
+	return out;
 }
 
 //ptr<NDArray> ppfft(ptr<NDArray> in, size_t len, size_t* dims)
