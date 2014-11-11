@@ -41,7 +41,11 @@ using namespace std;
 int main(int argc, char** argv)
 {
 	cerr << "Version: " << __version__ << endl;
-try {
+	cerr << "Command Line: " << endl;
+	for(int ii=0; ii<argc; ii++)
+		cerr << argv[ii] << " ";
+
+	try {
 	/*
 	 * Command Line
 	 */
@@ -191,28 +195,58 @@ try {
 		transform->write(a_transform.getValue());
 
 	if(a_out.isSet()) {
-		// Apply Rigid Transform.
-		// Copy input moving then sample
+//		if(a_dir.isSet()) { 
+//		} else 
+		if(transform->m_phasedim >= 0) {
+
+		} else {
+			cerr << "Phase Dim not set in transform! Which way is the "
+				"distortion?" << endl;
+			return -1;
+		}
+
+		int dir = transform->m_phasedim;
 		auto out = dPtrCast<MRImage>(moving->copy());
+		NDConstView<double> move_vw(moving);
+		BSplineView<double> bsp_vw(transform);
+		bsp_vw.m_boundmethod = ZEROFLUX;
+		bsp_vw.m_ras = true;
 
-		// Create Sampler for Transform and moving view
-		BSplineView<double> bvw(transform);
-		bvw.m_ras = true;
-		LanczosInterpNDView<double> mvw(moving);
+		// Compute Probabilities
+		size_t dirlen = moving->dim(dir);
+		double dcind[3]; // index in distortion image
+		int64_t mind[3] ;
+		double pt[3]; // point
+		double Fm = 0;
+		for(NDIter<double> oit(out); !oit.eof(); ++oit) {
 
-		// Temps
-		vector<double> cind(ndim);
-		vector<double> pt(ndim);
-		double def;
-		double ddef;
+			// Compute Continuous Index of Point in Deform Image
+			oit.index(3, mind);
+			out->indexToPoint(3, mind, pt);
+			transform->pointToIndex(3, pt, dcind);
 
-		// Iterate over output, and apply transform
-		for(NDIter<double> it(out); !it.eof(); ++it) {
-			it.index(cind);
-			out->indexToPoint(cind.size(), cind.data(), pt.data());
-			bvw.get(pt.size(), pt.data(), transform->m_phasedim, def, ddef);
-			cind[dir] += def;
-			it.set(mvw.get(cind)*(1+ddef));
+			// Sample B-Spline Value and Derivative at Current Position
+			double def = 0, ddef = 0;
+			bsp_vw.get(3, pt, dir, def, ddef);
+
+			// get linear index
+			double cind = mind[dir] + def/moving->spacing(dir);
+			int64_t below = (int64_t)floor(cind);
+			int64_t above = below + 1;
+			Fm = 0;
+
+			// get values
+			if(below >= 0 && below < dirlen) {
+				mind[dir] = below;
+				Fm += move_vw.get(3, mind)*linKern(below-cind);
+			}
+			if(above >= 0 && above < dirlen) {
+				mind[dir] = above;
+				Fm += move_vw.get(3, mind)*linKern(above-cind);
+			}
+
+			if(Fm < 1e-10 || ddef < -1) Fm = 0;
+			oit.set(Fm*(1+ddef));
 		}
 		out->write(a_out.getValue());
 	}
