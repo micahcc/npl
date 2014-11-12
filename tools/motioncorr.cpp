@@ -233,7 +233,7 @@ int main(int argc, char** argv)
 			"text file. Columns are Center (x,y,z), Rotation (in radians) "
 			"about axes x/y/z through the center and shift (x,y,z).", 
 			false, "", "*.txt", cmd);
-	TCLAP::ValueArg<string> a_inmotion("M", "inmotion", "Input motion as 9 "
+	TCLAP::ValueArg<string> a_inmotion("a", "apply", "Apply motion from 9 "
 			"column text file. Columns are Center (x,y,z), Rotation (in "
 			"radians) through the center x/y/z and shift (x,y,z). "
 			"If this is set, then instead of estimating motion, the inverse "
@@ -262,6 +262,9 @@ int main(int argc, char** argv)
 	
 	// read fMRI
 	ptr<MRImage> fmri = readMRImage(a_in.getValue());
+	if(!fmri->floatType())
+		fmri = dPtrCast<MRImage>(fmri->copyCast(FLOAT32));
+
 	if(fmri->tlen() == 1 || fmri->ndim() != 4) {
 		cerr << "Expect a 4D Image, but input had " << fmri->ndim() << 
 			" dimensions  and " << fmri->tlen() << " volumes." << endl;
