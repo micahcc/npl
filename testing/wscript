@@ -354,6 +354,16 @@ def build(bld):
 			source='expmax_test1.cpp',
 			use='statistics basic_plot')
 
+	bld.program(install_path='${PREFIX}/tests', features='test',
+			target='partial_corr_test',
+			source='partial_corr_test.cpp',
+			use='EIGEN')
+
+	bld.program(install_path='${PREFIX}/tests', #features='test',
+			target='partial_corr_test_big',
+			source='partial_corr_test_big.cpp',
+			use='EIGEN')
+
 	# Registration Testing
 	bld.program(install_path='${PREFIX}/tests', features='test',
 			target='rigid_transform_test',
