@@ -433,6 +433,24 @@ ptr<NDArray> relabelConnected(ptr<NDArray> input);
 double otsuThresh(ptr<const NDArray> in);
 
 /**
+ * @brief Binarize an image to 0 or 1 based on whether it is greater than or
+ * less than the given threshold (t). In-place version (IP)
+ *
+ * @param in Input image.
+ * @param t Threshold to apply to the image.
+ */
+void binarizeIP(ptr<NDArray> in, double t);
+
+/**
+ * @brief Binarize an image to 0 or 1 based on whether it is greater than or
+ * less than the given threshold (t)
+ *
+ * @param in Input image.
+ * @param t Threshold to apply to the image.
+ */
+ptr<NDArray> binarize(ptr<const NDArray> in, double t);
+
+/**
  * @brief Thresholds the image, changing everything below t to 0
  *
  * @param in Input image.

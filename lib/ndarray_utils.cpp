@@ -2364,13 +2364,44 @@ ptr<NDArray> histEqualize(ptr<const NDArray> in)
  *
  * @param in Input image.
  * @param t Threshold to apply to the image.
+ */
+void binarizeIP(ptr<NDArray> in, double t)
+{
+	for(FlatIter<double> it(in); !it.eof(); ++it) {
+		if(*it < t)
+			it.set(0);
+		else
+			it.set(1);
+	}
+}
+
+/**
+ * @brief Thresholds the image, changing everything below t to 0
+ *
+ * @param in Input image.
+ * @param t Threshold to apply to the image.
+ *
+ * @return Threshold image
+ */
+ptr<NDArray> binarize(ptr<const NDArray> in, double t)
+{
+	auto out = in->copy();
+	binarizeIP(out, t);
+	return out;
+}
+
+/**
+ * @brief Thresholds the image, changing everything below t to 0
+ *
+ * @param in Input image.
+ * @param t Threshold to apply to the image.
  *
  * @return Threshold image
  */
 ptr<NDArray> threshold(ptr<const NDArray> in, double t)
 {
 	auto out = in->copy();
-	threshold(out, t);
+	thresholdIP(out, t);
 	return out;
 }
 

@@ -263,7 +263,7 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
  *
  * @return parameters of bspline
  */
-ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
+ptr<MRImage> infoDistCor(ptr<const MRImage> infixed, ptr<const MRImage> inmoving,
 		bool otsu, int dir, double bspace, double jac, double tps,
 		const std::vector<double>& sigmas,
 		size_t nbins, size_t binradius, string metric,
@@ -274,7 +274,7 @@ ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 	size_t pp;
 
 	// make sure the input image has matching properties
-	if(!fixed->matchingOrient(moving, true, true))
+	if(!infixed->matchingOrient(inmoving, true, true))
 		throw std::invalid_argument("Input images have mismatching pixels "
 				"in\n" + __FUNCTION_STR__);
 
@@ -289,6 +289,24 @@ ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 	else if(metric == "VI") {
 		comp.m_metric = METRIC_VI;
 	}
+
+	// CREATE MASK
+
+	ptr<MRImage> mmask, fmask;
+	ptr<MRImage> moving, fixed;
+	if(otsu) {
+		double mthresh = otsuThresh(inmoving);
+		mmask = dPtrCast<MRImage>(binarize(inmoving, mthresh));
+		moving = dPtrCast<MRImage>(threshold(inmoving, mthresh));
+
+		double fthresh = otsuThresh(infixed);
+		fmask = dPtrCast<MRImage>(binarize(infixed, fthresh));
+		fixed = dPtrCast<MRImage>(threshold(infixed, fthresh));
+	} else {
+		fixed = dPtrCast<MRImage>(infixed->copy());
+		moving = dPtrCast<MRImage>(inmoving->copy());
+	}
+
 	comp.m_jac_reg = jac;
 	comp.m_tps_reg = tps;
 
@@ -309,10 +327,18 @@ ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 
 		// Threshold
 		if(otsu) {
-			thresholdIP(sm_fixed, otsuThresh(sm_fixed));
-			thresholdIP(sm_moving, otsuThresh(sm_moving));
-			sm_fixed->write("smooth_fixed_"+to_string(ii)+".nii.gz");
-			sm_moving->write("smooth_moving_"+to_string(ii)+".nii.gz");
+			auto sm_mmask = smoothDownsample(mmask, sigmas[ii], sigmas[ii]*2.355);
+			auto sm_fmask = smoothDownsample(fmask, sigmas[ii], sigmas[ii]*2.355);
+			FlatIter<double> mmaskit(sm_mmask);
+			FlatIter<double> fmaskit(sm_fmask);
+			FlatIter<double> mit(sm_moving);
+			FlatIter<double> fit(sm_fixed);
+			for(; !mit.eof(); ++mmaskit, ++fmaskit, ++mit, ++fit) {
+				if(mmaskit.get() < 0.01)
+					mit.set(0);
+				if(fmaskit.get() < 0.01)
+					fit.set(0);
+			}
 		}
 
 		comp.setFixed(sm_fixed);
@@ -341,6 +367,7 @@ ptr<MRImage> infoDistCor(ptr<const MRImage> fixed, ptr<const MRImage> moving,
 		pp = 0;
 		for(FlatIter<double> pit(comp.getDeform()); !pit.eof(); ++pit, ++pp)
 			pit.set(opt.state_x[pp]);
+
 	}
 
 	return comp.getDeform();
@@ -1428,7 +1455,7 @@ void DistortionCorrectionInformationComputer::initializeKnots(double space)
 	m_dpdfmove.resize(osize.data());
 	m_dpdfjoint.resize(osize.data());
 
-	m_deform->write("deform.nii.gz");
+	m_deform->m_phasedim = m_dir;
 }
 
 /**
@@ -1481,6 +1508,8 @@ void DistortionCorrectionInformationComputer::setMoving(
 		m_dir = m_moving->m_phasedim;
 	else
 		m_dir = 1;
+
+	if(m_deform) m_deform->m_phasedim = m_dir;
 
 	m_dmoving = dPtrCast<MRImage>(derivative(m_moving, m_dir));
 
