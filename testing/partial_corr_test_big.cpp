@@ -73,17 +73,15 @@ int main(int argc, char** argv)
 	cerr << "Done" << endl;
 
 	// perform decomposition
-	Eigen::JacobiSVD<MatrixXd> solver;
-	cerr << "Computing SVD..." << endl;
-	solver.compute(cor, Eigen::ComputeThinU | Eigen::ComputeThinV);
-	cerr << "Done" << endl;
-	VectorXd singvals = solver.singularValues();
+	Eigen::LDLT<MatrixXd> solver;
+	cerr << "Computing Cholesky" << endl;
+	solver.compute(cor);
+	MatrixXd pinv = MatrixXd::Identity(NSIG, NSIG);
+	cerr << "Done." << endl;
 
-	cerr << "Computing Pseudo Inverse..." << endl;
-	double ALPHA = 1e-15;
-	for(size_t ii=0; ii<singvals.rows(); ii++)
-		singvals[ii] = 1./(ALPHA+singvals[ii]);
-	MatrixXd pinv = solver.matrixV()*singvals.asDiagonal()*solver.matrixU().transpose();
+	cerr << "Computing Inverse..." << endl;
+	for(size_t cc=0; cc<NSIG; cc++) 
+		pinv.col(cc) = solver.solve(pinv.col(cc));
 	cerr << "Done" << endl;
 
 	cerr << "Testing Inverse..." << endl;
