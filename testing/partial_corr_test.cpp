@@ -109,17 +109,13 @@ int main()
 	}
 	
 	// perform decomposition
-	Eigen::JacobiSVD<MatrixXd> solver;
+	Eigen::LDLT<MatrixXd> solver;
 	cerr << "Done\nComputing..." << endl;
-	solver.compute(cor, Eigen::ComputeThinU | Eigen::ComputeThinV);
-	cerr << endl << solver.matrixU() << endl;
-	VectorXd singvals = solver.singularValues();
+	solver.compute(cor);
+	MatrixXd pinv = MatrixXd::Identity(NSIG, NSIG);
 
-	double ALPHA = 1e-15;
-	for(size_t ii=0; ii<singvals.rows(); ii++)
-		singvals[ii] = 1./(ALPHA+singvals[ii]);
-	MatrixXd pinv = solver.matrixV()*singvals.asDiagonal()*solver.matrixU().transpose();
-
+	for(size_t cc=0; cc<NSIG; cc++) 
+		pinv.col(cc) = solver.solve(pinv.col(cc));
 	cerr << "Inverse Corr: " << endl << pinv << endl << endl;
 	cerr << "Should be ident: " << endl << (pinv*cor) << endl << endl;
 
