@@ -283,7 +283,10 @@ public:
 	 */
 	void setSpacing(const VectorXd& newspacing, bool reinit);
 
-	/**
+	/**********************************
+	 * Orientation Transform Functions 
+	 *********************************/
+	/*
 	 * @brief Converts an index in pixel space to RAS, physical/time coordinates.
 	 * If len < dimensions, additional dimensions are assumed to be 0. If len >
 	 * dimensions then additional values are ignored, and only the first DIM
