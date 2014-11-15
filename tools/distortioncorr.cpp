@@ -284,24 +284,32 @@ int main(int argc, char** argv)
 		
 		BSplineView<double> bsp_vw(transform);
 		bsp_vw.m_boundmethod = ZEROFLUX;
+		LanczosInterp3DView<double> mov_vw(moving);
 
 		Rigid3DTrans rigid;
+		Rigid3DTrans irigid;
 		double dcind[3]; // index in distortion image
 		Vector3d pt; // point
 		auto out = dPtrCast<MRImage>(moving->createAnother(FLOAT32));
 		for(size_t tt=0; tt<out->tlen(); ++tt) {
 
 			// Create Rotated Version of B-Spline
+			MatrixXd R;
+			MatrixXd Rinv;
 			if(!motion.empty()) {
 				rigid.ras_coord = true;
 				for(size_t dd=0; dd<3; dd++) {
 					rigid.center[dd] = motion[tt][dd];
 					rigid.rotation[dd] = motion[tt][dd+3];
 					rigid.shift[dd] = motion[tt][dd+6];
+					irigid.center[dd] = motion[tt][dd];
+					irigid.rotation[dd] = motion[tt][dd+3];
+					irigid.shift[dd] = motion[tt][dd+6];
 				}
-				rigid.invert();
+				irigid.invert();
 
-				Matrix3d R = rigid.rotMatrix();
+				R = rigid.rotMatrix();
+				Rinv = irigid.rotMatrix();
 				for(NDIter<double> fit(field), jit(jac); !jit.eof(); ++jit, ++fit) {
 					// Compute Continuous Index of Point in Deform Image
 					fit.index(ndim, dcind);
@@ -325,32 +333,23 @@ int main(int argc, char** argv)
 			// Find rotated point 
 			// Add distortion to index
 			// Sample
-
-			for(Vector3DIter<double> oit(out), jit(jac), fit(field); !oit.eof();
-					++oit, ++jit, ++fit) {
+			for(Vector3DIter<double> oit(out); !oit.eof(); ++oit) {
+				oit.index(ndim, dcind);
+				out->indexToPoint(ndim, dcind, pt.array().data());
+				pt = R*(pt-rigid.center) + rigid.center + rigid.shift;
+				transform->pointToIndex(ndim, pt.array().data(), dcind);
 
 				// get linear index
-				double def = *fit;
-				double ddef = *jit;
-				double cind = mind[dir] + def/moving->spacing(dir);
-				int64_t below = (int64_t)floor(cind);
-				int64_t above = below + 1;
-				Fm = 0;
+				double def = 0, ddef = 0;
+				bsp_vw.get(ndim, dcind, dir, def, ddef);
 
-				// get values
-				if(below >= 0 && below < dirlen) {
-					mind[dir] = below;
-					Fm += move_vw.get(3, mind)*linKern(below-cind);
-				}
-				if(above >= 0 && above < dirlen) {
-					mind[dir] = above;
-					Fm += move_vw.get(3, mind)*linKern(above-cind);
-				}
-
+				out->pointToIndex(ndim, pt.array().data(), dcind);
+				dcind[dir] += def/out->spacing(dir);
+				Fm = mov_vw.get(ndim, dcind[0], dcind[1], dcind[2], tt);
+				
 				if(Fm < 1e-10 || ddef < -1) Fm = 0;
 				oit.set(tt, Fm*(1+ddef));
 			}
-			
 		}
 	}
 	cout << "Done" << endl;
