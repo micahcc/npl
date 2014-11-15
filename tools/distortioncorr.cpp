@@ -70,6 +70,12 @@ int main(int argc, char** argv)
 			"transform parameters to. This will be a nifti image the B-spline "
 			"parameters and the the phase encoding direction set to the "
 			"direction of deformation." , false, "", "*.nii", cmd);
+	TCLAP::ValueArg<string> a_field("F", "field", "Write distortion field, "
+			"not parameters but sampled B-Spline field at each point in "
+			"moving space. ", false, "", "*.nii.gz", cmd);
+	TCLAP::ValueArg<string> a_jac("j", "jac-field", "Write jacobian field, "
+			"not parameters but sampled derivative of B-Spline field at each "
+			"point in moving space. ", false, "", "*.nii.gz", cmd);
 
 	TCLAP::ValueArg<double> a_jacreg("J", "jacreg", "Jacobian regularizer "
 			"weight", false, 0.00001, "lambda", cmd);
@@ -110,6 +116,15 @@ int main(int argc, char** argv)
 			"creating more zero-gradient points in the image. (Which are "
 			"ignored in certain calculations)", cmd);
 
+	TCLAP::ValueArg<string> a_apply("a", "apply", "Apply the provided "
+			"distortion field parameters. this input should be the output "
+			"transform from this program (-t/--transform).", false, "",
+			"*.nii.gz", cmd);
+
+	TCLAP::ValueArg<string> a_motion("R", "motion", "Motion parameters, which "
+			"is important for applying motion correction to the distortion "
+			"field.", false, "", "*.rtm", cmd);
+
 	cmd.parse(argc, argv);
 
 	// set up sigmas
@@ -124,131 +139,219 @@ int main(int argc, char** argv)
 	// fixed image
 	cerr << "Reading Inputs...";
 	ptr<MRImage> moving = readMRImage(a_moving.getValue());
-	ptr<MRImage> in_fixed = readMRImage(a_fixed.getValue());
-	size_t ndim;
-	cerr << "Done" << endl;
-	ndim = min(in_fixed->ndim(), moving->ndim());
 
-	cerr << "Extracting first " << ndim << " dims of Fixed Image" << endl;
-	in_fixed = dPtrCast<MRImage>(in_fixed->copyCast(ndim, in_fixed->dim(), FLOAT32));
+	size_t ndim = min(moving->ndim(), 3);
+	int dir;
+	ptr<MRImage> transform;
+	if(a_fixed.isSet()) {
+		ptr<MRImage> in_fixed = readMRImage(a_fixed.getValue());
+		cerr << "Done" << endl;
+		ndim = min(in_fixed->ndim(), ndim);
 
-	cerr << "Extracting first " << ndim << " dims of Moving Image" << endl;
-	moving = dPtrCast<MRImage>(moving->copyCast(ndim, moving->dim(), FLOAT32));
+		cerr << "Extracting first " << ndim << " dims of Fixed Image" << endl;
+		in_fixed = dPtrCast<MRImage>(in_fixed->copyCast(ndim, in_fixed->dim(), FLOAT32));
 
-	cerr << "Done\nPutting Fixed image in Moving Space...";
-	auto fixed = dPtrCast<MRImage>(moving->createAnother());
-	vector<int64_t> ind(ndim);
-	vector<double> point(ndim);
+		cerr << "Extracting first " << ndim << " dims of Moving Image" << endl;
+		moving = dPtrCast<MRImage>(moving->copyCast(ndim, moving->dim(), FLOAT32));
 
-	// Create Interpolator, ensuring that radius is at least 1 pixel in the
-	// output space 
-	LanczosInterpNDView<double> interp(in_fixed);
-	interp.setRadius(3*ceil(moving->spacing(0)/in_fixed->spacing(0)));
-	interp.m_ras = true;
-	for(NDIter<double> it(fixed); !it.eof(); ++it) {
-		// get point 
-		it.index(ind.size(), ind.data());
-		fixed->indexToPoint(ind.size(), ind.data(), point.data());
+		cerr << "Done\nPutting Fixed image in Moving Space...";
+		auto fixed = dPtrCast<MRImage>(moving->createAnother());
+		vector<int64_t> ind(ndim);
+		vector<double> point(ndim);
 
-		// sample 
-		it.set(interp.get(point));
-	}
-	cerr << "Done" << endl;
-	in_fixed.reset();
+		// Create Interpolator, ensuring that radius is at least 1 pixel in the
+		// output space 
+		LanczosInterpNDView<double> interp(in_fixed);
+		interp.setRadius(3*ceil(moving->spacing(0)/in_fixed->spacing(0)));
+		interp.m_ras = true;
+		for(NDIter<double> it(fixed); !it.eof(); ++it) {
+			// get point 
+			it.index(ind.size(), ind.data());
+			fixed->indexToPoint(ind.size(), ind.data(), point.data());
 
-	// Get direction
-	int dir = moving->m_phasedim;
-	if(a_dir.isSet()) {
-		if(a_dir.getValue() < 'x' || a_dir.getValue() > 'z') {
-			cerr << "Invalid direction (use x,y or z): " << a_dir.getValue()
-				<< endl;
+			// sample 
+			it.set(interp.get(point));
+		}
+		cerr << "Done" << endl;
+		in_fixed.reset();
+
+		// Get direction
+		dir = moving->m_phasedim;
+		if(a_dir.isSet()) {
+			if(a_dir.getValue() < 'x' || a_dir.getValue() > 'z') {
+				cerr << "Invalid direction (use x,y or z): " << a_dir.getValue()
+					<< endl;
+				return -1;
+			}
+			dir = a_dir.getValue() - (int)'x';
+		} else if(dir < 0) {
+			cerr << "Error, no direction set, and no phase-encode direction set "
+				"in moving image!" << endl;
 			return -1;
 		}
-		dir = a_dir.getValue() - (int)'x';
-	} else if(dir < 0) {
-		cerr << "Error, no direction set, and no phase-encode direction set "
-			"in moving image!" << endl;
+
+		/*************************************************************************
+		 * Registration
+		 *************************************************************************/
+		if(a_metric.getValue() == "COR") {
+			cerr << "COR not yet implemented!" << endl;
+		} else {
+			cout << "Done\nNon-Rigidly Registering with " << a_metric.getValue() 
+				<< "..." << endl;
+
+			transform = infoDistCor(fixed, moving, a_otsu.isSet(),
+					dir, a_bspace.getValue(), 
+					a_jacreg.getValue(), a_tpsreg.getValue(), sigmas,
+					a_bins.getValue(), a_parzen.getValue(), a_metric.getValue(),
+					a_hist.getValue(), a_stopx.getValue(), a_beta.getValue());
+		}
+	
+		cout << "Finished\nWriting output.";
+		if(a_transform.isSet()) 
+			transform->write(a_transform.getValue());
+
+	} else if(a_apply.isSet()) {
+		transform = readMRImage(a_apply.getValue());
+
+		// Get direction
+		dir = transform->m_phasedim;
+		if(a_dir.isSet()) {
+			if(a_dir.getValue() < 'x' || a_dir.getValue() > 'z') {
+				cerr << "Invalid direction (use x,y or z): " << a_dir.getValue()
+					<< endl;
+				return -1;
+			}
+			dir = a_dir.getValue() - (int)'x';
+		} else if(dir < 0) {
+			cerr << "Error, no direction set, and no phase-encode direction set "
+				"in moving image!" << endl;
+			return -1;
+		}
+
+	} else {
+		cerr << "Neither apply (-a/--apply) nor fixed (-f/--fixed) set!" << endl;
 		return -1;
 	}
-	moving->write("common_moving.nii.gz");
-	fixed->write("common_fixedd.nii.gz");
 
-	/*************************************************************************
-	 * Registration
-	 *************************************************************************/
-	ptr<MRImage> transform;
-	if(a_metric.getValue() == "COR") {
-		cerr << "COR not yet implemented!" << endl;
-	} else {
-		cout << "Done\nNon-Rigidly Registering with " << a_metric.getValue() 
-			<< "..." << endl;
+	/* 
+	 * Create Field and Jacobian Maps, in 3 or less dimensions, the write
+	 */
+	ptr<MRImage> field = dPtrCast<MRImage>(moving->copyCast(ndim, moving->dim()));
+	ptr<MRImage> jac = dPtrCast<MRImage>(moving->copyCast(ndim, moving->dim()));
+	BSplineView<double> bsp_vw(transform);
+	bsp_vw.m_boundmethod = ZEROFLUX;
 
-		transform = infoDistCor(fixed, moving, a_otsu.isSet(),
-				dir, a_bspace.getValue(), 
-				a_jacreg.getValue(), a_tpsreg.getValue(), sigmas,
-				a_bins.getValue(), a_parzen.getValue(), a_metric.getValue(),
-				a_hist.getValue(), a_stopx.getValue(), a_beta.getValue());
+	double dcind[3]; // index in distortion image
+	double pt[3]; // point
+	for(NDIter<double> fit(field), jit(jac); !jit.eof(); ++jit, ++fit) {
+		// Compute Continuous Index of Point in Deform Image
+		fit.index(ndim, dcind);
+		out->indexToPoint(ndim, dcind, pt);
+		transform->pointToIndex(ndim, pt, dcind);
+
+		// Sample B-Spline Value and Derivative at Current Position
+		double def = 0, ddef = 0;
+		bsp_vw.get(ndim, dcind, dir, def, ddef);
+		fit.set(def);
+		jit.set(ddef);
 	}
 
-	cout << "Finished\nWriting output.";
-	if(a_transform.isSet()) 
-		transform->write(a_transform.getValue());
+	/* 
+	 * Write Outputs 
+	 */
+	if(a_jac.isSet()) 
+		jac->write(a_jac.getValue());
 
+	if(a_field.isSet()) 
+		field->write(a_field.getValue());
+
+	/* 
+	 * For each time point apply inverse motion to field map, then apply 
+	 * distortion correction and finally apply forward motion to fMRI 
+	 */
 	if(a_out.isSet()) {
-//		if(a_dir.isSet()) { 
-//		} else 
-		if(transform->m_phasedim >= 0) {
-
-		} else {
-			cerr << "Phase Dim not set in transform! Which way is the "
-				"distortion?" << endl;
-			return -1;
-		}
-
-		int dir = transform->m_phasedim;
-		auto out = dPtrCast<MRImage>(moving->copy());
+		// Re-Read Moving, in case we reduced dimensions earlier
+		moving = readMRImage(a_moving.getValue());
 		NDConstView<double> move_vw(moving);
+
+		// Read Motion
+		vector<vector<double>> motion;
+		if(a_motion.isSet()) {
+			motion = readNumericCSV(a_motion.getValue());
+		} else if(moving->tlen() > 1) {
+			cerr << "WARNING! NO MOTION PROVIDED BUT INPUT IS 4D!" << endl;
+		}
+		
 		BSplineView<double> bsp_vw(transform);
 		bsp_vw.m_boundmethod = ZEROFLUX;
-		bsp_vw.m_ras = true;
 
-		// Compute Probabilities
-		size_t dirlen = moving->dim(dir);
+		Rigid3DTrans rigid;
 		double dcind[3]; // index in distortion image
-		int64_t mind[3] ;
-		double pt[3]; // point
-		double Fm = 0;
-		for(NDIter<double> oit(out); !oit.eof(); ++oit) {
+		Vector3d pt; // point
+		auto out = dPtrCast<MRImage>(moving->createAnother(FLOAT32));
+		for(size_t tt=0; tt<out->tlen(); ++tt) {
 
-			// Compute Continuous Index of Point in Deform Image
-			oit.index(3, mind);
-			out->indexToPoint(3, mind, pt);
-			transform->pointToIndex(3, pt, dcind);
+			// Create Rotated Version of B-Spline
+			if(!motion.empty()) {
+				rigid.ras_coord = true;
+				for(size_t dd=0; dd<3; dd++) {
+					rigid.center[dd] = motion[tt][dd];
+					rigid.rotation[dd] = motion[tt][dd+3];
+					rigid.shift[dd] = motion[tt][dd+6];
+				}
+				rigid.invert();
 
-			// Sample B-Spline Value and Derivative at Current Position
-			double def = 0, ddef = 0;
-			bsp_vw.get(3, pt, dir, def, ddef);
+				Matrix3d R = rigid.rotMatrix();
+				for(NDIter<double> fit(field), jit(jac); !jit.eof(); ++jit, ++fit) {
+					// Compute Continuous Index of Point in Deform Image
+					fit.index(ndim, dcind);
+					out->indexToPoint(ndim, dcind, pt.array().data());
+					pt = R*(pt-rigid.center) + rigid.shift + rigid.center;
+					transform->pointToIndex(ndim, pt.array().data(), dcind);
 
-			// get linear index
-			double cind = mind[dir] + def/moving->spacing(dir);
-			int64_t below = (int64_t)floor(cind);
-			int64_t above = below + 1;
-			Fm = 0;
+					// Sample B-Spline Value and Derivative at Current Position
+					double def = 0, ddef = 0;
+					bsp_vw.get(ndim, dcind, dir, def, ddef);
+					fit.set(def);
+					jit.set(ddef);
+				}
 
-			// get values
-			if(below >= 0 && below < dirlen) {
-				mind[dir] = below;
-				Fm += move_vw.get(3, mind)*linKern(below-cind);
+				jac->write("jac_"+to_string(tt)+".nii.gz");
+				field->write("field_"+to_string(tt)+".nii.gz");
+				rigid.invert();
 			}
-			if(above >= 0 && above < dirlen) {
-				mind[dir] = above;
-				Fm += move_vw.get(3, mind)*linKern(above-cind);
-			}
 
-			if(Fm < 1e-10 || ddef < -1) Fm = 0;
-			oit.set(Fm*(1+ddef));
+			// For Each Point in output, 
+			// Find rotated point 
+			// Add distortion to index
+			// Sample
+
+			for(Vector3DIter<double> oit(out), jit(jac), fit(field); !oit.eof();
+					++oit, ++jit, ++fit) {
+
+				// get linear index
+				double def = *fit;
+				double ddef = *jit;
+				double cind = mind[dir] + def/moving->spacing(dir);
+				int64_t below = (int64_t)floor(cind);
+				int64_t above = below + 1;
+				Fm = 0;
+
+				// get values
+				if(below >= 0 && below < dirlen) {
+					mind[dir] = below;
+					Fm += move_vw.get(3, mind)*linKern(below-cind);
+				}
+				if(above >= 0 && above < dirlen) {
+					mind[dir] = above;
+					Fm += move_vw.get(3, mind)*linKern(above-cind);
+				}
+
+				if(Fm < 1e-10 || ddef < -1) Fm = 0;
+				oit.set(tt, Fm*(1+ddef));
+			}
+			
 		}
-		out->write(a_out.getValue());
 	}
 	cout << "Done" << endl;
 
