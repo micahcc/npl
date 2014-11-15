@@ -54,7 +54,7 @@ int main(int argc, char** argv)
 			"image to match a fixed image. For a 4D input, the 0'th volume "
 			"will be used. TODO: correlation", ' ', __version__ );
 
-	TCLAP::ValueArg<string> a_fixed("f", "fixed", "Fixed image.", true, "",
+	TCLAP::ValueArg<string> a_fixed("f", "fixed", "Fixed image.", false, "",
 			"*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_moving("m", "moving", "Moving image. ", true, 
 			"", "*.nii.gz", cmd);
@@ -136,14 +136,23 @@ int main(int argc, char** argv)
 	 * Read Inputs
 	 *************************************************************************/
 
-	// fixed image
-	cerr << "Reading Inputs...";
-	ptr<MRImage> moving = readMRImage(a_moving.getValue());
+	if(!a_fixed.isSet() && !a_apply.isSet()) {
+		cerr << "Either a fixed image (-f/--fixed, for registration) or "
+			"transform (-a/--apply) must be provided" << endl;
+		return -1;
+	}
 
-	size_t ndim = min(moving->ndim(), 3);
+	// fixed image
+	cerr << "Reading Moving...";
+	ptr<MRImage> moving = readMRImage(a_moving.getValue());
+	cerr << "Done" << endl;
+
+	size_t ndim = min(moving->ndim(), 3lu);
 	int dir;
 	ptr<MRImage> transform;
 	if(a_fixed.isSet()) {
+		cerr << "Creating transform using non-linear distortion correction" 
+			<< endl;
 		ptr<MRImage> in_fixed = readMRImage(a_fixed.getValue());
 		cerr << "Done" << endl;
 		ndim = min(in_fixed->ndim(), ndim);
@@ -211,6 +220,7 @@ int main(int argc, char** argv)
 			transform->write(a_transform.getValue());
 
 	} else if(a_apply.isSet()) {
+		cerr << "Using " << a_apply.getValue() << endl;
 		transform = readMRImage(a_apply.getValue());
 
 		// Get direction
@@ -236,6 +246,7 @@ int main(int argc, char** argv)
 	/* 
 	 * Create Field and Jacobian Maps, in 3 or less dimensions, the write
 	 */
+	cerr << "Estimating distortion field " << endl;
 	ptr<MRImage> field = dPtrCast<MRImage>(moving->copyCast(ndim, moving->dim()));
 	ptr<MRImage> jac = dPtrCast<MRImage>(moving->copyCast(ndim, moving->dim()));
 	BSplineView<double> bsp_vw(transform);
@@ -246,7 +257,7 @@ int main(int argc, char** argv)
 	for(NDIter<double> fit(field), jit(jac); !jit.eof(); ++jit, ++fit) {
 		// Compute Continuous Index of Point in Deform Image
 		fit.index(ndim, dcind);
-		out->indexToPoint(ndim, dcind, pt);
+		field->indexToPoint(ndim, dcind, pt);
 		transform->pointToIndex(ndim, pt, dcind);
 
 		// Sample B-Spline Value and Derivative at Current Position
@@ -255,6 +266,7 @@ int main(int argc, char** argv)
 		fit.set(def);
 		jit.set(ddef);
 	}
+	cerr << "Done" << endl;
 
 	/* 
 	 * Write Outputs 
@@ -270,6 +282,7 @@ int main(int argc, char** argv)
 	 * distortion correction and finally apply forward motion to fMRI 
 	 */
 	if(a_out.isSet()) {
+		cerr << "Applying distortion correction" << endl;
 		// Re-Read Moving, in case we reduced dimensions earlier
 		moving = readMRImage(a_moving.getValue());
 		NDConstView<double> move_vw(moving);
@@ -286,7 +299,6 @@ int main(int argc, char** argv)
 		bsp_vw.m_boundmethod = ZEROFLUX;
 		LanczosInterp3DView<double> mov_vw(moving);
 
-		Rigid3DTrans rigid;
 		Rigid3DTrans irigid;
 		double dcind[3]; // index in distortion image
 		Vector3d pt; // point
@@ -294,39 +306,17 @@ int main(int argc, char** argv)
 		for(size_t tt=0; tt<out->tlen(); ++tt) {
 
 			// Create Rotated Version of B-Spline
-			MatrixXd R;
 			MatrixXd Rinv;
 			if(!motion.empty()) {
-				rigid.ras_coord = true;
+				irigid.ras_coord = true;
 				for(size_t dd=0; dd<3; dd++) {
-					rigid.center[dd] = motion[tt][dd];
-					rigid.rotation[dd] = motion[tt][dd+3];
-					rigid.shift[dd] = motion[tt][dd+6];
 					irigid.center[dd] = motion[tt][dd];
 					irigid.rotation[dd] = motion[tt][dd+3];
 					irigid.shift[dd] = motion[tt][dd+6];
 				}
 				irigid.invert();
 
-				R = rigid.rotMatrix();
 				Rinv = irigid.rotMatrix();
-				for(NDIter<double> fit(field), jit(jac); !jit.eof(); ++jit, ++fit) {
-					// Compute Continuous Index of Point in Deform Image
-					fit.index(ndim, dcind);
-					out->indexToPoint(ndim, dcind, pt.array().data());
-					pt = R*(pt-rigid.center) + rigid.shift + rigid.center;
-					transform->pointToIndex(ndim, pt.array().data(), dcind);
-
-					// Sample B-Spline Value and Derivative at Current Position
-					double def = 0, ddef = 0;
-					bsp_vw.get(ndim, dcind, dir, def, ddef);
-					fit.set(def);
-					jit.set(ddef);
-				}
-
-				jac->write("jac_"+to_string(tt)+".nii.gz");
-				field->write("field_"+to_string(tt)+".nii.gz");
-				rigid.invert();
 			}
 
 			// For Each Point in output, 
@@ -336,7 +326,7 @@ int main(int argc, char** argv)
 			for(Vector3DIter<double> oit(out); !oit.eof(); ++oit) {
 				oit.index(ndim, dcind);
 				out->indexToPoint(ndim, dcind, pt.array().data());
-				pt = R*(pt-rigid.center) + rigid.center + rigid.shift;
+				pt = Rinv*(pt-irigid.center) + irigid.center + irigid.shift;
 				transform->pointToIndex(ndim, pt.array().data(), dcind);
 
 				// get linear index
@@ -345,12 +335,14 @@ int main(int argc, char** argv)
 
 				out->pointToIndex(ndim, pt.array().data(), dcind);
 				dcind[dir] += def/out->spacing(dir);
-				Fm = mov_vw.get(ndim, dcind[0], dcind[1], dcind[2], tt);
+				double Fm = mov_vw(dcind[0], dcind[1], dcind[2], tt);
 				
 				if(Fm < 1e-10 || ddef < -1) Fm = 0;
 				oit.set(tt, Fm*(1+ddef));
 			}
 		}
+		cerr << "Done" << endl;
+		out->write(a_out.getValue());
 	}
 	cout << "Done" << endl;
 
