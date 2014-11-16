@@ -253,6 +253,9 @@ int main(int argc, char** argv)
 	TCLAP::ValueArg<int> a_padsize("", "pad", "Number of pixels to pad during "
 			"registration. Reduces information lost, and stabilizes "
 			"registration (slightly).", false, 3, "pixels", cmd);
+	TCLAP::SwitchArg a_invert("I", "invert", "Invert motion parameters before "
+			"applying them. This mostly just for simulating motion, don't do "
+			"it unless you know what you are doing.", cmd);
 
 	cmd.parse(argc, argv);
 
@@ -352,6 +355,8 @@ int main(int argc, char** argv)
 			rigid.rotation[dd] = motion[tt][dd+3];
 			rigid.shift[dd] = motion[tt][dd+6];
 		}
+		if(a_invert.isSet())
+			rigid.invert();
 		cerr << "vol: " << endl << *vol << endl;
 		cerr << "Rigid Transform: " << tt << "\n" << rigid <<endl;
 		rigid.toIndexCoords(vol, true);

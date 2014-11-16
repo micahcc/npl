@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file applyDeform.cpp Tool to apply a deformation field to another image. 
+ * @file applyDeform.cpp Tool to apply a deformation field to another image.
  * Not yet functional
  *
  *****************************************************************************/
@@ -23,9 +23,9 @@
 #include <string>
 #include <stdexcept>
 
+#include "nplio.h"
 #include "mrimage.h"
 #include "mrimage_utils.h"
-#include "kernel_slicer.h"
 #include "kdtree.h"
 #include "iterators.h"
 #include "accessors.h"
@@ -75,17 +75,25 @@ int main(int argc, char** argv)
 	 * Command Line
 	 */
 
-	TCLAP::CmdLine cmd("Applies 3D deformation to volume or time-series of "
-			"volumes. Deformation should be a map of offsets. If you have a "
-			"*.svreg.map.* file use '$ convertDeform --in-index -1 --out-offset"
-			" -E -i *.svreg.map.nii.gz -a atlas.bfc.nii.gz -m "
-			"*.cerebrum.mask.nii.gz -o offset.nii.gz' to generate an "
+	TCLAP::CmdLine cmd("Applies 3D deformation to a volume."
+			" If you have a *.svreg.map.* file use '$ convertDeform --in-index -1 "
+			"-i *.svreg.map.nii.gz -a atlas.bfc.nii.gz "
+			"-o offset.nii.gz' to generate an "
 			"appropriate input (offset.nii.gz).", ' ', __version__ );
 
 	TCLAP::ValueArg<string> a_in("i", "input", "Input image.",
 			true, "", "*.nii.gz", cmd);
+
 	TCLAP::ValueArg<string> a_deform("d", "deform", "Deformation field.",
 			true, "", "*.nii.gz", cmd);
+	TCLAP::ValueArg<string> a_interp("I", "interp", "Interpolation method. "
+			"One of: lanczos, linear, nn. Default is lanczos", false,
+			"lanczos", "type", cmd);
+	TCLAP::SwitchArg a_ignoreorient("O", "orient-ignore", "Ignore orientation. "
+			"Warning this is risky. However it is necessary if you know that "
+			"the inputs are in the same pixel space but someone stupidly left "
+			"out the orienation. I might add it is especially stupid for vector "
+			"fields", cmd);
 
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
 			true, "", "*.nii.gz", cmd);
@@ -101,35 +109,6 @@ int main(int argc, char** argv)
 		cerr << "Expected input to be 3D/4D Image!" << endl;
 		return -1;
 	}
-	
-	ptr<MRImage> mask(readMRImage(a_mask.getValue()));
-	if(mask->ndim() != 3) {
-		cerr << "Expected mask to be 3D Image!" << endl;
-		return -1;
-	}
-	binarize(mask);
-
-	// dilate then erode mask
-	if(a_dilate.isSet())
-		mask = dilate(mask, a_dilate.getValue());
-	if(a_erode.isSet())
-		mask = erode(mask, a_erode.getValue());
-
-	// ensure the the images overlap sufficiently, lack of overlap may indicate
-	// incorrect orientation
-	double f = overlapRatio(mask, inimg);
-	if(f < .5)  {
-		cerr << "Warning the input and mask images do not overlap very much."
-			" This could indicate bad orientation, overlap: " << f << endl;
-		return -1;
-	}
-	
-	ptr<MRImage> atlas(readMRImage(a_atlas.getValue()));
-	if(atlas->ndim() != 3) {
-		cerr << "Expected mask to be 3D Image!" << endl;
-		return -1;
-	}
-	binarize(atlas);
 
 	ptr<MRImage> defimg(readMRImage(a_deform.getValue()));
 	if(defimg->ndim() > 5 || defimg->ndim() < 4 || defimg->tlen() != 3) {
@@ -137,25 +116,45 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	// convert deform to RAS space offsets
-	defimg = indexMapToOffsetMap(defimg, atlas, true);
-	defimg->write("deform.nii.gz");
-
-	// perform interpolation to estimate outside-the brain deformations that
-	// are continuous with the within-brain deformations
-	defimg = extrapolate(defimg, mask, atlas);
-	defimg->write("extrapolated.nii.gz");
-
-	if(a_invert.isSet()) {
-		// create output the size of atlas, with 3 volumes in the 4th dimension
-		auto idef = createMRImage({atlas->dim(0), atlas->dim(1),
-					atlas->dim(2), 3}, FLOAT64);
-        idef->setOrient(atlas->getOrigin(), atlas->getSpacing(),
-                atlas->getDirection(), true);
-		invert(mask, defimg, idef, a_iters.getValue(),
-				a_improve.getValue(), a_radius.getValue());
-		idef->write("inversedef.nii.gz");
+	if(!a_ignoreorient.isSet() && !inimg->matchingOrient(defimg, false, true)) {
+		cerr << "Deform and input images have different orientation!" << endl;
+		return -1;
 	}
+
+	if(defimg->elements()/defimg->tlen() != inimg->elements()/inimg->tlen()) {
+		cerr << "Spatial size of input/deform images differ!" << endl;
+		return -1;
+	}
+
+	ptr<Vector3DConstView<double>> interp;
+	if(a_interp.getValue() == "lanczos")
+		interp.reset(new LanczosInterp3DView<double>(inimg));
+	else if(a_interp.getValue() == "nn")
+		interp.reset(new NNInterp3DView<double>(inimg));
+	else if(a_interp.getValue() == "linear")
+		interp.reset(new LinInterp3DView<double>(inimg));
+	else
+		interp.reset(new LanczosInterp3DView<double>(inimg));
+
+	auto out = dPtrCast<MRImage>(
+			inimg->createAnother(min(inimg->ndim(), 3lu),
+			inimg->dim(), FLOAT32));
+
+	Vector3DIter<double> oit(out);
+	double pt[3];
+	for(Vector3DIter<double> dit(defimg), oit(out); !oit.eof(); ++oit, ++dit) {
+		oit.index(3, pt);
+		out->indexToPoint(3, pt, pt);
+		for(size_t dd=0; dd < 3; dd++)
+			pt[dd] += dit[dd];
+		out->pointToIndex(3, pt, pt);
+
+		for(size_t tt=0; tt<inimg->tlen(); tt++) {
+			oit.set(tt, interp->get(pt[0], pt[1], pt[2], tt));
+		}
+	}
+
+	out->write(a_out.getValue());
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }

@@ -60,8 +60,8 @@ int main(int argc, char** argv)
 	std::shared_ptr<MRImage> to(readMRImage(a_to.getValue()));
 
 	auto out = to->cloneImage();
-    out->setOrient(from->getOrigin(), from->getSpacing(),
-            from->getDirection());
+	out->setOrient(from->getOrigin(), from->getSpacing(),
+			from->getDirection(), false);
 	out->write(a_out.getValue());
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
