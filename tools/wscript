@@ -53,12 +53,11 @@ def build(bld):
 			source = 'deformJacobianMap.cpp', 
 			use = 'mrimage_utils tclap nplio iterators accessors')
 
-	bld.program(target = 'convertDeform', 
-			install_path='${PREFIX}/tools_incomplete', 
+	bld.program(target = 'nplConvertDeform', 
 			source = 'convertDeform.cpp', 
 			use = 'mrimage_utils nplio tclap iterators accessors')
 
-	bld.program(target = 'copyOrientation', 
+	bld.program(target = 'nplCopyOrientation', 
 			source = 'copyOrientation.cpp', 
 			use = 'mrimage_utils nplio tclap')
 
@@ -96,10 +95,10 @@ def build(bld):
 #			source = 'indexMapToOffsetMap.cpp', 
 #			use = 'mrimage tclap kdtree kslicer')
 #
-#	bld.program(target = 'applyDeform', 
-#			source = 'applyDeform.cpp', 
-#			use = 'mrimage tclap slicer')
-#
+	bld.program(target = 'nplApplyDeform', 
+			source = 'applyDeform.cpp', 
+			use = 'mrimage nplio tclap')
+
 #	bld.program(target = 'applyDeform', 
 #			source = 'applyDeform.cpp', 
 #			use = 'mrimage_utils tclap iterators accessors')

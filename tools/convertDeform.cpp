@@ -61,7 +61,7 @@ ostream& operator<<(ostream& out, const std::vector<T>& v)
 ptr<MRImage> invertForwardBack(ptr<MRImage> deform,
 		size_t MAXITERS, double MINERR)
 {
-	if(deform->ndim() != 3 || deform->tlen() != 3) {
+	if(deform->ndim() != 4 || deform->tlen() != 3) {
 		cerr << "Error invalid deform image, needs 3 points in the 4th or "
 			"5th dim" << endl;
 		return NULL;
@@ -71,10 +71,10 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform,
 	auto idef = dPtrCast<MRImage>(deform->createAnother(FLOAT64));
 
 	LinInterp3DView<double> definterp(deform);
-	const double LAMBDA = 0.1;
+	const double LAMBDA = 0.5;
 	double cind[3];
 	double err[3];
-	double origpt[3]; // point in origin 
+	double origpt[3]; // point in origin
 	double defpt[3]; // deformed point
 	double fwd[3]; // forward vector
 	double rev[3]; // reverse vector
@@ -84,7 +84,7 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform,
 	 * Construct KDTree indexed by atlas-space indices, and storing indices
 	 * in subject (mask) space. Only do it if mask value is non-zero however
 	 */
-	for(Vector3DIter<double> dit(idef); !dit.eof(); ++dit) {
+	for(Vector3DConstIter<double> dit(deform); !dit.eof(); ++dit) {
 		dit.index(3, cind);
 		deform->indexToPoint(3, cind, origpt);
 
@@ -97,6 +97,17 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform,
 		// add point to kdtree, use atl2sub since this will be our best guess
 		// of atl2sub when we pull the point out of the tree
 		tree.insert(3, defpt, 3, rev);
+//		cerr << "Deformed Point: ";
+//		for(size_t dd=0; dd<3; dd++) {
+//			if(dd != 0) cerr << ", ";
+//			cerr << defpt[dd];
+//		}
+//		cerr << endl << "Deformed Value: ";
+//		for(size_t dd=0; dd<3; dd++) {
+//			if(dd != 0) cerr << ", ";
+//			cerr << rev[dd];
+//		}
+//		cerr << endl;
 	}
 	tree.build();
 
@@ -122,11 +133,25 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform,
 		auto results = tree.nearest(3, defpt, dist);
 
 		// ....no...sort
-		if(!results)
+		if(!results) {
+			cerr << "No results within distance!" << endl;
 			continue;
+		}
 
-		for(size_t dd=0; dd<3; dd++)
+//		cerr << "Initial Reverse: " << endl;
+		for(size_t dd=0; dd<3; dd++) {
+//			if(dd != 0) cerr << ", ";
 			rev[dd] = results->m_data[dd];
+//			cerr << rev[dd];
+		}
+//		cerr << endl;
+
+//		cerr << "Target Point: ";
+//		for(size_t dd=0; dd<3; dd++) {
+//			if(dd != 0) cerr << ", ";
+//			cerr << defpt[dd];
+//		}
+//		cerr << endl;
 
 		// SUB <- ATLAS (given)
 		//    atl2sub
@@ -135,8 +160,13 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform,
 		for(iters = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR &&
 						iters < MAXITERS; iters++) {
 
-			for(size_t ii=0; ii<3; ii++)
+//			cerr << "Estimated Source: ";
+			for(size_t ii=0; ii<3; ii++) {
+//				if(ii != 0) cerr << ", ";
 				origpt[ii] = defpt[ii] + rev[ii];
+//				cerr << origpt[ii];
+			}
+//			cerr << endl;
 
 			// (estimate) SUB <- ATLAS (given)
 			//              offset
@@ -146,8 +176,13 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform,
 			/* Update */
 
 			// update sub2atl
-			for(size_t ii=0; ii<3; ii++)
+//			cerr << "Fwd at Source: ";
+			for(size_t ii=0; ii<3; ii++) {
+//				if(ii != 0) cerr << ", ";
 				fwd[ii] = definterp(cind[0], cind[1], cind[2], ii);
+//				cerr << fwd[ii];
+			}
+//			cerr << endl;
 
 			// update image with the error, using the derivative to estimate
 			// where error crosses 0
@@ -160,14 +195,26 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform,
 				rev[ii] -= LAMBDA*err[ii];
 				dist += err[ii]*err[ii];
 			}
+
+//			cerr << "New Rev: ";
+//			for(size_t ii=0; ii<3; ++ii) {
+//				if(ii != 0) cerr << ", ";
+//				cerr << rev[ii];
+//			}
+//			cerr << endl;
 			dist = sqrt(dist);
+//			cerr << "Err: " << dist << endl;
 		}
 
 
 		// save out final deform
-		for(size_t ii=0; ii<3; ++ii)
+//		cerr << "Estimate: ";
+		for(size_t ii=0; ii<3; ++ii) {
+//			if(ii != 0) cerr << ", ";
+//			cerr << rev[ii];
 			iit.set(ii, rev[ii]);
-
+		}
+//		cerr << endl;
 	}
 
 	return idef;
@@ -199,7 +246,7 @@ double overlapRatio(shared_ptr<MRImage> a, shared_ptr<MRImage> b)
 shared_ptr<MRImage> indexMapToOffsetMap(shared_ptr<const MRImage> defimg,
 		shared_ptr<const MRImage> atlas, bool one_based_indexing = false)
 {
-	shared_ptr<MRImage> out = dynamic_pointer_cast<MRImage>(defimg->copy());
+	auto out = dPtrCast<MRImage>(defimg->copy());
 
 	Vector3DIter<double> it(out);
 	if(it.tlen() != 3)
@@ -223,6 +270,28 @@ shared_ptr<MRImage> indexMapToOffsetMap(shared_ptr<const MRImage> defimg,
 		// store sub2atl (vector going from subject to atlas space)
 		for(int64_t ii=0; ii < 3; ++ii)
 			it.set(ii, pointA[ii] - pointS[ii]);
+	}
+
+	return out;
+}
+
+shared_ptr<MRImage> reorientVectors(shared_ptr<const MRImage> defimg)
+{
+	auto out = dPtrCast<MRImage>(defimg->createAnother());
+
+	Vector3DConstIter<double> iit(defimg);
+	Vector3DIter<double> oit(out);
+	if(defimg->tlen() != 3)
+		cerr << "Error expected 3 volumes!" << endl;
+	double vec[3]; //subject
+	for(; !iit.eof() && !oit.eof(); ++oit, ++iit) {
+		for(size_t dd=0; dd<3; dd++)
+			vec[dd] = iit[dd];
+
+		defimg->orientVector(3, vec, vec);
+
+		for(size_t dd=0; dd<3; dd++)
+			oit.set(dd, vec[dd]);
 	}
 
 	return out;
@@ -262,14 +331,25 @@ int main(int argc, char** argv)
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
 			true, "", "*.nii.gz", cmd);
 
+//	TCLAP::ValueArg<string> a_idir("u", "uni-directional", "Input is a uni-"
+//			"directional distortion field. Direction of distortion may be "
+//			"-x +x x -y +y y -z z +z, where no +/- implies +. Thus a positive "
+//			"distortion value for a '+x' direction would mean the image is "
+//			"shifted in the positive direction of +x (in index space).",
+//			true, "", "*.nii.gz", cmd);
+//
 	TCLAP::SwitchArg a_invert("I", "invert", "index "
 			"lookup type deform to an offset (in mm) type deform", cmd);
-	
+
 	TCLAP::SwitchArg a_in_offset("", "in-offset", "Input an offset (in mm) "
 			"type deform", cmd);
 	TCLAP::SwitchArg a_in_index("", "in-index", "Input an index type deform. "
 			"Must provide an atlas if this is the case '-a'", cmd);
-	
+	TCLAP::SwitchArg a_apply_orient("r", "reorient", "Input deformation "
+			"is in index coordinates (rather than physical coordinates). "
+			"This will cause the vectors to be re-oriented to physical space",
+			cmd);
+
 	TCLAP::SwitchArg a_out_offset("", "out-offset", "Output an offset "
 			"type deform. (in mm/physical units)", cmd);
 	TCLAP::SwitchArg a_out_index("", "out-index", "Output an input "
@@ -289,11 +369,12 @@ int main(int argc, char** argv)
 	 * Input
 	 *********/
 	deform = readMRImage(a_indef.getValue());
+	cerr << "Deform: " << *deform << endl;
 	if(deform->ndim() < 4 || deform->tlen() != 3) {
 		cerr << "Expected dform to be 4D/5D Image, with 3 volumes!" << endl;
 		return -1;
 	}
-	
+
 	if(a_atlas.isSet()) {
 		atlas = readMRImage(a_atlas.getValue());
 		binarize(atlas);
@@ -301,6 +382,7 @@ int main(int argc, char** argv)
 
 	// convert to offset
 	if(a_in_index.isSet()) {
+		cerr << "Converting Index Lookup to Offset Map" << endl;
 		if(!atlas) {
 			cerr << "Must provide an atlas for index-based deformations, "
 				"otherwise there is no way to know what the indexes mean!"
@@ -317,6 +399,9 @@ int main(int argc, char** argv)
 		// convert deform to RAS space offsets
 		deform = indexMapToOffsetMap(deform, atlas, a_one_index.isSet());
 		deform->write("offset.nii.gz");
+	} else if(a_apply_orient.isSet()) {
+		cerr << "Reorienting Vectors to Image Space" << endl;
+		deform = reorientVectors(deform);
 	}
 
 	// invert
@@ -336,7 +421,7 @@ int main(int argc, char** argv)
 
 	// write
 	deform->write(a_out.getValue());
-	
+
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
 }
