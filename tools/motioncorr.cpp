@@ -42,8 +42,8 @@ using namespace npl;
 /**
  * @brief Computes motion parameters from an fMRI image
  *
- * @param fmri Input fMRI 
- * @param reftime Volume to use for reference 
+ * @param fmri Input fMRI
+ * @param reftime Volume to use for reference
  * @param sigmas Standard deviation (in phyiscal space)
  * @param hardstops Lower bound on negative correlation  -1 would mean that it
  * stops when it hits -1
@@ -52,7 +52,7 @@ using namespace npl;
  * in radians, S = shift in index units): [CX, CY, CZ, RX, RY, RZ, SX, SY, SZ]
  */
 vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
-		const vector<double>& sigmas, double minstep, double maxstep, 
+		const vector<double>& sigmas, double minstep, double maxstep,
 		int histsize, double beta, int padsize)
 {
 	assert(fmri->ndim());
@@ -63,10 +63,10 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 	if(padsize < 0)
 		padsize = 0;
 
-	Vector3DConstIter<double> iit(fmri); 
+	Vector3DConstIter<double> iit(fmri);
 	vector<vector<double>> motion;
 	double thresh = otsuThresh(fmri);
-	
+
 	// extract reference volumes and pre-smooth
 	vector<size_t> vsize(fmri->dim(), fmri->dim()+fmri->ndim());
 	for(size_t dd=0; dd<vsize.size(); dd++) {
@@ -89,7 +89,7 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 	for(size_t ii=0; ii<sigmas.size(); ii++) {
 		NDIter<double> fit(vol);
 		fit.setROI(roi);
-		for(iit.goBegin(), fit.goBegin(); !fit.eof() && !iit.eof(); 
+		for(iit.goBegin(), fit.goBegin(); !fit.eof() && !iit.eof();
 					++iit, ++fit) {
 			double v = iit[reftime];
 			if(v < thresh)
@@ -131,7 +131,7 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 			 ***************************************************************/
 			for(size_t ii=0; ii<sigmas.size(); ii++) {
 
-				/* 
+				/*
 				 * Extract, threshold and Smooth Moving Volume, Set Fixed in
 				 * computer to Pre-Smoothed Version
 				 */
@@ -181,7 +181,7 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 			motion.push_back(vector<double>());
 			auto& m = motion.back();
 			m.resize(9, 0);
-			
+
 			// Convert to RAS
 			rigid.ras_coord = false;
 			for(size_t dd=0; dd<3; dd++) {
@@ -198,7 +198,7 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 				m[dd+6] = rigid.shift[dd];
 			}
 
-			for(size_t dd=0; dd<9; dd++) { 
+			for(size_t dd=0; dd<9; dd++) {
 				if(dd != 0) cout << ", ";
 				cout << m[dd];
 			}
@@ -218,7 +218,7 @@ int main(int argc, char** argv)
 	 * Command Line
 	 */
 
-	TCLAP::CmdLine cmd("Motions corrects a 4D Image.", ' ', 
+	TCLAP::CmdLine cmd("Motions corrects a 4D Image.", ' ',
 			__version__ );
 
 	TCLAP::ValueArg<string> a_in("i", "input", "Input 4D Image.", true, "",
@@ -231,7 +231,7 @@ int main(int argc, char** argv)
 
 	TCLAP::ValueArg<string> a_motion("m", "motion", "Ouput motion as 9 column "
 			"text file. Columns are Center (x,y,z), Rotation (in radians) "
-			"about axes x/y/z through the center and shift (x,y,z).", 
+			"about axes x/y/z through the center and shift (x,y,z).",
 			false, "", "*.txt", cmd);
 	TCLAP::ValueArg<string> a_inmotion("a", "apply", "Apply motion from 9 "
 			"column text file. Columns are Center (x,y,z), Rotation (in "
@@ -240,15 +240,15 @@ int main(int argc, char** argv)
 			"motion parameters are applied to the input timeseries.",
 			false, "", "*.txt", cmd);
 	TCLAP::MultiArg<double> a_sigmas("s", "sigmas", "Smoothing standard "
-			"deviations. These are the steps of the registration.", false, 
+			"deviations. These are the steps of the registration.", false,
 			"sd", cmd);
-	TCLAP::ValueArg<double> a_minstep("", "minstep", "Minimum step", 
+	TCLAP::ValueArg<double> a_minstep("", "minstep", "Minimum step",
 			false, 1e-3, "float", cmd);
-	TCLAP::ValueArg<double> a_maxstep("", "maxstep", "Maximum step", 
+	TCLAP::ValueArg<double> a_maxstep("", "maxstep", "Maximum step",
 			false, 1, "float", cmd);
-	TCLAP::ValueArg<int> a_lbfgs_hist("", "hist", "History for L-BFGS", 
+	TCLAP::ValueArg<int> a_lbfgs_hist("", "hist", "History for L-BFGS",
 			false, 4, "int", cmd);
-	TCLAP::ValueArg<double> a_beta("", "reduction", "Reduction in step size", 
+	TCLAP::ValueArg<double> a_beta("", "reduction", "Reduction in step size",
 			false, 0.35, "float", cmd);
 	TCLAP::ValueArg<int> a_padsize("", "pad", "Number of pixels to pad during "
 			"registration. Reduces information lost, and stabilizes "
@@ -262,17 +262,17 @@ int main(int argc, char** argv)
 	/**********
 	 * Input
 	 *********/
-	
+
 	// read fMRI
 	ptr<MRImage> fmri = readMRImage(a_in.getValue());
 	if(!fmri->floatType())
 		fmri = dPtrCast<MRImage>(fmri->copyCast(FLOAT32));
 
 	if(fmri->tlen() == 1 || fmri->ndim() != 4) {
-		cerr << "Warning input has " << fmri->ndim() << 
+		cerr << "Warning input has " << fmri->ndim() <<
 			" dimensions  and " << fmri->tlen() << " volumes." << endl;
 	}
-	
+
 	// set reference volume
 	int ref = a_ref.getValue();
 	if(ref < 0 || ref >= fmri->tlen())
@@ -283,22 +283,22 @@ int main(int argc, char** argv)
 
 	// set up sigmas
 	vector<double> sigmas({2,1,0.5});
-	if(a_sigmas.isSet()) 
+	if(a_sigmas.isSet())
 		sigmas.assign(a_sigmas.begin(), a_sigmas.end());
-	
+
 	if(a_inmotion.isSet()) {
 		motion = readNumericCSV(a_inmotion.getValue());
 
 		// Check Motion Results
 		if(motion.size() != fmri->tlen()) {
-			cerr << "Input motion rows doesn't match input fMRI timepoints!" 
-				<< endl; 
+			cerr << "Input motion rows doesn't match input fMRI timepoints!"
+				<< endl;
 			return -1;
 		}
 
 		for(size_t ll=0; ll < motion.size(); ll++) {
 			if(motion[ll].size() != 9) {
-				cerr << "On line " << ll << ", width should be 9 but is " 
+				cerr << "On line " << ll << ", width should be 9 but is "
 					<< motion[ll].size() << endl;
 				return -1;
 			}
@@ -333,20 +333,21 @@ int main(int argc, char** argv)
 	/*****************************************************
 	 * apply motion parameters
 	 ****************************************************/
-	
+
 	// Create working Buffer, iterators
 	auto vol = dPtrCast<MRImage>(fmri->createAnother(3,fmri->dim(),FLOAT64));
 	Vector3DIter<double> iit(fmri);
-	FlatIter<double> vit(vol);
+	NDIter<double> vit(vol);
 	Rigid3DTrans rigid;
 
 	// apply each time point then copy back into fMRI
+	LanczosInterp3DView<double> interp(fmri);
 	for(size_t tt=0; tt<fmri->tlen(); tt++) {
-		
+
 		// extract timepoint
-		for(iit.goBegin(), vit.goBegin(); !iit.eof(); ++iit, ++vit) 
+		for(iit.goBegin(), vit.goBegin(); !iit.eof(); ++iit, ++vit)
 			vit.set(iit[tt]);
-	
+
 		// Convert from RAS to index
 		rigid.ras_coord = true;
 		for(size_t dd=0; dd<3; dd++) {
@@ -354,25 +355,28 @@ int main(int argc, char** argv)
 			rigid.rotation[dd] = motion[tt][dd+3];
 			rigid.shift[dd] = motion[tt][dd+6];
 		}
-		if(a_invert.isSet())
+		if(!a_invert.isSet())
 			rigid.invert();
+
 		cerr << "vol: " << endl << *vol << endl;
 		cerr << "Rigid Transform: " << tt << "\n" << rigid <<endl;
-		rigid.toIndexCoords(vol, true);
-		cerr << "Rigid Transform: " << tt << "\n" << rigid <<endl;
-		
-		// Apply Rigid Transform
-		rotateImageShearKern(vol, rigid.rotation[0], rigid.rotation[1], 
-				rigid.rotation[2]);
-		for(size_t dd=0; dd<3; dd++) 
-			shiftImageKern(vol, dd, rigid.shift[dd]);
+
+		Matrix3d R = rigid.rotMatrix();
+		Vector3d ind;
+		for(vit.goBegin(); !vit.eof(); ++vit) {
+			vit.index(3, ind.array().data());
+			vol->indexToPoint(3, ind.array().data(), ind.array().data());
+			ind = R*(ind-rigid.center) + rigid.center + rigid.shift;
+			vol->pointToIndex(3, ind.array().data(), ind.array().data());
+			vit.set(interp(ind[0], ind[1], ind[2], tt));
+		}
 
 		// Copy Result Back to input image
-		for(iit.goBegin(), vit.goBegin(); !iit.eof(); ++iit, ++vit) 
+		for(iit.goBegin(), vit.goBegin(); !iit.eof(); ++iit, ++vit)
 			iit.set(tt, *vit);
 	}
 
-	if(a_out.isSet()) 
+	if(a_out.isSet())
 		fmri->write(a_out.getValue());
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions

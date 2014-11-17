@@ -430,7 +430,21 @@ public:
 	 * @return True if the two images have matching orientation information.
 	 */
 	virtual bool matchingOrient(ptr<const MRImage> other, bool checkdim,
-			bool checksize) const;
+			bool checksize, double tol = 0.01) const;
+
+	/**
+	 * @brief Returns true if the image is isotropic (same spacing in all
+	 * dimensions). This can be looseened to checking only the first 3 dims
+	 * with only3d = true. Tolerence in the absolute maximum difference between
+	 * the first dim and any other dim.
+	 *
+	 * @param only3d Only check spacing in the first 3 dimensions (default)
+	 * @param tol Tolerence in the absolute maximum difference between
+	 * the first dim and any other dim.
+	 *
+	 * @return True if the image is roughly isotropic
+	 */
+	virtual bool isIsotropic(bool only3d = true, double tol = 0.01) const;
 
 	/********************************************
 	 * Output Functions

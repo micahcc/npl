@@ -274,6 +274,11 @@ def build(bld):
 			use='mrimage_utils ndarray_utils utility iterators EIGEN')
 
 	bld.program(install_path='${PREFIX}/tests', features='test',
+			target='fft_rotate_test3',
+			source='fft_rotate_test3.cpp',
+			use='mrimage_utils ndarray_utils utility iterators EIGEN')
+
+	bld.program(install_path='${PREFIX}/tests', features='test',
 			target='shear_decompose_test',
 			source='shear_decompose_test.cpp',
 			use='ndarray_utils utility mrimage_utils iterators EIGEN')
