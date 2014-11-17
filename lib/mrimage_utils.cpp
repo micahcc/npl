@@ -19,11 +19,15 @@
  *
  *****************************************************************************/
 
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
+
 #include "mrimage.h"
 #include "iterators.h"
 #include "accessors.h"
 #include "ndarray_utils.h"
 #include "mrimage_utils.h"
+#include "registration.h"
 #include "byteswap.h"
 #include "macros.h"
 
@@ -607,6 +611,16 @@ void gaussianSmooth1D(ptr<MRImage> inout, size_t dim,
 int rotateImageShearKern(ptr<MRImage> inout, double rx, double ry, double rz,
 		double(*kern)(double,double))
 {
+	double space = -1;
+	for(size_t ii=0; ii<3 && ii <inout->ndim(); ii++) {
+		if(space == -1) {
+			space = inout->spacing(ii);
+		} else if(fabs(space - inout->spacing(ii)) > 0.1) {
+			throw INVALID_ARGUMENT("Shear Rotation with non-isotropic voxels not yet implemented!");
+		}
+	}
+
+
 	const double PI = acos(-1);
 	if(fabs(rx) > PI/4. || fabs(ry) > PI/4. || fabs(rz) > PI/4.) {
 		cerr << "Fast large rotations not yet implemented" << endl;
@@ -644,9 +658,6 @@ int rotateImageShearKern(ptr<MRImage> inout, double rx, double ry, double rz,
 
 		// perform shear
 		if(sheardim != -1) {
-			// scale by spacing
-			for(size_t dd=0; dd<3; dd++)
-				shearvals[dd] /= inout->spacing(dd);
 			shearImageKern(dPtrCast<NDArray>(inout), sheardim, 3, shearvals, kern);
 		}
 
@@ -670,6 +681,14 @@ int rotateImageShearKern(ptr<MRImage> inout, double rx, double ry, double rz,
 int rotateImageShearFFT(ptr<MRImage> inout, double rx, double ry, double rz,
 		double(*window)(double,double))
 {
+	double space = -1;
+	for(size_t ii=0; ii<3 && ii <inout->ndim(); ii++) {
+		if(space == -1)
+			space = inout->spacing(ii);
+		else if(fabs(space - inout->spacing(ii)) > 0.1) {
+			throw INVALID_ARGUMENT("Shear Rotation with non-isotropic voxels not yet implemented!");
+		}
+	}
 	const double PI = acos(-1);
 	if(fabs(rx) > PI/4. || fabs(ry) > PI/4. || fabs(rz) > PI/4.) {
 		cerr << "Fast large rotations not yet implemented" << endl;
@@ -707,9 +726,6 @@ int rotateImageShearFFT(ptr<MRImage> inout, double rx, double ry, double rz,
 
 		// perform shear (if there is one - if there isn't do nothing)
 		if(sheardim != -1) {
-			// scale by spacing
-			for(size_t dd=0; dd<3; dd++)
-				shearvals[dd] /= inout->spacing(dd);
 			shearImageFFT(dPtrCast<NDArray>(inout), sheardim, 3, shearvals, window);
 		}
 	}
@@ -717,6 +733,53 @@ int rotateImageShearFFT(ptr<MRImage> inout, double rx, double ry, double rz,
 	return 0;
 }
 
+/**
+ * @brief Rigid Transforms an image
+ *
+ * @param inout Input/output image
+ * @param rx Rotation about x axis
+ * @param ry Rotation about y axis
+ * @param rz Rotation about z axis
+ * @param sx shift along x axis (mm)
+ * @param sy shift along y axis (mm)
+ * @param sz shift along z axis (mm)
+ */
+ptr<MRImage> rigidTransform(ptr<MRImage> in, double rx, double ry, double rz,
+		double sx, double sy, double sz)
+{
+	// Set Rotation/Shift
+	Matrix3d R, Rinv;
+	R = Eigen::AngleAxisd(rx, Vector3d::UnitX())*
+		Eigen::AngleAxisd(ry, Vector3d::UnitY())*
+		Eigen::AngleAxisd(rz, Vector3d::UnitZ());
+		
+	Vector3d shift, ishift, center;
+	shift[0] = sx;
+	shift[1] = sy;
+	shift[2] = sz;
+
+	// Set Center
+	for(size_t dd=0; dd<3; dd++)
+		center[dd] = (in->dim(dd)-1)/2.;
+	in->indexToPoint(3, center.array().data(), center.array().data());
+
+	// Invert
+	Rinv = R.inverse();
+	ishift = -R*shift;
+
+	LanczosInterp3DView<double> vw(in);
+	vw.m_ras = true;
+	auto out = dPtrCast<MRImage>(in->createAnother());
+	Vector3d pt;
+	for(Vector3DIter<double> it(out); !it.eof(); ++it) {
+		it.index(3, pt.array().data());
+		out->indexToPoint(3, pt.array().data(), pt.array().data());
+		pt = Rinv*(pt-center) + center + ishift;
+		it.set(vw(pt[0], pt[1], pt[2]));
+	}
+
+	return out;
+}
 
 } // npl
 

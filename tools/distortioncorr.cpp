@@ -341,7 +341,6 @@ int main(int argc, char** argv)
 				pt = Rinv*(pt-irigid.center) + irigid.center + irigid.shift;
 				out->pointToIndex(ndim, pt.array().data(), dcind);
 				dcind[dir] += def/out->spacing(dir);
-				out->indexToPoint(ndim, dcind, pt.array().data());
 				double Fm = mov_vw(dcind[0], dcind[1], dcind[2], tt);
 
 				if(Fm < 1e-10 || ddef < -1) Fm = 0;

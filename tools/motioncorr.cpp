@@ -337,10 +337,11 @@ int main(int argc, char** argv)
 	// Create working Buffer, iterators
 	auto vol = dPtrCast<MRImage>(fmri->createAnother(3,fmri->dim(),FLOAT64));
 	Vector3DIter<double> iit(fmri);
-	FlatIter<double> vit(vol);
+	NDIter<double> vit(vol);
 	Rigid3DTrans rigid;
 
 	// apply each time point then copy back into fMRI
+	LanczosInterp3DView<double> interp(fmri);
 	for(size_t tt=0; tt<fmri->tlen(); tt++) {
 		
 		// extract timepoint
@@ -354,18 +355,21 @@ int main(int argc, char** argv)
 			rigid.rotation[dd] = motion[tt][dd+3];
 			rigid.shift[dd] = motion[tt][dd+6];
 		}
-		if(a_invert.isSet())
+		if(!a_invert.isSet())
 			rigid.invert();
+		
 		cerr << "vol: " << endl << *vol << endl;
 		cerr << "Rigid Transform: " << tt << "\n" << rigid <<endl;
-		rigid.toIndexCoords(vol, true);
-		cerr << "Rigid Transform: " << tt << "\n" << rigid <<endl;
 		
-		// Apply Rigid Transform
-		rotateImageShearKern(vol, rigid.rotation[0], rigid.rotation[1], 
-				rigid.rotation[2]);
-		for(size_t dd=0; dd<3; dd++) 
-			shiftImageKern(vol, dd, rigid.shift[dd]);
+		Matrix3d R = rigid.rotMatrix();
+		Vector3d ind;
+		for(vit.goBegin(); !vit.eof(); ++vit) {
+			vit.index(3, ind.array().data());
+			vol->indexToPoint(3, ind.array().data(), ind.array().data());
+			ind = R*(ind-rigid.center) + rigid.center + rigid.shift;
+			vol->pointToIndex(3, ind.array().data(), ind.array().data());
+			vit.set(interp(ind[0], ind[1], ind[2], tt));
+		}
 
 		// Copy Result Back to input image
 		for(iit.goBegin(), vit.goBegin(); !iit.eof(); ++iit, ++vit) 

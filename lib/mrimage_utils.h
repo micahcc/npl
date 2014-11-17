@@ -154,32 +154,46 @@ ptr<MRImage> fft_backward(ptr<const MRImage> in,
         const std::vector<size_t>& in_osize);
 
 /**
- * @brief Performs a shear on the image where the sheared dimension (dim) will
- * be shifted depending on the index in other dimensions (dist). 
- * (in units of pixels). Uses Lanczos interpolation.
+ * @brief Rotates an image around the center using shear decomposition followed
+ * by kernel-based shearing. Rotation order is Rz, Ry, Rx, and about the center
+ * of the image. This means that 1D interpolation will be used.
  *
  * @param inout Input/output image
- * @param dim Dimension to shift/shear
- * @param len Length of dist array
- * @param dist Distance terms to travel. Shift[dim] = x0*dist[0]+x1*dist[1] ...
- * @param kern 1D interpolation kernel
+ * @param rx Rotation about x axis
+ * @param ry Rotation about y axis
+ * @param rz Rotation about z axis
  */
-void shearImageKern(ptr<MRImage> inout, size_t dim, size_t len, 
-        double* dist, double(*kern)(double,double) = npl::lanczosKern);
+int rotateImageShearKern(ptr<MRImage> inout, double rx, double ry, double rz,
+		double(*kern)(double,double) = npl::lanczosKern);
 
 /**
- * @brief Performs a shear on the image where the sheared dimension (dim) will
- * be shifted depending on the index in other dimensions (dist). 
- * (in units of pixels), using FFT.
+ * @brief Rotates an image around the center using shear decomposition followed
+ * by FFT-based shearing. Rotation order is Rz, Ry, Rx, and about the center of
+ * the image.
  *
  * @param inout Input/output image
- * @param dim Dimension to shift/shear
- * @param len Length of dist array
- * @param dist Distance terms to travel. Shift[dim] = x0*dist[0]+x1*dist[1] ...
- * @param window Windowing function of fourier domain (default sinc)
+ * @param rx Rotation about x axis
+ * @param ry Rotation about y axis
+ * @param rz Rotation about z axis
+ * @param rz Rotation about z axis
+ * @param window Window function to apply in fourier domain
  */
-void shearImageFFT(ptr<MRImage> inout, size_t dim, size_t len, double* dist,
+int rotateImageShearFFT(ptr<MRImage> inout, double rx, double ry, double rz,
 		double(*window)(double,double) = npl::sincWindow);
+
+/**
+ * @brief Rigid Transforms an image
+ *
+ * @param inout Input/output image
+ * @param rx Rotation about x axis
+ * @param ry Rotation about y axis
+ * @param rz Rotation about z axis
+ * @param sx shift about x axis
+ * @param sy shift about y axis
+ * @param sz shift about z axis
+ */
+ptr<MRImage> rigidTransform(ptr<MRImage> in, double rx, double ry, double rz,
+		double sx, double sy, double sz);
 
 
 /** @}  MRImageUtilities */
