@@ -37,7 +37,7 @@ def build(bld):
     bld.shlib( target = 'mrimage_utils', 
             source = 'mrimage_utils.cpp', 
             export_includes = ['.'],
-            use='mrimage iterators ndarray_utils fftw') 
+            use='mrimage iterators ndarray_utils fftw EIGEN') 
 #    bld.shlib( target = 'fractfft', 
 #            source = 'fract_fft.cpp ', 
 #            export_includes = ['.'],

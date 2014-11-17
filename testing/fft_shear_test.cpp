@@ -143,7 +143,7 @@ int main()
 
 	// manual shear
 	cerr << "Done.\nShearing Manually...";
-	auto kshear = dynamic_pointer_cast<MRImage>(in->copy());
+	auto kshear = dPtrCast<MRImage>(in->copy());
 	clock_t cl = clock();
 	shearImageKern(kshear, 0, 3, shear);
 	cl = clock() - cl;
@@ -151,7 +151,7 @@ int main()
 	kshear->write("kern_shear.nii.gz");
 	
 	cerr << "Done.\nShearing with FFT...";
-	auto fshear = dynamic_pointer_cast<MRImage>(in->copy());
+	auto fshear = dPtrCast<MRImage>(in->copy());
 	cl = clock();
 	shearImageFFT(fshear, 0, 3, shear);
 	cl = clock() - cl;
