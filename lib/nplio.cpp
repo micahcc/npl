@@ -526,6 +526,7 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray,
             }
 
             oimage->setDirection(tmpdirection, true);
+			oimage->m_coordinate = QFORM;
         } else if(sform_code > 0) {
             /* use the sform, since no qform exists */
 
@@ -560,10 +561,12 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray,
                 oimage->direction(2,0) = saffine[4*2+0]/di;
             }
 
+			oimage->m_coordinate = SFORM;
         } else {
             // only spacing changes
             for(size_t ii=0; ii<dim.size(); ii++)
                 oimage->spacing(ii) = pixdim[ii];
+			oimage->m_coordinate = NOFORM;
         }
 
         /**************************************************************************
