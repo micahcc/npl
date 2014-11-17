@@ -1,10 +1,7 @@
 #!/bin/bash
-
-NPLDIR=$1
-
 set -x
 baseimg=orig.nii.gz
-distimg=field_0.nii.gz
+distimg=field.nii.gz
 
 # create motion file
 echo 20 20 20 0 0 0 0 0 0 > motion0.rtm
@@ -36,7 +33,7 @@ cat motion0.rtm motion1.rtm > motion.rtm
 
 # test, sim_dc.nii.gz should match baseimg
 nplMotionCorr -a motion.rtm -i sim.nii.gz -o sim_mc.nii.gz 
-nplDistortionCorr -R motion.rtm -a $distimg -d x -m sim.nii.gz -o sim_dc.nii.gz
+nplDistortionCorr -R motion.rtm -a $distimg -d y -m sim.nii.gz -o sim_dc.nii.gz
 
 comp=`nplCompare sim_dc.nii.gz sim_mdcc.nii.gz -m cor`
 if (( $(echo "$comp < 0.995" | bc -l) )); then
