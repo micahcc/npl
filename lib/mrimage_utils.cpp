@@ -594,6 +594,130 @@ void gaussianSmooth1D(ptr<MRImage> inout, size_t dim,
 //}
 
 
+/**
+ * @brief Rotates an image around the center using shear decomposition followed
+ * by kernel-based shearing. Rotation order is Rz, Ry, Rx, and about the center
+ * of the image. This means that 1D interpolation will be used.
+ *
+ * @param inout Input/output image
+ * @param rx Rotation about x axis
+ * @param ry Rotation about y axis
+ * @param rz Rotation about z axis
+ */
+int rotateImageShearKern(ptr<MRImage> inout, double rx, double ry, double rz,
+		double(*kern)(double,double))
+{
+	const double PI = acos(-1);
+	if(fabs(rx) > PI/4. || fabs(ry) > PI/4. || fabs(rz) > PI/4.) {
+		cerr << "Fast large rotations not yet implemented" << endl;
+		return -1;
+	}
+
+	std::list<Matrix3d> shears;
+
+	// decompose into shears
+	clock_t c = clock();
+	if(shearDecompose(shears, rx, ry, rz) != 0) {
+		cerr << "Failed to find valid shear matrices" << endl;
+		return -1;
+	}
+	c = clock() - c;
+    shears.reverse();
+	DBG3(cerr << "Shear Decompose took " << c << " ticks " << endl);
+
+	// perform shearing
+	double shearvals[3];
+	for(const Matrix3d& shmat: shears) {
+		int64_t sheardim = -1;;
+		for(size_t rr = 0 ; rr < 3 ; rr++) {
+			for(size_t cc = 0 ; cc < 3 ; cc++) {
+				if(rr != cc && shmat(rr,cc) != 0) {
+					if(sheardim != -1 && sheardim != rr) {
+						cerr << "Error, multiple shear dimensions!" << endl;
+						return -1;
+					}
+					sheardim = rr;
+					shearvals[cc] = shmat(rr,cc);
+				}
+			}
+		}
+
+		// perform shear
+		if(sheardim != -1) {
+			// scale by spacing
+			for(size_t dd=0; dd<3; dd++)
+				shearvals[dd] /= inout->spacing(dd);
+			shearImageKern(dPtrCast<NDArray>(inout), sheardim, 3, shearvals, kern);
+		}
+
+	}
+
+	return 0;
+}
+
+/**
+ * @brief Rotates an image around the center using shear decomposition followed
+ * by FFT-based shearing. Rotation order is Rz, Ry, Rx, and about the center of
+ * the image.
+ *
+ * @param inout Input/output image
+ * @param rx Rotation about x axis
+ * @param ry Rotation about y axis
+ * @param rz Rotation about z axis
+ * @param rz Rotation about z axis
+ * @param window Window function to apply in fourier domain
+ */
+int rotateImageShearFFT(ptr<MRImage> inout, double rx, double ry, double rz,
+		double(*window)(double,double))
+{
+	const double PI = acos(-1);
+	if(fabs(rx) > PI/4. || fabs(ry) > PI/4. || fabs(rz) > PI/4.) {
+		cerr << "Fast large rotations not yet implemented" << endl;
+		return -1;
+	}
+
+	std::list<Matrix3d> shears;
+
+	// decompose into shears
+	clock_t c = clock();
+	if(shearDecompose(shears, rx, ry, rz) != 0) {
+		cerr << "Failed to find valid shear matrices" << endl;
+		return -1;
+	}
+	c = clock() - c;
+    shears.reverse();
+	DBG3(cerr << "Shear Decompose took " << c << " ticks " << endl);
+
+	// perform shearing
+	double shearvals[3];
+	for(const Matrix3d& shmat: shears) {
+		int64_t sheardim = -1;;
+		for(size_t rr = 0 ; rr < 3 ; rr++) {
+			for(size_t cc = 0 ; cc < 3 ; cc++) {
+				if(rr != cc && shmat(rr,cc) != 0) {
+					if(sheardim != -1 && sheardim != rr) {
+						cerr << "Error, multiple shear dimensions!" << endl;
+						return -1;
+					}
+					sheardim = rr;
+					shearvals[cc] = shmat(rr,cc);
+				}
+			}
+		}
+
+		// perform shear (if there is one - if there isn't do nothing)
+		if(sheardim != -1) {
+			// scale by spacing
+			for(size_t dd=0; dd<3; dd++)
+				shearvals[dd] /= inout->spacing(dd);
+			shearImageFFT(dPtrCast<NDArray>(inout), sheardim, 3, shearvals, window);
+		}
+	}
+
+	return 0;
+}
+
+
 } // npl
 
 
