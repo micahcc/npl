@@ -140,7 +140,6 @@ int main(int argc, char** argv)
 			inimg->createAnother(min(inimg->ndim(), 3lu),
 			inimg->dim(), FLOAT32));
 
-	Vector3DIter<double> oit(out);
 	double pt[3];
 	for(Vector3DIter<double> dit(defimg), oit(out); !oit.eof(); ++oit, ++dit) {
 		oit.index(3, pt);

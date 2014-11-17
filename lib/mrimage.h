@@ -40,6 +40,8 @@ using std::vector;
 enum SliceOrderT {UNKNOWN_SLICE=0, SEQ=1, RSEQ=2, ALT=3, RALT=4, ALT_SHFT=5,
 	RALT_SHFT=6};
 
+enum CoordinateT {NOFORM=0, QFORM=1, SFORM=2};
+
 enum BoundaryConditionT {ZEROFLUX=0, CONSTZERO=1, WRAP=2};
 
 class MRImage;
@@ -647,6 +649,7 @@ public:
 	int m_freqdim;
 	int m_phasedim;
 	int m_slicedim;
+	int m_coordinate;
 
 	/*
 	 * nifti specific stuff, eventually these should be moved to a nifti
