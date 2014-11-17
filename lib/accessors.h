@@ -267,7 +267,6 @@ public:
 
 protected:
 
-
 	/**
 	 * @brief This is a wrapper function that will be called to safely cast
 	 * from the underlying type.
@@ -463,7 +462,6 @@ public:
 
 protected:
 
-
 	/**
 	 * @brief This is a wrapper function that will be called to safely cast
 	 * from the underlying type.
@@ -608,6 +606,7 @@ public:
 	virtual
 	T operator()(double x=0, double y=0, double z=0, int64_t t=0)
 	{
+		throw INVALID_ARGUMENT("DOUBLE PASSED TO VECTOR3D VIEW!");
 		auto ptr = this->parent->__getAddr(round(x),round(y),round(z),t);
 		assert(ptr >= this->parent->__getAddr(0) &&
 				ptr < this->parent->__getAddr(this->parent->elements()));
@@ -622,6 +621,7 @@ public:
 	virtual
 	T get(double x=0, double y=0, double z=0, int64_t t=0)
 	{
+		throw INVALID_ARGUMENT("DOUBLE PASSED TO VECTOR3D VIEW!");
 		auto ptr = this->parent->__getAddr(round(x),round(y),round(z),t);
 		assert(ptr >= this->parent->__getAddr(0) &&
 				ptr < this->parent->__getAddr(this->parent->elements()));
@@ -1250,13 +1250,7 @@ public:
 	 */
 	T operator()(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
-#ifndef ALLOWINT
-		(void)x; (void)y; (void)z; (void)t;
-		throw INVALID_ARGUMENT("Need to pass DOUBLE not INT to interpolator");
-		return 0;
-#else
 		return get((double)x,(double)y,(double)z,t);
-#endif
 	};
 
 	/**
@@ -1266,13 +1260,7 @@ public:
 	 */
 	T get(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
-#ifndef ALLOWINT
-		(void)x; (void)y; (void)z; (void)t;
-		throw INVALID_ARGUMENT("Need to pass DOUBLE not INT to interpolator");
-		return 0;
-#else
 		return get((double)x,(double)y,(double)z,t);
-#endif
 	};
 
 	BoundaryConditionT m_boundmethod;
@@ -1630,13 +1618,7 @@ public:
 	 */
 	T operator()(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
-#ifndef ALLOWINT
-		(void)x; (void)y; (void)z; (void)t;
-		throw INVALID_ARGUMENT("Need to pass DOUBLE not INT to interpolator");
-		return 0;
-#else
 		return get((double)x,(double)y,(double)z,t);
-#endif
 	};
 
 	/**
@@ -1646,13 +1628,7 @@ public:
 	 */
 	T get(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
-#ifndef ALLOWINT
-		(void)x; (void)y; (void)z; (void)t;
-		throw INVALID_ARGUMENT("Need to pass DOUBLE not INT to interpolator");
-		return 0;
-#else
 		return get((double)x,(double)y,(double)z,t);
-#endif
 	};
 
 
@@ -1926,13 +1902,7 @@ public:
 	 */
 	T operator()(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
-#ifndef ALLOWINT
-		(void)x; (void)y; (void)z; (void)t;
-		throw INVALID_ARGUMENT("Need to pass DOUBLE not INT to interpolator");
-		return 0;
-#else
 		return get((double)x,(double)y,(double)z,t);
-#endif
 	};
 
 	/**
@@ -1942,13 +1912,7 @@ public:
 	 */
 	T get(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
-#ifndef ALLOWINT
-		(void)x; (void)y; (void)z; (void)t;
-		throw INVALID_ARGUMENT("Need to pass DOUBLE not INT to interpolator");
-		return 0;
-#else
 		return get((double)x,(double)y,(double)z,t);
-#endif
 	};
 
 

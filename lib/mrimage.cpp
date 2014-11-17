@@ -320,7 +320,7 @@ std::ostream& operator<<(std::ostream &out, const MRImage& img)
 		}
 		out << "] " << endl;
 	}
-	
+
 	out << "Spacing: [";
 	for(size_t ii=0; ii<img.ndim(); ii++) {
         if(ii) out << ", ";
@@ -513,7 +513,7 @@ void _copyCast_help(ptr<const MRImage> in, ptr<MRImage> out)
 	// iterator copy ROI 10x5x1
 	OrderConstIter<T> iit(in);
 	OrderIter<T> oit(out);
-	
+
 	std::vector<std::pair<int64_t,int64_t>> roi(max(out->ndim(), in->ndim()));
 	for(size_t ii=0; ii<roi.size(); ii++) {
 		if(ii < min(out->ndim(), in->ndim())) {
@@ -557,7 +557,7 @@ ptr<MRImage> _copyCast(ptr<const MRImage> in, size_t newdims,
 		const size_t* newsize, PixelT newtype)
 {
 	auto out = createMRImage(newdims, newsize, newtype);
-	
+
 	// copy image metadata
 	out->m_freqdim = in->m_freqdim;
 	out->m_slicedim = in->m_slicedim;
@@ -694,32 +694,41 @@ void MRImage::copyMetadata(ptr<const MRImage> in)
  * false then the first min(D1,D2) dimensions will be checked, if this is true
  * then mismatched dimensionality will cause this to return a false
  * @param checksize Whether to enforce identical size as well as orientation
+ * @param tol Tolerance for comparison
  *
  * @return True if the two images have matching orientation information.
  */
 bool MRImage::matchingOrient(ptr<const MRImage> other, bool checkdim,
-		bool checksize) const
+		bool checksize, double tol) const
 {
-    if(checkdim && ndim() != other->ndim())
+    if(checkdim && ndim() != other->ndim()) {
+		cerr << "This: " << endl << *this << endl;
+		cerr << "Other: " << endl << *other << endl;
         return false;
+	}
 
 	size_t rank = std::min(ndim(), other->ndim());
     double err = 0;
-    double THRESH = 0.000001;
 
     // check spacing
     err = 0;
     for(size_t dd=0; dd<rank; dd++)
         err += pow(spacing(dd)-other->spacing(dd),2);
-    if(err > THRESH)
+    if(err > tol) {
+		cerr << "This: " << endl << *this << endl;
+		cerr << "Other: " << endl << *other << endl;
         return false;
+	}
 
     // Check Origin
     err = 0;
     for(size_t dd=0; dd<rank; dd++)
         err += pow(origin(dd)-other->origin(dd),2);
-    if(err > THRESH)
+    if(err > tol) {
+		cerr << "This: " << endl << *this << endl;
+		cerr << "Other: " << endl << *other << endl;
         return false;
+	}
 
     // check direction
     err = 0;
@@ -728,18 +737,59 @@ bool MRImage::matchingOrient(ptr<const MRImage> other, bool checkdim,
 			err += pow(direction(dd,ee)-other->direction(dd,ee),2);
         }
     }
-    if(err > THRESH)
+    if(err > tol) {
+		cerr << "This: " << endl << *this << endl;
+		cerr << "Other: " << endl << *other << endl;
         return false;
+	}
 
     if(checksize) {
 		for(size_t dd=0; dd<rank; dd++) {
-            if(dim(dd) != other->dim(dd))
-                return false;
+			if(dim(dd) != other->dim(dd)) {
+				cerr << "This: " << endl << *this << endl;
+				cerr << "Other: " << endl << *other << endl;
+				return false;
+			}
         }
     }
 
     return true;
 };
+
+
+/**
+ * @brief Returns true if the image is isotropic (same spacing in all
+ * dimensions). This can be looseened to checking only the first 3 dims
+ * with only3d = true. Tolerence in the absolute maximum difference between
+ * the first dim and any other dim.
+ *
+ * @param only3d Only check spacing in the first 3 dimensions (default)
+ * @param tol Tolerence in the absolute maximum difference between
+ * the first dim and any other dim.
+ *
+ * @return True if the image is roughly isotropic
+ */
+bool MRImage::isIsotropic(bool only3d, double tol) const
+{
+	double range[2] = {INFINITY,-INFINITY};
+	if(only3d) {
+		for(size_t ii=0; ii<3 && ii < this->ndim(); ii++) {
+			range[0] = min(range[0], this->spacing(ii));
+			range[1] = max(range[0], this->spacing(ii));
+		}
+	} else {
+		for(size_t ii=0; ii < this->ndim(); ii++) {
+			range[0] = min(range[0], this->spacing(ii));
+			range[1] = max(range[0], this->spacing(ii));
+		}
+	}
+	if(range[1] - range[0] > tol) {
+		cerr << "Range: " << range[0] << "-" << range[1] << endl;
+		cerr << "Non-Isotropic This: " << endl << *this << endl;
+		return false;
+	}
+	return true;
+}
 
 /******************************************************************************
  * Pre-Compile Image Types
