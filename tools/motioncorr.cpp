@@ -269,9 +269,8 @@ int main(int argc, char** argv)
 		fmri = dPtrCast<MRImage>(fmri->copyCast(FLOAT32));
 
 	if(fmri->tlen() == 1 || fmri->ndim() != 4) {
-		cerr << "Expect a 4D Image, but input had " << fmri->ndim() << 
+		cerr << "Warning input has " << fmri->ndim() << 
 			" dimensions  and " << fmri->tlen() << " volumes." << endl;
-		return -1;
 	}
 	
 	// set reference volume

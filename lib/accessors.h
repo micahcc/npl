@@ -1256,7 +1256,7 @@ public:
 		return 0;
 #else
 		return get((double)x,(double)y,(double)z,t);
-#endif 
+#endif
 	};
 
 	/**
@@ -1272,7 +1272,7 @@ public:
 		return 0;
 #else
 		return get((double)x,(double)y,(double)z,t);
-#endif 
+#endif
 	};
 
 	BoundaryConditionT m_boundmethod;
@@ -1636,7 +1636,7 @@ public:
 		return 0;
 #else
 		return get((double)x,(double)y,(double)z,t);
-#endif 
+#endif
 	};
 
 	/**
@@ -1652,7 +1652,7 @@ public:
 		return 0;
 #else
 		return get((double)x,(double)y,(double)z,t);
-#endif 
+#endif
 	};
 
 
@@ -1932,7 +1932,7 @@ public:
 		return 0;
 #else
 		return get((double)x,(double)y,(double)z,t);
-#endif 
+#endif
 	};
 
 	/**
@@ -1948,7 +1948,7 @@ public:
 		return 0;
 #else
 		return get((double)x,(double)y,(double)z,t);
-#endif 
+#endif
 	};
 
 

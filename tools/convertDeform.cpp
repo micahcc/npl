@@ -205,6 +205,10 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform,
 			dist = sqrt(dist);
 //			cerr << "Err: " << dist << endl;
 		}
+		if(iters == MAXITERS) {
+			cerr << "Warning, failed to converge at " << cind[0] << ", " <<
+				cind[1] << ", " << cind[2] << endl;
+		}
 
 
 		// save out final deform
@@ -331,13 +335,22 @@ int main(int argc, char** argv)
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
 			true, "", "*.nii.gz", cmd);
 
-//	TCLAP::ValueArg<string> a_idir("u", "uni-directional", "Input is a uni-"
-//			"directional distortion field. Direction of distortion may be "
-//			"-x +x x -y +y y -z z +z, where no +/- implies +. Thus a positive "
-//			"distortion value for a '+x' direction would mean the image is "
-//			"shifted in the positive direction of +x (in index space).",
-//			true, "", "*.nii.gz", cmd);
-//
+	TCLAP::ValueArg<string> a_dir_space("", "uni-space", "Input is a uni-"
+			"directional distortion field in spacing (mm) coords. "
+			"Direction of distortion may be "
+			"-x +x x -y +y y -z z +z, where no +/- implies +. Thus a positive "
+			"distortion value for a '+x' direction would mean the image is "
+			"shifted in the positive direction of +x (in index space).",
+			false, "", "xyz", cmd);
+
+	TCLAP::ValueArg<string> a_dir_index("", "uni-index", "Input is a uni-"
+			"directional distortion field in index coords. "
+			"Direction of distortion may be "
+			"-x +x x -y +y y -z z +z, where no +/- implies +. Thus a positive "
+			"distortion value for a '+x' direction would mean the image is "
+			"shifted in the positive direction of +x (in index space).",
+			false, "", "xyz", cmd);
+
 	TCLAP::SwitchArg a_invert("I", "invert", "index "
 			"lookup type deform to an offset (in mm) type deform", cmd);
 
@@ -370,11 +383,6 @@ int main(int argc, char** argv)
 	 *********/
 	deform = readMRImage(a_indef.getValue());
 	cerr << "Deform: " << *deform << endl;
-	if(deform->ndim() < 4 || deform->tlen() != 3) {
-		cerr << "Expected dform to be 4D/5D Image, with 3 volumes!" << endl;
-		return -1;
-	}
-
 	if(a_atlas.isSet()) {
 		atlas = readMRImage(a_atlas.getValue());
 		binarize(atlas);
@@ -382,6 +390,11 @@ int main(int argc, char** argv)
 
 	// convert to offset
 	if(a_in_index.isSet()) {
+		if(deform->ndim() < 4 || deform->tlen() != 3) {
+			cerr << "Expected dform to be 4D/5D Image, with 3 volumes!" << endl;
+			return -1;
+		}
+
 		cerr << "Converting Index Lookup to Offset Map" << endl;
 		if(!atlas) {
 			cerr << "Must provide an atlas for index-based deformations, "
@@ -400,14 +413,101 @@ int main(int argc, char** argv)
 		deform = indexMapToOffsetMap(deform, atlas, a_one_index.isSet());
 		deform->write("offset.nii.gz");
 	} else if(a_apply_orient.isSet()) {
-		cerr << "Reorienting Vectors to Image Space" << endl;
+		if(deform->ndim() < 4 || deform->tlen() != 3) {
+			cerr << "Expected dform to be 4D/5D Image, with 3 volumes!" << endl;
+			return -1;
+		}
+		cerr << "Reorienting Vectors to RAS Space" << endl;
 		deform = reorientVectors(deform);
+	} else if(a_dir_space.isSet() || a_dir_index.isSet()) {
+		if(deform->tlen() == 3) {
+			cerr << "Input is already 3D!" << endl;
+			return -1;
+		}
+
+		/*
+		 * Convert x/y/z to dimension with flip
+		 */
+		bool flip = false;
+		int dir = 0;
+		string idir;
+		if(a_dir_space.isSet()) idir = a_dir_space.getValue();
+		if(a_dir_index.isSet()) idir = a_dir_index.getValue();
+		int pos = 0;
+		if(!idir.empty() && idir[0] == '-') {
+			flip = true;
+			pos++;
+		} else if(!idir.empty() && idir[0] == '+') {
+			flip = false;
+			pos++;
+		}
+
+		if(pos < idir.size() && idir[pos] == 'x')
+			dir = 0;
+		else if(pos < idir.size() && idir[pos] == 'y')
+			dir = 1;
+		else if(pos < idir.size() && idir[pos] == 'z')
+			dir = 2;
+		else {
+			cerr << "Error Invalid Dimension: " << idir << endl;
+			return -1;
+		}
+
+		cerr << "Direction: ";
+		if(flip) cerr << "-";
+		else cerr << "+";
+		cerr << (char)('x'+dir) << endl;
+
+		/*
+		 * Now Convert 1D Vector to 3D oriented Vector
+		 */
+		auto olddef = deform;
+		vector<size_t> newdim(4);
+		for(size_t ii=0; ii<4; ii++) {
+			if(ii<deform->ndim() && ii<3)
+				newdim[ii] = deform->dim(ii);
+			else if(ii == 3)
+				newdim[ii] = 3;
+			else
+				newdim[ii] = 1;
+		}
+		deform = dPtrCast<MRImage>(deform->createAnother(4, newdim.data()));
+
+		// FILL, setting vector to be in direction of dimension, then orienting
+		// it (multiplying by orientation matrix)
+		double vec[3] = {0,0,0};
+		for(Vector3DIter<double> oit(deform), iit(olddef);
+					!iit.eof() && !oit.eof(); ++iit, ++oit) {
+			// zero vector
+			for(size_t dd=0; dd<3; dd++) vec[dd] = 0;
+
+			// Set Value in Direction of distortion
+			if(flip)
+				vec[dir] = -iit[0];
+			else
+				vec[dir] = iit[0];
+
+			if(a_dir_space.isSet())
+				vec[dir] /= deform->spacing(dir);
+
+			// Convert
+			deform->orientVector(3, vec, vec);
+
+			// set in output
+			for(size_t dd=0; dd<3; dd++)
+				oit.set(dd, vec[dd]);
+		}
+	}
+	if(deform->ndim() < 4 || deform->tlen() != 3) {
+		cerr << "Expected dform to be 4D/5D Image, with 3 volumes! If you "
+			"have a 1D transform provide a direction with -u " << endl;
+		return -1;
 	}
 
 	// invert
 	if(a_invert.isSet()) {
 		cerr << "Inverting" << endl;
-		deform = invertForwardBack(deform, 15, 0.1);
+		deform = invertForwardBack(deform, 100, 0.05);
 		cerr << "Done" << endl;
 
 		deform->write("invert.nii.gz");
