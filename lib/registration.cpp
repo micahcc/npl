@@ -76,8 +76,7 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
 
 	// make sure the input image has matching properties
 	if(!fixed->matchingOrient(moving, true, true))
-		throw std::invalid_argument("Input images have mismatching pixels "
-				"in\n" + __FUNCTION_STR__);
+		throw INVALID_ARGUMENT("Input images have mismatching pixels in");
 
 	// create value and gradient functions from RigiCorrComputer
 	RigidCorrComputer comp(true);
@@ -157,9 +156,7 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
 
 	// make sure the input image has matching properties
 	if(!fixed->matchingOrient(moving, true, true))
-		throw std::invalid_argument("Input images have mismatching pixels "
-				"in\n" + __FUNCTION_STR__);
-
+		throw INVALID_ARGUMENT("Input images have mismatching pixels in");
 
 	for(size_t ii=0; ii<sigmas.size(); ii++) {
 		// smooth and downsample input images
@@ -275,8 +272,7 @@ ptr<MRImage> infoDistCor(ptr<const MRImage> infixed, ptr<const MRImage> inmoving
 
 	// make sure the input image has matching properties
 	if(!infixed->matchingOrient(inmoving, true, true))
-		throw std::invalid_argument("Input images have mismatching pixels "
-				"in\n" + __FUNCTION_STR__);
+		throw INVALID_ARGUMENT("Input images have mismatching pixels in");
 
 	// Create Distortion Correction Computer
 	DistortionCorrectionInformationComputer comp(true);
@@ -529,6 +525,10 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
 				"computing value.");
 	if(!m_moving) throw INVALID_ARGUMENT("ERROR must set moving image before "
 				"computing value.");
+	if(!m_moving->matchingOrient(m_fixed, true, true)) {
+		throw INVALID_ARGUMENT("Moving and Fixed Images must have the same "
+				"orientation and gred!");
+	}
 
 	// Degrees -> Radians, mm -> index
 	double rx = params[0]*M_PI/180.;
@@ -695,6 +695,10 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
 				"computing value.");
 	if(!m_moving) throw INVALID_ARGUMENT("ERROR must set moving image before "
 				"computing value.");
+	if(!m_moving->matchingOrient(m_fixed, true, true)) {
+		throw INVALID_ARGUMENT("Moving and Fixed Images must have the same "
+				"orientation and gred!");
+	}
 
 	assert(m_fixed->ndim() == 3);
 	assert(m_moving->ndim() == 3);
@@ -776,11 +780,8 @@ void RigidCorrComputer::setFixed(ptr<const MRImage> newfix)
 {
 	if(newfix->ndim() != 3)
 		throw INVALID_ARGUMENT("Fixed image is not 3D!");
-
-	if(m_moving && !m_fixed->matchingOrient(m_moving, true, true)) {
-		throw INVALID_ARGUMENT("Moving and Fixed Images must have the same "
-				"orientation and gred!");
-	}
+	if(!newfix->isIsotropic(true))
+		throw INVALID_ARGUMENT("Fixed image is not isotropic!");
 
 	m_fixed = newfix;
 };
@@ -799,14 +800,10 @@ void RigidCorrComputer::setMoving(ptr<const MRImage> newmove)
 {
 	if(newmove->ndim() != 3)
 		throw INVALID_ARGUMENT("Moving image is not 3D!");
+	if(!newmove->isIsotropic(true))
+		throw INVALID_ARGUMENT("Moving image is not isotropic!");
 
 	m_moving = newmove;
-
-	// check that moving and fixed images are in the same space
-	if(m_fixed && !m_moving->matchingOrient(m_fixed, true, true)) {
-		throw INVALID_ARGUMENT("Moving and Fixed Images must have the same "
-				"orientation and gred!");
-	}
 	m_dmoving = dPtrCast<MRImage>(derivative(m_moving));
 
 	for(size_t ii=0; ii<3 && ii<m_moving->ndim(); ii++)
@@ -869,6 +866,8 @@ void RigidInformationComputer::setMoving(ptr<const MRImage> newmove)
 {
 	if(newmove->ndim() != 3)
 		throw INVALID_ARGUMENT("Moving image is not 3D!");
+	if(!newmove->isIsotropic(true))
+		throw INVALID_ARGUMENT("Moving image is not isotropic!");
 
 	//////////////////////////////////////
 	// Setup accessors and Members Images
@@ -901,6 +900,8 @@ void RigidInformationComputer::setFixed(ptr<const MRImage> newfixed)
 {
 	if(newfixed->ndim() != 3)
 		throw INVALID_ARGUMENT("Fixed image is not 3D!");
+	if(!newfixed->isIsotropic(true))
+		throw INVALID_ARGUMENT("Fixed image is not isotropic!");
 
 	//////////////////////////////////////
 	// Set up Members
@@ -935,9 +936,10 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
 				"computing value.");
 	if(!m_moving) throw INVALID_ARGUMENT("ERROR must set moving image before "
 				"computing value.");
-	if(!m_moving->matchingOrient(m_fixed, true, true))
-		throw INVALID_ARGUMENT("ERROR input images must be in same index "
-				"space");
+	if(!m_moving->matchingOrient(m_fixed, true, true)) {
+		throw INVALID_ARGUMENT("Moving and Fixed Images must have the same "
+				"orientation and gred!");
+	}
 
 	assert(m_pdfmove.dim(0) == m_bins);
 	assert(m_pdffix.dim(0) == m_bins);
@@ -1225,9 +1227,10 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
 	if(!m_moving)
 		throw INVALID_ARGUMENT("ERROR must set moving image before "
 				"computing value.");
-	if(!m_moving->matchingOrient(m_fixed, true, true))
-		throw INVALID_ARGUMENT("ERROR input images must be in same index "
-				"space");
+	if(!m_moving->matchingOrient(m_fixed, true, true)) {
+		throw INVALID_ARGUMENT("Moving and Fixed Images must have the same "
+				"orientation and gred!");
+	}
 
 	assert(m_pdfmove.dim(0) == m_bins);
 	assert(m_pdffix.dim(0) == m_bins);
@@ -1526,6 +1529,30 @@ void DistortionCorrectionInformationComputer::setMoving(
 	m_dmove_cache = dPtrCast<MRImage>(m_dmoving->createAnother());
 }
 
+/**
+ * @brief Sets the fixed image for Information-Based comparison. This sets
+ * m_fixed, m_fit, m_rangefix, m_wfix, fills the histogram m_pdffix, and
+ * computes m_Hfix
+ *
+ * @param newfixed New fixed image
+ */
+void DistortionCorrectionInformationComputer::setFixed(ptr<const MRImage> newfixed)
+{
+	if(newfixed->ndim() != 3)
+		throw INVALID_ARGUMENT("Fixed image is not 3D!");
+
+	m_fixed = newfixed;
+
+	// Compute Range of Values
+	m_rangefix[0] = INFINITY;
+	m_rangefix[1] = -INFINITY;
+	for(NDConstIter<double> it(m_fixed); !it.eof(); ++it) {
+		m_rangefix[0] = std::min(m_rangefix[0], *it);
+		m_rangefix[1] = std::max(m_rangefix[1], *it);
+	}
+}
+
+
 void DistortionCorrectionInformationComputer::updateCaches()
 {
 	m_rangemove[0] = 0;
@@ -1581,29 +1608,6 @@ void DistortionCorrectionInformationComputer::updateCaches()
 
 		m_rangemove[0] = std::min(m_rangemove[0], cit.get());
 		m_rangemove[1] = std::max(m_rangemove[1], cit.get());
-	}
-}
-
-/**
- * @brief Sets the fixed image for Information-Based comparison. This sets
- * m_fixed, m_fit, m_rangefix, m_wfix, fills the histogram m_pdffix, and
- * computes m_Hfix
- *
- * @param newfixed New fixed image
- */
-void DistortionCorrectionInformationComputer::setFixed(ptr<const MRImage> newfixed)
-{
-	if(newfixed->ndim() != 3)
-		throw INVALID_ARGUMENT("Fixed image is not 3D!");
-
-	m_fixed = newfixed;
-
-	// Compute Range of Values
-	m_rangefix[0] = INFINITY;
-	m_rangefix[1] = -INFINITY;
-	for(NDConstIter<double> it(m_fixed); !it.eof(); ++it) {
-		m_rangefix[0] = std::min(m_rangefix[0], *it);
-		m_rangefix[1] = std::max(m_rangefix[1], *it);
 	}
 }
 
