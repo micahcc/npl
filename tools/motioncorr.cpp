@@ -276,7 +276,7 @@ int main(int argc, char** argv)
 	// set reference volume
 	int ref = a_ref.getValue();
 	if(ref < 0 || ref >= fmri->tlen())
-		ref = fmri->tlen()/2;
+		ref = 0;
 
 	// construct variables to get a particular volume
 	vector<vector<double>> motion;
