@@ -56,7 +56,7 @@ int main(int argc, char** argv)
 
 	TCLAP::ValueArg<string> a_fixed("f", "fixed", "Fixed image.", false, "",
 			"*.nii.gz", cmd);
-	TCLAP::ValueArg<string> a_moving("m", "moving", "Moving image. ", true, 
+	TCLAP::ValueArg<string> a_moving("m", "moving", "Moving image. ", true,
 			"", "*.nii.gz", cmd);
 
 	TCLAP::ValueArg<string> a_metric("M", "metric", "Metric to use. "
@@ -64,7 +64,7 @@ int main(int argc, char** argv)
 	TCLAP::ValueArg<string> a_out("o", "out", "Registered version of "
 			"moving image. Note that if the input is 4D, this will NOT "
 			"apply the distortion to multiple time-points. To do that use "
-			"nplApplyDeform (which will handle motion correctly).", 
+			"nplApplyDeform (which will handle motion correctly).",
 			false, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_transform("t", "transform", "File to write "
 			"transform parameters to. This will be a nifti image the B-spline "
@@ -73,9 +73,6 @@ int main(int argc, char** argv)
 	TCLAP::ValueArg<string> a_field("F", "field", "Write distortion field, "
 			"not parameters but sampled B-Spline field at each point in "
 			"moving space. ", false, "", "*.nii.gz", cmd);
-	TCLAP::ValueArg<string> a_jac("j", "jac-field", "Write jacobian field, "
-			"not parameters but sampled derivative of B-Spline field at each "
-			"point in moving space. ", false, "", "*.nii.gz", cmd);
 
 	TCLAP::ValueArg<double> a_jacreg("J", "jacreg", "Jacobian regularizer "
 			"weight", false, 0.00001, "lambda", cmd);
@@ -83,14 +80,14 @@ int main(int argc, char** argv)
 			"regularizer weight", false, 0.0001, "lambda", cmd);
 
 	TCLAP::MultiArg<double> a_sigmas("S", "sigmas", "Smoothing standard "
-			"deviations at each step of the registration.", false, 
+			"deviations at each step of the registration.", false,
 			"sd", cmd);
 
 	TCLAP::ValueArg<char> a_dir("d", "direction", "Distortion direction "
 			"x or y or z etc.... By default the phase encode direction of "
 			"the moving image will be used (if set).", false, 200,
 			"n", cmd);
-	TCLAP::ValueArg<double> a_bspace("s", "bspline-space", 
+	TCLAP::ValueArg<double> a_bspace("s", "bspline-space",
 			"Spacing of B-Spline knots." , false, 200, "n", cmd);
 	TCLAP::ValueArg<int> a_bins("b", "bins", "Bins to use in information "
 			"metric to estimate the joint distribution. This is the "
@@ -129,7 +126,7 @@ int main(int argc, char** argv)
 
 	// set up sigmas
 	vector<double> sigmas({3,1.5,.5});
-	if(a_sigmas.isSet()) 
+	if(a_sigmas.isSet())
 		sigmas.assign(a_sigmas.begin(), a_sigmas.end());
 
 	/*************************************************************************
@@ -151,7 +148,7 @@ int main(int argc, char** argv)
 	int dir;
 	ptr<MRImage> transform;
 	if(a_fixed.isSet()) {
-		cerr << "Creating transform using non-linear distortion correction" 
+		cerr << "Creating transform using non-linear distortion correction"
 			<< endl;
 		ptr<MRImage> in_fixed = readMRImage(a_fixed.getValue());
 		cerr << "Done" << endl;
@@ -169,16 +166,16 @@ int main(int argc, char** argv)
 		vector<double> point(ndim);
 
 		// Create Interpolator, ensuring that radius is at least 1 pixel in the
-		// output space 
+		// output space
 		LanczosInterpNDView<double> interp(in_fixed);
 		interp.setRadius(3*ceil(moving->spacing(0)/in_fixed->spacing(0)));
 		interp.m_ras = true;
 		for(NDIter<double> it(fixed); !it.eof(); ++it) {
-			// get point 
+			// get point
 			it.index(ind.size(), ind.data());
 			fixed->indexToPoint(ind.size(), ind.data(), point.data());
 
-			// sample 
+			// sample
 			it.set(interp.get(point));
 		}
 		cerr << "Done" << endl;
@@ -205,18 +202,18 @@ int main(int argc, char** argv)
 		if(a_metric.getValue() == "COR") {
 			cerr << "COR not yet implemented!" << endl;
 		} else {
-			cout << "Done\nNon-Rigidly Registering with " << a_metric.getValue() 
+			cout << "Done\nNon-Rigidly Registering with " << a_metric.getValue()
 				<< "..." << endl;
 
 			transform = infoDistCor(fixed, moving, a_otsu.isSet(),
-					dir, a_bspace.getValue(), 
+					dir, a_bspace.getValue(),
 					a_jacreg.getValue(), a_tpsreg.getValue(), sigmas,
 					a_bins.getValue(), a_parzen.getValue(), a_metric.getValue(),
 					a_hist.getValue(), a_stopx.getValue(), a_beta.getValue());
 		}
-	
+
 		cout << "Finished\nWriting output.";
-		if(a_transform.isSet()) 
+		if(a_transform.isSet())
 			transform->write(a_transform.getValue());
 
 	} else if(a_apply.isSet()) {
@@ -243,18 +240,17 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	/* 
+	/*
 	 * Create Field and Jacobian Maps, in 3 or less dimensions, the write
 	 */
 	cerr << "Estimating distortion field " << endl;
-	ptr<MRImage> field = dPtrCast<MRImage>(moving->copyCast(ndim, moving->dim()));
-	ptr<MRImage> jac = dPtrCast<MRImage>(moving->copyCast(ndim, moving->dim()));
+	auto field = dPtrCast<MRImage>(moving->createAnother(ndim, moving->dim()));
 	BSplineView<double> bsp_vw(transform);
 	bsp_vw.m_boundmethod = ZEROFLUX;
 
 	double dcind[3]; // index in distortion image
 	double pt[3]; // point
-	for(NDIter<double> fit(field), jit(jac); !jit.eof(); ++jit, ++fit) {
+	for(NDIter<double> fit(field); !fit.eof(); ++fit) {
 		// Compute Continuous Index of Point in Deform Image
 		fit.index(ndim, dcind);
 		field->indexToPoint(ndim, dcind, pt);
@@ -264,22 +260,19 @@ int main(int argc, char** argv)
 		double def = 0, ddef = 0;
 		bsp_vw.get(ndim, dcind, dir, def, ddef);
 		fit.set(def);
-		jit.set(ddef);
 	}
+	ptr<MRImage> dfield = dPtrCast<MRImage>(derivative(field));
 	cerr << "Done" << endl;
 
-	/* 
-	 * Write Outputs 
+	/*
+	 * Write Outputs
 	 */
-	if(a_jac.isSet()) 
-		jac->write(a_jac.getValue());
-
-	if(a_field.isSet()) 
+	if(a_field.isSet())
 		field->write(a_field.getValue());
 
-	/* 
-	 * For each time point apply inverse motion to field map, then apply 
-	 * distortion correction and finally apply forward motion to fMRI 
+	/*
+	 * For each time point apply inverse motion to field map, then apply
+	 * distortion correction and finally apply forward motion to fMRI
 	 */
 	if(a_out.isSet()) {
 		cerr << "Applying distortion correction" << endl;
@@ -294,9 +287,10 @@ int main(int argc, char** argv)
 		} else if(moving->tlen() > 1) {
 			cerr << "WARNING! NO MOTION PROVIDED BUT INPUT IS 4D!" << endl;
 		}
-		
-		BSplineView<double> bsp_vw(transform);
-		bsp_vw.m_boundmethod = ZEROFLUX;
+
+		LinInterp3DView<double> f_vw(field);
+		f_vw.m_boundmethod = ZEROFLUX;
+		f_vw.m_ras = true;
 		LanczosInterp3DView<double> mov_vw(moving);
 
 		Rigid3DTrans irigid;
@@ -306,7 +300,7 @@ int main(int argc, char** argv)
 		for(size_t tt=0; tt<out->tlen(); ++tt) {
 
 			// Create Rotated Version of B-Spline
-			MatrixXd Rinv;
+			MatrixXd Rinv, R;
 			if(!motion.empty()) {
 				irigid.ras_coord = true;
 				for(size_t dd=0; dd<3; dd++) {
@@ -314,29 +308,41 @@ int main(int argc, char** argv)
 					irigid.rotation[dd] = motion[tt][dd+3];
 					irigid.shift[dd] = motion[tt][dd+6];
 				}
+				R = irigid.rotMatrix();
 				irigid.invert();
-
 				Rinv = irigid.rotMatrix();
 			}
 
-			// For Each Point in output, 
-			// Find rotated point 
+			cerr << "Inverse Rigid: " << endl << irigid << endl;
+			// For Each Point in output,
+			// Find rotated point
 			// Add distortion to index
 			// Sample
-			for(Vector3DIter<double> oit(out); !oit.eof(); ++oit) {
+			for(Vector3DIter<double> oit(out), fit(field), dfit(dfield);
+						!oit.eof(); ++oit, ++fit, ++dfit) {
+
+				// Get Deformation at un-rotated point
+				double def = *fit;
+
+				// Compute derivative in direction of distortion AFTER rotation
+				// at un-rotated point
+				double mag = 0;
+				double ddef = 0;
+				for(size_t dd=0; dd<3; dd++) {
+					ddef += dfit[dd]*R(dd, dir);
+					mag += R(dd, dir)*R(dd, dir);
+				}
+				mag = sqrt(mag);
+				ddef = ddef/mag;
+
 				oit.index(ndim, dcind);
 				out->indexToPoint(ndim, dcind, pt.array().data());
+
 				pt = Rinv*(pt-irigid.center) + irigid.center + irigid.shift;
-				transform->pointToIndex(ndim, pt.array().data(), dcind);
-
-				// get linear index
-				double def = 0, ddef = 0;
-				bsp_vw.get(ndim, dcind, dir, def, ddef);
-
 				out->pointToIndex(ndim, pt.array().data(), dcind);
 				dcind[dir] += def/out->spacing(dir);
 				double Fm = mov_vw(dcind[0], dcind[1], dcind[2], tt);
-				
+
 				if(Fm < 1e-10 || ddef < -1) Fm = 0;
 				oit.set(tt, Fm*(1+ddef));
 			}
