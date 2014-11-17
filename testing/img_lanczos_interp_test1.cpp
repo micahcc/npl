@@ -58,7 +58,18 @@ int main()
 		for(index[1] = 0; index[1] < sz[1] ; index[1]++) {
 			for(index[2] = 0; index[2] < sz[2] ; index[2]++) {
 				val = index[0]+index[1]*10 + index[2]*100;
-				double s = interp(index[0], index[1], index[2]);
+				bool caught = false;
+				try {
+					interp(index[0], index[1], index[2]);
+				} catch(std::invalid_argument e) {
+					caught = true;
+				}
+				if(!caught) {
+					cerr << "Should not allow int arguments to interps!" << endl;
+					return -1;
+				}
+				double s = interp((double)index[0], (double)index[1],
+						(double)index[2]);
 
 				if(fabs(val - s) > 0.00000000001) {
 					std::cerr << "On-grid point value mismatch" << endl;

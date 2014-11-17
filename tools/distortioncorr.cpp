@@ -329,7 +329,7 @@ int main(int argc, char** argv)
 				double mag = 0;
 				double ddef = 0;
 				for(size_t dd=0; dd<3; dd++) {
-					ddef += dfit[dd]*R(dd, dir);
+					ddef += dfit[dd]*R(dd, dir)/dfield->spacing(dd);
 					mag += R(dd, dir)*R(dd, dir);
 				}
 				mag = sqrt(mag);
@@ -341,6 +341,7 @@ int main(int argc, char** argv)
 				pt = Rinv*(pt-irigid.center) + irigid.center + irigid.shift;
 				out->pointToIndex(ndim, pt.array().data(), dcind);
 				dcind[dir] += def/out->spacing(dir);
+				out->indexToPoint(ndim, dcind, pt.array().data());
 				double Fm = mov_vw(dcind[0], dcind[1], dcind[2], tt);
 
 				if(Fm < 1e-10 || ddef < -1) Fm = 0;

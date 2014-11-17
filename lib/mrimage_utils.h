@@ -153,6 +153,35 @@ ptr<MRImage> fft_forward(ptr<const MRImage> in,
 ptr<MRImage> fft_backward(ptr<const MRImage> in,
         const std::vector<size_t>& in_osize);
 
+/**
+ * @brief Performs a shear on the image where the sheared dimension (dim) will
+ * be shifted depending on the index in other dimensions (dist). 
+ * (in units of pixels). Uses Lanczos interpolation.
+ *
+ * @param inout Input/output image
+ * @param dim Dimension to shift/shear
+ * @param len Length of dist array
+ * @param dist Distance terms to travel. Shift[dim] = x0*dist[0]+x1*dist[1] ...
+ * @param kern 1D interpolation kernel
+ */
+void shearImageKern(ptr<MRImage> inout, size_t dim, size_t len, 
+        double* dist, double(*kern)(double,double) = npl::lanczosKern);
+
+/**
+ * @brief Performs a shear on the image where the sheared dimension (dim) will
+ * be shifted depending on the index in other dimensions (dist). 
+ * (in units of pixels), using FFT.
+ *
+ * @param inout Input/output image
+ * @param dim Dimension to shift/shear
+ * @param len Length of dist array
+ * @param dist Distance terms to travel. Shift[dim] = x0*dist[0]+x1*dist[1] ...
+ * @param window Windowing function of fourier domain (default sinc)
+ */
+void shearImageFFT(ptr<MRImage> inout, size_t dim, size_t len, double* dist,
+		double(*window)(double,double) = npl::sincWindow);
+
+
 /** @}  MRImageUtilities */
 } // npl
 #endif  //MRIMAGE_UTILS_H
