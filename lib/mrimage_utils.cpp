@@ -403,12 +403,15 @@ ptr<MRImage> smoothDownsample(ptr<const MRImage> in, double sigma, double spacin
 	if(spacing <= 0)
 		spacing = sigma;
 
+	// Enforce Isotropic Pixels
+	for(size_t dd=0; dd<in->ndim(); dd++)
+		spacing = max(spacing, in->spacing(dd));
+
 	int64_t linelen = 0;
 	for(size_t dd=0; dd<ndim; dd++) {
 		// compute ratio
 		double ratio = in->spacing(dd)/spacing;
-		if(ratio > 1 || std::isnan(ratio) || std::isinf(ratio))
-			ratio = 1;
+		assert(ratio >= 1);
 		psize[dd] = round2(2*isize[dd]);
 		osize[dd] = ceil(isize[dd]*ratio);
 		rsize[dd] = psize[dd]*osize[dd]/isize[dd];
@@ -492,8 +495,9 @@ ptr<MRImage> smoothDownsample(ptr<const MRImage> in, double sigma, double spacin
 				trueosize.data(), FLOAT64));
 
 	// set spacing
-	for(size_t dd=0; dd<in->ndim(); dd++)
+	for(size_t dd=0; dd<in->ndim(); dd++) {
 		out->spacing(dd) *= ((double)psize[dd])/((double)rsize[dd]);
+	}
 
 	fftw_free(ibuffer);
 	return out;
@@ -611,14 +615,8 @@ void gaussianSmooth1D(ptr<MRImage> inout, size_t dim,
 int rotateImageShearKern(ptr<MRImage> inout, double rx, double ry, double rz,
 		double(*kern)(double,double))
 {
-	double space = -1;
-	for(size_t ii=0; ii<3 && ii <inout->ndim(); ii++) {
-		if(space == -1) {
-			space = inout->spacing(ii);
-		} else if(fabs(space - inout->spacing(ii)) > 0.1) {
-			throw INVALID_ARGUMENT("Shear Rotation with non-isotropic voxels not yet implemented!");
-		}
-	}
+	if(!inout->isIsotropic(true, 0.01))
+		throw INVALID_ARGUMENT("Shear Rotation with non-isotropic voxels not yet implemented!");
 
 
 	const double PI = acos(-1);
@@ -681,14 +679,9 @@ int rotateImageShearKern(ptr<MRImage> inout, double rx, double ry, double rz,
 int rotateImageShearFFT(ptr<MRImage> inout, double rx, double ry, double rz,
 		double(*window)(double,double))
 {
-	double space = -1;
-	for(size_t ii=0; ii<3 && ii <inout->ndim(); ii++) {
-		if(space == -1)
-			space = inout->spacing(ii);
-		else if(fabs(space - inout->spacing(ii)) > 0.1) {
-			throw INVALID_ARGUMENT("Shear Rotation with non-isotropic voxels not yet implemented!");
-		}
-	}
+	if(!inout->isIsotropic(true, 0.01))
+		throw INVALID_ARGUMENT("Shear Rotation with non-isotropic voxels not yet implemented!");
+
 	const double PI = acos(-1);
 	if(fabs(rx) > PI/4. || fabs(ry) > PI/4. || fabs(rz) > PI/4.) {
 		cerr << "Fast large rotations not yet implemented" << endl;
@@ -734,7 +727,8 @@ int rotateImageShearFFT(ptr<MRImage> inout, double rx, double ry, double rz,
 }
 
 /**
- * @brief Rigid Transforms an image
+ * @brief Rigid Transforms an image in RAS coordinates. This isn't that fast
+ * but it is definitely RIGHT
  *
  * @param inout Input/output image
  * @param rx Rotation about x axis
@@ -752,7 +746,7 @@ ptr<MRImage> rigidTransform(ptr<MRImage> in, double rx, double ry, double rz,
 	R = Eigen::AngleAxisd(rx, Vector3d::UnitX())*
 		Eigen::AngleAxisd(ry, Vector3d::UnitY())*
 		Eigen::AngleAxisd(rz, Vector3d::UnitZ());
-		
+
 	Vector3d shift, ishift, center;
 	shift[0] = sx;
 	shift[1] = sy;
