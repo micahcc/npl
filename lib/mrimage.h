@@ -132,7 +132,7 @@ class MRImage : public virtual NDArray
 {
 public:
 	MRImage() : m_freqdim(-1), m_phasedim(-1), m_slicedim(-1),
-	m_slice_duration(0), m_slice_start(-1),
+	m_coordinate(NOFORM), m_slice_duration(0), m_slice_start(-1),
 	m_slice_end(-1), m_slice_order(UNKNOWN_SLICE) {} ;
 
 	/********************************************
@@ -154,9 +154,13 @@ public:
 	 * @param reinit Whether to reset everything to Identity/0 before applying.
 	 * You may want to do this if theinput matrices/vectors differ in dimension
 	 * from this image.
+	 * @param coord coordinate system this refers to. Eventually this might
+	 * include more advanced options (scanner,anat etc). For now it is just
+	 * QFORM or SFORM
 	 */
 	void setOrient(const VectorXd& neworig, const VectorXd& newspace,
-					const MatrixXd& newdir, bool reinit = true);
+					const MatrixXd& newdir, bool reinit = true,
+					CoordinateT coord = QFORM);
 
 	/**
 	 * @brief Returns reference to a value in the direction matrix.
@@ -201,8 +205,11 @@ public:
 	 * @param reinit Whether to reset everything to Identity/0 before applying.
 	 * You may want to do this if theinput matrices/vectors differ in dimension
 	 * from this image.
+	 * @param coord coordinate system this refers to. Eventually this might
+	 * include more advanced options (scanner,anat etc). For now it is just
+	 * QFORM or SFORM
 	 */
-	void setDirection(const MatrixXd& newdir, bool reinit);
+	void setDirection(const MatrixXd& newdir, bool reinit, CoordinateT coord = QFORM);
 
 	/**
 	 * @brief Returns reference to a value in the origin vector. This is the
@@ -243,7 +250,8 @@ public:
 	 * from this image.
 	 *
 	 */
-	void setOrigin(const VectorXd& neworigin, bool reinit);
+	void setOrigin(const VectorXd& neworigin, bool reinit,
+			CoordinateT coord = QFORM);
 
 	/**
 	 * @brief Returns reference to a value in the spacing vector. This is the
@@ -286,7 +294,7 @@ public:
 	void setSpacing(const VectorXd& newspacing, bool reinit);
 
 	/**********************************
-	 * Orientation Transform Functions 
+	 * Orientation Transform Functions
 	 *********************************/
 	/*
 	 * @brief Converts an index in pixel space to RAS, physical/time coordinates.
@@ -663,7 +671,7 @@ public:
 	int m_freqdim;
 	int m_phasedim;
 	int m_slicedim;
-	int m_coordinate;
+	CoordinateT m_coordinate;
 
 	/*
 	 * nifti specific stuff, eventually these should be moved to a nifti
@@ -792,9 +800,9 @@ public:
 	MRImageStore(size_t len, const size_t* size, T* ptr,
 					const std::function<void(void*)>& deleter) ;
 
-	
+
 	/**
-	 * @brief Default constructor, uses identity for direction matrix, 1 for 
+	 * @brief Default constructor, uses identity for direction matrix, 1 for
 	 * spacing and 0 for origin. Image size is 0
 	 */
 	MRImageStore();

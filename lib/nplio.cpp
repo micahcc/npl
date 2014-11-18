@@ -34,7 +34,7 @@ using std::to_string;
 using std::cerr;
 using std::endl;
 
-namespace npl 
+namespace npl
 {
 
 /*****************************************************************
@@ -53,9 +53,13 @@ namespace npl
  *
  */
 template <typename T>
-void readPixels(ptr<NDArray> arr, gzFile file, size_t vox_offset, 
+void readPixels(ptr<NDArray> arr, gzFile file, size_t vox_offset,
         size_t pixsize, bool doswap)
 {
+	int bytesread = 0;
+	const int buffsize = 1024*sizeof(T);
+	T tmp[buffsize];
+
     if(pixsize != sizeof(T)) {
         throw INVALID_ARGUMENT("Pixel size in file ("+to_string(pixsize)
                 +")does not match actual size of "+typeid(T).name());
@@ -66,14 +70,24 @@ void readPixels(ptr<NDArray> arr, gzFile file, size_t vox_offset,
 
     // need to reverse order from nifti
     NDIter<T> it(arr);
-    it.setOrder({}, true); 
-    for(it.goBegin(); !it.eof(); ++it) {
-        T tmp; 
-        if(gzread(file, &tmp, sizeof(T)) <= 0)
-            throw RUNTIME_ERROR("Input file ended abruptly");
-        if(doswap) swap<T>(&tmp);
-        it.set(tmp);
-    }
+    it.setOrder({}, true);
+	it.goBegin();
+
+	bytesread = gzread(file, tmp, buffsize);
+	while(bytesread > 0) {
+
+		// Read Whole T Values, so bytesread%T == 0
+		if(bytesread < 0 || bytesread%sizeof(T) != 0)
+			throw RUNTIME_ERROR("Error reading file!");
+		int varsread = bytesread/sizeof(T);
+
+		for(int ii=0; ii < varsread && !it.eof(); ++it, ii++) {
+			if(doswap) swap<T>(&tmp[ii]);
+			it.set(tmp[ii]);
+		}
+
+		bytesread = gzread(file, tmp, buffsize);
+	}
 }
 
 /**
@@ -136,7 +150,7 @@ int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap,
 		swap(&header->glmin);
 		swap(&header->qform_code);
 		swap(&header->sform_code);
-		
+
 		for(size_t ii=0; ii<3; ii++)
 			swap(&header->quatern[ii]);
 		for(size_t ii=0; ii<3; ii++)
@@ -147,7 +161,7 @@ int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap,
 		for(int32_t ii=0; ii<header->ndim; ii++)
 			npixel *= header->dim[ii];
 	}
-	
+
 	if(verbose) {
 		std::cerr << "sizeof_hdr=" << header->sizeof_hdr << std::endl;
 		std::cerr << "data_type=" << header->data_type << std::endl;
@@ -205,7 +219,7 @@ int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap,
 		std::cerr << "dim_info.bits.phasedim=" << header->dim_info.bits.phasedim << std::endl;
 		std::cerr << "dim_info.bits.slicedim=" << header->dim_info.bits.slicedim << std::endl;
 	}
-	
+
 	return 0;
 }
 
@@ -269,14 +283,14 @@ int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap,
 //		swap(&header->glmin);
 		swap(&header->qform_code);
 		swap(&header->sform_code);
-		
+
 		for(size_t ii=0; ii<3; ii++)
 			swap(&header->quatern[ii]);
 		for(size_t ii=0; ii<3; ii++)
 			swap(&header->qoffset[ii]);
 		for(size_t ii=0; ii<12; ii++)
 			swap(&header->saffine[ii]);
-		
+
 		swap(&header->slice_code);
 		swap(&header->xyzt_units);
 		swap(&header->intent_code);
@@ -284,7 +298,7 @@ int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap,
 		for(int32_t ii=0; ii<header->ndim; ii++)
 			npixel *= header->dim[ii];
 	}
-	
+
 	if(verbose) {
 		std::cerr << "sizeof_hdr=" << header->sizeof_hdr << std::endl;
 		std::cerr << "magic =" << header->magic  << std::endl;
@@ -335,7 +349,7 @@ int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap,
 		std::cerr << "dim_info.bits.slicedim=" << header->dim_info.bits.slicedim << std::endl;
 		std::cerr << "unused_str=" << header->unused_str << std::endl;
 	}
-	
+
 	return 0;
 }
 
@@ -411,7 +425,7 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray,
 		for(int64_t ii=0; ii<3 && ii<header1.ndim; ii++)
 			quatern[ii] = header1.quatern[ii];
 		qfac = header1.qfac;
-        
+
         // saffine
         for(size_t ii=0; ii<12; ii++)
             saffine[ii] = header1.saffine[ii];
@@ -427,7 +441,7 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray,
 		qform_code = header2.qform_code;
 		sform_code = header2.sform_code;
 		datatype = (PixelT)header2.datatype;
-		
+
 		slice_code = header2.slice_code;
 		slice_duration = header2.slice_duration;
 		slice_start = header2.slice_start;
@@ -440,14 +454,14 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray,
 		pixdim.resize(header2.ndim, 0);
 		for(int64_t ii=0; ii<header2.ndim && ii < 7; ii++)
 			pixdim[ii] = header2.pixdim[ii];
-		
+
 		// offset
 		offset.resize(4, 0);
 		for(int64_t ii=0; ii<header2.ndim && ii < 3; ii++)
 			offset[ii] = header2.qoffset[ii];
 		if(header2.ndim > 3)
 			offset[3] = header2.toffset;
-		
+
 		// quaternion
 		for(int64_t ii=0; ii<3 && ii<header2.ndim; ii++)
 			quatern[ii] = header2.quatern[ii];
@@ -463,71 +477,26 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray,
         // just create an array, not an image
         out = createNDArray(dim.size(), dim.data(), datatype);
 
-        if(verbose) 
+        if(verbose)
             std::cerr << (*out) << std::endl;
 
     } else {
         // create an image, get orientation
         out = createMRImage(dim.size(), dim.data(), datatype);
         auto oimage = dPtrCast<MRImage>(out);
-	
-        // figure out orientation
-        if(qform_code > 0) {
-            /*
-             * set spacing
-             */
-            for(size_t ii=0; ii<oimage->ndim(); ii++)
-                oimage->spacing(ii) = pixdim[ii];
 
-            /*
-             * set origin
-             */
-            // x,y,z
-            for(size_t ii=0; ii<oimage->ndim(); ii++) {
-                oimage->origin(ii) = offset[ii];
-            }
+        /*
+		 * figure out orientation
+		 */
+         
+		// start with spacing
+		oimage->m_coordinate = NOFORM;
+		// only spacing changes
+		for(size_t ii=0; ii<dim.size(); ii++)
+			oimage->spacing(ii) = pixdim[ii];
 
-            // calculate a, copy others
-            double b = quatern[0];
-            double c = quatern[1];
-            double d = quatern[2];
-			double a = 1.0-(b*b+c*c+d*d);
-			
-			// if a is extremeley small (or negative), renormalize, make a=0
-			if(a < 1e-7) {
-				a = 1./sqrt(b*b+c*c+d*d);
-				b *= a;
-				c *= a;
-				d *= a;
-				a = 0;
-			} else {
-				a = sqrt(a);
-			}
-
-            // calculate R, (was already identity)
-            MatrixXd tmpdirection = oimage->getDirection();
-            tmpdirection(0,0) = a*a+b*b-c*c-d*d;
-
-            if(oimage->ndim() > 1) {
-                tmpdirection(0,1) = 2*b*c-2*a*d;
-                tmpdirection(1,0) = 2*b*c+2*a*d;
-                tmpdirection(1,1) = a*a+c*c-b*b-d*d;
-            }
-
-            if(qfac != -1)
-                qfac = 1;
-
-            if(oimage->ndim() > 2) {
-                tmpdirection(0,2) = qfac*(2*b*d+2*a*c);
-                tmpdirection(1,2) = qfac*(2*c*d-2*a*b);
-                tmpdirection(2,2) = qfac*(a*a+d*d-c*c-b*b);
-                tmpdirection(2,1) = 2*c*d+2*a*b;
-                tmpdirection(2,0) = 2*b*d-2*a*c;
-            }
-
-            oimage->setDirection(tmpdirection, true);
-			oimage->m_coordinate = QFORM;
-        } else if(sform_code > 0) {
+		// Use sform, but overwrite with qform if it exists
+        if(sform_code > 0) {
             /* use the sform, since no qform exists */
 
             // origin, last column
@@ -561,13 +530,65 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray,
                 oimage->direction(2,0) = saffine[4*2+0]/di;
             }
 
-			oimage->m_coordinate = SFORM;
-        } else {
-            // only spacing changes
-            for(size_t ii=0; ii<dim.size(); ii++)
+			oimage->m_coordinate = (CoordinateT)((int)SFORM|(int)oimage->m_coordinate);
+		}
+
+        if(qform_code > 0) {
+            /*
+             * set spacing
+             */
+            for(size_t ii=0; ii<oimage->ndim(); ii++)
                 oimage->spacing(ii) = pixdim[ii];
-			oimage->m_coordinate = NOFORM;
-        }
+
+            /*
+             * set origin
+             */
+            // x,y,z
+            for(size_t ii=0; ii<oimage->ndim(); ii++) {
+                oimage->origin(ii) = offset[ii];
+            }
+
+            // calculate a, copy others
+            double b = quatern[0];
+            double c = quatern[1];
+            double d = quatern[2];
+			double a = 1.0-(b*b+c*c+d*d);
+
+			// if a is extremeley small (or negative), renormalize, make a=0
+			if(a < 1e-7) {
+				a = 1./sqrt(b*b+c*c+d*d);
+				b *= a;
+				c *= a;
+				d *= a;
+				a = 0;
+			} else {
+				a = sqrt(a);
+			}
+
+            // calculate R, (was already identity)
+            MatrixXd tmpdirection = oimage->getDirection();
+            tmpdirection(0,0) = a*a+b*b-c*c-d*d;
+
+            if(oimage->ndim() > 1) {
+                tmpdirection(0,1) = 2*b*c-2*a*d;
+                tmpdirection(1,0) = 2*b*c+2*a*d;
+                tmpdirection(1,1) = a*a+c*c-b*b-d*d;
+            }
+
+            if(qfac != -1)
+                qfac = 1;
+
+            if(oimage->ndim() > 2) {
+                tmpdirection(0,2) = qfac*(2*b*d+2*a*c);
+                tmpdirection(1,2) = qfac*(2*c*d-2*a*b);
+                tmpdirection(2,2) = qfac*(a*a+d*d-c*c-b*b);
+                tmpdirection(2,1) = 2*c*d+2*a*b;
+                tmpdirection(2,0) = 2*b*d-2*a*c;
+            }
+
+            oimage->setDirection(tmpdirection, true);
+			oimage->m_coordinate = (CoordinateT)((int)QFORM|(int)oimage->m_coordinate);
+		}
 
         /**************************************************************************
          * Medical Imaging Varaibles Variables
@@ -583,7 +604,7 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray,
                 (SliceOrderT)slice_code);
 
 
-        if(verbose) 
+        if(verbose)
             std::cerr << *oimage  << std::endl;
 
     }
@@ -703,13 +724,13 @@ int read(gzFile file, stringstream& oss, bool keeplast,
  * @param file
  * @param out
  *
- * @return 
+ * @return
  */
 int readstring(gzFile file, std::string& out)
 {
     // read key, find "
     stringstream oss;
-    int ret = read(file, oss, false, 
+    int ret = read(file, oss, false,
             [&](char c){return c=='"';},
             [&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
             [&](char c){(void)c; return false;});
@@ -721,7 +742,7 @@ int readstring(gzFile file, std::string& out)
     assert(oss.str() == "");
     // find closing "
     bool backslash = false;
-    ret = read(file, oss, false, 
+    ret = read(file, oss, false,
             [&](char c){return !backslash && c=='"';},
             [&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
             [&](char c){backslash = (c=='\\'); return true;});
@@ -736,7 +757,7 @@ int readstring(gzFile file, std::string& out)
 }
 
 /**
- * @brief Reads a "blah" : OR } 
+ * @brief Reads a "blah" : OR }
  *
  * @param file File to read from
  * @param key either a key or ""
@@ -747,7 +768,7 @@ int readKey(gzFile file, string& key)
 {
     // read key, find "
     stringstream oss;
-    int ret = read(file, oss, false, 
+    int ret = read(file, oss, false,
             [&](char c){return c=='"';},
             [&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
             [&](char c){(void)c; return false;});
@@ -758,7 +779,7 @@ int readKey(gzFile file, string& key)
 
     // find closing "
     bool backslash = false;
-    ret = read(file, oss, false, 
+    ret = read(file, oss, false,
             [&](char c){return !backslash && c=='"';},
             [&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
             [&](char c){backslash = (c=='\\'); return true;});
@@ -767,9 +788,9 @@ int readKey(gzFile file, string& key)
         return -1;
     }
     key = oss.str();
-        
+
     // find colon
-    ret = read(file, oss, false, 
+    ret = read(file, oss, false,
             [&](char c){return c==':';},
             [&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
             [&](char c){(void)c; return false;});
@@ -798,14 +819,14 @@ bool isnumeric(char c)
  * @param file
  * @param oarray
  *
- * @return 
+ * @return
  */
 template <typename T>
 int readNumArray(gzFile file, vector<T>& oarray)
 {
     stringstream ss;
     // find [
-    int ret = read(file, ss, false, 
+    int ret = read(file, ss, false,
             [&](char c){return c=='[';},
             [&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
             [&](char c){(void)c; return false;});
@@ -819,22 +840,22 @@ int readNumArray(gzFile file, vector<T>& oarray)
     assert(ss.str() == "");
     int stack = 1;
     // find closing ]
-    ret = read(file, ss, false, 
+    ret = read(file, ss, false,
             [&](char c)
             {
-                stack += (c=='['); 
-                stack -= (c==']'); 
+                stack += (c=='[');
+                stack -= (c==']');
                 return stack==0;
-            }, 
+            },
             [](char c){return c=='[' || c==']';},
             [](char c){return isnumeric(c) || isspace(c);});
 
-    if(ret != 0) 
+    if(ret != 0)
         return -1;
 
 #ifdef DEBUG
     cerr << "Array String:\n" << ss.str() << endl;
-#endif 
+#endif
 
     // now that we have the character, break them up
     string token;
@@ -850,7 +871,7 @@ int readNumArray(gzFile file, vector<T>& oarray)
             cerr << "Invalid type foudn in string before: "<< ss.str() <<endl;
             return -1;
         }
-        oarray.push_back(val);       
+        oarray.push_back(val);
     }
 
     if(ss.bad()) {
@@ -871,11 +892,11 @@ int readNumArray(gzFile file, vector<T>& oarray)
  *
  * @return Loaded image
  */
-shared_ptr<NDArray> readJSONImage(gzFile file, bool verbose, bool makearray) 
+shared_ptr<NDArray> readJSONImage(gzFile file, bool verbose, bool makearray)
 {
     // read to opening brace
     stringstream oss;
-    int ret = read(file, oss, false, 
+    int ret = read(file, oss, false,
             [](char c){return c=='{';},
             [](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
             [](char c){(void)c; return false;});
@@ -907,7 +928,7 @@ shared_ptr<NDArray> readJSONImage(gzFile file, bool verbose, bool makearray)
             string value;
             ret = readstring(file, value);
             if(ret != 0) {
-                cerr << "Expected string for key: " << key << 
+                cerr << "Expected string for key: " << key <<
                     " but could not parse" << endl;
                 return NULL;
             }
@@ -916,7 +937,7 @@ shared_ptr<NDArray> readJSONImage(gzFile file, bool verbose, bool makearray)
             if(type == UNKNOWN_TYPE)
                 return NULL;
 
-        } else if(key == "size") { 
+        } else if(key == "size") {
             ret = readNumArray<size_t>(file, size);
             if(ret != 0)  {
                 cerr << "Expected array of non-negative integers for size!" <<
@@ -961,13 +982,13 @@ shared_ptr<NDArray> readJSONImage(gzFile file, bool verbose, bool makearray)
 
         // should find a comma or closing brace
         oss.str("");
-        ret = read(file, oss, true, 
+        ret = read(file, oss, true,
                 [](char c){return c==',' || c=='}';},
                 [](char c){return isspace(c);},
                 [](char c){(void)c; return false;});
 
         if(ret != 0) {
-            cerr << "After a Key:Value Pair there should be either a } or ," 
+            cerr << "After a Key:Value Pair there should be either a } or ,"
                 << endl;
             return NULL;
         }
@@ -977,11 +998,11 @@ shared_ptr<NDArray> readJSONImage(gzFile file, bool verbose, bool makearray)
 
     size_t ndim = size.size();
     if(ndim == 0) {
-        cerr << "No \"size\" tag found!" << endl; 
+        cerr << "No \"size\" tag found!" << endl;
         return NULL;
     }
     if(type == UNKNOWN_TYPE) {
-        cerr << "No type, or unknown type specified!" << endl; 
+        cerr << "No type, or unknown type specified!" << endl;
         return NULL;
     }
 
@@ -995,7 +1016,7 @@ shared_ptr<NDArray> readJSONImage(gzFile file, bool verbose, bool makearray)
         // copy spacing
         if(spacing.size() > 0) {
             if(spacing.size() != ndim) {
-                cerr << "Incorrect number of spacing values (" << spacing.size() 
+                cerr << "Incorrect number of spacing values (" << spacing.size()
                     << " vs " << ndim << ") given" << endl;
                 return NULL;
             } else {
@@ -1004,10 +1025,10 @@ shared_ptr<NDArray> readJSONImage(gzFile file, bool verbose, bool makearray)
             }
         }
 
-        // copy origin  
+        // copy origin
         if(origin.size() > 0) {
             if(origin.size() != ndim) {
-                cerr << "Incorrect number of origin values (" << origin.size() 
+                cerr << "Incorrect number of origin values (" << origin.size()
                     << " vs " << ndim << ") given" << endl;
                 return NULL;
             } else {
@@ -1019,7 +1040,7 @@ shared_ptr<NDArray> readJSONImage(gzFile file, bool verbose, bool makearray)
         // copy direction
         if(direction.size() > 0) {
             if(direction.size() != ndim*ndim) {
-                cerr << "Incorrect number of origin values (" << direction.size() 
+                cerr << "Incorrect number of origin values (" << direction.size()
                     << " vs " << ndim << ") given" << endl;
                 return NULL;
             }
@@ -1037,9 +1058,9 @@ shared_ptr<NDArray> readJSONImage(gzFile file, bool verbose, bool makearray)
                 to_string(values.size())+" vs "+to_string(ndim)+") given");
     }
     size_t ii=0;
-    for(NDIter<float> it(out); !it.eof(); ++it, ++ii) 
+    for(NDIter<float> it(out); !it.eof(); ++it, ++ii)
         it.set(values[ii]);
-    
+
     return out;
 }
 
@@ -1076,14 +1097,14 @@ ptr<MRImage> readMRImage(std::string fn, bool verbose, bool nopixeldata)
 #if ZLIB_VERNUM >= 0x1280
 	gzbuffer(gz, BSIZE);
 #endif
-	
+
 	ptr<NDArray> out;
-	
+
     // remove .gz to find the "real" format,
 	if(fn.size()> 3 && fn.substr(fn.size()-3, 3) == ".gz") {
 		fn = fn.substr(0, fn.size()-3);
 	}
-	
+
 	if(fn.size() > 4 && fn.substr(fn.size()-4, 4) == ".nii") {
         //////////////////////////
         // Read Nifti Data
@@ -1136,14 +1157,14 @@ ptr<NDArray> readNDArray(std::string fn, bool verbose, bool nopixeldata)
 #if ZLIB_VERNUM >= 0x1280
 	gzbuffer(gz, BSIZE);
 #endif
-	
+
 	ptr<NDArray> out;
-	
+
     // remove .gz to find the "real" format,
 	if(fn.size() > 3 && fn.substr(fn.size()-3, 3) == ".gz") {
 		fn = fn.substr(0, fn.size()-3);
 	}
-	
+
 	if(fn.size() > 4 && fn.substr(fn.size()-4, 4) == ".nii") {
         if((out = readNiftiImage(gz, verbose, true, nopixeldata))) {
             gzclose(gz);

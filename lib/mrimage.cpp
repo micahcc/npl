@@ -311,6 +311,15 @@ std::ostream& operator<<(std::ostream &out, const MRImage& img)
     out << "Phase Encode Dimension: " << img.m_phasedim << endl;
     out << "Slice Encode Dimension: " << img.m_slicedim << endl;
 
+	std::cerr << "Coordinate System: ";
+	if(QFORM&img.m_coordinate)
+		cerr << "QFORM ";
+	if(SFORM&img.m_coordinate)
+		cerr << "SFORM ";
+	if(img.m_coordinate == NOFORM)
+		cerr << "UNKNOWN";
+	cerr << endl;
+
 	out << "Direction: " << endl;
 	for(size_t ii=0; ii<img.ndim(); ii++) {
 		out << "[ ";
@@ -567,7 +576,8 @@ ptr<MRImage> _copyCast(ptr<const MRImage> in, size_t newdims,
 	out->m_slice_end = in->m_slice_end;
 	out->m_slice_timing = in->m_slice_timing;
 	out->m_slice_order = in->m_slice_order;
-	out->setOrient(in->getOrigin(), in->getSpacing(), in->getDirection(), true);
+	out->setOrient(in->getOrigin(), in->getSpacing(), in->getDirection(), true,
+			in->m_coordinate);
 
 	switch(newtype) {
 		case UINT8:
@@ -680,7 +690,8 @@ void MRImage::copyMetadata(ptr<const MRImage> in)
 	this->m_slice_end = in->m_slice_end;
 	this->m_slice_timing = in->m_slice_timing;
 	this->m_slice_order = in->m_slice_order;
-	this->setOrient(in->getOrigin(), in->getSpacing(), in->getDirection(), 1);
+	this->setOrient(in->getOrigin(), in->getSpacing(), in->getDirection(), 1,
+			in->m_coordinate);
 };
 
 /**
