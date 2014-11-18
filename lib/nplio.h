@@ -63,7 +63,7 @@ int writeNDArray(ptr<const NDArray> img, std::string fn, bool nifti2 = false);
  *
  * @return Loaded image
  */
-ptr<NDArray> readNDArray(std::string filename, bool verbose = false, 
+ptr<NDArray> readNDArray(std::string filename, bool verbose = false,
         bool nopixeldata = false);
 
 /**
@@ -80,7 +80,7 @@ ptr<NDArray> readNDArray(std::string filename, bool verbose = false,
  *
  * @return Loaded image
  */
-ptr<MRImage> readMRImage(std::string filename, bool verbose = false, 
+ptr<MRImage> readMRImage(std::string filename, bool verbose = false,
         bool nopixeldata = false);
 
 /** @} */

@@ -87,7 +87,8 @@ int main(int argc, char* argv[])
 			return -1;
 		}
 	}
-	// TODO FIX THIS, doesn't work for 4D images
+
+//	// TODO FIX THIS, doesn't work for 4D images
 //	{
 //	auto img2r = dPtrCast<MRImage>(img1->createAnother(img2->type()));
 //	//resample images together

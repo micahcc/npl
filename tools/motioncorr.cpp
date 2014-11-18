@@ -227,7 +227,7 @@ int main(int argc, char** argv)
 			"Image.", false, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<int> a_ref("r", "ref", "Reference timepoint, < 0 values "
 			"will result in reference at the middle volume, otherwise this "
-			"indicates a timepoint (starting at 0)", false, -1, "T", cmd);
+			"indicates a timepoint (starting at 0). Default: 0", false, 0, "T", cmd);
 
 	TCLAP::ValueArg<string> a_motion("m", "motion", "Ouput motion as 9 column "
 			"text file. Columns are Center (x,y,z), Rotation (in radians) "
@@ -276,7 +276,7 @@ int main(int argc, char** argv)
 	// set reference volume
 	int ref = a_ref.getValue();
 	if(ref < 0 || ref >= fmri->tlen())
-		ref = 0;
+		ref = fmri->tlen()/2;
 
 	// construct variables to get a particular volume
 	vector<vector<double>> motion;

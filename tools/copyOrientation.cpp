@@ -56,12 +56,17 @@ int main(int argc, char** argv)
 	/**********
 	 * Input
 	 *********/
-	std::shared_ptr<MRImage> from(readMRImage(a_from.getValue()));
-	std::shared_ptr<MRImage> to(readMRImage(a_to.getValue()));
+	ptr<MRImage> from(readMRImage(a_from.getValue()));
+	ptr<MRImage> to(readMRImage(a_to.getValue()));
+
+	cerr << "From: " << endl << *from << endl;
+	cerr << "To: " << endl << *to<< endl;
 
 	auto out = to->cloneImage();
 	out->setOrient(from->getOrigin(), from->getSpacing(),
-			from->getDirection(), false);
+			from->getDirection(), false, from->m_coordinate);
+
+	cerr << "Out: " << endl << *out << endl;
 	out->write(a_out.getValue());
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
