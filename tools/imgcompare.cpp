@@ -115,17 +115,24 @@ int main(int argc, char* argv[])
 		}
 		mask = dPtrCast<MRImage>(mask->extractCast(ndim, mask->dim()));
 		auto maskr = dPtrCast<MRImage>(img1->createAnother(INT8));
+		cerr << "Mask: " << endl << *mask  << endl;
+		cerr << "Maskr: " << endl << *maskr  << endl;
 		vector<double> indpt(ndim);
 		
 		//resample images together
-		LinInterpNDView<double> vwm(mask);
+		NNInterpNDView<int> vwm(mask);
 		vwm.m_ras = true;
 		for(NDIter<double> it(maskr); !it.eof(); ++it) {
 			it.index(indpt.size(), indpt.data());
+			cerr << "Sampling index: " << indpt[0] << ", " << indpt[1] << ", " << indpt[2] << endl;
 			maskr->indexToPoint(indpt.size(), indpt.data(), indpt.data());
-			it.set(vwm.get(indpt.size(), indpt.data()) > 0.5);
+			cerr << "Sampling Point : " << indpt[0] << ", " << indpt[1] << ", " << indpt[2] << endl;
+			double v = vwm.get(indpt.size(), indpt.data());
+			cerr << "Val: " << v << endl;
+			it.set(v > 0);
 		}
 		mask = maskr;
+		mask->write("mask.nii.gz");
 	}
 
 	// scatter

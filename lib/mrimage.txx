@@ -366,7 +366,7 @@ void MRImageStore<D,T>::printSelf()
 	if(m_coordinate == NOFORM)
 		cerr << "UNKNOWN";
 	cerr << endl;
-	
+
 	std::cerr << "Orientation:\nOrigin: [";
 	for(size_t ii=0; ii<D; ii++)
 		std::cerr << origin(ii) << ", ";
@@ -903,10 +903,10 @@ int MRImageStore<D,T>::indexToPoint(size_t len, const int64_t* index,
     }
 
     // copy out
-    for(size_t ii=0; ii<len; ii++)
+    for(size_t ii=0; ii<D && ii<len; ii++)
         rast[ii] = vpoint[ii];
-    for(size_t ii=len; ii<D; ii++)
-        rast[ii] = 0;
+    for(size_t ii=D; ii<len; ii++)
+		rast[ii] = 0;
 
     return 0;
 }
@@ -945,9 +945,9 @@ int MRImageStore<D,T>::indexToPoint(size_t len, const double* index,
     }
 
     // copy out
-    for(size_t ii=0; ii<len; ii++)
+    for(size_t ii=0; ii<D && ii<len; ii++)
         rast[ii] = vpoint[ii];
-    for(size_t ii=len; ii<D; ii++)
+    for(size_t ii=D; ii<len; ii++)
         rast[ii] = 0;
 
     return 0;
@@ -988,10 +988,10 @@ int MRImageStore<D,T>::pointToIndex(size_t len, const double* rast,
     }
 
     // copy out
-    for(size_t ii=0; ii<len; ii++)
+    for(size_t ii=0; ii<len && ii<D; ii++)
         index[ii] = vindex[ii];
-    for(size_t ii=len; ii<D; ii++)
-        index[ii] = 0;
+    for(size_t ii=D; ii<len; ii++)
+		index[ii] = 0;
 
     return 0;
 }
@@ -1031,9 +1031,9 @@ int MRImageStore<D,T>::pointToIndex(size_t len, const double* rast,
     }
 
     // copy out
-    for(size_t ii=0; ii<len; ii++)
+    for(size_t ii=0; ii<D && ii<len; ii++)
         index[ii] = round(vindex[ii]);
-    for(size_t ii=len; ii<D; ii++)
+    for(size_t ii=D; ii<len; ii++)
         index[ii] = 0;
 
     return 0;
@@ -1069,9 +1069,9 @@ int MRImageStore<D,T>::orientVector(size_t len, const double* xyz,
     vRAS = m_direction*(vInd.array()*m_spacing.array()).matrix();
 
     // copy out
-    for(size_t ii=0; ii<len; ii++)
+    for(size_t ii=0; ii<D && ii<len; ii++)
         ras[ii] = vRAS[ii];
-    for(size_t ii=len; ii<D; ii++)
+    for(size_t ii=D; ii<len; ii++)
         ras[ii] = 0;
 
     return 0;
@@ -1107,9 +1107,9 @@ int MRImageStore<D,T>::disOrientVector(size_t len, const double* ras,
     vInd = (m_inv_direction*vRAS).array()/m_spacing.array();
 
     // copy out
-    for(size_t ii=0; ii<len; ii++)
+    for(size_t ii=0; ii<D && ii<len; ii++)
         xyz[ii] = vInd[ii];
-    for(size_t ii=len; ii<D; ii++)
+    for(size_t ii=D; ii<len; ii++)
         xyz[ii] = 0;
 
     return 0;
@@ -1453,6 +1453,9 @@ ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
 
 	// copy spacing, origin and direction to out
 	size_t odim1=0;
+	out->m_freqdim = -1;
+	out->m_slicedim = -1;
+	out->m_phasedim = -1;
 	for(size_t d1=0; d1<len && d1<D; d1++) {
 		if(size[d1] > 0) {
 			out->spacing(odim1) = spacing(d1);
@@ -1466,11 +1469,25 @@ ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
 					odim2++;
 				}
 			}
+
+			if(d1 == m_freqdim)
+				out->m_freqdim = odim1;
+			if(d1 == m_slicedim)
+				out->m_slicedim = odim1;
+			if(d1 == m_phasedim)
+				out->m_phasedim = odim1;
+
 			odim1++;
 		}
 	}
 
-    return out;
+	out->m_slice_duration = m_slice_duration;
+	out->m_slice_start = m_slice_start;
+	out->m_slice_end = m_slice_end;
+	out->m_slice_timing = m_slice_timing;
+	out->m_slice_order = m_slice_order;
+	out->m_coordinate = m_coordinate;
+	return out;
 }
 
 /**
