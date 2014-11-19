@@ -160,21 +160,6 @@ void MRImage::setOrient(const VectorXd& neworigin,
  *
  * @return Element in direction matrix
  */
-double& MRImage::direction(int64_t row, int64_t col)
-{
-    return m_direction(row, col);
-}
-
-/**
- * @brief Returns reference to a value in the direction matrix.
- * Each row indicates the direction of the grid in
- * RAS coordinates. This is the rotation of the Index grid.
- *
- * @param row Row to access
- * @param col Column to access
- *
- * @return Element in direction matrix
- */
 const double& MRImage::direction(int64_t row, int64_t col) const
 {
     return m_direction(row, col);
@@ -1456,6 +1441,7 @@ ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
 	out->m_freqdim = -1;
 	out->m_slicedim = -1;
 	out->m_phasedim = -1;
+	MatrixXd tmpdirection(newdim, newdim);
 	for(size_t d1=0; d1<len && d1<D; d1++) {
 		if(size[d1] > 0) {
 			out->spacing(odim1) = spacing(d1);
@@ -1465,7 +1451,7 @@ ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
 			size_t odim2=0;
 			for(size_t d2=0; d2<len; d2++) {
 				if(size[d2] > 0) {
-					out->direction(odim1, odim2) = direction(d1, d2);
+					tmpdirection(odim1, odim2) = direction(d1, d2);
 					odim2++;
 				}
 			}
@@ -1481,6 +1467,7 @@ ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
 		}
 	}
 
+	out->setDirection(tmpdirection, true);
 	out->m_slice_duration = m_slice_duration;
 	out->m_slice_start = m_slice_start;
 	out->m_slice_end = m_slice_end;
