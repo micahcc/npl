@@ -34,10 +34,6 @@
 #include "utility.h"
 #include "iterators.h"
 
-#include <iostream>
-using std::cerr;
-using std::endl;
-
 namespace npl {
 
 /** \defgroup Accessors Accessors for NDArray/Image
@@ -1442,16 +1438,9 @@ public:
 		double cindex[MAXDIM];
 		int64_t index[MAXDIM];
 
-		cerr << "Input: ";
-		for(size_t dd=0; dd<len; dd++) {
-			if(dd!=0) cerr << ", ";
-			cerr << incindex[dd];
-		}
-
 		// convert RAS to index
 		if(m_ras) {
 			auto tmp = dPtrCast<const MRImage>(this->parent);
-			cerr << "Parent: " << endl << *tmp << endl;
 			tmp->pointToIndex(len, incindex, cindex);
 		} else {
 			for(size_t dd=0; dd<ndim; dd++) {
@@ -1460,11 +1449,6 @@ public:
 				else
 					cindex[dd] = 0;
 			}
-		}
-		cerr << "Input Cindex: ";
-		for(size_t dd=0; dd<len; dd++) {
-			if(dd!=0) cerr << ", ";
-			cerr << cindex[dd];
 		}
 
 		// initialize variables

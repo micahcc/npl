@@ -160,6 +160,21 @@ void MRImage::setOrient(const VectorXd& neworigin,
  *
  * @return Element in direction matrix
  */
+const double& MRImage::invdirection(int64_t row, int64_t col) const
+{
+    return m_direction(row, col);
+}
+
+/**
+ * @brief Returns reference to a value in the direction matrix.
+ * Each row indicates the direction of the grid in
+ * RAS coordinates. This is the rotation of the Index grid.
+ *
+ * @param row Row to access
+ * @param col Column to access
+ *
+ * @return Element in direction matrix
+ */
 const double& MRImage::direction(int64_t row, int64_t col) const
 {
     return m_direction(row, col);
