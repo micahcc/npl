@@ -780,7 +780,7 @@ void RigidCorrComputer::setFixed(ptr<const MRImage> newfix)
 {
 	if(newfix->ndim() != 3)
 		throw INVALID_ARGUMENT("Fixed image is not 3D!");
-	if(!newfix->isIsotropic(true))
+	if(!newfix->isIsotropic(true, 0.1))
 		throw INVALID_ARGUMENT("Fixed image is not isotropic!");
 
 	m_fixed = newfix;
@@ -800,7 +800,7 @@ void RigidCorrComputer::setMoving(ptr<const MRImage> newmove)
 {
 	if(newmove->ndim() != 3)
 		throw INVALID_ARGUMENT("Moving image is not 3D!");
-	if(!newmove->isIsotropic(true))
+	if(!newmove->isIsotropic(true, 0.1))
 		throw INVALID_ARGUMENT("Moving image is not isotropic!");
 
 	m_moving = newmove;
@@ -866,7 +866,7 @@ void RigidInformationComputer::setMoving(ptr<const MRImage> newmove)
 {
 	if(newmove->ndim() != 3)
 		throw INVALID_ARGUMENT("Moving image is not 3D!");
-	if(!newmove->isIsotropic(true))
+	if(!newmove->isIsotropic(true, 0.1))
 		throw INVALID_ARGUMENT("Moving image is not isotropic!");
 
 	//////////////////////////////////////
@@ -900,7 +900,7 @@ void RigidInformationComputer::setFixed(ptr<const MRImage> newfixed)
 {
 	if(newfixed->ndim() != 3)
 		throw INVALID_ARGUMENT("Fixed image is not 3D!");
-	if(!newfixed->isIsotropic(true))
+	if(!newfixed->isIsotropic(true, 0.1))
 		throw INVALID_ARGUMENT("Fixed image is not isotropic!");
 
 	//////////////////////////////////////
