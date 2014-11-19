@@ -11,19 +11,19 @@ echo 20 20 20 0 0 0 0 0 0 > motion0.rtm
 echo 20 20 20 .1 .2 -0.3 3 2 4 > motion1.rtm
 
 # apply distortion to 0
-nplConvertDeform -i $distimg --uni-space +y -o dist_0iv.nii.gz --invert
-nplConvertDeform -i $distimg --uni-space +y -o dist_0v.nii.gz 
+nplConvertDeform -i $distimg --in-uni-space +y -o dist_0iv.nii.gz --invert
+nplConvertDeform -i $distimg --in-uni-space +y -o dist_0v.nii.gz 
 nplApplyDeform -i $baseimg -d dist_0iv.nii.gz -o sim_0d.nii.gz
 nplApplyDeform -i sim_0d.nii.gz -d dist_0v.nii.gz -o sim_0dc.nii.gz
 
 # apply distortion to 1, after rotating
 nplMotionCorr --invert -a motion1.rtm -i $baseimg -o sim_1m.nii.gz
 nplMotionCorr --invert -a motion1.rtm -i $distimg -o dist_1m.nii.gz
-nplConvertDeform -i dist_1m.nii.gz --uni-space +y -o dist_1miv.nii.gz --invert
+nplConvertDeform -i dist_1m.nii.gz --in-uni-space +y -o dist_1miv.nii.gz --invert
 nplApplyDeform -i sim_1m.nii.gz -d dist_1miv.nii.gz -o sim_1md.nii.gz
 
 # test the inverse
-nplConvertDeform -i dist_1m.nii.gz --uni-space +y -o dist_1mv.nii.gz 
+nplConvertDeform -i dist_1m.nii.gz --in-uni-space +y -o dist_1mv.nii.gz 
 nplApplyDeform -i sim_1md.nii.gz -d dist_1mv.nii.gz -o sim_1mdc.nii.gz
 nplMotionCorr -a motion1.rtm -i sim_1mdc.nii.gz -o sim_1mdcc.nii.gz
 
