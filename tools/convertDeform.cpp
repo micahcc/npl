@@ -33,6 +33,36 @@ using std::string;
 using namespace npl;
 using std::shared_ptr;
 
+void parseDir(string idir, bool& flip, int& dim)
+{
+	/*
+	 * Convert x/y/z to dimension with flip
+	 */
+	flip = false;
+	dim = 0;
+	int pos = 0;
+	if(idir.empty()) {
+		throw INVALID_ARGUMENT("Error Invalid Dimension: "+idir);
+	} else if(idir[0] == '-') {
+		flip = true;
+		pos++;
+	} else if(idir[0] == '+') {
+		flip = false;
+		pos++;
+	}
+
+	if(pos >= idir.size())
+		throw INVALID_ARGUMENT("Error Invalid Dimension: "+idir);
+	else if(idir[pos] == 'x')
+		dim = 0;
+	else if(idir[pos] == 'y')
+		dim = 1;
+	else if(idir[pos] == 'z')
+		dim = 2;
+	else
+		throw INVALID_ARGUMENT("Error Invalid Dimension: "+idir);
+}
+
 template <typename T>
 ostream& operator<<(ostream& out, const std::vector<T>& v)
 {
@@ -335,21 +365,39 @@ int main(int argc, char** argv)
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
 			true, "", "*.nii.gz", cmd);
 
-	TCLAP::ValueArg<string> a_dir_space("", "uni-space", "Input is a uni-"
+	std::vector<string> allowed({"+x","x", "-x", "+y", "y", "-y", "+z", "z", "-z"});
+	TCLAP::ValuesConstraint<string> allowedDirs( allowed );
+	TCLAP::ValueArg<string> a_in_dir_space("", "in-uni-space", "Input is a uni-"
 			"directional distortion field in spacing (mm) coords. "
 			"Direction of distortion may be "
 			"-x +x x -y +y y -z z +z, where no +/- implies +. Thus a positive "
 			"distortion value for a '+x' direction would mean the image is "
 			"shifted in the positive direction of +x (in index space).",
-			false, "", "xyz", cmd);
+			false, "dir", &allowedDirs, cmd);
 
-	TCLAP::ValueArg<string> a_dir_index("", "uni-index", "Input is a uni-"
+	TCLAP::ValueArg<string> a_in_dir_index("", "in-uni-index", "Input is a uni-"
 			"directional distortion field in index coords. "
 			"Direction of distortion may be "
 			"-x +x x -y +y y -z z +z, where no +/- implies +. Thus a positive "
 			"distortion value for a '+x' direction would mean the image is "
 			"shifted in the positive direction of +x (in index space).",
-			false, "", "xyz", cmd);
+			false, "dir", &allowedDirs, cmd);
+
+	TCLAP::ValueArg<string> a_out_dir_space("", "out-uni-space", "Output is a uni-"
+			"directional distortion field in spacing (mm) coords. "
+			"Direction of distortion may be "
+			"-x +x x -y +y y -z z +z, where no +/- implies +. Thus a positive "
+			"distortion value for a '+x' direction would mean the image is "
+			"shifted in the positive direction of +x (in index space).",
+			false, "dir", &allowedDirs, cmd);
+
+	TCLAP::ValueArg<string> a_out_dir_index("", "out-uni-index", "Output is a uni-"
+			"directional distortion field in index coords. "
+			"Direction of distortion may be "
+			"-x +x x -y +y y -z z +z, where no +/- implies +. Thus a positive "
+			"distortion value for a '+x' direction would mean the image is "
+			"shifted in the positive direction of +x (in index space).",
+			false, "dir", &allowedDirs, cmd);
 
 	TCLAP::SwitchArg a_invert("I", "invert", "index "
 			"lookup type deform to an offset (in mm) type deform", cmd);
@@ -419,44 +467,16 @@ int main(int argc, char** argv)
 		}
 		cerr << "Reorienting Vectors to RAS Space" << endl;
 		deform = reorientVectors(deform);
-	} else if(a_dir_space.isSet() || a_dir_index.isSet()) {
+	} else if(a_in_dir_space.isSet() || a_in_dir_index.isSet()) {
 		if(deform->tlen() == 3) {
 			cerr << "Input is already 3D!" << endl;
 			return -1;
 		}
 
-		/*
-		 * Convert x/y/z to dimension with flip
-		 */
 		bool flip = false;
-		int dir = 0;
-		string idir;
-		if(a_dir_space.isSet()) idir = a_dir_space.getValue();
-		if(a_dir_index.isSet()) idir = a_dir_index.getValue();
-		int pos = 0;
-		if(!idir.empty() && idir[0] == '-') {
-			flip = true;
-			pos++;
-		} else if(!idir.empty() && idir[0] == '+') {
-			flip = false;
-			pos++;
-		}
-
-		if(pos < idir.size() && idir[pos] == 'x')
-			dir = 0;
-		else if(pos < idir.size() && idir[pos] == 'y')
-			dir = 1;
-		else if(pos < idir.size() && idir[pos] == 'z')
-			dir = 2;
-		else {
-			cerr << "Error Invalid Dimension: " << idir << endl;
-			return -1;
-		}
-
-		cerr << "Direction: ";
-		if(flip) cerr << "-";
-		else cerr << "+";
-		cerr << (char)('x'+dir) << endl;
+		int dim = 0;
+		if(a_in_dir_space.isSet()) parseDir(a_in_dir_space.getValue(), flip, dim);
+		if(a_in_dir_index.isSet()) parseDir(a_in_dir_index.getValue(), flip, dim);
 
 		/*
 		 * Now Convert 1D Vector to 3D oriented Vector
@@ -483,12 +503,12 @@ int main(int argc, char** argv)
 
 			// Set Value in Direction of distortion
 			if(flip)
-				vec[dir] = -iit[0];
+				vec[dim] = -iit[0];
 			else
-				vec[dir] = iit[0];
+				vec[dim] = iit[0];
 
-			if(a_dir_space.isSet())
-				vec[dir] /= deform->spacing(dir);
+			if(a_in_dir_space.isSet())
+				vec[dim] /= deform->spacing(dim);
 
 			// Convert
 			deform->orientVector(3, vec, vec);
@@ -517,6 +537,44 @@ int main(int argc, char** argv)
 	if(a_out_index.isSet()) {
 		cerr << "Changing back to index not yet implemented " << endl;
 		return -1;
+	} else if(a_out_dir_space.isSet()) {
+		bool flip = false;
+		int dim = 0;
+		if(a_out_dir_space.isSet()) parseDir(a_out_dir_space.getValue(), flip, dim);
+
+		cerr << "Creating 1D deformation in index space (output will be 3 "
+			"Dimeions with scalar pixels indicating offset (in mm) "
+			"projected in " << (flip ? "-" : "+") << (char)(dim+'x') << " Direction)" << endl;
+
+		double vec[3];
+		auto out = dPtrCast<MRImage>(deform->copyCast(3, deform->dim()));
+		for(Vector3DIter<double> dit(deform), oit(out); !dit.eof() ; ++dit, ++oit) {
+			for(size_t dd=0; dd<3; dd++)
+				vec[dd] = dit[dd];
+			deform->disOrientVector(3, vec, vec);
+			if(flip) vec[dim] = -vec[dim];
+			vec[dim] *= out->spacing(dim);
+			oit.set(vec[dim]);
+		}
+		deform = out;
+	} else if(a_out_dir_index.isSet()) {
+		bool flip = false;
+		int dim = 0;
+		if(a_out_dir_index.isSet()) parseDir(a_out_dir_index.getValue(), flip, dim);
+		cerr << "Creating 1D deformation in index space (output will be 3 "
+			"Dimeions with scalar pixels indicating offset (in #pixels) "
+			"projected in " << (flip ? "-" : "+") << (char)(dim+'x') << " Direction)" << endl;
+
+		double vec[3];
+		auto out = dPtrCast<MRImage>(deform->copyCast(3, deform->dim()));
+		for(Vector3DIter<double> dit(deform), oit(out); !dit.eof() ; ++dit, ++oit) {
+			for(size_t dd=0; dd<3; dd++)
+				vec[dd] = dit[dd];
+			deform->disOrientVector(3, vec, vec);
+			if(flip) vec[dim] = -vec[dim];
+			oit.set(vec[dim]);
+		}
+		deform = out;
 	}
 
 	// write
