@@ -64,7 +64,7 @@ int writeNDArray(ptr<const NDArray> img, std::string fn, bool nifti2 = false);
  * @return Loaded image
  */
 ptr<NDArray> readNDArray(std::string filename, bool verbose = false,
-        bool nopixeldata = false);
+		bool nopixeldata = false);
 
 /**
  * @brief Reads an MRI image. Right now only nift images are supported. later
@@ -81,7 +81,7 @@ ptr<NDArray> readNDArray(std::string filename, bool verbose = false,
  * @return Loaded image
  */
 ptr<MRImage> readMRImage(std::string filename, bool verbose = false,
-        bool nopixeldata = false);
+		bool nopixeldata = false);
 
 /** @} */
 

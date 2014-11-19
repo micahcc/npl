@@ -54,23 +54,23 @@ namespace npl
  */
 template <typename T>
 void readPixels(ptr<NDArray> arr, gzFile file, size_t vox_offset,
-        size_t pixsize, bool doswap)
+		size_t pixsize, bool doswap)
 {
 	int bytesread = 0;
 	const int buffsize = 1024*sizeof(T);
 	T tmp[buffsize];
 
-    if(pixsize != sizeof(T)) {
-        throw INVALID_ARGUMENT("Pixel size in file ("+to_string(pixsize)
-                +")does not match actual size of "+typeid(T).name());
-    }
+	if(pixsize != sizeof(T)) {
+		throw INVALID_ARGUMENT("Pixel size in file ("+to_string(pixsize)
+				+")does not match actual size of "+typeid(T).name());
+	}
 
 	// jump to voxel offset
 	gzseek(file, vox_offset, SEEK_SET);
 
-    // need to reverse order from nifti
-    NDIter<T> it(arr);
-    it.setOrder({}, true);
+	// need to reverse order from nifti
+	NDIter<T> it(arr);
+	it.setOrder({}, true);
 	it.goBegin();
 
 	bytesread = gzread(file, tmp, buffsize);
@@ -166,37 +166,37 @@ int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap,
 		std::cerr << "sizeof_hdr=" << header->sizeof_hdr << std::endl;
 		std::cerr << "data_type=" << header->data_type << std::endl;
 		std::cerr << "db_name=" << header->db_name << std::endl;
-		std::cerr << "extents=" << header->extents  << std::endl;
+		std::cerr << "extents=" << header->extents << std::endl;
 		std::cerr << "session_error=" << header->session_error << std::endl;
 		std::cerr << "regular=" << header->regular << std::endl;
 
-		std::cerr << "magic =" << header->magic  << std::endl;
+		std::cerr << "magic =" << header->magic << std::endl;
 		std::cerr << "datatype=" << header->datatype << std::endl;
 		std::cerr << "bitpix=" << header->bitpix << std::endl;
 		std::cerr << "ndim=" << header->ndim << std::endl;
 		for(size_t ii=0; ii < 7; ii++)
 			std::cerr << "dim["<<ii<<"]=" << header->dim[ii] << std::endl;
-		std::cerr << "intent_p1 =" << header->intent_p1  << std::endl;
-		std::cerr << "intent_p2 =" << header->intent_p2  << std::endl;
-		std::cerr << "intent_p3 =" << header->intent_p3  << std::endl;
+		std::cerr << "intent_p1 =" << header->intent_p1 << std::endl;
+		std::cerr << "intent_p2 =" << header->intent_p2 << std::endl;
+		std::cerr << "intent_p3 =" << header->intent_p3 << std::endl;
 		std::cerr << "qfac=" << header->qfac << std::endl;
 		for(size_t ii=0; ii < 7; ii++)
 			std::cerr << "pixdim["<<ii<<"]=" << header->pixdim[ii] << std::endl;
 		std::cerr << "vox_offset=" << header->vox_offset << std::endl;
-		std::cerr << "scl_slope =" << header->scl_slope  << std::endl;
-		std::cerr << "scl_inter =" << header->scl_inter  << std::endl;
+		std::cerr << "scl_slope =" << header->scl_slope << std::endl;
+		std::cerr << "scl_inter =" << header->scl_inter << std::endl;
 		std::cerr << "cal_max=" << header->cal_max << std::endl;
 		std::cerr << "cal_min=" << header->cal_min << std::endl;
 		std::cerr << "slice_duration=" << header->slice_duration << std::endl;
 		std::cerr << "toffset=" << header->toffset << std::endl;
-		std::cerr << "glmax=" << header->glmax  << std::endl;
-		std::cerr << "glmin=" << header->glmin  << std::endl;
+		std::cerr << "glmax=" << header->glmax << std::endl;
+		std::cerr << "glmin=" << header->glmin << std::endl;
 		std::cerr << "slice_start=" << header->slice_start << std::endl;
 		std::cerr << "slice_end=" << header->slice_end << std::endl;
 		std::cerr << "descrip=" << header->descrip << std::endl;
 		std::cerr << "aux_file=" << header->aux_file << std::endl;
-		std::cerr << "qform_code =" << header->qform_code  << std::endl;
-		std::cerr << "sform_code =" << header->sform_code  << std::endl;
+		std::cerr << "qform_code =" << header->qform_code << std::endl;
+		std::cerr << "sform_code =" << header->sform_code << std::endl;
 		for(size_t ii=0; ii < 3; ii++){
 			std::cerr << "quatern["<<ii<<"]="
 				<< header->quatern[ii] << std::endl;
@@ -213,7 +213,7 @@ int readNifti1Header(gzFile file, nifti1_header* header, bool* doswap,
 		}
 		std::cerr << "slice_code=" << (int)header->slice_code << std::endl;
 		std::cerr << "xyzt_units=" << header->xyzt_units << std::endl;
-		std::cerr << "intent_code =" << header->intent_code  << std::endl;
+		std::cerr << "intent_code =" << header->intent_code << std::endl;
 		std::cerr << "intent_name=" << header->intent_name << std::endl;
 		std::cerr << "dim_info.bits.freqdim=" << header->dim_info.bits.freqdim << std::endl;
 		std::cerr << "dim_info.bits.phasedim=" << header->dim_info.bits.phasedim << std::endl;
@@ -301,21 +301,21 @@ int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap,
 
 	if(verbose) {
 		std::cerr << "sizeof_hdr=" << header->sizeof_hdr << std::endl;
-		std::cerr << "magic =" << header->magic  << std::endl;
+		std::cerr << "magic =" << header->magic << std::endl;
 		std::cerr << "datatype=" << header->datatype << std::endl;
 		std::cerr << "bitpix=" << header->bitpix << std::endl;
 		std::cerr << "ndim=" << header->ndim << std::endl;
 		for(size_t ii=0; ii < 7; ii++)
 			std::cerr << "dim["<<ii<<"]=" << header->dim[ii] << std::endl;
-		std::cerr << "intent_p1 =" << header->intent_p1  << std::endl;
-		std::cerr << "intent_p2 =" << header->intent_p2  << std::endl;
-		std::cerr << "intent_p3 =" << header->intent_p3  << std::endl;
+		std::cerr << "intent_p1 =" << header->intent_p1 << std::endl;
+		std::cerr << "intent_p2 =" << header->intent_p2 << std::endl;
+		std::cerr << "intent_p3 =" << header->intent_p3 << std::endl;
 		std::cerr << "qfac=" << header->qfac << std::endl;
 		for(size_t ii=0; ii < 7; ii++)
 			std::cerr << "pixdim["<<ii<<"]=" << header->pixdim[ii] << std::endl;
 		std::cerr << "vox_offset=" << header->vox_offset << std::endl;
-		std::cerr << "scl_slope =" << header->scl_slope  << std::endl;
-		std::cerr << "scl_inter =" << header->scl_inter  << std::endl;
+		std::cerr << "scl_slope =" << header->scl_slope << std::endl;
+		std::cerr << "scl_inter =" << header->scl_inter << std::endl;
 		std::cerr << "cal_max=" << header->cal_max << std::endl;
 		std::cerr << "cal_min=" << header->cal_min << std::endl;
 		std::cerr << "slice_duration=" << header->slice_duration << std::endl;
@@ -324,8 +324,8 @@ int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap,
 		std::cerr << "slice_end=" << header->slice_end << std::endl;
 		std::cerr << "descrip=" << header->descrip << std::endl;
 		std::cerr << "aux_file=" << header->aux_file << std::endl;
-		std::cerr << "qform_code =" << header->qform_code  << std::endl;
-		std::cerr << "sform_code =" << header->sform_code  << std::endl;
+		std::cerr << "qform_code =" << header->qform_code << std::endl;
+		std::cerr << "sform_code =" << header->sform_code << std::endl;
 		for(size_t ii=0; ii < 3; ii++){
 			std::cerr << "quatern["<<ii<<"]="
 				<< header->quatern[ii] << std::endl;
@@ -342,7 +342,7 @@ int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap,
 		}
 		std::cerr << "slice_code=" << (int)header->slice_code << std::endl;
 		std::cerr << "xyzt_units=" << header->xyzt_units << std::endl;
-		std::cerr << "intent_code =" << header->intent_code  << std::endl;
+		std::cerr << "intent_code =" << header->intent_code << std::endl;
 		std::cerr << "intent_name=" << header->intent_name << std::endl;
 		std::cerr << "dim_info.bits.freqdim=" << header->dim_info.bits.freqdim << std::endl;
 		std::cerr << "dim_info.bits.phasedim=" << header->dim_info.bits.phasedim << std::endl;
@@ -365,7 +365,7 @@ int readNifti2Header(gzFile file, nifti2_header* header, bool* doswap,
  * @return New MRImage with values from header and pixels set
  */
 ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray,
-        bool nopixeldata = false)
+		bool nopixeldata = false)
 {
 	bool doswap = false;
 	PixelT datatype = UNKNOWN_TYPE;
@@ -426,9 +426,9 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray,
 			quatern[ii] = header1.quatern[ii];
 		qfac = header1.qfac;
 
-        // saffine
-        for(size_t ii=0; ii<12; ii++)
-            saffine[ii] = header1.saffine[ii];
+		// saffine
+		for(size_t ii=0; ii<12; ii++)
+			saffine[ii] = header1.saffine[ii];
 	}
 
 	if(ret!=0 && (ret = readNifti2Header(file, &header2, &doswap, verbose)) == 0) {
@@ -467,28 +467,28 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray,
 			quatern[ii] = header2.quatern[ii];
 		qfac = header2.qfac;
 
-        // saffine
-        for(size_t ii=0; ii<12; ii++)
-            saffine[ii] = header2.saffine[ii];
+		// saffine
+		for(size_t ii=0; ii<12; ii++)
+			saffine[ii] = header2.saffine[ii];
 	}
 
-    ptr<NDArray> out;
-    if(makearray) {
-        // just create an array, not an image
-        out = createNDArray(dim.size(), dim.data(), datatype);
+	ptr<NDArray> out;
+	if(makearray) {
+		// just create an array, not an image
+		out = createNDArray(dim.size(), dim.data(), datatype);
 
-        if(verbose)
-            std::cerr << (*out) << std::endl;
+		if(verbose)
+			std::cerr << (*out) << std::endl;
 
-    } else {
-        // create an image, get orientation
-        out = createMRImage(dim.size(), dim.data(), datatype);
-        auto oimage = dPtrCast<MRImage>(out);
+	} else {
+		// create an image, get orientation
+		out = createMRImage(dim.size(), dim.data(), datatype);
+		auto oimage = dPtrCast<MRImage>(out);
 
-        /*
+		/*
 		 * figure out orientation
 		 */
-         
+
 		// start with spacing
 		oimage->m_coordinate = NOFORM;
 		// only spacing changes
@@ -496,62 +496,64 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray,
 			oimage->spacing(ii) = pixdim[ii];
 
 		// Use sform, but overwrite with qform if it exists
-        if(sform_code > 0) {
-            /* use the sform, since no qform exists */
+		MatrixXd tmpdirection = oimage->getDirection();
+		if(sform_code > 0) {
+			/* use the sform, since no qform exists */
 
-            // origin, last column
-            double di = 0, dj = 0, dk = 0;
-            for(size_t ii=0; ii<3 && ii<oimage->ndim(); ii++) {
-                di += pow(saffine[4*ii+0],2); //column 0
-                dj += pow(saffine[4*ii+1],2); //column 1
-                dk += pow(saffine[4*ii+2],2); //column 2
-                oimage->origin(ii) = saffine[4*ii+3]; //column 3
-            }
-            di = sqrt(di);
-            dj = sqrt(dj);
-            dk = sqrt(dk);
+			// origin, last column
+			double di = 0, dj = 0, dk = 0;
+			for(size_t ii=0; ii<3 && ii<oimage->ndim(); ii++) {
+				di += pow(saffine[4*ii+0],2); //column 0
+				dj += pow(saffine[4*ii+1],2); //column 1
+				dk += pow(saffine[4*ii+2],2); //column 2
+				oimage->origin(ii) = saffine[4*ii+3]; //column 3
+			}
+			di = sqrt(di);
+			dj = sqrt(dj);
+			dk = sqrt(dk);
 
-            // set direction and spacing
-            oimage->spacing(0) = sqrt(di);
-            oimage->direction(0,0) = saffine[4*0+0]/di;
+			// set direction and spacing
+			oimage->spacing(0) = sqrt(di);
+			tmpdirection(0,0) = saffine[4*0+0]/di;
 
-            if(oimage->ndim() > 1) {
-                oimage->spacing(1) = sqrt(dj);
-                oimage->direction(0,1) = saffine[4*0+1]/dj;
-                oimage->direction(1,1) = saffine[4*1+1]/dj;
-                oimage->direction(1,0) = saffine[4*1+0]/di;
-            }
-            if(oimage->ndim() > 2) {
-                oimage->spacing(2) = sqrt(dk);
-                oimage->direction(0,2) = saffine[4*0+2]/dk;
-                oimage->direction(1,2) = saffine[4*1+2]/dk;
-                oimage->direction(2,2) = saffine[4*2+2]/dk;
-                oimage->direction(2,1) = saffine[4*2+1]/dj;
-                oimage->direction(2,0) = saffine[4*2+0]/di;
-            }
+			if(oimage->ndim() > 1) {
+				oimage->spacing(1) = sqrt(dj);
+				tmpdirection(0,1) = saffine[4*0+1]/dj;
+				tmpdirection(1,1) = saffine[4*1+1]/dj;
+				tmpdirection(1,0) = saffine[4*1+0]/di;
+			}
+			if(oimage->ndim() > 2) {
+				oimage->spacing(2) = sqrt(dk);
+				tmpdirection(0,2) = saffine[4*0+2]/dk;
+				tmpdirection(1,2) = saffine[4*1+2]/dk;
+				tmpdirection(2,2) = saffine[4*2+2]/dk;
+				tmpdirection(2,1) = saffine[4*2+1]/dj;
+				tmpdirection(2,0) = saffine[4*2+0]/di;
+			}
 
+			oimage->setDirection(tmpdirection, true);
 			oimage->m_coordinate = (CoordinateT)((int)SFORM|(int)oimage->m_coordinate);
 		}
 
-        if(qform_code > 0) {
-            /*
-             * set spacing
-             */
-            for(size_t ii=0; ii<oimage->ndim(); ii++)
-                oimage->spacing(ii) = pixdim[ii];
+		if(qform_code > 0) {
+			/*
+			 * set spacing
+			 */
+			for(size_t ii=0; ii<oimage->ndim(); ii++)
+				oimage->spacing(ii) = pixdim[ii];
 
-            /*
-             * set origin
-             */
-            // x,y,z
-            for(size_t ii=0; ii<oimage->ndim(); ii++) {
-                oimage->origin(ii) = offset[ii];
-            }
+			/*
+			 * set origin
+			 */
+			// x,y,z
+			for(size_t ii=0; ii<oimage->ndim(); ii++) {
+				oimage->origin(ii) = offset[ii];
+			}
 
-            // calculate a, copy others
-            double b = quatern[0];
-            double c = quatern[1];
-            double d = quatern[2];
+			// calculate a, copy others
+			double b = quatern[0];
+			double c = quatern[1];
+			double d = quatern[2];
 			double a = 1.0-(b*b+c*c+d*d);
 
 			// if a is extremeley small (or negative), renormalize, make a=0
@@ -565,112 +567,111 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray,
 				a = sqrt(a);
 			}
 
-            // calculate R, (was already identity)
-            MatrixXd tmpdirection = oimage->getDirection();
-            tmpdirection(0,0) = a*a+b*b-c*c-d*d;
+			// calculate R, (was already identity)
+			tmpdirection(0,0) = a*a+b*b-c*c-d*d;
 
-            if(oimage->ndim() > 1) {
-                tmpdirection(0,1) = 2*b*c-2*a*d;
-                tmpdirection(1,0) = 2*b*c+2*a*d;
-                tmpdirection(1,1) = a*a+c*c-b*b-d*d;
-            }
+			if(oimage->ndim() > 1) {
+				tmpdirection(0,1) = 2*b*c-2*a*d;
+				tmpdirection(1,0) = 2*b*c+2*a*d;
+				tmpdirection(1,1) = a*a+c*c-b*b-d*d;
+			}
 
-            if(qfac != -1)
-                qfac = 1;
+			if(qfac != -1)
+				qfac = 1;
 
-            if(oimage->ndim() > 2) {
-                tmpdirection(0,2) = qfac*(2*b*d+2*a*c);
-                tmpdirection(1,2) = qfac*(2*c*d-2*a*b);
-                tmpdirection(2,2) = qfac*(a*a+d*d-c*c-b*b);
-                tmpdirection(2,1) = 2*c*d+2*a*b;
-                tmpdirection(2,0) = 2*b*d-2*a*c;
-            }
+			if(oimage->ndim() > 2) {
+				tmpdirection(0,2) = qfac*(2*b*d+2*a*c);
+				tmpdirection(1,2) = qfac*(2*c*d-2*a*b);
+				tmpdirection(2,2) = qfac*(a*a+d*d-c*c-b*b);
+				tmpdirection(2,1) = 2*c*d+2*a*b;
+				tmpdirection(2,0) = 2*b*d-2*a*c;
+			}
 
-            oimage->setDirection(tmpdirection, true);
+			oimage->setDirection(tmpdirection, true);
 			oimage->m_coordinate = (CoordinateT)((int)QFORM|(int)oimage->m_coordinate);
 		}
 
-        /**************************************************************************
-         * Medical Imaging Varaibles Variables
-         **************************************************************************/
+		/**************************************************************************
+		 * Medical Imaging Varaibles Variables
+		 **************************************************************************/
 
-        // direct copies
-        oimage->m_freqdim = freqdim;
-        oimage->m_phasedim = phasedim;
-        oimage->m_slicedim = slicedim;
+		// direct copies
+		oimage->m_freqdim = freqdim;
+		oimage->m_phasedim = phasedim;
+		oimage->m_slicedim = slicedim;
 
-        // slice timing
-        oimage->updateSliceTiming(slice_duration,  slice_start, slice_end,
-                (SliceOrderT)slice_code);
+		// slice timing
+		oimage->updateSliceTiming(slice_duration, slice_start, slice_end,
+				(SliceOrderT)slice_code);
 
 
-        if(verbose)
-            std::cerr << *oimage  << std::endl;
+		if(verbose)
+			std::cerr << *oimage << std::endl;
 
-    }
+	}
 
-    if(!nopixeldata) {
-        // copy pixels
-        switch(datatype) {
-            // 8 bit
-            case INT8:
-                readPixels<int8_t>(out, file, start, psize, doswap);
-                break;
-            case UINT8:
-                readPixels<uint8_t>(out, file, start, psize, doswap);
-                break;
-                // 16  bit
-            case INT16:
-                readPixels<int16_t>(out, file, start, psize, doswap);
-                break;
-            case UINT16:
-                readPixels<uint16_t>(out, file, start, psize, doswap);
-                break;
-                // 32 bit
-            case INT32:
-                readPixels<int32_t>(out, file, start, psize, doswap);
-                break;
-            case UINT32:
-                readPixels<uint32_t>(out, file, start, psize, doswap);
-                break;
-                // 64 bit int
-            case INT64:
-                readPixels<int64_t>(out, file, start, psize, doswap);
-                break;
-            case UINT64:
-                readPixels<uint64_t>(out, file, start, psize, doswap);
-                break;
-                // floats
-            case FLOAT32:
-                readPixels<float>(out, file, start, psize, doswap);
-                break;
-            case FLOAT64:
-                readPixels<double>(out, file, start, psize, doswap);
-                break;
-            case FLOAT128:
-                readPixels<long double>(out, file, start, psize, doswap);
-                break;
-                // RGB
-            case RGB24:
-                readPixels<rgb_t>(out, file, start, psize, doswap);
-                break;
-            case RGBA32:
-                readPixels<rgba_t>(out, file, start, psize, doswap);
-                break;
-            case COMPLEX256:
-                readPixels<cquad_t>(out, file, start, psize, doswap);
-                break;
-            case COMPLEX128:
-                readPixels<cdouble_t>(out, file, start, psize, doswap);
-                break;
-            case COMPLEX64:
-                readPixels<cfloat_t>(out, file, start, psize, doswap);
-                break;
-            default:
-            case UNKNOWN_TYPE:
-                throw RUNTIME_ERROR("Unknown Pixel Type in input Nifti Image");
-        }
-    }
+	if(!nopixeldata) {
+		// copy pixels
+		switch(datatype) {
+			// 8 bit
+			case INT8:
+				readPixels<int8_t>(out, file, start, psize, doswap);
+				break;
+			case UINT8:
+				readPixels<uint8_t>(out, file, start, psize, doswap);
+				break;
+				// 16 bit
+			case INT16:
+				readPixels<int16_t>(out, file, start, psize, doswap);
+				break;
+			case UINT16:
+				readPixels<uint16_t>(out, file, start, psize, doswap);
+				break;
+				// 32 bit
+			case INT32:
+				readPixels<int32_t>(out, file, start, psize, doswap);
+				break;
+			case UINT32:
+				readPixels<uint32_t>(out, file, start, psize, doswap);
+				break;
+				// 64 bit int
+			case INT64:
+				readPixels<int64_t>(out, file, start, psize, doswap);
+				break;
+			case UINT64:
+				readPixels<uint64_t>(out, file, start, psize, doswap);
+				break;
+				// floats
+			case FLOAT32:
+				readPixels<float>(out, file, start, psize, doswap);
+				break;
+			case FLOAT64:
+				readPixels<double>(out, file, start, psize, doswap);
+				break;
+			case FLOAT128:
+				readPixels<long double>(out, file, start, psize, doswap);
+				break;
+				// RGB
+			case RGB24:
+				readPixels<rgb_t>(out, file, start, psize, doswap);
+				break;
+			case RGBA32:
+				readPixels<rgba_t>(out, file, start, psize, doswap);
+				break;
+			case COMPLEX256:
+				readPixels<cquad_t>(out, file, start, psize, doswap);
+				break;
+			case COMPLEX128:
+				readPixels<cdouble_t>(out, file, start, psize, doswap);
+				break;
+			case COMPLEX64:
+				readPixels<cfloat_t>(out, file, start, psize, doswap);
+				break;
+			default:
+			case UNKNOWN_TYPE:
+				throw RUNTIME_ERROR("Unknown Pixel Type in input Nifti Image");
+		}
+	}
 	return out;
 }
 
@@ -693,29 +694,29 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray,
  * @return -2: error, -1 unexpected character, 1: eof, 0: OK
  */
 int read(gzFile file, stringstream& oss, bool keeplast,
-        std::function<bool(char)> stop,
-        std::function<bool(char)> ignore,
-        std::function<bool(char)> keep)
+		std::function<bool(char)> stop,
+		std::function<bool(char)> ignore,
+		std::function<bool(char)> keep)
 {
-    int c;
-    while((c = gzgetc(file)) >= 0) {
-        if(stop(c)) {
-            if(keeplast)
-                oss << (char)c;
-            return 0;
-        } else if(ignore(c)) {
-            continue;
-        } else if(keep(c)) {
-            oss << (char)c;
-        } else {
-            return -1;
-        }
-    }
+	int c;
+	while((c = gzgetc(file)) >= 0) {
+		if(stop(c)) {
+			if(keeplast)
+				oss << (char)c;
+			return 0;
+		} else if(ignore(c)) {
+			continue;
+		} else if(keep(c)) {
+			oss << (char)c;
+		} else {
+			return -1;
+		}
+	}
 
-    if(gzeof(file))
-        return 1;
-    else
-        return -2;
+	if(gzeof(file))
+		return 1;
+	else
+		return -2;
 }
 
 /**
@@ -728,32 +729,32 @@ int read(gzFile file, stringstream& oss, bool keeplast,
  */
 int readstring(gzFile file, std::string& out)
 {
-    // read key, find "
-    stringstream oss;
-    int ret = read(file, oss, false,
-            [&](char c){return c=='"';},
-            [&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
-            [&](char c){(void)c; return false;});
+	// read key, find "
+	stringstream oss;
+	int ret = read(file, oss, false,
+			[&](char c){return c=='"';},
+			[&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
+			[&](char c){(void)c; return false;});
 
-    if(ret != 0) {
-        return -1;
-    }
+	if(ret != 0) {
+		return -1;
+	}
 
-    assert(oss.str() == "");
-    // find closing "
-    bool backslash = false;
-    ret = read(file, oss, false,
-            [&](char c){return !backslash && c=='"';},
-            [&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
-            [&](char c){backslash = (c=='\\'); return true;});
+	assert(oss.str() == "");
+	// find closing "
+	bool backslash = false;
+	ret = read(file, oss, false,
+			[&](char c){return !backslash && c=='"';},
+			[&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
+			[&](char c){backslash = (c=='\\'); return true;});
 
-    if(ret != 0) {
-        return -1;
-    }
+	if(ret != 0) {
+		return -1;
+	}
 
-    out = oss.str();
+	out = oss.str();
 
-    return 0;
+	return 0;
 }
 
 /**
@@ -766,50 +767,50 @@ int readstring(gzFile file, std::string& out)
  */
 int readKey(gzFile file, string& key)
 {
-    // read key, find "
-    stringstream oss;
-    int ret = read(file, oss, false,
-            [&](char c){return c=='"';},
-            [&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
-            [&](char c){(void)c; return false;});
+	// read key, find "
+	stringstream oss;
+	int ret = read(file, oss, false,
+			[&](char c){return c=='"';},
+			[&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
+			[&](char c){(void)c; return false;});
 
-    if(ret != 0) {
-        return -1;
-    }
+	if(ret != 0) {
+		return -1;
+	}
 
-    // find closing "
-    bool backslash = false;
-    ret = read(file, oss, false,
-            [&](char c){return !backslash && c=='"';},
-            [&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
-            [&](char c){backslash = (c=='\\'); return true;});
+	// find closing "
+	bool backslash = false;
+	ret = read(file, oss, false,
+			[&](char c){return !backslash && c=='"';},
+			[&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
+			[&](char c){backslash = (c=='\\'); return true;});
 
-    if(ret != 0) {
-        return -1;
-    }
-    key = oss.str();
+	if(ret != 0) {
+		return -1;
+	}
+	key = oss.str();
 
-    // find colon
-    ret = read(file, oss, false,
-            [&](char c){return c==':';},
-            [&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
-            [&](char c){(void)c; return false;});
-    if(ret != 0) {
-        cerr << "Could not find : for key: " << oss.str() << endl;
-        return -1;
-    }
+	// find colon
+	ret = read(file, oss, false,
+			[&](char c){return c==':';},
+			[&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
+			[&](char c){(void)c; return false;});
+	if(ret != 0) {
+		cerr << "Could not find : for key: " << oss.str() << endl;
+		return -1;
+	}
 
-    return 0;
+	return 0;
 }
 
 bool isspace(char c)
 {
-    return (c==' '||c=='\r'||c=='\n'||c=='\v'||c=='\f'||c=='\t');
+	return (c==' '||c=='\r'||c=='\n'||c=='\v'||c=='\f'||c=='\t');
 }
 
 bool isnumeric(char c)
 {
-    return isdigit(c) || c=='.' || c=='-' || c=='e' || c=='E' || c==',';
+	return isdigit(c) || c=='.' || c=='-' || c=='e' || c=='E' || c==',';
 }
 
 /**
@@ -824,61 +825,61 @@ bool isnumeric(char c)
 template <typename T>
 int readNumArray(gzFile file, vector<T>& oarray)
 {
-    stringstream ss;
-    // find [
-    int ret = read(file, ss, false,
-            [&](char c){return c=='[';},
-            [&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
-            [&](char c){(void)c; return false;});
+	stringstream ss;
+	// find [
+	int ret = read(file, ss, false,
+			[&](char c){return c=='[';},
+			[&](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
+			[&](char c){(void)c; return false;});
 
-    if(ret != 0) {
-        return -1;
-    }
+	if(ret != 0) {
+		return -1;
+	}
 
-    // iterate through and try to find the end bracket that matches the
-    // initial. We also ignore any middle [] and save all the spaces/numbers
-    assert(ss.str() == "");
-    int stack = 1;
-    // find closing ]
-    ret = read(file, ss, false,
-            [&](char c)
-            {
-                stack += (c=='[');
-                stack -= (c==']');
-                return stack==0;
-            },
-            [](char c){return c=='[' || c==']';},
-            [](char c){return isnumeric(c) || isspace(c);});
+	// iterate through and try to find the end bracket that matches the
+	// initial. We also ignore any middle [] and save all the spaces/numbers
+	assert(ss.str() == "");
+	int stack = 1;
+	// find closing ]
+	ret = read(file, ss, false,
+			[&](char c)
+			{
+			stack += (c=='[');
+			stack -= (c==']');
+			return stack==0;
+			},
+			[](char c){return c=='[' || c==']';},
+			[](char c){return isnumeric(c) || isspace(c);});
 
-    if(ret != 0)
-        return -1;
+	if(ret != 0)
+		return -1;
 
 #ifdef DEBUG
-    cerr << "Array String:\n" << ss.str() << endl;
+	cerr << "Array String:\n" << ss.str() << endl;
 #endif
 
-    // now that we have the character, break them up
-    string token;
-    istringstream iss;
-    T val;
-    while(ss.good()) {
-        std::getline(ss, token, ',');
-        iss.clear();
-        iss.str(token);
-        iss >> val;
+	// now that we have the character, break them up
+	string token;
+	istringstream iss;
+	T val;
+	while(ss.good()) {
+		std::getline(ss, token, ',');
+		iss.clear();
+		iss.str(token);
+		iss >> val;
 
-        if(iss.bad()) {
-            cerr << "Invalid type foudn in string before: "<< ss.str() <<endl;
-            return -1;
-        }
-        oarray.push_back(val);
-    }
+		if(iss.bad()) {
+			cerr << "Invalid type foudn in string before: "<< ss.str() <<endl;
+			return -1;
+		}
+		oarray.push_back(val);
+	}
 
-    if(ss.bad()) {
-        cerr << "Array ending not found!" << endl;
-        return -1;
-    }
-    return 0;
+	if(ss.bad()) {
+		cerr << "Array ending not found!" << endl;
+		return -1;
+	}
+	return 0;
 }
 
 /**
@@ -894,174 +895,177 @@ int readNumArray(gzFile file, vector<T>& oarray)
  */
 shared_ptr<NDArray> readJSONImage(gzFile file, bool verbose, bool makearray)
 {
-    // read to opening brace
-    stringstream oss;
-    int ret = read(file, oss, false,
-            [](char c){return c=='{';},
-            [](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
-            [](char c){(void)c; return false;});
+	// read to opening brace
+	stringstream oss;
+	int ret = read(file, oss, false,
+			[](char c){return c=='{';},
+			[](char c){return (c==' '||c=='\r'||c=='\n'||c=='\t');},
+			[](char c){(void)c; return false;});
 
-    if(ret != 0) {
-        cerr << "Expected Opening { but did not find one" << endl;
-    }
+	if(ret != 0) {
+		cerr << "Expected Opening { but did not find one" << endl;
+	}
 
-    PixelT type = UNKNOWN_TYPE;
-    vector<double> values;
-    vector<double> spacing;
-    vector<double> origin;
-    vector<double> direction;
-    vector<size_t> size;
+	PixelT type = UNKNOWN_TYPE;
+	vector<double> values;
+	vector<double> spacing;
+	vector<double> origin;
+	vector<double> direction;
+	vector<size_t> size;
 
-    while(true) {
-        string key;
-        ret = readKey(file, key);
+	while(true) {
+		string key;
+		ret = readKey(file, key);
 
-        if(ret < 0) {
-            cerr << "Looking for key, but couldn't find one!" << endl;
-            return NULL;
-        }
+		if(ret < 0) {
+			cerr << "Looking for key, but couldn't find one!" << endl;
+			return NULL;
+		}
 
-        if(verbose)
-            cerr << "Parsing key:" << key << endl;
-        if(key == "type") {
-            // read a string
-            string value;
-            ret = readstring(file, value);
-            if(ret != 0) {
-                cerr << "Expected string for key: " << key <<
-                    " but could not parse" << endl;
-                return NULL;
-            }
+		if(verbose)
+			cerr << "Parsing key:" << key << endl;
+		if(key == "type") {
+			// read a string
+			string value;
+			ret = readstring(file, value);
+			if(ret != 0) {
+				cerr << "Expected string for key: " << key <<
+					" but could not parse" << endl;
+				return NULL;
+			}
 
-            type = stringToPixelT(value);
-            if(type == UNKNOWN_TYPE)
-                return NULL;
+			type = stringToPixelT(value);
+			if(type == UNKNOWN_TYPE)
+				return NULL;
 
-        } else if(key == "size") {
-            ret = readNumArray<size_t>(file, size);
-            if(ret != 0)  {
-                cerr << "Expected array of non-negative integers for size!" <<
-                    endl;
-                return NULL;
-            }
-        } else if(key == "values") {
-            ret = readNumArray(file, values);
-            if(ret != 0)  {
-                cerr << "Expected array of floats for values!" <<
-                    endl;
-                return NULL;
-            }
-        } else if(key == "spacing") {
-            ret = readNumArray(file, spacing);
-            if(ret != 0)  {
-                cerr << "Expected array of floats for spacing!" <<
-                    endl;
-                return NULL;
-            }
-        } else if(key == "direction") {
-            ret = readNumArray(file, direction);
-            if(ret != 0)  {
-                cerr << "Expected array of floats for direction!" <<
-                    endl;
-                return NULL;
-            }
-        } else if(key == "origin") {
-            ret = readNumArray(file, origin);
-            if(ret != 0)  {
-                cerr << "Expected array of floats for origin!" <<
-                    endl;
-                return NULL;
-            }
-        } else if(key == "version" || key == "comment") {
-            string value;
-            ret = readstring(file, value);
-        } else {
-            cerr << "Error, Unknown key:" << key << endl;
-            return NULL;
-        }
+		} else if(key == "size") {
+			ret = readNumArray<size_t>(file, size);
+			if(ret != 0) {
+				cerr << "Expected array of non-negative integers for size!" <<
+					endl;
+				return NULL;
+			}
+		} else if(key == "values") {
+			ret = readNumArray(file, values);
+			if(ret != 0) {
+				cerr << "Expected array of floats for values!" <<
+					endl;
+				return NULL;
+			}
+		} else if(key == "spacing") {
+			ret = readNumArray(file, spacing);
+			if(ret != 0) {
+				cerr << "Expected array of floats for spacing!" <<
+					endl;
+				return NULL;
+			}
+		} else if(key == "direction") {
+			ret = readNumArray(file, direction);
+			if(ret != 0) {
+				cerr << "Expected array of floats for direction!" <<
+					endl;
+				return NULL;
+			}
+		} else if(key == "origin") {
+			ret = readNumArray(file, origin);
+			if(ret != 0) {
+				cerr << "Expected array of floats for origin!" <<
+					endl;
+				return NULL;
+			}
+		} else if(key == "version" || key == "comment") {
+			string value;
+			ret = readstring(file, value);
+		} else {
+			cerr << "Error, Unknown key:" << key << endl;
+			return NULL;
+		}
 
-        // should find a comma or closing brace
-        oss.str("");
-        ret = read(file, oss, true,
-                [](char c){return c==',' || c=='}';},
-                [](char c){return isspace(c);},
-                [](char c){(void)c; return false;});
+		// should find a comma or closing brace
+		oss.str("");
+		ret = read(file, oss, true,
+				[](char c){return c==',' || c=='}';},
+				[](char c){return isspace(c);},
+				[](char c){(void)c; return false;});
 
-        if(ret != 0) {
-            cerr << "After a Key:Value Pair there should be either a } or ,"
-                << endl;
-            return NULL;
-        }
-        if(oss.str()[0] == '}')
-            break;
-    }
+		if(ret != 0) {
+			cerr << "After a Key:Value Pair there should be either a } or ,"
+				<< endl;
+			return NULL;
+		}
+		if(oss.str()[0] == '}')
+			break;
+	}
 
-    size_t ndim = size.size();
-    if(ndim == 0) {
-        cerr << "No \"size\" tag found!" << endl;
-        return NULL;
-    }
-    if(type == UNKNOWN_TYPE) {
-        cerr << "No type, or unknown type specified!" << endl;
-        return NULL;
-    }
+	size_t ndim = size.size();
+	if(ndim == 0) {
+		cerr << "No \"size\" tag found!" << endl;
+		return NULL;
+	}
+	if(type == UNKNOWN_TYPE) {
+		cerr << "No type, or unknown type specified!" << endl;
+		return NULL;
+	}
 
-    ptr<NDArray> out;
-    if(makearray) {
-        out = createNDArray(size.size(), size.data(), type);
-    } else {
-        out = createMRImage(size.size(), size.data(), type);
-        auto oimg= dPtrCast<MRImage>(out);
+	ptr<NDArray> out;
+	if(makearray) {
+		out = createNDArray(size.size(), size.data(), type);
+	} else {
+		out = createMRImage(size.size(), size.data(), type);
+		auto oimg= dPtrCast<MRImage>(out);
 
-        // copy spacing
-        if(spacing.size() > 0) {
-            if(spacing.size() != ndim) {
-                cerr << "Incorrect number of spacing values (" << spacing.size()
-                    << " vs " << ndim << ") given" << endl;
-                return NULL;
-            } else {
-                for(size_t ii=0; ii<ndim; ii++)
-                    oimg->spacing(ii) = spacing[ii];
-            }
-        }
+		// copy spacing
+		if(spacing.size() > 0) {
+			if(spacing.size() != ndim) {
+				cerr << "Incorrect number of spacing values (" << spacing.size()
+					<< " vs " << ndim << ") given" << endl;
+				return NULL;
+			} else {
+				for(size_t ii=0; ii<ndim; ii++)
+					oimg->spacing(ii) = spacing[ii];
+			}
+		}
 
-        // copy origin
-        if(origin.size() > 0) {
-            if(origin.size() != ndim) {
-                cerr << "Incorrect number of origin values (" << origin.size()
-                    << " vs " << ndim << ") given" << endl;
-                return NULL;
-            } else {
-                for(size_t ii=0; ii<ndim; ii++)
-                    oimg->origin(ii) = origin[ii];
-            }
-        }
+		// copy origin
+		if(origin.size() > 0) {
+			if(origin.size() != ndim) {
+				cerr << "Incorrect number of origin values (" << origin.size()
+					<< " vs " << ndim << ") given" << endl;
+				return NULL;
+			} else {
+				for(size_t ii=0; ii<ndim; ii++)
+					oimg->origin(ii) = origin[ii];
+			}
+		}
 
-        // copy direction
-        if(direction.size() > 0) {
-            if(direction.size() != ndim*ndim) {
-                cerr << "Incorrect number of origin values (" << direction.size()
-                    << " vs " << ndim << ") given" << endl;
-                return NULL;
-            }
-            for(size_t ii=0; ii<ndim; ii++) {
-                for(size_t jj=0; jj<ndim; jj++) {
-                    oimg->direction(ii,jj) = direction[ii*ndim+jj];
-                }
-            }
-        }
-    }
+		// copy direction
+		if(direction.size() > 0) {
+			if(direction.size() != ndim*ndim) {
+				cerr << "Incorrect number of origin values (" << direction.size()
+					<< " vs " << ndim << ") given" << endl;
+				return NULL;
+			}
 
-    // copy values
-    if(values.size() != out->elements()) {
-        throw RUNTIME_ERROR("Incorrect number of values ("+
-                to_string(values.size())+" vs "+to_string(ndim)+") given");
-    }
-    size_t ii=0;
-    for(NDIter<float> it(out); !it.eof(); ++it, ++ii)
-        it.set(values[ii]);
+			MatrixXd tmpdirection(ndim, ndim);
+			for(size_t ii=0; ii<ndim; ii++) {
+				for(size_t jj=0; jj<ndim; jj++) {
+					tmpdirection(ii,jj) = direction[ii*ndim+jj];
+				}
+			}
+			oimg->setDirection(tmpdirection, true);
+		}
+	}
 
-    return out;
+	// copy values
+	if(values.size() != out->elements()) {
+		throw RUNTIME_ERROR("Incorrect number of values ("+
+				to_string(values.size())+" vs "+to_string(ndim)+") given");
+	}
+	size_t ii=0;
+	for(NDIter<float> it(out); !it.eof(); ++it, ++ii)
+		it.set(values[ii]);
+
+	return out;
 }
 
 
@@ -1100,34 +1104,34 @@ ptr<MRImage> readMRImage(std::string fn, bool verbose, bool nopixeldata)
 
 	ptr<NDArray> out;
 
-    // remove .gz to find the "real" format,
+	// remove .gz to find the "real" format,
 	if(fn.size()> 3 && fn.substr(fn.size()-3, 3) == ".gz") {
 		fn = fn.substr(0, fn.size()-3);
 	}
 
 	if(fn.size() > 4 && fn.substr(fn.size()-4, 4) == ".nii") {
-        //////////////////////////
-        // Read Nifti Data
-        //////////////////////////
-        if((out = readNiftiImage(gz, verbose, false, nopixeldata))) {
-            gzclose(gz);
-            return dPtrCast<MRImage>(out);
-        }
-    } else if(fn.size() > 5 && fn.substr(fn.size()-5, 5) == ".json") {
-        //////////////////////////
-        // Read JSON data
-        //////////////////////////
-        if((out = readJSONImage(gz, verbose, false))) {
-            gzclose(gz);
-            return dPtrCast<MRImage>(out);
-        }
+	//////////////////////////
+	// Read Nifti Data
+	//////////////////////////
+		if((out = readNiftiImage(gz, verbose, false, nopixeldata))) {
+			gzclose(gz);
+			return dPtrCast<MRImage>(out);
+		}
+	} else if(fn.size() > 5 && fn.substr(fn.size()-5, 5) == ".json") {
+		//////////////////////////
+	// Read JSON data
+	//////////////////////////
+		if((out = readJSONImage(gz, verbose, false))) {
+			gzclose(gz);
+			return dPtrCast<MRImage>(out);
+		}
 	} else {
 		std::cerr << "Unknown filetype: " << fn << std::endl;
 		gzclose(gz);
-        throw std::ios_base::failure("Error reading " + fn );
+		throw std::ios_base::failure("Error reading " + fn );
 	}
 
-    throw std::ios_base::failure("Error reading " + fn );
+	throw std::ios_base::failure("Error reading " + fn );
 	return NULL;
 }
 
@@ -1160,31 +1164,31 @@ ptr<NDArray> readNDArray(std::string fn, bool verbose, bool nopixeldata)
 
 	ptr<NDArray> out;
 
-    // remove .gz to find the "real" format,
+	// remove .gz to find the "real" format,
 	if(fn.size() > 3 && fn.substr(fn.size()-3, 3) == ".gz") {
 		fn = fn.substr(0, fn.size()-3);
 	}
 
 	if(fn.size() > 4 && fn.substr(fn.size()-4, 4) == ".nii") {
-        if((out = readNiftiImage(gz, verbose, true, nopixeldata))) {
-            gzclose(gz);
-            return out;
-        }
-    } else if(fn.size() > 5 && fn.substr(fn.size()-5, 5) == ".json") {
-        //////////////////////////
-        // Read JSON data
-        //////////////////////////
-        if((out = readJSONImage(gz, verbose, true))) {
-            gzclose(gz);
-            return out;
-        }
+		if((out = readNiftiImage(gz, verbose, true, nopixeldata))) {
+			gzclose(gz);
+			return out;
+		}
+	} else if(fn.size() > 5 && fn.substr(fn.size()-5, 5) == ".json") {
+	//////////////////////////
+	// Read JSON data
+	//////////////////////////
+		if((out = readJSONImage(gz, verbose, true))) {
+			gzclose(gz);
+			return out;
+		}
 	} else {
 		std::cerr << "Unknown filetype: " << fn << std::endl;
 		gzclose(gz);
-        throw std::ios_base::failure("Error reading " + fn );
+		throw std::ios_base::failure("Error reading " + fn );
 	}
 
-    throw std::ios_base::failure("Error reading " + fn);
+	throw std::ios_base::failure("Error reading " + fn);
 	return NULL;
 }
 
