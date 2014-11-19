@@ -300,7 +300,7 @@ int main(int argc, char** argv)
 		for(size_t tt=0; tt<out->tlen(); ++tt) {
 
 			// Create Rotated Version of B-Spline
-			MatrixXd Rinv, R;
+			Matrix3d Rinv, R;
 			if(!motion.empty()) {
 				irigid.ras_coord = true;
 				for(size_t dd=0; dd<3; dd++) {
