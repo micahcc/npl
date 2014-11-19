@@ -175,6 +175,18 @@ public:
 	const double& direction(int64_t row, int64_t col) const;
 
 	/**
+	 * @brief Returns reference to a value in the inverse direction matrix.
+	 * Each row indicates the direction of the grid in
+	 * RAS coordinates. This is the rotation of the Index grid.
+	 *
+	 * @param row Row to access
+	 * @param col Column to access
+	 *
+	 * @return Element in direction matrix
+	 */
+	const double& invdirection(int64_t row, int64_t col) const;
+
+	/**
 	 * @brief Returns reference to the direction matrix.
 	 * Each row indicates the direction of the grid in
 	 * RAS coordinates. This is the rotation of the Index grid.

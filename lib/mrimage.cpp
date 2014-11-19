@@ -330,6 +330,17 @@ std::ostream& operator<<(std::ostream &out, const MRImage& img)
 		out << "] " << endl;
 	}
 
+	out << "Inv Direction: " << endl;
+	for(size_t ii=0; ii<img.ndim(); ii++) {
+		out << "[ ";
+		for(size_t jj=0; jj<img.ndim(); jj++) {
+            if(jj) out << ",";
+			out << std::setw(4) << std::setprecision(3) <<
+				img.invdirection(ii,jj);
+		}
+		out << "] " << endl;
+	}
+
 	out << "Spacing: [";
 	for(size_t ii=0; ii<img.ndim(); ii++) {
         if(ii) out << ", ";
