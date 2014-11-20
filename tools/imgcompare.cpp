@@ -143,8 +143,8 @@ int main(int argc, char* argv[])
 			mit.goBegin();
 		}
 		for(FlatConstIter<double> it1(img1), it2(img2); !it1.eof(); ++it1, ++it2) {
-			if(mask && *mit > 0) 
-				ofs << it1.get() << ", " << it2.get() << endl;
+			if(!mask || *mit > 0) 
+				ofs << setprecision(10) << it1.get() << ", " << it2.get() << endl;
 			if(mask) 
 				++mit;
 		}
