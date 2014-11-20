@@ -1877,10 +1877,6 @@ int DistortionCorrectionInformationComputer::metric(
 				m_gradHjoint[ii]*(m_Hfix+m_Hmove)/(m_Hjoint*m_Hjoint));
 	}
 
-//#if defined DEBUG || defined VERYDEBUG
-	cerr << "ValueGrad() = " << val << " / " << grad.norm() << endl;
-//#endif
-
 	// negate if we are using a similarity measure
 	if(m_compdiff && (m_metric == METRIC_NMI || m_metric == METRIC_MI)) {
 		grad = -grad;
@@ -2012,9 +2008,6 @@ int DistortionCorrectionInformationComputer::metric(double& val)
 		val =  (m_Hfix+m_Hmove)/m_Hjoint;
 	}
 
-//#if defined DEBUG || defined VERYDEBUG
-	cerr << "Value() = " << val << endl;
-//#endif
 	CLOCK(c = clock() - c);
 	CLOCK(cerr << "H() Time: " << c << endl);
 	CLOCK(c = clock());
@@ -2101,6 +2094,10 @@ int DistortionCorrectionInformationComputer::valueGrad(const VectorXd& params,
 	val += tmp;
 	grad += gradbuff;
 
+//#if defined DEBUG || defined VERYDEBUG
+	cerr << "ValueGrad() = " << val << " / " << grad.norm() << endl;
+//#endif
+
 	return 0;
 }
 
@@ -2176,6 +2173,10 @@ int DistortionCorrectionInformationComputer::value(const VectorXd& params,
 	double tmp = 0;
 	if(metric(tmp) != 0) return -1;
 	val += tmp;
+
+//#if defined DEBUG || defined VERYDEBUG
+	cerr << "Value() = " << val << endl;
+//#endif
 
 	return 0;
 };
