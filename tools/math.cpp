@@ -203,6 +203,7 @@ int main(int argc, char** argv)
 	}
 
     // write out image
-    out->write(outname);
+    if(!outname.empty())
+		out->write(outname);
 }
 

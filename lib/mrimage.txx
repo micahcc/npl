@@ -399,7 +399,7 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 
 	// remove .gz to find the "real" format,
 	std::string nogz;
-	if(filename.substr(filename.size()-3, 3) == ".gz") {
+	if(filename.size() >= 3 && filename.substr(filename.size()-3, 3) == ".gz") {
 		nogz = filename.substr(0, filename.size()-3);
 	} else {
 		// if no .gz, then make encoding "transparent" (plain)
@@ -418,7 +418,7 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 	gzbuffer(gz, BSIZE);
 #endif
 
-	if(nogz.substr(nogz.size()-4, 4) == ".nii") {
+	if(nogz.size() >= 4 && nogz.substr(nogz.size()-4, 4) == ".nii") {
 		if(version >= 2) {
 			if(writeNifti2Image(gz) != 0) {
 				std::cerr << "Error writing" << std::endl;
@@ -432,7 +432,7 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 				return -1;
 			}
 		}
-    } else if(nogz.substr(nogz.size()-5, 5) == ".json") {
+    } else if(nogz.size() >= 5 && nogz.substr(nogz.size()-5, 5) == ".json") {
         writeJSON(gz);
 	} else {
 		std::cerr << "Unknown filetype: " << nogz.substr(nogz.rfind('.'))

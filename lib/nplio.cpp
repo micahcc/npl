@@ -1105,11 +1105,11 @@ ptr<MRImage> readMRImage(std::string fn, bool verbose, bool nopixeldata)
 	ptr<NDArray> out;
 
 	// remove .gz to find the "real" format,
-	if(fn.size()> 3 && fn.substr(fn.size()-3, 3) == ".gz") {
+	if(fn.size() >= 3 && fn.substr(fn.size()-3, 3) == ".gz") {
 		fn = fn.substr(0, fn.size()-3);
 	}
 
-	if(fn.size() > 4 && fn.substr(fn.size()-4, 4) == ".nii") {
+	if(fn.size() >= 4 && fn.substr(fn.size()-4, 4) == ".nii") {
 	//////////////////////////
 	// Read Nifti Data
 	//////////////////////////
@@ -1117,7 +1117,7 @@ ptr<MRImage> readMRImage(std::string fn, bool verbose, bool nopixeldata)
 			gzclose(gz);
 			return dPtrCast<MRImage>(out);
 		}
-	} else if(fn.size() > 5 && fn.substr(fn.size()-5, 5) == ".json") {
+	} else if(fn.size() >= 5 && fn.substr(fn.size()-5, 5) == ".json") {
 		//////////////////////////
 	// Read JSON data
 	//////////////////////////
@@ -1165,16 +1165,16 @@ ptr<NDArray> readNDArray(std::string fn, bool verbose, bool nopixeldata)
 	ptr<NDArray> out;
 
 	// remove .gz to find the "real" format,
-	if(fn.size() > 3 && fn.substr(fn.size()-3, 3) == ".gz") {
+	if(fn.size() >= 3 && fn.substr(fn.size()-3, 3) == ".gz") {
 		fn = fn.substr(0, fn.size()-3);
 	}
 
-	if(fn.size() > 4 && fn.substr(fn.size()-4, 4) == ".nii") {
+	if(fn.size() >= 4 && fn.substr(fn.size()-4, 4) == ".nii") {
 		if((out = readNiftiImage(gz, verbose, true, nopixeldata))) {
 			gzclose(gz);
 			return out;
 		}
-	} else if(fn.size() > 5 && fn.substr(fn.size()-5, 5) == ".json") {
+	} else if(fn.size() >= 5 && fn.substr(fn.size()-5, 5) == ".json") {
 	//////////////////////////
 	// Read JSON data
 	//////////////////////////
