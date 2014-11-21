@@ -301,6 +301,8 @@ int main(int argc, char** argv)
 
 			// Create Rotated Version of B-Spline
 			Matrix3d Rinv, R;
+			R.setIdentity();
+			Rinv.setIdentity();
 			if(!motion.empty()) {
 				irigid.ras_coord = true;
 				for(size_t dd=0; dd<3; dd++) {
