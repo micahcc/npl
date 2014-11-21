@@ -161,7 +161,7 @@ int main(int argc, char** argv)
 		moving = dPtrCast<MRImage>(moving->copyCast(ndim, moving->dim(), FLOAT32));
 
 		cerr << "Done\nPutting Fixed image in Moving Space...";
-		auto fixed = dPtrCast<MRImage>(moving->createAnother(), FLOAT32);
+		auto fixed = dPtrCast<MRImage>(moving->createAnother(FLOAT32));
 		vector<int64_t> ind(ndim);
 		vector<double> point(ndim);
 
