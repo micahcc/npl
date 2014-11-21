@@ -161,7 +161,7 @@ int main(int argc, char** argv)
 		moving = dPtrCast<MRImage>(moving->copyCast(ndim, moving->dim(), FLOAT32));
 
 		cerr << "Done\nPutting Fixed image in Moving Space...";
-		auto fixed = dPtrCast<MRImage>(moving->createAnother());
+		auto fixed = dPtrCast<MRImage>(moving->createAnother(), FLOAT32);
 		vector<int64_t> ind(ndim);
 		vector<double> point(ndim);
 
@@ -244,7 +244,7 @@ int main(int argc, char** argv)
 	 * Create Field and Jacobian Maps, in 3 or less dimensions, the write
 	 */
 	cerr << "Estimating distortion field " << endl;
-	auto field = dPtrCast<MRImage>(moving->createAnother(ndim, moving->dim()));
+	auto field = dPtrCast<MRImage>(moving->createAnother(ndim, moving->dim(), FLOAT32));
 	BSplineView<double> bsp_vw(transform);
 	bsp_vw.m_boundmethod = ZEROFLUX;
 
