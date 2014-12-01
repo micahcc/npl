@@ -2612,7 +2612,7 @@ double dice(ptr<const NDArray> a, ptr<const NDArray> b, ptr<const NDArray> mask)
 	int count = 0;
 	for(it1.goBegin(), it2.goBegin(); !it1.eof() && !it2.eof(); ++it1, ++it2) {
 		if(!mask || *itm > 0) {
-			if(*it1 == *it2) 
+			if(*it1 == *it2)
 				same++;
 			count++;
 		}

@@ -88,24 +88,24 @@ bool comparable(const NDArray* left, const NDArray* right,
  *************************/
 
 /**
- * @brief Computes the derivative of the image. Computes all  
+ * @brief Computes the derivative of the image. Computes all
  * directional derivatives of the input image and the output
  * image will have 1 higher dimension with derivative of 0 in the first volume
  * 1 in the second and so on.
  *
- * Thus a 2D image will produce a [X,Y,2] image and a 3D image will produce a 
+ * Thus a 2D image will produce a [X,Y,2] image and a 3D image will produce a
  * [X,Y,Z,3] sized image.
  *
- * @param in    Input image/NDarray 
+ * @param in    Input image/NDarray
  *
- * @return 
+ * @return
  */
 ptr<NDArray> derivative(ptr<const NDArray> in);
 
 /**
- * @brief Computes the derivative of the image in the specified direction. 
+ * @brief Computes the derivative of the image in the specified direction.
  *
- * @param in    Input image/NDarray 
+ * @param in    Input image/NDarray
  * @param dir   Specify the dimension
  *
  * @return      Image storing the directional derivative of in
@@ -145,15 +145,15 @@ ptr<NDArray> erode(ptr<NDArray> in, size_t reps);
 void gaussianSmooth1D(ptr<NDArray> inout, size_t dim, double stddev);
 
 /********************
- * Image Shifting 
+ * Image Shifting
  ********************/
 
 /**
- * @brief Performs unidirectional shift in the direction of +dd, of distance 
+ * @brief Performs unidirectional shift in the direction of +dd, of distance
  * (in units of pixels). Uses Lanczos interpolation.
  *
  * @param inout Input/output image
- * @param dd Dimension to shift, will be positive 
+ * @param dd Dimension to shift, will be positive
  * @param dist
  * @param kern kernel to use for sampling
  */
@@ -161,25 +161,25 @@ void shiftImageKern(ptr<NDArray> inout, size_t dd, double dist,
 		double(*kern)(double,double) = npl::lanczosKern);
 
 /**
- * @brief Performs unidirectional shift in the direction of +dd, of distance 
+ * @brief Performs unidirectional shift in the direction of +dd, of distance
  * (in units of pixels), using FFT.
  *
  * @param inout Input/output image
- * @param dim Dimension to shift, will be positive 
+ * @param dim Dimension to shift, will be positive
  * @param dist
  * @param window Windowing function to apply in fourier domain
  */
-void shiftImageFFT(ptr<NDArray> inout, size_t dim, double dist, 
+void shiftImageFFT(ptr<NDArray> inout, size_t dim, double dist,
 		double(*window)(double,double) = npl::sincWindow);
 
 
 /********************
- * Image Shearing 
+ * Image Shearing
  ********************/
 
 /**
  * @brief Performs a shear on the image where the sheared dimension (dim) will
- * be shifted depending on the index in other dimensions (dist). 
+ * be shifted depending on the index in other dimensions (dist).
  * (in units of pixels). Uses Lanczos interpolation.
  *
  * @param inout Input/output image
@@ -188,12 +188,12 @@ void shiftImageFFT(ptr<NDArray> inout, size_t dim, double dist,
  * @param dist Distance terms to travel. Shift[dim] = x0*dist[0]+x1*dist[1] ...
  * @param kern 1D interpolation kernel
  */
-void shearImageKern(ptr<NDArray> inout, size_t dim, size_t len, 
-        double* dist, double(*kern)(double,double) = npl::lanczosKern);
+void shearImageKern(ptr<NDArray> inout, size_t dim, size_t len,
+	double* dist, double(*kern)(double,double) = npl::lanczosKern);
 
 /**
  * @brief Performs a shear on the image where the sheared dimension (dim) will
- * be shifted depending on the index in other dimensions (dist). 
+ * be shifted depending on the index in other dimensions (dist).
  * (in units of pixels), using FFT.
  *
  * @param inout Input/output image
@@ -232,7 +232,7 @@ int shearDecompose(std::list<Eigen::Matrix3d>& bestshears,
  * @param Ry rotation about Y axis (middle)
  * @param Rz rotation about Z axis (first)
  *
- * @return 
+ * @return
  */
 int shearTest(double Rx, double Ry, double Rz);
 
@@ -247,7 +247,7 @@ int shearTest(double Rx, double Ry, double Rz);
  *
  * @return Rotated image.
  */
-ptr<NDArray> linearRotate(double rx, double ry, double rz, 
+ptr<NDArray> linearRotate(double rx, double ry, double rz,
 		ptr<const NDArray> in);
 
 /********************
@@ -265,20 +265,20 @@ ptr<NDArray> linearRotate(double rx, double ry, double rz,
 void rotateImageKern(ptr<NDArray> inout, double rx, double ry, double rz);
 
 /**
- * @brief Performs a rotation using fourier shift and shears, using FFT for 
+ * @brief Performs a rotation using fourier shift and shears, using FFT for
  * unidirectional shifts, using FFT. Rotation matrix R = Rx*Ry*Rz
  *
  * @param inout Input/output image
  * @param rx Rotation about x axis
  * @param ry Rotation about y axis
  * @param rz Rotation about z axis
- * @param kern Kernel to perform 1D interpolation with. 
+ * @param kern Kernel to perform 1D interpolation with.
  */
 int rotateImageShearKern(ptr<NDArray> inout, double rx, double ry, double rz,
 		double(*kern)(double,double) = npl::lanczosKern);
 
 /**
- * @brief Performs a rotation using fourier shift and shears, using FFT for 
+ * @brief Performs a rotation using fourier shift and shears, using FFT for
  * unidirectional shifts, using FFT. Rotation matrix R = Rx*Ry*Rz
  *
  * @param inout Input/output image
@@ -331,8 +331,8 @@ std::vector<ptr<NDArray>> pseudoPolar(ptr<const NDArray> in);
  *
  * @return 		Pseudo-polar sample fourier transform
  */
-ptr<NDArray> pseudoPolarZoom(ptr<const NDArray> inimg, 
-        size_t prdim);
+ptr<NDArray> pseudoPolarZoom(ptr<const NDArray> inimg,
+	size_t prdim);
 
 /**
  * @brief Sets the middle of the image += radius (in index space) to 1,
@@ -428,7 +428,7 @@ ptr<NDArray> relabelConnected(ptr<NDArray> input);
  *
  * @param in Input image.
  *
- * @return Threshold 
+ * @return Threshold
  */
 double otsuThresh(ptr<const NDArray> in);
 
@@ -494,7 +494,7 @@ ptr<NDArray> histEqualize(ptr<const NDArray> in);
  *
  * @return Error between images
  */
-double mse(ptr<const NDArray> a, ptr<const NDArray> b, 
+double mse(ptr<const NDArray> a, ptr<const NDArray> b,
 		ptr<const NDArray> mask = NULL);
 
 /**
@@ -519,7 +519,7 @@ double dice(ptr<const NDArray> a, ptr<const NDArray> b, ptr<const NDArray> mask)
  *
  * @return Correlation of images
  */
-double corr(ptr<const NDArray> a, ptr<const NDArray> b, 
+double corr(ptr<const NDArray> a, ptr<const NDArray> b,
 		ptr<const NDArray> mask = NULL);
 
 /**
@@ -536,8 +536,8 @@ double corr(ptr<const NDArray> a, ptr<const NDArray> b,
  *
  * @return Information-based metric of two images
  */
-double information(ptr<const NDArray> a, ptr<const NDArray> b, 
-		int bins = 100, int krad = 4, Metric m = METRIC_MI, 
+double information(ptr<const NDArray> a, ptr<const NDArray> b,
+		int bins = 100, int krad = 4, Metric m = METRIC_MI,
 		ptr<const NDArray> mask = NULL);
 
 /** @}  NDArrayUtilities */
