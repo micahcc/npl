@@ -61,10 +61,10 @@ using Eigen::AngleAxisd;
  * @brief Computes the derivative of the image in the specified direction.
  * The output will be the same size as the input.
  *
- * @param in    Input image/NDArray
- * @param dir   Specify the dimension
+ * @param in Input image/NDArray
+ * @param dir Specify the dimension
  *
- * @return      Image storing the directional derivative of in
+ * @return Image storing the directional derivative of in
  */
 ptr<NDArray> derivative(ptr<const NDArray> in, size_t dir)
 {
@@ -316,9 +316,9 @@ void gaussianSmooth1D(ptr<NDArray> inout, size_t dim,
 
     const auto gaussKern = [](double x)
     {
-        const double den = 1./sqrt(2*M_PI);
-        return den*exp(-x*x/(2));
-    };
+		const double den = 1./sqrt(2*M_PI);
+		return den*exp(-x*x/(2));
+	};
 
 	if(dim >= inout->ndim()) {
 		throw std::out_of_range("Invalid dimension specified for 1D gaussian "
@@ -595,7 +595,7 @@ void shiftImageFFT(ptr<NDArray> inout, size_t dim, double dist,
  * @param kern 1D interpolation kernel
  */
 void shearImageKern(ptr<NDArray> inout, size_t dim, size_t len,
-        double* dist, double(*kern)(double,double))
+		double* dist, double(*kern)(double,double))
 {
 	assert(dim < inout->ndim());
 
@@ -753,7 +753,7 @@ double getMaxShear(const Matrix3d& in)
  ****************************************************************************/
 
 int shearYZXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
-		double x, double y, double z)
+		double x, double y, double z, double stepx=1, double stepy=1, double stepz=1)
 {
 	DBG3(cerr << "Shear YZXY" << endl);
 	Matrix3d sy1 = Matrix3d::Identity();
@@ -762,14 +762,14 @@ int shearYZXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	Matrix3d sy2 = Matrix3d::Identity();
 	Matrix3d shearProduct = Matrix3d::Identity();
 
-	sy1(1,0) = csc(x)*tan(y)+sec(y)*(csc(z)-cot(z)*sec(y)-cot(x)*tan(y));
-	sy1(1,2) = cot(x)-csc(x)*sec(y);
-	sz (2,0) = (csc(z)-cot(z)*sec(y))*sin(x)-cos(x)*tan(y);
-	sz (2,1) = cos(y)*sin(x);
-	sx (0,1) = -cos(y)*sin(z);
-	sx (0,2) = -csc(x)*sin(z)+cot(x)*sec(y)*sin(z)+cos(z)*tan(y);
-	sy2(1,0) = -cot(z)+csc(z)*sec(y);
-	sy2(1,2) = -csc(z)*tan(y)+sec(y)*(-csc(x)+cot(x)*sec(y)+cot(z)*tan(y));
+	sy1(1,0) = (stepx/stepy)*(csc(x)*tan(y)+sec(y)*(csc(z)-cot(z)*sec(y)-cot(x)*tan(y)));
+	sy1(1,2) = (stepz/stepy)*(cot(x)-csc(x)*sec(y));
+	sz (2,0) = (stepx/stepz)*((csc(z)-cot(z)*sec(y))*sin(x)-cos(x)*tan(y));
+	sz (2,1) = (stepy/stepz)*(cos(y)*sin(x));
+	sx (0,1) = -(stepy/stepx)*(cos(y)*sin(z));
+	sx (0,2) = -(stepz/stepx)*(csc(x)*sin(z)+cot(x)*sec(y)*sin(z)+cos(z)*tan(y));
+	sy2(1,0) = -(stepx/stepy)*(cot(z)+csc(z)*sec(y));
+	sy2(1,2) = -(stepz/stepy)*(csc(z)*tan(y)+sec(y)*(-csc(x)+cot(x)*sec(y)+cot(z)*tan(y)));
 
 	terms.clear();
 	terms.push_back(sy1);
@@ -804,7 +804,7 @@ int shearYZXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 }
 
 int shearXYZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
-		double x, double y, double z)
+		double x, double y, double z, double stepx=1, double stepy=1, double stepz=1)
 {
 	DBG3(cerr << "Shear XYZX" << endl);
 	Matrix3d sx1 = Matrix3d::Identity();
@@ -813,14 +813,22 @@ int shearXYZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	Matrix3d sx2 = Matrix3d::Identity();
 	Matrix3d shearProduct = Matrix3d::Identity();
 
-	sx1(0,1) = cos(x)*cot(z)*sec(y)-csc(z)*sec(y)-sin(x)*tan(y);
-	sx1(0,2) = (sin(x)*(sin(x)-cos(z)*sec(y)*sin(x)-cot(z)*tan(y))+cos(x)*(-sec(y)+cos(2*z)*csc(z)*sin(x)*tan(y))+cos(x)*cos(x)*(1+cos(z)*sin(y)*tan(y)))/(cos(x)*cos(z)*sin(y)-sin(x)*sin(z));
-	sy (1,0) = cos(y)*sin(z);
-	sy (1,2) = (-cos(z)*sin(x)*sin(y)+(-cos(x)+cos(y))*sin(z))/(cos(x)*cos(z)*sin(y)-sin(x)*sin(z));
-	sz (2,0) = -cos(x)*cos(z)*sin(y)+sin(x)*sin(z);
-	sz (2,1) = sec(y)*sin(x)+(-cos(x)*cot(z)+csc(z))*tan(y);
-	sx2(0,1) = (2*sec(y)*sin(x)+cos(z)*(-2*sin(x)+cos(x)*cot(z)*sin(y))-cos(x)*sin(y)*(csc(z)+sin(z))+2*(-cos(x)*cot(z)+csc(z))*tan(y))/(2*cos(x)*cos(z)*sin(y)-2*sin(x)*sin(z));
-	sx2(0,2) = (-1+cos(x)*cos(y))/(-cos(x)*cos(z)*sin(y)+sin(x)*sin(z));
+	sx1(0,1) = (stepy/stepx)*(cos(x)*cot(z)*sec(y)-csc(z)*sec(y)-sin(x)*tan(y));
+	sx1(0,2) = (stepz/stepx)*((sin(x)*(sin(x)-cos(z)*sec(y)*sin(x)-cot(z)*
+				tan(y))+cos(x)*(-sec(y)+cos(2*z)*csc(z)*sin(x)*tan(y))+cos(x)*
+				cos(x)*(1+cos(z)*sin(y)*tan(y)))/
+				(cos(x)*cos(z)*sin(y)-sin(x)*sin(z)));
+	sy (1,0) = (stepx/stepy)*(cos(y)*sin(z));
+	sy (1,2) = (stepz/stepy)*((-cos(z)*sin(x)*sin(y)+(-cos(x)+cos(y))*sin(z))/
+				(cos(x)*cos(z)*sin(y)-sin(x)*sin(z)));
+	sz (2,0) = -(stepx/stepz)*(cos(x)*cos(z)*sin(y)+sin(x)*sin(z));
+	sz (2,1) = (stepy/stepz)*(sec(y)*sin(x)+(-cos(x)*cot(z)+csc(z))*tan(y));
+	sx2(0,1) = (stepy/stepx)*((2*sec(y)*sin(x)+cos(z)*(-2*sin(x)+
+				cos(x)*cot(z)*sin(y))-cos(x)*sin(y)*(csc(z)+sin(z))+
+				2*(-cos(x)*cot(z)+csc(z))*tan(y))/(2*cos(x)*cos(z)*sin(y)-
+				2*sin(x)*sin(z)));
+	sx2(0,2) = (stepz/stepx)*((-1+cos(x)*cos(y))/(-cos(x)*cos(z)*sin(y)+
+				sin(x)*sin(z)));
 
 	terms.clear();
 	terms.push_back(sx1);
@@ -855,7 +863,7 @@ int shearXYZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 }
 
 int shearXZYX(std::list<Matrix3d>& terms, double* err, double* maxshear,
-		double x, double y, double z)
+		double x, double y, double z, double stepx=1, double stepy=1, double stepz=1)
 {
 	DBG3(cerr << "Shear XZYX" << endl);
 	Matrix3d sx1 = Matrix3d::Identity();
@@ -864,14 +872,19 @@ int shearXZYX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	Matrix3d sx2 = Matrix3d::Identity();
 	Matrix3d shearProduct = Matrix3d::Identity();
 
-	sx1(0,1) = (-2+2*cos(x)*cos(z)-cos(x)*cos(x)*cos(y)*cos(z)+cos(y)*cos(z)*(1+sin(x)*sin(x))-2*csc(y)*sin(x)*sin(z)+cot(y)*sin(2*x)*sin(z))/(2*(cos(z)*sin(x)*sin(y)+cos(x)*sin(z)));
-	sx1(0,2) = -cos(x)*cot(y)+csc(y);
-	sz (2,0) = -sin(y);
-	sz (2,1) = (sin(y)-cos(x)*cos(z)*sin(y)+sin(x)*sin(z))/(cos(z)*sin(x)*sin(y)+cos(x)*sin(z));
-	sy (1,0) = cos(z)*sin(x)*sin(y)+cos(x)*sin(z);
-	sy (1,2) = -cos(z)*sin(x)+(-cos(x)+cos(y))*csc(y)*sin(z);
-	sx2(0,1) = (-1+cos(x)*cos(z)-sin(x)*sin(y)*sin(z))/(cos(z)*sin(x)*sin(y)+cos(x)*sin(z));
-	sx2(0,2) = ((-cos(y)+cos(z))*sin(x)+(-cot(y)+cos(x)*csc(y))*sin(z))/(cos(z)*sin(x)*sin(y)+cos(x)*sin(z));
+	sx1(0,1) = (stepy/stepx)*((-2+2*cos(x)*cos(z)-cos(x)*cos(x)*cos(y)*cos(z)+
+				cos(y)*cos(z)*(1+sin(x)*sin(x))-2*csc(y)*sin(x)*sin(z)+
+				cot(y)*sin(2*x)*sin(z))/(2*(cos(z)*sin(x)*sin(y)+cos(x)*sin(z))));
+	sx1(0,2) = -(stepz/stepx)*(cos(x)*cot(y)+csc(y));
+	sz (2,0) = -(stepx/stepz)*sin(y);
+	sz (2,1) = (stepy/stepz)*((sin(y)-cos(x)*cos(z)*sin(y)+sin(x)*sin(z))/
+				(cos(z)*sin(x)*sin(y)+cos(x)*sin(z)));
+	sy (1,0) = (stepx/stepy)*(cos(z)*sin(x)*sin(y)+cos(x)*sin(z));
+	sy (1,2) = -(stepz/stepy)*(cos(z)*sin(x)+(-cos(x)+cos(y))*csc(y)*sin(z));
+	sx2(0,1) = (stepy/stepx)*((-1+cos(x)*cos(z)-sin(x)*sin(y)*sin(z))/
+				(cos(z)*sin(x)*sin(y)+cos(x)*sin(z)));
+	sx2(0,2) = (stepz/stepx)*(((-cos(y)+cos(z))*sin(x)+(-cot(y)+cos(x)*csc(y))
+				*sin(z))/(cos(z)*sin(x)*sin(y)+cos(x)*sin(z)));
 
 	terms.clear();
 	terms.push_back(sx1);
@@ -906,7 +919,7 @@ int shearXZYX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 }
 
 int shearZXYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
-		double x, double y, double z)
+		double x, double y, double z, double stepx=1, double stepy=1, double stepz=1)
 {
 	DBG3(cerr << "Shear ZXYZ" << endl);
 	Matrix3d sz1 = Matrix3d::Identity();
@@ -915,14 +928,20 @@ int shearZXYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	Matrix3d sz2 = Matrix3d::Identity();
 	Matrix3d shearProduct = Matrix3d::Identity();
 
-	sz1(2,0) = (-1+cos(y)*cos(z))/(cos(x)*cos(z)*sin(y)-sin(x)*sin(z));
-	sz1(2,1) = ((cos(x)-sec(y))*sin(z)-csc(x)*tan(y)+cos(z)*(sin(x)*sin(y)+cot(x)*tan(y)))/(cos(x)*cos(z)*sin(y)-sin(x)*sin(z));
-	sx (0,1) = -sec(y)*sin(z)+(cos(z)*cot(x)-csc(x))*tan(y);
-	sx (0,2) = cos(x)*cos(z)*sin(y)-sin(x)*sin(z);
-	sy (1,0) = ((-cos(y)+cos(z))*sin(x)+cos(x)*sin(y)*sin(z))/(cos(x)*cos(z)*sin(y)-sin(x)*sin(z));
-	sy (1,2) = -cos(y)*sin(x);
-	sz2(2,0) = (-4+cos(x-y)+cos(x+y)+(4*cos(z)+cos(x)*(-3+cos(2*y))*cos(2*z))*sec(y)+4*cot(x)*sin(z)*tan(y)-2*cos(2*x)*csc(x)*sin(2*z)*tan(y))/(4*cos(x)*cos(z)*sin(y)-4*sin(x)*sin(z));
-	sz2(2,1) = (-cos(z)*cot(x)+csc(x))*sec(y)+sin(z)*tan(y);
+	sz1(2,0) = (stepx/stepz)*((-1+cos(y)*cos(z))/
+				(cos(x)*cos(z)*sin(y)-sin(x)*sin(z)));
+	sz1(2,1) = (stepy/stepz)*(((cos(x)-sec(y))*sin(z)-csc(x)*tan(y)+cos(z)*
+				(sin(x)*sin(y)+cot(x)*tan(y)))/(cos(x)*cos(z)*sin(y)-sin(x)*sin(z)));
+	sx (0,1) = -(stepy/stepx)*(sec(y)*sin(z)+(cos(z)*cot(x)-csc(x))*tan(y));
+	sx (0,2) = (stepz/stepx)*(cos(x)*cos(z)*sin(y)-sin(x)*sin(z));
+	sy (1,0) = (stepx/stepy)*(((-cos(y)+cos(z))*sin(x)+cos(x)*sin(y)*sin(z))/
+				(cos(x)*cos(z)*sin(y)-sin(x)*sin(z)));
+	sy (1,2) = -(stepz/stepy)*cos(y)*sin(x);
+	sz2(2,0) = (stepx/stepz)*((-4+cos(x-y)+cos(x+y)+(4*cos(z)+cos(x)*
+				(-3+cos(2*y))*cos(2*z))*sec(y)+4*cot(x)*sin(z)*
+				tan(y)-2*cos(2*x)*csc(x)*sin(2*z)*tan(y))/
+				(4*cos(x)*cos(z)*sin(y)-4*sin(x)*sin(z)));
+	sz2(2,1) = (stepy/stepz)*((-cos(z)*cot(x)+csc(x))*sec(y)+sin(z)*tan(y));
 
 	terms.clear();
 	terms.push_back(sz1);
@@ -957,7 +976,7 @@ int shearZXYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 }
 
 int shearZYXZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
-		double x, double y, double z)
+		double x, double y, double z, double stepx=1, double stepy=1, double stepz=1)
 {
 	DBG3(cerr << "Shear ZYXZ" << endl);
 	Matrix3d sz1 = Matrix3d::Identity();
@@ -966,14 +985,19 @@ int shearZYXZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	Matrix3d sz2 = Matrix3d::Identity();
 	Matrix3d shearProduct = Matrix3d::Identity();
 
-	sz1(2,0) = ((cos(y)-cos(z))*csc(y)*sin(x)+(-cos(x)+cos(y))*sin(z))/(cos(z)*sin(x)+cos(x)*sin(y)*sin(z));
-	sz1(2,1) = (1-cos(x)*cos(z)+sin(x)*sin(y)*sin(z))/(cos(z)*sin(x)+cos(x)*sin(y)*sin(z));
-	sy (1,0) = -cot(y)*sin(x)+cos(z)*csc(y)*sin(x)+cos(x)*sin(z);
-	sy (1,2) = -cos(z)*sin(x)-cos(x)*sin(y)*sin(z);
-	sx (0,1) = -((sin(y)-cos(x)*cos(z)*sin(y)+sin(x)*sin(z))/(cos(z)*sin(x)+cos(x)*sin(y)*sin(z)));
-	sx (0,2) = sin(y);
-	sz2(2,0) = (-1+cos(y)*cos(z))*csc(y);
-	sz2(2,1) = -((-4+cos(x-y)+cos(x+y)+4*cos(x)*cos(z)-2*cos(x)*cos(y)*cos(2*z)+4*(cos(z)*cot(y)-csc(y))*sin(x)*sin(z))/(4*(cos(z)*sin(x)+cos(x)*sin(y)*sin(z))));
+	sz1(2,0) = (stepx/stepz)*(((cos(y)-cos(z))*csc(y)*sin(x)+(-cos(x)+cos(y))*
+				sin(z))/(cos(z)*sin(x)+cos(x)*sin(y)*sin(z)));
+	sz1(2,1) = (stepy/stepz)*((1-cos(x)*cos(z)+sin(x)*sin(y)*sin(z))/
+				(cos(z)*sin(x)+cos(x)*sin(y)*sin(z)));
+	sy (1,0) = -(stepx/stepy)*(cot(y)*sin(x)+cos(z)*csc(y)*sin(x)+cos(x)*sin(z));
+	sy (1,2) = -(stepz/stepy)*(cos(z)*sin(x)-cos(x)*sin(y)*sin(z));
+	sx (0,1) = -(stepy/stepx)*((sin(y)-cos(x)*cos(z)*sin(y)+sin(x)*sin(z))/
+				(cos(z)*sin(x)+cos(x)*sin(y)*sin(z)));
+	sx (0,2) = (stepz/stepx)*sin(y);
+	sz2(2,0) = (stepx/stepz)*(-1+cos(y)*cos(z))*csc(y);
+	sz2(2,1) = -(stepy/stepz)*((-4+cos(x-y)+cos(x+y)+4*cos(x)*cos(z)-
+				2*cos(x)*cos(y)*cos(2*z)+4*(cos(z)*cot(y)-csc(y))
+				*sin(x)*sin(z))/(4*(cos(z)*sin(x)+cos(x)*sin(y)*sin(z))));
 
 	terms.clear();
 	terms.push_back(sz1);
@@ -1008,7 +1032,7 @@ int shearZYXZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 }
 
 int shearYXZY(std::list<Matrix3d>& terms, double* err, double* maxshear,
-		double x, double y, double z)
+		double x, double y, double z, double stepx=1, double stepy=1, double stepz=1)
 {
 	DBG3(cerr << "Shear YXZY" << endl);
 	Matrix3d sy1 = Matrix3d::Identity();
@@ -1017,14 +1041,25 @@ int shearYXZY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	Matrix3d sy2 = Matrix3d::Identity();
 	Matrix3d shearProduct = Matrix3d::Identity();
 
-	sy1(1,0) = (1-cos(y)*cos(z))/(cos(z)*sin(x)*sin(y)+cos(x)*sin(z));
-	sy1(1,2) = (-8*cos(z)*sin(x)*sin(y)+4*cos(2*z)*sin(2*x)*sin(y)+8*(-cos(x)+cos(y))*sin(z)+(-1+3*cos(2*x)-2*cos(x)*cos(x)*cos(2*y))*sin(2*z))/(8*(cos(z)*sin(x)*sin(y)+cos(x)*sin(z))*(cos(z)*sin(x)+cos(x)*sin(y)*sin(z)));
-	sx (0,1) = -cos(z)*sin(x)*sin(y)-cos(x)*sin(z);
-	sx (0,2) = (cos(z)*sin(x)*sin(y)+(cos(x)-cos(y))*sin(z))/(cos(z)*sin(x)+cos(x)*sin(y)*sin(z));
-	sz (2,0) = ((cos(y)-cos(z))*sin(x)-cos(x)*sin(y)*sin(z))/(cos(z)*sin(x)*sin(y)+cos(x)*sin(z));
-	sz (2,1) = cos(z)*sin(x)+cos(x)*sin(y)*sin(z);
-	sy2(1,0) = (-cos(z)*sin(x)*(-1+cos(z)*(cos(y)+cos(x)*sin(y)*sin(y)))+(cos(x)-cos(2*x)*cos(z))*sin(y)*sin(z)+(cos(x)-cos(y))*sin(x)*sin(z)*sin(z))/((cos(z)*sin(x)*sin(y)+cos(x)*sin(z))*(cos(z)*sin(x)+cos(x)*sin(y)*sin(z)));
-	sy2(1,2) = (-1+cos(x)*cos(y))/(cos(z)*sin(x)+cos(x)*sin(y)*sin(z));
+	sy1(1,0) = (stepx/stepy)*((1-cos(y)*cos(z))/
+				(cos(z)*sin(x)*sin(y)+cos(x)*sin(z)));
+	sy1(1,2) = (stepz/stepy)*((-8*cos(z)*sin(x)*sin(y)+4*cos(2*z)*sin(2*x)*sin(y)+
+				8*(-cos(x)+cos(y))*sin(z)+(-1+3*cos(2*x)-2*cos(x)*cos(x)*cos(2*y))*
+				sin(2*z))/(8*(cos(z)*sin(x)*sin(y)+cos(x)*sin(z))*
+				(cos(z)*sin(x)+cos(x)*sin(y)*sin(z))));
+	sx (0,1) = -(stepy/stepx)*(cos(z)*sin(x)*sin(y)-cos(x)*sin(z));
+	sx (0,2) = (stepz/stepx)*((cos(z)*sin(x)*sin(y)+(cos(x)-cos(y))*sin(z))/
+				(cos(z)*sin(x)+cos(x)*sin(y)*sin(z)));
+	sz (2,0) = (stepx/stepz)*(((cos(y)-cos(z))*sin(x)-cos(x)*sin(y)*sin(z))/
+				(cos(z)*sin(x)*sin(y)+cos(x)*sin(z)));
+	sz (2,1) = (stepy/stepz)*(cos(z)*sin(x)+cos(x)*sin(y)*sin(z));
+	sy2(1,0) = (stepx/stepy)*((-cos(z)*sin(x)*
+				(-1+cos(z)*(cos(y)+cos(x)*sin(y)*sin(y)))+
+				(cos(x)-cos(2*x)*cos(z))*sin(y)*sin(z)+(cos(x)-cos(y))*
+				sin(x)*sin(z)*sin(z))/((cos(z)*sin(x)*sin(y)+cos(x)*sin(z))*
+				(cos(z)*sin(x)+cos(x)*sin(y)*sin(z))));
+	sy2(1,2) = (stepz/stepy)*((-1+cos(x)*cos(y))/
+				(cos(z)*sin(x)+cos(x)*sin(y)*sin(z)));
 
 	terms.clear();
 	terms.push_back(sy1);
@@ -1063,10 +1098,11 @@ int shearYXZY(std::list<Matrix3d>& terms, double* err, double* maxshear,
  ****************************************************************************/
 
 int shearYXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
-		double Rx, double Ry, double Rz)
+		double Rx, double Ry, double Rz, double stepx=1, double stepy=1, double stepz=1)
 {
 	DBG3(cerr << "Shear YXY" << endl);
 
+	(void)stepz;
 	double MINANG = 0.00000001;
 	if(fabs(Rx) > MINANG || fabs(Ry) > MINANG) {
 		if(err)
@@ -1081,11 +1117,11 @@ int shearYXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	Matrix3d sy2 = Matrix3d::Identity();
 	Matrix3d shearProduct = Matrix3d::Identity();
 
-	sy1(1,0) = tan(Rz/2.);
+	sy1(1,0) = (stepx/stepy)*tan(Rz/2.);
 	sy1(1,2) = 0;
-	sx (0,1) = -sin(Rz);
+	sx (0,1) = -(stepy/stepx)*sin(Rz);
 	sx (0,2) = 0;
-	sy2(1,0) = tan(Rz/2.);
+	sy2(1,0) = (stepx/stepy)*tan(Rz/2.);
 	sy2(1,2) = 0;
 
 	terms.clear();
@@ -1121,10 +1157,11 @@ int shearYXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 }
 
 int shearXZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
-		double Rx, double Ry, double Rz)
+		double Rx, double Ry, double Rz, double stepx=1, double stepy=1, double stepz=1)
 {
 	DBG3(cerr << "Shear XZX" << endl);
 
+	(void)stepy;
 	double MINANG = 0.00000001;
 	if(fabs(Rx) > MINANG || fabs(Rz) > MINANG) {
 		if(err)
@@ -1140,11 +1177,11 @@ int shearXZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	Matrix3d shearProduct = Matrix3d::Identity();
 
 	sx1(0,1) = 0;
-	sx1(0,2) = tan(Ry/2.);
-	sz (2,0) = -sin(Ry);
+	sx1(0,2) = (stepz/stepx)*tan(Ry/2.);
+	sz (2,0) = -(stepx/stepz)*sin(Ry);
 	sz (2,1) = 0;
 	sx2(0,1) = 0;
-	sx2(0,2) = tan(Ry/2.);
+	sx2(0,2) = (stepz/stepx)*tan(Ry/2.);
 
 	terms.clear();
 	terms.push_back(sx1);
@@ -1178,10 +1215,11 @@ int shearXZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 }
 
 int shearZYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
-		double Rx, double Ry, double Rz)
+		double Rx, double Ry, double Rz, double stepx=1, double stepy=1, double stepz=1)
 {
 	DBG3(cerr << "Shear ZYZ" << endl);
 
+	(void)stepx;
 	double MINANG = 0.00000001;
 	if(fabs(Ry) > MINANG || fabs(Rz) > MINANG) {
 		if(err)
@@ -1197,11 +1235,11 @@ int shearZYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	Matrix3d shearProduct = Matrix3d::Identity();
 
 	sz1(2,0) = 0;
-	sz1(2,1) = tan(Rx/2.);
+	sz1(2,1) = (stepy/stepz)*tan(Rx/2.);
 	sy (1,0) = 0;
-	sy (1,2) = -sin(Rx);
+	sy (1,2) = -(stepz/stepy)*sin(Rx);
 	sz2(2,0) = 0;
-	sz2(2,1) = tan(Rx/2.);
+	sz2(2,1) = (stepy/stepz)*tan(Rx/2.);
 
 	terms.clear();
 	terms.push_back(sz1);
@@ -1241,15 +1279,19 @@ int shearZYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
  * should first do bulk rotation using 90 degree rotations (which requires not
  * interpolation).
  *
- * @param bestshears    List of the best fitting shears, should be applied in
- *                      forward order
- * @param Rx            Rotation about X axis
- * @param Ry            Rotation about Y axis
- * @param Rz            Rotation about Z axis
+ * @param bestshears List of the best fitting shears, should be applied in
+ * forward order
+ * @param Rx Rotation about X axis
+ * @param Ry Rotation about Y axis
+ * @param Rz Rotation about Z axis
+ * @param sx Spacing in X axis
+ * @param sy Spacing in Y axis
+ * @param sz Spacing in Z axis
  *
- * @return              Success if 0
+ * @return Success if 0
  */
-int shearDecompose(std::list<Matrix3d>& bestshears, double Rx, double Ry, double Rz)
+int shearDecompose(std::list<Matrix3d>& bestshears,
+		double Rx, double Ry, double Rz, double sx, double sy, double sz)
 {
 	double ERRTOL = 0.0001;
 	double SHEARMAX = 1;
@@ -1260,8 +1302,8 @@ int shearDecompose(std::list<Matrix3d>& bestshears, double Rx, double Ry, double
 
 	// single angles first
 	if(fabs(Rx) < ANGMIN && fabs(Ry) < ANGMIN) {
-        DBG3(cerr << "Chose YXY" << endl);
-		shearYXY(bestshears, &err, &maxshear, Rx, Ry, Rz);
+		DBG3(cerr << "Chose YXY" << endl);
+		shearYXY(bestshears, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
 		if(err < ERRTOL && maxshear < SHEARMAX) {
 			return 0;
 		} else {
@@ -1269,62 +1311,62 @@ int shearDecompose(std::list<Matrix3d>& bestshears, double Rx, double Ry, double
 		}
 	}
 
-    if(fabs(Rx) < ANGMIN && fabs(Rz) < ANGMIN) {
-        DBG3(cerr << "Chose XZX" << endl);
-        shearXZX(bestshears, &err, &maxshear, Rx, Ry, Rz);
-        if(err < ERRTOL && maxshear < SHEARMAX) {
-            return 0;
-        } else {
-            return -1;
-        }
-    }
-
-    if(fabs(Rz) < ANGMIN && fabs(Ry) < ANGMIN) {
-        DBG3(cerr << "Chose ZYZ" << endl);
-        shearZYZ(bestshears, &err, &maxshear, Rx, Ry, Rz);
-        if(err < ERRTOL && maxshear < SHEARMAX) {
-            return 0;
-        } else {
-            return -1;
+	if(fabs(Rx) < ANGMIN && fabs(Rz) < ANGMIN) {
+		DBG3(cerr << "Chose XZX" << endl);
+		shearXZX(bestshears, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
+		if(err < ERRTOL && maxshear < SHEARMAX) {
+			return 0;
+		} else {
+			return -1;
 		}
 	}
 
-	shearYZXY(ltmp, &err, &maxshear, Rx, Ry, Rz);
+	if(fabs(Rz) < ANGMIN && fabs(Ry) < ANGMIN) {
+		DBG3(cerr << "Chose ZYZ" << endl);
+		shearZYZ(bestshears, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
+		if(err < ERRTOL && maxshear < SHEARMAX) {
+			return 0;
+		} else {
+			return -1;
+		}
+	}
+
+	shearYZXY(ltmp, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
 	if(err < ERRTOL && maxshear < bestmshear) {
 		bestmshear = maxshear;
 		bestshears.clear();
 		bestshears.splice(bestshears.end(), ltmp);
 	}
 
-	shearYXZY(ltmp, &err, &maxshear, Rx, Ry, Rz);
+	shearYXZY(ltmp, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
 	if(err < ERRTOL && maxshear < bestmshear) {
 		bestmshear = maxshear;
 		bestshears.clear();
 		bestshears.splice(bestshears.end(), ltmp);
 	}
 
-	shearXYZX(ltmp, &err, &maxshear, Rx, Ry, Rz);
+	shearXYZX(ltmp, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
 	if(err < ERRTOL && maxshear < bestmshear) {
 		bestmshear = maxshear;
 		bestshears.clear();
 		bestshears.splice(bestshears.end(), ltmp);
 	}
 
-	shearXZYX(ltmp, &err, &maxshear, Rx, Ry, Rz);
+	shearXZYX(ltmp, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
 	if(err < ERRTOL && maxshear < bestmshear) {
 		bestmshear = maxshear;
 		bestshears.clear();
 		bestshears.splice(bestshears.end(), ltmp);
 	}
 
-	shearZYXZ(ltmp, &err, &maxshear, Rx, Ry, Rz);
+	shearZYXZ(ltmp, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
 	if(err < ERRTOL && maxshear < bestmshear) {
 		bestmshear = maxshear;
 		bestshears.clear();
 		bestshears.splice(bestshears.end(), ltmp);
 	}
 
-	shearZXYZ(ltmp, &err, &maxshear, Rx, Ry, Rz);
+	shearZXYZ(ltmp, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
 	if(err < ERRTOL && maxshear < bestmshear) {
 		bestmshear = maxshear;
 		bestshears.clear();
@@ -1450,7 +1492,7 @@ ptr<NDArray> linearRotate(double rx, double ry, double rz,
 	// the source, since we need to invert, it is necessary to reverse the
     // real order
 	m = AngleAxisd(-rz, Vector3d::UnitZ())*AngleAxisd(-ry,Vector3d::UnitY())*
-                AngleAxisd(-rx,Vector3d::UnitX());
+		AngleAxisd(-rx,Vector3d::UnitX());
 	LinInterp3DView<double> lin(in);
 	auto out = in->copy();
 	Vector3d ind;
@@ -1880,17 +1922,17 @@ void fillCircle(ptr<NDArray> inout, double radius, double alpha)
 {
     double rsqr = pow(radius, alpha);
     vector<int64_t> index(inout->ndim(), 0);
-    for(NDIter<double> it(inout); !it.eof(); ++it) {
-        it.index(index.size(), index.data());
-        double dist = 0;
-        for(size_t dd=0; dd<inout->ndim(); dd++) {
-            dist += fabs(pow(index[dd]-(inout->dim(dd)-1.)/2.,alpha));
-        }
-        if(dist <= rsqr)
-            it.set(1);
-        else
-            it.set(0);
-    }
+	for(NDIter<double> it(inout); !it.eof(); ++it) {
+		it.index(index.size(), index.data());
+		double dist = 0;
+		for(size_t dd=0; dd<inout->ndim(); dd++) {
+			dist += fabs(pow(index[dd]-(inout->dim(dd)-1.)/2.,alpha));
+		}
+		if(dist <= rsqr)
+			it.set(1);
+		else
+			it.set(0);
+	}
 }
 
 /**
@@ -1901,10 +1943,10 @@ void fillCircle(ptr<NDArray> inout, double radius, double alpha)
  */
 void fillLinear(ptr<NDArray> inout)
 {
-    FlatIter<float> it(inout);
-    for(size_t ii=0; !it.eof(); ii++, ++it) {
-        it.set(ii);
-    }
+	FlatIter<float> it(inout);
+	for(size_t ii=0; !it.eof(); ii++, ++it) {
+		it.set(ii);
+	}
 }
 
 /**
@@ -1915,13 +1957,13 @@ void fillLinear(ptr<NDArray> inout)
  */
 void fillGaussian(ptr<NDArray> inout)
 {
-    std::random_device rd;
-    std::default_random_engine rng(rd());
-    std::normal_distribution<double> gauss(0, 1);
+	std::random_device rd;
+	std::default_random_engine rng(rd());
+	std::normal_distribution<double> gauss(0, 1);
 
-    for(FlatIter<float> it(inout); !it.eof(); ++it) {
-        it.set(gauss(rng));
-    }
+	for(FlatIter<float> it(inout); !it.eof(); ++it) {
+		it.set(gauss(rng));
+	}
 }
 
 /**
@@ -1938,70 +1980,70 @@ void fillGaussian(ptr<NDArray> inout)
 ptr<NDArray> concat(const vector<ptr<NDArray>>& images, size_t dir)
 {
     if(images.size() == 0)
-        throw INVALID_ARGUMENT("Input image array had size zero!");
+		throw INVALID_ARGUMENT("Input image array had size zero!");
 
-    if(images[0]->type() == RGBA32 || images[0]->type() == RGB24 ||
-            images[0]->type() == COMPLEX128 || images[0]->type() == COMPLEX64
-            || images[0]->type() == COMPLEX256) {
-        throw INVALID_ARGUMENT("Concatination of tuple-types has not yet "
-                "been implemented");
-    }
+	if(images[0]->type() == RGBA32 || images[0]->type() == RGB24 ||
+			images[0]->type() == COMPLEX128 || images[0]->type() == COMPLEX64
+			|| images[0]->type() == COMPLEX256) {
+		throw INVALID_ARGUMENT("Concatination of tuple-types has not yet "
+				"been implemented");
+	}
 
-    if(dir >= images[0]->ndim()) {
-        throw INVALID_ARGUMENT("Input direction dim is greater than input "
-                "images dimensions!");
-    }
+	if(dir >= images[0]->ndim()) {
+		throw INVALID_ARGUMENT("Input direction dim is greater than input "
+				"images dimensions!");
+	}
 
-    size_t ndim = images[0]->ndim();
-    vector<size_t> osize(images[0]->dim(), images[0]->dim()+ndim);
+	size_t ndim = images[0]->ndim();
+	vector<size_t> osize(images[0]->dim(), images[0]->dim()+ndim);
 
-    // figure output size
-    osize[dir] = 0;
-    for(const auto& v: images) {
-        // check sizes
-        for(size_t dd=0; dd<ndim; dd++) {
-            if(dd != dir && v->dim(dd) != osize[dd])
-                throw INVALID_ARGUMENT("Input image have different sizes!");
-        }
-        osize[dir] += v->dim(dir);
-    }
+	// figure output size
+	osize[dir] = 0;
+	for(const auto& v: images) {
+		// check sizes
+		for(size_t dd=0; dd<ndim; dd++) {
+			if(dd != dir && v->dim(dd) != osize[dd])
+				throw INVALID_ARGUMENT("Input image have different sizes!");
+		}
+		osize[dir] += v->dim(dir);
+	}
 
-    // create output image
-    ptr<NDArray> oimg = images[0]->copyCast(osize.size(), osize.data());
+	// create output image
+	ptr<NDArray> oimg = images[0]->copyCast(osize.size(), osize.data());
 
-    // iterate through, make highest dimension slowest
-    NDIter<double> oit(oimg);
-    vector<size_t> order;
-    for(int64_t ii=ndim; ii>= 0; ii--) {
-        if(ii != dir)
-            order.push_back(ii);
-    }
-    order.push_back(dir);
-    oit.setOrder(order);
-    oit.goBegin();
+	// iterate through, make highest dimension slowest
+	NDIter<double> oit(oimg);
+	vector<size_t> order;
+	for(int64_t ii=ndim; ii>= 0; ii--) {
+		if(ii != dir)
+			order.push_back(ii);
+	}
+	order.push_back(dir);
+	oit.setOrder(order);
+	oit.goBegin();
 
-    // that dimension doesn't exist in these images
-    size_t imgii = 0;
-    NDConstIter<double> iit;
+	// that dimension doesn't exist in these images
+	size_t imgii = 0;
+	NDConstIter<double> iit;
 
-    // go through input images one by one
-    while(!oit.eof()) {
-        // switch to the next input image
-        iit.setArray(images[imgii++]);
-        iit.setOrder(order);
-        iit.goBegin();
+	// go through input images one by one
+	while(!oit.eof()) {
+		// switch to the next input image
+		iit.setArray(images[imgii++]);
+		iit.setOrder(order);
+		iit.goBegin();
 
-        while(!iit.eof() && !oit.eof()) {
-            oit.set(*iit);
-            ++oit;
-            ++iit;
-        }
-    }
+		while(!iit.eof() && !oit.eof()) {
+			oit.set(*iit);
+			++oit;
+			++iit;
+		}
+	}
 
-    assert(imgii == images.size());
-    assert(iit.eof());
+	assert(imgii == images.size());
+	assert(iit.eof());
 
-    return oimg;
+	return oimg;
 }
 
 /**
@@ -2016,63 +2058,63 @@ ptr<NDArray> concat(const vector<ptr<NDArray>>& images, size_t dir)
  */
 ptr<NDArray> concatElevate(const vector<ptr<NDArray>>& images)
 {
-    if(images.size() == 0)
-        throw INVALID_ARGUMENT("Input image array had size zero!");
+	if(images.size() == 0)
+		throw INVALID_ARGUMENT("Input image array had size zero!");
 
-    if(images[0]->type() == RGBA32 || images[0]->type() == RGB24 ||
-            images[0]->type() == COMPLEX128 || images[0]->type() == COMPLEX64
-            || images[0]->type() == COMPLEX256) {
-        throw INVALID_ARGUMENT("Concatination of tuple-types has not yet "
-                "been implemented");
-    }
+	if(images[0]->type() == RGBA32 || images[0]->type() == RGB24 ||
+			images[0]->type() == COMPLEX128 || images[0]->type() == COMPLEX64
+			|| images[0]->type() == COMPLEX256) {
+		throw INVALID_ARGUMENT("Concatination of tuple-types has not yet "
+				"been implemented");
+	}
 
-    // concatinate in a new dimension
-    size_t ndim = images[0]->ndim()+1;
-    vector<size_t> osize(images[0]->dim(), images[0]->dim()+images[0]->ndim());
-    osize.push_back(images.size());
+	// concatinate in a new dimension
+	size_t ndim = images[0]->ndim()+1;
+	vector<size_t> osize(images[0]->dim(), images[0]->dim()+images[0]->ndim());
+	osize.push_back(images.size());
 
-    // check sizes
-    for(const auto& v: images) {
-        for(size_t dd=0; dd<ndim-1; dd++) {
-            if(v->dim(dd) != osize[dd])
-                throw INVALID_ARGUMENT("Input image have different sizes!");
-        }
-    }
+	// check sizes
+	for(const auto& v: images) {
+		for(size_t dd=0; dd<ndim-1; dd++) {
+			if(v->dim(dd) != osize[dd])
+				throw INVALID_ARGUMENT("Input image have different sizes!");
+		}
+	}
 
-    // create output image
-    ptr<NDArray> oimg = images[0]->copyCast(osize.size(), osize.data());
+	// create output image
+	ptr<NDArray> oimg = images[0]->copyCast(osize.size(), osize.data());
 
-    // iterate through, make highest dimension slowest
-    NDIter<double> oit(oimg);
-    vector<size_t> order;
-    for(int64_t ii=ndim-2; ii>= 0; ii--)
-        order.push_back(ii);
-    order.push_back(ndim-1);
+	// iterate through, make highest dimension slowest
+	NDIter<double> oit(oimg);
+	vector<size_t> order;
+	for(int64_t ii=ndim-2; ii>= 0; ii--)
+		order.push_back(ii);
+	order.push_back(ndim-1);
 
-    oit.setOrder(order);
-    oit.goBegin();
+	oit.setOrder(order);
+	oit.goBegin();
 
-    // that dimension doesn't exist in these images
-    size_t imgii = 0;
-    NDConstIter<double> iit;
+	// that dimension doesn't exist in these images
+	size_t imgii = 0;
+	NDConstIter<double> iit;
 
-    // go through input images one by one
-    while(!oit.eof()) {
-        // switch to the next input image
-        iit.setArray(images[imgii++]);
-        iit.goBegin();
+	// go through input images one by one
+	while(!oit.eof()) {
+		// switch to the next input image
+		iit.setArray(images[imgii++]);
+		iit.goBegin();
 
-        while(!iit.eof() && !oit.eof()) {
-            oit.set(*iit);
-            ++oit;
-            ++iit;
-        }
-    }
+		while(!iit.eof() && !oit.eof()) {
+			oit.set(*iit);
+			++oit;
+			++iit;
+		}
+	}
 
-    assert(imgii == images.size());
-    assert(iit.eof());
+	assert(imgii == images.size());
+	assert(iit.eof());
 
-    return oimg;
+	return oimg;
 }
 
 /**
@@ -2087,61 +2129,61 @@ ptr<NDArray> concatElevate(const vector<ptr<NDArray>>& images)
  */
 ptr<NDArray> sobelEdge(ptr<const NDArray> img)
 {
-    // create output
-    size_t ndim = img->ndim();
-    vector<size_t> osize(img->dim(), img->dim()+ndim);
-    osize.push_back(ndim);
-    auto out = img->copyCast(osize.size(), osize.data());
+	// create output
+	size_t ndim = img->ndim();
+	vector<size_t> osize(img->dim(), img->dim()+ndim);
+	osize.push_back(ndim);
+	auto out = img->copyCast(osize.size(), osize.data());
 
-    // sobel is the combination of 1 derivative with averaging in the other
-    // dimensions
-    vector<double> der_profile({-0.5, 0, 0.5});
-    vector<double> avg_profile({0.25, 0.5, 0.25});
+	// sobel is the combination of 1 derivative with averaging in the other
+	// dimensions
+	vector<double> der_profile({-0.5, 0, 0.5});
+	vector<double> avg_profile({0.25, 0.5, 0.25});
 
-    //////////////////
-    // iterate through
-    //////////////////
+	//////////////////
+	// iterate through
+	//////////////////
 
-    // kernel iterator to get neighbors of the coordesponding output point
-    KernelIter<double> kit(img);
-    kit.setRadius(1);
+	// kernel iterator to get neighbors of the coordesponding output point
+	KernelIter<double> kit(img);
+	kit.setRadius(1);
 
-    // chunk up by volumes
-    ChunkIter<double> oit(out);
-    oit.setChunkSize(ndim, img->dim(), true);
-    oit.setOrder(kit.getOrder());
-    vector<int64_t> index(ndim+1);
-    for(oit.goBegin(); !oit.eof(); oit.nextChunk()) {
-        oit.index(index);
-        size_t graddir = index[ndim];
+	// chunk up by volumes
+	ChunkIter<double> oit(out);
+	oit.setChunkSize(ndim, img->dim(), true);
+	oit.setOrder(kit.getOrder());
+	vector<int64_t> index(ndim+1);
+	for(oit.goBegin(); !oit.eof(); oit.nextChunk()) {
+		oit.index(index);
+		size_t graddir = index[ndim];
 
-        // apply kernel in dimension of graddir
-        for(kit.goBegin(); !kit.eof() && !oit.eoc(); ++kit, ++oit) {
-            double sum = 0;
-            for(size_t kk=0; kk<kit.ksize(); kk++) {
-                kit.offsetK(kk, index.size(), index.data());
+		// apply kernel in dimension of graddir
+		for(kit.goBegin(); !kit.eof() && !oit.eoc(); ++kit, ++oit) {
+			double sum = 0;
+			for(size_t kk=0; kk<kit.ksize(); kk++) {
+				kit.offsetK(kk, index.size(), index.data());
 
-                // compute weight of kernel element, note that because
-                // from_center is the offset from center, we need to add 1
-                double w = 1;
-                for(size_t dd=0; dd<ndim; dd++) {
-                    if(dd == graddir)
-                        w *= der_profile[index[dd]+1];
-                    else
-                        w *= avg_profile[index[dd]+1];
-                }
+				// compute weight of kernel element, note that because
+				// from_center is the offset from center, we need to add 1
+				double w = 1;
+				for(size_t dd=0; dd<ndim; dd++) {
+					if(dd == graddir)
+						w *= der_profile[index[dd]+1];
+					else
+						w *= avg_profile[index[dd]+1];
+				}
 
-                sum += w*kit[kk];
-            }
+				sum += w*kit[kk];
+			}
 
-            oit.set(sum);
-        }
+			oit.set(sum);
+		}
 
-        assert(kit.eof() && oit.eoc());
-    }
-    assert(kit.eof() && oit.eof());
+		assert(kit.eof() && oit.eoc());
+	}
+	assert(kit.eof() && oit.eof());
 
-    return out;
+	return out;
 }
 
 /**
@@ -2155,39 +2197,39 @@ ptr<NDArray> sobelEdge(ptr<const NDArray> img)
  */
 ptr<NDArray> collapseSum(ptr<const NDArray> img, size_t dim, bool doabs)
 {
-    if(dim >= img->ndim()) {
-        throw INVALID_ARGUMENT("Input dim is >= number of dimensions!");
-    }
+	if(dim >= img->ndim()) {
+		throw INVALID_ARGUMENT("Input dim is >= number of dimensions!");
+	}
 
-    vector<size_t> osize(img->ndim()-1);
-    for(size_t ii=0, jj=0; ii<img->ndim(); ii++) {
-        if(ii != dim)
-            osize[jj++] = img->dim(ii);
-    }
+	vector<size_t> osize(img->ndim()-1);
+	for(size_t ii=0, jj=0; ii<img->ndim(); ii++) {
+		if(ii != dim)
+			osize[jj++] = img->dim(ii);
+	}
 
-    auto out = img->createAnother(img->ndim()-1, osize.data());
+	auto out = img->createAnother(img->ndim()-1, osize.data());
 
-    vector<int64_t> index1(img->ndim());
-    vector<int64_t> index2(img->ndim()-1);
-    NDView<double> oac(out);
-    ChunkConstIter<double> iit(img);
-    iit.setLineChunk(dim);
-    for(iit.goBegin(); !iit.eof(); iit.nextChunk()) {
-        double sum = 0;
-        for(; !iit.eoc(); ++iit)
-            sum += doabs ? fabs(*iit) : *iit;
+	vector<int64_t> index1(img->ndim());
+	vector<int64_t> index2(img->ndim()-1);
+	NDView<double> oac(out);
+	ChunkConstIter<double> iit(img);
+	iit.setLineChunk(dim);
+	for(iit.goBegin(); !iit.eof(); iit.nextChunk()) {
+		double sum = 0;
+		for(; !iit.eoc(); ++iit)
+			sum += doabs ? fabs(*iit) : *iit;
 
-        iit.index(index1);
+		iit.index(index1);
 
-        // convert index
-        for(size_t ii=0, jj=0; ii<img->ndim(); ii++) {
-            if(ii != dim)
-                index2[jj++] = index1[ii];
-        }
-        oac.set(index2, sum);
-    }
+		// convert index
+		for(size_t ii=0, jj=0; ii<img->ndim(); ii++) {
+			if(ii != dim)
+				index2[jj++] = index1[ii];
+		}
+		oac.set(index2, sum);
+	}
 
-    return out;
+	return out;
 }
 
 /**

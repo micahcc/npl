@@ -616,7 +616,8 @@ int rotateImageShearKern(ptr<MRImage> inout, double rx, double ry, double rz,
 		double(*kern)(double,double))
 {
 	if(!inout->isIsotropic(true, 0.01))
-		throw INVALID_ARGUMENT("Shear Rotation with non-isotropic voxels not yet implemented!");
+		cerr << "Warning Shear Rotation with non-isotropic voxels "
+			"experimental!" << endl;
 
 
 	const double PI = acos(-1);
@@ -629,7 +630,8 @@ int rotateImageShearKern(ptr<MRImage> inout, double rx, double ry, double rz,
 
 	// decompose into shears
 	clock_t c = clock();
-	if(shearDecompose(shears, rx, ry, rz) != 0) {
+	if(shearDecompose(shears, rx, ry, rz, inout->spacing(0),
+				inout->spacing(1), inout->spacing(2)) != 0) {
 		cerr << "Failed to find valid shear matrices" << endl;
 		return -1;
 	}
@@ -680,7 +682,8 @@ int rotateImageShearFFT(ptr<MRImage> inout, double rx, double ry, double rz,
 		double(*window)(double,double))
 {
 	if(!inout->isIsotropic(true, 0.01))
-		throw INVALID_ARGUMENT("Shear Rotation with non-isotropic voxels not yet implemented!");
+		cerr << "Warning Shear Rotation with non-isotropic voxels "
+			"experimental!" << endl;
 
 	const double PI = acos(-1);
 	if(fabs(rx) > PI/4. || fabs(ry) > PI/4. || fabs(rz) > PI/4.) {
@@ -692,7 +695,8 @@ int rotateImageShearFFT(ptr<MRImage> inout, double rx, double ry, double rz,
 
 	// decompose into shears
 	clock_t c = clock();
-	if(shearDecompose(shears, rx, ry, rz) != 0) {
+	if(shearDecompose(shears, rx, ry, rz, inout->spacing(0), inout->spacing(1),
+				inout->spacing(2)) != 0) {
 		cerr << "Failed to find valid shear matrices" << endl;
 		return -1;
 	}
