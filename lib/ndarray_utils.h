@@ -206,25 +206,28 @@ void shearImageFFT(ptr<NDArray> inout, size_t dim, size_t len, double* dist,
 		double(*window)(double,double) = npl::sincWindow);
 
 /**
- * @brief Decomposes a euler angle rotation using the rotation matrix made up 
+ * @brief Decomposes a euler angle rotation using the rotation matrix made up
  * of R = Rx*Ry*Rz. Note that this would be multiplying the input vector by Rz
  * then Ry, then Rx. This does not support angles > PI/4. To do that, you
  * should first do bulk rotation using 90 degree rotations (which requires not
  * interpolation).
  *
- * @param bestshears    List of the best fitting shears, should be applied in
- *                      forward order
- * @param Rx            Rotation about X axis
- * @param Ry            Rotation about Y axis
- * @param Rz            Rotation about Z axis
+ * @param bestshears List of the best fitting shears, should be applied in
+ * forward order
+ * @param Rx Rotation about X axis
+ * @param Ry Rotation about Y axis
+ * @param Rz Rotation about Z axis
+ * @param stepx Spacing in x direction
+ * @param stepy Spacing in y direction
+ * @param stepz Spacing in z direction
  *
- * @return              Success if 0
+ * @return Success if 0
  */
-int shearDecompose(std::list<Eigen::Matrix3d>& bestshears, 
-        double Rx, double Ry, double Rz);
+int shearDecompose(std::list<Eigen::Matrix3d>& bestshears,
+	double Rx, double Ry, double Rz, double stepx=1, double stepy=1, double stepz=1);
 
 /**
- * @brief Tests shear results. If there is a solution (error is not NAN), then 
+ * @brief Tests shear results. If there is a solution (error is not NAN), then
  * these should result small errors, so this checks that errors are small when
  * possible. Note that the rotation matrix would be given by R = Rx*Ry*Rz
  *
