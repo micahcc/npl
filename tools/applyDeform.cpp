@@ -91,9 +91,8 @@ int main(int argc, char** argv)
 			"lanczos", "type", cmd);
 	TCLAP::SwitchArg a_ignoreorient("O", "orient-ignore", "Ignore orientation. "
 			"Warning this is risky. However it is necessary if you know that "
-			"the inputs are in the same pixel space but someone stupidly left "
-			"out the orienation. I might add it is especially stupid for vector "
-			"fields", cmd);
+			"the inputs are in the same pixel space but someone left "
+			"out the orienation. ", cmd);
 
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
 			true, "", "*.nii.gz", cmd);
@@ -116,15 +115,45 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	if(!a_ignoreorient.isSet() && !inimg->matchingOrient(defimg, false, true)) {
-		cerr << "Deform and input images have different orientation!" << endl;
-		return -1;
+	if(a_ignoreorient.isSet() || !defimg->isOriented()) {
+		cerr << "Assuming input and deform have matching pixels" << endl;
+		for(size_t dd=0; dd<3; dd++) {
+			if(defimg->dim(dd) != inimg->dim(dd)) {
+				cerr << "Input pixel sizes differ (deform versus input!)"
+					<< endl;
+				return -1;
+			}
+		}
+
+		defimg->setOrient(inimg->getOrigin(), inimg->getSpacing(),
+				inimg->getDirection(), false);
+	} else if(defimg->getDirection() != inimg->getDirection() ||
+			defimg->getOrigin() != inimg->getOrigin() ||
+			defimg->getSpacing() != inimg->getSpacing()) {
+		if(overlapRatio(inimg, defimg) < 0.5) {
+			cerr << "Deformation and Input do not overlap!" << endl;
+			return -1;
+		}
+
+		cerr << "Linearly Resampling Deform into space of input." << endl;
+		size_t newsize[4] = {inimg->dim(0), inimg->dim(1), inimg->dim(2), 3};
+		auto odef = dPtrCast<MRImage>(inimg->createAnother(4, newsize, FLOAT32));
+		LinInterp3DView<double> definterp(defimg);
+		definterp.m_ras = true;
+
+		double pt[3];
+		for(Vector3DIter<double> dit(odef); !dit.eof(); ++dit) {
+			dit.index(3, pt);
+			odef->indexToPoint(3, pt, pt);
+
+			for(size_t dd=0; dd<3; dd++)
+				dit.set(dd, definterp.get(pt[0], pt[1], pt[2], dd));
+		}
+
+		odef->write("definterp.nii.gz");
+		defimg = odef;
 	}
 
-	if(defimg->elements()/defimg->tlen() != inimg->elements()/inimg->tlen()) {
-		cerr << "Spatial size of input/deform images differ!" << endl;
-		return -1;
-	}
 
 	ptr<Vector3DConstView<double>> interp;
 	if(a_interp.getValue() == "lanczos")
@@ -136,9 +165,11 @@ int main(int argc, char** argv)
 	else
 		interp.reset(new LanczosInterp3DView<double>(inimg));
 
-	auto out = dPtrCast<MRImage>(
-			inimg->createAnother(min(inimg->ndim(), 3lu),
-			inimg->dim(), FLOAT32));
+	ptr<MRImage> out;
+	if(a_interp.getValue() == "nn")
+		dPtrCast<MRImage>(inimg->createAnother());
+	else
+		dPtrCast<MRImage>(inimg->createAnother(FLOAT32));
 
 	double pt[3];
 	for(Vector3DIter<double> dit(defimg), oit(out); !oit.eof(); ++oit, ++dit) {
@@ -148,9 +179,9 @@ int main(int argc, char** argv)
 			pt[dd] += dit[dd];
 		out->pointToIndex(3, pt, pt);
 
-		for(size_t tt=0; tt<inimg->tlen(); tt++) {
+		for(size_t tt=0; tt<inimg->tlen(); tt++)
 			oit.set(tt, interp->get(pt[0], pt[1], pt[2], tt));
-		}
+
 	}
 
 	out->write(a_out.getValue());
