@@ -234,10 +234,13 @@ int shearDecompose(std::list<Eigen::Matrix3d>& bestshears,
  * @param Rx rotation about X axis (last)
  * @param Ry rotation about Y axis (middle)
  * @param Rz rotation about Z axis (first)
+ * @param sx spacing in x dimension
+ * @param sy spacing in y dimension
+ * @param sz spacing in z dimension
  *
  * @return
  */
-int shearTest(double Rx, double Ry, double Rz);
+int shearTest(double Rx, double Ry, double Rz, double sx=0, double sy=0, double sz=0);
 
 /**
  * @brief Performs a rotation of the image first by rotating around z, then
