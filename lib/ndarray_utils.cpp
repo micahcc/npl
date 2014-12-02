@@ -762,14 +762,23 @@ int shearYZXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	Matrix3d sy2 = Matrix3d::Identity();
 	Matrix3d shearProduct = Matrix3d::Identity();
 
-	sy1(1,0) = (stepx/stepy)*(csc(x)*tan(y)+sec(y)*(csc(z)-cot(z)*sec(y)-cot(x)*tan(y)));
-	sy1(1,2) = (stepz/stepy)*(cot(x)-csc(x)*sec(y));
-	sz (2,0) = (stepx/stepz)*((csc(z)-cot(z)*sec(y))*sin(x)-cos(x)*tan(y));
-	sz (2,1) = (stepy/stepz)*(cos(y)*sin(x));
-	sx (0,1) = -(stepy/stepx)*(cos(y)*sin(z));
-	sx (0,2) = -(stepz/stepx)*(csc(x)*sin(z)+cot(x)*sec(y)*sin(z)+cos(z)*tan(y));
-	sy2(1,0) = -(stepx/stepy)*(cot(z)+csc(z)*sec(y));
-	sy2(1,2) = -(stepz/stepy)*(csc(z)*tan(y)+sec(y)*(-csc(x)+cot(x)*sec(y)+cot(z)*tan(y)));
+	sy1(1,0) = csc(x)*tan(y)+sec(y)*(csc(z)-cot(z)*sec(y)-cot(x)*tan(y));
+	sy1(1,2) = cot(x)-csc(x)*sec(y);
+	sz (2,0) = (csc(z)-cot(z)*sec(y))*sin(x)-cos(x)*tan(y);
+	sz (2,1) = cos(y)*sin(x);
+	sx (0,1) = -cos(y)*sin(z);
+	sx (0,2) = -csc(x)*sin(z)+cot(x)*sec(y)*sin(z)+cos(z)*tan(y);
+	sy2(1,0) = -cot(z)+csc(z)*sec(y);
+	sy2(1,2) = -csc(z)*tan(y)+sec(y)*(-csc(x)+cot(x)*sec(y)+cot(z)*tan(y));
+
+	sy1(1,0) *= stepx/stepy;
+	sy1(1,2) *= stepz/stepy;
+	sz (2,0) *= stepx/stepz;
+	sz (2,1) *= stepy/stepz;
+	sx (0,1) *= stepy/stepx;
+	sx (0,2) *= stepz/stepx;
+	sy2(1,0) *= stepx/stepy;
+	sy2(1,2) *= stepz/stepy;
 
 	terms.clear();
 	terms.push_back(sy1);
@@ -789,10 +798,13 @@ int shearYZXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	}
 
 	//*construct*matrices*
+	Vector3d spacing(stepx, stepy, stepz);
 	Matrix3d rotation;
-	rotation = AngleAxisd(x, Vector3d::UnitX())*
+	rotation = spacing.asDiagonal().inverse()*
+				AngleAxisd(x, Vector3d::UnitX())*
 				AngleAxisd(y, Vector3d::UnitY())*
-				AngleAxisd(z, Vector3d::UnitZ());
+				AngleAxisd(z, Vector3d::UnitZ())*
+				spacing.asDiagonal();
 
 	DBG3(cerr << "Rotation:\n" << rotation << endl);
 	DBG3(cerr << "Sheared Rotation:\n" << shearProduct<< endl);
@@ -813,22 +825,23 @@ int shearXYZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	Matrix3d sx2 = Matrix3d::Identity();
 	Matrix3d shearProduct = Matrix3d::Identity();
 
-	sx1(0,1) = (stepy/stepx)*(cos(x)*cot(z)*sec(y)-csc(z)*sec(y)-sin(x)*tan(y));
-	sx1(0,2) = (stepz/stepx)*((sin(x)*(sin(x)-cos(z)*sec(y)*sin(x)-cot(z)*
-				tan(y))+cos(x)*(-sec(y)+cos(2*z)*csc(z)*sin(x)*tan(y))+cos(x)*
-				cos(x)*(1+cos(z)*sin(y)*tan(y)))/
-				(cos(x)*cos(z)*sin(y)-sin(x)*sin(z)));
-	sy (1,0) = (stepx/stepy)*(cos(y)*sin(z));
-	sy (1,2) = (stepz/stepy)*((-cos(z)*sin(x)*sin(y)+(-cos(x)+cos(y))*sin(z))/
-				(cos(x)*cos(z)*sin(y)-sin(x)*sin(z)));
-	sz (2,0) = -(stepx/stepz)*(cos(x)*cos(z)*sin(y)+sin(x)*sin(z));
-	sz (2,1) = (stepy/stepz)*(sec(y)*sin(x)+(-cos(x)*cot(z)+csc(z))*tan(y));
-	sx2(0,1) = (stepy/stepx)*((2*sec(y)*sin(x)+cos(z)*(-2*sin(x)+
-				cos(x)*cot(z)*sin(y))-cos(x)*sin(y)*(csc(z)+sin(z))+
-				2*(-cos(x)*cot(z)+csc(z))*tan(y))/(2*cos(x)*cos(z)*sin(y)-
-				2*sin(x)*sin(z)));
-	sx2(0,2) = (stepz/stepx)*((-1+cos(x)*cos(y))/(-cos(x)*cos(z)*sin(y)+
-				sin(x)*sin(z)));
+	sx1(0,1) = cos(x)*cot(z)*sec(y)-csc(z)*sec(y)-sin(x)*tan(y);
+	sx1(0,2) = (sin(x)*(sin(x)-cos(z)*sec(y)*sin(x)-cot(z)*tan(y))+cos(x)*(-sec(y)+cos(2*z)*csc(z)*sin(x)*tan(y))+cos(x)*cos(x)*(1+cos(z)*sin(y)*tan(y)))/(cos(x)*cos(z)*sin(y)-sin(x)*sin(z));
+	sy (1,0) = cos(y)*sin(z);
+	sy (1,2) = (-cos(z)*sin(x)*sin(y)+(-cos(x)+cos(y))*sin(z))/(cos(x)*cos(z)*sin(y)-sin(x)*sin(z));
+	sz (2,0) = -cos(x)*cos(z)*sin(y)+sin(x)*sin(z);
+	sz (2,1) = sec(y)*sin(x)+(-cos(x)*cot(z)+csc(z))*tan(y);
+	sx2(0,1) = (2*sec(y)*sin(x)+cos(z)*(-2*sin(x)+cos(x)*cot(z)*sin(y))-cos(x)*sin(y)*(csc(z)+sin(z))+2*(-cos(x)*cot(z)+csc(z))*tan(y))/(2*cos(x)*cos(z)*sin(y)-2*sin(x)*sin(z));
+	sx2(0,2) = (-1+cos(x)*cos(y))/(-cos(x)*cos(z)*sin(y)+sin(x)*sin(z));
+
+	sx1(0,1) *= stepy/stepx;
+	sx1(0,2) *= stepz/stepx;
+	sy (1,0) *= stepx/stepy;
+	sy (1,2) *= stepz/stepy;
+	sz (2,0) *= stepx/stepz;
+	sz (2,1) *= stepy/stepz;
+	sx2(0,1) *= stepy/stepx;
+	sx2(0,2) *= stepz/stepx;
 
 	terms.clear();
 	terms.push_back(sx1);
@@ -846,12 +859,14 @@ int shearXYZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 				*maxshear = mv;
 		}
 	}
-
 	//*construct*matrices*
+	Vector3d spacing(stepx, stepy, stepz);
 	Matrix3d rotation;
-	rotation = AngleAxisd(x, Vector3d::UnitX())*
+	rotation = spacing.asDiagonal().inverse()*
+				AngleAxisd(x, Vector3d::UnitX())*
 				AngleAxisd(y, Vector3d::UnitY())*
-				AngleAxisd(z, Vector3d::UnitZ());
+				AngleAxisd(z, Vector3d::UnitZ())*
+				spacing.asDiagonal();
 
 	DBG3(cerr << "Rotation:\n" << rotation << endl);
 	DBG3(cerr << "Sheared Rotation:\n" << shearProduct<< endl);
@@ -872,19 +887,23 @@ int shearXZYX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	Matrix3d sx2 = Matrix3d::Identity();
 	Matrix3d shearProduct = Matrix3d::Identity();
 
-	sx1(0,1) = (stepy/stepx)*((-2+2*cos(x)*cos(z)-cos(x)*cos(x)*cos(y)*cos(z)+
-				cos(y)*cos(z)*(1+sin(x)*sin(x))-2*csc(y)*sin(x)*sin(z)+
-				cot(y)*sin(2*x)*sin(z))/(2*(cos(z)*sin(x)*sin(y)+cos(x)*sin(z))));
-	sx1(0,2) = -(stepz/stepx)*(cos(x)*cot(y)+csc(y));
-	sz (2,0) = -(stepx/stepz)*sin(y);
-	sz (2,1) = (stepy/stepz)*((sin(y)-cos(x)*cos(z)*sin(y)+sin(x)*sin(z))/
-				(cos(z)*sin(x)*sin(y)+cos(x)*sin(z)));
-	sy (1,0) = (stepx/stepy)*(cos(z)*sin(x)*sin(y)+cos(x)*sin(z));
-	sy (1,2) = -(stepz/stepy)*(cos(z)*sin(x)+(-cos(x)+cos(y))*csc(y)*sin(z));
-	sx2(0,1) = (stepy/stepx)*((-1+cos(x)*cos(z)-sin(x)*sin(y)*sin(z))/
-				(cos(z)*sin(x)*sin(y)+cos(x)*sin(z)));
-	sx2(0,2) = (stepz/stepx)*(((-cos(y)+cos(z))*sin(x)+(-cot(y)+cos(x)*csc(y))
-				*sin(z))/(cos(z)*sin(x)*sin(y)+cos(x)*sin(z)));
+	sx1(0,1) = (-2+2*cos(x)*cos(z)-cos(x)*cos(x)*cos(y)*cos(z)+cos(y)*cos(z)*(1+sin(x)*sin(x))-2*csc(y)*sin(x)*sin(z)+cot(y)*sin(2*x)*sin(z))/(2*(cos(z)*sin(x)*sin(y)+cos(x)*sin(z)));
+	sx1(0,2) = -cos(x)*cot(y)+csc(y);
+	sz (2,0) = -sin(y);
+	sz (2,1) = (sin(y)-cos(x)*cos(z)*sin(y)+sin(x)*sin(z))/(cos(z)*sin(x)*sin(y)+cos(x)*sin(z));
+	sy (1,0) = cos(z)*sin(x)*sin(y)+cos(x)*sin(z);
+	sy (1,2) = -cos(z)*sin(x)+(-cos(x)+cos(y))*csc(y)*sin(z);
+	sx2(0,1) = (-1+cos(x)*cos(z)-sin(x)*sin(y)*sin(z))/(cos(z)*sin(x)*sin(y)+cos(x)*sin(z));
+	sx2(0,2) = ((-cos(y)+cos(z))*sin(x)+(-cot(y)+cos(x)*csc(y))*sin(z))/(cos(z)*sin(x)*sin(y)+cos(x)*sin(z));
+
+	sx1(0,1) *= stepy/stepx;
+	sx1(0,2) *= stepz/stepx;
+	sz (2,0) *= stepx/stepz;
+	sz (2,1) *= stepy/stepz;
+	sy (1,0) *= stepx/stepy;
+	sy (1,2) *= stepz/stepy;
+	sx2(0,1) *= stepy/stepx;
+	sx2(0,2) *= stepz/stepx;
 
 	terms.clear();
 	terms.push_back(sx1);
@@ -904,10 +923,13 @@ int shearXZYX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	}
 
 	//*construct*matrices*
+	Vector3d spacing(stepx, stepy, stepz);
 	Matrix3d rotation;
-	rotation = AngleAxisd(x, Vector3d::UnitX())*
+	rotation = spacing.asDiagonal().inverse()*
+				AngleAxisd(x, Vector3d::UnitX())*
 				AngleAxisd(y, Vector3d::UnitY())*
-				AngleAxisd(z, Vector3d::UnitZ());
+				AngleAxisd(z, Vector3d::UnitZ())*
+				spacing.asDiagonal();
 
 	DBG3(cerr << "Rotation:\n" << rotation << endl);
 	DBG3(cerr << "Sheared Rotation:\n" << shearProduct<< endl);
@@ -928,20 +950,23 @@ int shearZXYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	Matrix3d sz2 = Matrix3d::Identity();
 	Matrix3d shearProduct = Matrix3d::Identity();
 
-	sz1(2,0) = (stepx/stepz)*((-1+cos(y)*cos(z))/
-				(cos(x)*cos(z)*sin(y)-sin(x)*sin(z)));
-	sz1(2,1) = (stepy/stepz)*(((cos(x)-sec(y))*sin(z)-csc(x)*tan(y)+cos(z)*
-				(sin(x)*sin(y)+cot(x)*tan(y)))/(cos(x)*cos(z)*sin(y)-sin(x)*sin(z)));
-	sx (0,1) = -(stepy/stepx)*(sec(y)*sin(z)+(cos(z)*cot(x)-csc(x))*tan(y));
-	sx (0,2) = (stepz/stepx)*(cos(x)*cos(z)*sin(y)-sin(x)*sin(z));
-	sy (1,0) = (stepx/stepy)*(((-cos(y)+cos(z))*sin(x)+cos(x)*sin(y)*sin(z))/
-				(cos(x)*cos(z)*sin(y)-sin(x)*sin(z)));
-	sy (1,2) = -(stepz/stepy)*cos(y)*sin(x);
-	sz2(2,0) = (stepx/stepz)*((-4+cos(x-y)+cos(x+y)+(4*cos(z)+cos(x)*
-				(-3+cos(2*y))*cos(2*z))*sec(y)+4*cot(x)*sin(z)*
-				tan(y)-2*cos(2*x)*csc(x)*sin(2*z)*tan(y))/
-				(4*cos(x)*cos(z)*sin(y)-4*sin(x)*sin(z)));
-	sz2(2,1) = (stepy/stepz)*((-cos(z)*cot(x)+csc(x))*sec(y)+sin(z)*tan(y));
+	sz1(2,0) = (-1+cos(y)*cos(z))/(cos(x)*cos(z)*sin(y)-sin(x)*sin(z));
+	sz1(2,1) = ((cos(x)-sec(y))*sin(z)-csc(x)*tan(y)+cos(z)*(sin(x)*sin(y)+cot(x)*tan(y)))/(cos(x)*cos(z)*sin(y)-sin(x)*sin(z));
+	sx (0,1) = -sec(y)*sin(z)+(cos(z)*cot(x)-csc(x))*tan(y);
+	sx (0,2) = cos(x)*cos(z)*sin(y)-sin(x)*sin(z);
+	sy (1,0) = ((-cos(y)+cos(z))*sin(x)+cos(x)*sin(y)*sin(z))/(cos(x)*cos(z)*sin(y)-sin(x)*sin(z));
+	sy (1,2) = -cos(y)*sin(x);
+	sz2(2,0) = (-4+cos(x-y)+cos(x+y)+(4*cos(z)+cos(x)*(-3+cos(2*y))*cos(2*z))*sec(y)+4*cot(x)*sin(z)*tan(y)-2*cos(2*x)*csc(x)*sin(2*z)*tan(y))/(4*cos(x)*cos(z)*sin(y)-4*sin(x)*sin(z));
+	sz2(2,1) = (-cos(z)*cot(x)+csc(x))*sec(y)+sin(z)*tan(y);
+
+	sz1(2,0) *= stepx/stepz;
+	sz1(2,1) *= stepy/stepz;
+	sx (0,1) *= stepy/stepx;
+	sx (0,2) *= stepz/stepx;
+	sy (1,0) *= stepx/stepy;
+	sy (1,2) *= stepz/stepy;
+	sz2(2,0) *= stepx/stepz;
+	sz2(2,1) *= stepy/stepz;
 
 	terms.clear();
 	terms.push_back(sz1);
@@ -961,10 +986,13 @@ int shearZXYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	}
 
 	//*construct*matrices*
+	Vector3d spacing(stepx, stepy, stepz);
 	Matrix3d rotation;
-	rotation = AngleAxisd(x, Vector3d::UnitX())*
+	rotation = spacing.asDiagonal().inverse()*
+				AngleAxisd(x, Vector3d::UnitX())*
 				AngleAxisd(y, Vector3d::UnitY())*
-				AngleAxisd(z, Vector3d::UnitZ());
+				AngleAxisd(z, Vector3d::UnitZ())*
+				spacing.asDiagonal();
 
 	DBG3(cerr << "Rotation:\n" << rotation << endl);
 	DBG3(cerr << "Sheared Rotation:\n" << shearProduct<< endl);
@@ -985,19 +1013,23 @@ int shearZYXZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	Matrix3d sz2 = Matrix3d::Identity();
 	Matrix3d shearProduct = Matrix3d::Identity();
 
-	sz1(2,0) = (stepx/stepz)*(((cos(y)-cos(z))*csc(y)*sin(x)+(-cos(x)+cos(y))*
-				sin(z))/(cos(z)*sin(x)+cos(x)*sin(y)*sin(z)));
-	sz1(2,1) = (stepy/stepz)*((1-cos(x)*cos(z)+sin(x)*sin(y)*sin(z))/
-				(cos(z)*sin(x)+cos(x)*sin(y)*sin(z)));
-	sy (1,0) = -(stepx/stepy)*(cot(y)*sin(x)+cos(z)*csc(y)*sin(x)+cos(x)*sin(z));
-	sy (1,2) = -(stepz/stepy)*(cos(z)*sin(x)-cos(x)*sin(y)*sin(z));
-	sx (0,1) = -(stepy/stepx)*((sin(y)-cos(x)*cos(z)*sin(y)+sin(x)*sin(z))/
-				(cos(z)*sin(x)+cos(x)*sin(y)*sin(z)));
-	sx (0,2) = (stepz/stepx)*sin(y);
-	sz2(2,0) = (stepx/stepz)*(-1+cos(y)*cos(z))*csc(y);
-	sz2(2,1) = -(stepy/stepz)*((-4+cos(x-y)+cos(x+y)+4*cos(x)*cos(z)-
-				2*cos(x)*cos(y)*cos(2*z)+4*(cos(z)*cot(y)-csc(y))
-				*sin(x)*sin(z))/(4*(cos(z)*sin(x)+cos(x)*sin(y)*sin(z))));
+	sz1(2,0) = ((cos(y)-cos(z))*csc(y)*sin(x)+(-cos(x)+cos(y))*sin(z))/(cos(z)*sin(x)+cos(x)*sin(y)*sin(z));
+	sz1(2,1) = (1-cos(x)*cos(z)+sin(x)*sin(y)*sin(z))/(cos(z)*sin(x)+cos(x)*sin(y)*sin(z));
+	sy (1,0) = -cot(y)*sin(x)+cos(z)*csc(y)*sin(x)+cos(x)*sin(z);
+	sy (1,2) = -cos(z)*sin(x)-cos(x)*sin(y)*sin(z);
+	sx (0,1) = -((sin(y)-cos(x)*cos(z)*sin(y)+sin(x)*sin(z))/(cos(z)*sin(x)+cos(x)*sin(y)*sin(z)));
+	sx (0,2) = sin(y);
+	sz2(2,0) = (-1+cos(y)*cos(z))*csc(y);
+	sz2(2,1) = -((-4+cos(x-y)+cos(x+y)+4*cos(x)*cos(z)-2*cos(x)*cos(y)*cos(2*z)+4*(cos(z)*cot(y)-csc(y))*sin(x)*sin(z))/(4*(cos(z)*sin(x)+cos(x)*sin(y)*sin(z))));
+
+	sz1(2,0) *= stepx/stepz;
+	sz1(2,1) *= stepy/stepz;
+	sy (1,0) *= stepx/stepy;
+	sy (1,2) *= stepz/stepy;
+	sx (0,1) *= stepy/stepx;
+	sx (0,2) *= stepz/stepx;
+	sz2(2,0) *= stepx/stepz;
+	sz2(2,1) *= stepy/stepz;
 
 	terms.clear();
 	terms.push_back(sz1);
@@ -1017,10 +1049,13 @@ int shearZYXZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	}
 
 	//*construct*matrices*
+	Vector3d spacing(stepx, stepy, stepz);
 	Matrix3d rotation;
-	rotation = AngleAxisd(x, Vector3d::UnitX())*
+	rotation = spacing.asDiagonal().inverse()*
+				AngleAxisd(x, Vector3d::UnitX())*
 				AngleAxisd(y, Vector3d::UnitY())*
-				AngleAxisd(z, Vector3d::UnitZ());
+				AngleAxisd(z, Vector3d::UnitZ())*
+				spacing.asDiagonal();
 
 	DBG3(cerr << "Rotation:\n" << rotation << endl);
 	DBG3(cerr << "Sheared Rotation:\n" << shearProduct<< endl);
@@ -1041,25 +1076,23 @@ int shearYXZY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	Matrix3d sy2 = Matrix3d::Identity();
 	Matrix3d shearProduct = Matrix3d::Identity();
 
-	sy1(1,0) = (stepx/stepy)*((1-cos(y)*cos(z))/
-				(cos(z)*sin(x)*sin(y)+cos(x)*sin(z)));
-	sy1(1,2) = (stepz/stepy)*((-8*cos(z)*sin(x)*sin(y)+4*cos(2*z)*sin(2*x)*sin(y)+
-				8*(-cos(x)+cos(y))*sin(z)+(-1+3*cos(2*x)-2*cos(x)*cos(x)*cos(2*y))*
-				sin(2*z))/(8*(cos(z)*sin(x)*sin(y)+cos(x)*sin(z))*
-				(cos(z)*sin(x)+cos(x)*sin(y)*sin(z))));
-	sx (0,1) = -(stepy/stepx)*(cos(z)*sin(x)*sin(y)-cos(x)*sin(z));
-	sx (0,2) = (stepz/stepx)*((cos(z)*sin(x)*sin(y)+(cos(x)-cos(y))*sin(z))/
-				(cos(z)*sin(x)+cos(x)*sin(y)*sin(z)));
-	sz (2,0) = (stepx/stepz)*(((cos(y)-cos(z))*sin(x)-cos(x)*sin(y)*sin(z))/
-				(cos(z)*sin(x)*sin(y)+cos(x)*sin(z)));
-	sz (2,1) = (stepy/stepz)*(cos(z)*sin(x)+cos(x)*sin(y)*sin(z));
-	sy2(1,0) = (stepx/stepy)*((-cos(z)*sin(x)*
-				(-1+cos(z)*(cos(y)+cos(x)*sin(y)*sin(y)))+
-				(cos(x)-cos(2*x)*cos(z))*sin(y)*sin(z)+(cos(x)-cos(y))*
-				sin(x)*sin(z)*sin(z))/((cos(z)*sin(x)*sin(y)+cos(x)*sin(z))*
-				(cos(z)*sin(x)+cos(x)*sin(y)*sin(z))));
-	sy2(1,2) = (stepz/stepy)*((-1+cos(x)*cos(y))/
-				(cos(z)*sin(x)+cos(x)*sin(y)*sin(z)));
+	sy1(1,0) = (1-cos(y)*cos(z))/(cos(z)*sin(x)*sin(y)+cos(x)*sin(z));
+	sy1(1,2) = (-8*cos(z)*sin(x)*sin(y)+4*cos(2*z)*sin(2*x)*sin(y)+8*(-cos(x)+cos(y))*sin(z)+(-1+3*cos(2*x)-2*cos(x)*cos(x)*cos(2*y))*sin(2*z))/(8*(cos(z)*sin(x)*sin(y)+cos(x)*sin(z))*(cos(z)*sin(x)+cos(x)*sin(y)*sin(z)));
+	sx (0,1) = -cos(z)*sin(x)*sin(y)-cos(x)*sin(z);
+	sx (0,2) = (cos(z)*sin(x)*sin(y)+(cos(x)-cos(y))*sin(z))/(cos(z)*sin(x)+cos(x)*sin(y)*sin(z));
+	sz (2,0) = ((cos(y)-cos(z))*sin(x)-cos(x)*sin(y)*sin(z))/(cos(z)*sin(x)*sin(y)+cos(x)*sin(z));
+	sz (2,1) = cos(z)*sin(x)+cos(x)*sin(y)*sin(z);
+	sy2(1,0) = (-cos(z)*sin(x)*(-1+cos(z)*(cos(y)+cos(x)*sin(y)*sin(y)))+(cos(x)-cos(2*x)*cos(z))*sin(y)*sin(z)+(cos(x)-cos(y))*sin(x)*sin(z)*sin(z))/((cos(z)*sin(x)*sin(y)+cos(x)*sin(z))*(cos(z)*sin(x)+cos(x)*sin(y)*sin(z)));
+	sy2(1,2) = (-1+cos(x)*cos(y))/(cos(z)*sin(x)+cos(x)*sin(y)*sin(z));
+
+	sy1(1,0) *= stepx/stepy;
+	sy1(1,2) *= stepz/stepy;
+	sx (0,1) *= stepy/stepx;
+	sx (0,2) *= stepz/stepx;
+	sz (2,0) *= stepx/stepz;
+	sz (2,1) *= stepy/stepz;
+	sy2(1,0) *= stepx/stepy;
+	sy2(1,2) *= stepz/stepy;
 
 	terms.clear();
 	terms.push_back(sy1);
@@ -1079,10 +1112,13 @@ int shearYXZY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	}
 
 	//*construct*matrices*
+	Vector3d spacing(stepx, stepy, stepz);
 	Matrix3d rotation;
-	rotation = AngleAxisd(x, Vector3d::UnitX())*
+	rotation = spacing.asDiagonal().inverse()*
+				AngleAxisd(x, Vector3d::UnitX())*
 				AngleAxisd(y, Vector3d::UnitY())*
-				AngleAxisd(z, Vector3d::UnitZ());
+				AngleAxisd(z, Vector3d::UnitZ())*
+				spacing.asDiagonal();
 
 	DBG3(cerr << "Rotation:\n" << rotation << endl);
 	DBG3(cerr << "Sheared Rotation:\n" << shearProduct<< endl);
@@ -1130,10 +1166,13 @@ int shearYXY(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	terms.push_back(sy2);
 
 	//*construct*matrices*
+	Vector3d spacing(stepx, stepy, stepz);
 	Matrix3d rotation;
-	rotation = AngleAxisd(Rx, Vector3d::UnitX())*
+	rotation = spacing.asDiagonal().inverse()*
+				AngleAxisd(Rx, Vector3d::UnitX())*
 				AngleAxisd(Ry, Vector3d::UnitY())*
-				AngleAxisd(Rz, Vector3d::UnitZ());
+				AngleAxisd(Rz, Vector3d::UnitZ())*
+				spacing.asDiagonal();
 
 	if(maxshear) {
 		*maxshear = 0;
@@ -1200,10 +1239,13 @@ int shearXZX(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	}
 
 	//*construct*matrices*
+	Vector3d spacing(stepx, stepy, stepz);
 	Matrix3d rotation;
-	rotation = AngleAxisd(Rx, Vector3d::UnitX())*
+	rotation = spacing.asDiagonal().inverse()*
+				AngleAxisd(Rx, Vector3d::UnitX())*
 				AngleAxisd(Ry, Vector3d::UnitY())*
-				AngleAxisd(Rz, Vector3d::UnitZ());
+				AngleAxisd(Rz, Vector3d::UnitZ())*
+				spacing.asDiagonal();
 
 	DBG3(cerr << "Rotation:\n" << rotation << endl);
 	DBG3(cerr << "Sheared Rotation:\n" << shearProduct<< endl);
@@ -1258,10 +1300,13 @@ int shearZYZ(std::list<Matrix3d>& terms, double* err, double* maxshear,
 	}
 
 	//*construct*matrices*
+	Vector3d spacing(stepx, stepy, stepz);
 	Matrix3d rotation;
-	rotation = AngleAxisd(Rx, Vector3d::UnitX())*
+	rotation = spacing.asDiagonal().inverse()*
+				AngleAxisd(Rx, Vector3d::UnitX())*
 				AngleAxisd(Ry, Vector3d::UnitY())*
-				AngleAxisd(Rz, Vector3d::UnitZ());
+				AngleAxisd(Rz, Vector3d::UnitZ())*
+				spacing.asDiagonal();
 
 	DBG3(cerr << "Rotation:\n" << rotation << endl);
 	DBG3(cerr << "Sheared Rotation:\n" << shearProduct<< endl);
@@ -1304,30 +1349,30 @@ int shearDecompose(std::list<Matrix3d>& bestshears,
 	if(fabs(Rx) < ANGMIN && fabs(Ry) < ANGMIN) {
 		DBG3(cerr << "Chose YXY" << endl);
 		shearYXY(bestshears, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
-		if(err < ERRTOL && maxshear < SHEARMAX) {
-			return 0;
-		} else {
-			return -1;
+		if(err < ERRTOL && maxshear < bestmshear) {
+			bestmshear = maxshear;
+			bestshears.clear();
+			bestshears.splice(bestshears.end(), ltmp);
 		}
 	}
 
 	if(fabs(Rx) < ANGMIN && fabs(Rz) < ANGMIN) {
 		DBG3(cerr << "Chose XZX" << endl);
 		shearXZX(bestshears, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
-		if(err < ERRTOL && maxshear < SHEARMAX) {
-			return 0;
-		} else {
-			return -1;
+		if(err < ERRTOL && maxshear < bestmshear) {
+			bestmshear = maxshear;
+			bestshears.clear();
+			bestshears.splice(bestshears.end(), ltmp);
 		}
 	}
 
 	if(fabs(Rz) < ANGMIN && fabs(Ry) < ANGMIN) {
 		DBG3(cerr << "Chose ZYZ" << endl);
 		shearZYZ(bestshears, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
-		if(err < ERRTOL && maxshear < SHEARMAX) {
-			return 0;
-		} else {
-			return -1;
+		if(err < ERRTOL && maxshear < bestmshear) {
+			bestmshear = maxshear;
+			bestshears.clear();
+			bestshears.splice(bestshears.end(), ltmp);
 		}
 	}
 
@@ -1390,10 +1435,13 @@ int shearDecompose(std::list<Matrix3d>& bestshears,
  * @param Rx Rotation about x axis (first)
  * @param Ry Rotation about y axis (middle)
  * @param Rz Rotation about z axis (last)
+ * @param sx spacing in x
+ * @param sy spacing in y
+ * @param sz spacing in z
  *
  * @return 0 if successful.
  */
-int shearTest(double Rx, double Ry, double Rz)
+int shearTest(double Rx, double Ry, double Rz, double sx, double sy, double sz)
 {
 	cerr << "------------------------------" << endl;
 	cerr << Rx << "," << Ry << "," << Rz << endl;
@@ -1402,63 +1450,63 @@ int shearTest(double Rx, double Ry, double Rz)
 	double err, maxshear;
 
 	// single angles first
-	shearYXY(terms, &err, &maxshear, Rx, Ry, Rz);
+	shearYXY(terms, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
 	cerr << "YXY maxshear: " << maxshear << endl;
 	if(isnormal(err) && err > ERRTOL) {
 		cerr << "Err: " << err << endl;
 		return -1;
 	}
 
-	shearXZX(terms, &err, &maxshear, Rx, Ry, Rz);
+	shearXZX(terms, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
 	cerr << "XZX maxshear: " << maxshear << endl;
 	if(isnormal(err) && err > ERRTOL) {
 		cerr << "Err: " << err << endl;
 		return -1;
 	}
 
-	shearZYZ(terms, &err, &maxshear, Rx, Ry, Rz);
+	shearZYZ(terms, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
 	cerr << "ZYZ maxshear: " << maxshear << endl;
 	if(isnormal(err) && err > ERRTOL) {
 		cerr << "Err: " << err << endl;
 		return -1;
 	}
 
-	shearYZXY(terms, &err, &maxshear, Rx, Ry, Rz);
+	shearYZXY(terms, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
 	cerr << "YZXY maxshear: " << maxshear << endl;
 	if(isnormal(err) && err > ERRTOL) {
 		cerr << "Err: " << err << endl;
 		return -1;
 	}
 
-	shearYXZY(terms, &err, &maxshear, Rx, Ry, Rz);
+	shearYXZY(terms, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
 	cerr << "YXZY maxshear: " << maxshear << endl;
 	if(isnormal(err) && err > ERRTOL) {
 		cerr << "Err: " << err << endl;
 		return -1;
 	}
 
-	shearXYZX(terms, &err, &maxshear, Rx, Ry, Rz);
+	shearXYZX(terms, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
 	cerr << "XYZX maxshear: " << maxshear << endl;
 	if(isnormal(err) && err > ERRTOL) {
 		cerr << "Err: " << err << endl;
 		return -1;
 	}
 
-	shearXZYX(terms, &err, &maxshear, Rx, Ry, Rz);
+	shearXZYX(terms, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
 	cerr << "XZYX maxshear: " << maxshear << endl;
 	if(isnormal(err) && err > ERRTOL) {
 		cerr << "Err: " << err << endl;
 		return -1;
 	}
 
-	shearZYXZ(terms, &err, &maxshear, Rx, Ry, Rz);
+	shearZYXZ(terms, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
 	cerr << "ZYXZ maxshear: " << maxshear << endl;
 	if(isnormal(err) && err > ERRTOL) {
 		cerr << "Err: " << err << endl;
 		return -1;
 	}
 
-	shearZXYZ(terms, &err, &maxshear, Rx, Ry, Rz);
+	shearZXYZ(terms, &err, &maxshear, Rx, Ry, Rz, sx, sy, sz);
 	cerr << "ZXYZ maxshear: " << maxshear << endl;
 	if(isnormal(err) && err > ERRTOL) {
 		cerr << "Err: " << err << endl;
