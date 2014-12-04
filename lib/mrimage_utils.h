@@ -195,6 +195,15 @@ int rotateImageShearFFT(ptr<MRImage> inout, double rx, double ry, double rz,
 ptr<MRImage> rigidTransform(ptr<MRImage> in, double rx, double ry, double rz,
 		double sx, double sy, double sz);
 
+/**
+ * @brief Computes difference of gaussians.
+ *
+ * @param in Gaussian smooths an image twice and subtracts
+ * @param sd Standard deviation in each dimension
+ *
+ * @return Difference of two different gaussians 
+ */
+ptr<MRImage> diffOfGauss(ptr<const MRImage> in, double sd1, double sd2);
 
 /** @}  MRImageUtilities */
 } // npl

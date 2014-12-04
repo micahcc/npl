@@ -91,13 +91,13 @@ int main()
 	gimg->write("gaussmooth_test_gimg.nii.gz");
 
 	auto iimg = impulseImage();
-	iimg->write("gaussmooth_test_iimg.nii.gz");
+	iimg->write("gaussmooth_test.nii.gz");
 
 	// smooth
 	gaussianSmooth1D(iimg, 0, sx);
 	gaussianSmooth1D(iimg, 1, sy);
 	gaussianSmooth1D(iimg, 2, sz);
-	iimg->write("gaussmooth_test_iimg_smoothed.nii.gz");
+	iimg->write("gaussmooth_test_smoothed.nii.gz");
 
 	for(FlatConstIter<double> git(gimg), iit(iimg); !git.eof() && !iit.eof();
 				++iit, ++git) {
