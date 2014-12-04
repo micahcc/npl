@@ -146,6 +146,13 @@ public:
 	void orientDefault();
 
 	/**
+	 * @brief Returns true if the image has a valid orientation
+	 *
+	 * @return True if the image has a valid orientation
+	 */
+	bool isOriented() { return m_coordinate != NOFORM; };
+
+	/**
 	 * @brief Update the orientation of the pixels in RAS space.
 	 *
 	 * @param neworig New Origin.

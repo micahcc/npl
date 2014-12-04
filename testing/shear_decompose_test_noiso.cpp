@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file shear_decompose_test.cpp A test of the shift decomposition of a
- * rotation matrix
+ * @file shear_decompose_test_noiso.cpp Non-isometric rotation test
  *
  *****************************************************************************/
 
@@ -97,12 +96,12 @@ int main()
 				double ry = (PI/2.)*jj/(double)iters;
 				double rz = (PI/2.)*kk/(double)iters;
 				cerr << rx << "," << ry << "," << rz << endl;
-				if(shearTest(rx,ry,rz) != 0) {
+				if(shearTest(rx,ry,rz, 1/3., 1, 3) != 0) {
 					cerr << "Failed Shear Test for " <<
 						rx << ", " << ry << ", " << rz << endl;
 					return -1;
 				}
-				if(shearDecompose(terms, rx, ry, rz) != 0) {
+				if(shearDecompose(terms, rx, ry, rz, 1./3.,1, 3) != 0) {
 					cerr << "Failure!" << endl;
 					return -1;
 				}
@@ -112,6 +111,7 @@ int main()
 	cerr << "Success" << endl;
 	return 0;
 }
+
 
 
 
