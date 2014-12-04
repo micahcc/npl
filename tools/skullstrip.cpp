@@ -73,6 +73,10 @@ int main(int argc, char** argv)
 	TCLAP::ValueArg<double> a_spacing("s", "spacing", "Resample image to have "
 			"the specified spacing. If you find that the skullstripping is too "
 			"slow then you may want to increase this.", false, 1, "mm", cmd);
+	TCLAP::ValueArg<double> a_lower("L", "lower-freq", "Lower freuqency for "
+			"difference of gaussian. ", false, 2, "mm", cmd);
+	TCLAP::ValueArg<double> a_upper("U", "upper-freq", "Upper freuqency for "
+			"difference of gaussian. ", false, 8, "mm", cmd);
 
 	cmd.parse(argc, argv);
 
@@ -88,40 +92,59 @@ int main(int argc, char** argv)
 	vector<double> spacing(3, a_spacing.getValue());
     inimg = resample(inimg, spacing.data());
 	
-    /*****************************
-     * edge detection
-     ****************************/
-    auto deriv = dPtrCast<MRImage>(sobelEdge(inimg));
-    cerr << *deriv << endl;
-    deriv->write("sobel.nii.gz");
-    auto absderiv = dPtrCast<MRImage>(collapseSum(deriv, 3, true));
-    cerr << *absderiv << endl;
-    absderiv->write("sobel_abs.nii.gz");
+	cerr << "Computing Difference of Gaussians...";
+	auto dog = diffOfGauss(inimg, a_lower.getValue(), a_upper.getValue());
+	for(FlatIter<double> dit(dog); !dit.eof(); ++dit)
+		dit.set(fabs(dit.get()));
+	dog->write("dog.nii.gz");
+	cerr << "Done" << endl;
 
-    /*****************************
-     * create point list from edges (based on top quartile of edges in each
-     * window) then extract points that meet local shape criteria 
-     ****************************/
-	genPoints(absderiv, deriv, .3, 3);
-//    points = shapeFilter(points);
-//    auto mask = pointsToMask(inimg, points);
+	cerr << "Finding Matching Regions...";
+	for(FlatIter<double> iit(inimg), dit(dog); !iit.eof(); ++iit, ++dit) {
+		dit.set(fabs(dit.get()-iit.get()));
+	}
+	dog->write("err.nii.gz");
+	cerr << "Done" << endl;
 
-    /*******************************************************
-     * Propagate selected edges perpendicular to the edge
-     ******************************************************/
+	cerr << "Thresholding...";
+	dog = dPtrCast<MRImage>(threshold(dog, otsuThresh(dog)));
+	dog->write("mask.nii.gz");
+	cerr << "Done" << endl;
 
-    /***********************************
-     * Watershed
-     ***********************************/
-
-    /************************************
-     * Select Brain Watershed
-     ***********************************/
-
-    /************************************
-     * Mask and Write 
-     ***********************************/
-
+//    /*****************************
+//     * edge detection
+//     ****************************/
+//    auto deriv = dPtrCast<MRImage>(sobelEdge(inimg));
+//    cerr << *deriv << endl;
+//    deriv->write("sobel.nii.gz");
+//    auto absderiv = dPtrCast<MRImage>(collapseSum(deriv, 3, true));
+//    cerr << *absderiv << endl;
+//    absderiv->write("sobel_abs.nii.gz");
+//
+//    /*****************************
+//     * create point list from edges (based on top quartile of edges in each
+//     * window) then extract points that meet local shape criteria 
+//     ****************************/
+//	genPoints(absderiv, deriv, .3, 3);
+////    points = shapeFilter(points);
+////    auto mask = pointsToMask(inimg, points);
+//
+//    /*******************************************************
+//     * Propagate selected edges perpendicular to the edge
+//     ******************************************************/
+//
+//    /***********************************
+//     * Watershed
+//     ***********************************/
+//
+//    /************************************
+//     * Select Brain Watershed
+//     ***********************************/
+//
+//    /************************************
+//     * Mask and Write 
+//     ***********************************/
+//
     } catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
 }

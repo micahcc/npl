@@ -2085,6 +2085,73 @@ ptr<NDArray> concatElevate(const vector<ptr<NDArray>>& images)
  *
  * @return Output image N+1D
  */
+ptr<NDArray> laplacian(ptr<const NDArray> img)
+{
+	// create output
+	size_t ndim = img->ndim();
+	vector<size_t> osize(img->dim(), img->dim()+ndim);
+	osize.push_back(ndim);
+	auto out = img->copyCast(osize.size(), osize.data());
+
+	vector<double> der_profile({1, -2, 1});
+	vector<double> avg_profile({0.25, 0.5, 0.25});
+
+	//////////////////
+	// iterate through
+	//////////////////
+
+	// kernel iterator to get neighbors of the coordesponding output point
+	KernelIter<double> kit(img);
+	kit.setRadius(1);
+
+	// chunk up by volumes
+	ChunkIter<double> oit(out);
+	oit.setChunkSize(ndim, img->dim(), true);
+	oit.setOrder(kit.getOrder());
+	vector<int64_t> index(ndim+1);
+	for(oit.goBegin(); !oit.eof(); oit.nextChunk()) {
+		oit.index(index);
+		size_t graddir = index[ndim];
+
+		// apply kernel in dimension of graddir
+		for(kit.goBegin(); !kit.eof() && !oit.eoc(); ++kit, ++oit) {
+			double sum = 0;
+			for(size_t kk=0; kk<kit.ksize(); kk++) {
+				kit.offsetK(kk, index.size(), index.data());
+
+				// compute weight of kernel element, note that because
+				// from_center is the offset from center, we need to add 1
+				double w = 1;
+				for(size_t dd=0; dd<ndim; dd++) {
+					if(dd == graddir)
+						w *= der_profile[index[dd]+1];
+					else
+						w *= avg_profile[index[dd]+1];
+				}
+
+				sum += w*kit[kk];
+			}
+
+			oit.set(sum);
+		}
+
+		assert(kit.eof() && oit.eoc());
+	}
+	assert(kit.eof() && oit.eof());
+
+	return out;
+}
+
+/**
+ * @brief Increases the number of dimensions by 1 then places the edges
+ * in each dimension at indexes matching the direction of edge detection.
+ * So an input 3D image will produce a 4D image with volume 0 the x edges,
+ * volume 1 the y edges and volume 2 the z edges.
+ *
+ * @param img Input image ND
+ *
+ * @return Output image N+1D
+ */
 ptr<NDArray> sobelEdge(ptr<const NDArray> img)
 {
     // create output
@@ -2396,11 +2463,11 @@ ptr<NDArray> binarize(ptr<const NDArray> in, double t)
  * @param in Input image.
  * @param t Threshold to apply to the image.
  *
- * @return Threshold image
+ * @return Threshold image (INT16 type)
  */
 ptr<NDArray> threshold(ptr<const NDArray> in, double t)
 {
-	auto out = in->copy();
+	auto out = in->copyCast(INT16);
 	thresholdIP(out, t);
 	return out;
 }
@@ -2612,7 +2679,7 @@ double dice(ptr<const NDArray> a, ptr<const NDArray> b, ptr<const NDArray> mask)
 	int count = 0;
 	for(it1.goBegin(), it2.goBegin(); !it1.eof() && !it2.eof(); ++it1, ++it2) {
 		if(!mask || *itm > 0) {
-			if(*it1 == *it2) 
+			if(*it1 == *it2)
 				same++;
 			count++;
 		}

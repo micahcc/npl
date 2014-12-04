@@ -775,6 +775,30 @@ ptr<MRImage> rigidTransform(ptr<MRImage> in, double rx, double ry, double rz,
 	return out;
 }
 
+/**
+ * @brief Computes difference of gaussians.
+ *
+ * @param in Gaussian smooths an image twice and subtracts
+ * @param sd Standard deviation in each dimension
+ *
+ * @return Difference of two different gaussians
+ */
+ptr<MRImage> diffOfGauss(ptr<const MRImage> in, double sd1, double sd2)
+{
+	auto tmp = dPtrCast<MRImage>(in->copyCast(FLOAT32));
+	auto out = dPtrCast<MRImage>(in->copyCast(FLOAT32));
+
+	for(size_t ii=0; ii<in->ndim(); ii++) {
+		gaussianSmooth1D(tmp, ii, sd1/in->spacing(ii));
+		gaussianSmooth1D(out, ii, sd2/in->spacing(ii));
+	}
+
+	for(FlatIter<double> it1(tmp), it2(out); !it1.eof(); ++it1, ++it2)
+		it2.set(it2.get()-it1.get());
+
+	return out;
+}
+
 } // npl
 
 
