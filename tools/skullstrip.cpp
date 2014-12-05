@@ -55,6 +55,8 @@ using Eigen::ComputeFullU;
 void genPoints(ptr<const MRImage> scale, ptr<const MRImage> vimg, double pct,
         size_t radius);
 
+ptr<MRImage> laplacian(ptr<MRImage> inimg, double flow, double fhigh, double spacing);
+
 int main(int argc, char** argv)
 {
 	cerr << "Version: " << __version__ << endl;
@@ -77,8 +79,10 @@ int main(int argc, char** argv)
 			"difference of gaussian. ", false, 2, "mm", cmd);
 	TCLAP::ValueArg<double> a_upper("U", "freq-upper", "Upper freuqency for "
 			"difference of gaussian. ", false, 8, "mm", cmd);
-	TCLAP::ValueArg<double> a_fstep("S", "freq-step", "Upper freuqency for "
-			"difference of gaussian. ", false, 1, "mm", cmd);
+	TCLAP::ValueArg<double> a_thresh("t", "lapl-thresh", "Laplacian threshold. ",
+			false, -0.1, "mm", cmd);
+	TCLAP::ValueArg<double> a_bridgewidth("b", "bridge-width", "Bridge width "
+			"to remove in mask (in mm). ", false, 5, "mm", cmd);
 
 	cmd.parse(argc, argv);
 
@@ -94,52 +98,32 @@ int main(int argc, char** argv)
 	if(a_upper.getValue() <= a_lower.getValue()) {
 		cerr << "Error upper frequency must be > lower frequency!" << endl;
 		return -1;
-	} else if(a_fstep.getValue() <= 0) {
-		cerr << "Error, step must be > 0" << endl;
-		return -1;
 	}
-	size_t nfreq = (a_upper.getValue()-a_lower.getValue())/a_fstep.getValue();
-	cerr << "Number of frequency bins: " << nfreq << endl;
 	
-	cerr << "Computing Gaussian Steps..." << endl;
-	vector<ptr<MRImage>> smoothed(nfreq);
-	for(size_t ii=0; ii<nfreq; ii++) {
-		double ff=a_lower.getValue()+ii*a_fstep.getValue();
-		cerr << ff << endl;
-		smoothed[ii] = smoothDownsample(inimg, ff, a_spacing.getValue());
-		smoothed[ii]->write("smoothed_"+to_string(ff)+".nii.gz");
-	}
-	cerr << "Done" << endl;
+	cerr << "Median Filtering...";
+	inimg = dPtrCast<MRImage>(medianFilter(inimg));
+	cerr << "Done\n";
+
+	cerr << "Standardizing...";
+	standardizeIP(inimg);
+	cerr << "Done\n";
 	
-	ptr<MRImage> maxvalue = dPtrCast<MRImage>(smoothed.front()->
-				createAnother(FLOAT32));
-	ptr<MRImage> maxfreq = dPtrCast<MRImage>(smoothed.front()->
-				createAnother(FLOAT32));
+	cerr << "Computing Laplacian...";
+	auto lapl = laplacian(inimg, a_lower.getValue(), a_upper.getValue(),
+			a_spacing.getValue());
+	lapl->write("laplacian.nii.gz");
+	cerr << "Done\n";
+	
+	// Threshold
+	auto mask = dPtrCast<MRImage>(binarize(lapl, a_thresh.getValue()));
+	mask->write("mask.nii.gz");
 
-	// fill max value with 0
-	for(FlatIter<double> mit(maxvalue), fit(maxfreq); !mit.eof();  ++mit, ++fit) {
-		mit.set(0);
-		fit.set(-1);
-	}
+	cerr << "Eliminating Bridges...";
+	mask = elimBridges(mask, a_bridgewidth.getValue());
+	lapl->write("cleaned_mask.nii.gz");
+	cerr << "Done\n";
 
-	cerr << "Computing Principal Frequency" << endl;
-	// Compute Maximum Value
-	for(size_t ii=1; ii<nfreq; ii++) {
-		for(FlatIter<double> mit(maxvalue), lit(smoothed[ii-1]),
-					uit(smoothed[ii]), fit(maxfreq); !mit.eof(); 
-					++lit, ++uit, ++mit, ++fit) {
-			double v = lit.get()-uit.get();
-			if(v > mit.get()) {
-				mit.set(v);
-				fit.set((ii-1)*a_fstep.getValue()+a_lower.getValue());
-			}
-		}
-	}
-	cerr << "Done" << endl;
-
-	maxvalue->write("maxvalue.nii.gz");
-	maxfreq->write("maxfreq.nii.gz");
-
+	// Split up Brain ... somehow
 //    /*****************************
 //     * edge detection
 //     ****************************/
@@ -176,6 +160,23 @@ int main(int argc, char** argv)
 //
     } catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
+}
+
+ptr<MRImage> laplacian(ptr<MRImage> inimg, double flow, double fhigh, double spacing)
+{
+	cerr << "Computing Gaussians..." << endl;
+	ptr<MRImage> flow_img = smoothDownsample(inimg, flow, spacing);
+	ptr<MRImage> fhigh_img = smoothDownsample(inimg, fhigh, spacing);
+	
+	cerr << "Computing Principal Frequency" << endl;
+	// Compute Maximum Value
+	for(FlatIter<double> lit(flow_img), uit(fhigh_img); !lit.eof(); ++lit, ++uit) {
+		double v = lit.get()-uit.get();
+		lit.set(v);
+	}
+	cerr << "Done" << endl;
+
+	return flow_img;
 }
 	
 /**

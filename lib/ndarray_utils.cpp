@@ -2166,68 +2166,75 @@ ptr<NDArray> concatElevate(const vector<ptr<NDArray>>& images)
 }
 
 /**
- * @brief Increases the number of dimensions by 1 then places the edges
- * in each dimension at indexes matching the direction of edge detection.
- * So an input 3D image will produce a 4D image with volume 0 the x edges,
- * volume 1 the y edges and volume 2 the z edges.
+ * @brief Standardizes image distribution (makes it mean = 0, variance = 1).
+ * This computation is done in place (IP)
+ *
+ * @param img Input image ND
+ *
+ */
+void standardizeIP(ptr<NDArray> img)
+{
+	double mu = 0;
+	double var = 0;
+	size_t count = 0;
+
+	for(FlatIter<double> it(img); !it.eof(); ++it) {
+		mu += it.get();
+		var += it.get()*it.get();
+		count++;
+	}
+
+	var = sqrt(sample_var(count, mu, var));
+	mu /= count;
+
+	for(FlatIter<double> it(img); !it.eof(); ++it) {
+		it.set((it.get()-mu)/var);
+	}
+}
+
+/**
+ * @brief Standardizes image distribution (makes it mean = 0, variance = 1).
+ * This computation is done in place (IP)
+ *
+ * @param img Input image ND
+ *
+ * @return standardized version of img
+ */
+ptr<NDArray> standardize(ptr<const NDArray> img)
+{
+	auto out = img->copy();
+	standardizeIP(out);
+	return out;
+}
+
+/**
+ * @brief median filter
  *
  * @param img Input image ND
  *
  * @return Output image N+1D
  */
-ptr<NDArray> laplacian(ptr<const NDArray> img)
+ptr<NDArray> medianFilter(ptr<const NDArray> img)
 {
 	// create output
-	size_t ndim = img->ndim();
-	vector<size_t> osize(img->dim(), img->dim()+ndim);
-	osize.push_back(ndim);
-	auto out = img->copyCast(osize.size(), osize.data());
-
-	vector<double> der_profile({1, -2, 1});
-	vector<double> avg_profile({0.25, 0.5, 0.25});
-
-	//////////////////
-	// iterate through
-	//////////////////
+	auto out = img->copy();
 
 	// kernel iterator to get neighbors of the coordesponding output point
 	KernelIter<double> kit(img);
 	kit.setRadius(1);
+	vector<double> hood(kit.ksize());
 
 	// chunk up by volumes
-	ChunkIter<double> oit(out);
-	oit.setChunkSize(ndim, img->dim(), true);
-	oit.setOrder(kit.getOrder());
-	vector<int64_t> index(ndim+1);
-	for(oit.goBegin(); !oit.eof(); oit.nextChunk()) {
-		oit.index(index);
-		size_t graddir = index[ndim];
+	FlatIter<double> oit(out);
+	for(oit.goBegin(), kit.goBegin(); !kit.eof() && !oit.eof(); ++kit, ++oit) {
 
-		// apply kernel in dimension of graddir
-		for(kit.goBegin(); !kit.eof() && !oit.eoc(); ++kit, ++oit) {
-			double sum = 0;
-			for(size_t kk=0; kk<kit.ksize(); kk++) {
-				kit.offsetK(kk, index.size(), index.data());
+		// Fill Neighborhood
+		for(size_t kk=0; kk<kit.ksize(); kk++)
+			hood[kk] = kit[kk];
 
-				// compute weight of kernel element, note that because
-				// from_center is the offset from center, we need to add 1
-				double w = 1;
-				for(size_t dd=0; dd<ndim; dd++) {
-					if(dd == graddir)
-						w *= der_profile[index[dd]+1];
-					else
-						w *= avg_profile[index[dd]+1];
-				}
-
-				sum += w*kit[kk];
-			}
-
-			oit.set(sum);
-		}
-
-		assert(kit.eof() && oit.eoc());
+		sort(hood.begin(), hood.end());
+		oit.set(hood[kit.ksize()/2]);
 	}
-	assert(kit.eof() && oit.eof());
 
 	return out;
 }
