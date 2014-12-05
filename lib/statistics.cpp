@@ -73,7 +73,7 @@ void apply(double* dst, const double* src,  double(*func)(double), size_t sz)
  * @brief Computes the Principal Components of input matrix X using the
  * covariance matrix.
  *
- * Outputs projections in the columns of a matrix. 
+ * Outputs projections in the columns of a matrix.
  *
  * @param cov 	Covariance matrix of XtX
  * @param varth Variance threshold. Don't include dimensions after this percent
@@ -92,7 +92,7 @@ MatrixXd pcacov(const MatrixXd& cov, double varth)
 #ifndef NDEBUG
     std::cout << "Done" << std::endl;
 #endif //DEBUG
-	
+
 	double total = 0;
 	for(int64_t ii=solver.eigenvalues().rows()-1; ii>=0; ii--) {
 		assert(solver.eigenvalues()[ii] >= 0);
@@ -105,12 +105,12 @@ MatrixXd pcacov(const MatrixXd& cov, double varth)
 		sum += solver.eigenvalues()[ii];
 		if(sum / total < varth)
 			ndim++;
-		else 
+		else
 			break;
 	}
 
 #ifndef NDEBUG
-    std::cout << "Output Dimensions: " << ndim 
+    std::cout << "Output Dimensions: " << ndim
             << "\nCreating Reduced MatrixXd..." << std::endl;
 #endif //DEBUG
 
@@ -123,7 +123,7 @@ MatrixXd pcacov(const MatrixXd& cov, double varth)
 
 #ifndef NDEBUG
 	std::cout  << "  Done" << std::endl;
-#endif 
+#endif
 
     return out;
 }
@@ -132,7 +132,7 @@ MatrixXd pcacov(const MatrixXd& cov, double varth)
  * @brief Computes the Principal Components of input matrix X
  *
  * Outputs reduced dimension (fewer cols) in output. Note that prio to this,
- * the columns of X should be 0 mean. 
+ * the columns of X should be 0 mean.
  *
  * TODO put math here
  *
@@ -146,7 +146,7 @@ MatrixXd pcacov(const MatrixXd& cov, double varth)
  */
 MatrixXd pca(const MatrixXd& X, double varth)
 {
-    varth=1-varth; 
+    varth=1-varth;
 
     double totalv = 0; // total variance
     int outdim = 0;
@@ -158,7 +158,7 @@ MatrixXd pca(const MatrixXd& X, double varth)
 #ifndef NDEBUG
     std::cout << "Done" << std::endl;
 #endif //DEBUG
-	
+
     const VectorXd& W = svd.singularValues();
     const MatrixXd& U = svd.matrixU();
     //only keep dimensions with variance passing the threshold
@@ -166,10 +166,10 @@ MatrixXd pca(const MatrixXd& X, double varth)
         totalv += W[ii]*W[ii];
 
     double sum = 0;
-    for(outdim = 0; outdim < W.rows() && sum < totalv*varth; outdim++) 
+    for(outdim = 0; outdim < W.rows() && sum < totalv*varth; outdim++)
         sum += W[outdim]*W[outdim];
 #ifndef NDEBUG
-    std::cout << "Output Dimensions: " << outdim 
+    std::cout << "Output Dimensions: " << outdim
             << "\nCreating Reduced MatrixXd..." << std::endl;
 #endif //DEBUG
 
@@ -181,7 +181,7 @@ MatrixXd pca(const MatrixXd& X, double varth)
 	}
 #ifndef NDEBUG
 	std::cout  << "  Done" << std::endl;
-#endif 
+#endif
 
     return Xr;
 }
@@ -231,7 +231,7 @@ MatrixXd ica(const MatrixXd& Xin, double varth)
         double sigma = sqrt(sample_var(X.rows(), sum, sumsq));
         double mean = sum/X.rows();
 
-        for(size_t rr=0; rr<X.rows(); rr++)  
+        for(size_t rr=0; rr<X.rows(); rr++)
             X(rr,cc) = (Xin(rr,cc)-mean)/sigma;
     }
 
@@ -245,21 +245,21 @@ MatrixXd ica(const MatrixXd& Xin, double varth)
 
 	int samples = X.rows();
 	int dims = X.cols();
-    int ncomp = std::min(samples, dims); 
-	
+    int ncomp = std::min(samples, dims);
+
 	double mag = 1;
 	VectorXd proj(samples);
     VectorXd nonlin1(samples);
     VectorXd nonlin2(samples);
     VectorXd wprev(dims);
-	
+
 	MatrixXd W(dims, ncomp);
 
 	for(int pp = 0 ; pp < ncomp ; pp++) {
 		//randomize weights
-		for(unsigned int ii = 0; ii < dims ; ii++) 
+		for(unsigned int ii = 0; ii < dims ; ii++)
 			W.col(pp)[ii] = unif(rng);
-			
+
 		//GramSchmidt Decorrelate
 		//sum(w^t_p w_j w_j) for j < p
 		//cache w_p for wt_wj mutlication
@@ -276,28 +276,28 @@ MatrixXd ica(const MatrixXd& Xin, double varth)
 #endif// NDEBUG
 		mag = 1;
 		for(int ii = 0 ; mag > MAGTHRESH && ii < ITERS; ii++) {
-			
+
 			//move to working
             wprev = W.col(pp);
 
-			/* 
+			/*
              * g(X wp) X^T/R - wp SUM(g'(X wp)))/R
              */
 
 			//w^tx
             proj = X*W.col(pp);
-			
+
             //- wp SUM(g'(X wp)))/R
             double sum = 0;
             for(size_t jj=0; jj<samples; jj++)
                 sum += fastICA_dg2(proj[jj]);
             W.col(pp) = -W.col(pp)*sum/samples;
-	
+
             // X^Tg(X wp)/R
             for(size_t jj=0; jj<samples; jj++)
                 proj[jj] = fastICA_g2(proj[jj]);
             W.col(pp) += X.transpose()*proj/samples;
-		
+
             //GramSchmidt Decorrelate
             //sum(w^t_p w_j w_j) for j < p
             //cache w_p for wt_wj mutlication
@@ -317,13 +317,13 @@ MatrixXd ica(const MatrixXd& Xin, double varth)
         std::cout << W.col(pp).transpose() << std::endl;
 #endif// NDEBUG
 	}
-	
+
     // TODO sort by variance
     return X*W;
-	
+
 }
 
-StudentsT::StudentsT(int dof, double dt, double tmax) : 
+StudentsT::StudentsT(int dof, double dt, double tmax) :
             m_dt(dt), m_tmax(tmax), m_dof(dof)
 {
     init();
@@ -334,7 +334,7 @@ void StudentsT::setDOF(double dof)
     m_dof = dof;
     init();
 };
-    
+
 void StudentsT::setStepT(double dt)
 {
     m_dt = dt;
@@ -356,7 +356,7 @@ double StudentsT::cumulative(double t) const
     }
 
     double out = 0;
-    vector<double>::const_iterator it = 
+    vector<double>::const_iterator it =
         std::lower_bound(m_tvals.begin(), m_tvals.end(), t);
 
     if(it == m_tvals.end()) {
@@ -430,11 +430,11 @@ void StudentsT::init()
     double coeff;
     if(m_dof%2 == 0) {
         coeff = 1./(2*sqrt((double)m_dof));
-        for(int ii = m_dof-1; ii >= 3; ii-=2) 
+        for(int ii = m_dof-1; ii >= 3; ii-=2)
             coeff *= ((double)ii)/(ii-1.);
     } else {
         coeff = 1./(M_PI*sqrt((double)m_dof));
-        for(int ii = m_dof-1; ii >= 2; ii-=2) 
+        for(int ii = m_dof-1; ii >= 2; ii-=2)
             coeff *= ((double)ii)/(ii-1.);
     }
 
@@ -448,7 +448,7 @@ void StudentsT::init()
 };
 
 /**
- * @brief Computes the Ordinary Least Square predictors, beta for 
+ * @brief Computes the Ordinary Least Square predictors, beta for
  *
  * \f$ y = \hat \beta X \f$
  *
@@ -462,16 +462,16 @@ void StudentsT::init()
  * @param student_cdf Pre-computed students' T distribution. Example:
  * auto v = students_t_cdf(X.rows()-1, .1, 1000);
  *
- * @return Struct with Regression Results. 
+ * @return Struct with Regression Results.
  */
 RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
         const MatrixXd& Xinv, const StudentsT& distrib)
 {
-    if(y.rows() != X.rows()) 
+    if(y.rows() != X.rows())
         throw INVALID_ARGUMENT("y and X matrices row mismatch");
-    if(X.rows() != Xinv.cols()) 
+    if(X.rows() != Xinv.cols())
         throw INVALID_ARGUMENT("X and pseudo inverse of X row mismatch");
-    
+
     RegrResult out;
     out.bhat = Xinv*y;
     out.yhat = X*out.bhat;
@@ -484,7 +484,7 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
         out.sstot += (y[rr]-mean)*(y[rr]-mean);
     out.rsqr = 1-out.ssres/out.sstot;
     out.adj_rsqr = out.rsqr - (1-out.rsqr)*X.cols()/(X.cols()-X.rows()-1);
-    
+
     double sigmahat = out.ssres/(X.rows()-X.cols()+2);
     out.std_err.resize(X.cols());
     out.t.resize(X.cols());
@@ -502,7 +502,7 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
 }
 
 /**
- * @brief Computes the Ordinary Least Square predictors, beta for 
+ * @brief Computes the Ordinary Least Square predictors, beta for
  *
  * \f$ y = \hat \beta X \f$
  *
@@ -512,13 +512,13 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
  * @param y response variables
  * @param X independent variables
  *
- * @return Struct with Regression Results. 
+ * @return Struct with Regression Results.
  */
 RegrResult regress(const VectorXd& y, const MatrixXd& X)
 {
-    if(y.rows() != X.rows()) 
+    if(y.rows() != X.rows())
         throw INVALID_ARGUMENT("y and X matrices row mismatch");
-  
+
     auto Xinv = pseudoInverse(X);
     auto covInv = pseudoInverse(X.transpose()*X);
 
@@ -534,7 +534,7 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X)
         out.sstot += (y[rr]-mean)*(y[rr]-mean);
     out.rsqr = 1-out.ssres/out.sstot;
     out.adj_rsqr = out.rsqr - (1-out.rsqr)*X.cols()/(X.cols()-X.rows()-1);
-    
+
     // estimate the standard deviation of the error term
     double sigmahat = out.ssres/(X.rows()-X.cols()+2);
 
@@ -565,7 +565,7 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X)
  *
  * \f$ P = UE^-1V^* \f$
  *
- * @return Psueodinverse 
+ * @return Psueodinverse
  */
 MatrixXd pseudoInverse(const MatrixXd& X)
 {
@@ -592,7 +592,7 @@ MatrixXd pseudoInverse(const MatrixXd& X)
  *
  * 'Fast Approximate k-Means via Cluster Closures' by Wang et al
  *
- * @param samples Matrix of samples, one sample per row, 
+ * @param samples Matrix of samples, one sample per row,
  * @param nclass Number of classes to break samples up into
  * @param extimated groupings
  */
@@ -606,7 +606,7 @@ void approxKMeans(const MatrixXd& samples, size_t nclass, Eigen::VectorXi& label
 	MatrixXd means(nclass, ndim);
     std::vector<double> dists(npoints);
     std::vector<int> indices(npoints);
-	
+
 	// Select Point
     std::default_random_engine rng;
     std::uniform_int_distribution<int> randi(0, npoints-1);
@@ -616,7 +616,7 @@ void approxKMeans(const MatrixXd& samples, size_t nclass, Eigen::VectorXi& label
 	means.row(0) = samples.row(tmp);
 
 	//set the rest of the centers
-	for(int cc = 1; cc < nclass; cc++) { 
+	for(int cc = 1; cc < nclass; cc++) {
 		norm = 0;
 
 		//create list of distances
@@ -639,14 +639,14 @@ void approxKMeans(const MatrixXd& samples, size_t nclass, Eigen::VectorXi& label
             indices[ii] = ii;
 
         // sort, while keeping indices
-        std::sort(indices.begin(), indices.end(), 
+        std::sort(indices.begin(), indices.end(),
                 [&dists](size_t i, size_t j){
-                    return dists[i] < dists[j]; 
+                    return dists[i] < dists[j];
                 });
 
 		//go through sorted list to find matching location in CDF
         for(pp = 0; pp < npoints && pct > 0 ; pp++) {
-            double d = dists[indices[pp]]; 
+            double d = dists[indices[pp]];
             pct -= d;
         }
 
@@ -674,7 +674,7 @@ void approxKMeans(const MatrixXd& samples, size_t nclass, Eigen::VectorXi& label
  *
  * 'Fast Approximate k-Means via Cluster Closures' by Wang et al
  *
- * @param samples Matrix of samples, one sample per row, 
+ * @param samples Matrix of samples, one sample per row,
  * @param nclass Number of classes to break samples up into
  * @param means Estimated mid-points/means
  */
@@ -688,7 +688,7 @@ void approxKMeans(const MatrixXd& samples, size_t nclass, MatrixXd& means)
 	means.resize(nclass, ndim);
     std::vector<double> dists(npoints);
     std::vector<int> indices(npoints);
-	
+
 	// Select Point
     std::default_random_engine rng;
     std::uniform_int_distribution<int> randi(0, npoints-1);
@@ -698,7 +698,7 @@ void approxKMeans(const MatrixXd& samples, size_t nclass, MatrixXd& means)
 	means.row(0) = samples.row(tmp);
 
 	//set the rest of the centers
-	for(int cc = 1; cc < nclass; cc++) { 
+	for(int cc = 1; cc < nclass; cc++) {
 		norm = 0;
 
 		//create list of distances
@@ -721,14 +721,14 @@ void approxKMeans(const MatrixXd& samples, size_t nclass, MatrixXd& means)
             indices[ii] = ii;
 
         // sort, while keeping indices
-        std::sort(indices.begin(), indices.end(), 
+        std::sort(indices.begin(), indices.end(),
                 [&dists](size_t i, size_t j){
-                    return dists[i] < dists[j]; 
+                    return dists[i] < dists[j];
                 });
 
 		//go through sorted list to find matching location in CDF
         for(pp = 0; pp < npoints && pct > 0 ; pp++) {
-            double d = dists[indices[pp]]; 
+            double d = dists[indices[pp]];
             pct -= d;
         }
 
@@ -747,7 +747,7 @@ void approxKMeans(const MatrixXd& samples, size_t nclass, MatrixXd& means)
 KMeans::KMeans(size_t rank, size_t k) : Classifier(rank), m_k(k), m_mu(k, ndim)
 { }
 
-void KMeans::setk(size_t ngroups) 
+void KMeans::setk(size_t ngroups)
 {
     m_k = ngroups;
     m_mu.resize(m_k, ndim);
@@ -820,7 +820,7 @@ void KMeans::updateMeans(const MatrixXd samples, const Eigen::VectorXi classes)
  * @return Vector of classes, rows match up with input sample rows
  */
 Eigen::VectorXi KMeans::classify(const MatrixXd& samples)
-{   
+{
     Eigen::VectorXi out;
     classify(samples, out);
     return out;
@@ -837,7 +837,7 @@ Eigen::VectorXi KMeans::classify(const MatrixXd& samples)
  * @return Number of classes that changed
  */
 size_t KMeans::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
-{ 
+{
     if(!m_valid) {
         throw RUNTIME_ERROR("Error, cannot classify samples because "
                 "classifier has not been run on any samples yet. Call "
@@ -862,7 +862,7 @@ size_t KMeans::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
                 bestc = kk;
             }
         }
-        
+
         if(classes[rr] != bestc)
             change++;
 
@@ -878,7 +878,7 @@ size_t KMeans::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
  * no prior information will be used. If reinit is false then any existing
  * information will be left intact. In Kmeans that would mean that the
  * means will be left at their previous state.
- * 
+ *
  * @param samples Samples, S x D matrix with S is the number of samples and
  * D is the dimensionality. This must match the internal dimension count.
  *
@@ -889,7 +889,7 @@ int KMeans::update(const MatrixXd& samples, bool reinit)
     Eigen::VectorXi classes(samples.rows());
 
     // initialize with approximate k-means
-    if(reinit || !m_valid) 
+    if(reinit || !m_valid)
         approxKMeans(samples, m_k, m_mu);
     m_valid = true;
 
@@ -905,7 +905,7 @@ int KMeans::update(const MatrixXd& samples, bool reinit)
     if(ii == maxit) {
         cerr << "K-Means Failed to Converge" << endl;
         return -1;
-    } else 
+    } else
         return 0;
 }
 
@@ -919,7 +919,7 @@ ExpMax::ExpMax(size_t rank, size_t k) : Classifier(rank), m_k(k), m_mu(k, ndim),
     m_cov(k*ndim, ndim), m_tau(k)
 { }
 
-void ExpMax::setk(size_t ngroups) 
+void ExpMax::setk(size_t ngroups)
 {
     m_k = ngroups;
     m_mu.resize(m_k, ndim);
@@ -985,19 +985,19 @@ void ExpMax::updateMeanCovTau(const MatrixXd samples, const Eigen::VectorXi clas
         cerr << "Cluster " << cc << endl;
         cerr << "[";
         for(size_t rr = 0; rr < samples.rows(); rr++ ){
-            if(classes[rr] == cc) 
+            if(classes[rr] == cc)
                 cerr << "[" << samples.row(rr) << "];\n";
         }
         cerr << "]\n";
     }
-#endif 
+#endif
 
     // compute mean, store counts in tau
     m_mu.setZero();
     m_tau.setZero();
     size_t total = 0;
     for(size_t rr = 0; rr < samples.rows(); rr++ ){
-        size_t c = classes[rr]; 
+        size_t c = classes[rr];
         m_mu.row(c) += samples.row(rr);
         m_tau[c]++;
         total++;
@@ -1010,7 +1010,7 @@ void ExpMax::updateMeanCovTau(const MatrixXd samples, const Eigen::VectorXi clas
     m_cov.setZero();
     for(size_t rr = 0; rr < samples.rows(); rr++) {
         assert(classes[rr] < m_k);
-        size_t c = classes[rr]; 
+        size_t c = classes[rr];
         x = samples.row(rr)-m_mu.row(c);
         m_cov.block(c*ndim,0, ndim, ndim) += (x*x.transpose());
     }
@@ -1034,7 +1034,7 @@ void ExpMax::updateMeanCovTau(const MatrixXd samples, const Eigen::VectorXi clas
  * @return Vector of classes, rows match up with input sample rows
  */
 Eigen::VectorXi ExpMax::classify(const MatrixXd& samples)
-{   
+{
     Eigen::VectorXi out;
     classify(samples, out);
     return out;
@@ -1051,7 +1051,7 @@ Eigen::VectorXi ExpMax::classify(const MatrixXd& samples)
  * @return Number of classes that changed
  */
 size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
-{ 
+{
     if(!m_valid) {
         throw RUNTIME_ERROR("Error, cannot classify samples because "
                 "classifier has not been run on any samples yet. Call "
@@ -1073,7 +1073,7 @@ size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
     size_t change = 0;
 	vector<int64_t> zero_tau;
 	zero_tau.reserve(m_k);
-    
+
     //compute Cholesky decomp, then determinant and inverse covariance matrix
 	for(int cc = 0; cc < m_k; cc++) {
         cerr << "Covariance:\n" << m_cov.block(cc*ndim, 0, ndim, ndim) << endl;
@@ -1096,16 +1096,16 @@ size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
 #ifndef  NDEBUG
         cerr << "Covariance Det:\n" << det << endl;
         cerr << "Inverse Covariance:\n" << Cinv << endl;
-#endif 
+#endif
 
 		//calculate probable location of each point
 		double cval = log(m_tau[cc])- .5*log(det)-ndim/2.*log(2*M_PI);
 		for(int pp = 0; pp < samples.rows(); pp++) {
             x = samples.row(pp) - m_mu.row(cc);
-			
+
             //log likelihood = (note that last part is ignored because it is
             // constant for all points)
-            //log(tau) - log(sigma)/2 - (x-mu)^Tsigma^-1(x-mu) - dlog(2pi)/2 
+            //log(tau) - log(sigma)/2 - (x-mu)^Tsigma^-1(x-mu) - dlog(2pi)/2
             double llike = cval - .5*(x.dot(Cinv*x));
 
 			llike = (std::isinf(llike) || std::isnan(llike)) ? -INFINITY : llike;
@@ -1170,7 +1170,7 @@ size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
  * no prior information will be used. If reinit is false then any existing
  * information will be left intact. In Kmeans that would mean that the
  * means will be left at their previous state.
- * 
+ *
  * @param samples Samples, S x D matrix with S is the number of samples and
  * D is the dimensionality. This must match the internal dimension count.
  *
@@ -1185,7 +1185,7 @@ int ExpMax::update(const MatrixXd& samples, bool reinit)
 		approxKMeans(samples, m_k, classes);
 //		cerr << "Randomly Assigning Groups" << endl;
 //        // In real world data random works as well as anything else
-//        for(size_t ii=0; ii < samples.rows(); ii++) 
+//        for(size_t ii=0; ii < samples.rows(); ii++)
 //            classes[ii] = ii%m_k;
 		cerr << "Updating Mean/Cov/Tau" << endl;
         updateMeanCovTau(samples, classes);
@@ -1195,7 +1195,7 @@ int ExpMax::update(const MatrixXd& samples, bool reinit)
         for(size_t cc=0; cc<m_k; cc++ ) {
             cout << "Cluster " << cc << ", prob: " << m_tau[cc] << endl;
             cout << "Mean:\n" << m_mu.row(cc) << endl;
-            cout << "Covariance:\n" << 
+            cout << "Covariance:\n" <<
                 m_cov.block(cc*ndim, 0, ndim, ndim) << endl << endl;
         }
         cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^" << endl;
@@ -1212,7 +1212,7 @@ int ExpMax::update(const MatrixXd& samples, bool reinit)
         change = classify(samples, classes);
 		DBG1(c = clock() - c);
 		DBG1(cerr << "Classify Time: " << c << endl);
-		
+
 		DBG1(c = clock());
         updateMeanCovTau(samples, classes);
 		DBG1(c = clock() -c );
@@ -1225,19 +1225,19 @@ int ExpMax::update(const MatrixXd& samples, bool reinit)
         for(size_t cc=0; cc<m_k; cc++ ) {
             cout << "Cluster " << cc << ", prob: " << m_tau[cc] << endl;
             cout << "Mean:\n" << m_mu.row(cc) << endl;
-            cout << "Covariance:\n" << 
+            cout << "Covariance:\n" <<
                 m_cov.block(cc*ndim, 0, ndim, ndim) << endl << endl;
         }
         cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^" << endl;
 #endif
 		cerr << "iter: " << ii << ", " << change << " changed" << endl;
     }
-    
+
     if(ii == maxit) {
         cerr << "Expectation Maximization of Gaussian Mixture Model Failed "
             "to Converge" << endl;
         return -1;
-    } else 
+    } else
         return 0;
 }
 
@@ -1282,8 +1282,8 @@ int findDensityPeaks_brute(const MatrixXf& samples, double thresh,
 	const double thresh_sq = thresh*thresh;
 
 	/*************************************************************************
-	 * Compute Local Density (rho), by computing distance from every 
-	 * other point and summing the number of points within thresh distance. 
+	 * Compute Local Density (rho), by computing distance from every
+	 * other point and summing the number of points within thresh distance.
 	 *************************************************************************/
 	for(size_t ii=0; ii<nsamp; ii++)
 		rho[ii] = 0;
@@ -1322,7 +1322,7 @@ int findDensityPeaks_brute(const MatrixXf& samples, double thresh,
 			}
 		}
 
-		if(!std::isinf(delta[ii])) 
+		if(!std::isinf(delta[ii]))
 			maxd = max<double>(maxd, delta[ii]);
 	}
 
@@ -1338,23 +1338,23 @@ int findDensityPeaks_brute(const MatrixXf& samples, double thresh,
  * @brief Computes Density and Peak computation for Fast Search and Find of
  * Density Peaks algorithm.
  *
- * Sketch of Algorithm: 
+ * Sketch of Algorithm:
  *
  * Instead of computing distance from ALL points to all points, we compute
  * distance of nearby points. So we construct bins of nearby points. To begin
  * we compute the bin location of all points and save a reference to the point
- * Bin sizes are equal to the threshold distance in the algorithm so that no 
- * point is more than 1 bin away from every point within the threshold. 
+ * Bin sizes are equal to the threshold distance in the algorithm so that no
+ * point is more than 1 bin away from every point within the threshold.
  *
  * To compute rho, we
  * then go through all points and compute the distance from every point within
- * the center and neighboring bins, summing rho for every point within the 
+ * the center and neighboring bins, summing rho for every point within the
  * distance threshold. This should be order N^2/B instead of N^2
  *
  * To compute delta (the distance of a point to the nearest higher rho point),
  * you go to every point and search for bins that have rho greater than rho
  * for the point. This is sped up by caching the maximum rho in every bin
- * and therefore the actual number of distances computed is roughly N*N/B. 
+ * and therefore the actual number of distances computed is roughly N*N/B.
  *
  * @param samples Samples, S x D matrix with S is the number of samples and
  * D is the dimensionality. This must match the internal dimension count.
@@ -1379,7 +1379,7 @@ int findDensityPeaks(const MatrixXf& samples, double thresh,
 	const double binwidth = thresh;
 
 	/*************************************************************************
-	 * Construct Bins, with diameter thresh so that points within thresh 
+	 * Construct Bins, with diameter thresh so that points within thresh
 	 * are limited to center and immediate neighbor bins
 	 *************************************************************************/
 
@@ -1411,7 +1411,7 @@ int findDensityPeaks(const MatrixXf& samples, double thresh,
 	strides[ndim-1] = 1;
 	for(int64_t ii=ndim-2; ii>=0; ii--)
 		strides[ii] = sizes[ii+1]*strides[ii+1];
-	
+
 	// Now Initialize Bins
 	KSlicer slicer(ndim, sizes.data());
 	slicer.setRadius(1);
@@ -1423,7 +1423,7 @@ int findDensityPeaks(const MatrixXf& samples, double thresh,
 		bins[*slicer].visited = true;
 
 		for(size_t kk=0; kk<slicer.ksize(); kk++) {
-			if(slicer.insideK(kk) && slicer.getK(kk) != slicer.getC()) 
+			if(slicer.insideK(kk) && slicer.getK(kk) != slicer.getC())
 				bins[*slicer].neighbors.push_back(slicer.getK(kk));
 		}
 
@@ -1437,7 +1437,7 @@ int findDensityPeaks(const MatrixXf& samples, double thresh,
 		for(size_t cc=0; cc<ndim; cc++) {
 			bin += strides[cc]*floor((samples(rr,cc)-range[cc].first)/binwidth);
 		}
-	
+
 		// place this sample into bin's membership
 		bins[bin].members.push_back(rr);
 	}
@@ -1466,7 +1466,7 @@ int findDensityPeaks(const MatrixXf& samples, double thresh,
 					}
 				}
 			}
-	
+
 			// neigboring/adjacent bins
 			for(auto adjbin: bins[bb].neighbors) {
 				for(const auto& xj : bins[adjbin].members) {
@@ -1477,7 +1477,7 @@ int findDensityPeaks(const MatrixXf& samples, double thresh,
 				}
 			}
 
-			rho[xi] += (double)xi/nsamp; 
+			rho[xi] += (double)xi/nsamp;
 			bins[bb].max_rho = std::max<double>(bins[bb].max_rho, rho[xi]);
 			max_rho = std::max<double>(max_rho, rho[xi]);
 		}
@@ -1507,7 +1507,7 @@ int findDensityPeaks(const MatrixXf& samples, double thresh,
 
 		parent[ii] = ii;
 		delta[ii] = INFINITY;
-		if(rho[ii] == max_rho) 
+		if(rho[ii] == max_rho)
 			continue;
 
 		// determine bin
@@ -1537,7 +1537,7 @@ int findDensityPeaks(const MatrixXf& samples, double thresh,
 			size_t priority = queue.front().second;
 			queue.pop_front();
 
-			// this bin contains at least 1 point that satisfies the rho 
+			// this bin contains at least 1 point that satisfies the rho
 			// criteria. Find that point (or a closer one) and update dmin
 			if(bins[b].max_rho > rho[ii]) {
 				for(auto jj : bins[b].members) {
@@ -1559,15 +1559,15 @@ int findDensityPeaks(const MatrixXf& samples, double thresh,
 				}
 			}
 		}
-		
+
 		if(!std::isinf(delta[ii]))
 			maxdelta = max<double>(maxdelta, delta[ii]);
 
 	}
 
-	for(size_t ii=0; ii<nsamp; ii++) 
+	for(size_t ii=0; ii<nsamp; ii++)
 		if(std::isinf(delta[ii]))
-			delta[ii] = maxdelta; 
+			delta[ii] = maxdelta;
 
 	return 0;
 }
@@ -1602,9 +1602,9 @@ int fastSearchFindDP(const MatrixXf& samples, double thresh, double outthresh,
 		findDensityPeaks_brute(samples, thresh, rho, delta, classes);
 	else
 		findDensityPeaks(samples, thresh, rho, delta, classes);
-	
+
 	/************************************************************************
-	 * Break Into Clusters 
+	 * Break Into Clusters
 	 ***********************************************************************/
 	vector<int64_t> order(nsamp);
 	double mean = 0;
@@ -1615,25 +1615,25 @@ int fastSearchFindDP(const MatrixXf& samples, double thresh, double outthresh,
 	}
 	stddev = sqrt(sample_var(nsamp, mean, stddev));
 	mean /= nsamp;
-	
+
 	std::map<size_t,size_t> classmap;
 	size_t nclass = 0;
 	for(size_t rr=0; rr<nsamp; rr++) {
 		// follow trail of parents until we hit a node with the needed delta
 		size_t pp = rr;
-		while(delta[pp] < mean + outthresh*stddev && classes[pp] != pp) 
+		while(delta[pp] < mean + outthresh*stddev && classes[pp] != pp)
 			pp = classes[pp];
 
 		// change the parent to the true parent for later iterations
 		classes[rr] = pp;
 
 		auto ret = classmap.insert(make_pair(pp, nclass));
-		if(ret.second) 
+		if(ret.second)
 			nclass++;
 	}
 
 	// finally convert parent to classes
-	for(size_t rr=0; rr<nsamp; rr++) 
+	for(size_t rr=0; rr<nsamp; rr++)
 		classes[rr] = classmap[classes[rr]];
 
 	return 0;
@@ -1693,7 +1693,7 @@ int fastSearchFindDP(const MatrixXf& samples, double thresh, double outthresh,
 /**
  * @brief Band Lanczos Methof for Hessian Matrices
  *
- * p initial guesses (b_1...b_p) 
+ * p initial guesses (b_1...b_p)
  * set v_k = b_k for k = 1,2,...p
  * set p_c = p
  * set I = nullset
@@ -1705,12 +1705,12 @@ int fastSearchFindDP(const MatrixXf& samples, double thresh, double outthresh,
  *         for k = j, j+1, ..., j+p_c-1, set v_k = v_{k+1}
  *         return to step (3)
  *     set t(j,j-p_c) = ||v_j|| and normalize v_j = v_j/t(j,j-p_c)
- *     for k = j+1, j+2, ..., j+p_c-1, set 
+ *     for k = j+1, j+2, ..., j+p_c-1, set
  *         t(j,k-p_c) = v_j^*v_k and v_k = v_k - v_j t(j,k-p_c)
  *     compute v(j+p_c) = Av_j
- *     set k_0 = max{1,j-p_c}. For k = k_0, k_0+1,...,j-1, set 
+ *     set k_0 = max{1,j-p_c}. For k = k_0, k_0+1,...,j-1, set
  *         t(k,j) = conjugate(t(j,k)) and v_{j+p_c} = v_{j+p_c}-v_k t(k,j)
- *     for k in (I union {j}) (in ascending order), set 
+ *     for k in (I union {j}) (in ascending order), set
  *         t(k,j) = v^*_k v_{j+p_c} and v_{j+p_c} = v_{j+p_c} - v_k t(k,j)
  *     for k in I, set s(j,k) = conjugate(t(k,j))
  *     set T_j^(pr) = T_j + S_j = [t(i,k)] + [s(i,k)] for (i,k=1,2,3...j)
@@ -1762,7 +1762,7 @@ int fastSearchFindDP(const MatrixXf& samples, double thresh, double outthresh,
 //		Vjpc = Vk;
 //		*Vjpc = A*(*Vj);
 //		k0 = max(0, jj-pc);
-//		
+//
 //		Vk = V.begin();
 //		for(int64_t kk=0; kk<k0; kk++, ++Vk) continue;
 //		for(int64_t kk=k0; kk<jj; kk++) {
@@ -1774,7 +1774,7 @@ int fastSearchFindDP(const MatrixXf& samples, double thresh, double outthresh,
 //		// temporarily add j to I
 //		bool jval = I[jj];
 //		I[jj] = true;
-//		Vk = V.begin(); 
+//		Vk = V.begin();
 //		for(int64_t kk=0; kk<I.size(); ++Vk, kk++) {
 //			if(I[kk]) {
 //				T(kk,jj) = (Vk->transpose())*(*Vjpc);
@@ -1785,12 +1785,137 @@ int fastSearchFindDP(const MatrixXf& samples, double thresh, double outthresh,
 //
 //		Vk = V.begin();
 //		for(int64_t kk=0; kk<I.size(); ++Vk, kk++) {
-//			if(I[kk]) 
+//			if(I[kk])
 //				S(jj,kk) = T(kk, jj);
 //		}
 //
 //		T.col(jj) += S.col(j);
 //	}
 //}
+
+VectorXd activeShootingRegression(const MatrixXd& X, const VectorXd& y, double gamma)
+{
+	double THRESH = 0.1;
+//	// Start with least squares
+//	JacobiSVD svd(X, ComputeThinV|ComputeThinU);
+//	VectorXd beta = svd.solve(y);
+	VectorXd beta(X.cols());
+	VectorXd Xnorm(X.cols());
+	VectorXd sigma(y.rows());
+	for(size_t jj=0; jj<X.cols(); jj++)
+		Xnorm[jj] = X.col(jj).normSquared();
+
+	for(size_t jj=0; jj<X.cols(); jj++) {
+		double ytxj = y.dot(X.col(jj));
+		if(ytxj - gamma > 0)
+			beta[jj] = sign(ytxj)*(fabs(ytxj)-gamma)/Xnorm[jj];
+		else
+			beta[jj] = 0;
+	}
+
+	vector<bool> active(X.rows(), false);
+
+	// set active set
+	for(size_t jj=0; jj<X.rows(); jj++) {
+		if(beta[jj] != 0)
+			active[jj] = true;
+	}
+
+	size_t nswitch = 1;
+	while(nswitch > 0) {
+
+		// Update Active Set until convergence
+		double dbeta = fabs(THRESH)*1.1;
+		while(dbeta > THRESH) {
+			dbeta = 0;
+			for(size_t jj=0; jj<X.cols(); jj++) {
+				// Skip inactive betas
+				if(!active[jj])
+					continue;
+
+				// Update
+				sigma = y-X*beta;
+				double prev = beta[jj];
+				double v = sigma.dot(X.row(jj))/Xnorm[jj] + prev;
+				if(v - gamma/Xnorm[jj] > 0)
+					beta[jj] = sign(v)*(fabs(v)-gamma/Xnorm[jj]);
+				else
+					beta[jj] = 0;
+
+				// to determine convergence
+				dbeta += fabs(prev-beta[jj]);
+			}
+			cerr << "dBeta: " << dbeta << endl;
+		}
+
+		// Update All (no convergence check)
+		nswitch = 0;
+		for(size_t jj=0; jj<X.cols(); jj++) {
+			// Update
+			sigma = y-X*beta;
+			double prev = beta[jj];
+			double v = sigma.dot(X.row(jj))/Xnorm[jj] + prev;
+			if(v - gamma/Xnorm[jj] > 0)
+				beta[jj] = sign(v)*(fabs(v)-gamma/Xnorm[jj]);
+			else
+				beta[jj] = 0;
+
+			if(beta[jj] == 0) {
+				// active -> inactive
+				if(active[jj])
+					nswitch++;
+				active[jj] = false;
+			} else {
+				// inactive -> active
+				if(!active[jj])
+					nswitch++;
+				active[jj] = true;
+			}
+		}
+	}
+
+	return beta;
+}
+
+VectorXd shootingRegression(const MatrixXd& X, const VectorXd& y, double gamma)
+{
+	double THRESH = 0.1;
+//	// Start with least squares
+//	JacobiSVD svd(X, ComputeThinV|ComputeThinU);
+//	VectorXd beta = svd.solve(y);
+	VectorXd beta(X.cols());
+	VectorXd Xnorm(X.cols());
+	VectorXd sigma(y.rows());
+	for(size_t jj=0; jj<X.cols(); jj++)
+		Xnorm[jj] = X.col(jj).normSquared();
+
+	for(size_t jj=0; jj<X.cols(); jj++) {
+		double ytxj = y.dot(X.col(jj));
+		if(ytxj - gamma > 0)
+			beta[jj] = sign(ytxj)*(fabs(ytxj)-gamma)/Xnorm[jj];
+		else
+			beta[jj] = 0;
+	}
+
+	double dbeta = fabs(THRESH)*1.1;
+	while(dbeta > THRESH) {
+		dbeta = 0;
+		for(size_t jj=0; jj<X.cols(); jj++) {
+			sigma = y-X*beta;
+			double prev = beta[jj];
+			double v = sigma.dot(X.row(jj))/Xnorm[jj] + prev;
+			if(v - gamma/Xnorm[jj] > 0)
+				beta[jj] = sign(v)*(fabs(v)-gamma/Xnorm[jj]);
+			else
+				beta[jj] = 0;
+
+			// to determine convergence
+			dbeta += fabs(prev-beta[jj]);
+		}
+		cerr << "dBeta: " << dbeta << endl;
+	}
+
+	return beta;
+}
 
 } // NPL
