@@ -2538,11 +2538,11 @@ void binarizeIP(ptr<NDArray> in, double t)
  * @param in Input image.
  * @param t Threshold to apply to the image.
  *
- * @return Threshold image
+ * @return Binarized image (INT16 type)
  */
 ptr<NDArray> binarize(ptr<const NDArray> in, double t)
 {
-	auto out = in->copy();
+	auto out = in->copyCast(INT16);
 	binarizeIP(out, t);
 	return out;
 }
@@ -2553,11 +2553,11 @@ ptr<NDArray> binarize(ptr<const NDArray> in, double t)
  * @param in Input image.
  * @param t Threshold to apply to the image.
  *
- * @return Threshold image (INT16 type)
+ * @return Threshold image
  */
 ptr<NDArray> threshold(ptr<const NDArray> in, double t)
 {
-	auto out = in->copyCast(INT16);
+	auto out = in->copy();
 	thresholdIP(out, t);
 	return out;
 }
