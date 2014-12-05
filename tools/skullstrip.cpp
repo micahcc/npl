@@ -73,10 +73,12 @@ int main(int argc, char** argv)
 	TCLAP::ValueArg<double> a_spacing("s", "spacing", "Resample image to have "
 			"the specified spacing. If you find that the skullstripping is too "
 			"slow then you may want to increase this.", false, 1, "mm", cmd);
-	TCLAP::ValueArg<double> a_lower("L", "lower-freq", "Lower freuqency for "
+	TCLAP::ValueArg<double> a_lower("L", "freq-lower", "Lower freuqency for "
 			"difference of gaussian. ", false, 2, "mm", cmd);
-	TCLAP::ValueArg<double> a_upper("U", "upper-freq", "Upper freuqency for "
+	TCLAP::ValueArg<double> a_upper("U", "freq-upper", "Upper freuqency for "
 			"difference of gaussian. ", false, 8, "mm", cmd);
+	TCLAP::ValueArg<double> a_fstep("S", "freq-step", "Upper freuqency for "
+			"difference of gaussian. ", false, 1, "mm", cmd);
 
 	cmd.parse(argc, argv);
 
@@ -89,27 +91,54 @@ int main(int argc, char** argv)
 		return -1;
 	}
 	
-	vector<double> spacing(3, a_spacing.getValue());
-    inimg = resample(inimg, spacing.data());
-	
-	cerr << "Computing Difference of Gaussians...";
-	auto dog = diffOfGauss(inimg, a_lower.getValue(), a_upper.getValue());
-	for(FlatIter<double> dit(dog); !dit.eof(); ++dit)
-		dit.set(fabs(dit.get()));
-	dog->write("dog.nii.gz");
-	cerr << "Done" << endl;
-
-	cerr << "Finding Matching Regions...";
-	for(FlatIter<double> iit(inimg), dit(dog); !iit.eof(); ++iit, ++dit) {
-		dit.set(fabs(dit.get()-iit.get()));
+	if(a_upper.getValue() <= a_lower.getValue()) {
+		cerr << "Error upper frequency must be > lower frequency!" << endl;
+		return -1;
+	} else if(a_fstep.getValue() <= 0) {
+		cerr << "Error, step must be > 0" << endl;
+		return -1;
 	}
-	dog->write("err.nii.gz");
+	size_t nfreq = (a_upper.getValue()-a_lower.getValue())/a_fstep.getValue();
+	cerr << "Number of frequency bins: " << nfreq << endl;
+	
+	cerr << "Computing Gaussian Steps..." << endl;
+	vector<ptr<MRImage>> smoothed(nfreq);
+	for(size_t ii=0; ii<nfreq; ii++) {
+		double ff=a_lower.getValue()+ii*a_fstep.getValue();
+		cerr << ff << endl;
+		smoothed[ii] = smoothDownsample(inimg, ff, a_spacing.getValue());
+		smoothed[ii]->write("smoothed_"+to_string(ff)+".nii.gz");
+	}
+	cerr << "Done" << endl;
+	
+	ptr<MRImage> maxvalue = dPtrCast<MRImage>(smoothed.front()->
+				createAnother(FLOAT32));
+	ptr<MRImage> maxfreq = dPtrCast<MRImage>(smoothed.front()->
+				createAnother(FLOAT32));
+
+	// fill max value with 0
+	for(FlatIter<double> mit(maxvalue), fit(maxfreq); !mit.eof();  ++mit, ++fit) {
+		mit.set(0);
+		fit.set(-1);
+	}
+
+	cerr << "Computing Principal Frequency" << endl;
+	// Compute Maximum Value
+	for(size_t ii=1; ii<nfreq; ii++) {
+		for(FlatIter<double> mit(maxvalue), lit(smoothed[ii-1]),
+					uit(smoothed[ii]), fit(maxfreq); !mit.eof(); 
+					++lit, ++uit, ++mit, ++fit) {
+			double v = lit.get()-uit.get();
+			if(v > mit.get()) {
+				mit.set(v);
+				fit.set((ii-1)*a_fstep.getValue()+a_lower.getValue());
+			}
+		}
+	}
 	cerr << "Done" << endl;
 
-	cerr << "Thresholding...";
-	dog = dPtrCast<MRImage>(threshold(dog, otsuThresh(dog)));
-	dog->write("mask.nii.gz");
-	cerr << "Done" << endl;
+	maxvalue->write("maxvalue.nii.gz");
+	maxfreq->write("maxfreq.nii.gz");
 
 //    /*****************************
 //     * edge detection

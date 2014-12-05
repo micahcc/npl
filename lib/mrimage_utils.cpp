@@ -798,7 +798,7 @@ ptr<MRImage> diffOfGauss(ptr<const MRImage> in, double sd1, double sd2)
 	}
 
 	for(FlatIter<double> it1(tmp), it2(out); !it1.eof(); ++it1, ++it2)
-		it2.set(it2.get()-it1.get());
+		it2.set(it1.get()-it2.get());
 
 	return out;
 }
