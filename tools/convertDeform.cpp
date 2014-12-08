@@ -88,7 +88,7 @@ ostream& operator<<(ostream& out, const std::vector<T>& v)
  *
  * @return
  */
-ptr<MRImage> invertForwardBack(ptr<MRImage> deform,
+ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 		size_t MAXITERS, double MINERR)
 {
 	if(deform->ndim() != 4 || deform->tlen() != 3) {
@@ -96,12 +96,13 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform,
 			"5th dim" << endl;
 		return NULL;
 	}
+	if(tgt->ndim() < 3) {
+		cerr << "Error invalid target image, needs 3 dimensions" << endl; 
+		return NULL;
+	}
 
-	// create output the size of atlas, with 3 volumes in the 4th dimension
-	auto idef = dPtrCast<MRImage>(deform->createAnother(FLOAT64));
-
-	LinInterp3DView<double> definterp(deform);
-	const double LAMBDA = 0.5;
+	const double LAMBDA = 0.95;
+	int64_t ind[3];
 	double cind[3];
 	double err[3];
 	double origpt[3]; // point in origin
@@ -110,10 +111,24 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform,
 	double rev[3]; // reverse vector
 	KDTree<3,3,double, double> tree;
 
+	// create output the size of atlas, with 3 volumes in the 4th dimension
+	ptr<MRImage> idef;
+	{
+		size_t tmp[4] = {tgt->dim(0), tgt->dim(1), tgt->dim(2), 3};
+		idef = dPtrCast<MRImage>(tgt->createAnother(4, tmp, FLOAT32));
+	}
+	for(FlatIter<double> it(idef); !it.eof(); ++it)
+		it.set(NAN);
+
+	// Create Viewers
+	LinInterp3DView<double> definterp(deform);
+	Vector3DView<double> idef_vw(idef);
+
 	/*
 	 * Construct KDTree indexed by atlas-space indices, and storing indices
 	 * in subject (mask) space. Only do it if mask value is non-zero however
 	 */
+//	cerr << "Forward Mapping Approximate Deformations...";
 	for(Vector3DConstIter<double> dit(deform); !dit.eof(); ++dit) {
 		dit.index(3, cind);
 		deform->indexToPoint(3, cind, origpt);
@@ -124,57 +139,57 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform,
 			defpt[ii] = origpt[ii] + fwd[ii];
 		}
 
+//		// Write at (approximately) mapped point in output
+//		bool inside = true;
+//		idef->pointToIndex(3, defpt, cind);
+//		for(size_t dd=0; dd<3; dd++) {
+//			ind[dd] = round(cind[dd]);
+//			if(ind[dd] < 0 || ind[dd] >= idef->dim(dd))
+//				inside = false;
+//		}
+//
+//		if(inside) {
+//			for(size_t dd=0; dd<3; dd++)
+//				idef_vw.set(ind[0], ind[1], ind[2], dd, rev[dd]);
+//		}
+//
 		// add point to kdtree, use atl2sub since this will be our best guess
 		// of atl2sub when we pull the point out of the tree
 		tree.insert(3, defpt, 3, rev);
-//		cerr << "Deformed Point: ";
-//		for(size_t dd=0; dd<3; dd++) {
-//			if(dd != 0) cerr << ", ";
-//			cerr << defpt[dd];
-//		}
-//		cerr << endl << "Deformed Value: ";
-//		for(size_t dd=0; dd<3; dd++) {
-//			if(dd != 0) cerr << ", ";
-//			cerr << rev[dd];
-//		}
-//		cerr << endl;
 	}
+	cerr << "Done." << endl;
+	cerr << "Building Tree...";
 	tree.build();
-
-	/*
-	 * In atlas image try to find the correct source in the subject by first
-	 * finding a point from the KDTree then improving on that result
-	 */
-	// set atlas deform to NANs
-	for(FlatIter<double> iit(idef); !iit.eof(); ++iit)
-		iit.set(NAN);
+	cerr << "Done." << endl;
 
 	// at each point in atlas try to find the best mapping in the subject by
 	// going back and forth. Since the mapping from sub to atlas is ground truth
 	// we need to keep checking until we find a point in the subject that maps
 	// to our current atlas location
+	size_t count = 0;
+	size_t trees = 0;
 	for(Vector3DIter<double> iit(idef); !iit.eof(); ++iit) {
-
+//		cout << trees << "/" << count << "/" << idef->elements() << "\r";
 		iit.index(3, cind);
 		idef->indexToPoint(3, cind, defpt);
 
-		// that map from outside, then compute the median of the remaining
-		double dist = INFINITY;
-		auto results = tree.nearest(3, defpt, dist);
-
-		// ....no...sort
-		if(!results) {
-			cerr << "No results within distance!" << endl;
-			continue;
-		}
-
-//		cerr << "Initial Reverse: " << endl;
-		for(size_t dd=0; dd<3; dd++) {
-//			if(dd != 0) cerr << ", ";
-			rev[dd] = results->m_data[dd];
-//			cerr << rev[dd];
-		}
-//		cerr << endl;
+//		if(std::isnan(iit[0])) {
+			// No Points Mapped Close to the Current Point, So Search Tree
+			double dist = INFINITY;
+			auto results = tree.nearest(3, defpt, dist);
+			trees++;
+			// ....no...sort
+			if(!results) {
+				cerr << "No results within distance!" << endl;
+				continue;
+			}
+		
+			for(size_t dd=0; dd<3; dd++)
+				rev[dd] = results->m_data[dd];
+//		} else {
+//			for(size_t dd=0; dd<3; dd++)
+//				rev[dd] = iit[dd];
+//		}
 
 //		cerr << "Target Point: ";
 //		for(size_t dd=0; dd<3; dd++) {
@@ -249,7 +264,9 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform,
 			iit.set(ii, rev[ii]);
 		}
 //		cerr << endl;
+		count++;
 	}
+	cerr << "\nTrees/Count = " << trees << '/' << count << endl;
 
 	return idef;
 }
@@ -526,8 +543,14 @@ int main(int argc, char** argv)
 
 	// invert
 	if(a_invert.isSet()) {
-		cerr << "Inverting" << endl;
-		deform = invertForwardBack(deform, 100, 0.05);
+		cerr << "Inverting ";
+		if(atlas) {
+			cerr << "in atlas space" << endl;
+			deform = invertForwardBack(deform, atlas, 100, 0.05);
+		} else {
+			cerr << "in same space" << endl;
+			deform = invertForwardBack(deform, deform, 100, 0.05);
+		}
 		cerr << "Done" << endl;
 
 		deform->write("invert.nii.gz");
