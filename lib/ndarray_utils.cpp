@@ -361,6 +361,94 @@ void gaussianSmooth1D(ptr<NDArray> inout, size_t dim,
 
 
 /**
+ * @brief Erode an binary array repeatedly, in the shape of a nd diamond
+ *
+ * @param in Input to erode
+ * @param reps Number of radius-1 kernel erosions to perform
+ *
+ * @return Eroded Image
+ */
+ptr<NDArray> erode(ptr<NDArray> in, size_t rad)
+{
+	auto out = in->copy();
+
+	KernelIter<int> kit(in);
+	kit.setRadius(rad);
+
+	OrderIter<int> oit(out);
+	oit.setOrder(kit.getOrder());
+	double sphere = rad*rad;
+
+	// for each pixels neighborhood, smooth neightbors
+	for(oit.goBegin(), kit.goBegin(); !oit.eof(); ++kit, ++oit) {
+		bool erodeme = false;
+
+		for(size_t kk=0; kk<kit.ksize(); kk++) {
+			double dist = 0;
+
+			for(size_t dd=0; dd<in->ndim(); dd++) 
+				dist += kit.offsetK(kk, dd)*kit.offsetK(kk, dd);
+
+			if(dist < sphere && kit[kk] == 0) {
+				erodeme = true;
+				break;
+			}
+		}
+
+		if(erodeme)
+			oit.set(0);
+	}
+
+	return out;
+}
+
+/**
+ * @brief Dilate an binary array repeatedly, in a nd cross shape
+ *
+ * @param in Input to dilate
+ * @param reps Number of radius-1 kernel dilations to perform
+ *
+ * @return Dilated Image
+ */
+ptr<NDArray> dilate(ptr<NDArray> in, size_t rad)
+{
+	auto out = in->copy();
+
+	KernelIter<int> kit(in);
+	kit.setRadius(rad);
+
+	OrderIter<int> oit(out);
+	oit.setOrder(kit.getOrder());
+	double sphere = rad*rad;
+
+	// for each pixels neighborhood, smooth neightbors
+	for(oit.goBegin(), kit.goBegin(); !oit.eof(); ++kit, ++oit) {
+		bool dilme = false;
+		int dilval = 0;
+
+		for(size_t kk=0; kk<kit.ksize(); kk++) {
+			double dist = 0;
+
+			for(size_t dd=0; dd<in->ndim(); dd++) 
+				dist += kit.offsetK(kk, dd)*kit.offsetK(kk, dd);
+
+			if(dist < sphere && kit[kk] != 0) {
+				dilme = true;
+				dilval = kit[kk];
+				break;
+			}
+		}
+
+		if(dilme)
+			oit.set(dilval);
+	}
+
+	return out;
+}
+
+
+
+/**
  * @brief Erode an binary array repeatedly
  *
  * @param in Input to erode
@@ -368,7 +456,7 @@ void gaussianSmooth1D(ptr<NDArray> inout, size_t dim,
  *
  * @return Eroded Image
  */
-ptr<NDArray> erode(ptr<NDArray> in, size_t reps)
+ptr<NDArray> erodeBlock(ptr<NDArray> in, size_t reps)
 {
 	std::vector<int64_t> index1(in->ndim(), 0);
 	std::vector<int64_t> index2(in->ndim(), 0);
@@ -410,7 +498,7 @@ ptr<NDArray> erode(ptr<NDArray> in, size_t reps)
  *
  * @return Dilated Image
  */
-ptr<NDArray> dilate(ptr<NDArray> in, size_t reps)
+ptr<NDArray> dilateBlock(ptr<NDArray> in, size_t reps)
 {
 	std::vector<int64_t> index1(in->ndim(), 0);
 	std::vector<int64_t> index2(in->ndim(), 0);
@@ -2378,7 +2466,7 @@ void zero(ptr<NDArray> inout)
 ptr<NDArray> relabelConnected(ptr<NDArray> input)
 {
 	size_t ndim = input->ndim();
-	auto output = input->createAnother();
+	auto output = input->createAnother(INT32);
 	zero(output);
 
 	// accessors and iterator
@@ -2394,7 +2482,7 @@ ptr<NDArray> relabelConnected(ptr<NDArray> input)
 
 	//connected component
 	int maxlabel = 1;
-	for(oit.goBegin(); !oit.eof(); ++oit) {
+	for(iit.goBegin(), oit.goBegin(); !oit.eof(); ++oit, ++iit) {
 		oit.index(ind);
 
 		//check before in each dimension
@@ -2418,10 +2506,10 @@ ptr<NDArray> relabelConnected(ptr<NDArray> input)
 				// pixel unclaimed so far, so claim with newlabel
 				// (which must have been labeled because it is before us)
 				if(newlabel == 0) {
-					newlabel = oac[ind];
+					newlabel = npval;
 
 				// this pixel has already been claimed by another
-				} else if(npval != newlabel) {
+				} else if(newlabel != npval) {
 					auto ret1 = equivalent.insert({newlabel, npval});
 					auto ret2 = equivalent.insert({npval, newlabel});
 
@@ -2433,7 +2521,6 @@ ptr<NDArray> relabelConnected(ptr<NDArray> input)
 					// to reduce the number of hops to the minimum
 					ret1.first->second = newlabel;
 					ret2.first->second = newlabel;
-
 				}
 			}
 
@@ -2442,9 +2529,8 @@ ptr<NDArray> relabelConnected(ptr<NDArray> input)
 		}
 
 		//no existing neighbor label found, use a new label
-		if(newlabel == 0) {
+		if(newlabel == 0)
 			newlabel = maxlabel++;
-		}
 
 		oit.set(newlabel);
 	}
@@ -2528,29 +2614,21 @@ ptr<NDArray> histEqualize(ptr<const NDArray> in)
  *
  * @param in Input image.
  * @param t Threshold to apply to the image.
- */
-void binarizeIP(ptr<NDArray> in, double t)
-{
-	for(FlatIter<double> it(in); !it.eof(); ++it) {
-		if(*it < t)
-			it.set(0);
-		else
-			it.set(1);
-	}
-}
-
-/**
- * @brief Thresholds the image, changing everything below t to 0
- *
- * @param in Input image.
- * @param t Threshold to apply to the image.
  *
  * @return Binarized image (INT16 type)
  */
 ptr<NDArray> binarize(ptr<const NDArray> in, double t)
 {
 	auto out = in->copyCast(INT16);
-	binarizeIP(out, t);
+
+	FlatConstIter<double> iit(in);
+	FlatIter<double> oit(out);
+	for(oit.goBegin(), iit.goBegin(); !iit.eof(); ++oit, ++iit) {
+		if(*iit < t)
+			oit.set(0);
+		else
+			oit.set(1);
+	}
 	return out;
 }
 
