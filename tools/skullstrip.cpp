@@ -56,6 +56,8 @@ void genPoints(ptr<const MRImage> scale, ptr<const MRImage> vimg, double pct,
         size_t radius);
 
 ptr<MRImage> laplacian(ptr<MRImage> inimg, double flow, double fhigh, double spacing);
+	
+ptr<MRImage> elimBridges(ptr<MRImage> inimg, double bwidth);
 
 int main(int argc, char** argv)
 {
@@ -99,13 +101,16 @@ int main(int argc, char** argv)
 		cerr << "Error upper frequency must be > lower frequency!" << endl;
 		return -1;
 	}
+	inimg = dPtrCast<MRImage>(inimg->copyCast(FLOAT32));
 	
 	cerr << "Median Filtering...";
 	inimg = dPtrCast<MRImage>(medianFilter(inimg));
+	inimg->write("median.nii.gz");
 	cerr << "Done\n";
 
 	cerr << "Standardizing...";
 	standardizeIP(inimg);
+	inimg->write("standardize.nii.gz");
 	cerr << "Done\n";
 	
 	cerr << "Computing Laplacian...";
@@ -120,7 +125,12 @@ int main(int argc, char** argv)
 
 	cerr << "Eliminating Bridges...";
 	mask = elimBridges(mask, a_bridgewidth.getValue());
-	lapl->write("cleaned_mask.nii.gz");
+	mask->write("cleaned_mask.nii.gz");
+	cerr << "Done\n";
+
+	cerr << "Connected Components...";
+	mask = dPtrCast<MRImage>(relabelConnected(mask));
+	mask->write(a_out.getValue());
 	cerr << "Done\n";
 
 	// Split up Brain ... somehow
@@ -177,6 +187,41 @@ ptr<MRImage> laplacian(ptr<MRImage> inimg, double flow, double fhigh, double spa
 	cerr << "Done" << endl;
 
 	return flow_img;
+}
+
+ptr<MRImage> elimBridges(ptr<MRImage> mask, double bwidth)
+{
+	double minspace = INFINITY;
+	for(size_t ii=0; ii<mask->ndim(); ii++)
+		minspace = min(mask->spacing(ii), minspace);
+	size_t pbwidth = bwidth/minspace;
+
+
+	// Erode bwidth times
+	cerr << "Eroding, radius " << pbwidth << "...";
+	auto out = erode(mask, pbwidth);
+	out->write("eroded.nii.gz");
+	cerr << "Done\n";
+	
+	// Dilate bwidth times
+	cerr << "Dilating, radius " << pbwidth << "...";
+	out = dilate(out, pbwidth);
+	out->write("dilated.nii.gz");
+	cerr << "Done\n";
+
+	// compute logical and so that only previously masked regions are 
+	// masked
+	cerr << "Merging original and de-bridged...";
+	FlatConstIter<int> mit(mask);
+	FlatIter<int> oit(out);
+	for(mit.goBegin(), oit.goBegin(); !mit.eof(); ++mit, ++oit) {
+		if(mit.get() && oit.get())
+			oit.set(1);
+		else
+			oit.set(0);
+	}
+	cerr << "Done\n";
+	return dPtrCast<MRImage>(out);
 }
 	
 /**
