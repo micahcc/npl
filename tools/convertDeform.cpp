@@ -73,6 +73,44 @@ ostream& operator<<(ostream& out, const std::vector<T>& v)
 	return out;
 }
 
+ptr<MRImage> compJacobian(ptr<MRImage> deform)
+{
+	if(deform->ndim() != 4) {
+		cerr << "Input to jacobian computation must be 4D" << endl;
+		return NULL;
+	}
+
+	int64_t index[3];
+	int64_t tmpindex[3];
+	size_t sz[4] = {deform->dim(0), deform->dim(1), deform->dim(2), 9}; 
+	ptr<MRImage> jacobian = dPtrCast<MRImage>(deform->copyCast(4, sz, FLOAT32));
+
+	Vector3DView<double> dview(deform);
+	for(Vector3DIter<double> it(jacobian); !it.eof(); ++it) {
+		it.index(3, index);
+
+		for(size_t dd=0; dd<3; dd++)
+			tmpindex[dd] = index[dd];
+
+		for(size_t d1 = 0; d1 < 3; d1++) {
+			for(size_t d2 = 0; d2 < 3; d2++) {
+
+				// after
+				tmpindex[d2] = clamp<int64_t>(0, deform->dim(d2)-1, index[d2]+1);
+				double tmp = .5*dview(tmpindex[0], tmpindex[1], tmpindex[2], d1);
+
+				// before
+				tmpindex[d2] = clamp<int64_t>(0, deform->dim(d2)-1, index[d2]-1);
+				tmp -= .5*dview(tmpindex[0], tmpindex[1], tmpindex[2], d1);
+
+				it.set(3*d1 + d2, tmp);
+			}
+		}
+	}
+
+	return jacobian;
+}
+
 /**
  * @brief Inverts a deformation, given a mask in the target space.
  *
@@ -91,6 +129,7 @@ ostream& operator<<(ostream& out, const std::vector<T>& v)
 ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 		size_t MAXITERS, double MINERR)
 {
+
 	if(deform->ndim() != 4 || deform->tlen() != 3) {
 		cerr << "Error invalid deform image, needs 3 points in the 4th or "
 			"5th dim" << endl;
@@ -104,31 +143,36 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 	const double LAMBDA = 0.95;
 	int64_t ind[3];
 	double cind[3];
-	double err[3];
+	Vector3d err;
 	double origpt[3]; // point in origin
 	double defpt[3]; // deformed point
 	double fwd[3]; // forward vector
-	double rev[3]; // reverse vector
+	Vector3d rev; // reverse vector
 	KDTree<3,3,double, double> tree;
 
 	// create output the size of atlas, with 3 volumes in the 4th dimension
 	ptr<MRImage> idef;
 	{
+		// Inverse
 		size_t tmp[4] = {tgt->dim(0), tgt->dim(1), tgt->dim(2), 3};
 		idef = dPtrCast<MRImage>(tgt->createAnother(4, tmp, FLOAT32));
 	}
 	for(FlatIter<double> it(idef); !it.eof(); ++it)
 		it.set(NAN);
-
+	
 	// Create Viewers
 	LinInterp3DView<double> definterp(deform);
 	Vector3DView<double> idef_vw(idef);
+
+	// Compute Jacobian
+	auto jacimg = compJacobian(deform);
+	jacimg->write("jacobian.nii.gz");
+	LinInterp3DView<double> jacinterp(deform);
 
 	/*
 	 * Construct KDTree indexed by atlas-space indices, and storing indices
 	 * in subject (mask) space. Only do it if mask value is non-zero however
 	 */
-//	cerr << "Forward Mapping Approximate Deformations...";
 	for(Vector3DConstIter<double> dit(deform); !dit.eof(); ++dit) {
 		dit.index(3, cind);
 		deform->indexToPoint(3, cind, origpt);
@@ -139,23 +183,9 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 			defpt[ii] = origpt[ii] + fwd[ii];
 		}
 
-//		// Write at (approximately) mapped point in output
-//		bool inside = true;
-//		idef->pointToIndex(3, defpt, cind);
-//		for(size_t dd=0; dd<3; dd++) {
-//			ind[dd] = round(cind[dd]);
-//			if(ind[dd] < 0 || ind[dd] >= idef->dim(dd))
-//				inside = false;
-//		}
-//
-//		if(inside) {
-//			for(size_t dd=0; dd<3; dd++)
-//				idef_vw.set(ind[0], ind[1], ind[2], dd, rev[dd]);
-//		}
-//
 		// add point to kdtree, use atl2sub since this will be our best guess
 		// of atl2sub when we pull the point out of the tree
-		tree.insert(3, defpt, 3, rev);
+		tree.insert(3, defpt, 3, rev.array().data());
 	}
 	cerr << "Done." << endl;
 	cerr << "Building Tree...";
@@ -167,36 +197,23 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 	// we need to keep checking until we find a point in the subject that maps
 	// to our current atlas location
 	size_t count = 0;
-	size_t trees = 0;
+	Matrix3d jacobian;
 	for(Vector3DIter<double> iit(idef); !iit.eof(); ++iit) {
 //		cout << trees << "/" << count << "/" << idef->elements() << "\r";
 		iit.index(3, cind);
 		idef->indexToPoint(3, cind, defpt);
 
-//		if(std::isnan(iit[0])) {
-			// No Points Mapped Close to the Current Point, So Search Tree
-			double dist = INFINITY;
-			auto results = tree.nearest(3, defpt, dist);
-			trees++;
-			// ....no...sort
-			if(!results) {
-				cerr << "No results within distance!" << endl;
-				continue;
-			}
-		
-			for(size_t dd=0; dd<3; dd++)
-				rev[dd] = results->m_data[dd];
-//		} else {
-//			for(size_t dd=0; dd<3; dd++)
-//				rev[dd] = iit[dd];
-//		}
+		// No Points Mapped Close to the Current Point, So Search Tree
+		double dist = INFINITY;
+		auto results = tree.nearest(3, defpt, dist);
+		// ....no...sort
+		if(!results) {
+			cerr << "No results within distance!" << endl;
+			continue;
+		}
 
-//		cerr << "Target Point: ";
-//		for(size_t dd=0; dd<3; dd++) {
-//			if(dd != 0) cerr << ", ";
-//			cerr << defpt[dd];
-//		}
-//		cerr << endl;
+		for(size_t dd=0; dd<3; dd++)
+			rev[dd] = results->m_data[dd];
 
 		// SUB <- ATLAS (given)
 		//    atl2sub
@@ -205,13 +222,8 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 		for(iters = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR &&
 						iters < MAXITERS; iters++) {
 
-//			cerr << "Estimated Source: ";
-			for(size_t ii=0; ii<3; ii++) {
-//				if(ii != 0) cerr << ", ";
+			for(size_t ii=0; ii<3; ii++)
 				origpt[ii] = defpt[ii] + rev[ii];
-//				cerr << origpt[ii];
-			}
-//			cerr << endl;
 
 			// (estimate) SUB <- ATLAS (given)
 			//              offset
@@ -221,13 +233,14 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 			/* Update */
 
 			// update sub2atl
-//			cerr << "Fwd at Source: ";
 			for(size_t ii=0; ii<3; ii++) {
-//				if(ii != 0) cerr << ", ";
 				fwd[ii] = definterp(cind[0], cind[1], cind[2], ii);
-//				cerr << fwd[ii];
+				
+				for(size_t jj=0; jj<3; jj++) {
+					jacobian(ii, jj) = jacinterp.get(cind[0], cind[1], cind[2],
+							3*ii + jj);
+				}
 			}
-//			cerr << endl;
 
 			// update image with the error, using the derivative to estimate
 			// where error crosses 0
@@ -236,19 +249,11 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 			for(size_t ii=0; ii<3; ii++)
 				err[ii] = rev[ii]+fwd[ii];
 
-			for(size_t ii=0; ii<3; ii++) {
-				rev[ii] -= LAMBDA*err[ii];
+			rev -= 2*(Matrix3d::Identity(3,3) + jacobian).transpose()*err;
+			for(size_t ii=0; ii<3; ii++)
 				dist += err[ii]*err[ii];
-			}
 
-//			cerr << "New Rev: ";
-//			for(size_t ii=0; ii<3; ++ii) {
-//				if(ii != 0) cerr << ", ";
-//				cerr << rev[ii];
-//			}
-//			cerr << endl;
 			dist = sqrt(dist);
-//			cerr << "Err: " << dist << endl;
 		}
 		if(iters == MAXITERS) {
 			cerr << "Warning, failed to converge at " << cind[0] << ", " <<
@@ -257,16 +262,10 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 
 
 		// save out final deform
-//		cerr << "Estimate: ";
-		for(size_t ii=0; ii<3; ++ii) {
-//			if(ii != 0) cerr << ", ";
-//			cerr << rev[ii];
+		for(size_t ii=0; ii<3; ++ii)
 			iit.set(ii, rev[ii]);
-		}
-//		cerr << endl;
 		count++;
 	}
-	cerr << "\nTrees/Count = " << trees << '/' << count << endl;
 
 	return idef;
 }
