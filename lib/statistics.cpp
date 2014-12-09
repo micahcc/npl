@@ -86,11 +86,11 @@ MatrixXd pcacov(const MatrixXd& cov, double varth)
 	assert(cov.rows() == cov.cols());
 
 #ifndef NDEBUG
-    std::cout << "Computing ..." << std::endl;
+	std::cout << "Computing ..." << std::endl;
 #endif //DEBUG
 	Eigen::SelfAdjointEigenSolver<MatrixXd> solver(cov);
 #ifndef NDEBUG
-    std::cout << "Done" << std::endl;
+	std::cout << "Done" << std::endl;
 #endif //DEBUG
 
 	double total = 0;
@@ -110,8 +110,8 @@ MatrixXd pcacov(const MatrixXd& cov, double varth)
 	}
 
 #ifndef NDEBUG
-    std::cout << "Output Dimensions: " << ndim
-            << "\nCreating Reduced MatrixXd..." << std::endl;
+	std::cout << "Output Dimensions: " << ndim
+		<< "\nCreating Reduced MatrixXd..." << std::endl;
 #endif //DEBUG
 
 	MatrixXd out(cov.rows(), ndim);
@@ -125,7 +125,7 @@ MatrixXd pcacov(const MatrixXd& cov, double varth)
 	std::cout  << "  Done" << std::endl;
 #endif
 
-    return out;
+	return out;
 }
 
 /**
@@ -146,34 +146,34 @@ MatrixXd pcacov(const MatrixXd& cov, double varth)
  */
 MatrixXd pca(const MatrixXd& X, double varth)
 {
-    varth=1-varth;
+	varth=1-varth;
 
-    double totalv = 0; // total variance
-    int outdim = 0;
+	double totalv = 0; // total variance
+	int outdim = 0;
 
 #ifndef NDEBUG
-    std::cout << "Computing SVD" << std::endl;
+	std::cout << "Computing SVD" << std::endl;
 #endif //DEBUG
-    JacobiSVD<MatrixXd> svd(X, Eigen::ComputeThinU);
+	JacobiSVD<MatrixXd> svd(X, Eigen::ComputeThinU);
 #ifndef NDEBUG
-    std::cout << "Done" << std::endl;
+	std::cout << "Done" << std::endl;
 #endif //DEBUG
 
-    const VectorXd& W = svd.singularValues();
-    const MatrixXd& U = svd.matrixU();
-    //only keep dimensions with variance passing the threshold
-    for(size_t ii=0; ii<W.rows(); ii++)
-        totalv += W[ii]*W[ii];
+	const VectorXd& W = svd.singularValues();
+	const MatrixXd& U = svd.matrixU();
+	//only keep dimensions with variance passing the threshold
+	for(size_t ii=0; ii<W.rows(); ii++)
+		totalv += W[ii]*W[ii];
 
-    double sum = 0;
-    for(outdim = 0; outdim < W.rows() && sum < totalv*varth; outdim++)
-        sum += W[outdim]*W[outdim];
+	double sum = 0;
+	for(outdim = 0; outdim < W.rows() && sum < totalv*varth; outdim++)
+		sum += W[outdim]*W[outdim];
 #ifndef NDEBUG
-    std::cout << "Output Dimensions: " << outdim
-            << "\nCreating Reduced MatrixXd..." << std::endl;
+	std::cout << "Output Dimensions: " << outdim
+		<< "\nCreating Reduced MatrixXd..." << std::endl;
 #endif //DEBUG
 
-    MatrixXd Xr(X.rows(), outdim);
+	MatrixXd Xr(X.rows(), outdim);
 	for(int rr=0; rr<X.rows(); rr++) {
 		for(int cc=0; cc<outdim ; cc++) {
 			Xr(rr,cc) = U(rr, cc);
@@ -183,7 +183,7 @@ MatrixXd pca(const MatrixXd& X, double varth)
 	std::cout  << "  Done" << std::endl;
 #endif
 
-    return Xr;
+	return Xr;
 }
 
 /**
@@ -217,41 +217,41 @@ MatrixXd pca(const MatrixXd& X, double varth)
  */
 MatrixXd ica(const MatrixXd& Xin, double varth)
 {
-    (void)varth;
+	(void)varth;
 
-    // remove mean/variance
-    MatrixXd X(Xin.rows(), Xin.cols());
-    for(size_t cc=0; cc<X.cols(); cc++)  {
-        double sum = 0;
-        double sumsq = 0;
-        for(size_t rr=0; rr<X.rows(); rr++)  {
-            sum += Xin(rr,cc);
-            sumsq += Xin(rr,cc)*Xin(rr,cc);
-        }
-        double sigma = sqrt(sample_var(X.rows(), sum, sumsq));
-        double mean = sum/X.rows();
+	// remove mean/variance
+	MatrixXd X(Xin.rows(), Xin.cols());
+	for(size_t cc=0; cc<X.cols(); cc++)  {
+		double sum = 0;
+		double sumsq = 0;
+		for(size_t rr=0; rr<X.rows(); rr++)  {
+			sum += Xin(rr,cc);
+			sumsq += Xin(rr,cc)*Xin(rr,cc);
+		}
+		double sigma = sqrt(sample_var(X.rows(), sum, sumsq));
+		double mean = sum/X.rows();
 
-        for(size_t rr=0; rr<X.rows(); rr++)
-            X(rr,cc) = (Xin(rr,cc)-mean)/sigma;
-    }
+		for(size_t rr=0; rr<X.rows(); rr++)
+			X(rr,cc) = (Xin(rr,cc)-mean)/sigma;
+	}
 
-    const size_t ITERS = 10000;
-    const double MAGTHRESH = 0.0001;
+	const size_t ITERS = 10000;
+	const double MAGTHRESH = 0.0001;
 
-    // Seed with a real random value, if available
-    std::random_device rd;
-    std::default_random_engine rng(rd());
+	// Seed with a real random value, if available
+	std::random_device rd;
+	std::default_random_engine rng(rd());
 	std::uniform_real_distribution<double> unif(0, 1);
 
 	int samples = X.rows();
 	int dims = X.cols();
-    int ncomp = std::min(samples, dims);
+	int ncomp = std::min(samples, dims);
 
 	double mag = 1;
 	VectorXd proj(samples);
-    VectorXd nonlin1(samples);
-    VectorXd nonlin2(samples);
-    VectorXd wprev(dims);
+	VectorXd nonlin1(samples);
+	VectorXd nonlin2(samples);
+	VectorXd wprev(dims);
 
 	MatrixXd W(dims, ncomp);
 
@@ -272,179 +272,179 @@ MatrixXd ica(const MatrixXd& Xin, double varth)
 		}
 		W.col(pp).normalize();
 #ifndef NDEBUG
-        std::cout << "Peforming Fast ICA: " << pp << std::endl;
+		std::cout << "Peforming Fast ICA: " << pp << std::endl;
 #endif// NDEBUG
 		mag = 1;
 		for(int ii = 0 ; mag > MAGTHRESH && ii < ITERS; ii++) {
 
 			//move to working
-            wprev = W.col(pp);
+			wprev = W.col(pp);
 
 			/*
-             * g(X wp) X^T/R - wp SUM(g'(X wp)))/R
-             */
+			 * g(X wp) X^T/R - wp SUM(g'(X wp)))/R
+			 */
 
 			//w^tx
-            proj = X*W.col(pp);
+			proj = X*W.col(pp);
 
-            //- wp SUM(g'(X wp)))/R
-            double sum = 0;
-            for(size_t jj=0; jj<samples; jj++)
-                sum += fastICA_dg2(proj[jj]);
-            W.col(pp) = -W.col(pp)*sum/samples;
+			//- wp SUM(g'(X wp)))/R
+			double sum = 0;
+			for(size_t jj=0; jj<samples; jj++)
+				sum += fastICA_dg2(proj[jj]);
+			W.col(pp) = -W.col(pp)*sum/samples;
 
-            // X^Tg(X wp)/R
-            for(size_t jj=0; jj<samples; jj++)
-                proj[jj] = fastICA_g2(proj[jj]);
-            W.col(pp) += X.transpose()*proj/samples;
+			// X^Tg(X wp)/R
+			for(size_t jj=0; jj<samples; jj++)
+				proj[jj] = fastICA_g2(proj[jj]);
+			W.col(pp) += X.transpose()*proj/samples;
 
-            //GramSchmidt Decorrelate
-            //sum(w^t_p w_j w_j) for j < p
-            //cache w_p for wt_wj mutlication
-            for(int jj = 0 ; jj < pp; jj++){
-                //w^t_p w_j
-                double wt_wj = W.col(pp).dot(W.col(jj));
+			//GramSchmidt Decorrelate
+			//sum(w^t_p w_j w_j) for j < p
+			//cache w_p for wt_wj mutlication
+			for(int jj = 0 ; jj < pp; jj++){
+				//w^t_p w_j
+				double wt_wj = W.col(pp).dot(W.col(jj));
 
-                //w_p -= (w^t_p w_j) w_j
-                W.col(pp) -= wt_wj*W.col(jj);
-            }
-            W.col(pp).normalize();
-            mag = (W.col(pp)-wprev).norm();
+				//w_p -= (w^t_p w_j) w_j
+				W.col(pp) -= wt_wj*W.col(jj);
+			}
+			W.col(pp).normalize();
+			mag = (W.col(pp)-wprev).norm();
 		}
 
 #ifndef NDEBUG
-        std::cout << "Final (" << pp << "):\n";
-        std::cout << W.col(pp).transpose() << std::endl;
+		std::cout << "Final (" << pp << "):\n";
+		std::cout << W.col(pp).transpose() << std::endl;
 #endif// NDEBUG
 	}
 
-    // TODO sort by variance
-    return X*W;
+	// TODO sort by variance
+	return X*W;
 
 }
 
 StudentsT::StudentsT(int dof, double dt, double tmax) :
-            m_dt(dt), m_tmax(tmax), m_dof(dof)
+	m_dt(dt), m_tmax(tmax), m_dof(dof)
 {
-    init();
+	init();
 };
 
 void StudentsT::setDOF(double dof)
 {
-    m_dof = dof;
-    init();
+	m_dof = dof;
+	init();
 };
 
 void StudentsT::setStepT(double dt)
 {
-    m_dt = dt;
-    init();
+	m_dt = dt;
+	init();
 };
 
 void StudentsT::setMaxT(double tmax)
 {
-    m_tmax = tmax;
-    init();
+	m_tmax = tmax;
+	init();
 };
 
 double StudentsT::cumulative(double t) const
 {
-    bool negative = false;
-    if(t < 0) {
-        negative = true;
-        t = fabs(t);
-    }
+	bool negative = false;
+	if(t < 0) {
+		negative = true;
+		t = fabs(t);
+	}
 
-    double out = 0;
-    vector<double>::const_iterator it =
-        std::lower_bound(m_tvals.begin(), m_tvals.end(), t);
+	double out = 0;
+	vector<double>::const_iterator it =
+		std::lower_bound(m_tvals.begin(), m_tvals.end(), t);
 
-    if(it == m_tvals.end()) {
-        cerr << "Warning, effectively 0 p-value returned!" << endl;
-        return 0;
-    }
+	if(it == m_tvals.end()) {
+		cerr << "Warning, effectively 0 p-value returned!" << endl;
+		return 0;
+	}
 
-    int ii = distance(m_tvals.begin(), it);
-    if(ii > 0) {
-        double tp = m_tvals[ii-1];
-        double tn = m_tvals[ii];
+	int ii = distance(m_tvals.begin(), it);
+	if(ii > 0) {
+		double tp = m_tvals[ii-1];
+		double tn = m_tvals[ii];
 
-        double prev = m_cdf[ii-1];
-        double next = m_cdf[ii];
-        out = prev*(tn-t)/(tn-tp) + next*(t-tp)/(tn-tp);
-    } else {
-        assert(m_cdf[ii] == 0.5);
-        out = m_cdf[ii];
-    }
+		double prev = m_cdf[ii-1];
+		double next = m_cdf[ii];
+		out = prev*(tn-t)/(tn-tp) + next*(t-tp)/(tn-tp);
+	} else {
+		assert(m_cdf[ii] == 0.5);
+		out = m_cdf[ii];
+	}
 
-    if(negative)
-        return 1-out;
-    else
-        return out;
+	if(negative)
+		return 1-out;
+	else
+		return out;
 };
 
 double StudentsT::density(double t) const
 {
-    bool negative = false;
-    if(t < 0) {
-        negative = true;
-        t = fabs(t);
-    }
+	bool negative = false;
+	if(t < 0) {
+		negative = true;
+		t = fabs(t);
+	}
 
-    double out = 0;
-    vector<double>::const_iterator it = std::lower_bound(m_tvals.begin(),
-            m_tvals.end(), t);
-    if(it == m_tvals.end()) {
+	double out = 0;
+	vector<double>::const_iterator it = std::lower_bound(m_tvals.begin(),
+			m_tvals.end(), t);
+	if(it == m_tvals.end()) {
 #ifndef NDEBUG
-        cerr << "Warning, effectively 0 p-value returned!" << endl;
+		cerr << "Warning, effectively 0 p-value returned!" << endl;
 #endif
-        return 0;
-    }
+		return 0;
+	}
 
-    int ii = distance(m_tvals.begin(), it);
-    if(ii > 0) {
-        double tp = m_tvals[ii-1];
-        double tn = m_tvals[ii];
+	int ii = distance(m_tvals.begin(), it);
+	if(ii > 0) {
+		double tp = m_tvals[ii-1];
+		double tn = m_tvals[ii];
 
-        double prev = m_pdf[ii-1];
-        double next = m_pdf[ii];
-        out = prev*(tn-t)/(tn-tp) + next*(t-tp)/(tn-tp);
-    } else {
-        assert(m_pdf[ii] == 0.5);
-        out = m_pdf[ii];
-    }
+		double prev = m_pdf[ii-1];
+		double next = m_pdf[ii];
+		out = prev*(tn-t)/(tn-tp) + next*(t-tp)/(tn-tp);
+	} else {
+		assert(m_pdf[ii] == 0.5);
+		out = m_pdf[ii];
+	}
 
-    if(negative)
-        return 1-out;
-    else
-        return out;
+	if(negative)
+		return 1-out;
+	else
+		return out;
 };
 
 void StudentsT::init()
 {
-    m_cdf.resize(m_tmax/m_dt);
-    m_pdf.resize(m_tmax/m_dt);
-    m_tvals.resize(m_tmax/m_dt);
+	m_cdf.resize(m_tmax/m_dt);
+	m_pdf.resize(m_tmax/m_dt);
+	m_tvals.resize(m_tmax/m_dt);
 
-    double sum = 0.5;
-    double coeff;
-    if(m_dof%2 == 0) {
-        coeff = 1./(2*sqrt((double)m_dof));
-        for(int ii = m_dof-1; ii >= 3; ii-=2)
-            coeff *= ((double)ii)/(ii-1.);
-    } else {
-        coeff = 1./(M_PI*sqrt((double)m_dof));
-        for(int ii = m_dof-1; ii >= 2; ii-=2)
-            coeff *= ((double)ii)/(ii-1.);
-    }
+	double sum = 0.5;
+	double coeff;
+	if(m_dof%2 == 0) {
+		coeff = 1./(2*sqrt((double)m_dof));
+		for(int ii = m_dof-1; ii >= 3; ii-=2)
+			coeff *= ((double)ii)/(ii-1.);
+	} else {
+		coeff = 1./(M_PI*sqrt((double)m_dof));
+		for(int ii = m_dof-1; ii >= 2; ii-=2)
+			coeff *= ((double)ii)/(ii-1.);
+	}
 
-    for(size_t ii = 0; ii*m_dt < m_tmax; ii++) {
-        double t = ii*m_dt;
-        m_tvals[ii] = t;
-        m_pdf[ii] = coeff*pow(1+t*t/m_dof, -(m_dof+1)/2);
-        m_cdf[ii] = sum;
-        sum += m_dt*m_pdf[ii];
-    }
+	for(size_t ii = 0; ii*m_dt < m_tmax; ii++) {
+		double t = ii*m_dt;
+		m_tvals[ii] = t;
+		m_pdf[ii] = coeff*pow(1+t*t/m_dof, -(m_dof+1)/2);
+		m_cdf[ii] = sum;
+		sum += m_dt*m_pdf[ii];
+	}
 };
 
 /**
@@ -465,40 +465,40 @@ void StudentsT::init()
  * @return Struct with Regression Results.
  */
 RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
-        const MatrixXd& Xinv, const StudentsT& distrib)
+		const MatrixXd& Xinv, const StudentsT& distrib)
 {
-    if(y.rows() != X.rows())
-        throw INVALID_ARGUMENT("y and X matrices row mismatch");
-    if(X.rows() != Xinv.cols())
-        throw INVALID_ARGUMENT("X and pseudo inverse of X row mismatch");
+	if(y.rows() != X.rows())
+		throw INVALID_ARGUMENT("y and X matrices row mismatch");
+	if(X.rows() != Xinv.cols())
+		throw INVALID_ARGUMENT("X and pseudo inverse of X row mismatch");
 
-    RegrResult out;
-    out.bhat = Xinv*y;
-    out.yhat = X*out.bhat;
-    out.ssres = (out.yhat - y).squaredNorm();
+	RegrResult out;
+	out.bhat = Xinv*y;
+	out.yhat = X*out.bhat;
+	out.ssres = (out.yhat - y).squaredNorm();
 
-    // compute total sum of squares
-    double mean = y.mean();
-    out.sstot = 0;
-    for(size_t rr=0; rr<y.rows(); rr++)
-        out.sstot += (y[rr]-mean)*(y[rr]-mean);
-    out.rsqr = 1-out.ssres/out.sstot;
-    out.adj_rsqr = out.rsqr - (1-out.rsqr)*X.cols()/(X.cols()-X.rows()-1);
+	// compute total sum of squares
+	double mean = y.mean();
+	out.sstot = 0;
+	for(size_t rr=0; rr<y.rows(); rr++)
+		out.sstot += (y[rr]-mean)*(y[rr]-mean);
+	out.rsqr = 1-out.ssres/out.sstot;
+	out.adj_rsqr = out.rsqr - (1-out.rsqr)*X.cols()/(X.cols()-X.rows()-1);
 
-    double sigmahat = out.ssres/(X.rows()-X.cols()+2);
-    out.std_err.resize(X.cols());
-    out.t.resize(X.cols());
-    out.p.resize(X.cols());
-    out.dof = X.rows()-1;
+	double sigmahat = out.ssres/(X.rows()-X.cols()+2);
+	out.std_err.resize(X.cols());
+	out.t.resize(X.cols());
+	out.p.resize(X.cols());
+	out.dof = X.rows()-1;
 
-    for(size_t ii=0; ii<X.cols(); ii++) {
-        out.std_err[ii] = sqrt(sigmahat*covInv(ii,ii)/X.cols());
-        double t = out.bhat[ii]/out.std_err[ii];
-        out.t[ii] = t;
-        out.p[ii] = distrib.cumulative(t);
-    }
+	for(size_t ii=0; ii<X.cols(); ii++) {
+		out.std_err[ii] = sqrt(sigmahat*covInv(ii,ii)/X.cols());
+		double t = out.bhat[ii]/out.std_err[ii];
+		out.t[ii] = t;
+		out.p[ii] = distrib.cumulative(t);
+	}
 
-    return out;
+	return out;
 }
 
 /**
@@ -516,47 +516,47 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
  */
 RegrResult regress(const VectorXd& y, const MatrixXd& X)
 {
-    if(y.rows() != X.rows())
-        throw INVALID_ARGUMENT("y and X matrices row mismatch");
+	if(y.rows() != X.rows())
+		throw INVALID_ARGUMENT("y and X matrices row mismatch");
 
-    auto Xinv = pseudoInverse(X);
-    auto covInv = pseudoInverse(X.transpose()*X);
+	auto Xinv = pseudoInverse(X);
+	auto covInv = pseudoInverse(X.transpose()*X);
 
-    RegrResult out;
-    out.bhat = Xinv*y;
-    out.yhat = out.bhat*X;
-    out.ssres = (out.yhat - y).squaredNorm();
+	RegrResult out;
+	out.bhat = Xinv*y;
+	out.yhat = out.bhat*X;
+	out.ssres = (out.yhat - y).squaredNorm();
 
-    // compute total sum of squares
-    double mean = y.mean();
-    out.sstot = 0;
-    for(size_t rr=0; rr<y.rows(); rr++)
-        out.sstot += (y[rr]-mean)*(y[rr]-mean);
-    out.rsqr = 1-out.ssres/out.sstot;
-    out.adj_rsqr = out.rsqr - (1-out.rsqr)*X.cols()/(X.cols()-X.rows()-1);
+	// compute total sum of squares
+	double mean = y.mean();
+	out.sstot = 0;
+	for(size_t rr=0; rr<y.rows(); rr++)
+		out.sstot += (y[rr]-mean)*(y[rr]-mean);
+	out.rsqr = 1-out.ssres/out.sstot;
+	out.adj_rsqr = out.rsqr - (1-out.rsqr)*X.cols()/(X.cols()-X.rows()-1);
 
-    // estimate the standard deviation of the error term
-    double sigmahat = out.ssres/(X.rows()-X.cols()+2);
+	// estimate the standard deviation of the error term
+	double sigmahat = out.ssres/(X.rows()-X.cols()+2);
 
-    out.std_err.resize(X.cols());
-    out.t.resize(X.cols());
-    out.p.resize(X.cols());
-    out.dof = X.rows()-1;
+	out.std_err.resize(X.cols());
+	out.t.resize(X.cols());
+	out.p.resize(X.cols());
+	out.dof = X.rows()-1;
 
-    // need to compute the CDF for students_t_cdf
-    const double MAX_T = 100;
-    const double STEP_T = 0.1;
-    StudentsT distrib(out.dof, STEP_T, MAX_T);
+	// need to compute the CDF for students_t_cdf
+	const double MAX_T = 100;
+	const double STEP_T = 0.1;
+	StudentsT distrib(out.dof, STEP_T, MAX_T);
 
-    for(size_t ii=0; ii<X.cols(); ii++) {
-        out.std_err[ii] = sqrt(sigmahat*covInv(ii,ii)/X.cols());
+	for(size_t ii=0; ii<X.cols(); ii++) {
+		out.std_err[ii] = sqrt(sigmahat*covInv(ii,ii)/X.cols());
 
-        double t = out.bhat[ii]/out.std_err[ii];
-        out.t[ii] = t;
-        out.p[ii] = distrib.cdf(t);
-    }
+		double t = out.bhat[ii]/out.std_err[ii];
+		out.t[ii] = t;
+		out.p[ii] = distrib.cdf(t);
+	}
 
-    return out;
+	return out;
 }
 
 
@@ -569,18 +569,18 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X)
  */
 MatrixXd pseudoInverse(const MatrixXd& X)
 {
-    double THRESH = 0.000001;
-    JacobiSVD<MatrixXd> svd(X, Eigen::ComputeThinU | Eigen::ComputeThinV);
-    VectorXd singular_values = svd.singularValues();
+	double THRESH = 0.000001;
+	JacobiSVD<MatrixXd> svd(X, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	VectorXd singular_values = svd.singularValues();
 
-    for(size_t ii=0; ii<svd.singularValues().rows(); ii++) {
-        if(singular_values[ii] > THRESH)
-            singular_values[ii] = 1./singular_values[ii];
-        else
-            singular_values[ii] = 0;
-    }
-    return svd.matrixV()*singular_values.asDiagonal()*
-            svd.matrixU().transpose();
+	for(size_t ii=0; ii<svd.singularValues().rows(); ii++) {
+		if(singular_values[ii] > THRESH)
+			singular_values[ii] = 1./singular_values[ii];
+		else
+			singular_values[ii] = 0;
+	}
+	return svd.matrixV()*singular_values.asDiagonal()*
+		svd.matrixU().transpose();
 }
 
 /******************************************************
@@ -604,15 +604,15 @@ void approxKMeans(const MatrixXd& samples, size_t nclass, Eigen::VectorXi& label
 	double norm = 0;
 
 	MatrixXd means(nclass, ndim);
-    std::vector<double> dists(npoints);
-    std::vector<int> indices(npoints);
+	std::vector<double> dists(npoints);
+	std::vector<int> indices(npoints);
 
 	// Select Point
-    std::default_random_engine rng;
-    std::uniform_int_distribution<int> randi(0, npoints-1);
-    std::uniform_real_distribution<double> randf(0, 1);
-    int tmp = randi(rng);
-    size_t pp;
+	std::default_random_engine rng;
+	std::uniform_int_distribution<int> randi(0, npoints-1);
+	std::uniform_real_distribution<double> randf(0, 1);
+	int tmp = randi(rng);
+	size_t pp;
 	means.row(0) = samples.row(tmp);
 
 	//set the rest of the centers
@@ -623,8 +623,8 @@ void approxKMeans(const MatrixXd& samples, size_t nclass, Eigen::VectorXi& label
 		for(pp = 0 ; pp < npoints ; pp++) {
 			dists[pp] = INFINITY;
 			for(int tt = 0 ; tt < cc; tt++) {
-                double v = (samples.row(pp)-means.row(tt)).squaredNorm();
-                dists[pp] = std::min(dists[pp], v);
+				double v = (samples.row(pp)-means.row(tt)).squaredNorm();
+				dists[pp] = std::min(dists[pp], v);
 			}
 
 			//keep normalization factor for later
@@ -634,21 +634,21 @@ void approxKMeans(const MatrixXd& samples, size_t nclass, Eigen::VectorXi& label
 		//set target pp^th greatest distance
 		double pct = norm*randf(rng);
 
-        // fill indices
-        for(size_t ii=0; ii<npoints; ii++)
-            indices[ii] = ii;
+		// fill indices
+		for(size_t ii=0; ii<npoints; ii++)
+			indices[ii] = ii;
 
-        // sort, while keeping indices
-        std::sort(indices.begin(), indices.end(),
-                [&dists](size_t i, size_t j){
-                    return dists[i] < dists[j];
-                });
+		// sort, while keeping indices
+		std::sort(indices.begin(), indices.end(),
+				[&dists](size_t i, size_t j){
+				return dists[i] < dists[j];
+				});
 
 		//go through sorted list to find matching location in CDF
-        for(pp = 0; pp < npoints && pct > 0 ; pp++) {
-            double d = dists[indices[pp]];
-            pct -= d;
-        }
+		for(pp = 0; pp < npoints && pct > 0 ; pp++) {
+			double d = dists[indices[pp]];
+			pct -= d;
+		}
 
 		//copy randomly selected  point into middle
 		means.row(cc) = samples.row(pp);
@@ -686,15 +686,15 @@ void approxKMeans(const MatrixXd& samples, size_t nclass, MatrixXd& means)
 	double norm = 0;
 
 	means.resize(nclass, ndim);
-    std::vector<double> dists(npoints);
-    std::vector<int> indices(npoints);
+	std::vector<double> dists(npoints);
+	std::vector<int> indices(npoints);
 
 	// Select Point
-    std::default_random_engine rng;
-    std::uniform_int_distribution<int> randi(0, npoints-1);
-    std::uniform_real_distribution<double> randf(0, 1);
-    int tmp = randi(rng);
-    size_t pp;
+	std::default_random_engine rng;
+	std::uniform_int_distribution<int> randi(0, npoints-1);
+	std::uniform_real_distribution<double> randf(0, 1);
+	int tmp = randi(rng);
+	size_t pp;
 	means.row(0) = samples.row(tmp);
 
 	//set the rest of the centers
@@ -705,8 +705,8 @@ void approxKMeans(const MatrixXd& samples, size_t nclass, MatrixXd& means)
 		for(pp = 0 ; pp < npoints ; pp++) {
 			dists[pp] = INFINITY;
 			for(int tt = 0 ; tt < cc; tt++) {
-                double v = (samples.row(pp)-means.row(tt)).squaredNorm();
-                dists[pp] = std::min(dists[pp], v);
+				double v = (samples.row(pp)-means.row(tt)).squaredNorm();
+				dists[pp] = std::min(dists[pp], v);
 			}
 
 			//keep normalization factor for later
@@ -716,21 +716,21 @@ void approxKMeans(const MatrixXd& samples, size_t nclass, MatrixXd& means)
 		//set target pp^th greatest distance
 		double pct = norm*randf(rng);
 
-        // fill indices
-        for(size_t ii=0; ii<npoints; ii++)
-            indices[ii] = ii;
+		// fill indices
+		for(size_t ii=0; ii<npoints; ii++)
+			indices[ii] = ii;
 
-        // sort, while keeping indices
-        std::sort(indices.begin(), indices.end(),
-                [&dists](size_t i, size_t j){
-                    return dists[i] < dists[j];
-                });
+		// sort, while keeping indices
+		std::sort(indices.begin(), indices.end(),
+				[&dists](size_t i, size_t j){
+				return dists[i] < dists[j];
+				});
 
 		//go through sorted list to find matching location in CDF
-        for(pp = 0; pp < npoints && pct > 0 ; pp++) {
-            double d = dists[indices[pp]];
-            pct -= d;
-        }
+		for(pp = 0; pp < npoints && pct > 0 ; pp++) {
+			double d = dists[indices[pp]];
+			pct -= d;
+		}
 
 		//copy randomly selected  point into middle
 		means.row(cc) = samples.row(pp);
@@ -749,9 +749,9 @@ KMeans::KMeans(size_t rank, size_t k) : Classifier(rank), m_k(k), m_mu(k, ndim)
 
 void KMeans::setk(size_t ngroups)
 {
-    m_k = ngroups;
-    m_mu.resize(m_k, ndim);
-    m_valid = false;
+	m_k = ngroups;
+	m_mu.resize(m_k, ndim);
+	m_valid = false;
 }
 
 /**
@@ -762,11 +762,11 @@ void KMeans::setk(size_t ngroups)
  */
 void KMeans::updateMeans(const MatrixXd& newmeans)
 {
-    if(newmeans.rows() != m_mu.rows() || newmeans.cols() != m_mu.cols()) {
-        throw RUNTIME_ERROR("new mean must have matching size with old!");
-    }
-    m_mu = newmeans;
-    m_valid = true;
+	if(newmeans.rows() != m_mu.rows() || newmeans.cols() != m_mu.cols()) {
+		throw RUNTIME_ERROR("new mean must have matching size with old!");
+	}
+	m_mu = newmeans;
+	m_valid = true;
 }
 
 /**
@@ -779,36 +779,36 @@ void KMeans::updateMeans(const MatrixXd& newmeans)
  */
 void KMeans::updateMeans(const MatrixXd samples, const Eigen::VectorXi classes)
 {
-    if(classes.rows() != samples.rows()){
-        throw RUNTIME_ERROR("Rows in sample and group membership vectors "
-                "must match, but do not!");
-    }
-    if(ndim != samples.cols()){
-        throw RUNTIME_ERROR("Columns in sample vector must match number of "
-                "dimensions, but do not!");
-    }
-    for(size_t ii=0; ii<classes.rows(); ii++) {
-        if(classes[ii] < 0 || classes[ii] >= m_k) {
-            throw RUNTIME_ERROR("Invalid class: "+to_string(classes[ii])+
-                    " class must be > 0 and < "+to_string(m_k));
-        }
-    }
+	if(classes.rows() != samples.rows()){
+		throw RUNTIME_ERROR("Rows in sample and group membership vectors "
+				"must match, but do not!");
+	}
+	if(ndim != samples.cols()){
+		throw RUNTIME_ERROR("Columns in sample vector must match number of "
+				"dimensions, but do not!");
+	}
+	for(size_t ii=0; ii<classes.rows(); ii++) {
+		if(classes[ii] < 0 || classes[ii] >= m_k) {
+			throw RUNTIME_ERROR("Invalid class: "+to_string(classes[ii])+
+					" class must be > 0 and < "+to_string(m_k));
+		}
+	}
 
-    m_mu.setZero();
-    vector<size_t> counts(m_k, 0);
+	m_mu.setZero();
+	vector<size_t> counts(m_k, 0);
 
-    // sum up samples by group
-    for(size_t rr = 0; rr < samples.rows(); rr++ ){
-        assert(classes[rr] < m_k);
-        m_mu.row(classes[rr]) += samples.row(rr);
-        counts[classes[rr]]++;
-    }
+	// sum up samples by group
+	for(size_t rr = 0; rr < samples.rows(); rr++ ){
+		assert(classes[rr] < m_k);
+		m_mu.row(classes[rr]) += samples.row(rr);
+		counts[classes[rr]]++;
+	}
 
-    // normalize
-    for(size_t cc=0; cc<m_k; cc++) {
-        m_mu.row(cc) /= counts[cc];
-    }
-    m_valid = true;
+	// normalize
+	for(size_t cc=0; cc<m_k; cc++) {
+		m_mu.row(cc) /= counts[cc];
+	}
+	m_valid = true;
 }
 
 /**
@@ -821,9 +821,9 @@ void KMeans::updateMeans(const MatrixXd samples, const Eigen::VectorXi classes)
  */
 Eigen::VectorXi KMeans::classify(const MatrixXd& samples)
 {
-    Eigen::VectorXi out;
-    classify(samples, out);
-    return out;
+	Eigen::VectorXi out;
+	classify(samples, out);
+	return out;
 }
 
 /**
@@ -838,39 +838,39 @@ Eigen::VectorXi KMeans::classify(const MatrixXd& samples)
  */
 size_t KMeans::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
 {
-    if(!m_valid) {
-        throw RUNTIME_ERROR("Error, cannot classify samples because "
-                "classifier has not been run on any samples yet. Call "
-                "compute on a samples matrix first!");
-    }
-    if(samples.cols() != ndim) {
-        throw RUNTIME_ERROR("Number of columns does in samples matrix should "
-                "match KMeans classifier, but doesn't");
-    }
-    classes.resize(samples.rows());
+	if(!m_valid) {
+		throw RUNTIME_ERROR("Error, cannot classify samples because "
+				"classifier has not been run on any samples yet. Call "
+				"compute on a samples matrix first!");
+	}
+	if(samples.cols() != ndim) {
+		throw RUNTIME_ERROR("Number of columns does in samples matrix should "
+				"match KMeans classifier, but doesn't");
+	}
+	classes.resize(samples.rows());
 
-    size_t change = 0;
-    for(size_t rr=0; rr<samples.rows(); rr++) {
+	size_t change = 0;
+	for(size_t rr=0; rr<samples.rows(); rr++) {
 
-        // check all the means, to find the minimum distance
-        double bestdist = INFINITY;
-        int bestc = -1;
-        for(size_t kk=0; kk<m_k; kk++) {
-            double dist = (samples.row(rr)-m_mu.row(kk)).squaredNorm();
-            if(dist < bestdist) {
-                bestdist = dist;
-                bestc = kk;
-            }
-        }
+		// check all the means, to find the minimum distance
+		double bestdist = INFINITY;
+		int bestc = -1;
+		for(size_t kk=0; kk<m_k; kk++) {
+			double dist = (samples.row(rr)-m_mu.row(kk)).squaredNorm();
+			if(dist < bestdist) {
+				bestdist = dist;
+				bestc = kk;
+			}
+		}
 
-        if(classes[rr] != bestc)
-            change++;
+		if(classes[rr] != bestc)
+			change++;
 
-        // assign the min squared distance
-        classes[rr] = bestc;
-    }
+		// assign the min squared distance
+		classes[rr] = bestc;
+	}
 
-    return change;
+	return change;
 }
 
 /**
@@ -886,27 +886,27 @@ size_t KMeans::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
  */
 int KMeans::update(const MatrixXd& samples, bool reinit)
 {
-    Eigen::VectorXi classes(samples.rows());
+	Eigen::VectorXi classes(samples.rows());
 
-    // initialize with approximate k-means
-    if(reinit || !m_valid)
-        approxKMeans(samples, m_k, m_mu);
-    m_valid = true;
+	// initialize with approximate k-means
+	if(reinit || !m_valid)
+		approxKMeans(samples, m_k, m_mu);
+	m_valid = true;
 
-    // now for the 'real' k-means
-    size_t change = SIZE_MAX;
-    int ii = 0;
-    for(ii=0; ii != maxit && change > 0; maxit++, ii++) {
-        change = classify(samples, classes);
-        updateMeans(samples, classes);
+	// now for the 'real' k-means
+	size_t change = SIZE_MAX;
+	int ii = 0;
+	for(ii=0; ii != maxit && change > 0; maxit++, ii++) {
+		change = classify(samples, classes);
+		updateMeans(samples, classes);
 		cerr << "iter: " << ii << ", " << change << " changed" << endl;
-    }
+	}
 
-    if(ii == maxit) {
-        cerr << "K-Means Failed to Converge" << endl;
-        return -1;
-    } else
-        return 0;
+	if(ii == maxit) {
+		cerr << "K-Means Failed to Converge" << endl;
+		return -1;
+	} else
+		return 0;
 }
 
 /**
@@ -916,16 +916,16 @@ int KMeans::update(const MatrixXd& samples, bool reinit)
  * @param k Number of groups to classify samples into
  */
 ExpMax::ExpMax(size_t rank, size_t k) : Classifier(rank), m_k(k), m_mu(k, ndim),
-    m_cov(k*ndim, ndim), m_tau(k)
+	m_cov(k*ndim, ndim), m_tau(k)
 { }
 
 void ExpMax::setk(size_t ngroups)
 {
-    m_k = ngroups;
-    m_mu.resize(m_k, ndim);
-    m_cov.resize(ndim*m_k, ndim);
-    m_tau.resize(m_k);
-    m_valid = false;
+	m_k = ngroups;
+	m_mu.resize(m_k, ndim);
+	m_cov.resize(ndim*m_k, ndim);
+	m_tau.resize(m_k);
+	m_valid = false;
 }
 
 /**
@@ -935,24 +935,24 @@ void ExpMax::setk(size_t ngroups)
  * @param newmeans Matrix with new mean
  */
 void ExpMax::updateMeanCovTau(const MatrixXd& newmeans, const MatrixXd& newcov,
-        const VectorXd& tau)
+		const VectorXd& tau)
 {
-    if(newmeans.rows() != m_mu.rows() || newmeans.cols() != m_mu.cols()) {
-        throw RUNTIME_ERROR("new mean must have matching size with old!"
-                " Expected: " + to_string(m_mu.rows())+"x" +
-                to_string(m_mu.cols()) + ", but got "+
-                to_string(newmeans.rows()) + "x" + to_string(newmeans.cols()));
-    }
-    if(newcov.rows() != m_cov.rows() || newcov.cols() != m_cov.cols()) {
-        throw RUNTIME_ERROR("new covariance must have matching size with old!"
-                " Expected: " + to_string(m_cov.rows())+"x" +
-                to_string(m_cov.cols()) + ", but got "+
-                to_string(newcov.rows()) + "x" + to_string(newcov.cols()));
-    }
-    m_mu = newmeans;
-    m_cov = newcov;
-    m_tau = tau;
-    m_valid = true;
+	if(newmeans.rows() != m_mu.rows() || newmeans.cols() != m_mu.cols()) {
+		throw RUNTIME_ERROR("new mean must have matching size with old!"
+				" Expected: " + to_string(m_mu.rows())+"x" +
+				to_string(m_mu.cols()) + ", but got "+
+				to_string(newmeans.rows()) + "x" + to_string(newmeans.cols()));
+	}
+	if(newcov.rows() != m_cov.rows() || newcov.cols() != m_cov.cols()) {
+		throw RUNTIME_ERROR("new covariance must have matching size with old!"
+				" Expected: " + to_string(m_cov.rows())+"x" +
+				to_string(m_cov.cols()) + ", but got "+
+				to_string(newcov.rows()) + "x" + to_string(newcov.cols()));
+	}
+	m_mu = newmeans;
+	m_cov = newcov;
+	m_tau = tau;
+	m_valid = true;
 }
 
 /**
@@ -965,64 +965,64 @@ void ExpMax::updateMeanCovTau(const MatrixXd& newmeans, const MatrixXd& newcov,
  */
 void ExpMax::updateMeanCovTau(const MatrixXd samples, const Eigen::VectorXi classes)
 {
-    if(classes.rows() != samples.rows()){
-        throw RUNTIME_ERROR("Rows in sample and group membership vectors "
-                "must match, but do not!");
-    }
-    if(ndim != samples.cols()){
-        throw RUNTIME_ERROR("Columns in sample vector must match number of "
-                "dimensions, but do not!");
-    }
-    for(size_t ii=0; ii<classes.rows(); ii++) {
-        if(classes[ii] < 0 || classes[ii] >= m_k) {
-            throw RUNTIME_ERROR("Invalid class: "+to_string(classes[ii])+
-                    " class must be > 0 and < "+to_string(m_k));
-        }
-    }
+	if(classes.rows() != samples.rows()){
+		throw RUNTIME_ERROR("Rows in sample and group membership vectors "
+				"must match, but do not!");
+	}
+	if(ndim != samples.cols()){
+		throw RUNTIME_ERROR("Columns in sample vector must match number of "
+				"dimensions, but do not!");
+	}
+	for(size_t ii=0; ii<classes.rows(); ii++) {
+		if(classes[ii] < 0 || classes[ii] >= m_k) {
+			throw RUNTIME_ERROR("Invalid class: "+to_string(classes[ii])+
+					" class must be > 0 and < "+to_string(m_k));
+		}
+	}
 
 #ifdef VERYDEBUG
-    for(size_t cc=0; cc<m_k; cc++) {
-        cerr << "Cluster " << cc << endl;
-        cerr << "[";
-        for(size_t rr = 0; rr < samples.rows(); rr++ ){
-            if(classes[rr] == cc)
-                cerr << "[" << samples.row(rr) << "];\n";
-        }
-        cerr << "]\n";
-    }
+	for(size_t cc=0; cc<m_k; cc++) {
+		cerr << "Cluster " << cc << endl;
+		cerr << "[";
+		for(size_t rr = 0; rr < samples.rows(); rr++ ){
+			if(classes[rr] == cc)
+				cerr << "[" << samples.row(rr) << "];\n";
+		}
+		cerr << "]\n";
+	}
 #endif
 
-    // compute mean, store counts in tau
-    m_mu.setZero();
-    m_tau.setZero();
-    size_t total = 0;
-    for(size_t rr = 0; rr < samples.rows(); rr++ ){
-        size_t c = classes[rr];
-        m_mu.row(c) += samples.row(rr);
-        m_tau[c]++;
-        total++;
-    }
-    for(size_t cc=0; cc<m_k; cc++)
-        m_mu.row(cc) /= m_tau[cc];
+	// compute mean, store counts in tau
+	m_mu.setZero();
+	m_tau.setZero();
+	size_t total = 0;
+	for(size_t rr = 0; rr < samples.rows(); rr++ ){
+		size_t c = classes[rr];
+		m_mu.row(c) += samples.row(rr);
+		m_tau[c]++;
+		total++;
+	}
+	for(size_t cc=0; cc<m_k; cc++)
+		m_mu.row(cc) /= m_tau[cc];
 
-    // compute covariance
-    VectorXd x(ndim);
-    m_cov.setZero();
-    for(size_t rr = 0; rr < samples.rows(); rr++) {
-        assert(classes[rr] < m_k);
-        size_t c = classes[rr];
-        x = samples.row(rr)-m_mu.row(c);
-        m_cov.block(c*ndim,0, ndim, ndim) += (x*x.transpose());
-    }
-    // normalize covariance
-    for(size_t cc = 0; cc < m_k; cc++)
-        m_cov.block(cc*ndim, 0, ndim, ndim) /= (m_tau[cc]-1);
+	// compute covariance
+	VectorXd x(ndim);
+	m_cov.setZero();
+	for(size_t rr = 0; rr < samples.rows(); rr++) {
+		assert(classes[rr] < m_k);
+		size_t c = classes[rr];
+		x = samples.row(rr)-m_mu.row(c);
+		m_cov.block(c*ndim,0, ndim, ndim) += (x*x.transpose());
+	}
+	// normalize covariance
+	for(size_t cc = 0; cc < m_k; cc++)
+		m_cov.block(cc*ndim, 0, ndim, ndim) /= (m_tau[cc]-1);
 
-    // convert tau from count to ratio
-    for(size_t cc = 0; cc < m_k; cc++)
-        m_tau[cc] = m_tau[cc]/total;
+	// convert tau from count to ratio
+	for(size_t cc = 0; cc < m_k; cc++)
+		m_tau[cc] = m_tau[cc]/total;
 
-    m_valid = true;
+	m_valid = true;
 }
 
 /**
@@ -1035,9 +1035,9 @@ void ExpMax::updateMeanCovTau(const MatrixXd samples, const Eigen::VectorXi clas
  */
 Eigen::VectorXi ExpMax::classify(const MatrixXd& samples)
 {
-    Eigen::VectorXi out;
-    classify(samples, out);
-    return out;
+	Eigen::VectorXi out;
+	classify(samples, out);
+	return out;
 }
 
 /**
@@ -1052,61 +1052,61 @@ Eigen::VectorXi ExpMax::classify(const MatrixXd& samples)
  */
 size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
 {
-    if(!m_valid) {
-        throw RUNTIME_ERROR("Error, cannot classify samples because "
-                "classifier has not been run on any samples yet. Call "
-                "compute on a samples matrix first!");
-    }
-    if(samples.cols() != ndim) {
-        throw RUNTIME_ERROR("Number of columns does in samples matrix should "
-                "match ExpMax classifier, but doesn't");
-    }
-    classes.resize(samples.rows());
+	if(!m_valid) {
+		throw RUNTIME_ERROR("Error, cannot classify samples because "
+				"classifier has not been run on any samples yet. Call "
+				"compute on a samples matrix first!");
+	}
+	if(samples.cols() != ndim) {
+		throw RUNTIME_ERROR("Number of columns does in samples matrix should "
+				"match ExpMax classifier, but doesn't");
+	}
+	classes.resize(samples.rows());
 
-    static std::default_random_engine rng;
+	static std::default_random_engine rng;
 
-    Eigen::FullPivHouseholderQR<MatrixXd> qr(ndim, ndim);
-    MatrixXd prob(samples.rows(), m_k);
-    VectorXd x(ndim);
-    MatrixXd Cinv(ndim, ndim);
-    double det = 0;
-    size_t change = 0;
+	Eigen::FullPivHouseholderQR<MatrixXd> qr(ndim, ndim);
+	MatrixXd prob(samples.rows(), m_k);
+	VectorXd x(ndim);
+	MatrixXd Cinv(ndim, ndim);
+	double det = 0;
+	size_t change = 0;
 	vector<int64_t> zero_tau;
 	zero_tau.reserve(m_k);
 
-    //compute Cholesky decomp, then determinant and inverse covariance matrix
+	//compute Cholesky decomp, then determinant and inverse covariance matrix
 	for(int cc = 0; cc < m_k; cc++) {
-        cerr << "Covariance:\n" << m_cov.block(cc*ndim, 0, ndim, ndim) << endl;
+		cerr << "Covariance:\n" << m_cov.block(cc*ndim, 0, ndim, ndim) << endl;
 		if(m_tau[cc] > 0) {
 			if(ndim == 1) {
 				det = m_cov(0,0);
 				Cinv(0,0) = 1./m_cov(cc*ndim,0);
 			} else {
-                qr.compute(m_cov.block(cc*ndim,0,ndim,ndim));
-                Cinv = qr.inverse();
-                det = qr.absDeterminant();
+				qr.compute(m_cov.block(cc*ndim,0,ndim,ndim));
+				Cinv = qr.inverse();
+				det = qr.absDeterminant();
 			}
 		} else {
 			//no points in this sample, make inverse covariance matrix infinite
 			//dist will be nan or inf, prob will be nan, (dist > max) -> false
-            Cinv.fill(INFINITY);
+			Cinv.fill(INFINITY);
 			det = 1;
 			zero_tau.push_back(cc);
 		}
 #ifndef  NDEBUG
-        cerr << "Covariance Det:\n" << det << endl;
-        cerr << "Inverse Covariance:\n" << Cinv << endl;
+		cerr << "Covariance Det:\n" << det << endl;
+		cerr << "Inverse Covariance:\n" << Cinv << endl;
 #endif
 
 		//calculate probable location of each point
 		double cval = log(m_tau[cc])- .5*log(det)-ndim/2.*log(2*M_PI);
 		for(int pp = 0; pp < samples.rows(); pp++) {
-            x = samples.row(pp) - m_mu.row(cc);
+			x = samples.row(pp) - m_mu.row(cc);
 
-            //log likelihood = (note that last part is ignored because it is
-            // constant for all points)
-            //log(tau) - log(sigma)/2 - (x-mu)^Tsigma^-1(x-mu) - dlog(2pi)/2
-            double llike = cval - .5*(x.dot(Cinv*x));
+			//log likelihood = (note that last part is ignored because it is
+			// constant for all points)
+			//log(tau) - log(sigma)/2 - (x-mu)^Tsigma^-1(x-mu) - dlog(2pi)/2
+			double llike = cval - .5*(x.dot(Cinv*x));
 
 			llike = (std::isinf(llike) || std::isnan(llike)) ? -INFINITY : llike;
 			prob(pp, cc) = llike;
@@ -1118,7 +1118,7 @@ size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
 	double reassigned = 0;
 	//place every point in its most probable group
 	std::uniform_int_distribution<int> randi(0, zero_tau.size()-1);
-    std::uniform_real_distribution<double> randf(0, 1);
+	std::uniform_real_distribution<double> randf(0, 1);
 	if(zero_tau.size() > 0) {
 		cerr << "Zero Tau, Randomly Assigning Based on Probabilities" << endl;
 		for(int pp = 0 ; pp < samples.rows(); pp++) {
@@ -1162,7 +1162,7 @@ size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
 			classes[pp] = max_class;
 		}
 	}
-    return change;
+	return change;
 }
 
 /**
@@ -1178,67 +1178,67 @@ size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
  */
 int ExpMax::update(const MatrixXd& samples, bool reinit)
 {
-    Eigen::VectorXi classes(samples.rows());
+	Eigen::VectorXi classes(samples.rows());
 
-    // initialize with approximate k-means
-    if(reinit || !m_valid) {
+	// initialize with approximate k-means
+	if(reinit || !m_valid) {
 		approxKMeans(samples, m_k, classes);
 //		cerr << "Randomly Assigning Groups" << endl;
 //        // In real world data random works as well as anything else
 //        for(size_t ii=0; ii < samples.rows(); ii++)
 //            classes[ii] = ii%m_k;
 		cerr << "Updating Mean/Cov/Tau" << endl;
-        updateMeanCovTau(samples, classes);
+		updateMeanCovTau(samples, classes);
 #ifndef NDEBUG
-        cout << "==========================================" << endl;
-        cout << "Init Distributions: " << endl;
-        for(size_t cc=0; cc<m_k; cc++ ) {
-            cout << "Cluster " << cc << ", prob: " << m_tau[cc] << endl;
-            cout << "Mean:\n" << m_mu.row(cc) << endl;
-            cout << "Covariance:\n" <<
-                m_cov.block(cc*ndim, 0, ndim, ndim) << endl << endl;
-        }
-        cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^" << endl;
+		cout << "==========================================" << endl;
+		cout << "Init Distributions: " << endl;
+		for(size_t cc=0; cc<m_k; cc++ ) {
+			cout << "Cluster " << cc << ", prob: " << m_tau[cc] << endl;
+			cout << "Mean:\n" << m_mu.row(cc) << endl;
+			cout << "Covariance:\n" <<
+				m_cov.block(cc*ndim, 0, ndim, ndim) << endl << endl;
+		}
+		cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^" << endl;
 #endif
-    }
-    m_valid = true;
+	}
+	m_valid = true;
 
-    // now for the 'real' k-means
-    size_t change = SIZE_MAX;
-    int ii = 0;
+	// now for the 'real' k-means
+	size_t change = SIZE_MAX;
+	int ii = 0;
 	DBG1(auto c = clock());
-    for(ii=0; ii != maxit && change > 0; ++ii, ++maxit) {
+	for(ii=0; ii != maxit && change > 0; ++ii, ++maxit) {
 		DBG1(c = clock());
-        change = classify(samples, classes);
+		change = classify(samples, classes);
 		DBG1(c = clock() - c);
 		DBG1(cerr << "Classify Time: " << c << endl);
 
 		DBG1(c = clock());
-        updateMeanCovTau(samples, classes);
+		updateMeanCovTau(samples, classes);
 		DBG1(c = clock() -c );
 		DBG1(cerr << "Mean/Cov Time: " << c << endl);
 
 #ifndef NDEBUG
-        cout << "==========================================" << endl;
-        cout << "Changed Labels: " << change << endl;
-        cout << "Current Distributions: " << endl;
-        for(size_t cc=0; cc<m_k; cc++ ) {
-            cout << "Cluster " << cc << ", prob: " << m_tau[cc] << endl;
-            cout << "Mean:\n" << m_mu.row(cc) << endl;
-            cout << "Covariance:\n" <<
-                m_cov.block(cc*ndim, 0, ndim, ndim) << endl << endl;
-        }
-        cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^" << endl;
+		cout << "==========================================" << endl;
+		cout << "Changed Labels: " << change << endl;
+		cout << "Current Distributions: " << endl;
+		for(size_t cc=0; cc<m_k; cc++ ) {
+			cout << "Cluster " << cc << ", prob: " << m_tau[cc] << endl;
+			cout << "Mean:\n" << m_mu.row(cc) << endl;
+			cout << "Covariance:\n" <<
+				m_cov.block(cc*ndim, 0, ndim, ndim) << endl << endl;
+		}
+		cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^" << endl;
 #endif
 		cerr << "iter: " << ii << ", " << change << " changed" << endl;
-    }
+	}
 
-    if(ii == maxit) {
-        cerr << "Expectation Maximization of Gaussian Mixture Model Failed "
-            "to Converge" << endl;
-        return -1;
-    } else
-        return 0;
+	if(ii == maxit) {
+		cerr << "Expectation Maximization of Gaussian Mixture Model Failed "
+			"to Converge" << endl;
+		return -1;
+	} else
+		return 0;
 }
 
 /*****************************************************************************
@@ -1593,7 +1593,7 @@ int findDensityPeaks(const MatrixXf& samples, double thresh,
  * return -1 if maximum number of iterations hit, 0 otherwise (converged)
  */
 int fastSearchFindDP(const MatrixXf& samples, double thresh, double outthresh,
-		 Eigen::VectorXi& classes, bool brute)
+		Eigen::VectorXi& classes, bool brute)
 {
 	size_t nsamp = samples.rows();
 	Eigen::VectorXf delta;
@@ -1793,18 +1793,44 @@ int fastSearchFindDP(const MatrixXf& samples, double thresh, double outthresh,
 //	}
 //}
 
-VectorXd activeShootingRegression(const MatrixXd& X, const VectorXd& y, double gamma)
+int sign(double v)
+{
+	return v < 0 ? -1 : (v > 0 ? 1 : 0);
+}
+
+/**
+ * @brief Performs LASSO regression using the 'activeShooting' algorithm of 
+ *  
+ * Peng, J., Wang, P., Zhou, N., & Zhu, J. (2009). Partial Correlation
+ * Estimation by Joint Sparse Regression Models. Journal of the American
+ * Statistical Association, 104(486), 735–746. doi:10.1198/jasa.2009.0126
+ *
+ * Essentially solves the equation: 
+ * 
+ * y = X * beta
+ *
+ * where beta is mostly 0's
+ *
+ * @param X Design matrix
+ * @param y Measured value
+ * @param gamma Weight of regularization (larger values forces sparser model)
+ *
+ * @return Beta vector
+ */
+VectorXd activeShootingRegr(const MatrixXd& X, const VectorXd& y, double gamma)
 {
 	double THRESH = 0.1;
 //	// Start with least squares
 //	JacobiSVD svd(X, ComputeThinV|ComputeThinU);
 //	VectorXd beta = svd.solve(y);
+	vector<bool> active(X.rows(), false);
 	VectorXd beta(X.cols());
 	VectorXd Xnorm(X.cols());
 	VectorXd sigma(y.rows());
 	for(size_t jj=0; jj<X.cols(); jj++)
-		Xnorm[jj] = X.col(jj).normSquared();
+		Xnorm[jj] = X.col(jj).squaredNorm();
 
+	// Initialize
 	for(size_t jj=0; jj<X.cols(); jj++) {
 		double ytxj = y.dot(X.col(jj));
 		if(ytxj - gamma > 0)
@@ -1813,71 +1839,77 @@ VectorXd activeShootingRegression(const MatrixXd& X, const VectorXd& y, double g
 			beta[jj] = 0;
 	}
 
-	vector<bool> active(X.rows(), false);
 
-	// set active set
-	for(size_t jj=0; jj<X.rows(); jj++) {
-		if(beta[jj] != 0)
-			active[jj] = true;
-	}
+	double dbeta1 = fabs(THRESH)*1.1;
+	while(dbeta1 > THRESH) {
+		dbeta1 = 0;
 
-	size_t nswitch = 1;
-	while(nswitch > 0) {
-
-		// Update Active Set until convergence
-		double dbeta = fabs(THRESH)*1.1;
-		while(dbeta > THRESH) {
-			dbeta = 0;
-			for(size_t jj=0; jj<X.cols(); jj++) {
-				// Skip inactive betas
-				if(!active[jj])
-					continue;
-
-				// Update
-				sigma = y-X*beta;
-				double prev = beta[jj];
-				double v = sigma.dot(X.row(jj))/Xnorm[jj] + prev;
-				if(v - gamma/Xnorm[jj] > 0)
-					beta[jj] = sign(v)*(fabs(v)-gamma/Xnorm[jj]);
-				else
-					beta[jj] = 0;
-
-				// to determine convergence
-				dbeta += fabs(prev-beta[jj]);
-			}
-			cerr << "dBeta: " << dbeta << endl;
+		// Determine Active Set
+		for(size_t jj=0; jj<X.rows(); jj++) {
+			if(beta[jj] != 0)
+				active[jj] = true;
 		}
 
-		// Update All (no convergence check)
-		nswitch = 0;
+		// Update Active Set until convergence
+		double dbeta2 = fabs(THRESH)*1.1;
+		while(dbeta2 > THRESH) {
+			dbeta2 = 0;
+
+			for(size_t jj=0; jj<X.cols(); jj++) {
+				// Update Active Set
+				if(active[jj]) {
+					double prev = beta[jj];
+					double v = (y-X*beta).dot(X.col(jj))/Xnorm[jj] + beta[jj];
+					
+					if(fabs(v) > gamma/Xnorm[jj])
+						beta[jj] = sign(v)*(fabs(v)-gamma/Xnorm[jj]);
+					else
+						beta[jj] = 0;
+
+					// to determine convergence
+					dbeta2 += fabs(prev-beta[jj]);
+				}
+			}
+			cerr << "dBeta2: " << dbeta2 << endl;
+		}
+
+		// Update All
 		for(size_t jj=0; jj<X.cols(); jj++) {
-			// Update
-			sigma = y-X*beta;
 			double prev = beta[jj];
-			double v = sigma.dot(X.row(jj))/Xnorm[jj] + prev;
-			if(v - gamma/Xnorm[jj] > 0)
+			double v = (y-X*beta).dot(X.col(jj))/Xnorm[jj] + beta[jj];
+			if(fabs(v) > gamma/Xnorm[jj])
 				beta[jj] = sign(v)*(fabs(v)-gamma/Xnorm[jj]);
 			else
 				beta[jj] = 0;
 
-			if(beta[jj] == 0) {
-				// active -> inactive
-				if(active[jj])
-					nswitch++;
-				active[jj] = false;
-			} else {
-				// inactive -> active
-				if(!active[jj])
-					nswitch++;
-				active[jj] = true;
-			}
+			// to determine convergence
+			dbeta1 += fabs(prev-beta[jj]);
 		}
+		cerr << "dBeta1: " << dbeta1 << endl;
 	}
-
 	return beta;
 }
 
-VectorXd shootingRegression(const MatrixXd& X, const VectorXd& y, double gamma)
+/**
+ * @brief Performs LASSO regression using the 'shooting' algorithm of 
+ *
+ * Fu, W. J. (1998). Penalized Regressions: The Bridge versus the Lasso.
+ * Journal of Computational and Graphical Statistics, 7(3), 397.
+ * doi:10.2307/1390712
+ *
+ * Essentially solves the equation: 
+ * 
+ * y = X * beta
+ *
+ * where beta is mostly 0's
+ *
+ * @param X Design matrix
+ * @param y Measured value
+ * @param gamma Weight of regularization (larger values forces sparser model)
+ *
+ * @return Beta vector
+ */
+VectorXd shootingRegr(const MatrixXd& X, const VectorXd& y, double gamma)
 {
 	double THRESH = 0.1;
 //	// Start with least squares
@@ -1887,11 +1919,12 @@ VectorXd shootingRegression(const MatrixXd& X, const VectorXd& y, double gamma)
 	VectorXd Xnorm(X.cols());
 	VectorXd sigma(y.rows());
 	for(size_t jj=0; jj<X.cols(); jj++)
-		Xnorm[jj] = X.col(jj).normSquared();
+		Xnorm[jj] = X.col(jj).squaredNorm();
 
+	// Initialize
 	for(size_t jj=0; jj<X.cols(); jj++) {
 		double ytxj = y.dot(X.col(jj));
-		if(ytxj - gamma > 0)
+		if(fabs(ytxj)-gamma > 0)
 			beta[jj] = sign(ytxj)*(fabs(ytxj)-gamma)/Xnorm[jj];
 		else
 			beta[jj] = 0;
@@ -1901,10 +1934,9 @@ VectorXd shootingRegression(const MatrixXd& X, const VectorXd& y, double gamma)
 	while(dbeta > THRESH) {
 		dbeta = 0;
 		for(size_t jj=0; jj<X.cols(); jj++) {
-			sigma = y-X*beta;
 			double prev = beta[jj];
-			double v = sigma.dot(X.row(jj))/Xnorm[jj] + prev;
-			if(v - gamma/Xnorm[jj] > 0)
+			double v = (y-X*beta).dot(X.col(jj))/Xnorm[jj] + beta[jj];
+			if(fabs(v) > gamma/Xnorm[jj])
 				beta[jj] = sign(v)*(fabs(v)-gamma/Xnorm[jj]);
 			else
 				beta[jj] = 0;
