@@ -80,32 +80,77 @@ ptr<MRImage> compJacobian(ptr<MRImage> deform)
 		return NULL;
 	}
 
+	// Derivative of a single component with respect to axes, this is 
+	// used to convert from index space to physical space
+	Matrix3d orient = (deform->getDirection().topLeftCorner<3,3>()*
+			deform->getSpacing().topLeftCorner<3,1>().asDiagonal()).inverse();
+	Matrix3d jac;
+	Matrix3d ijac;
 	int64_t index[3];
 	int64_t tmpindex[3];
 	size_t sz[4] = {deform->dim(0), deform->dim(1), deform->dim(2), 9}; 
 	ptr<MRImage> jacobian = dPtrCast<MRImage>(deform->copyCast(4, sz, FLOAT32));
 
 	Vector3DView<double> dview(deform);
+	size_t count = 0;
+	size_t pcount = 139*256*256+143*256+160;
 	for(Vector3DIter<double> it(jacobian); !it.eof(); ++it) {
 		it.index(3, index);
+
+		if(count == pcount) {
+			cerr << "Index: ";
+			for(size_t ii=0; ii<3; ii++)
+				cerr << index[ii] << ", ";
+			cerr << endl;
+		}
 
 		for(size_t dd=0; dd<3; dd++)
 			tmpindex[dd] = index[dd];
 
-		for(size_t d1 = 0; d1 < 3; d1++) {
-			for(size_t d2 = 0; d2 < 3; d2++) {
-
+		// Convert Jacobian in Index Space
+		for(size_t ii = 0; ii < 3; ii++) {
+			for(size_t jj = 0; jj < 3; jj++) {
 				// after
-				tmpindex[d2] = clamp<int64_t>(0, deform->dim(d2)-1, index[d2]+1);
-				double tmp = .5*dview(tmpindex[0], tmpindex[1], tmpindex[2], d1);
+				tmpindex[jj] = clamp<int64_t>(0, deform->dim(jj)-1, index[jj]+1);
+				ijac(ii, jj) = .5*dview(tmpindex[0], tmpindex[1], tmpindex[2], ii);
 
 				// before
-				tmpindex[d2] = clamp<int64_t>(0, deform->dim(d2)-1, index[d2]-1);
-				tmp -= .5*dview(tmpindex[0], tmpindex[1], tmpindex[2], d1);
+				tmpindex[jj] = clamp<int64_t>(0, deform->dim(jj)-1, index[jj]-1);
+				ijac(ii,jj) -= .5*dview(tmpindex[0], tmpindex[1], tmpindex[2], ii);
 
-				it.set(3*d1 + d2, tmp);
+				tmpindex[jj] = index[jj];
 			}
 		}
+
+		if(count == pcount) {
+			cerr << ijac << endl << endl;
+		}
+
+		// Comput derivative with respect to real coordinates, which
+		// is the sum of the contributions of the orientation, ie
+		// d/dx D = d/di D di/dx  + d/dj D dj/dx + d/dk D dk/dx
+		// where d/d[ijk] are derivatives in index space and d[ijk]/dx
+		// are change in x when stepping in i/j/k index 
+
+		// i - iterates over component of deformation
+		// j - iterates over component we are taking the derivative wrt
+		for(size_t ii=0; ii<3; ii++) {
+			for(size_t jj=0; jj<3; jj++) {
+				jac(ii, jj) = ijac.row(ii).dot(orient.col(jj));
+			}
+		}
+		
+		if(count == pcount) {
+			cerr << jac << endl << endl;
+		}
+			
+		for(size_t ii=0; ii<3; ii++) {
+			for(size_t jj=0; jj<3; jj++) {
+				it.set(3*ii + jj, jac(ii,jj));
+			}
+		}
+
+		count++;
 	}
 
 	return jacobian;
@@ -140,8 +185,6 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 		return NULL;
 	}
 
-	const double LAMBDA = 0.95;
-	int64_t ind[3];
 	double cind[3];
 	Vector3d err;
 	double origpt[3]; // point in origin
@@ -198,8 +241,9 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 	// to our current atlas location
 	size_t count = 0;
 	Matrix3d jacobian;
+	cerr << "Estimating Inverse" << endl;
 	for(Vector3DIter<double> iit(idef); !iit.eof(); ++iit) {
-//		cout << trees << "/" << count << "/" << idef->elements() << "\r";
+		cout << count << "/" << idef->elements() << "\r";
 		iit.index(3, cind);
 		idef->indexToPoint(3, cind, defpt);
 
@@ -219,8 +263,7 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 		//    atl2sub
 		double prevdist = dist+1;
 		size_t iters = 0;
-		for(iters = 0 ; fabs(prevdist-dist) > 0 && dist > MINERR &&
-						iters < MAXITERS; iters++) {
+		for(iters = 0; iters < MAXITERS; iters++) {
 
 			for(size_t ii=0; ii<3; ii++)
 				origpt[ii] = defpt[ii] + rev[ii];
@@ -249,11 +292,16 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 			for(size_t ii=0; ii<3; ii++)
 				err[ii] = rev[ii]+fwd[ii];
 
-			rev -= 2*(Matrix3d::Identity(3,3) + jacobian).transpose()*err;
 			for(size_t ii=0; ii<3; ii++)
 				dist += err[ii]*err[ii];
 
 			dist = sqrt(dist);
+			
+			// If not converged, update the reverse with error, otherwise break
+			if(fabs(prevdist-dist) > 0 && dist > MINERR)
+				rev -= 2*(Matrix3d::Identity(3,3) + jacobian).transpose()*err;
+			else 
+				break;
 		}
 		if(iters == MAXITERS) {
 			cerr << "Warning, failed to converge at " << cind[0] << ", " <<
@@ -266,6 +314,7 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 			iit.set(ii, rev[ii]);
 		count++;
 	}
+	cerr << "Done" << endl;
 
 	return idef;
 }
