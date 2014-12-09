@@ -35,76 +35,92 @@ using namespace std;
 
 void plotMat(std::string filename, const MatrixXd& in)
 {
-    Plotter plot;
-    std::vector<double> tmp(in.rows());
-    for(size_t ii=0; ii<in.cols(); ii++) {
-        for(size_t rr=0; rr<in.rows(); rr++)
-            tmp[rr] = in(rr, ii);
-        plot.addArray(tmp.size(), tmp.data());
-    }
+	Plotter plot;
+	std::vector<double> tmp(in.rows());
+	for(size_t ii=0; ii<in.cols(); ii++) {
+		for(size_t rr=0; rr<in.rows(); rr++)
+			tmp[rr] = in(rr, ii);
+		plot.addArray(tmp.size(), tmp.data());
+	}
 
-    plot.write(filename);
+	plot.write(filename);
 }
 
-int main()
+int main(int argc, char** argv)
 {
-    std::default_random_engine rng;
-    std::uniform_real_distribution<double> unifdist(-1,1);
-    std::normal_distribution<> gaussdist(0,1);
+	double lambda = .1;
+	if(argc == 2) {
+		lambda = atof(argv[1]);
+	}
 
-    /* 
-     * Create the Test Data
-     */
+	std::default_random_engine rng;
+	std::uniform_real_distribution<double> unifdist(-1,1);
+	std::normal_distribution<> gaussdist(0,1);
 
-    size_t ntimes = 100;
-    size_t ndims = 3;
-    MatrixXd X(ntimes, ndims);
-    VectorXd y(ntimes);
-    VectorXd beta(ndims);
+	/*
+	 * Create the Test Data
+	 */
 
-    // create square wave
-    bool high = false;
-    for(size_t ii=0; ii<ntimes; ii++) {
-        if(ii % 20 == 0)
-            high = !high;
-        X(ii,0) = high;
-    }
-    // create sin wave
-    for(size_t ii=0; ii<ntimes; ii++) 
-        X(ii,1) = sin(ii/10.);
+	size_t ntimes = 100;
+	size_t ndims = 3;
+	MatrixXd X(ntimes, ndims);
+	VectorXd y(ntimes);
+	VectorXd beta(ndims);
 
-    // create gaussian 
-    for(size_t ii=0; ii<ntimes; ii++) 
-        X(ii,2) = gaussdist(rng);
+	// create square wave
+	bool high = false;
+	for(size_t ii=0; ii<ntimes; ii++) {
+		if(ii % 20 == 0)
+			high = !high;
+		X(ii,0) = high;
+	}
+	// create sin wave
+	for(size_t ii=0; ii<ntimes; ii++)
+		X(ii,1) = sin(ii/10.);
 
-    plotMat("before_mix.svg", X);
+	// create gaussian
+	for(size_t ii=0; ii<ntimes; ii++)
+		X(ii,2) = gaussdist(rng);
 
-    /* 
-     * Mix The Data
-     */
+	plotMat("before_mix.svg", X);
 
-    // create random beta
-    for(size_t ii=0; ii<ndims; ii++)
+	/*
+	 * Mix The Data
+	 */
+
+	// create random beta
+	for(size_t ii=0; ii<ndims; ii++)
 		beta[ii] = unifdist(rng);
 
-    y = X*beta;
-	
+	y = X*beta;
+
 	// add noise
-    for(size_t ii=0; ii<ntimes; ii++) 
-        y[ii] += gaussdist(rng);
-    
+	for(size_t ii=0; ii<ntimes; ii++)
+		y[ii] += 0.2*gaussdist(rng);
+
 	plotMat("after_mix.svg", X);
-   
 
-	/* 
-	 * Perform Regression 
+
+	/*
+	 * Perform Regression
 	 */
-	VectorXd ebeta = shootingRegr(X, y, 0.1);
-	
-	cerr << "True Beta: " << beta << endl;
-	cerr << "Est. Beta: " << ebeta << endl;
+	VectorXd ebeta = shootingRegr(X, y, lambda);
 
-    return 0;
+	cerr << "True Beta: " << beta.transpose() << endl;
+	cerr << "Est. Beta: " << ebeta.transpose() << endl;
+	if((ebeta-beta).squaredNorm() > 0.01) {
+		cerr << "Problem with shooting algorithm." << endl;
+		return -1;
+	}
+
+	ebeta = activeShootingRegr(X, y, lambda);
+	cerr << "(Active) Est. Beta: " << ebeta.transpose() << endl;
+	if((ebeta-beta).squaredNorm() > 0.01) {
+		cerr << "Problem with shooting algorithm." << endl;
+		return -1;
+	}
+
+	return 0;
 }
 
 
