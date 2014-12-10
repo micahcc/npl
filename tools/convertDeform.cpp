@@ -293,7 +293,7 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 			// If not converged, update the reverse with error, otherwise break
 			if(dist > MINERR) {
 				// Newtons Method
-				rev -= lambda*(Matrix3d::Identity(3,3)+jacobian).inverse()*err;
+				rev -= (Matrix3d::Identity(3,3)+jacobian).inverse()*err;
 			} else
 				break;
 		}
