@@ -95,16 +95,8 @@ ptr<MRImage> compJacobian(ptr<MRImage> deform)
 
 	Vector3DView<double> dview(deform);
 	size_t count = 0;
-//	size_t pcount = 139*256*256+143*256+160;
 	for(Vector3DIter<double> it(jacobian); !it.eof(); ++it) {
 		it.index(3, index);
-
-//		if(count == pcount) {
-//			cerr << "Index: ";
-//			for(size_t ii=0; ii<3; ii++)
-//				cerr << index[ii] << ", ";
-//			cerr << endl;
-//		}
 
 		for(size_t dd=0; dd<3; dd++)
 			tmpindex[dd] = index[dd];
@@ -124,10 +116,6 @@ ptr<MRImage> compJacobian(ptr<MRImage> deform)
 			}
 		}
 
-//		if(count == pcount) {
-//			cerr << ijac << endl << endl;
-//		}
-
 		// Comput derivative with respect to real coordinates, which
 		// is the sum of the contributions of the orientation, ie
 		// d/dx D = d/di D di/dx  + d/dj D dj/dx + d/dk D dk/dx
@@ -141,10 +129,6 @@ ptr<MRImage> compJacobian(ptr<MRImage> deform)
 				jac(ii, jj) = ijac.row(ii).dot(orient.col(jj));
 			}
 		}
-
-//		if(count == pcount) {
-//			cerr << jac << endl << endl;
-//		}
 
 		for(size_t ii=0; ii<3; ii++) {
 			for(size_t jj=0; jj<3; jj++) {
@@ -187,7 +171,6 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 		return NULL;
 	}
 
-	double lambda = 1;
 	double cind[3];
 	Vector3d err;
 	double origpt[3]; // point in origin
@@ -248,7 +231,6 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 	Eigen::JacobiSVD<Matrix3d> solver;
 
 	cerr << "Estimating Inverse" << endl;
-//	size_t pcount = 139*256*256+143*256+160;
 	for(Vector3DIter<double> iit(idef); !iit.eof(); ++iit) {
 		iit.index(3, cind);
 		idef->indexToPoint(3, cind, defpt);
@@ -264,15 +246,6 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 
 		for(size_t dd=0; dd<3; dd++)
 			rev[dd] = results->m_data[dd];
-
-//		if(count == pcount) {
-//			cerr << "Index: ";
-//			for(size_t ii=0; ii<3; ii++)
-//				cerr << cind[ii] << ", ";
-//			cerr << endl;
-//
-//			cerr << "Initial Inverse: " << rev << endl;
-//		}
 
 		// SUB <- ATLAS (given)
 		//    atl2sub
@@ -317,30 +290,10 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 
 			dist = sqrt(dist);
 
-//			if(count == pcount) {
-//				cerr << "Rev: " << endl << rev << endl;
-//				cerr << "Fwd: " << endl << fwd << endl;
-//				cerr << "Jac: " << endl << jacobian << endl;
-//				cerr << "Err: " << endl << err << endl;
-//			}
-
 			// If not converged, update the reverse with error, otherwise break
 			if(dist > MINERR) {
-//				// gradient
-//				rev -= lambda*(Matrix3d::Identity(3,3) + jacobian).transpose()*err;
-//
-//				// Solution?
-//				solver.compute(Matrix3d::Identity(3,3) + jacobian.transpose(),
-//						Eigen::ComputeThinU | Eigen::ComputeThinV);
-//				rev = solver.solve(Vector3d::Zero());
-//				rev -= fwd;
-//
 				// Newtons Method
 				rev -= lambda*(Matrix3d::Identity(3,3)+jacobian).inverse()*err;
-//				if(count == pcount) {
-//					cerr << "Step: " << endl << err << endl;
-//					cerr << "Rev:  " << endl << rev << endl;
-//				}
 			} else
 				break;
 		}
@@ -639,10 +592,10 @@ int main(int argc, char** argv)
 		cerr << "Inverting ";
 		if(atlas) {
 			cerr << "in atlas space" << endl;
-			deform = invertForwardBack(deform, atlas, 100, 0.05);
+			deform = invertForwardBack(deform, atlas, 5, 0.05);
 		} else {
 			cerr << "in same space" << endl;
-			deform = invertForwardBack(deform, deform, 100, 0.05);
+			deform = invertForwardBack(deform, deform, 5, 0.05);
 		}
 		cerr << "Done" << endl;
 
