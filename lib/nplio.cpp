@@ -813,6 +813,216 @@ bool isnumeric(char c)
 	return isdigit(c) || c=='.' || c=='-' || c=='e' || c=='E' || c==',';
 }
 
+vector<vector<string>> _readStrCSV(gzFile file, char& delim, char comment)
+{
+    std::string line;
+	vector<string> tmparr;
+
+	list<vector<string> > outstore;
+
+	int linenum = 0;
+	int minwidth = numeric_limits<int>::max();
+	int maxwidth = 0;
+	int priority = 2;
+
+    std::string delims[] = {";", " \t", ","};
+
+	/* Start trying delimiters. Priority is in reverse order so the last that
+	 * grants the same number of outputs on a line and isn't 1 is given the
+	 * highest priority
+	 */
+	
+	//grab the first few lines
+	list<string> firstlines;
+	for(int ii = 0 ; !fin.eof(); ii++ ) {
+		getline(fin, line);
+		firstlines.push_back(line);
+	}
+
+	//test our possible delimiters
+	for(int ii = 0 ; ii < 3 ; ii++) {
+		list<string>::iterator it = firstlines.begin();
+		minwidth = numeric_limits<int>::max();
+		maxwidth = 0;
+		for(;it != firstlines.end(); it++) {
+			line = *it;
+			string tmp = chomp(line);
+			if(line[0] == comment || tmp[0] == comment || tmp.size() == 0)
+				continue;
+
+			// parse the line, and compute width
+			tmparr = parseLine(line, delims[ii]);
+
+			if((int)tmparr.size() < minwidth) {
+				minwidth = tmparr.size();
+			}
+			if((int)tmparr.size() > maxwidth) {
+				maxwidth = tmparr.size();
+			}
+		}
+		if(maxwidth > 1 && maxwidth == minwidth) {
+			priority = ii;
+		}
+	}
+
+    if(delims[priority].length() > 0)
+        delim = delims[priority][0];
+			
+	//re-process first 10 lines using the proper delimiter
+	list<string>::iterator it = firstlines.begin();
+	minwidth = numeric_limits<int>::max();
+	maxwidth = 0;
+	for(;it != firstlines.end(); it++, linenum++) {
+		line = *it;
+		string tmp = chomp(line);
+		if(line[0] == comment || tmp[0] == comment || tmp.size() == 0) {
+			continue;
+		}
+
+		tmparr = parseLine(line, delims[priority]);
+		if((int)tmparr.size() < minwidth)
+			minwidth = tmparr.size();
+		if((int)tmparr.size() > maxwidth)
+			maxwidth = tmparr.size();
+
+		outstore.push_back(tmparr);
+	}
+
+	//process the rest of the input (the reason we don't use get is we might want
+	//to parse - as stdin
+	for(;!fin.eof(); linenum++) {
+		getline(fin, line);
+		string tmp = chomp(line);
+		if(line[0] == comment || tmp[0] == comment || tmp.size() == 0) {
+			continue;
+		}
+		
+		tmparr = parseLine(line, delims[priority]);
+		if((int)tmparr.size() < minwidth) {
+			minwidth = tmparr.size();
+		}
+		if((int)tmparr.size() > maxwidth) {
+			maxwidth = tmparr.size();
+		}
+
+		outstore.push_back(tmparr);
+	}
+
+	//copy the output from a list to a vector
+	vector<vector<string>> out(outstore.size());
+
+	size_t ii=0;
+	for(auto it = outstore.begin(); it != outstore.end(); ++ii, ++it) {
+		out[ii] = std::move(*it);
+	}
+
+	if(minwidth != maxwidth || minwidth == 0) {
+		cerr << "Warning you may want to be concerned that there are "
+			<< "differences in the number of fields per line" << endl;
+	}
+
+}
+
+ptr<NDArray> readTxtImage(gzFile file, bool verbose, bool makearray)
+{
+	// Read String CSV 
+	char delim = ',';
+	vector<vector<string>> tmp = _readStrCSV(file, delim, comment);
+	gzclose(gz);
+	if(tmp.size() == 0)
+		throw std::ios_base::failure("Error reading " + fn);
+
+	// set size
+	size_t size[2] = {tmp.size(), tmp[0].size()};
+
+	// Determine Type
+	bool signed_dec = true; // only hexadecimal 
+	bool unsigned_dec = true; // positive integral numbers
+	bool unsigned_hex = true; // hexadecimal
+	bool ftype = true; // float
+
+	int tmp_i;
+	unsigned int tmp_u;
+	double tmp_f;
+	for(size_t ii=0; ii<raw.size(); ii++) {
+		for(size_t jj=0; jj<raw[ii].size(); jj++) {
+			if(sscanf(raw[ii][jj].c_str(), "%u", &tmp_u) != 1)
+				unsigned_dec = false;
+			if(sscanf(raw[ii][jj].c_str(), "%d", &tmp_i) != 1)
+				signed_dec = false;
+			if(sscanf(raw[ii][jj].c_str(), "%x", &tmp_u) != 1)
+				hex = false;
+			if(sscanf(raw[ii][jj].c_str(), "%f", &tmp_f) != 1)
+				ftype = false;
+		}
+	}
+
+	// Create Image with Correct Type
+	if(unsigned_dec) {
+		ptr<NDArrayStore<2, unsigned int>> tout;
+		if(makearray)
+			tout = dPtrCast<NDArrayStore<2, unsigned int>>(createNDArray(2, size, UINT32));
+		else
+			tout = dPtrCast<NDArrayStore<2, unsigned int>>(createMRImage(2, size, UINT32));
+
+		size_t cc=0;
+		for(size_t ii=0; ii<raw.size(); ii++) {
+			for(size_t jj=0; jj<raw[ii].size(); jj++) {
+				sscanf(raw[ii][jj].c_str(), "%u", &tmp_u);
+				tout[cc++] = tmp_u;
+			}
+		}
+		out = tout;
+	} else if(unsigned_hex) {
+		ptr<NDArrayStore<2, unsigned int>> tout;
+		if(makearray)
+			tout = dPtrCast<NDArrayStore<2, unsigned int>>(createNDArray(2, size, UINT32));
+		else
+			tout = dPtrCast<NDArrayStore<2, unsigned int>>(createMRImage(2, size, UINT32));
+
+		size_t cc=0;
+		for(size_t ii=0; ii<raw.size(); ii++) {
+			for(size_t jj=0; jj<raw[ii].size(); jj++) {
+				sscanf(raw[ii][jj].c_str(), "%x", &tmp_u);
+				tout[cc++] = tmp_u;
+			}
+		}
+		out = tout;
+	} else if(signed_dec) {
+		ptr<NDArrayStore<2, int>> tout;
+		if(makearray)
+			tout = dPtrCast<NDArrayStore<2, int>>(createNDArray(2, size, INT32));
+		else
+			tout = dPtrCast<NDArrayStore<2, int>>(createMRImage(2, size, INT32));
+
+		size_t cc=0;
+		for(size_t ii=0; ii<raw.size(); ii++) {
+			for(size_t jj=0; jj<raw[ii].size(); jj++) {
+				sscanf(raw[ii][jj].c_str(), "%d", &tmp_i);
+				tout[cc++] = tmp_u;
+			}
+		}
+		out = tout;
+	} else if(ftype) {
+		ptr<NDArrayStore<2, float>> tout;
+		if(makearray)
+			tout = dPtrCast<NDArrayStore<2, float>>(createNDArray(2, size, FLOAT32));
+		else
+			tout = dPtrCast<NDArrayStore<2, float>>(createMRImage(2, size, FLOAT32));
+
+		size_t cc=0;
+		for(size_t ii=0; ii<raw.size(); ii++) {
+			for(size_t jj=0; jj<raw[ii].size(); jj++) {
+				sscanf(raw[ii][jj].c_str(), "%f", &tmp_f);
+				tout[cc++] = tmp_u;
+			}
+		}
+		out = tout;
+	}
+
+	return out;
+}
+
 /**
  * @brief Reads an array of numbers from a json file
  *
@@ -1110,25 +1320,29 @@ ptr<MRImage> readMRImage(std::string fn, bool verbose, bool nopixeldata)
 	}
 
 	if(fn.size() >= 4 && fn.substr(fn.size()-4, 4) == ".nii") {
-	//////////////////////////
-	// Read Nifti Data
-	//////////////////////////
+		//////////////////////////
+		// Read Nifti Data
+		//////////////////////////
 		if((out = readNiftiImage(gz, verbose, false, nopixeldata))) {
 			gzclose(gz);
 			return dPtrCast<MRImage>(out);
 		}
 	} else if(fn.size() >= 5 && fn.substr(fn.size()-5, 5) == ".json") {
 		//////////////////////////
-	// Read JSON data
-	//////////////////////////
+		// Read JSON data
+		//////////////////////////
 		if((out = readJSONImage(gz, verbose, false))) {
 			gzclose(gz);
 			return dPtrCast<MRImage>(out);
 		}
 	} else {
-		std::cerr << "Unknown filetype: " << fn << std::endl;
-		gzclose(gz);
-		throw std::ios_base::failure("Error reading " + fn );
+		//////////////////////////
+		// Read Text Data
+		//////////////////////////
+		if((out = readTxtImage(gz, verbose, false))) {
+			gzclose(gz);
+			return dPtrCast<MRImage>(out);
+		}
 	}
 
 	throw std::ios_base::failure("Error reading " + fn );
@@ -1175,17 +1389,21 @@ ptr<NDArray> readNDArray(std::string fn, bool verbose, bool nopixeldata)
 			return out;
 		}
 	} else if(fn.size() >= 5 && fn.substr(fn.size()-5, 5) == ".json") {
-	//////////////////////////
-	// Read JSON data
-	//////////////////////////
+		//////////////////////////
+		// Read JSON data
+		//////////////////////////
 		if((out = readJSONImage(gz, verbose, true))) {
 			gzclose(gz);
 			return out;
 		}
 	} else {
-		std::cerr << "Unknown filetype: " << fn << std::endl;
-		gzclose(gz);
-		throw std::ios_base::failure("Error reading " + fn );
+		//////////////////////////
+		// Read Text Data
+		//////////////////////////
+		if((out = readTxtImage(gz, verbose, false))) {
+			gzclose(gz);
+			return out;
+		}
 	}
 
 	throw std::ios_base::failure("Error reading " + fn);
