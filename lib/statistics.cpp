@@ -1891,6 +1891,108 @@ VectorXd activeShootingRegr(const MatrixXd& X, const VectorXd& y, double gamma)
 }
 
 /**
+ * @brief Estimates partial correlation using LASSO regression and 
+ * the 'activeShooting' algorithm of 
+ *  
+ * Peng, J., Wang, P., Zhou, N., & Zhu, J. (2009). Partial Correlation
+ * Estimation by Joint Sparse Regression Models. Journal of the American
+ * Statistical Association, 104(486), 735–746. doi:10.1198/jasa.2009.0126
+ *
+ * y = columns of Y concatinated, length np
+ * X = np x p(p-1)/2 sparse matrix with each column containing a 
+ * unique pairing of columns of Y. So column with Y_i Y_j is denoted 
+ * X_ij = [0, ... , Y^T_j , ... 0 ... , Y^T_i, 0 ... 0 ]^T, in other words
+ * X_ij = y where all elements not corresponding to columns i and j in Y are
+ * set to 0.
+ *
+ * Essentially solves the equation: 
+ * 
+ * y = C * beta
+ *
+ * where beta is mostly 0's
+ *
+ * @param X Design matrix
+ * @param y Measured value
+ * @param gamma Weight of regularization (larger values forces sparser model)
+ *
+ * @return Beta vector
+ */
+VectorXd activeShootingPCorr(const MatrixXd& Y, double gamma)
+{
+
+
+	double THRESH = 0.1;
+//	// Start with least squares
+//	JacobiSVD svd(X, ComputeThinV|ComputeThinU);
+//	VectorXd beta = svd.solve(y);
+	vector<bool> active(X.rows(), false);
+	VectorXd beta(X.cols());
+	VectorXd Xnorm(X.cols());
+	VectorXd sigma(y.rows());
+	for(size_t jj=0; jj<X.cols(); jj++)
+		Xnorm[jj] = X.col(jj).squaredNorm();
+
+	// Initialize
+	for(size_t jj=0; jj<X.cols(); jj++) {
+		double ytxj = y.dot(X.col(jj));
+		if(ytxj - gamma > 0)
+			beta[jj] = sign(ytxj)*(fabs(ytxj)-gamma)/Xnorm[jj];
+		else
+			beta[jj] = 0;
+	}
+
+
+	double dbeta1 = fabs(THRESH)*1.1;
+	while(dbeta1 > THRESH) {
+		dbeta1 = 0;
+
+		// Determine Active Set
+		for(size_t jj=0; jj<X.rows(); jj++) {
+			if(beta[jj] != 0)
+				active[jj] = true;
+		}
+
+		// Update Active Set until convergence
+		double dbeta2 = fabs(THRESH)*1.1;
+		while(dbeta2 > THRESH) {
+			dbeta2 = 0;
+
+			for(size_t jj=0; jj<X.cols(); jj++) {
+				// Update Active Set
+				if(active[jj]) {
+					double prev = beta[jj];
+					double v = (y-X*beta).dot(X.col(jj))/Xnorm[jj] + beta[jj];
+					
+					if(fabs(v) > gamma/Xnorm[jj])
+						beta[jj] = sign(v)*(fabs(v)-gamma/Xnorm[jj]);
+					else
+						beta[jj] = 0;
+
+					// to determine convergence
+					dbeta2 += fabs(prev-beta[jj]);
+				}
+			}
+			cerr << "dBeta2: " << dbeta2 << endl;
+		}
+
+		// Update All
+		for(size_t jj=0; jj<X.cols(); jj++) {
+			double prev = beta[jj];
+			double v = (y-X*beta).dot(X.col(jj))/Xnorm[jj] + beta[jj];
+			if(fabs(v) > gamma/Xnorm[jj])
+				beta[jj] = sign(v)*(fabs(v)-gamma/Xnorm[jj]);
+			else
+				beta[jj] = 0;
+
+			// to determine convergence
+			dbeta1 += fabs(prev-beta[jj]);
+		}
+		cerr << "dBeta1: " << dbeta1 << endl;
+	}
+	return beta;
+}
+
+/**
  * @brief Performs LASSO regression using the 'shooting' algorithm of 
  *
  * Fu, W. J. (1998). Penalized Regressions: The Bridge versus the Lasso.
