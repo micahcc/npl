@@ -546,6 +546,35 @@ double information(ptr<const NDArray> a, ptr<const NDArray> b,
 		int bins = 100, int krad = 4, Metric m = METRIC_MI,
 		ptr<const NDArray> mask = NULL);
 
+/**
+ * @brief median filter
+ *
+ * @param img Input image ND
+ *
+ * @return Output image N+1D
+ */
+ptr<NDArray> medianFilter(ptr<const NDArray> img);
+
+/**
+ * @brief Standardizes image distribution (makes it mean = 0, variance = 1).
+ * This computation is done in place (IP)
+ *
+ * @param img Input image ND
+ *
+ */
+void standardizeIP(ptr<NDArray> img);
+
+/**
+ * @brief Standardizes image distribution (makes it mean = 0, variance = 1).
+ * This computation is done in place (IP)
+ *
+ * @param img Input image ND
+ *
+ * @return standardized version of img
+ */
+ptr<NDArray> standardize(ptr<const NDArray> img);
+
+
 /** @}  NDArrayUtilities */
 
 } // npl

@@ -55,6 +55,10 @@ using Eigen::ComputeFullU;
 void genPoints(ptr<const MRImage> scale, ptr<const MRImage> vimg, double pct,
         size_t radius);
 
+ptr<MRImage> laplacian(ptr<MRImage> inimg, double flow, double fhigh, double spacing);
+	
+ptr<MRImage> elimBridges(ptr<MRImage> inimg, double bwidth);
+
 int main(int argc, char** argv)
 {
 	cerr << "Version: " << __version__ << endl;
@@ -73,10 +77,14 @@ int main(int argc, char** argv)
 	TCLAP::ValueArg<double> a_spacing("s", "spacing", "Resample image to have "
 			"the specified spacing. If you find that the skullstripping is too "
 			"slow then you may want to increase this.", false, 1, "mm", cmd);
-	TCLAP::ValueArg<double> a_lower("L", "lower-freq", "Lower freuqency for "
+	TCLAP::ValueArg<double> a_lower("L", "freq-lower", "Lower freuqency for "
 			"difference of gaussian. ", false, 2, "mm", cmd);
-	TCLAP::ValueArg<double> a_upper("U", "upper-freq", "Upper freuqency for "
+	TCLAP::ValueArg<double> a_upper("U", "freq-upper", "Upper freuqency for "
 			"difference of gaussian. ", false, 8, "mm", cmd);
+	TCLAP::ValueArg<double> a_thresh("t", "lapl-thresh", "Laplacian threshold. ",
+			false, -0.1, "mm", cmd);
+	TCLAP::ValueArg<double> a_bridgewidth("b", "bridge-width", "Bridge width "
+			"to remove in mask (in mm). ", false, 5, "mm", cmd);
 
 	cmd.parse(argc, argv);
 
@@ -89,28 +97,43 @@ int main(int argc, char** argv)
 		return -1;
 	}
 	
-	vector<double> spacing(3, a_spacing.getValue());
-    inimg = resample(inimg, spacing.data());
-	
-	cerr << "Computing Difference of Gaussians...";
-	auto dog = diffOfGauss(inimg, a_lower.getValue(), a_upper.getValue());
-	for(FlatIter<double> dit(dog); !dit.eof(); ++dit)
-		dit.set(fabs(dit.get()));
-	dog->write("dog.nii.gz");
-	cerr << "Done" << endl;
-
-	cerr << "Finding Matching Regions...";
-	for(FlatIter<double> iit(inimg), dit(dog); !iit.eof(); ++iit, ++dit) {
-		dit.set(fabs(dit.get()-iit.get()));
+	if(a_upper.getValue() <= a_lower.getValue()) {
+		cerr << "Error upper frequency must be > lower frequency!" << endl;
+		return -1;
 	}
-	dog->write("err.nii.gz");
-	cerr << "Done" << endl;
+	inimg = dPtrCast<MRImage>(inimg->copyCast(FLOAT32));
+	
+	cerr << "Median Filtering...";
+	inimg = dPtrCast<MRImage>(medianFilter(inimg));
+	inimg->write("median.nii.gz");
+	cerr << "Done\n";
 
-	cerr << "Thresholding...";
-	dog = dPtrCast<MRImage>(threshold(dog, otsuThresh(dog)));
-	dog->write("mask.nii.gz");
-	cerr << "Done" << endl;
+	cerr << "Standardizing...";
+	standardizeIP(inimg);
+	inimg->write("standardize.nii.gz");
+	cerr << "Done\n";
+	
+	cerr << "Computing Laplacian...";
+	auto lapl = laplacian(inimg, a_lower.getValue(), a_upper.getValue(),
+			a_spacing.getValue());
+	lapl->write("laplacian.nii.gz");
+	cerr << "Done\n";
+	
+	// Threshold
+	auto mask = dPtrCast<MRImage>(binarize(lapl, a_thresh.getValue()));
+	mask->write("mask.nii.gz");
 
+	cerr << "Eliminating Bridges...";
+	mask = elimBridges(mask, a_bridgewidth.getValue());
+	mask->write("cleaned_mask.nii.gz");
+	cerr << "Done\n";
+
+	cerr << "Connected Components...";
+	mask = dPtrCast<MRImage>(relabelConnected(mask));
+	mask->write(a_out.getValue());
+	cerr << "Done\n";
+
+	// Split up Brain ... somehow
 //    /*****************************
 //     * edge detection
 //     ****************************/
@@ -147,6 +170,58 @@ int main(int argc, char** argv)
 //
     } catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
+}
+
+ptr<MRImage> laplacian(ptr<MRImage> inimg, double flow, double fhigh, double spacing)
+{
+	cerr << "Computing Gaussians..." << endl;
+	ptr<MRImage> flow_img = smoothDownsample(inimg, flow, spacing);
+	ptr<MRImage> fhigh_img = smoothDownsample(inimg, fhigh, spacing);
+	
+	cerr << "Computing Principal Frequency" << endl;
+	// Compute Maximum Value
+	for(FlatIter<double> lit(flow_img), uit(fhigh_img); !lit.eof(); ++lit, ++uit) {
+		double v = lit.get()-uit.get();
+		lit.set(v);
+	}
+	cerr << "Done" << endl;
+
+	return flow_img;
+}
+
+ptr<MRImage> elimBridges(ptr<MRImage> mask, double bwidth)
+{
+	double minspace = INFINITY;
+	for(size_t ii=0; ii<mask->ndim(); ii++)
+		minspace = min(mask->spacing(ii), minspace);
+	size_t pbwidth = bwidth/minspace;
+
+
+	// Erode bwidth times
+	cerr << "Eroding, radius " << pbwidth << "...";
+	auto out = erode(mask, pbwidth);
+	out->write("eroded.nii.gz");
+	cerr << "Done\n";
+	
+	// Dilate bwidth times
+	cerr << "Dilating, radius " << pbwidth << "...";
+	out = dilate(out, pbwidth);
+	out->write("dilated.nii.gz");
+	cerr << "Done\n";
+
+	// compute logical and so that only previously masked regions are 
+	// masked
+	cerr << "Merging original and de-bridged...";
+	FlatConstIter<int> mit(mask);
+	FlatIter<int> oit(out);
+	for(mit.goBegin(), oit.goBegin(); !mit.eof(); ++mit, ++oit) {
+		if(mit.get() && oit.get())
+			oit.set(1);
+		else
+			oit.set(0);
+	}
+	cerr << "Done\n";
+	return dPtrCast<MRImage>(out);
 }
 	
 /**
