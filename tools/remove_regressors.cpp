@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file convertDeform.cpp
+ * @file remove_regressors.cpp Performs regression on each timesereies then 
+ * removes (decorrelates) the  timeseries with the input regressors. This is
+ * useful for removing motion parameters.
  *
  *****************************************************************************/
 
@@ -69,11 +71,12 @@ int main(int argc, char** argv)
 	TCLAP::ValueArg<string> a_fmri("i", "input", "Input 4D image.",
 			true, "", "*.nii.gz", cmd);
 
-	TCLAP::MultiArg<string> a_regressors("r", "regressor", "Regressor image, "
-            "must be 4D. You may provide multiple of these and they will all "
-            "be used simultaneously. Each voxel within the image is treated as "
-            " a regressor. If you have data in a txt file, use nplMakeImage to "
-            "create a 4D image.", true, "*.nii.gz", cmd);
+	TCLAP::MultiArg<string> a_regressors("r", "regressor", "Regressors. Could "
+			"be an image or csv file. Spatial information will not be used "
+			"if an image is given. Values should correspond to the value at "
+			"each TR of image. If you have the 3-column format of FSL, that "
+			"needs to be sampled at the correct image TR.",
+			true, "*csv|*.nii.gz", cmd);
 
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
 			true, "", "*.nii.gz", cmd);
