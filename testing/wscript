@@ -340,6 +340,11 @@ def build(bld):
 			use='statistics basic_plot')
 
 	bld.program(install_path='${PREFIX}/tests', features='test',
+			target='shooting_test',
+			source='shooting_test.cpp',
+			use='statistics basic_plot')
+
+	bld.program(install_path='${PREFIX}/tests', features='test',
 			target='glm_test1',
 			source='glm_test1.cpp',
 			use='statistics basic_plot')
