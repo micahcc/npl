@@ -361,6 +361,94 @@ void gaussianSmooth1D(ptr<NDArray> inout, size_t dim,
 
 
 /**
+ * @brief Erode an binary array repeatedly, in the shape of a nd diamond
+ *
+ * @param in Input to erode
+ * @param reps Number of radius-1 kernel erosions to perform
+ *
+ * @return Eroded Image
+ */
+ptr<NDArray> erode(ptr<NDArray> in, size_t rad)
+{
+	auto out = in->copy();
+
+	KernelIter<int> kit(in);
+	kit.setRadius(rad);
+
+	OrderIter<int> oit(out);
+	oit.setOrder(kit.getOrder());
+	double sphere = rad*rad;
+
+	// for each pixels neighborhood, smooth neightbors
+	for(oit.goBegin(), kit.goBegin(); !oit.eof(); ++kit, ++oit) {
+		bool erodeme = false;
+
+		for(size_t kk=0; kk<kit.ksize(); kk++) {
+			double dist = 0;
+
+			for(size_t dd=0; dd<in->ndim(); dd++) 
+				dist += kit.offsetK(kk, dd)*kit.offsetK(kk, dd);
+
+			if(dist < sphere && kit[kk] == 0) {
+				erodeme = true;
+				break;
+			}
+		}
+
+		if(erodeme)
+			oit.set(0);
+	}
+
+	return out;
+}
+
+/**
+ * @brief Dilate an binary array repeatedly, in a nd cross shape
+ *
+ * @param in Input to dilate
+ * @param reps Number of radius-1 kernel dilations to perform
+ *
+ * @return Dilated Image
+ */
+ptr<NDArray> dilate(ptr<NDArray> in, size_t rad)
+{
+	auto out = in->copy();
+
+	KernelIter<int> kit(in);
+	kit.setRadius(rad);
+
+	OrderIter<int> oit(out);
+	oit.setOrder(kit.getOrder());
+	double sphere = rad*rad;
+
+	// for each pixels neighborhood, smooth neightbors
+	for(oit.goBegin(), kit.goBegin(); !oit.eof(); ++kit, ++oit) {
+		bool dilme = false;
+		int dilval = 0;
+
+		for(size_t kk=0; kk<kit.ksize(); kk++) {
+			double dist = 0;
+
+			for(size_t dd=0; dd<in->ndim(); dd++) 
+				dist += kit.offsetK(kk, dd)*kit.offsetK(kk, dd);
+
+			if(dist < sphere && kit[kk] != 0) {
+				dilme = true;
+				dilval = kit[kk];
+				break;
+			}
+		}
+
+		if(dilme)
+			oit.set(dilval);
+	}
+
+	return out;
+}
+
+
+
+/**
  * @brief Erode an binary array repeatedly
  *
  * @param in Input to erode
@@ -368,7 +456,7 @@ void gaussianSmooth1D(ptr<NDArray> inout, size_t dim,
  *
  * @return Eroded Image
  */
-ptr<NDArray> erode(ptr<NDArray> in, size_t reps)
+ptr<NDArray> erodeBlock(ptr<NDArray> in, size_t reps)
 {
 	std::vector<int64_t> index1(in->ndim(), 0);
 	std::vector<int64_t> index2(in->ndim(), 0);
@@ -410,7 +498,7 @@ ptr<NDArray> erode(ptr<NDArray> in, size_t reps)
  *
  * @return Dilated Image
  */
-ptr<NDArray> dilate(ptr<NDArray> in, size_t reps)
+ptr<NDArray> dilateBlock(ptr<NDArray> in, size_t reps)
 {
 	std::vector<int64_t> index1(in->ndim(), 0);
 	std::vector<int64_t> index2(in->ndim(), 0);
@@ -2166,68 +2254,75 @@ ptr<NDArray> concatElevate(const vector<ptr<NDArray>>& images)
 }
 
 /**
- * @brief Increases the number of dimensions by 1 then places the edges
- * in each dimension at indexes matching the direction of edge detection.
- * So an input 3D image will produce a 4D image with volume 0 the x edges,
- * volume 1 the y edges and volume 2 the z edges.
+ * @brief Standardizes image distribution (makes it mean = 0, variance = 1).
+ * This computation is done in place (IP)
+ *
+ * @param img Input image ND
+ *
+ */
+void standardizeIP(ptr<NDArray> img)
+{
+	double mu = 0;
+	double var = 0;
+	size_t count = 0;
+
+	for(FlatIter<double> it(img); !it.eof(); ++it) {
+		mu += it.get();
+		var += it.get()*it.get();
+		count++;
+	}
+
+	var = sqrt(sample_var(count, mu, var));
+	mu /= count;
+
+	for(FlatIter<double> it(img); !it.eof(); ++it) {
+		it.set((it.get()-mu)/var);
+	}
+}
+
+/**
+ * @brief Standardizes image distribution (makes it mean = 0, variance = 1).
+ * This computation is done in place (IP)
+ *
+ * @param img Input image ND
+ *
+ * @return standardized version of img
+ */
+ptr<NDArray> standardize(ptr<const NDArray> img)
+{
+	auto out = img->copy();
+	standardizeIP(out);
+	return out;
+}
+
+/**
+ * @brief median filter
  *
  * @param img Input image ND
  *
  * @return Output image N+1D
  */
-ptr<NDArray> laplacian(ptr<const NDArray> img)
+ptr<NDArray> medianFilter(ptr<const NDArray> img)
 {
 	// create output
-	size_t ndim = img->ndim();
-	vector<size_t> osize(img->dim(), img->dim()+ndim);
-	osize.push_back(ndim);
-	auto out = img->copyCast(osize.size(), osize.data());
-
-	vector<double> der_profile({1, -2, 1});
-	vector<double> avg_profile({0.25, 0.5, 0.25});
-
-	//////////////////
-	// iterate through
-	//////////////////
+	auto out = img->copy();
 
 	// kernel iterator to get neighbors of the coordesponding output point
 	KernelIter<double> kit(img);
 	kit.setRadius(1);
+	vector<double> hood(kit.ksize());
 
 	// chunk up by volumes
-	ChunkIter<double> oit(out);
-	oit.setChunkSize(ndim, img->dim(), true);
-	oit.setOrder(kit.getOrder());
-	vector<int64_t> index(ndim+1);
-	for(oit.goBegin(); !oit.eof(); oit.nextChunk()) {
-		oit.index(index);
-		size_t graddir = index[ndim];
+	FlatIter<double> oit(out);
+	for(oit.goBegin(), kit.goBegin(); !kit.eof() && !oit.eof(); ++kit, ++oit) {
 
-		// apply kernel in dimension of graddir
-		for(kit.goBegin(); !kit.eof() && !oit.eoc(); ++kit, ++oit) {
-			double sum = 0;
-			for(size_t kk=0; kk<kit.ksize(); kk++) {
-				kit.offsetK(kk, index.size(), index.data());
+		// Fill Neighborhood
+		for(size_t kk=0; kk<kit.ksize(); kk++)
+			hood[kk] = kit[kk];
 
-				// compute weight of kernel element, note that because
-				// from_center is the offset from center, we need to add 1
-				double w = 1;
-				for(size_t dd=0; dd<ndim; dd++) {
-					if(dd == graddir)
-						w *= der_profile[index[dd]+1];
-					else
-						w *= avg_profile[index[dd]+1];
-				}
-
-				sum += w*kit[kk];
-			}
-
-			oit.set(sum);
-		}
-
-		assert(kit.eof() && oit.eoc());
+		sort(hood.begin(), hood.end());
+		oit.set(hood[kit.ksize()/2]);
 	}
-	assert(kit.eof() && oit.eof());
 
 	return out;
 }
@@ -2371,7 +2466,7 @@ void zero(ptr<NDArray> inout)
 ptr<NDArray> relabelConnected(ptr<NDArray> input)
 {
 	size_t ndim = input->ndim();
-	auto output = input->createAnother();
+	auto output = input->createAnother(INT32);
 	zero(output);
 
 	// accessors and iterator
@@ -2387,7 +2482,7 @@ ptr<NDArray> relabelConnected(ptr<NDArray> input)
 
 	//connected component
 	int maxlabel = 1;
-	for(oit.goBegin(); !oit.eof(); ++oit) {
+	for(iit.goBegin(), oit.goBegin(); !oit.eof(); ++oit, ++iit) {
 		oit.index(ind);
 
 		//check before in each dimension
@@ -2411,10 +2506,10 @@ ptr<NDArray> relabelConnected(ptr<NDArray> input)
 				// pixel unclaimed so far, so claim with newlabel
 				// (which must have been labeled because it is before us)
 				if(newlabel == 0) {
-					newlabel = oac[ind];
+					newlabel = npval;
 
 				// this pixel has already been claimed by another
-				} else if(npval != newlabel) {
+				} else if(newlabel != npval) {
 					auto ret1 = equivalent.insert({newlabel, npval});
 					auto ret2 = equivalent.insert({npval, newlabel});
 
@@ -2426,7 +2521,6 @@ ptr<NDArray> relabelConnected(ptr<NDArray> input)
 					// to reduce the number of hops to the minimum
 					ret1.first->second = newlabel;
 					ret2.first->second = newlabel;
-
 				}
 			}
 
@@ -2435,9 +2529,8 @@ ptr<NDArray> relabelConnected(ptr<NDArray> input)
 		}
 
 		//no existing neighbor label found, use a new label
-		if(newlabel == 0) {
+		if(newlabel == 0)
 			newlabel = maxlabel++;
-		}
 
 		oit.set(newlabel);
 	}
@@ -2521,15 +2614,22 @@ ptr<NDArray> histEqualize(ptr<const NDArray> in)
  *
  * @param in Input image.
  * @param t Threshold to apply to the image.
+ *
+ * @return Binarized image (INT16 type)
  */
-void binarizeIP(ptr<NDArray> in, double t)
+ptr<NDArray> binarize(ptr<const NDArray> in, double t)
 {
-	for(FlatIter<double> it(in); !it.eof(); ++it) {
-		if(*it < t)
-			it.set(0);
+	auto out = in->copyCast(INT16);
+
+	FlatConstIter<double> iit(in);
+	FlatIter<double> oit(out);
+	for(oit.goBegin(), iit.goBegin(); !iit.eof(); ++oit, ++iit) {
+		if(*iit < t)
+			oit.set(0);
 		else
-			it.set(1);
+			oit.set(1);
 	}
+	return out;
 }
 
 /**
@@ -2540,24 +2640,9 @@ void binarizeIP(ptr<NDArray> in, double t)
  *
  * @return Threshold image
  */
-ptr<NDArray> binarize(ptr<const NDArray> in, double t)
-{
-	auto out = in->copy();
-	binarizeIP(out, t);
-	return out;
-}
-
-/**
- * @brief Thresholds the image, changing everything below t to 0
- *
- * @param in Input image.
- * @param t Threshold to apply to the image.
- *
- * @return Threshold image (INT16 type)
- */
 ptr<NDArray> threshold(ptr<const NDArray> in, double t)
 {
-	auto out = in->copyCast(INT16);
+	auto out = in->copy();
 	thresholdIP(out, t);
 	return out;
 }
