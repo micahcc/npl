@@ -1502,6 +1502,26 @@ private:
 /**
  * @brief This class is used to iterate through an N-Dimensional array.
  *
+ * Unlike NDIter it breaks the NDArray into chunks. Iteration
+ * stops at the end of each chunk until nextChunk is called. By default only
+ * one chunk is used, equal to the entire image. Use setBreaks() to set the
+ * frequency of chunks. The input to setBreaks() is an array of integers, where
+ * the next chunk occurs when dist%break == 0, with the special property that
+ * break=0 indicates no breaks for the dimension. So for a 3D image,
+ * setBreaks({1,0,0}) will stop every time a new x-values is reached. Note that
+ * the affects the order of iteration, so x cannot be the fastest iterator.
+ * setChunkSize() is an alias for setBreaks. Note that in cases where
+ * break%size != 0, for example image size = 5 and break = 3, chunk sizes will
+ * differ during the course of iteration!
+ *
+ * Order may still be set to decide the order of iteration. The first member
+ * of setOrder will be the fastest moving, and the last will be the slowest.
+ * Any dimensions not included in the order vector will be slower than the last
+ * member of order. Note that order will not necessarily be strictly obeyed
+ * when more than one chunk size is > 0. For isntance if setBreaks({1,1,0}),
+ * setOrder({0,1,2}) are used, then all of 2 will visited before we iterate in
+ * 0 or 1, because otherwise we would be stepping across chunks.
+ *
  * @tparam T
  */
 template <typename T = double>
@@ -2284,7 +2304,7 @@ public:
 	 */
 	T get(int64_t i = 0) const
 	{
-		auto ptr = parent->__getAddr(Slicer::operator*()+1);
+		auto ptr = parent->__getAddr(Slicer::operator*()+i);
 		assert(ptr >= this->parent->__getAddr(0) &&
 				ptr < this->parent->__getAddr(this->parent->elements()));
 		return castget(ptr);

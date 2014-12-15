@@ -535,11 +535,11 @@ public:
 	/*
 	 * General Information
 	 */
-	virtual size_t ndim() const;
-	virtual size_t bytes() const;
-	virtual size_t elements() const;
-	virtual size_t dim(size_t dir) const;
-	virtual const size_t* dim() const;
+	size_t ndim() const;
+	size_t bytes() const;
+	size_t elements() const;
+	size_t dim(size_t dir) const;
+	const size_t* dim() const;
 
 	/**
 	 * @brief Changes the dimensions (size) of the image. This does not affect
@@ -547,7 +547,7 @@ public:
 	 *
 	 * @param dim New size
 	 */
-	virtual void resize(const size_t dim[D]);
+	void resize(const size_t dim[D]);
 	
 	/**
 	 * @brief Changes the dimensions (size) of the image. This does not affect
@@ -555,10 +555,10 @@ public:
 	 *
 	 * @param dim New size
 	 */
-	virtual void resize(std::initializer_list<size_t> dim);
+	void resize(std::initializer_list<size_t> dim);
 
 	// return the pixel type
-	virtual PixelT type() const;
+	PixelT type() const;
 	
 	/**
 	 * @brief Returns a pointer to the data array. Be careful
@@ -764,7 +764,7 @@ public:
     /**
      * @brief Sets all elements to zero
      */
-	virtual void zero();
+	void zero();
 
 //	virtual int opself(const NDArray* right, double(*func)(double,double),
 //			bool elevR);
@@ -821,12 +821,13 @@ public:
 
 	void updateStrides();
 
-	int writeNifti1Image(gzFile file) const;
-	int writeNifti2Image(gzFile file) const;
-	int writeNifti1Header(gzFile file) const;
-	int writeNifti2Header(gzFile file) const;
-	int writePixels(gzFile file) const;
-    int writeJSON(gzFile file) const;
+	virtual int writeNifti1Image(gzFile file) const;
+	virtual int writeNifti2Image(gzFile file) const;
+	virtual int writeNifti1Header(gzFile file) const;
+	virtual int writeNifti2Header(gzFile file) const;
+	virtual int writePixels(gzFile file) const;
+	virtual int writeJSON(gzFile file) const;
+	virtual int writeCSV(gzFile file) const;
 };
 
 

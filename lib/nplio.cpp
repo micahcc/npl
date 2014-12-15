@@ -24,6 +24,7 @@
 #include "macros.h"
 #include "iterators.h"
 #include "byteswap.h"
+#include "utility.h"
 
 #include "zlib.h"
 
@@ -813,12 +814,64 @@ bool isnumeric(char c)
 	return isdigit(c) || c=='.' || c=='-' || c=='e' || c=='E' || c==',';
 }
 
-vector<vector<string>> _readStrCSV(gzFile file, char& delim, char comment)
+/**
+ * @brief Reads all of the input file separating out strings based on '\n'.
+ *
+ * @param file File to read from (should already be open)
+ *
+ * @return List of string (lines)
+ */
+list<string> gzGetLines(gzFile file)
+{
+	size_t BSIZE = 1024*1024;
+	char buffer[BSIZE];
+	int readbytes = 0;
+	list<string> out(1);
+
+	// While there is still more to read
+	do {
+		// read a buffers worth
+		readbytes = gzread(file, buffer, BSIZE);
+		if(readbytes < 0)
+			throw std::ios_base::failure("Error while reading gz stream");
+
+		// Iterate through the bytes
+		for(size_t ii=0; ii<readbytes; ii++) {
+			if(buffer[ii] == '\n')
+				out.push_back("");
+			else
+				out.back().push_back(buffer[ii]);
+		}
+	} while(!gzeof(file));
+
+	// Since we default to pushing 1 extra, remove the extra empty line if it
+	// contains nothing
+	if(out.back().empty())
+		out.resize(out.size()-1);
+
+	return out;
+}
+
+/**
+ * @brief Reads an entire gz file (should already be open) and returns a vector
+ * of lines, where each line is another vector of tokens. The proper delimiter
+ * will be deduced based on the first 10 lines. To deduce the delimiter, the
+ * delimiter that provides a consistent number of columns will be chosen. The
+ * chosen delimiter will be returned in the delim parameter
+ *
+ * @param file File to read from
+ * @param delim Chosen delimiter (output)
+ * @param comment ignore everything on a line that follows the comment
+ * character, default is '#'
+ *
+ * @return
+ */
+vector<vector<string>> gzReadCSV(gzFile file, char& delim, char comment = '#')
 {
     std::string line;
 	vector<string> tmparr;
 
-	list<vector<string> > outstore;
+	list<vector<string>> outstore;
 
 	int linenum = 0;
 	int minwidth = numeric_limits<int>::max();
@@ -831,20 +884,16 @@ vector<vector<string>> _readStrCSV(gzFile file, char& delim, char comment)
 	 * grants the same number of outputs on a line and isn't 1 is given the
 	 * highest priority
 	 */
-	
-	//grab the first few lines
-	list<string> firstlines;
-	for(int ii = 0 ; !fin.eof(); ii++ ) {
-		getline(fin, line);
-		firstlines.push_back(line);
-	}
+
+	// Read the entire file
+	list<string> lines = gzGetLines(file);
 
 	//test our possible delimiters
 	for(int ii = 0 ; ii < 3 ; ii++) {
-		list<string>::iterator it = firstlines.begin();
+		list<string>::iterator it = lines.begin();
 		minwidth = numeric_limits<int>::max();
 		maxwidth = 0;
-		for(;it != firstlines.end(); it++) {
+		for(;it != lines.end(); it++) {
 			line = *it;
 			string tmp = chomp(line);
 			if(line[0] == comment || tmp[0] == comment || tmp.size() == 0)
@@ -867,12 +916,12 @@ vector<vector<string>> _readStrCSV(gzFile file, char& delim, char comment)
 
     if(delims[priority].length() > 0)
         delim = delims[priority][0];
-			
+
 	//re-process first 10 lines using the proper delimiter
-	list<string>::iterator it = firstlines.begin();
+	list<string>::iterator it = lines.begin();
 	minwidth = numeric_limits<int>::max();
 	maxwidth = 0;
-	for(;it != firstlines.end(); it++, linenum++) {
+	for(;it != lines.end(); it++, linenum++) {
 		line = *it;
 		string tmp = chomp(line);
 		if(line[0] == comment || tmp[0] == comment || tmp.size() == 0) {
@@ -884,26 +933,6 @@ vector<vector<string>> _readStrCSV(gzFile file, char& delim, char comment)
 			minwidth = tmparr.size();
 		if((int)tmparr.size() > maxwidth)
 			maxwidth = tmparr.size();
-
-		outstore.push_back(tmparr);
-	}
-
-	//process the rest of the input (the reason we don't use get is we might want
-	//to parse - as stdin
-	for(;!fin.eof(); linenum++) {
-		getline(fin, line);
-		string tmp = chomp(line);
-		if(line[0] == comment || tmp[0] == comment || tmp.size() == 0) {
-			continue;
-		}
-		
-		tmparr = parseLine(line, delims[priority]);
-		if((int)tmparr.size() < minwidth) {
-			minwidth = tmparr.size();
-		}
-		if((int)tmparr.size() > maxwidth) {
-			maxwidth = tmparr.size();
-		}
 
 		outstore.push_back(tmparr);
 	}
@@ -921,29 +950,60 @@ vector<vector<string>> _readStrCSV(gzFile file, char& delim, char comment)
 			<< "differences in the number of fields per line" << endl;
 	}
 
+	return out;
 }
 
-ptr<NDArray> readTxtImage(gzFile file, bool verbose, bool makearray)
+/**
+ * @brief Reads a comma, space or semicolon delimited file with each line as
+ * the x dimension and each image
+ *
+ * @param file
+ * @param ignore
+ * @param makearray
+ *
+ * @return
+ */
+
+/**
+ * @brief Reads a column, space or semicolon delimited file where the columns
+ * and rows correspond to the dimensions specified.
+ *
+ * @param file Output file to write to (should already be open)
+ * @param makearray Make an array rather than an image
+ * @param ignore Ignore anything that follows the given character on a line.
+ * This might also be a comment (default '#')
+ * @param rowdim Each row will correspond to a line in the given dimension
+ * (default 0, x)
+ * @param coldim Each column will correspond to a line in the given dimension
+ * (default is 3, time)
+ *
+ * @return
+ */
+ptr<NDArray> readTxtImage(gzFile file, bool makearray = false,
+		char ignore = '#', int rowdim = 0, int coldim = 3)
 {
-	// Read String CSV 
+	// Read String CSV
 	char delim = ',';
-	vector<vector<string>> tmp = _readStrCSV(file, delim, comment);
-	gzclose(gz);
-	if(tmp.size() == 0)
-		throw std::ios_base::failure("Error reading " + fn);
+	vector<vector<string>> raw = gzReadCSV(file, delim, ignore);
+	gzclose(file);
+	if(raw.size() == 0)
+		return NULL;
 
 	// set size
-	size_t size[2] = {tmp.size(), tmp[0].size()};
+	size_t odim = max(coldim, rowdim)+1;
+	vector<size_t> size(odim, 1);
+	size[rowdim] = raw[0].size();
+	size[coldim] = raw.size();
 
 	// Determine Type
-	bool signed_dec = true; // only hexadecimal 
+	bool signed_dec = true; // only hexadecimal
 	bool unsigned_dec = true; // positive integral numbers
 	bool unsigned_hex = true; // hexadecimal
 	bool ftype = true; // float
 
 	int tmp_i;
 	unsigned int tmp_u;
-	double tmp_f;
+	float tmp_f;
 	for(size_t ii=0; ii<raw.size(); ii++) {
 		for(size_t jj=0; jj<raw[ii].size(); jj++) {
 			if(sscanf(raw[ii][jj].c_str(), "%u", &tmp_u) != 1)
@@ -951,73 +1011,74 @@ ptr<NDArray> readTxtImage(gzFile file, bool verbose, bool makearray)
 			if(sscanf(raw[ii][jj].c_str(), "%d", &tmp_i) != 1)
 				signed_dec = false;
 			if(sscanf(raw[ii][jj].c_str(), "%x", &tmp_u) != 1)
-				hex = false;
+				unsigned_hex = false;
 			if(sscanf(raw[ii][jj].c_str(), "%f", &tmp_f) != 1)
 				ftype = false;
 		}
 	}
 
 	// Create Image with Correct Type
+	ptr<NDArray> out;
 	if(unsigned_dec) {
-		ptr<NDArrayStore<2, unsigned int>> tout;
 		if(makearray)
-			tout = dPtrCast<NDArrayStore<2, unsigned int>>(createNDArray(2, size, UINT32));
+			out = createNDArray(odim, size.data(), UINT32);
 		else
-			tout = dPtrCast<NDArrayStore<2, unsigned int>>(createMRImage(2, size, UINT32));
+			out = createMRImage(odim, size.data(), UINT32);
 
-		size_t cc=0;
-		for(size_t ii=0; ii<raw.size(); ii++) {
-			for(size_t jj=0; jj<raw[ii].size(); jj++) {
+		ChunkIter<unsigned int> it(out);
+		it.setLineChunk(rowdim);
+		it.goBegin();
+		for(size_t ii=0; ii<raw.size(); ii++, it.nextChunk()) {
+			for(size_t jj=0; jj<raw[ii].size(); jj++, ++it) {
 				sscanf(raw[ii][jj].c_str(), "%u", &tmp_u);
-				tout[cc++] = tmp_u;
+				it.set(tmp_u);
 			}
 		}
-		out = tout;
 	} else if(unsigned_hex) {
-		ptr<NDArrayStore<2, unsigned int>> tout;
 		if(makearray)
-			tout = dPtrCast<NDArrayStore<2, unsigned int>>(createNDArray(2, size, UINT32));
+			out = createNDArray(odim, size.data(), UINT32);
 		else
-			tout = dPtrCast<NDArrayStore<2, unsigned int>>(createMRImage(2, size, UINT32));
+			out = createMRImage(odim, size.data(), UINT32);
 
-		size_t cc=0;
-		for(size_t ii=0; ii<raw.size(); ii++) {
-			for(size_t jj=0; jj<raw[ii].size(); jj++) {
+		ChunkIter<unsigned int> it(out);
+		it.setLineChunk(rowdim);
+		it.goBegin();
+		for(size_t ii=0; ii<raw.size(); ii++, it.nextChunk()) {
+			for(size_t jj=0; jj<raw[ii].size(); jj++, ++it) {
 				sscanf(raw[ii][jj].c_str(), "%x", &tmp_u);
-				tout[cc++] = tmp_u;
+				it.set(tmp_u);
 			}
 		}
-		out = tout;
 	} else if(signed_dec) {
-		ptr<NDArrayStore<2, int>> tout;
 		if(makearray)
-			tout = dPtrCast<NDArrayStore<2, int>>(createNDArray(2, size, INT32));
+			out = createNDArray(odim, size.data(), INT32);
 		else
-			tout = dPtrCast<NDArrayStore<2, int>>(createMRImage(2, size, INT32));
+			out = createMRImage(odim, size.data(), INT32);
 
-		size_t cc=0;
-		for(size_t ii=0; ii<raw.size(); ii++) {
-			for(size_t jj=0; jj<raw[ii].size(); jj++) {
+		ChunkIter<int> it(out);
+		it.setLineChunk(rowdim);
+		it.goBegin();
+		for(size_t ii=0; ii<raw.size(); ii++, it.nextChunk()) {
+			for(size_t jj=0; jj<raw[ii].size(); jj++, ++it) {
 				sscanf(raw[ii][jj].c_str(), "%d", &tmp_i);
-				tout[cc++] = tmp_u;
+				it.set(tmp_i);
 			}
 		}
-		out = tout;
 	} else if(ftype) {
-		ptr<NDArrayStore<2, float>> tout;
 		if(makearray)
-			tout = dPtrCast<NDArrayStore<2, float>>(createNDArray(2, size, FLOAT32));
+			out = createNDArray(odim, size.data(), FLOAT32);
 		else
-			tout = dPtrCast<NDArrayStore<2, float>>(createMRImage(2, size, FLOAT32));
+			out = createMRImage(odim, size.data(), FLOAT32);
 
-		size_t cc=0;
-		for(size_t ii=0; ii<raw.size(); ii++) {
-			for(size_t jj=0; jj<raw[ii].size(); jj++) {
+		ChunkIter<float> it(out);
+		it.setLineChunk(rowdim);
+		it.goBegin();
+		for(size_t ii=0; ii<raw.size(); ii++, it.nextChunk()) {
+			for(size_t jj=0; jj<raw[ii].size(); jj++, ++it) {
 				sscanf(raw[ii][jj].c_str(), "%f", &tmp_f);
-				tout[cc++] = tmp_u;
+				it.set(tmp_f);
 			}
 		}
-		out = tout;
 	}
 
 	return out;

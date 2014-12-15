@@ -20,7 +20,6 @@
 
 #include "mrimage.h"
 #include "iterators.h"
-#include <iostream>
 
 #include "ndarray.h"
 #include "nifti.h"
@@ -29,8 +28,10 @@
 #include "macros.h"
 
 #include "zlib.h"
-
 #include <cstring>
+#include <iostream>
+
+#include "mrimage.txx"
 
 using std::make_shared;
 
@@ -954,7 +955,5 @@ template class MRImageStore<5, rgb_t>;
 
 
 } // npl
-
-#include "mrimage.txx"
 
 
