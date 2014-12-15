@@ -1718,79 +1718,79 @@ int fastSearchFindDP(const MatrixXf& samples, double thresh, double outthresh,
  *
  * @param V input/output the initial and final vectors
  */
-void bandlanczos(const MaxtrixXd& A, list<VectorXd>& V)
-{
-	// TODO fill V with random values
-	double DTOL = 1e-20;
-	int64_t pc = V.size();
-	vector<bool> I(V.size(), false);
-	list<VectorXd>::iterator Vk, Vj, Vjpc;
-
-	// Size?
-	// sparse MatrixXd T(V.size(), V.size());
-	// sparse MatrixXd S(V.size(), V.size());
-
-	Vj = V.begin();
-	for(int64_t jj=0; pc >= 0; jj++) {
-		// compute norm(vj)
-		double vnorm = Vj->norm();
-		if(vnorm < DTOL) {
-			/* Deflate */
-			if(jj - pc >= 0) I[jj-pc] = true;
-			if(--pc < 0) {
-				jj--;
-				break;
-			}
-
-			//erase Vj and return to beginning with jj unchanged
-			Vj = V.erase(Vj);
-			jj--;
-		}
-
-		// set t(j,j-pc) = norm(vj) and normalize vj
-		if(jj-pc >= 0)
-			T(jj, jj-pc) = vnorm;
-		(*Vj) /= vnorm;
-
-		Vk = Vj; ++Vk;
-		for(int64_t kk=jj+1; kk<jj+pc; kk++, ++Vk) {
-			double val = (Vj->transpose()*(*Vk));
-			if(kk - pc >= 0) T(jj, kk-pc) = val;
-			*Vk -= (*Vj)*val;
-		}
-		Vjpc = Vk;
-		*Vjpc = A*(*Vj);
-		k0 = max(0, jj-pc);
-		
-		Vk = V.begin();
-		for(int64_t kk=0; kk<k0; kk++, ++Vk) continue;
-		for(int64_t kk=k0; kk<jj; kk++) {
-			T(kk, jj) = T(jj,kk);
-			*Vjpc -= (*Vk)*T(kk,jj);
-		}
-
-		// iterator through k for (I UNION j)
-		// temporarily add j to I
-		bool jval = I[jj];
-		I[jj] = true;
-		Vk = V.begin(); 
-		for(int64_t kk=0; kk<I.size(); ++Vk, kk++) {
-			if(I[kk]) {
-				T(kk,jj) = (Vk->transpose())*(*Vjpc);
-				*Vjpc -= (*Vk)*T(kk,jj);
-			}
-		}
-		I[jj] = jval;
-
-		Vk = V.begin();
-		for(int64_t kk=0; kk<I.size(); ++Vk, kk++) {
-			if(I[kk]) 
-				S(jj,kk) = T(kk, jj);
-		}
-
-		T.col(jj) += S.col(j);
-	}
-}
+//void bandlanczos(const MaxtrixXd& A, list<VectorXd>& V)
+//{
+//	// TODO fill V with random values
+//	double DTOL = 1e-20;
+//	int64_t pc = V.size();
+//	vector<bool> I(V.size(), false);
+//	list<VectorXd>::iterator Vk, Vj, Vjpc;
+//
+//	// Size?
+//	// sparse MatrixXd T(V.size(), V.size());
+//	// sparse MatrixXd S(V.size(), V.size());
+//
+//	Vj = V.begin();
+//	for(int64_t jj=0; pc >= 0; jj++) {
+//		// compute norm(vj)
+//		double vnorm = Vj->norm();
+//		if(vnorm < DTOL) {
+//			/* Deflate */
+//			if(jj - pc >= 0) I[jj-pc] = true;
+//			if(--pc < 0) {
+//				jj--;
+//				break;
+//			}
+//
+//			//erase Vj and return to beginning with jj unchanged
+//			Vj = V.erase(Vj);
+//			jj--;
+//		}
+//
+//		// set t(j,j-pc) = norm(vj) and normalize vj
+//		if(jj-pc >= 0)
+//			T(jj, jj-pc) = vnorm;
+//		(*Vj) /= vnorm;
+//
+//		Vk = Vj; ++Vk;
+//		for(int64_t kk=jj+1; kk<jj+pc; kk++, ++Vk) {
+//			double val = (Vj->transpose()*(*Vk));
+//			if(kk - pc >= 0) T(jj, kk-pc) = val;
+//			*Vk -= (*Vj)*val;
+//		}
+//		Vjpc = Vk;
+//		*Vjpc = A*(*Vj);
+//		k0 = max(0, jj-pc);
+//		
+//		Vk = V.begin();
+//		for(int64_t kk=0; kk<k0; kk++, ++Vk) continue;
+//		for(int64_t kk=k0; kk<jj; kk++) {
+//			T(kk, jj) = T(jj,kk);
+//			*Vjpc -= (*Vk)*T(kk,jj);
+//		}
+//
+//		// iterator through k for (I UNION j)
+//		// temporarily add j to I
+//		bool jval = I[jj];
+//		I[jj] = true;
+//		Vk = V.begin();
+//		for(int64_t kk=0; kk<I.size(); ++Vk, kk++) {
+//			if(I[kk]) {
+//				T(kk,jj) = (Vk->transpose())*(*Vjpc);
+//				*Vjpc -= (*Vk)*T(kk,jj);
+//			}
+//		}
+//		I[jj] = jval;
+//
+//		Vk = V.begin();
+//		for(int64_t kk=0; kk<I.size(); ++Vk, kk++) {
+//			if(I[kk])
+//				S(jj,kk) = T(kk, jj);
+//		}
+//
+//		T.col(jj) += S.col(j);
+//	}
+//}
 
 int sign(double v)
 {
@@ -1798,14 +1798,14 @@ int sign(double v)
 }
 
 /**
- * @brief Performs LASSO regression using the 'activeShooting' algorithm of 
- *  
+ * @brief Performs LASSO regression using the 'activeShooting' algorithm of
+ *
  * Peng, J., Wang, P., Zhou, N., & Zhu, J. (2009). Partial Correlation
  * Estimation by Joint Sparse Regression Models. Journal of the American
  * Statistical Association, 104(486), 735–746. doi:10.1198/jasa.2009.0126
  *
- * Essentially solves the equation: 
- * 
+ * Essentially solves the equation:
+ *
  * y = X * beta
  *
  * where beta is mostly 0's
@@ -1859,7 +1859,7 @@ VectorXd activeShootingRegr(const MatrixXd& X, const VectorXd& y, double gamma)
 				if(active[jj]) {
 					double prev = beta[jj];
 					double v = (y-X*beta).dot(X.col(jj))/Xnorm[jj] + beta[jj];
-					
+
 					if(fabs(v) > gamma/Xnorm[jj])
 						beta[jj] = sign(v)*(fabs(v)-gamma/Xnorm[jj]);
 					else
@@ -1890,14 +1890,14 @@ VectorXd activeShootingRegr(const MatrixXd& X, const VectorXd& y, double gamma)
 }
 
 /**
- * @brief Performs LASSO regression using the 'shooting' algorithm of 
+ * @brief Performs LASSO regression using the 'shooting' algorithm of
  *
  * Fu, W. J. (1998). Penalized Regressions: The Bridge versus the Lasso.
  * Journal of Computational and Graphical Statistics, 7(3), 397.
  * doi:10.2307/1390712
  *
- * Essentially solves the equation: 
- * 
+ * Essentially solves the equation:
+ *
  * y = X * beta
  *
  * where beta is mostly 0's
