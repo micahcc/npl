@@ -78,7 +78,7 @@ ptr<MRImage> regressOut(ptr<const MRImage> inimg, list<vector<double>> designs);
  * @return number of relevent voxels found
  */
 int extractLabelAvgTS(ptr<const MRImage> fmri,
-        ptr<const MRImage> labelmap,
+		ptr<const MRImage> labelmap,
 		const set<int>& labels, list<vector<double>>& design);
 
 /**
@@ -98,7 +98,7 @@ int extractLabelAvgTS(ptr<const MRImage> fmri,
  * @return Number of relevent voxels found
  */
 int extractLabelPcaTS(ptr<const MRImage> fmri,
-        ptr<const MRImage> labelmap,
+		ptr<const MRImage> labelmap,
 		const set<int>& labels, size_t outsz, list<vector<double>>& design);
 
 /**
@@ -212,7 +212,9 @@ int main(int argc, char* argv[])
 			"Input Regressor.", false,"*.csv", cmd);
 	TCLAP::MultiArg<std::string> a_events("e","events",
 			"Input Regressor in the form of an event (1 column: even times,"
-			" 3 column: onset duration value).", false,"*.csv", cmd);
+			" 3 column: onset duration value). These will be convolved with "
+			"the cannonical hemodynamic response function from SPM",
+			false,"*.csv", cmd);
 
 	TCLAP::ValueArg<std::string> a_oregressors("R","outregress",
 			"Output Regressors. Single file with all the regression timeseries "
@@ -387,7 +389,7 @@ int main(int argc, char* argv[])
 inline
 void regressOutLS(VectorXd& signal, const MatrixXd& X, const MatrixXd& Xinv)
 {
-    signal = signal - (Xinv*signal)*X;
+	signal = signal - (Xinv*signal)*X;
 }
 
 ptr<MRImage> regressOut(ptr<const MRImage> inimg, list<vector<double>> designs)
@@ -410,7 +412,7 @@ ptr<MRImage> regressOut(ptr<const MRImage> inimg, list<vector<double>> designs)
 		X(rr, X.cols()-1) = 1;
 
 	size_t tlen = inimg->tlen();
-    MatrixXd Xinv = pseudoInverse(X);
+	MatrixXd Xinv = pseudoInverse(X);
 	VectorXd y(X.rows());
 	VectorXd beta(X.cols());
 

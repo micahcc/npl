@@ -410,7 +410,7 @@ vector<double> getRegressor(vector<vector<double>>& spec,
 			}
 		}
 	} else {
-		cerr << "Unrecognized format provided to hrf, " 
+		cerr << "Unrecognized format provided to for " 
 			<< spec[0].size() << " cols." << endl;
 		return vector<double>();
 	}
