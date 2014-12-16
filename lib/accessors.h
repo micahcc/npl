@@ -1472,7 +1472,7 @@ public:
 				double C = dd < len ? cindex[dd] : 0;
 				index[dd] = round(C);
 				if(index[dd] < 0 || index[dd] > dim[dd]-1)
-					return 0;
+					return (T)0;
 			}
 		}
 

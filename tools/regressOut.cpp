@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file applyDeform.cpp Tool to apply a deformation field to another image. 
+ * @file applyDeform.cpp Tool to apply a deformation field to another image.
  * Not yet functional
  *
  *****************************************************************************/
@@ -28,9 +28,18 @@
 #include <vector>
 #include <list>
 #include <cmath>
+#include <memory>
 
 #include <tclap/CmdLine.h>
 
+#include "basic_plot.h"
+#include "statistics.h"
+#include "npltypes.h"
+#include "nplio.h"
+#include "utility.h"
+#include "mrimage.h"
+#include "mrimage_utils.h"
+#include "iterators.h"
 #include "version.h"
 
 TCLAP::SwitchArg a_verbose("v", "verbose", "Be verbose (More for debugging).");
@@ -44,6 +53,7 @@ using std::string;
 using std::endl;
 using std::cerr;
 using std::cout;
+using namespace npl;
 
 const double PI = acos(-1);
 
@@ -52,24 +62,23 @@ const double PI = acos(-1);
  ***************************
 */
 
-shared_ptr<MRImage> regressOut(shared_ptr<MRImage> inimg, 
-        list<vector<double>> designs);
+ptr<MRImage> regressOut(ptr<const MRImage> inimg, list<vector<double>> designs);
 
 /**
  * @brief Saves the average value at each time point in the given label into ret
  *
- * Note that labelmap and fmri should be in the same pixel space (except for 
+ * Note that labelmap and fmri should be in the same pixel space (except for
  * dimension 3)
- * 
- * @param fmri		fmri with timeseries to extract, then average 
+ *
+ * @param fmri		fmri with timeseries to extract, then average
  * @param labelmap 	labelmap to use when looking for voxels within the given label
  * @param labels 	label to search for when computing average
  * @param design 	output design matrix, an additional vector will be added
  *
  * @return number of relevent voxels found
  */
-int extractLabelAvgTS(shared_ptr<const MRImage> fmri, 
-        shared_ptr<const MRImage> labelmap, 
+int extractLabelAvgTS(ptr<const MRImage> fmri,
+        ptr<const MRImage> labelmap,
 		const set<int>& labels, list<vector<double>>& design);
 
 /**
@@ -77,7 +86,7 @@ int extractLabelAvgTS(shared_ptr<const MRImage> fmri,
  * analysis on it to reduce the number of timeseries to outsz. It appends
  * the resulting reduced timeseries onto design directly
  *
- * Note that labelmap and fmri should be in the same pixel space (except for 
+ * Note that labelmap and fmri should be in the same pixel space (except for
  * dimension 3)
  *
  * @param fmri 		FMRI image with timeseres to extract
@@ -88,8 +97,8 @@ int extractLabelAvgTS(shared_ptr<const MRImage> fmri,
  *
  * @return Number of relevent voxels found
  */
-int extractLabelPcaTS(shared_ptr<const MRImage> fmri, 
-        shared_ptr<const MRImage> labelmap, 
+int extractLabelPcaTS(ptr<const MRImage> fmri,
+        ptr<const MRImage> labelmap,
 		const set<int>& labels, size_t outsz, list<vector<double>>& design);
 
 /**
@@ -97,7 +106,7 @@ int extractLabelPcaTS(shared_ptr<const MRImage> fmri,
  * analysis on it to reduce the number of timeseries to outsz. It appends
  * the resulting reduced timeseries onto design directly
  *
- * Note that labelmap and fmri should be in the same pixel space (except for 
+ * Note that labelmap and fmri should be in the same pixel space (except for
  * dimension 3)
  *
  * @param fmri 		FMRI image with timeseres to extract
@@ -108,20 +117,18 @@ int extractLabelPcaTS(shared_ptr<const MRImage> fmri,
  *
  * @return Number of relevent voxels found
  */
-int extractLabelIcaTS(FImage4D::Pointer fmri, LImage3D::Pointer labelmap, 
+int extractLabelIcaTS(ptr<const MRImage> fmri, ptr<const MRImage> labelmap,
 		const set<int>& labels, size_t outsz, list<vector<double>>& design);
 
-FImage4D::Pointer normaliseTS(FImage4D::Pointer fmri);
-
-void computeAppendDerivs(list<vector<double>>& design, 
+void computeAppendDerivs(list<vector<double>>& design,
 			int start, int number);
 
 int main(int argc, char* argv[])
 {
 	cerr << "Version: " << __version__ << endl;
 	try {
-	/* 
-	 * Command Line 
+	/*
+	 * Command Line
 	 */
 	TCLAP::CmdLine cmd("This is a program to perform general linear modeling on "
 			"fMRI images. It can remove the effects of regressors (regress-out) "
@@ -135,11 +142,11 @@ int main(int argc, char* argv[])
 	// arguments
 	TCLAP::ValueArg<std::string> a_input("i","in","Input fMRI Image",true,"",
 			"4D Image", cmd);
-	
+
 	TCLAP::ValueArg<std::string> a_labelmap("L","labelmap",
 			"Input labelmap. Can be used to generate label-based regressors.",
 			false,"","3D Image", cmd);
-	
+
 	TCLAP::MultiArg<std::string> a_labels("l","label", "Regress average of given"
 			" label[s] then subtract the fit from each timeseries. Multiple "
 			"options will result in multiple simultaneous linear regressions. "
@@ -151,7 +158,7 @@ int main(int argc, char* argv[])
 	TCLAP::ValueArg<int> a_components("c", "components", "Number of PCA or "
 			"ICA components to extract from a large set of voxels when "
 			"generating regressors", false, 7, "int", cmd);
-	
+
 	vector<TCLAP::Arg*> xorlist;
 	TCLAP::SwitchArg a_ica("I", "ica", "Compute independent components from "
 			"labeled time-series. For example -l label.nii.gz -L 1 "
@@ -171,27 +178,27 @@ int main(int argc, char* argv[])
 	TCLAP::SwitchArg a_noreduce("N", "no-reduce", "Do not reduce timeseries "
 			"at all. Thus ALL voxels in labeled regions specified by -l would be "
 			"used as regressors. Probably not a good idea.", cmd);
-	
+
 	vector<string> allowed({"none","cannonical"});
 	TCLAP::ValuesConstraint<string> allowedVals( allowed );
 
 //	TCLAP::ValueArg<std::string> a_hrf("H", "hrf", "Hemodynamic response function"
 //			" to convolve regressors (-r) with. Note that any regressors "
 //			"extracted from fMRI are not convolved. Presummably if its from the "
-//			"brain it is already convolved by nature", false, "none",  
+//			"brain it is already convolved by nature", false, "none",
 //			&allowedVals, cmd);
-	
-	TCLAP::ValueArg<std::string> a_rplot("", "plot-regressors", 
-			"Image filename to save a plot of the regressors.", false, "", 
+
+	TCLAP::ValueArg<std::string> a_rplot("", "plot-regressors",
+			"Image filename to save a plot of the regressors.", false, "",
 			"*.tga", cmd);
-	
-//	TCLAP::ValueArg<std::string> a_hplot("", "plot-hrf", 
+
+//	TCLAP::ValueArg<std::string> a_hplot("", "plot-hrf",
 //			"Image filename to save a plot of the hemodynamic response function.",
 //			false, "", "*.tga", cmd);
-	
+
 	TCLAP::SwitchArg a_deriv("d", "derivative", "Add temporal derivatives "
 			"of loaded regressors only, as regressors.", cmd);
-	
+
 	// for regressing-out
 	TCLAP::ValueArg<std::string> a_output("o","out","Output fMRI Image",false,"",
 			"4D Image", cmd);
@@ -201,19 +208,19 @@ int main(int argc, char* argv[])
 			"corresponds to a column in the output regressors. (-R)",
 			false,"3D Image", cmd);
 
-	TCLAP::MultiArg<std::string> a_regressors("r","regressor", 
+	TCLAP::MultiArg<std::string> a_regressors("r","regressor",
 			"Input Regressor.", false,"*.csv", cmd);
-	TCLAP::MultiArg<std::string> a_events("e","events", 
+	TCLAP::MultiArg<std::string> a_events("e","events",
 			"Input Regressor in the form of an event (1 column: even times,"
 			" 3 column: onset duration value).", false,"*.csv", cmd);
-	
+
 	TCLAP::ValueArg<std::string> a_oregressors("R","outregress",
 			"Output Regressors. Single file with all the regression timeseries "
 			"used", false,"","*.csv", cmd);
-	
+
 	cmd.add(a_verbose);
-	
-	
+
+
 	// parse arguments
 	cmd.parse(argc, argv);
 
@@ -222,26 +229,19 @@ int main(int argc, char* argv[])
 	 */
 
 	/* Initialize Data */
-	FImage4D::Pointer fmri = NULL;
-	LImage3D::Pointer labelmap = NULL;
+	ptr<MRImage> fmri = readMRImage(a_input.getValue());
+	ptr<MRImage> labelmap;
 
-	try{
-		fmri = readImage<FImage4D>(a_input.getValue());
-	} catch(...) {
-		std::cerr << "Failed to load image" << a_input.getValue() << endl;
-		return -1;
-	}
-	if(fmri->GetLargestPossibleRegion().GetSize()[3] <= 1) {
+	if(fmri->tlen() <= 1) {
 		std::cerr << "Error Image Input Not 4D" << endl;
 		return -1;
 	}
 
-	
-	int timepoints = fmri->GetLargestPossibleRegion().GetSize()[3];
-	double tr = fmri->GetSpacing()[3];
+	int timepoints = fmri->tlen();
+	double tr = fmri->spacing(3);
 	std::cout << "Time Points " << timepoints << endl;
 
-	/* 
+	/*
 	 * Setting up Design Matrix X from:
 	 * 	input files
 	 * 	average of particular labels
@@ -249,79 +249,31 @@ int main(int argc, char* argv[])
 	 */
 	//load design matrices from as many files are provided
 	list<vector<double>> X;
+	// Read Each CSV File then push the regressors
 	for(auto it = a_regressors.begin(); it != a_regressors.end(); it++) {
-		vector<vector<string> > tmp;
-
-		//note that this outputs a vector of rows, so we have
-		//to take the transpose
-		int maxwidth = smartReadCSV(*it, tmp);
-		std::cout << "Read " << tmp.size() << " rows with max width " 
-			<< maxwidth << endl;
-		if((int)tmp.size() != timepoints) {
-			std::cerr << "Error, " << *it << " has "
-				<< tmp.size() << " timepoints, but the fmri image has "
-				<< timepoints << " timepoints. These must be the same" << endl;
-			return -5;
-		}
-
-		for(int jj = 0 ; jj < maxwidth; jj++) {
-			X.push_back(vector<double>());
-			X.back().resize(tmp.size(), 0);
-		}
-		
-		list<vector<double> >::iterator first = X.end();
-		for(int jj = 0; jj < maxwidth; jj++)
-			first--;
-
-		//iterate through rows
-		for(size_t rr = 0; rr < tmp.size(); rr++) {
-			list<vector<double> >::iterator cit = first;
-			//iterate through columns
-			for(size_t cc = 0 ; cc < tmp[rr].size() ; cit++, cc++) {
-				(*cit)[rr] = atof((tmp[rr])[cc].c_str());
-			}
+		auto tmp = readNumericCSV(*it);
+		for(size_t ii=0; ii<tmp.size(); ii++) {
+			X.push_back(std::move(tmp[ii]));
 		}
 	}
-	
+
 	for(auto it = a_events.begin(); it != a_events.end(); it++) {
-		vector<vector<string> > tmp;
-
-		//note that this outputs a vector of rows, so we have
-		//to take the transpose
-		int maxwidth = smartReadCSV(*it, tmp);
-		std::cout << "Read " << tmp.size() << " rows with max width " 
-			<< maxwidth << endl;
-		if(!(maxwidth == 3 || maxwidth == 1)) {
-			std::cerr << "Error, " << *it << " is neither in the 1 or 3 column "
-				<< "formats. Please provide stimulus files with 1 or 3 columns "
-				"as specified in the -h page" << endl;
-			return -5;
-		}
-
-		vector<vector<double>> tmp2(tmp.size());
-		for(size_t rr=0; rr<tmp2.size(); rr++) {
-			tmp2[rr].resize(maxwidth);
-			if((int)tmp[rr].size() != maxwidth) {
-				cerr << "Inconsistent row width in " << *it << endl;
-				return -1;
-			}
-			for(int cc=0; cc<maxwidth; cc++) 
-				tmp2[rr][cc] = atof(tmp[rr][cc].c_str());
-		}
-
-		X.push_back(getRegressor(tmp2, tr, timepoints, 0));
+		auto tmp = readNumericCSV(*it);
+		X.push_back(getRegressor(tmp, tr, timepoints, 0));
 	}
 
 	// Derivatives
 	if(a_deriv.isSet()) {
-		//Don't take the derivative of the input have input X 
+		//Don't take the derivative of the input have input X
 		computeAppendDerivs(X, 0, X.size());
 	}
 
 	if(a_rplot.isSet()) {
-		writePlot(a_rplot.getValue(), X);
+		Plotter plotter;
+		for(auto& v : X)
+			plotter.addArray(v.size(), v.data());
+		plotter.write(a_rplot.getValue());
 	}
-
 
 	/* fMRI Extract Regressors */
 	if(a_pca.isSet() || a_ica.isSet() || a_avg.isSet()) {
@@ -329,16 +281,16 @@ int main(int argc, char* argv[])
 			cerr << "Error, must provide labels and labelmap to regress "
 				"ICA/PCA/MEAN fmri components" << endl;
 			return 0;
-		} 
-	
+		}
+
 		//load labelmap and put it in fmri space
 		if(!a_labelmap.getValue().empty()) {
 			try{
-				labelmap = readImage<LImage3D>(a_labelmap.getValue());
-				cerr << "Labelmap voxels: " << labelmap->GetRequestedRegion().GetNumberOfPixels() << endl;
-				auto tmp = extractTime(fmri, 0);
-				labelmap = resampleTo<FImage3D, LImage3D>(tmp, labelmap, NEAREST);
-				cerr << "Labelmap voxels: " << labelmap->GetRequestedRegion().GetNumberOfPixels() << endl;
+				labelmap = readMRImage(a_labelmap.getValue());
+				cerr << "Labelmap voxels: " << labelmap->elements() << endl;
+				auto tmp = dPtrCast<MRImage>(fmri->extractCast(3, fmri->dim()));
+				labelmap = resampleNN(labelmap, tmp, INT32);
+				cerr << "Labelmap voxels: " << labelmap->elements() << endl;
 			} catch(...) {
 				std::cerr << "Failed to load image" << a_labelmap.getValue() << endl;
 				return -1;
@@ -348,7 +300,7 @@ int main(int argc, char* argv[])
 		// For Each group of labels
 		std::vector<string> tmp;
 		for(auto it=a_labels.begin(); it!=a_labels.end(); it++){
-			parseLine(*it, ",", tmp);
+			tmp = parseLine(*it, ",");
 			std::set<int> labels;
 			cout << "Creating regressor from labels: " << endl;
 			for(size_t ll = 0 ; ll < tmp.size() ; ll++)  {
@@ -359,11 +311,11 @@ int main(int argc, char* argv[])
 
 			// Create Regression Term, and add to X
 			if(a_pca.isSet()) {
-				int count = extractLabelPcaTS(fmri, labelmap, labels, 
+				int count = extractLabelPcaTS(fmri, labelmap, labels,
 						a_components.getValue(), X);
 				std::cout << "Matching Voxels: " << count << endl;
 			} else if(a_ica.isSet()) {
-				int count = extractLabelIcaTS(fmri, labelmap, labels, 
+				int count = extractLabelIcaTS(fmri, labelmap, labels,
 						a_components.getValue(), X);
 				std::cout << "Matching Voxels: " << count << endl;
 			} else if(a_avg.isSet()) {
@@ -374,14 +326,23 @@ int main(int argc, char* argv[])
 
 
 	}
-	
+
 	if(a_oregressors.isSet()) {
 		std::cout << "Saving design file to " << a_oregressors.getValue() << endl;
-		saveDesign(a_oregressors.getValue(), X);
+		std::ofstream ofs(a_oregressors.getValue().c_str());
+		for(auto it=X.begin(); it != X.end(); ++it) {
+			if(it != X.begin())
+				ofs << "\n";
+			for(size_t cc=0; cc<it->size(); cc++) {
+				if(cc != 0)
+					ofs << ",";
+				ofs << (*it)[cc];
+			}
+		}
 	}
 
 	if(X.size() > 0) {
-		try{ 
+		try{
 			fmri = regressOut(fmri, X);
 		} catch(...) {
 			std::cerr << "Error problems regressing out a parameter" << endl;
@@ -394,9 +355,9 @@ int main(int argc, char* argv[])
 	}
 
 	if(a_output.isSet()) {
-		writeImage<FImage4D>(a_output.getValue(), fmri);
+		fmri->write(a_output.getValue());
 	}
-	
+
 	// done, catch all argument errors
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
@@ -407,194 +368,147 @@ int main(int argc, char* argv[])
  ***************************
 */
 
-FImage4D::Pointer regressOut(FImage4D::Pointer inimg, 
-		list<vector<double> > designs)
+/**
+ * @brief Removes the effects of X from signal (y). Note that this takes both X
+ * and the pseudoinverse of X because the bulk of the computation will be on
+ * the pseudoinverse.
+ *
+ * Each column of X should be a regressor, Xinv should be the pseudoinverse of X
+ *
+ * Beta in OLS may be computed with the pseudoinverse (P):
+ * B = Py
+ * where P is the pseudoinverse:
+ * P = VE^{-1}U^*
+ *
+ * @param signal response term (y), will be modified to remove the effects of X
+ * @param X Design matrix, or independent values in colums
+ * @param Xinv the pseudoinverse of X
+ */
+inline
+void regressOutLS(VectorXd& signal, const MatrixXd& X, const MatrixXd& Xinv)
 {
-	FImage4D::SizeType inSize = inimg->GetRequestedRegion().GetSize();
-    FImage4D::IndexType index = {{0, 0, 0, 0}};
-	size_t timepoints = inSize[3];
-	size_t dsize = designs.size();
+    signal = signal - (Xinv*signal)*X;
+}
 
-//	INPUT PARAMETERS:
-//    XY          -   training set, array [0..NPoints-1,0..NVars]:
-//                    * NVars columns - independent variables
-//                    * last column - dependent variable
-//    NPoints     -   training set size, NPoints>NVars+1
-//    NVars       -   number of independent variables
-//
-//OUTPUT PARAMETERS:
-//    Info        -   return code:
-//                    * -255, in case of unknown internal error
-//                    * -4, if internal SVD subroutine haven't converged
-//                    * -1, if incorrect parameters was passed (NPoints<NVars+2, NVars<1).
-//                    *  1, if subroutine successfully finished
-//    LM          -   linear model in the ALGLIB format. Use subroutines of
-//                    this unit to work with the model.
-//    AR          -   additional results
-//	const double tol = 0.0001;
-//	size_t rank;
-	
-	// [0..NPoints-1,0..NVars]:
-	// * NVars columns - independent variables
-	// * last column - dependent variable
-	alglib::real_2d_array xy;
-	alglib::real_1d_array x;
-	x.setlength(dsize);
-	xy.setlength(timepoints, dsize+1);
+ptr<MRImage> regressOut(ptr<const MRImage> inimg, list<vector<double>> designs)
+{
+	MatrixXd X(inimg->tlen(), designs.size()+1);
 
-	//fill the design matrix
-	list<vector<double> >::iterator it = designs.begin();
-	for(size_t ll = 0; it != designs.end(); ll++, it++){
-		if(it->size() != timepoints) {
-			std::cerr << "Error input design matrix time dimension must match"
-				<< "image in time length." << endl;
-			return NULL;
+	size_t cc = 0, rr = 0;
+	for(auto it=designs.begin(); it!=designs.end(); ++it, ++cc) {
+		if(it->size() != inimg->tlen()) {
+			cerr << "Error input image time-length does not match one of "
+				"the regressors! (" << cc << ")" << endl;
 		}
-		for(size_t tt = 0 ; tt < timepoints ; tt++) 
-			xy(tt, ll) = (*it)[tt];
+
+		for(rr=0; rr<it->size(); rr++)
+			X(rr, cc) = it->at(rr);
 	}
 
-	alglib::ae_int_t info;
-	alglib::linearmodel lm;
-	alglib::lrreport ar;
+	// Add Intercept
+	for(rr=0; rr<X.rows(); rr++)
+		X(rr, X.cols()-1) = 1;
+
+	size_t tlen = inimg->tlen();
+    MatrixXd Xinv = pseudoInverse(X);
+	VectorXd y(X.rows());
+	VectorXd beta(X.cols());
 
 	//allocate output
-	FImage4D::Pointer outimg = FImage4D::New();
-	outimg->SetRegions(inimg->GetRequestedRegion());
-	outimg->CopyInformation(inimg);
-	outimg->Allocate();
-    
-	//apply to each voxel
-	itk::ImageLinearIteratorWithIndex<FImage4D> iit(inimg, 
-			inimg->GetRequestedRegion());
-	itk::ImageLinearIteratorWithIndex<FImage4D> oit(outimg, 
-			outimg->GetRequestedRegion());
-	iit.SetDirection(3);
-	oit.SetDirection(3);
-	double avgRsq = 0;
-	size_t nn = 0;
-	for(index[0] = 0 ; index[0] < (int)inSize[0] ; index[0]++) {
-        for(index[1] = 0 ; index[1] < (int)inSize[1] ; index[1]++) {
-            for(index[2] = 0 ; index[2] < (int)inSize[2] ; index[2]++) {
-				//copy from input to y
-				iit.SetIndex(index);
-				double min = std::numeric_limits<double>::max();
-				double max = std::numeric_limits<double>::min();
+	auto out = dPtrCast<MRImage>(inimg->copyCast(FLOAT32));
 
-				double mean = 0;
-				double var = 0;
-				iit.GoToBeginOfLine();
-				for(size_t tt = 0 ; tt < inSize[3]; tt++, ++iit) {
-					min = std::min(min, (double)iit.Get());
-					max = std::max(max, (double)iit.Get());
-					mean += iit.Get();
-					var += pow(iit.Get(),2);
-					xy(tt, dsize) = iit.Get();
-				}
+	// Create Iterators
+	Vector3DIter<double> oit(out);
+	Vector3DConstIter<double> iit(inimg);
 
-				var = sample_var(timepoints, mean, var);
-				mean /= timepoints;
+	// Iterate through and regress each line
+	for(iit.goBegin(), oit.goBegin(); !iit.eof(); ++iit, ++oit) {
 
-				if(fabs(max - min) > DELTA) {
-					alglib::lrbuild(xy, timepoints, dsize,  info, lm, ar);
-					double msqr = pow(ar.rmserror, 2);
-	
-					if(a_verbose.isSet()) {
-						std::cout << index << " R-Squared: " << 1-(msqr/var) << "\n";
-					}
-					avgRsq += 1-(msqr/var);
-					nn++;
-					
-					//copy to the output
-					oit.SetIndex(index);
-					iit.GoToBeginOfLine();
-					for(size_t tt = 0 ; tt < inSize[3]; tt++, ++oit, ++iit) {
-						for(size_t ii=0; ii<dsize; ii++)
-							x[ii] = xy(tt,ii);
+		// statistics
+		double minv = std::numeric_limits<double>::max();
+		double maxv = std::numeric_limits<double>::min();
 
-						oit.Set(iit.Get()-alglib::lrprocess(lm, x));
-					}
-				} else {
-					//copy to the output
-					oit.SetIndex(index);
-					iit.GoToBeginOfLine();
-					for(size_t tt = 0 ; tt < inSize[3]; tt++, ++oit) 
-						oit.Set(iit.Get());
-				}
+		for(size_t tt=0; tt<tlen; ++tt) {
+			minv = std::min(minv, iit[tt]);
+			maxv = std::max(maxv, iit[tt]);
+			y[tt] = iit[tt];
+		}
 
-			}
+		if(fabs(maxv - minv) > DELTA)
+			regressOutLS(y, X, Xinv);
+		else
+			y.setZero();
+
+		for(size_t tt=0; tt<tlen; ++tt) {
+			oit.set(tt, y[tt]);
 		}
 	}
-	std::cout << "Average R-Squared: " << avgRsq/nn << "\n";
 
-	return outimg;
+	return out;
 }
 
 /**
  * @brief Saves the average value at each time point in the given label into ret
  *
- * Note that labelmap and fmri should be in the same pixel space (except for 
- * dimension 3)
- * 
- * @param fmri		fmri with timeseries to extract, then average 
+ * Note that labelmap and fmri should be in the same pixel space
+ *
+ * @param fmri		fmri with timeseries to extract, then average
  * @param labelmap 	labelmap to use when looking for voxels within the given label
  * @param labels 	label to search for when computing average
  * @param design 	output design matrix, an additional vector will be added
  *
  * @return number of relevent voxels found
  */
-int extractLabelAvgTS(FImage4D::Pointer fmri, LImage3D::Pointer labelmap, 
+int extractLabelAvgTS(ptr<const MRImage> fmri, ptr<const MRImage> labelmap,
 		const set<int>& labels, list<vector<double>>& design)
 {
 	std::cout << "Average of: " ;
-	for(auto it = labels.begin(); it != labels.end() ; it++) 
+	for(auto it = labels.begin(); it != labels.end() ; it++)
 		std::cout << *it << ", " ;
 	std::cout << endl;
 
-	FImage4D::SizeType inSize = fmri->GetRequestedRegion().GetSize();
-    FImage4D::IndexType findex = {{0, 0, 0, 0}};
-    LImage3D::IndexType lindex = {{0, 0, 0}};
-	int timepoints = inSize[3];
-    
-	design.push_back(vector<double>(timepoints,0));
-	itk::ImageLinearIteratorWithIndex<FImage4D> iit(fmri, 
-			fmri->GetRequestedRegion());
-	iit.SetDirection(3);
-	iit.GoToBegin();
-	
-	itk::ImageRegionIteratorWithIndex<LImage3D> lit(labelmap, 
-			labelmap->GetRequestedRegion());
-	lit.GoToBegin();
+	// Check Inputs
+	if(!fmri->matchingOrient(labelmap, false, true)) {
+		cerr << "Input image orientations do not match!" << endl;
+		return -1;
+	}
+
+	int tlen = fmri->tlen();
+	if(tlen <= 1) {
+		cerr << "Input image is not 4D!" << endl;
+		return -1;
+	}
+
+	// Append to Design
+	design.push_back(vector<double>(tlen, 0));
+
+	// Create Local Variables
+	Vector3DConstIter<double> it(fmri);
+	NDConstIter<int> lit(labelmap);
+	lit.setOrder(it.getOrder());
 
 	size_t matchcount = 0;
-	double mean;
-	
-	for(;!lit.IsAtEnd(); ++lit){
-		if(labels.count(lit.Get()) > 0) {
-			lindex = lit.GetIndex();
-			for(int ii = 0 ; ii < 3 ; ii++)
-				findex[ii] = lindex[ii];
-			
+	double mean, stddev;
+	for(it.goBegin(), lit.goBegin(); !lit.eof(); ++lit, ++it) {
+		if(labels.count(*lit) > 0) {
 			mean = 0;
-			iit.SetIndex(findex);
-			iit.GoToBeginOfLine();
-			for(int tt = 0 ; !iit.IsAtEndOfLine(); tt++, ++iit) {
-				mean += iit.Get();
+			stddev = 0;
+			for(int tt = 0 ; tt<tlen; tt++) {
+				mean += it[tt];
+				stddev += it[tt]*it[tt];
 			}
 
 			//skip invalid timeseries
-			if(isnan(mean) || isinf(mean)) 
+			if(std::isnan(mean) || std::isinf(mean))
 				continue;
-			mean /= timepoints;
-
+			stddev = sqrt(sample_var(tlen, mean, stddev));
+			mean /= tlen;
 			matchcount++;
-			iit.SetIndex(findex);
-			iit.GoToBeginOfLine();
 
-			//since levels might vary across or over labels, subtract 
+			//since levels might vary across or over labels, subtract
 			//mean of voxels, then add to group mean
-			for(int tt = 0 ; !iit.IsAtEndOfLine(); tt++, ++iit) 
-				design.back()[tt] += (iit.Get() - mean);
+			for(int tt = 0 ; tt<tlen; ++tt)
+				design.back()[tt] += (it[tt] - mean)/stddev;
 		}
 	}
 
@@ -602,51 +516,11 @@ int extractLabelAvgTS(FImage4D::Pointer fmri, LImage3D::Pointer labelmap,
 		//if there were no matching voxels, remove the added element
 		design.pop_back();
 	} else {
-		for(int tt = 0 ; tt < timepoints ; tt++)
+		for(int tt = 0 ; tt < tlen; tt++)
 			design.back()[tt] /= matchcount;
 	}
+
 	return matchcount;
-}
-
-/**
- * @brief Computes the Principal Components of input matrix XT, 
- * NOTE: Data should already be de-meaned
- *
- * Outputs reduced dimension (fewer rows) output
- *
- * @param XT	rows x cols matrix where each column is a timepoint each row a dim
- * @param ncomp	number of output rows
- *
- * @return 		ncomp x cols matrix projected onto the principal components
- */
-void pca(const alglib::real_2d_array& X, alglib::real_2d_array& Xr, int odim)
-{
-	alglib::real_2d_array U;
-	alglib::real_2d_array VT;
-	alglib::real_1d_array W;
-	const double VARTHRESH = 1E-12;
-
-	std::cout  << "svd: " << X.rows() << "x" << X.cols() << "...";
-	alglib::rmatrixsvd(X, X.rows(), X.cols(), 1, 0, 2, W, U, VT);
-	std::cout  << "  done" << endl;
-	
-	std::cout << "  Creating decorrelated timeseries...";
-	if(odim <= 0 || odim > X.rows()) {
-		//only keep dimensions with variance passing the threshold
-		for(odim = 0; odim < std::min(X.cols(), X.rows()); odim++) {
-			if(W[odim] < sqrt(VARTHRESH))
-				break;
-		}
-	}
-
-	std::cout << "odims = " << odim << "...";
-	Xr.setlength(X.rows(), odim);
-	for(int rr=0; rr<X.rows(); rr++) {
-		for(int cc=0; cc<odim; cc++) {
-			Xr(rr,cc) = U(rr, cc)*W[cc];
-		}
-	}
-	std::cout  << "  Done" << endl;
 }
 
 /**
@@ -654,7 +528,7 @@ void pca(const alglib::real_2d_array& X, alglib::real_2d_array& Xr, int odim)
  * analysis on it to reduce the number of timeseries to outsz. It appends
  * the resulting reduced timeseries onto design directly
  *
- * Note that labelmap and fmri should be in the same pixel space (except for 
+ * Note that labelmap and fmri should be in the same pixel space (except for
  * dimension 3)
  *
  * @param fmri 		FMRI image with timeseres to extract
@@ -665,62 +539,69 @@ void pca(const alglib::real_2d_array& X, alglib::real_2d_array& Xr, int odim)
  *
  * @return Number of relevent voxels found
  */
-int extractLabelPcaTS(FImage4D::Pointer fmri, LImage3D::Pointer labelmap, 
+int extractLabelPcaTS(ptr<const MRImage> fmri, ptr<const MRImage> labelmap,
 		const set<int>& labels, size_t outsz, list<vector<double>>& design)
 {
 	std::cout << "PCA of: " ;
-	for(auto it = labels.begin(); it != labels.end() ; it++) 
+	for(auto it = labels.begin(); it != labels.end() ; it++)
 		std::cout << *it << ", " << endl;
 	std::cout << endl;
 
-	FImage4D::SizeType inSize = fmri->GetRequestedRegion().GetSize();
-    FImage4D::IndexType findex = {{0, 0, 0, 0}};
-    LImage3D::IndexType lindex = {{0, 0, 0}};
-	unsigned int timepoints = inSize[3];
-    
-	itk::ImageLinearIteratorWithIndex<FImage4D> iit(fmri, 
-			fmri->GetRequestedRegion());
-	iit.SetDirection(3);
-	iit.GoToBegin();
-	
-	itk::ImageRegionIteratorWithIndex<LImage3D> lit(labelmap, 
-			labelmap->GetRequestedRegion());
-	lit.GoToBegin();
+	// Check inputs
+	if(!fmri->matchingOrient(labelmap, false, true)) {
+		cerr << "Input image orientations do not match!" << endl;
+		return -1;
+	}
+
+	int tlen = fmri->tlen();
+	if(tlen <= 1) {
+		cerr << "Input image is not 4D!" << endl;
+		return -1;
+	}
+
+	// Append to Design
+	design.push_back(vector<double>(tlen, 0));
+
+	// Create Local Variables
+	Vector3DConstIter<double> it(fmri);
+	NDConstIter<int> lit(labelmap);
+	lit.setOrder(it.getOrder());
 
 	unsigned int ndims = 0;
-	
-	for(;!lit.IsAtEnd(); ++lit){
-		if(labels.count(lit.Get()) > 0) 
+
+	for(lit.goBegin(); !lit.eof(); ++lit){
+		if(labels.count(*lit) > 0)
 			ndims++;
 	}
 
+	// Create Output
 	std::cout << "Timeseries Matching Labels: " << ndims << endl;
+	MatrixXd X(tlen, ndims);
 
-	alglib::real_2d_array X;
-	X.setlength(timepoints, ndims);
+	// Fill Matrix with X
+	double mean, stddev;
+	size_t dd=0;
+	for(it.goBegin(), lit.goBegin(); !lit.eof(); ++lit, ++it) {
+		if(labels.count(*lit) > 0) {
+			mean = 0;
+			stddev = 0;
 
-	//add every matching label to summary at given time
-	lit.GoToBegin();
-	for(int dd = 0; !lit.IsAtEnd(); ++lit){ 
-		if(labels.count(lit.Get()) > 0) {
-			lindex = lit.GetIndex();
-			for(int ii = 0 ; ii < 3 ; ii++)
-				findex[ii] = lindex[ii];
-			
-			double mean = 0;
-			double stddev = 0;
-			iit.SetIndex(findex);
-			iit.GoToBeginOfLine();
-			for(int tt = 0 ; !iit.IsAtEndOfLine(); tt++, ++iit)  {
-				X(tt, dd) = iit.Get();
-				mean += iit.Get();
-				stddev += iit.Get()*iit.Get();
+			// Compute Mean and Fill Column of X
+			for(int tt = 0 ; tt<tlen; tt++) {
+				X(tt, dd) = it[tt];
+				mean += it[tt];
+				stddev += it[tt]*it[tt];
 			}
-			mean /= X.rows();
-			stddev = sqrt(stddev/X.rows() - mean*mean);
-			for(int tt = 0 ; tt < X.rows(); tt++) {
-//				X(tt, dd) = (X(tt,dd)-mean)/stddev;
-				X(tt, dd) = (X(tt,dd)-mean);
+			stddev = sqrt(sample_var(tlen, mean, stddev));
+			mean /= tlen;
+
+			//skip invalid timeseries (left as zeros)
+			if(std::isnan(mean) || std::isinf(mean)) {
+				for(int tt = 0 ; tt<tlen; ++tt)
+					X(tt, dd) = 0;
+			} else {
+				for(int tt = 0 ; tt<tlen; ++tt)
+					X(tt, dd) = (X(tt,dd) - mean)/stddev;
 			}
 
 			//only iterate through output if we find match
@@ -728,17 +609,16 @@ int extractLabelPcaTS(FImage4D::Pointer fmri, LImage3D::Pointer labelmap,
 		}
 	}
 
-	alglib::real_2d_array ortho;
 	std::cout << "PCA" << endl;
-	pca(X, ortho, outsz);
+	X = pca(X, 1, outsz);
 	std::cout << "Done" << endl;
 
 	std::cout << "Copying Reduced dimensions to output" << endl;
 	//copy relevent timeseries:
 	for(unsigned int dd = 0 ; dd < outsz; dd++) {
-		design.push_back(vector<double>(timepoints));
-		for(unsigned int tt = 0 ; tt < timepoints; tt++)  {
-			design.back()[tt] = ortho(tt, dd);
+		design.push_back(vector<double>(tlen));
+		for(unsigned int tt = 0 ; tt < tlen; tt++)  {
+			design.back()[tt] = X(tt, dd);
 		}
 	}
 	std::cout << "Done" << endl;
@@ -751,7 +631,7 @@ int extractLabelPcaTS(FImage4D::Pointer fmri, LImage3D::Pointer labelmap,
  * analysis on it to reduce the number of timeseries to outsz. It appends
  * the resulting reduced timeseries onto design directly
  *
- * Note that labelmap and fmri should be in the same pixel space (except for 
+ * Note that labelmap and fmri should be in the same pixel space (except for
  * dimension 3)
  *
  * @param fmri 		FMRI image with timeseres to extract
@@ -762,62 +642,70 @@ int extractLabelPcaTS(FImage4D::Pointer fmri, LImage3D::Pointer labelmap,
  *
  * @return Number of relevent voxels found
  */
-int extractLabelIcaTS(FImage4D::Pointer fmri, LImage3D::Pointer labelmap, 
+int extractLabelIcaTS(ptr<const MRImage> fmri, ptr<const MRImage> labelmap,
 		const set<int>& labels, size_t outsz, list<vector<double>>& design)
 {
 	std::cout << "ICA of: " ;
-	for(auto it = labels.begin(); it != labels.end() ; it++) 
+	for(auto it = labels.begin(); it != labels.end() ; it++)
 		std::cout << *it << ", " << endl;
 	std::cout << endl;
 
-	FImage4D::SizeType inSize = fmri->GetRequestedRegion().GetSize();
-    FImage4D::IndexType findex = {{0, 0, 0, 0}};
-    LImage3D::IndexType lindex = {{0, 0, 0}};
-	int timepoints = inSize[3];
-    
-	itk::ImageLinearIteratorWithIndex<FImage4D> iit(fmri, 
-			fmri->GetRequestedRegion());
-	iit.SetDirection(3);
-	iit.GoToBegin();
-	
-	itk::ImageRegionIteratorWithIndex<LImage3D> lit(labelmap, 
-			labelmap->GetRequestedRegion());
-	lit.GoToBegin();
+	// Check inputs
+	if(!fmri->matchingOrient(labelmap, false, true)) {
+		cerr << "Input image orientations do not match!" << endl;
+		return -1;
+	}
 
-	int ndims = 0;
-	
-	for(;!lit.IsAtEnd(); ++lit){
-		if(labels.count(lit.Get()) > 0) 
+	int tlen = fmri->tlen();
+	if(tlen <= 1) {
+		cerr << "Input image is not 4D!" << endl;
+		return -1;
+	}
+
+	// Append to Design
+	design.push_back(vector<double>(tlen, 0));
+
+	// Create Local Variables
+	Vector3DConstIter<double> it(fmri);
+	NDConstIter<int> lit(labelmap);
+	lit.setOrder(it.getOrder());
+
+	unsigned int ndims = 0;
+
+	for(lit.goBegin(); !lit.eof(); ++lit){
+		if(labels.count(*lit) > 0)
 			ndims++;
 	}
 
+	// Create Output
 	std::cout << "Timeseries Matching Labels: " << ndims << endl;
+	MatrixXd X(tlen, ndims);
 
-	alglib::real_2d_array X;
-	X.setlength(timepoints, ndims);
+	// Fill Matrix with X
+	double mean, stddev;
+	size_t dd=0;
+	for(it.goBegin(), lit.goBegin(); !lit.eof(); ++lit, ++it) {
+		if(labels.count(*lit) > 0) {
+			mean = 0;
+			stddev = 0;
 
-	//add every matching label to summary at given time
-	lit.GoToBegin();
-	for(int dd = 0; !lit.IsAtEnd(); ++lit){ 
-		if(labels.count(lit.Get()) > 0) {
-			lindex = lit.GetIndex();
-			for(int ii = 0 ; ii < 3 ; ii++)
-				findex[ii] = lindex[ii];
-			
-			double mean = 0;
-			double stddev = 0;
-			iit.SetIndex(findex);
-			iit.GoToBeginOfLine();
-			for(int tt = 0 ; !iit.IsAtEndOfLine(); tt++, ++iit)  {
-				X(tt, dd) = iit.Get();
-				mean += iit.Get();
-				stddev += iit.Get()*iit.Get();
+			// Compute Mean and Fill Column of X
+			for(int tt = 0 ; tt<tlen; tt++) {
+				X(tt, dd) = it[tt];
+				mean += it[tt];
+				stddev += it[tt]*it[tt];
 			}
-			mean /= X.rows();
-			stddev = sqrt(stddev/X.rows() - mean*mean);
-			for(int tt = 0 ; tt < X.rows(); tt++) {
-				X(tt, dd) = X(tt,dd)-mean;
-//				X(tt, dd) = (X(tt,dd)-mean)/stddev;
+
+			stddev = sqrt(sample_var(tlen, mean, stddev));
+			mean /= tlen;
+
+			//skip invalid timeseries (left as zeros)
+			if(std::isnan(mean) || std::isinf(mean)) {
+				for(int tt = 0 ; tt<tlen; ++tt)
+					X(tt, dd) = 0;
+			} else {
+				for(int tt = 0 ; tt<tlen; ++tt)
+					X(tt, dd) = (X(tt,dd) - mean)/stddev;
 			}
 
 			//only iterate through output if we find match
@@ -825,88 +713,31 @@ int extractLabelIcaTS(FImage4D::Pointer fmri, LImage3D::Pointer labelmap,
 		}
 	}
 
-	std::cout << "PCA...";
-	alglib::real_2d_array ortho;
-	pca(X, ortho, std::min((int)timepoints,ndims));
-	std::cout << "Done " << endl;
-	
+	std::cout << "PCA" << endl;
+	X = pca(X, 1, outsz);
+	std::cout << "Done" << endl;
+
 	std::cout << "ICA...";
-	ica(ortho, X, outsz);
+	X = ica(X);
 	std::cout << "Done" << endl;
 
 	std::cout << "Copying Reduced dimensions to output" << endl;
 	//copy relevent timeseries:
-	for(unsigned int dd = 0 ; dd < X.cols(); dd++) {
-		design.push_back(vector<double>(timepoints, 0));
-		for(int tt = 0 ; tt < X.rows(); tt++) 
+	for(unsigned int dd = 0 ; dd < outsz; dd++) {
+		design.push_back(vector<double>(tlen));
+		for(unsigned int tt = 0 ; tt < tlen; tt++)  {
 			design.back()[tt] = X(tt, dd);
+		}
 	}
 	std::cout << "Done" << endl;
 
 	return ndims;
 }
 
-FImage4D::Pointer normaliseTS(FImage4D::Pointer fmri)
-{
-	FImage4D::SizeType inSize = fmri->GetRequestedRegion().GetSize();
-    //FImage4D::IndexType index = {{0, 0, 0, 0}};
-	int timepoints = inSize[3];
-
-	FImage4D::Pointer outimg = FImage4D::New();
-	outimg->SetRegions(fmri->GetRequestedRegion());
-	outimg->CopyInformation(fmri);
-	outimg->Allocate();
-	
-	itk::ImageLinearIteratorWithIndex<FImage4D> iit(fmri, 
-			fmri->GetRequestedRegion());
-	itk::ImageLinearIteratorWithIndex<FImage4D> oit(outimg, 
-			outimg->GetRequestedRegion());
-	iit.SetDirection(3);
-	oit.SetDirection(3);
-	iit.GoToBegin();
-	oit.GoToBegin();
-
-	double mu = 0;
-	double dev = 0;
-	
-	while(!iit.IsAtEnd() && !oit.IsAtEnd()) {
-		mu = 0;
-		dev = 0;
-		while(!iit.IsAtEndOfLine()) {
-			mu += iit.Get();
-			dev += (iit.Get())*(iit.Get());
-			++iit;
-		}
-		
-		iit.GoToBeginOfLine();
-		//var = 1/(n-1)(-N\bar{x}^2+sum(x^2))
-		dev = sqrt(sample_var(timepoints, mu, dev));
-		mu /= timepoints;
-		if(dev == 0) {
-			while(!oit.IsAtEndOfLine()) {
-				oit.Set(0);
-				++iit;
-				++oit;
-			}
-		} else {
-			while(!oit.IsAtEndOfLine()) {
-				oit.Set((iit.Get()-mu)/dev);
-				++iit;
-				++oit;
-			}
-		}
-
-		oit.NextLine();
-		iit.NextLine();
-	}
-
-	return outimg;
-}
-
-void computeAppendDerivs(list<vector<double>>& design, 
+void computeAppendDerivs(list<vector<double>>& design,
 			int start, int number)
 {
-	if(design.size() == 0) 
+	if(design.size() == 0)
 		return;
 
 	int sz = design.size();
@@ -927,11 +758,11 @@ void computeAppendDerivs(list<vector<double>>& design,
 		//update maxlength
 		tlen = it->size();
 		maxlength = std::max(tlen, maxlength);
-		
+
 		//push corresponding derivative vector to back, then fill
 		design.push_back(std::vector<double>(tlen, 0));
-		
-		//calculate the average of 
+
+		//calculate the average of
 		//each pair of time points and then replace the existing value with the
 		//average. Thus timepoint 2 gets 0.5*(ts[2]-ts[1]) + 0.5(ts[3] - ts[2])
 		for(int jj = 1 ; jj < tlen-1; jj++) {
@@ -939,7 +770,7 @@ void computeAppendDerivs(list<vector<double>>& design,
 			prev = (*it)[jj-1];
 			design.back()[jj] = next-prev;
 		}
-	
+
 		//first and last just get set to the first and last whole deltas
 		design.back()[0] = (*it)[1] - (*it)[0];
 		design.back()[tlen-1] = (*it)[tlen-1] - (*it)[tlen-2];
@@ -947,5 +778,4 @@ void computeAppendDerivs(list<vector<double>>& design,
 		it++;
 	}
 }
-
 
