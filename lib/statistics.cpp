@@ -1726,7 +1726,7 @@ int fastSearchFindDP(const MatrixXf& samples, double thresh, double outthresh,
  *
  * @param V input/output the initial and final vectors
  */
-//void bandlanczos(list<VectorXd>& V)
+//void bandlanczos(const MaxtrixXd& A, list<VectorXd>& V)
 //{
 //	// TODO fill V with random values
 //	double DTOL = 1e-20;
@@ -1769,7 +1769,7 @@ int fastSearchFindDP(const MatrixXf& samples, double thresh, double outthresh,
 //		Vjpc = Vk;
 //		*Vjpc = A*(*Vj);
 //		k0 = max(0, jj-pc);
-//
+//		
 //		Vk = V.begin();
 //		for(int64_t kk=0; kk<k0; kk++, ++Vk) continue;
 //		for(int64_t kk=k0; kk<jj; kk++) {
@@ -1806,14 +1806,14 @@ int sign(double v)
 }
 
 /**
- * @brief Performs LASSO regression using the 'activeShooting' algorithm of 
- *  
+ * @brief Performs LASSO regression using the 'activeShooting' algorithm of
+ *
  * Peng, J., Wang, P., Zhou, N., & Zhu, J. (2009). Partial Correlation
  * Estimation by Joint Sparse Regression Models. Journal of the American
  * Statistical Association, 104(486), 735–746. doi:10.1198/jasa.2009.0126
  *
- * Essentially solves the equation: 
- * 
+ * Essentially solves the equation:
+ *
  * y = X * beta
  *
  * where beta is mostly 0's
@@ -1867,7 +1867,7 @@ VectorXd activeShootingRegr(const MatrixXd& X, const VectorXd& y, double gamma)
 				if(active[jj]) {
 					double prev = beta[jj];
 					double v = (y-X*beta).dot(X.col(jj))/Xnorm[jj] + beta[jj];
-					
+
 					if(fabs(v) > gamma/Xnorm[jj])
 						beta[jj] = sign(v)*(fabs(v)-gamma/Xnorm[jj]);
 					else
@@ -1898,14 +1898,14 @@ VectorXd activeShootingRegr(const MatrixXd& X, const VectorXd& y, double gamma)
 }
 
 /**
- * @brief Performs LASSO regression using the 'shooting' algorithm of 
+ * @brief Performs LASSO regression using the 'shooting' algorithm of
  *
  * Fu, W. J. (1998). Penalized Regressions: The Bridge versus the Lasso.
  * Journal of Computational and Graphical Statistics, 7(3), 397.
  * doi:10.2307/1390712
  *
- * Essentially solves the equation: 
- * 
+ * Essentially solves the equation:
+ *
  * y = X * beta
  *
  * where beta is mostly 0's

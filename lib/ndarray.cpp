@@ -23,9 +23,10 @@
 #include "iterators.h"
 #include "accessors.h"
 #include "macros.h"
-
 #include "npltypes.h"
 #include "utility.h"
+
+#include "ndarray.txx"
 
 using std::make_shared;
 using std::to_string;
@@ -681,8 +682,6 @@ void copyROI(ptr<const NDArray> in,
 }
 
 }
-
-#include "ndarray.txx"
 
 namespace npl {
 /******************************************************************************

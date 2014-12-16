@@ -41,7 +41,7 @@ NDArrayStore<D,T>::NDArrayStore(const std::initializer_list<size_t>& a_args) :
 			_m_data(NULL)
 {
 	size_t tmp[D];
-	
+
 	// set dimensions with matching size to the minimum length, ignoring
 	// any extra parts of a_args
 	auto it = a_args.begin();
@@ -61,7 +61,7 @@ template <size_t D, typename T>
 NDArrayStore<D,T>::NDArrayStore(const std::vector<size_t>& a_args) : _m_data(NULL)
 {
 	size_t tmp[D];
-	
+
 	// set dimensions with matching size to the minimum length, ignoring
 	// any extra parts of a_args
 	auto it = a_args.begin();
@@ -81,7 +81,7 @@ template <size_t D, typename T>
 NDArrayStore<D,T>::NDArrayStore(size_t len, const size_t* a_args) : _m_data(NULL)
 {
 	size_t tmp[D];
-	
+
 	// set dimensions with matching size to the minimum length, ignoring
 	// any extra parts of a_args
 	for(size_t ii=0; ii<D; ii++) {
@@ -96,7 +96,7 @@ NDArrayStore<D,T>::NDArrayStore(size_t len, const size_t* a_args) : _m_data(NULL
 
 template <size_t D, typename T>
 NDArrayStore<D,T>::NDArrayStore(size_t len, const size_t* dim, T* ptr,
-        const std::function<void(void*)>& deleter) : _m_data(NULL)
+		const std::function<void(void*)>& deleter) : _m_data(NULL)
 {
 	if(len != D) {
 		std::cerr << "Length of input size (" << len << ") array to " << D
@@ -123,8 +123,8 @@ void NDArrayStore<D,T>::updateStrides()
  * @param ptr Pointer to new data
  */
 template <size_t D, typename T>
-void NDArrayStore<D,T>::graft(const size_t dim[D], T* ptr, 
-        const std::function<void(void*)>& deleter)
+void NDArrayStore<D,T>::graft(const size_t dim[D], T* ptr,
+		const std::function<void(void*)>& deleter)
 {
 	if(_m_data)
 		m_freefunc(_m_data);
@@ -133,7 +133,7 @@ void NDArrayStore<D,T>::graft(const size_t dim[D], T* ptr,
 		_m_dim[ii] = dim[ii];
 
 	_m_data = ptr;
-    m_freefunc = deleter;
+	m_freefunc = deleter;
 
 	updateStrides();
 }
@@ -155,7 +155,7 @@ void NDArrayStore<D,T>::resize(std::initializer_list<size_t> dim)
 	// fill in 1's for the remainder
 	size_t newdim[D];
 	size_t dd=0;
-	for(auto it=dim.begin(); it != dim.end() && dd < D; ++it, ++dd) 
+	for(auto it=dim.begin(); it != dim.end() && dd < D; ++it, ++dd)
 		newdim[dd] = *it;
 	for(; dd < D; ++dd)
 		newdim[dd] = 1;
@@ -191,7 +191,7 @@ void NDArrayStore<D,T>::resize(const size_t dim[D])
 
 		if(samedim)
 			return;
-	
+
 		////////////////////////////////
 		// Create New Data and zero fill
 		////////////////////////////////
@@ -200,7 +200,7 @@ void NDArrayStore<D,T>::resize(const size_t dim[D])
 			dsize *= dim[ii];
 		T* newdata = new T[dsize];
 		std::fill(newdata, newdata+dsize, (T)0);
-		
+
 		// copy the old array to the new, by creating slicers with regions of
 		//interest which have the minimum size of the original or new
 		int64_t roi_lower[D];
@@ -227,9 +227,9 @@ void NDArrayStore<D,T>::resize(const size_t dim[D])
 		}
 
 		// set up data pointer
-        m_freefunc(_m_data);
+		m_freefunc(_m_data);
 		_m_data = newdata;
-        m_freefunc = [](void* p) {delete[] (T*)p;};
+		m_freefunc = [](void* p) {delete[] (T*)p;};
 	} else {
 		// just create the data
 		size_t dsize = 1;
@@ -237,10 +237,10 @@ void NDArrayStore<D,T>::resize(const size_t dim[D])
 			_m_dim[ii] = dim[ii];
 			dsize *= _m_dim[ii];
 		}
-		
+
 		// allocate
 		_m_data = new T[dsize];
-        m_freefunc = [](void* p) {delete[] (T*)p;};
+		m_freefunc = [](void* p) {delete[] (T*)p;};
 
 		// zero fill
 		std::fill(_m_data, _m_data+dsize, (T)0);
@@ -302,7 +302,7 @@ int64_t NDArrayStore<D,T>::getLinIndex(std::initializer_list<int64_t> index) con
 		// set position
 		out += _m_stride[ii]*(*it);
 	}
-	
+
 	assert(out < elements());
 	return out;
 }
@@ -321,7 +321,7 @@ int64_t NDArrayStore<D,T>::getLinIndex(size_t len, const int64_t* index) const
 		// set position
 		out += _m_stride[ii]*index[ii];
 	}
-	
+
 	assert(out < elements());
 	return out;
 }
@@ -341,14 +341,14 @@ int64_t NDArrayStore<D,T>::getLinIndex(const std::vector<int64_t>& index) const
 		// set position
 		out += _m_stride[ii]*(*it);
 	}
-	
+
 	assert(out < elements());
 	return out;
 }
-	
+
 /**
  * @brief Used instead of the normal mapper, we want all the upper dimensions
- * to be treated as flat. 
+ * to be treated as flat.
  *
  * @param x X index
  * @param y Y index
@@ -394,7 +394,7 @@ int NDArrayStore<D,T>::write(std::string filename, double version) const
 		nogz = filename;
 		mode += 'T';
 	}
-	
+
 	// go ahead and open
 	gz = gzopen(filename.c_str(), mode.c_str());
 	if(!gz) {
@@ -420,8 +420,11 @@ int NDArrayStore<D,T>::write(std::string filename, double version) const
 				return -1;
 			}
 		}
-    } else if(nogz.substr(nogz.size()-5, 5) == ".json") {
-        writeJSON(gz);
+	} else if(nogz.substr(nogz.size()-5, 5) == ".json") {
+		writeJSON(gz);
+	} else if(nogz.size() >= 4 && (nogz.substr(nogz.size()-4, 4) == ".txt"
+				|| nogz.substr(nogz.size()-4, 4) == ".csv")) {
+		writeCSV(gz);
 	} else {
 		std::cerr << "Unknown filetype: " << nogz.substr(nogz.rfind('.'))
 			<< std::endl;
@@ -434,47 +437,67 @@ int NDArrayStore<D,T>::write(std::string filename, double version) const
 }
 
 template <size_t D, typename T>
+int NDArrayStore<D,T>::writeCSV(gzFile file) const
+{
+	ostringstream oss;
+	ChunkConstIter<T> it(getConstPtr());
+	it.setLineChunk(0);
+	for(it.goBegin(); !it.eof(); it.nextChunk()) {
+		for(; !it.eoc(); ++it) {
+			oss << *it << ",";
+		}
+		if(!it.eof()) {
+			oss << "\n";
+		}
+	}
+
+	if(gzwrite(file, oss.str().c_str(), oss.str().length()) > 0)
+		return 0;
+	return -1;
+}
+
+template <size_t D, typename T>
 int NDArrayStore<D,T>::writeJSON(gzFile file) const
 {
-    ostringstream oss;
-    oss << "{\n\"version\" : \"" << __version__<< "\",\n\"comment\" : \"supported "
-        "type variables: uint8, int16, int32, float, cfloat, double, RGB, "
-        "int8, uint16, uint32, int64, uint64, quad, cdouble, cquad, RGBA\",\n";
-    oss << "\"type\": " << '"' << pixelTtoString(type()) << "\",\n";
-    oss << "\"size\": [";
-    for(size_t ii=0; ii<D; ii++) {
-        if(ii) oss << ", ";
-        oss << dim(ii);
-    }
-    oss << "],\n";
+	ostringstream oss;
+	oss << "{\n\"version\" : \"" << __version__<< "\",\n\"comment\" : \"supported "
+		"type variables: uint8, int16, int32, float, cfloat, double, RGB, "
+		"int8, uint16, uint32, int64, uint64, quad, cdouble, cquad, RGBA\",\n";
+	oss << "\"type\": " << '"' << pixelTtoString(type()) << "\",\n";
+	oss << "\"size\": [";
+	for(size_t ii=0; ii<D; ii++) {
+		if(ii) oss << ", ";
+		oss << dim(ii);
+	}
+	oss << "],\n";
 
-    int64_t index[D]; 
-    oss << "\"values\" : ";
-    for(NDConstIter<T> it(getConstPtr()); !it.eof(); ++it) {
-        it.index(D, index);
-        if(index[D-1] == 0)
-            oss << "\n";
-        for(int64_t dd=D-1; dd>=0; dd--) {
-            if(index[dd] == 0) {
-                oss << "[";
-            } else {
-                break;
-            }
-        }
-        oss << *it;;
-        for(int64_t dd=D-1; dd>=0; dd--) {
-            if(index[dd] == dim(dd)-1) {
-                oss << "]";
-            } else {
-                oss << ", ";
-                break;
-            }
-        }
-    }
-    oss << "\n}\n";
+	int64_t index[D];
+	oss << "\"values\" : ";
+	for(NDConstIter<T> it(getConstPtr()); !it.eof(); ++it) {
+		it.index(D, index);
+		if(index[D-1] == 0)
+			oss << "\n";
+		for(int64_t dd=D-1; dd>=0; dd--) {
+			if(index[dd] == 0) {
+				oss << "[";
+			} else {
+				break;
+			}
+		}
+		oss << *it;;
+		for(int64_t dd=D-1; dd>=0; dd--) {
+			if(index[dd] == dim(dd)-1) {
+				oss << "]";
+			} else {
+				oss << ", ";
+				break;
+			}
+		}
+	}
+	oss << "\n}\n";
 
-    if(gzwrite(file, oss.str().c_str(), oss.str().length()) > 0)
-        return 0;
+	if(gzwrite(file, oss.str().c_str(), oss.str().length()) > 0)
+		return 0;
 	return -1;
 }
 
@@ -523,7 +546,7 @@ int NDArrayStore<D,T>::writeNifti1Header(gzFile file) const
 
 	// write over extension
 	char ext[4] = {0,0,0,0};
-	
+
 	gzwrite(file, &header, sizeof(header));
 	gzwrite(file, ext, sizeof(ext));
 
@@ -554,10 +577,10 @@ int NDArrayStore<D,T>::writeNifti2Header(gzFile file) const
 
 	// write over extension
 	char ext[4] = {0,0,0,0};
-	
+
 	gzwrite(file, &header, sizeof(header));
 	gzwrite(file, ext, sizeof(ext));
-	
+
 	return 0;
 }
 
@@ -582,7 +605,7 @@ const T& NDArrayStore<D,T>::operator[](const int64_t* index) const
 {
 	return _m_data[getLinIndex(D, index)];
 }
-	
+
 template <size_t D, typename T>
 const T& NDArrayStore<D,T>::operator[](std::initializer_list<int64_t> index) const
 {
@@ -648,7 +671,7 @@ ptr<NDArray> NDArrayStore<D,T>::copy() const
 template <size_t D, typename T>
 ptr<NDArray> NDArrayStore<D,T>::createAnother() const
 {
-    return createNDArray(D, this->dim(), type());
+	return createNDArray(D, this->dim(), type());
 }
 
 /**
@@ -671,7 +694,7 @@ ptr<NDArray> NDArrayStore<D,T>::createAnother(size_t newdims,
 
 /**
  * @brief Create a new array that is the same underlying type as this, but
- * with a different pixel type. 
+ * with a different pixel type.
  *
  * @param newtype Type of pixels in output array
  *
@@ -691,7 +714,7 @@ ptr<NDArray> NDArrayStore<D,T>::createAnother(PixelT newtype) const
  *
  * @param newdims Number of dimensions in output array
  * @param newsize Input array of length newdims that gives the size of
- *                output array,
+ *				output array,
  *
  * @return Image with identical orientation and pixel type but different
  * size from this
@@ -702,7 +725,7 @@ ptr<NDArray> NDArrayStore<D,T>::createAnother(size_t newdims,
 {
 	return createNDArray(newdims, newsize, type());
 }
-	
+
 /**
  * @brief Create a new array that is a copy of the input, possibly with new
  * dimensions and pixeltype. The new array will have all overlapping pixels
@@ -776,47 +799,47 @@ ptr<NDArray> NDArrayStore<D,T>::copyCast(size_t newdims,
  * @brief Create a new array that is a copy of the input, possibly with new
  * dimensions or size. The new array will have all overlapping pixels
  * copied from the old array. The new array will have the same pixel type as
- * the input array. If len > ndim(), then the output may have more dimensions 
+ * the input array. If len > ndim(), then the output may have more dimensions
  * then the input, and in fact the extra dimensions may be larger than the
  * input image. If this happens, then data will still be extracted, but only
  * the overlapping segments of the new and old image will be copied. Also note
  * that index[] will not be accessed above ndim()
  *
- * @param len     Length of index/newsize arrays
+ * @param len	 Length of index/newsize arrays
  * @param index   ROI Index to start copying from.
- * @param size    ROI size. Note length 0 dimensions will be removed, while
- * length 1 dimensions will be left. 
+ * @param size	ROI size. Note length 0 dimensions will be removed, while
+ * length 1 dimensions will be left.
  *
  * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
 ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, const int64_t* index,
-        const size_t* size) const
+		const size_t* size) const
 {
-    return extractCast(len, index, size, type());
+	return extractCast(len, index, size, type());
 }
 
 /**
  * @brief Create a new array that is a copy of the input, possibly with new
  * dimensions or size. The new array will have all overlapping pixels
  * copied from the old array. The new array will have the same pixel type as
- * the input array. If len > ndim(), then the output may have more dimensions 
+ * the input array. If len > ndim(), then the output may have more dimensions
  * then the input, and in fact the extra dimensions may be larger than the
  * input image. If this happens, then data will still be extracted, but only
  * the overlapping segments of the new and old image will be copied.
  *
- * @param len     Length of index/size arrays
+ * @param len	 Length of index/size arrays
  * @param index   Index to start copying from.
  * @param size Size of output image. Note length 0 dimensions will be
- * removed, while length 1 dimensions will be left. 
+ * removed, while length 1 dimensions will be left.
  *
  * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
-ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, 
-        const size_t* size) const
+ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len,
+		const size_t* size) const
 {
-    return extractCast(len, NULL, size, type());
+	return extractCast(len, NULL, size, type());
 }
 
 /**
@@ -825,86 +848,86 @@ ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len,
  * copied from the old array. The new array will have the same pixel type as
  * the input array
  *
- * @param len     Length of index/size arrays
+ * @param len	 Length of index/size arrays
  * @param index   Index to start copying from. (NULL->all zeros)
  * @param size Size of output image. Note length 0 dimensions will be
- * removed, while length 1 dimensions will be left. 
+ * removed, while length 1 dimensions will be left.
  * @param newtype Pixel type of output image.
  *
  * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
 ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, const int64_t* index,
-        const size_t* size, PixelT newtype) const
+		const size_t* size, PixelT newtype) const
 {
-    assert(size);
-    assert(len < 10);
-    
-    int64_t ilower[D];
-    size_t isize[D];
-    
-    size_t newdim = 0;
-    size_t newsize[10];
-    int64_t olower[10];
+	assert(size);
+	assert(len < 10);
 
-    // determine output size
-    for(size_t dd=0; dd<len; dd++) {
-        if(size[dd] > 0) {
-            newsize[newdim] = size[dd];
-            olower[newdim] = 0;
-            newdim++;
-        }
-    }
-    
-    // create ROI in input image
-    for(size_t dd=0; dd<D; dd++) {
-        if(dd < len) {
-            if(index)
-                ilower[dd] = index[dd];
-            else
-                ilower[dd] = 0;
+	int64_t ilower[D];
+	size_t isize[D];
 
-            if(size[dd] > 0)
-                isize[dd] = size[dd];
-            else
-                isize[dd] = 1;
-        } else {
-            ilower[dd] = 0;
+	size_t newdim = 0;
+	size_t newsize[10];
+	int64_t olower[10];
+
+	// determine output size
+	for(size_t dd=0; dd<len; dd++) {
+		if(size[dd] > 0) {
+			newsize[newdim] = size[dd];
+			olower[newdim] = 0;
+			newdim++;
+		}
+	}
+
+	// create ROI in input image
+	for(size_t dd=0; dd<D; dd++) {
+		if(dd < len) {
+			if(index)
+				ilower[dd] = index[dd];
+			else
+				ilower[dd] = 0;
+
+			if(size[dd] > 0)
+				isize[dd] = size[dd];
+			else
+				isize[dd] = 1;
+		} else {
+			ilower[dd] = 0;
 			isize[dd] = 1;
-        }
+		}
 
-        if(size[dd]+ilower[dd] > dim(dd)) {
-            throw INVALID_ARGUMENT("Extracted Region is outside the input "
-                    "image FOV");
-        }
-    }
-    
-    // create output
-    auto out = createNDArray(newdim, newsize, newtype);
-    copyROI(getConstPtr(), ilower, isize, out, olower, newsize, newtype);
+		if(size[dd]+ilower[dd] > dim(dd)) {
+			throw INVALID_ARGUMENT("Extracted Region is outside the input "
+					"image FOV");
+		}
+	}
 
-    return out;
+	// create output
+	auto out = createNDArray(newdim, newsize, newtype);
+	copyROI(getConstPtr(), ilower, isize, out, olower, newsize, newtype);
+
+	return out;
 }
 
 /**
  * @brief Create a new array that is a copy of the input, possibly with new
  * dimensions or size. The new array will have all overlapping pixels
  * copied from the old array. The new array will have the same pixel type as
- * the input array. Index assumed to be [0,0,...], so the output image will 
+ * the input array. Index assumed to be [0,0,...], so the output image will
  * start at the origin of this image.
  *
- * @param len     Length of index/size arrays
+ * @param len	 Length of index/size arrays
  * @param size Size of output image. Note length 0 dimensions will be
- * removed, while length 1 dimensions will be left. 
+ * removed, while length 1 dimensions will be left.
  * @param newtype Pixel type of output image.
  *
  * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
-ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len, 
-        const size_t* size, PixelT newtype) const
+ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len,
+		const size_t* size, PixelT newtype) const
 {
-    return extractCast(len, NULL, size, newtype);
+	return extractCast(len, NULL, size, newtype);
 }
 
 
@@ -914,8 +937,8 @@ ptr<NDArray> NDArrayStore<D,T>::extractCast(size_t len,
 template <size_t D, typename T>
 void NDArrayStore<D,T>::zero()
 {
-    for(size_t ii=0; ii<elements(); ii++)
-        _m_data[ii] = (T)0;
+	for(size_t ii=0; ii<elements(); ii++)
+		_m_data[ii] = (T)0;
 }
 
 /*
