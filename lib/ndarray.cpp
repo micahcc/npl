@@ -21,6 +21,7 @@
 
 #include "ndarray.h"
 #include "iterators.h"
+#include "accessors.h"
 #include "macros.h"
 
 #include "npltypes.h"
@@ -47,57 +48,57 @@ namespace npl {
 std::string pixelTtoString(PixelT type)
 {
 	switch(type) {
-        case UINT8:
-            return "uint8";
-            break;
-        case INT16:
-            return "int16";
-            break;
-        case INT32:
-            return "int32";
-            break;
-        case FLOAT32:
-            return "float";
-        break;
-         case COMPLEX64:
-            return "cfloat";
-        break;
-         case FLOAT64:
-            return "double";
-        break;
-         case RGB24:
-            return "RGB";
-        break;
-         case INT8:
-            return "int8";
-        break;
-         case UINT16:
+		case UINT8:
+			return "uint8";
+			break;
+		case INT16:
+			return "int16";
+			break;
+		case INT32:
+			return "int32";
+			break;
+		case FLOAT32:
+			return "float";
+		break;
+		 case COMPLEX64:
+			return "cfloat";
+		break;
+		 case FLOAT64:
+			return "double";
+		break;
+		 case RGB24:
+			return "RGB";
+		break;
+		 case INT8:
+			return "int8";
+		break;
+		 case UINT16:
 			return "uint16";
-        break;
-         case UINT32:
+		break;
+		 case UINT32:
 			return "uint32";
-        break;
-         case INT64:
+		break;
+		 case INT64:
 			return "int64";
-        break;
-         case UINT64:
+		break;
+		 case UINT64:
 			return "uint64";
-        break;
-         case FLOAT128:
+		break;
+		 case FLOAT128:
 			return "quad";
-        break;
-         case COMPLEX128:
+		break;
+		 case COMPLEX128:
 			return "cdouble";
-        break;
-         case COMPLEX256:
+		break;
+		 case COMPLEX256:
 			return "cquad";
-        break;
-         case RGBA32:
+		break;
+		 case RGBA32:
 			return "RGBA";
-        break;
+		break;
 		 default:
-            throw std::invalid_argument("Unsupported pixel type: " +
-                    to_string(type) + " in\n" + __FUNCTION_STR__);
+			throw std::invalid_argument("Unsupported pixel type: " +
+					to_string(type) + " in\n" + __FUNCTION_STR__);
 	}
 };
 
@@ -113,14 +114,14 @@ std::ostream& operator<<(std::ostream &out, const NDArray& img)
 {
 	out << "---------------------------" << endl;
 	out << img.ndim() << "D Array" << endl;
-    out << "Size: [";
+	out << "Size: [";
 	for(int64_t ii=0; ii<(int64_t)img.ndim(); ii++) {
-        if(ii) out << ", ";
+		if(ii) out << ", ";
 		out << img.dim(ii);
 	}
-    out << "]\n";
+	out << "]\n";
 
-    out << "Type: ";
+	out << "Type: ";
 	switch(img.type()) {
 		case UNKNOWN_TYPE:
 		case UINT8:
@@ -183,7 +184,7 @@ std::ostream& operator<<(std::ostream &out, const NDArray& img)
 
 
 /**
- * @brief Returns a pixeltype as described by the string. 
+ * @brief Returns a pixeltype as described by the string.
  *
  * @param type string to look up as a pixel type
  *
@@ -191,27 +192,27 @@ std::ostream& operator<<(std::ostream &out, const NDArray& img)
  */
 PixelT stringToPixelT(std::string type)
 {
-    if(type == "uint8") return UINT8;
-    else if(type == "int16") return INT16;
-    else if(type == "int32") return INT32;
-    else if(type == "float") return FLOAT32;
-    else if(type == "cfloat") return COMPLEX64;
-    else if(type == "double") return FLOAT64;
-    else if(type == "RGB") return RGB24;
-    else if(type == "int8") return INT8;
-    else if(type == "uint16") return UINT16;
-    else if(type == "uint32") return UINT32;
-    else if(type == "int64") return INT64;
-    else if(type == "uint64") return UINT64;
-    else if(type == "quad") return FLOAT128;
-    else if(type == "cdouble") return COMPLEX128;
-    else if(type == "cquad") return COMPLEX256;
-    else if(type == "RGBA") return RGBA32;
-    else {
-        throw std::invalid_argument("Unsupported pixel type: " +
-                type + " in\n" + __FUNCTION_STR__);
-    }
-    return UNKNOWN_TYPE;
+	if(type == "uint8") return UINT8;
+	else if(type == "int16") return INT16;
+	else if(type == "int32") return INT32;
+	else if(type == "float") return FLOAT32;
+	else if(type == "cfloat") return COMPLEX64;
+	else if(type == "double") return FLOAT64;
+	else if(type == "RGB") return RGB24;
+	else if(type == "int8") return INT8;
+	else if(type == "uint16") return UINT16;
+	else if(type == "uint32") return UINT32;
+	else if(type == "int64") return INT64;
+	else if(type == "uint64") return UINT64;
+	else if(type == "quad") return FLOAT128;
+	else if(type == "cdouble") return COMPLEX128;
+	else if(type == "cquad") return COMPLEX256;
+	else if(type == "RGBA") return RGBA32;
+	else {
+		throw std::invalid_argument("Unsupported pixel type: " +
+				type + " in\n" + __FUNCTION_STR__);
+	}
+	return UNKNOWN_TYPE;
 };
 
 /**
@@ -244,8 +245,8 @@ ptr<NDArray> createNDArrayHelp(size_t ndim, const size_t* dim)
 //		case 8:
 //			return std::make_shared<NDArrayStore<8, T>>(ndim, dim);
 		default:
-            throw std::invalid_argument("Unsupported len, dimension: " +
-                    to_string(ndim) + " in\n" + __FUNCTION_STR__);
+			throw std::invalid_argument("Unsupported len, dimension: " +
+					to_string(ndim) + " in\n" + __FUNCTION_STR__);
 	}
 
 	return NULL;
@@ -264,57 +265,57 @@ ptr<NDArray> createNDArrayHelp(size_t ndim, const size_t* dim)
 ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype)
 {
 	switch(ptype) {
-         case UINT8:
+		 case UINT8:
 			return createNDArrayHelp<uint8_t>(ndim, size);
-        break;
-         case INT16:
+		break;
+		 case INT16:
 			return createNDArrayHelp<int16_t>(ndim, size);
-        break;
-         case INT32:
+		break;
+		 case INT32:
 			return createNDArrayHelp<int32_t>(ndim, size);
-        break;
-         case FLOAT32:
+		break;
+		 case FLOAT32:
 			return createNDArrayHelp<float>(ndim, size);
-        break;
-         case COMPLEX64:
+		break;
+		 case COMPLEX64:
 			return createNDArrayHelp<cfloat_t>(ndim, size);
-        break;
-         case FLOAT64:
+		break;
+		 case FLOAT64:
 			return createNDArrayHelp<double>(ndim, size);
-        break;
-         case RGB24:
+		break;
+		 case RGB24:
 			return createNDArrayHelp<rgb_t>(ndim, size);
-        break;
-         case INT8:
+		break;
+		 case INT8:
 			return createNDArrayHelp<int8_t>(ndim, size);
-        break;
-         case UINT16:
+		break;
+		 case UINT16:
 			return createNDArrayHelp<uint16_t>(ndim, size);
-        break;
-         case UINT32:
+		break;
+		 case UINT32:
 			return createNDArrayHelp<uint32_t>(ndim, size);
-        break;
-         case INT64:
+		break;
+		 case INT64:
 			return createNDArrayHelp<int64_t>(ndim, size);
-        break;
-         case UINT64:
+		break;
+		 case UINT64:
 			return createNDArrayHelp<uint64_t>(ndim, size);
-        break;
-         case FLOAT128:
+		break;
+		 case FLOAT128:
 			return createNDArrayHelp<long double>(ndim, size);
-        break;
-         case COMPLEX128:
+		break;
+		 case COMPLEX128:
 			return createNDArrayHelp<cdouble_t>(ndim, size);
-        break;
-         case COMPLEX256:
+		break;
+		 case COMPLEX256:
 			return createNDArrayHelp<cquad_t>(ndim, size);
-        break;
-         case RGBA32:
+		break;
+		 case RGBA32:
 			return createNDArrayHelp<rgba_t>(ndim, size);
-        break;
+		break;
 		 default:
-            throw std::invalid_argument("Unsupported pixel type: " +
-                    to_string(ptype) + " in\n" + __FUNCTION_STR__);
+			throw std::invalid_argument("Unsupported pixel type: " +
+					to_string(ptype) + " in\n" + __FUNCTION_STR__);
 	}
 	return NULL;
 }
@@ -347,7 +348,7 @@ ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype)
  */
 template <typename T>
 ptr<NDArray> createNDArrayHelp(size_t ndim, const size_t* dim,
-        void* ptr, std::function<void(void*)> deleter)
+		void* ptr, std::function<void(void*)> deleter)
 {
 	switch(ndim) {
 		case 1:
@@ -367,8 +368,8 @@ ptr<NDArray> createNDArrayHelp(size_t ndim, const size_t* dim,
 //		case 8:
 //			return make_shared<NDArrayStore<8, T>>(ndim, dim, (T*)ptr, deleter);
 		default:
-            throw std::invalid_argument("Unsupported len, dimension: " +
-                    to_string(ndim) + " in\n" + __FUNCTION_STR__);
+			throw std::invalid_argument("Unsupported len, dimension: " +
+					to_string(ndim) + " in\n" + __FUNCTION_STR__);
 	}
 
 	return NULL;
@@ -387,60 +388,60 @@ ptr<NDArray> createNDArrayHelp(size_t ndim, const size_t* dim,
  * @return New image, default orientation
  */
 ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype,
-        void* ptr, std::function<void(void*)> deleter)
+		void* ptr, std::function<void(void*)> deleter)
 {
 	switch(ptype) {
-         case UINT8:
+		 case UINT8:
 			return createNDArrayHelp<uint8_t>(ndim, size, ptr, deleter);
-        break;
-         case INT16:
+		break;
+		 case INT16:
 			return createNDArrayHelp<int16_t>(ndim, size, ptr, deleter);
-        break;
-         case INT32:
+		break;
+		 case INT32:
 			return createNDArrayHelp<int32_t>(ndim, size, ptr, deleter);
-        break;
-         case FLOAT32:
+		break;
+		 case FLOAT32:
 			return createNDArrayHelp<float>(ndim, size, ptr, deleter);
-        break;
-         case COMPLEX64:
+		break;
+		 case COMPLEX64:
 			return createNDArrayHelp<cfloat_t>(ndim, size, ptr, deleter);
-        break;
-         case FLOAT64:
+		break;
+		 case FLOAT64:
 			return createNDArrayHelp<double>(ndim, size, ptr, deleter);
-        break;
-         case RGB24:
+		break;
+		 case RGB24:
 			return createNDArrayHelp<rgb_t>(ndim, size, ptr, deleter);
-        break;
-         case INT8:
+		break;
+		 case INT8:
 			return createNDArrayHelp<int8_t>(ndim, size, ptr, deleter);
-        break;
-         case UINT16:
+		break;
+		 case UINT16:
 			return createNDArrayHelp<uint16_t>(ndim, size, ptr, deleter);
-        break;
-         case UINT32:
+		break;
+		 case UINT32:
 			return createNDArrayHelp<uint32_t>(ndim, size, ptr, deleter);
-        break;
-         case INT64:
+		break;
+		 case INT64:
 			return createNDArrayHelp<int64_t>(ndim, size, ptr, deleter);
-        break;
-         case UINT64:
+		break;
+		 case UINT64:
 			return createNDArrayHelp<uint64_t>(ndim, size, ptr, deleter);
-        break;
-         case FLOAT128:
+		break;
+		 case FLOAT128:
 			return createNDArrayHelp<long double>(ndim, size, ptr, deleter);
-        break;
-         case COMPLEX128:
+		break;
+		 case COMPLEX128:
 			return createNDArrayHelp<cdouble_t>(ndim, size, ptr, deleter);
-        break;
-         case COMPLEX256:
+		break;
+		 case COMPLEX256:
 			return createNDArrayHelp<cquad_t>(ndim, size, ptr, deleter);
-        break;
-         case RGBA32:
+		break;
+		 case RGBA32:
 			return createNDArrayHelp<rgba_t>(ndim, size, ptr, deleter);
-        break;
+		break;
 		 default:
-            throw std::invalid_argument("Unsupported pixel type: " +
-                    to_string(ptype) + " in\n" + __FUNCTION_STR__);
+			throw std::invalid_argument("Unsupported pixel type: " +
+					to_string(ptype) + " in\n" + __FUNCTION_STR__);
 	}
 	return NULL;
 }
@@ -458,7 +459,7 @@ ptr<NDArray> createNDArray(size_t ndim, const size_t* size, PixelT ptype,
  * @return New image, default orientation
  */
 ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype,
-        void* ptr, std::function<void(void*)> deleter)
+		void* ptr, std::function<void(void*)> deleter)
 {
 	return createNDArray(dim.size(), dim.data(), ptype, ptr, deleter);
 }
@@ -475,14 +476,13 @@ ptr<NDArray> createNDArray(const std::vector<size_t>& dim, PixelT ptype,
 template <typename T>
 void _copyCast_help(ptr<const NDArray> in, ptr<NDArray> out)
 {
-
 	// Set up slicers to iterate through the input and output arrays. Only
 	// common dimensions are iterated over, and only the minimum of the two
 	// sizes are used for ROI. so a 10x10x10 array cast to a 20x5 array will
 	// iterator copy ROI 10x5x1
-	OrderConstIter<T> iit(in);
-	OrderIter<T> oit(out);
-	
+	OrderIter<T> it(out);
+	NDConstView<T> vw(in);
+
 	std::vector<std::pair<int64_t,int64_t>> roi(max(out->ndim(), in->ndim()));
 	for(size_t ii=0; ii<roi.size(); ii++) {
 		if(ii < min(out->ndim(), in->ndim())) {
@@ -493,21 +493,14 @@ void _copyCast_help(ptr<const NDArray> in, ptr<NDArray> out)
 			roi[ii].second = 0;
 		}
 	}
-
-	iit.setROI(roi);
-	oit.setROI(roi);
-
-	// use the larger of the two order vectors as the reference
-	if(in->ndim() < out->ndim()) {
-		iit.setOrder(oit.getOrder());
-	} else {
-		oit.setOrder(iit.getOrder());
-	}
+	it.setROI(roi);
 
 	// perform copy/cast
-	for(iit.goBegin(), oit.goBegin(); !oit.eof() && !iit.eof(); ++oit, ++iit)
-		oit.set(*iit);
-
+	vector<int64_t> index(max(in->ndim(), out->ndim()));
+	for(it.goBegin(); !it.eof(); ++it) {
+		it.index(index.size(), index.data());
+		it.set(vw.get(index.size(), index.data()));
+	}
 }
 
 /**
@@ -594,33 +587,33 @@ ptr<NDArray> _copyCast(ptr<const NDArray> in, size_t newdims,
  * @param out Output array to write to
  */
 template <typename T>
-void copyROI_help(ptr<const NDArray> in, const int64_t* inROIL, 
-        const size_t* inROIZ, ptr<NDArray> out, const int64_t* oROIL, 
-        const size_t* oROIZ)
+void copyROI_help(ptr<const NDArray> in, const int64_t* inROIL,
+		const size_t* inROIZ, ptr<NDArray> out, const int64_t* oROIL,
+		const size_t* oROIZ)
 {
-    // Set up slicers to iterate through the input and output arrays. Only
-    // common dimensions are iterated over, and only the minimum of the two
-    // sizes are used for ROI. so a 10x10x10 array cast to a 20x5 array will
-    // iterator copy ROI 10x5x1
-    OrderConstIter<T> iit(in);
-    OrderIter<T> oit(out);
+	// Set up slicers to iterate through the input and output arrays. Only
+	// common dimensions are iterated over, and only the minimum of the two
+	// sizes are used for ROI. so a 10x10x10 array cast to a 20x5 array will
+	// iterator copy ROI 10x5x1
+	OrderConstIter<T> iit(in);
+	OrderIter<T> oit(out);
 
-    // perform copy/cast
-    iit.setROI(in->ndim(), inROIZ, inROIL);
-    oit.setROI(out->ndim(), oROIZ, oROIL);
-    for(iit.goBegin(), oit.goBegin(); !oit.eof() && !iit.eof(); ++oit, ++iit)
-        oit.set(*iit);
+	// perform copy/cast
+	iit.setROI(in->ndim(), inROIZ, inROIL);
+	oit.setROI(out->ndim(), oROIZ, oROIL);
+	for(iit.goBegin(), oit.goBegin(); !oit.eof() && !iit.eof(); ++oit, ++iit)
+		oit.set(*iit);
 
-    if(!oit.eof() || !iit.eof())
-        throw INVALID_ARGUMENT("Input image/target have differenct sizes");
+	if(!oit.eof() || !iit.eof())
+		throw INVALID_ARGUMENT("Input image/target have differenct sizes");
 }
 
 /**
  * @brief Copy an roi from one image to another image. ROI's must be the same
- * size. 
+ * size.
  *
  * @param in Input image (copy pixels from this image)
- * @param inROIL Input ROI, lower bound 
+ * @param inROIL Input ROI, lower bound
  * @param inROIU Input ROI, upper bound
  * @param out Copy to copy pixels to
  * @param oROIL Output ROI, lower bound
@@ -628,9 +621,9 @@ void copyROI_help(ptr<const NDArray> in, const int64_t* inROIL,
  * @param newtype Type to cast pixels to during copy
  *
  */
-void copyROI(ptr<const NDArray> in, 
-        const int64_t* inROIL, const size_t* inROIZ, ptr<NDArray> out,
-        const int64_t* oROIL, const size_t* oROIZ, PixelT newtype)
+void copyROI(ptr<const NDArray> in,
+		const int64_t* inROIL, const size_t* inROIZ, ptr<NDArray> out,
+		const int64_t* oROIL, const size_t* oROIZ, PixelT newtype)
 {
 	switch(newtype) {
 		case UINT8:
@@ -682,8 +675,8 @@ void copyROI(ptr<const NDArray> in,
 			copyROI_help<rgba_t>(in, inROIL, inROIZ, out, oROIL, oROIZ);
 			break;
 		default:
-            throw INVALID_ARGUMENT("Unsupported pixel type: " +
-                    to_string(newtype));
+			throw INVALID_ARGUMENT("Unsupported pixel type: " +
+					to_string(newtype));
 	}
 }
 
