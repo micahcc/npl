@@ -289,6 +289,48 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X);
  */
 MatrixXd pseudoInverse(const MatrixXd& X);
 
+/**
+ * @brief Performs LASSO regression using the 'shooting' algorithm of 
+ *
+ * Fu, W. J. (1998). Penalized Regressions: The Bridge versus the Lasso.
+ * Journal of Computational and Graphical Statistics, 7(3), 397.
+ * doi:10.2307/1390712
+ *
+ * Essentially solves the equation: 
+ * 
+ * y = X * beta
+ *
+ * where beta is mostly 0's
+ *
+ * @param X Design matrix
+ * @param y Measured value
+ * @param gamma Weight of regularization (larger values forces sparser model)
+ *
+ * @return Beta vector
+ */
+VectorXd shootingRegr(const MatrixXd& X, const VectorXd& y, double gamma);
+
+/**
+ * @brief Performs LASSO regression using the 'activeShooting' algorithm of 
+ *  
+ * Peng, J., Wang, P., Zhou, N., & Zhu, J. (2009). Partial Correlation
+ * Estimation by Joint Sparse Regression Models. Journal of the American
+ * Statistical Association, 104(486), 735–746. doi:10.1198/jasa.2009.0126
+ *
+ * Essentially solves the equation: 
+ * 
+ * y = X * beta
+ *
+ * where beta is mostly 0's
+ *
+ * @param X Design matrix
+ * @param y Measured value
+ * @param gamma Weight of regularization (larger values forces sparser model)
+ *
+ * @return Beta vector
+ */
+VectorXd activeShootingRegr(const MatrixXd& X, const VectorXd& y, double gamma);
+
 /*
  * \defgroup Clustering algorithms
  * @{
