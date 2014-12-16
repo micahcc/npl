@@ -824,15 +824,16 @@ bool isnumeric(char c)
  */
 list<string> gzGetLines(gzFile file)
 {
-	size_t BSIZE = 1024*1024;
-	char buffer[BSIZE];
+	const int buffsize = 1024*1024;
+	char buffer[buffsize];
 	int readbytes = 0;
 	list<string> out(1);
 
+	gzclearerr(file);
 	// While there is still more to read
 	do {
 		// read a buffers worth
-		readbytes = gzread(file, buffer, BSIZE);
+		readbytes = gzread(file, buffer, buffsize);
 		if(readbytes < 0)
 			throw std::ios_base::failure("Error while reading gz stream");
 
@@ -970,12 +971,11 @@ vector<vector<string>> gzReadCSV(gzFile file, char& delim, char comment = '#')
  * @return
  */
 ptr<NDArray> readTxtImage(gzFile file, bool makearray = false,
-		char ignore = '#', int rowdim = 0, int coldim = 3)
+		char ignore = '#', int rowdim = 0, int coldim = 1)
 {
 	// Read String CSV
 	char delim = ',';
 	vector<vector<string>> raw = gzReadCSV(file, delim, ignore);
-	gzclose(file);
 	if(raw.size() == 0)
 		return NULL;
 
@@ -992,7 +992,7 @@ ptr<NDArray> readTxtImage(gzFile file, bool makearray = false,
 	bool unsigned_dec = true; // positive integral numbers
 	bool ftype = true; // float
 
-	int tmp_i;
+	int64_t tmp_i;
 	unsigned int tmp_u;
 	float tmp_f;
 	char* endptr;
@@ -1001,7 +1001,7 @@ ptr<NDArray> readTxtImage(gzFile file, bool makearray = false,
 			string str = raw[ii][jj];
 			
 			// Test Signed
-			tmp_i = strtol(str.c_str(), &endptr, 0);
+			tmp_i = strtoll(str.c_str(), &endptr, 0);
 			if(errno == EINVAL || endptr-str.c_str() != str.size()) {
 				signed_dec = false;
 				unsigned_dec = false;
@@ -1032,7 +1032,7 @@ ptr<NDArray> readTxtImage(gzFile file, bool makearray = false,
 		it.goBegin();
 		for(size_t ii=0; ii<raw.size(); ii++, it.nextChunk()) {
 			for(size_t jj=0; jj<raw[ii].size(); jj++, ++it) {
-				tmp_u = atol(raw[ii][jj].c_str());
+				tmp_u = strtoul(raw[ii][jj].c_str(), NULL, 0);
 				it.set(tmp_u);
 			}
 			cerr << endl;
@@ -1049,7 +1049,7 @@ ptr<NDArray> readTxtImage(gzFile file, bool makearray = false,
 		it.goBegin();
 		for(size_t ii=0; ii<raw.size(); ii++, it.nextChunk()) {
 			for(size_t jj=0; jj<raw[ii].size(); jj++, ++it) {
-				tmp_i = atoi(raw[ii][jj].c_str());
+				tmp_i = strtol(raw[ii][jj].c_str(), NULL, 0);
 				cerr << raw[ii][jj] << ", ";
 				it.set(tmp_i);
 			}
@@ -1067,8 +1067,8 @@ ptr<NDArray> readTxtImage(gzFile file, bool makearray = false,
 		it.goBegin();
 		for(size_t ii=0; ii<raw.size(); ii++, it.nextChunk()) {
 			for(size_t jj=0; jj<raw[ii].size(); jj++, ++it) {
-				tmp_f = atof(raw[ii][jj].c_str());
-				cerr << std::setprecision(10) << raw[ii][jj] << "f, ";
+				tmp_f = strtof(raw[ii][jj].c_str(), NULL);
+				cerr << raw[ii][jj] << " -> " << std::setprecision(20) << tmp_f << ", ";
 				it.set(tmp_f);
 			}
 			cerr << endl;
@@ -1354,27 +1354,21 @@ shared_ptr<NDArray> readJSONImage(gzFile file, bool verbose, bool makearray)
  */
 ptr<MRImage> readMRImage(std::string fn, bool verbose, bool nopixeldata)
 {
-#if ZLIB_VERNUM >= 0x1280
-	const size_t BSIZE = 1024*1024; //1M
-#endif
 	auto gz = gzopen(fn.c_str(), "rb");
 
 	if(!gz) {
 		throw std::ios_base::failure("Could not open " + fn + " for reading");
 		return NULL;
 	}
-#if ZLIB_VERNUM >= 0x1280
-	gzbuffer(gz, BSIZE);
-#endif
 
 	ptr<NDArray> out;
 
 	// remove .gz to find the "real" format,
-	if(fn.size() >= 3 && fn.substr(fn.size()-3, 3) == ".gz") {
+	if(fn.size() >= 3 && !fn.compare(fn.size()-3, string::npos, ".gz")) {
 		fn = fn.substr(0, fn.size()-3);
 	}
 
-	if(fn.size() >= 4 && fn.substr(fn.size()-4, 4) == ".nii") {
+	if(fn.size() >= 4 && !fn.compare(fn.size()-4, string::npos, ".nii")) {
 		//////////////////////////
 		// Read Nifti Data
 		//////////////////////////
@@ -1382,7 +1376,7 @@ ptr<MRImage> readMRImage(std::string fn, bool verbose, bool nopixeldata)
 			gzclose(gz);
 			return dPtrCast<MRImage>(out);
 		}
-	} else if(fn.size() >= 5 && fn.substr(fn.size()-5, 5) == ".json") {
+	} else if(fn.size() >= 5 && !fn.compare(fn.size()-5, string::npos, ".json")) {
 		//////////////////////////
 		// Read JSON data
 		//////////////////////////
@@ -1390,7 +1384,8 @@ ptr<MRImage> readMRImage(std::string fn, bool verbose, bool nopixeldata)
 			gzclose(gz);
 			return dPtrCast<MRImage>(out);
 		}
-	} else {
+	} else if(fn.size() >= 4 && (!fn.compare(fn.size()-4, string::npos, ".txt")
+				|| !fn.compare(fn.size()-4, string::npos, ".csv"))) {
 		//////////////////////////
 		// Read Text Data
 		//////////////////////////
@@ -1398,6 +1393,8 @@ ptr<MRImage> readMRImage(std::string fn, bool verbose, bool nopixeldata)
 			gzclose(gz);
 			return dPtrCast<MRImage>(out);
 		}
+	} else {
+		throw INVALID_ARGUMENT("Unknown filetype: " + fn);
 	}
 
 	throw std::ios_base::failure("Error reading " + fn );
@@ -1418,32 +1415,26 @@ ptr<MRImage> readMRImage(std::string fn, bool verbose, bool nopixeldata)
  */
 ptr<NDArray> readNDArray(std::string fn, bool verbose, bool nopixeldata)
 {
-#if ZLIB_VERNUM >= 0x1280
-	const size_t BSIZE = 1024*1024; //1M
-#endif
 	auto gz = gzopen(fn.c_str(), "rb");
 
 	if(!gz) {
 		throw std::ios_base::failure("Could not open " + fn + " for readin");
 		return NULL;
 	}
-#if ZLIB_VERNUM >= 0x1280
-	gzbuffer(gz, BSIZE);
-#endif
 
 	ptr<NDArray> out;
 
 	// remove .gz to find the "real" format,
-	if(fn.size() >= 3 && fn.substr(fn.size()-3, 3) == ".gz") {
+	if(fn.size() >= 3 && !fn.compare(fn.size()-3, string::npos, ".gz")) {
 		fn = fn.substr(0, fn.size()-3);
 	}
 
-	if(fn.size() >= 4 && fn.substr(fn.size()-4, 4) == ".nii") {
+	if(fn.size() >= 4 && !fn.compare(fn.size()-4, string::npos, ".nii")) {
 		if((out = readNiftiImage(gz, verbose, true, nopixeldata))) {
 			gzclose(gz);
 			return out;
 		}
-	} else if(fn.size() >= 5 && fn.substr(fn.size()-5, 5) == ".json") {
+	} else if(fn.size() >= 5 && !fn.compare(fn.size()-5, string::npos, ".json")) {
 		//////////////////////////
 		// Read JSON data
 		//////////////////////////
@@ -1451,7 +1442,8 @@ ptr<NDArray> readNDArray(std::string fn, bool verbose, bool nopixeldata)
 			gzclose(gz);
 			return out;
 		}
-	} else {
+	} else if(fn.size() >= 4 && (!fn.compare(fn.size()-4, string::npos, ".txt")
+				|| !fn.compare(fn.size()-4, string::npos, ".csv"))) {
 		//////////////////////////
 		// Read Text Data
 		//////////////////////////
@@ -1459,6 +1451,8 @@ ptr<NDArray> readNDArray(std::string fn, bool verbose, bool nopixeldata)
 			gzclose(gz);
 			return out;
 		}
+	} else {
+		throw INVALID_ARGUMENT("Unknown filetype: " + fn);
 	}
 
 	throw std::ios_base::failure("Error reading " + fn);

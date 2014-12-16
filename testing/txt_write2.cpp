@@ -34,33 +34,33 @@ int main()
 	vector<double> tmp(sz[0]*sz[1]);
 	for(size_t ii=0; ii<sz[1]*sz[0]; ii++)
 		tmp[ii] = (double)100*rand()/(double)RAND_MAX;
-    
+
 	{
-        auto in = createNDArray(sizeof(sz)/sizeof(size_t), sz, FLOAT64);
-        NDIter<double> sit(in);
-        for(int ii=0; !sit.eof(); ++sit, ++ii) {
-            sit.set(tmp[ii]);
-        }
-        in->write("test_txt2.txt.gz");
-    }
+		auto in = createNDArray(sizeof(sz)/sizeof(size_t), sz, FLOAT64);
+		NDIter<double> sit(in);
+		for(int ii=0; !sit.eof(); ++sit, ++ii) {
+			sit.set(tmp[ii]);
+		}
+		in->write("test_txt2.txt.gz");
+	}
 
-    {
-        auto reread = dPtrCast<MRImage>(readMRImage("test_txt2.txt.gz"));
-        
-        NDIter<double> sit(reread);
-        for(int ii=0; !sit.eof(); ++sit, ++ii) {
-            if(*sit != tmp[ii]) {
-                cerr << "Value Mismatch! " << setprecision(20) << *sit 
-					<< " vs " << setprecision(20) << tmp[ii] << endl; 
-                return -1;
-            }
-        }
+	{
+		auto reread = readMRImage("test_txt2.txt.gz");
 
-        if(reread->type() != FLOAT32) {
-            cerr << "Type Mismatch!" << endl;
-            return -1;
-        }
-    }
+		NDIter<double> sit(reread);
+		for(int ii=0; !sit.eof(); ++sit, ++ii) {
+			if(fabs(*sit - tmp[ii]) > 0.0001) {
+				cerr << "Value Mismatch! " << setprecision(20) << *sit
+					<< " vs " << setprecision(20) << tmp[ii] << endl;
+				return -1;
+			}
+		}
+
+		if(reread->type() != FLOAT32) {
+			cerr << "Type Mismatch!" << endl;
+			return -1;
+		}
+	}
 	return 0;
 }
 
