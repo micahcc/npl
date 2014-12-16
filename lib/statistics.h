@@ -36,17 +36,24 @@ namespace npl {
 /**
  * @brief Computes the Principal Components of input matrix X
  *
- * Outputs reduced dimension (fewer cols) in output
+ * Outputs reduced dimension (fewer cols) in output. Note that prior to this,
+ * the columns of X should be 0 mean otherwise the first component will
+ * be the mean
  *
  * @param X 	RxC matrix where each column row is a sample, each column a
  *              dimension (or feature). The number of columns in the output
  *              will be fewer because there will be fewer features
- * @param varth Variance threshold. Don't include dimensions after this percent
- *              of the variance has been explained.
+ * @param varth Variance threshold. This is the ratio (0-1) of variance to
+ * include in the output. This is used to determine the dimensionality of the
+ * output. If this is 1 then all variance will be included. If this < 1 and
+ * odim > 0 then whichever gives a larger output dimension will be selected. 
+ * @param odim Threshold for output dimensions. If this is <= 0 then it is
+ * ignored, if it is > 0 then max(dim(varth), odim) is used as the output
+ * dimension.
  *
  * @return 		RxP matrix, where P is the number of principal components
  */
-MatrixXd pca(const Eigen::MatrixXd& X, double varth);
+MatrixXd pca(const Eigen::MatrixXd& X, double varth = 1, int odim = -1);
 
 /**
  * @brief Computes the Independent Components of input matrix X. Note that
@@ -77,7 +84,7 @@ MatrixXd pca(const Eigen::MatrixXd& X, double varth);
  *
  * @return 		RxP matrix, where P is the number of independent components
  */
-MatrixXd ica(const Eigen::MatrixXd& X, double varth);
+MatrixXd ica(const Eigen::MatrixXd& X, double varth = 1);
 
 /**
  * @brief Computes the Ordinary Least Square predictors, beta for 
@@ -281,6 +288,48 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X);
  * @return Psueodinverse 
  */
 MatrixXd pseudoInverse(const MatrixXd& X);
+
+/**
+ * @brief Performs LASSO regression using the 'shooting' algorithm of 
+ *
+ * Fu, W. J. (1998). Penalized Regressions: The Bridge versus the Lasso.
+ * Journal of Computational and Graphical Statistics, 7(3), 397.
+ * doi:10.2307/1390712
+ *
+ * Essentially solves the equation: 
+ * 
+ * y = X * beta
+ *
+ * where beta is mostly 0's
+ *
+ * @param X Design matrix
+ * @param y Measured value
+ * @param gamma Weight of regularization (larger values forces sparser model)
+ *
+ * @return Beta vector
+ */
+VectorXd shootingRegr(const MatrixXd& X, const VectorXd& y, double gamma);
+
+/**
+ * @brief Performs LASSO regression using the 'activeShooting' algorithm of 
+ *  
+ * Peng, J., Wang, P., Zhou, N., & Zhu, J. (2009). Partial Correlation
+ * Estimation by Joint Sparse Regression Models. Journal of the American
+ * Statistical Association, 104(486), 735–746. doi:10.1198/jasa.2009.0126
+ *
+ * Essentially solves the equation: 
+ * 
+ * y = X * beta
+ *
+ * where beta is mostly 0's
+ *
+ * @param X Design matrix
+ * @param y Measured value
+ * @param gamma Weight of regularization (larger values forces sparser model)
+ *
+ * @return Beta vector
+ */
+VectorXd activeShootingRegr(const MatrixXd& X, const VectorXd& y, double gamma);
 
 /*
  * \defgroup Clustering algorithms

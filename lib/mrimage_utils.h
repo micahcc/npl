@@ -201,9 +201,30 @@ ptr<MRImage> rigidTransform(ptr<MRImage> in, double rx, double ry, double rz,
  * @param in Gaussian smooths an image twice and subtracts
  * @param sd Standard deviation in each dimension
  *
- * @return Difference of two different gaussians 
+ * @return Difference of two different gaussians
  */
 ptr<MRImage> diffOfGauss(ptr<const MRImage> in, double sd1, double sd2);
+
+/**
+ * @brief Computes the overlap of the two images' in 3-space.
+ *
+ * @param a Image
+ * @param b Image
+ *
+ * @return Ratio of b that overlaps with a's grid
+ */
+double overlapRatio(ptr<const MRImage> a, ptr<const MRImage> b);
+
+/**
+ * @brief Performs nearest neighbor resasmpling of input to atlas
+ *
+ * @param in Input image
+ * @param atlas
+ *
+ * @return Input image resampled into atlas space
+ */
+ptr<MRImage> resampleNN(ptr<const MRImage> in, ptr<const MRImage> atlas,
+		PixelT type);
 
 /** @}  MRImageUtilities */
 } // npl
