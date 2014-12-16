@@ -317,29 +317,6 @@ ptr<MRImage> invertForwardBack(ptr<MRImage> deform, ptr<MRImage> tgt,
 	return idef;
 }
 
-/**
- * @brief Computes the overlap of the two images' in 3-space.
- *
- * @param a Image
- * @param b Image
- *
- * @return Ratio of b that overlaps with a's grid
- */
-double overlapRatio(shared_ptr<MRImage> a, shared_ptr<MRImage> b)
-{
-	int64_t index[3];
-	double point[3];
-	size_t incount = 0;
-	size_t maskcount = 0;
-	for(OrderIter<int64_t> it(a); !it.eof(); ++it) {
-		it.index(3, index);
-		a->indexToPoint(3, index, point);
-		++maskcount;
-		incount += (b->pointInsideFOV(3, point));
-	}
-	return (double)(incount)/(double)(maskcount);
-}
-
 shared_ptr<MRImage> indexMapToOffsetMap(shared_ptr<const MRImage> defimg,
 		shared_ptr<const MRImage> atlas, bool one_based_indexing = false)
 {
