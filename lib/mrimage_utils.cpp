@@ -803,6 +803,116 @@ ptr<MRImage> diffOfGauss(ptr<const MRImage> in, double sd1, double sd2)
 	return out;
 }
 
+/**
+ * @brief Computes the overlap of the two images' in 3-space.
+ *
+ * @param a Image
+ * @param b Image
+ *
+ * @return Ratio of b that overlaps with a's grid
+ */
+double overlapRatio(shared_ptr<MRImage> a, shared_ptr<MRImage> b)
+{
+	int64_t index[3];
+	double point[3];
+	size_t incount = 0;
+	size_t maskcount = 0;
+	for(OrderIter<int64_t> it(a); !it.eof(); ++it) {
+		it.index(3, index);
+		a->indexToPoint(3, index, point);
+		++maskcount;
+		incount += (b->pointInsideFOV(3, point));
+	}
+	return (double)(incount)/(double)(maskcount);
+}
+
+template <typename T>
+void resampleNN_help(ptr<const MRImage> in, ptr<MRImage> target)
+{
+	NDIter<T> it(target);
+	NNInterpNDView<T> vw(target);
+	vw.m_ras = true;
+
+	vector<int64_t> ind(in->ndim(), 0);
+	vector<double> pt(in->ndim(), 0);
+	for(it.goBegin(); !it.eof(); ++it) {
+		it.index(ind.size(), ind.data());
+		in->indexToPoint(ind.size(), ind.data(), pt.data());
+		it.set(vw.get(pt.size(), pt.data()));
+	}
+}
+
+/**
+ * @brief Performs nearest neighbor resasmpling of input to atlas
+ *
+ * @param in Input image
+ * @param atlas
+ *
+ * @return Input image resampled into atlas space
+ */
+ptr<MRImage> resampleNN(ptr<const MRImage> in, ptr<const MRImage> atlas,
+		PixelT type)
+{
+	auto out = dPtrCast<MRImage>(atlas->createAnother(type));
+
+	switch(type) {
+		case UINT8:
+			resampleNN_help<uint8_t>(in, out);
+			break;
+		case INT16:
+			resampleNN_help<int16_t>(in, out);
+			break;
+		case INT32:
+			resampleNN_help<int32_t>(in, out);
+			break;
+		case FLOAT32:
+			resampleNN_help<float>(in, out);
+			break;
+		case CFLOAT:
+			resampleNN_help<cfloat_t>(in, out);
+			break;
+		case FLOAT64:
+			resampleNN_help<double>(in, out);
+			break;
+		case RGB24:
+			resampleNN_help<rgb_t>(in, out);
+			break;
+		case INT8:
+			resampleNN_help<int8_t>(in, out);
+			break;
+		case UINT16:
+			resampleNN_help<uint16_t>(in, out);
+			break;
+		case UINT32:
+			resampleNN_help<uint32_t>(in, out);
+			break;
+		case INT64:
+			resampleNN_help<int64_t>(in, out);
+			break;
+		case UINT64:
+			resampleNN_help<uint64_t>(in, out);
+			break;
+		case FLOAT128:
+			resampleNN_help<long double>(in, out);
+			break;
+		case CDOUBLE:
+			resampleNN_help<cdouble_t>(in, out);
+			break;
+		case CQUAD:
+			resampleNN_help<cquad_t>(in, out);
+			break;
+		case RGBA32:
+			resampleNN_help<rgba_t>(in, out);
+			break;
+		default:
+			throw INVALID_ARGUMENT("Unknown type set!");
+	}
+
+	return out;
+}
+
+
+
 } // npl
 
 

@@ -39,7 +39,7 @@ namespace npl {
 class Slicer
 {
 public:
-	
+
 	/****************************************
 	 *
 	 * Constructors
@@ -65,7 +65,7 @@ public:
 	 *
 	 * @param ndim Rank (dimensionality) of data block, length of dim
 	 * @param dim Size of data block, in each dimension, so dim = {32, 2,54 }
-	 * would have 32*2*54 members 
+	 * would have 32*2*54 members
 	 */
 	void setDim(size_t ndim, const size_t* dim);
 
@@ -208,7 +208,7 @@ public:
 	 */
 	inline void index(std::vector<int64_t>& ind) const
 	{
-		index(ind.size(), ind.data()); 
+		index(ind.size(), ind.data());
 	}
 
 	/**
@@ -222,7 +222,7 @@ public:
 	 */
 	inline void index(std::vector<int>& ind) const
 	{
-		index(ind.size(), ind.data()); 
+		index(ind.size(), ind.data());
 	};
 
 	/**
@@ -235,9 +235,9 @@ public:
 	 * @param ind output index variable
 	 */
 
-	inline void index(std::vector<double>& ind) const 
+	inline void index(std::vector<double>& ind) const
 	{
-		index(ind.size(), ind.data()); 
+		index(ind.size(), ind.data());
 	};
 
 	/**
@@ -268,7 +268,7 @@ public:
 	 */
 	inline int64_t getStride(size_t dd)
 	{
-		assert(dd < m_ndim); return m_strides[dd]; 
+		assert(dd < m_ndim); return m_strides[dd];
 	};
 
 	/***********************************************
@@ -380,11 +380,11 @@ protected:
  * of setOrder will be the fastest moving, and the last will be the slowest.
  * Any dimensions not included in the order vector will be slower than the last
  * member of order. Note that order will not necessarily be strictly obeyed
- * when more than one chunk size is > 0. For isntance if setBreaks({1,1,0}), 
+ * when more than one chunk size is > 0. For isntance if setBreaks({1,1,0}),
  * setOrder({0,1,2}) are used, then all of 2 will visited before we iterate in
  * 0 or 1, because otherwise we would be stepping across chunks.
  */
-class ChunkSlicer 
+class ChunkSlicer
 {
 public:
 
@@ -491,7 +491,7 @@ public:
 	/**
 	 * @brief Proceed to the next chunk (if there is one).
 	 *
-	 * @return 	
+	 * @return 
 	 */
 	ChunkSlicer& nextChunk();
 
@@ -531,8 +531,8 @@ public:
 	 * will be ignored. Any values missing due to ndim > len will be treated as
 	 * zeros.
 	 *
-	 * @param len length of newpos array 
-	 * @param newpos Position to move to 
+	 * @param len length of newpos array
+	 * @param newpos Position to move to
 	 */
 	void goIndex(size_t len, int64_t* newpos);
 
@@ -662,9 +662,9 @@ public:
 	 * @return returns stride (change in linear index given a position)
 	 */
 	inline int64_t getStride(size_t dd)
-	{ 
-		assert(dd < m_ndim); 
-		return m_strides[dd]; 
+	{
+		assert(dd < m_ndim);
+		return m_strides[dd];
 	};
 
 	/***********************************************
@@ -707,9 +707,9 @@ public:
 	 *
 	 * @param len Length of sizes array
 	 * @param sizes Size of chunk in each dimension. If you multiply together
-	 * the elements of sizes that is the MAXIMUM number of iterations between 
+	 * the elements of sizes that is the MAXIMUM number of iterations between
 	 * chunks. Note however that there could be less if we are at the edge.
-	 * @param defunity Sets the default to unity rather than 0. Thus 
+	 * @param defunity Sets the default to unity rather than 0. Thus
 	 * unreferenced dimensions will be broken up at each step; so {0,1} for a
 	 * 4D image will be effectively {0,1,1,1} instead of {0,1,0,0}. This is
 	 * convenient, for instance, if you want to split up based on volumes,
@@ -729,9 +729,9 @@ public:
 	 *
 	 * @param len Length of sizes array
 	 * @param sizes Size of chunk in each dimension. If you multiply together
-	 * the elements of sizes that is the MAXIMUM number of iterations between 
+	 * the elements of sizes that is the MAXIMUM number of iterations between
 	 * chunks. Note however that there could be less if we are at the edge.
-	 * @param defunity Sets the default to unity rather than 0. Thus 
+	 * @param defunity Sets the default to unity rather than 0. Thus
 	 * unreferenced dimensions will be broken up at each step; so {0,1} for a
 	 * 4D image will be effectively {0,1,1,1} instead of {0,1,0,0}. This is
 	 * convenient, for instance, if you want to split up based on volumes,
@@ -741,14 +741,14 @@ public:
 	void setChunkSize(size_t len, const size_t* sizes, bool defunity = false);
 
 	/**
-	 * @brief Sets the chunk sizes so that each chunk is a line in the given 
-	 * dimension. This would be analogous to itk's linear iterator. 
+	 * @brief Sets the chunk sizes so that each chunk is a line in the given
+	 * dimension. This would be analogous to itk's linear iterator.
 	 * Usage:
 	 *
 	 * it.setLineChunk(0);
 	 * while(!it.isEnd()) {
 	 *	while(!it.isChunkEnd()) {
-	 *	
+	 *
 	 *		++it;
 	 *	}
 	 *	it.nextChunk();
@@ -988,7 +988,7 @@ public:
 	 * @return true if we are at the end
 	 */
 	bool eof() const { return m_end; };
-	
+
 	/**
 	 * @brief get linear position of current point
 	 *
@@ -1004,10 +1004,10 @@ public:
 	 *
 	 * @return returns stride (change in linear index given a position)
 	 */
-	inline int64_t getStride(size_t dd) 
+	inline int64_t getStride(size_t dd)
 	{
-		assert(dd < m_ndim); 
-		return m_strides[dd]; 
+		assert(dd < m_ndim);
+		return m_strides[dd];
 	};
 
 	/*************************************
@@ -1094,12 +1094,12 @@ public:
 
 	/**
 	 * @brief Get index of i'th kernel (center-offset) element. Note that
-	 * values outside the image will not be returned, the nearest inside 
+	 * values outside the image will not be returned, the nearest inside
 	 * position will be.
 	 *
 	 * @return linear position
 	 */
-	inline int64_t getK(int64_t kit) const 
+	inline int64_t getK(int64_t kit) const
 	{
 		assert(!m_end);
 		assert(kit < m_numoffs);
@@ -1114,7 +1114,7 @@ public:
 	 *
 	 * @return linear position
 	 */
-	inline int64_t operator[](int64_t kit) const 
+	inline int64_t operator[](int64_t kit) const
 	{
 		assert(!m_end);
 		assert(kit < m_numoffs);
@@ -1141,7 +1141,7 @@ public:
 	/**
 	 * @brief Returns the distance from the center projected onto the specified
 	 * dimension. So center is {0,0,0}, and {1,2,1} would return 1,2,1 for inputs
-	 * dim=0, dim=1, dim=2. Note that this is the ideal offset (so it doesn't 
+	 * dim=0, dim=1, dim=2. Note that this is the ideal offset (so it doesn't
 	 * respect image bounds).
 	 *
 	 * @param kit Which pixel to return distance from
@@ -1152,12 +1152,12 @@ public:
 	int64_t offsetK(size_t kit, size_t dim);
 
 	/**
-	 * @brief Returns whether the k'th kernel member is inside the region of 
-	 * interest. 
+	 * @brief Returns whether the k'th kernel member is inside the region of
+	 * interest.
 	 *
 	 * @param k Which pixel to return distance from
 	 *
-	 * @return True if k'th kernel element is inside the region, false if a 
+	 * @return True if k'th kernel element is inside the region, false if a
 	 * clamped value would be returned
 	 */
 	bool insideK(size_t k);
@@ -1207,7 +1207,7 @@ protected:
 	// for each of the neighbors we need to know
 	size_t m_numoffs; // setRadius/setWindow/
 
-	// NDIM*OFFSET, D0O0, D1O0, D2O0, D0O1, ... 
+	// NDIM*OFFSET, D0O0, D1O0, D2O0, D0O1, ...
 	std::vector<int64_t*> m_offs; // setRadius/setWindow
 	std::vector<int64_t> m_offs_raw; // setRadius/setWindow
 	size_t m_center;  // setRadius/setWindow
