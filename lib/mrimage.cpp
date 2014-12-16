@@ -20,6 +20,7 @@
 
 #include "mrimage.h"
 #include "iterators.h"
+#include "accessors.h"
 #include <iostream>
 
 #include "ndarray.h"
@@ -92,54 +93,54 @@ ptr<MRImage> createMRImageHelp(size_t len, const size_t* dim)
 ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type)
 {
 	switch(type) {
-         case UINT8:
+		 case UINT8:
 			return createMRImageHelp<uint8_t>(ndim, size);
-        break;
-         case INT16:
+		break;
+		 case INT16:
 			return createMRImageHelp<int16_t>(ndim, size);
-        break;
-         case INT32:
+		break;
+		 case INT32:
 			return createMRImageHelp<int32_t>(ndim, size);
-        break;
-         case FLOAT32:
+		break;
+		 case FLOAT32:
 			return createMRImageHelp<float>(ndim, size);
-        break;
-         case COMPLEX64:
+		break;
+		 case COMPLEX64:
 			return createMRImageHelp<cfloat_t>(ndim, size);
-        break;
-         case FLOAT64:
+		break;
+		 case FLOAT64:
 			return createMRImageHelp<double>(ndim, size);
-        break;
-         case RGB24:
+		break;
+		 case RGB24:
 			return createMRImageHelp<rgb_t>(ndim, size);
-        break;
-         case INT8:
+		break;
+		 case INT8:
 			return createMRImageHelp<int8_t>(ndim, size);
-        break;
-         case UINT16:
+		break;
+		 case UINT16:
 			return createMRImageHelp<uint16_t>(ndim, size);
-        break;
-         case UINT32:
+		break;
+		 case UINT32:
 			return createMRImageHelp<uint32_t>(ndim, size);
-        break;
-         case INT64:
+		break;
+		 case INT64:
 			return createMRImageHelp<int64_t>(ndim, size);
-        break;
-         case UINT64:
+		break;
+		 case UINT64:
 			return createMRImageHelp<uint64_t>(ndim, size);
-        break;
-         case FLOAT128:
+		break;
+		 case FLOAT128:
 			return createMRImageHelp<long double>(ndim, size);
-        break;
-         case COMPLEX128:
+		break;
+		 case COMPLEX128:
 			return createMRImageHelp<cdouble_t>(ndim, size);
-        break;
-         case COMPLEX256:
+		break;
+		 case COMPLEX256:
 			return createMRImageHelp<cquad_t>(ndim, size);
-        break;
-         case RGBA32:
+		break;
+		 case RGBA32:
 			return createMRImageHelp<rgba_t>(ndim, size);
-        break;
+		break;
 		 default:
 		return NULL;
 	}
@@ -174,7 +175,7 @@ ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type)
  */
 template <typename T>
 ptr<MRImage> createMRImageHelp(size_t len, const size_t* dim,
-        void* ptr, std::function<void(void*)> deleter)
+		void* ptr, std::function<void(void*)> deleter)
 {
 	switch(len) {
 		case 1:
@@ -214,57 +215,57 @@ ptr<MRImage> createMRImageHelp(size_t len, const size_t* dim,
  * @return New image, default orientation
  */
 ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type,
-        void* ptr, std::function<void(void*)> deleter)
+		void* ptr, std::function<void(void*)> deleter)
 {
 	switch(type) {
-         case UINT8:
+		 case UINT8:
 			return createMRImageHelp<uint8_t>(ndim, size, ptr, deleter);
-        break;
-         case INT16:
+		break;
+		 case INT16:
 			return createMRImageHelp<int16_t>(ndim, size, ptr, deleter);
-        break;
-         case INT32:
+		break;
+		 case INT32:
 			return createMRImageHelp<int32_t>(ndim, size, ptr, deleter);
-        break;
-         case FLOAT32:
+		break;
+		 case FLOAT32:
 			return createMRImageHelp<float>(ndim, size, ptr, deleter);
-        break;
-         case COMPLEX64:
+		break;
+		 case COMPLEX64:
 			return createMRImageHelp<cfloat_t>(ndim, size, ptr, deleter);
-        break;
-         case FLOAT64:
+		break;
+		 case FLOAT64:
 			return createMRImageHelp<double>(ndim, size, ptr, deleter);
-        break;
-         case RGB24:
+		break;
+		 case RGB24:
 			return createMRImageHelp<rgb_t>(ndim, size, ptr, deleter);
-        break;
-         case INT8:
+		break;
+		 case INT8:
 			return createMRImageHelp<int8_t>(ndim, size, ptr, deleter);
-        break;
-         case UINT16:
+		break;
+		 case UINT16:
 			return createMRImageHelp<uint16_t>(ndim, size, ptr, deleter);
-        break;
-         case UINT32:
+		break;
+		 case UINT32:
 			return createMRImageHelp<uint32_t>(ndim, size, ptr, deleter);
-        break;
-         case INT64:
+		break;
+		 case INT64:
 			return createMRImageHelp<int64_t>(ndim, size, ptr, deleter);
-        break;
-         case UINT64:
+		break;
+		 case UINT64:
 			return createMRImageHelp<uint64_t>(ndim, size, ptr, deleter);
-        break;
-         case FLOAT128:
+		break;
+		 case FLOAT128:
 			return createMRImageHelp<long double>(ndim, size, ptr, deleter);
-        break;
-         case COMPLEX128:
+		break;
+		 case COMPLEX128:
 			return createMRImageHelp<cdouble_t>(ndim, size, ptr, deleter);
-        break;
-         case COMPLEX256:
+		break;
+		 case COMPLEX256:
 			return createMRImageHelp<cquad_t>(ndim, size, ptr, deleter);
-        break;
-         case RGBA32:
+		break;
+		 case RGBA32:
 			return createMRImageHelp<rgba_t>(ndim, size, ptr, deleter);
-        break;
+		break;
 		 default:
 		return NULL;
 	}
@@ -284,9 +285,9 @@ ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type,
  * @return New image, default orientation
  */
 ptr<MRImage> createMRImage(const std::vector<size_t>& dim, PixelT type,
-        void* ptr, std::function<void(void*)> deleter)
+		void* ptr, std::function<void(void*)> deleter)
 {
-    return createMRImage(dim.size(), dim.data(), type, ptr, deleter);
+	return createMRImage(dim.size(), dim.data(), type, ptr, deleter);
 }
 
 /**
@@ -301,15 +302,15 @@ std::ostream& operator<<(std::ostream &out, const MRImage& img)
 {
 	out << "---------------------------" << endl;
 	out << img.ndim() << "D Image" << endl;
-    out << "Size: [";
+	out << "Size: [";
 	for(int64_t ii=0; ii<(int64_t)img.ndim(); ii++) {
-        if(ii) out << ", ";
+		if(ii) out << ", ";
 		out << img.dim(ii);
 	}
-    out << "]\n";
-    out << "Frequency Encode Dimension: " << img.m_freqdim << endl;
-    out << "Phase Encode Dimension: " << img.m_phasedim << endl;
-    out << "Slice Encode Dimension: " << img.m_slicedim << endl;
+	out << "]\n";
+	out << "Frequency Encode Dimension: " << img.m_freqdim << endl;
+	out << "Phase Encode Dimension: " << img.m_phasedim << endl;
+	out << "Slice Encode Dimension: " << img.m_slicedim << endl;
 
 	std::cerr << "Coordinate System: ";
 	if(QFORM&img.m_coordinate)
@@ -324,7 +325,7 @@ std::ostream& operator<<(std::ostream &out, const MRImage& img)
 	for(size_t ii=0; ii<img.ndim(); ii++) {
 		out << "[ ";
 		for(size_t jj=0; jj<img.ndim(); jj++) {
-            if(jj) out << ",";
+			if(jj) out << ",";
 			out << std::setw(4) << std::setprecision(3) << img.direction(ii,jj);
 		}
 		out << "] " << endl;
@@ -334,7 +335,7 @@ std::ostream& operator<<(std::ostream &out, const MRImage& img)
 	for(size_t ii=0; ii<img.ndim(); ii++) {
 		out << "[ ";
 		for(size_t jj=0; jj<img.ndim(); jj++) {
-            if(jj) out << ",";
+			if(jj) out << ",";
 			out << std::setw(4) << std::setprecision(3) <<
 				img.invdirection(ii,jj);
 		}
@@ -343,7 +344,7 @@ std::ostream& operator<<(std::ostream &out, const MRImage& img)
 
 	out << "Spacing: [";
 	for(size_t ii=0; ii<img.ndim(); ii++) {
-        if(ii) out << ", ";
+		if(ii) out << ", ";
 		out << std::setw(4) << std::setprecision(3)
 			<< img.spacing(ii);
 	}
@@ -351,13 +352,13 @@ std::ostream& operator<<(std::ostream &out, const MRImage& img)
 
 	out << "Origin: [";
 	for(size_t ii=0; ii<img.ndim(); ii++) {
-        if(ii) out << ", ";
+		if(ii) out << ", ";
 		out << std::setw(4) << std::setprecision(3)
 			<< img.origin(ii);
 	}
 	out << "]\n";
 
-    out << "Type: ";
+	out << "Type: ";
 	switch(img.type()) {
 		case UNKNOWN_TYPE:
 		case UINT8:
@@ -526,13 +527,12 @@ void MRImage::updateSliceTiming(double duration, int start, int end, SliceOrderT
 template <typename T>
 void _copyCast_help(ptr<const MRImage> in, ptr<MRImage> out)
 {
-
-	// Set up slicers to iterate through the input and output images. Only
+	// Set up slicers to iterate through the input and output arrays. Only
 	// common dimensions are iterated over, and only the minimum of the two
-	// sizes are used for ROI. so a 10x10x10 image cast to a 20x5 image will
+	// sizes are used for ROI. so a 10x10x10 array cast to a 20x5 array will
 	// iterator copy ROI 10x5x1
-	OrderConstIter<T> iit(in);
-	OrderIter<T> oit(out);
+	OrderIter<T> it(out);
+	NDConstView<T> vw(in);
 
 	std::vector<std::pair<int64_t,int64_t>> roi(max(out->ndim(), in->ndim()));
 	for(size_t ii=0; ii<roi.size(); ii++) {
@@ -544,21 +544,14 @@ void _copyCast_help(ptr<const MRImage> in, ptr<MRImage> out)
 			roi[ii].second = 0;
 		}
 	}
-
-	iit.setROI(roi);
-	oit.setROI(roi);
-
-	// use the larger of the two order vectors as the reference
-	if(in->ndim() < out->ndim()) {
-		iit.setOrder(oit.getOrder());
-	} else {
-		oit.setOrder(iit.getOrder());
-	}
+	it.setROI(roi);
 
 	// perform copy/cast
-	for(iit.goBegin(), oit.goBegin(); !oit.eof() && !iit.eof(); ++oit, ++iit)
-		oit.set(*iit);
-
+	vector<int64_t> index(max(in->ndim(), out->ndim()));
+	for(it.goBegin(); !it.eof(); ++it) {
+		it.index(index.size(), index.data());
+		it.set(vw.get(index.size(), index.data()));
+	}
 }
 
 /**
@@ -723,59 +716,59 @@ void MRImage::copyMetadata(ptr<const MRImage> in)
 bool MRImage::matchingOrient(ptr<const MRImage> other, bool checkdim,
 		bool checksize, double tol) const
 {
-    if(checkdim && ndim() != other->ndim()) {
+	if(checkdim && ndim() != other->ndim()) {
 		cerr << "This: " << endl << *this << endl;
 		cerr << "Other: " << endl << *other << endl;
-        return false;
+		return false;
 	}
 
 	size_t rank = std::min(ndim(), other->ndim());
-    double err = 0;
+	double err = 0;
 
-    // check spacing
-    err = 0;
-    for(size_t dd=0; dd<rank; dd++)
-        err += pow(spacing(dd)-other->spacing(dd),2);
-    if(err > tol) {
+	// check spacing
+	err = 0;
+	for(size_t dd=0; dd<rank; dd++)
+		err += pow(spacing(dd)-other->spacing(dd),2);
+	if(err > tol) {
 		cerr << "This: " << endl << *this << endl;
 		cerr << "Other: " << endl << *other << endl;
-        return false;
+		return false;
 	}
 
-    // Check Origin
-    err = 0;
-    for(size_t dd=0; dd<rank; dd++)
-        err += pow(origin(dd)-other->origin(dd),2);
-    if(err > tol) {
+	// Check Origin
+	err = 0;
+	for(size_t dd=0; dd<rank; dd++)
+		err += pow(origin(dd)-other->origin(dd),2);
+	if(err > tol) {
 		cerr << "This: " << endl << *this << endl;
 		cerr << "Other: " << endl << *other << endl;
-        return false;
+		return false;
 	}
 
-    // check direction
-    err = 0;
-    for(size_t dd=0; dd<rank; dd++) {
+	// check direction
+	err = 0;
+	for(size_t dd=0; dd<rank; dd++) {
 		for(size_t ee=0; ee<rank; ee++) {
 			err += pow(direction(dd,ee)-other->direction(dd,ee),2);
-        }
-    }
-    if(err > tol) {
+		}
+	}
+	if(err > tol) {
 		cerr << "This: " << endl << *this << endl;
 		cerr << "Other: " << endl << *other << endl;
-        return false;
+		return false;
 	}
 
-    if(checksize) {
+	if(checksize) {
 		for(size_t dd=0; dd<rank; dd++) {
 			if(dim(dd) != other->dim(dd)) {
 				cerr << "This: " << endl << *this << endl;
 				cerr << "Other: " << endl << *other << endl;
 				return false;
 			}
-        }
-    }
+		}
+	}
 
-    return true;
+	return true;
 };
 
 

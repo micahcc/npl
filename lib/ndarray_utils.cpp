@@ -2150,7 +2150,7 @@ ptr<NDArray> concat(const vector<ptr<NDArray>>& images, size_t dir)
 	// iterate through, make highest dimension slowest
 	NDIter<double> oit(oimg);
 	vector<size_t> order;
-	for(int64_t ii=ndim; ii>= 0; ii--) {
+	for(int64_t ii=ndim-1; ii>= 0; ii--) {
 		if(ii != dir)
 			order.push_back(ii);
 	}
