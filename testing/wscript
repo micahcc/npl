@@ -252,6 +252,22 @@ def build(bld):
 			source='json_write3.cpp',
 			use='nplio')
 
+	#csv tests
+	bld.program(install_path='${PREFIX}/tests', features='test',
+			target='txt_write1',
+			source='txt_write1.cpp',
+			use='nplio')
+
+	bld.program(install_path='${PREFIX}/tests', features='test',
+			target='txt_write2',
+			source='txt_write2.cpp',
+			use='nplio')
+
+	bld.program(install_path='${PREFIX}/tests', features='test',
+			target='txt_write3',
+			source='txt_write3.cpp',
+			use='nplio')
+
 	# Test Fourier Domain
 	bld.program(install_path='${PREFIX}/tests', features='test',
 			target='fft_test',
