@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file json_write1.cpp Creates a new image then reads it back
+ * @file txt_write2.cpp Creates a random ndarray and re-reads the data
  *
  *****************************************************************************/
 
 #include <iostream>
+#include <iomanip>
 
 #include "mrimage.h"
 #include "nplio.h"
@@ -29,64 +30,40 @@ using namespace npl;
 int main()
 {
 	// create an image
-	size_t sz[] = {2, 1, 4, 3};
-    Eigen::VectorXd neworigin(4);
-    neworigin << 1.3, 75, 9, 0;
+	size_t sz[] = {4, 30};
+	vector<double> tmp(sz[0]*sz[1]);
+	for(size_t ii=0; ii<sz[1]*sz[0]; ii++)
+		tmp[ii] = (double)100*rand()/(double)RAND_MAX;
     
-    Eigen::VectorXd newspacing(4);
-    newspacing << 4.3, 4.7, 1.2, .3;
-
-    Eigen::MatrixXd newdir(4,4);
-    newdir << 
-            -0.16000, -0.98424,  0.07533, 0,
-            0.62424, -0.16000, -0.76467, 0,
-            0.76467, -0.07533,  0.64000, 0, 
-                  0,        0,        0, 1;
-
-    {
-        auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, FLOAT64);
-
+	{
+        auto in = createNDArray(sizeof(sz)/sizeof(size_t), sz, FLOAT64);
         NDIter<double> sit(in);
         for(int ii=0; !sit.eof(); ++sit, ++ii) {
-            sit.set(ii);
+            sit.set(tmp[ii]);
         }
-        in->setOrient(neworigin, newspacing, newdir);
-        in->write("test.json");
+        in->write("test_txt2.txt.gz");
     }
 
     {
-        auto reread = dPtrCast<MRImage>(readMRImage("test.json"));
+        auto reread = dPtrCast<MRImage>(readMRImage("test_txt2.txt.gz"));
         
         NDIter<double> sit(reread);
         for(int ii=0; !sit.eof(); ++sit, ++ii) {
-            if(*sit != ii) {
-                cerr << "Value Mismatch!" << endl; 
+            if(*sit != tmp[ii]) {
+                cerr << "Value Mismatch! " << setprecision(20) << *sit 
+					<< " vs " << setprecision(20) << tmp[ii] << endl; 
                 return -1;
             }
         }
 
-        if(reread->type() != FLOAT64) {
+        if(reread->type() != FLOAT32) {
             cerr << "Type Mismatch!" << endl;
             return -1;
         }
-
-        if(reread->getOrigin() != neworigin) {
-            cerr << "Origin Mismatch" << endl;
-            return -1;
-        }
-        
-        if(reread->getSpacing() != newspacing) {
-            cerr << "Spacing Mismatch" << endl;
-            return -1;
-        }
-        
-        if(reread->getDirection() != newdir) {
-            cerr << "Direction Mismatch" << endl;
-            return -1;
-        }
-
     }
 	return 0;
 }
+
+
 
 

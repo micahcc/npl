@@ -751,7 +751,7 @@ protected:
  * @tparam T	Pixel type
  */
 template <size_t D, typename T>
-		class MRImageStore :  public virtual NDArrayStore<D,T>, public virtual MRImage
+class MRImageStore :  public virtual NDArrayStore<D,T>, public virtual MRImage
 {
 
 public:
@@ -805,8 +805,7 @@ public:
 	 * @param deleter Function to use to delete (free) ptr
 	 */
 	MRImageStore(size_t len, const size_t* size, T* ptr,
-					const std::function<void(void*)>& deleter) ;
-
+					const std::function<void(void*)>& deleter);
 
 	/**
 	 * @brief Default constructor, uses identity for direction matrix, 1 for

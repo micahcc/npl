@@ -43,7 +43,7 @@ int writeNifti2Image(MRImage* out, gzFile file);
  */
 template <size_t D,typename T>
 MRImageStore<D,T>::MRImageStore(std::initializer_list<size_t> a_args) :
-    NDArrayStore<D,T>(a_args), MRImage()
+	NDArrayStore<D,T>(a_args), MRImage()
 {
 	orientDefault();
 }
@@ -59,9 +59,9 @@ template <size_t D,typename T>
 MRImageStore<D,T>::MRImageStore(const std::vector<size_t>& dim) :
 	NDArrayStore<D,T>(dim), MRImage()
 {
-    m_direction.resize(D,D);
-    m_origin.resize(D);
-    m_spacing.resize(D);
+	m_direction.resize(D,D);
+	m_origin.resize(D);
+	m_spacing.resize(D);
 	orientDefault();
 }
 
@@ -69,20 +69,20 @@ template <size_t D,typename T>
 MRImageStore<D,T>::MRImageStore(size_t len, const size_t* size) :
 	NDArrayStore<D,T>(len, size), MRImage()
 {
-    m_direction.resize(D,D);
-    m_origin.resize(D);
-    m_spacing.resize(D);
+	m_direction.resize(D,D);
+	m_origin.resize(D);
+	m_spacing.resize(D);
 	orientDefault();
 }
 
 template <size_t D,typename T>
 MRImageStore<D,T>::MRImageStore(size_t len, const size_t* size, T* ptr,
-        const std::function<void(void*)>& deleter) :
+		const std::function<void(void*)>& deleter) :
 	NDArrayStore<D,T>(len, size, ptr, deleter), MRImage()
 {
-    m_direction.resize(D,D);
-    m_origin.resize(D);
-    m_spacing.resize(D);
+	m_direction.resize(D,D);
+	m_origin.resize(D);
+	m_spacing.resize(D);
 	orientDefault();
 }
 
@@ -90,9 +90,9 @@ template <size_t D,typename T>
 MRImageStore<D,T>::MRImageStore() :
 	NDArrayStore<D,T>(), MRImage()
 {
-    m_direction.resize(D,D);
-    m_origin.resize(D);
-    m_spacing.resize(D);
+	m_direction.resize(D,D);
+	m_origin.resize(D);
+	m_spacing.resize(D);
 	orientDefault();
 }
 
@@ -109,7 +109,7 @@ void MRImage::orientDefault()
 			m_direction(ii,jj) = (ii==jj);
 	}
 
-    m_inv_direction = m_direction.inverse();
+	m_inv_direction = m_direction.inverse();
 }
 
 
@@ -132,7 +132,7 @@ void MRImage::orientDefault()
 * QFORM or SFORM
 */
 void MRImage::setOrient(const VectorXd& neworigin,
-        const VectorXd& newspace, const MatrixXd& newdir, bool reinit,
+		const VectorXd& newspace, const MatrixXd& newdir, bool reinit,
 		CoordinateT coord)
 {
 
@@ -147,7 +147,7 @@ void MRImage::setOrient(const VectorXd& neworigin,
 	}
 
 	m_coordinate = (CoordinateT)(((int)coord)|((int)m_coordinate));
-    m_inv_direction = m_direction.inverse();
+	m_inv_direction = m_direction.inverse();
 }
 
 /**
@@ -162,7 +162,7 @@ void MRImage::setOrient(const VectorXd& neworigin,
  */
 const double& MRImage::invdirection(int64_t row, int64_t col) const
 {
-    return m_direction(row, col);
+	return m_direction(row, col);
 }
 
 /**
@@ -177,7 +177,7 @@ const double& MRImage::invdirection(int64_t row, int64_t col) const
  */
 const double& MRImage::direction(int64_t row, int64_t col) const
 {
-    return m_direction(row, col);
+	return m_direction(row, col);
 }
 
 /**
@@ -189,7 +189,7 @@ const double& MRImage::direction(int64_t row, int64_t col) const
  */
 const MatrixXd& MRImage::getDirection() const
 {
-    return m_direction;
+	return m_direction;
 }
 
 /**
@@ -222,7 +222,7 @@ void MRImage::setDirection(const MatrixXd& newdir, bool reinit, CoordinateT coor
 	}
 
 	m_coordinate = (CoordinateT)(((int)coord)|((int)m_coordinate));
-    m_inv_direction = m_direction.inverse();
+	m_inv_direction = m_direction.inverse();
 }
 
 /**
@@ -235,7 +235,7 @@ void MRImage::setDirection(const MatrixXd& newdir, bool reinit, CoordinateT coor
  */
 double& MRImage::origin(int64_t row)
 {
-    return m_origin[row];
+	return m_origin[row];
 }
 
 /**
@@ -248,7 +248,7 @@ double& MRImage::origin(int64_t row)
  */
 const double& MRImage::origin(int64_t row) const
 {
-    return m_origin[row];
+	return m_origin[row];
 }
 
 /**
@@ -259,7 +259,7 @@ const double& MRImage::origin(int64_t row) const
  */
 const VectorXd& MRImage::getOrigin() const
 {
-    return m_origin;
+	return m_origin;
 }
 
 /**
@@ -277,13 +277,13 @@ const VectorXd& MRImage::getOrigin() const
  */
 void MRImage::setOrigin(const VectorXd& neworigin, bool reinit, CoordinateT coord)
 {
-    if(reinit) {
-        for(size_t ii=0; ii<m_origin.rows(); ii++)
-            m_origin[ii] = 0;
-    }
+	if(reinit) {
+		for(size_t ii=0; ii<m_origin.rows(); ii++)
+			m_origin[ii] = 0;
+	}
 
-    for(size_t jj=0; jj<neworigin.rows() && jj< m_origin.rows(); jj++)
-        origin(jj) = neworigin[jj];
+	for(size_t jj=0; jj<neworigin.rows() && jj< m_origin.rows(); jj++)
+		origin(jj) = neworigin[jj];
 
 	m_coordinate = (CoordinateT)(((int)coord)|((int)m_coordinate));
 }
@@ -298,7 +298,7 @@ void MRImage::setOrigin(const VectorXd& neworigin, bool reinit, CoordinateT coor
  */
 double& MRImage::spacing(int64_t row)
 {
-    return m_spacing[row];
+	return m_spacing[row];
 }
 
 /**
@@ -311,7 +311,7 @@ double& MRImage::spacing(int64_t row)
  */
 const double& MRImage::spacing(int64_t row) const
 {
-    return m_spacing[row];
+	return m_spacing[row];
 }
 
 /**
@@ -322,7 +322,7 @@ const double& MRImage::spacing(int64_t row) const
  */
 const VectorXd& MRImage::getSpacing() const
 {
-    return m_spacing;
+	return m_spacing;
 }
 
 /**
@@ -337,13 +337,13 @@ const VectorXd& MRImage::getSpacing() const
  */
 void MRImage::setSpacing(const VectorXd& newspacing, bool reinit)
 {
-    if(reinit) {
-        for(size_t ii=0; ii<m_spacing.rows(); ii++)
-            m_spacing[ii] = 0;
-    }
+	if(reinit) {
+		for(size_t ii=0; ii<m_spacing.rows(); ii++)
+			m_spacing[ii] = 0;
+	}
 
-    for(size_t jj=0; jj<newspacing.rows() && jj< m_spacing.rows(); jj++)
-        spacing(jj) = newspacing(jj);
+	for(size_t jj=0; jj<newspacing.rows() && jj< m_spacing.rows(); jj++)
+		spacing(jj) = newspacing(jj);
 }
 
 
@@ -432,8 +432,11 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 				return -1;
 			}
 		}
-    } else if(nogz.size() >= 5 && nogz.substr(nogz.size()-5, 5) == ".json") {
-        writeJSON(gz);
+	} else if(nogz.size() >= 5 && nogz.substr(nogz.size()-5, 5) == ".json") {
+		writeJSON(gz);
+	} else if(nogz.size() >= 4 && (nogz.substr(nogz.size()-4, 4) == ".txt"
+				|| nogz.substr(nogz.size()-4, 4) == ".csv")) {
+		this->writeCSV(gz);
 	} else {
 		std::cerr << "Unknown filetype: " << nogz.substr(nogz.rfind('.'))
 			<< std::endl;
@@ -448,71 +451,71 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 template <size_t D, typename T>
 int MRImageStore<D,T>::writeJSON(gzFile file) const
 {
-    ostringstream oss;
-    oss << "{\n\"version\" : \"" << __version__<< "\",\n\"comment\" : \"supported "
-        "type variables: uint8, int16, int32, float, cfloat, double, RGB, "
-        "int8, uint16, uint32, int64, uint64, quad, cdouble, cquad, RGBA\",\n";
-    oss << "\"type\": " << '"' << pixelTtoString(type()) << "\",\n";
-    oss << "\"size\": [";
-    for(size_t ii=0; ii<D; ii++) {
-        if(ii) oss << ", ";
-        oss << dim(ii);
-    }
-    oss << "],\n";
+	ostringstream oss;
+	oss << "{\n\"version\" : \"" << __version__<< "\",\n\"comment\" : \"supported "
+		"type variables: uint8, int16, int32, float, cfloat, double, RGB, "
+		"int8, uint16, uint32, int64, uint64, quad, cdouble, cquad, RGBA\",\n";
+	oss << "\"type\": " << '"' << pixelTtoString(type()) << "\",\n";
+	oss << "\"size\": [";
+	for(size_t ii=0; ii<D; ii++) {
+		if(ii) oss << ", ";
+		oss << dim(ii);
+	}
+	oss << "],\n";
 
-    oss << "\"spacing\": [";
-    for(size_t ii=0; ii<D; ii++) {
-        if(ii) oss << ", ";
-        oss << spacing(ii);
-    }
-    oss << "],\n";
+	oss << "\"spacing\": [";
+	for(size_t ii=0; ii<D; ii++) {
+		if(ii) oss << ", ";
+		oss << spacing(ii);
+	}
+	oss << "],\n";
 
-    oss << "\"origin\": [";
-    for(size_t ii=0; ii<D; ii++) {
-        if(ii) oss << ", ";
-        oss << origin(ii);
-    }
-    oss << "],\n";
+	oss << "\"origin\": [";
+	for(size_t ii=0; ii<D; ii++) {
+		if(ii) oss << ", ";
+		oss << origin(ii);
+	}
+	oss << "],\n";
 
-    oss << "\"direction\":\n[";;
-    for(size_t ii=0; ii<D; ii++) {
-        if(ii) oss << ",\n";
-        oss << "[";
-        for(size_t jj=0; jj<D; jj++) {
-            if(jj) oss << ", ";
-            oss << direction(ii, jj);
-        }
-        oss << "]";
-    }
-    oss << "],\n";
+	oss << "\"direction\":\n[";;
+	for(size_t ii=0; ii<D; ii++) {
+		if(ii) oss << ",\n";
+		oss << "[";
+		for(size_t jj=0; jj<D; jj++) {
+			if(jj) oss << ", ";
+			oss << direction(ii, jj);
+		}
+		oss << "]";
+	}
+	oss << "],\n";
 
-    int64_t index[D];
-    oss << "\"values\" : ";
-    for(NDConstIter<T> it(getConstPtr()); !it.eof(); ++it) {
-        it.index(D, index);
-        if(index[D-1] == 0)
-            oss << "\n";
-        for(int64_t dd=D-1; dd>=0; dd--) {
-            if(index[dd] == 0) {
-                oss << "[";
-            } else {
-                break;
-            }
-        }
-        oss << *it;;
-        for(int64_t dd=D-1; dd>=0; dd--) {
-            if(index[dd] == dim(dd)-1) {
-                oss << "]";
-            } else {
-                oss << ", ";
-                break;
-            }
-        }
-    }
-    oss << "\n}\n";
+	int64_t index[D];
+	oss << "\"values\" : ";
+	for(NDConstIter<T> it(getConstPtr()); !it.eof(); ++it) {
+		it.index(D, index);
+		if(index[D-1] == 0)
+			oss << "\n";
+		for(int64_t dd=D-1; dd>=0; dd--) {
+			if(index[dd] == 0) {
+				oss << "[";
+			} else {
+				break;
+			}
+		}
+		oss << *it;;
+		for(int64_t dd=D-1; dd>=0; dd--) {
+			if(index[dd] == dim(dd)-1) {
+				oss << "]";
+			} else {
+				oss << ", ";
+				break;
+			}
+		}
+	}
+	oss << "\n}\n";
 
-    if(gzwrite(file, oss.str().c_str(), oss.str().length()) > 0)
-        return 0;
+	if(gzwrite(file, oss.str().c_str(), oss.str().length()) > 0)
+		return 0;
 	return -1;
 }
 
@@ -839,13 +842,13 @@ ptr<MRImage> MRImageStore<D,T>::cloneImage() const
 	auto out = std::make_shared<MRImageStore<D,T>>(newdims);
 
 	out->m_slice_timing   = m_slice_timing;
-	out->m_freqdim        = m_freqdim;
-	out->m_phasedim       = m_phasedim;
-	out->m_slicedim       = m_slicedim;
+	out->m_freqdim		= m_freqdim;
+	out->m_phasedim	   = m_phasedim;
+	out->m_slicedim	   = m_slicedim;
 	out->m_slice_duration = m_slice_duration;
-	out->m_slice_start    = m_slice_start;
-	out->m_slice_end      = m_slice_end;
-	out->m_slice_order    = m_slice_order;
+	out->m_slice_start	= m_slice_start;
+	out->m_slice_end	  = m_slice_end;
+	out->m_slice_order	= m_slice_order;
 
 	size_t total = 1;
 	for(size_t ii=0; ii<D; ii++)
@@ -853,7 +856,7 @@ ptr<MRImage> MRImageStore<D,T>::cloneImage() const
 
 	out->m_direction = m_direction;
 	out->m_spacing   = m_spacing;
-	out->m_origin    = m_origin;
+	out->m_origin	= m_origin;
 	for(size_t ii=0; ii<D; ii++)
 		out->m_units[ii] = m_units[ii];
 
@@ -885,30 +888,30 @@ template <size_t D, typename T>
 int MRImageStore<D,T>::indexToPoint(size_t len, const int64_t* index,
 			double* rast) const
 {
-    Matrix<double, D, 1> vindex;
-    Matrix<double, D, 1> vpoint;
-    // copy in
-    for(size_t ii=0; ii<len && ii<D; ii++)
-        vindex[ii] = index[ii];
-    for(size_t ii=len; ii<D; ii++)
-        vindex[ii] = 0;
+	Matrix<double, D, 1> vindex;
+	Matrix<double, D, 1> vpoint;
+	// copy in
+	for(size_t ii=0; ii<len && ii<D; ii++)
+		vindex[ii] = index[ii];
+	for(size_t ii=len; ii<D; ii++)
+		vindex[ii] = 0;
 
-    // apply transform
-    // vpoint = m_direction*(vindex.array()*spacing.array())+origin;
-    for(size_t rr = 0; rr<D; rr++) {
-        vpoint[rr] = 0;
-        for(size_t cc = 0; cc < D; cc++)
-            vpoint[rr] += m_direction(rr,cc)*vindex[cc]*spacing(cc);
-        vpoint[rr] += origin(rr);
-    }
+	// apply transform
+	// vpoint = m_direction*(vindex.array()*spacing.array())+origin;
+	for(size_t rr = 0; rr<D; rr++) {
+		vpoint[rr] = 0;
+		for(size_t cc = 0; cc < D; cc++)
+			vpoint[rr] += m_direction(rr,cc)*vindex[cc]*spacing(cc);
+		vpoint[rr] += origin(rr);
+	}
 
-    // copy out
-    for(size_t ii=0; ii<D && ii<len; ii++)
-        rast[ii] = vpoint[ii];
-    for(size_t ii=D; ii<len; ii++)
+	// copy out
+	for(size_t ii=0; ii<D && ii<len; ii++)
+		rast[ii] = vpoint[ii];
+	for(size_t ii=D; ii<len; ii++)
 		rast[ii] = 0;
 
-    return 0;
+	return 0;
 }
 
 /**
@@ -927,30 +930,30 @@ template <size_t D, typename T>
 int MRImageStore<D,T>::indexToPoint(size_t len, const double* index,
 			double* rast) const
 {
-    Matrix<double, D, 1> vindex;
-    Matrix<double, D, 1> vpoint;
-    // copy in
-    for(size_t ii=0; ii<len && ii<D; ii++)
-        vindex[ii] = index[ii];
-    for(size_t ii=len; ii<D; ii++)
-        vindex[ii] = 0;
+	Matrix<double, D, 1> vindex;
+	Matrix<double, D, 1> vpoint;
+	// copy in
+	for(size_t ii=0; ii<len && ii<D; ii++)
+		vindex[ii] = index[ii];
+	for(size_t ii=len; ii<D; ii++)
+		vindex[ii] = 0;
 
-    // apply transform
-    // vpoint = m_direction*(vindex.array()*spacing.array())+origin;
-    for(size_t rr = 0; rr<D; rr++) {
-        vpoint[rr] = 0;
-        for(size_t cc = 0; cc < D; cc++)
-            vpoint[rr] += m_direction(rr,cc)*vindex[cc]*spacing(cc);
-        vpoint[rr] += origin(rr);
-    }
+	// apply transform
+	// vpoint = m_direction*(vindex.array()*spacing.array())+origin;
+	for(size_t rr = 0; rr<D; rr++) {
+		vpoint[rr] = 0;
+		for(size_t cc = 0; cc < D; cc++)
+			vpoint[rr] += m_direction(rr,cc)*vindex[cc]*spacing(cc);
+		vpoint[rr] += origin(rr);
+	}
 
-    // copy out
-    for(size_t ii=0; ii<D && ii<len; ii++)
-        rast[ii] = vpoint[ii];
-    for(size_t ii=D; ii<len; ii++)
-        rast[ii] = 0;
+	// copy out
+	for(size_t ii=0; ii<D && ii<len; ii++)
+		rast[ii] = vpoint[ii];
+	for(size_t ii=D; ii<len; ii++)
+		rast[ii] = 0;
 
-    return 0;
+	return 0;
 }
 
 /**
@@ -969,31 +972,31 @@ template <size_t D, typename T>
 int MRImageStore<D,T>::pointToIndex(size_t len, const double* rast,
 			double* index) const
 {
-    Matrix<double, D, 1> vindex;
-    Matrix<double, D, 1> vpoint;
-    // copy in
-    for(size_t ii=0; ii<len && ii<D; ii++)
-        vpoint[ii] = rast[ii];
-    for(size_t ii=len; ii<D; ii++)
-        vpoint[ii] = 0;
+	Matrix<double, D, 1> vindex;
+	Matrix<double, D, 1> vpoint;
+	// copy in
+	for(size_t ii=0; ii<len && ii<D; ii++)
+		vpoint[ii] = rast[ii];
+	for(size_t ii=len; ii<D; ii++)
+		vpoint[ii] = 0;
 
-    // apply transform
-    // vindex = (m_inv_direction*(vpoint-origin)).array()/spacing.array();
-    for(size_t rr = 0; rr<D; rr++) {
-        vindex[rr] = 0;
-        for(size_t cc = 0; cc < D; cc++)
-            vindex[rr] += m_inv_direction(rr,cc)*(vpoint[cc]-origin(cc));
+	// apply transform
+	// vindex = (m_inv_direction*(vpoint-origin)).array()/spacing.array();
+	for(size_t rr = 0; rr<D; rr++) {
+		vindex[rr] = 0;
+		for(size_t cc = 0; cc < D; cc++)
+			vindex[rr] += m_inv_direction(rr,cc)*(vpoint[cc]-origin(cc));
 
-        vindex[rr] /= spacing(rr);
-    }
+		vindex[rr] /= spacing(rr);
+	}
 
-    // copy out
-    for(size_t ii=0; ii<len && ii<D; ii++)
-        index[ii] = vindex[ii];
-    for(size_t ii=D; ii<len; ii++)
+	// copy out
+	for(size_t ii=0; ii<len && ii<D; ii++)
+		index[ii] = vindex[ii];
+	for(size_t ii=D; ii<len; ii++)
 		index[ii] = 0;
 
-    return 0;
+	return 0;
 }
 
 /**
@@ -1012,31 +1015,31 @@ template <size_t D, typename T>
 int MRImageStore<D,T>::pointToIndex(size_t len, const double* rast,
 			int64_t* index) const
 {
-    Matrix<double, D, 1> vindex;
-    Matrix<double, D, 1> vpoint;
-    // copy in
-    for(size_t ii=0; ii<len && ii<D; ii++)
-        vpoint[ii] = rast[ii];
-    for(size_t ii=len; ii<D; ii++)
-        vpoint[ii] = 0;
+	Matrix<double, D, 1> vindex;
+	Matrix<double, D, 1> vpoint;
+	// copy in
+	for(size_t ii=0; ii<len && ii<D; ii++)
+		vpoint[ii] = rast[ii];
+	for(size_t ii=len; ii<D; ii++)
+		vpoint[ii] = 0;
 
-    // apply transform
-    // vindex = (m_inv_direction*(vpoint-origin)).array()/spacing.array();
-    for(size_t rr = 0; rr<D; rr++) {
-        vindex[rr] = 0;
-        for(size_t cc = 0; cc < D; cc++)
-            vindex[rr] += m_inv_direction(rr,cc)*(vpoint[cc]-origin(cc));
+	// apply transform
+	// vindex = (m_inv_direction*(vpoint-origin)).array()/spacing.array();
+	for(size_t rr = 0; rr<D; rr++) {
+		vindex[rr] = 0;
+		for(size_t cc = 0; cc < D; cc++)
+			vindex[rr] += m_inv_direction(rr,cc)*(vpoint[cc]-origin(cc));
 
-        vindex[rr] /= spacing(rr);
-    }
+		vindex[rr] /= spacing(rr);
+	}
 
-    // copy out
-    for(size_t ii=0; ii<D && ii<len; ii++)
-        index[ii] = round(vindex[ii]);
-    for(size_t ii=D; ii<len; ii++)
-        index[ii] = 0;
+	// copy out
+	for(size_t ii=0; ii<D && ii<len; ii++)
+		index[ii] = round(vindex[ii]);
+	for(size_t ii=D; ii<len; ii++)
+		index[ii] = 0;
 
-    return 0;
+	return 0;
 }
 
 /**
@@ -1054,27 +1057,27 @@ int MRImageStore<D,T>::pointToIndex(size_t len, const double* rast,
  */
 template <size_t D, typename T>
 int MRImageStore<D,T>::orientVector(size_t len, const double* xyz,
-        double* ras) const
+		double* ras) const
 {
-    Matrix<double, D, 1> vInd;
-    Matrix<double, D, 1> vRAS;
+	Matrix<double, D, 1> vInd;
+	Matrix<double, D, 1> vRAS;
 
-    // copy in
-    for(size_t ii=0; ii<len && ii<D; ii++)
-        vInd[ii] = xyz[ii];
-    for(size_t ii=len; ii<D; ii++)
-        vInd[ii] = 0;
+	// copy in
+	for(size_t ii=0; ii<len && ii<D; ii++)
+		vInd[ii] = xyz[ii];
+	for(size_t ii=len; ii<D; ii++)
+		vInd[ii] = 0;
 
-    // apply transform
-    vRAS = m_direction*(vInd.array()*m_spacing.array()).matrix();
+	// apply transform
+	vRAS = m_direction*(vInd.array()*m_spacing.array()).matrix();
 
-    // copy out
-    for(size_t ii=0; ii<D && ii<len; ii++)
-        ras[ii] = vRAS[ii];
-    for(size_t ii=D; ii<len; ii++)
-        ras[ii] = 0;
+	// copy out
+	for(size_t ii=0; ii<D && ii<len; ii++)
+		ras[ii] = vRAS[ii];
+	for(size_t ii=D; ii<len; ii++)
+		ras[ii] = 0;
 
-    return 0;
+	return 0;
 }
 
 /**
@@ -1093,26 +1096,26 @@ int MRImageStore<D,T>::orientVector(size_t len, const double* xyz,
  */
 template <size_t D, typename T>
 int MRImageStore<D,T>::disOrientVector(size_t len, const double* ras,
-        double* xyz) const
+		double* xyz) const
 {
-    Matrix<double, D, 1> vInd;
-    Matrix<double, D, 1> vRAS;
-    // copy in
-    for(size_t ii=0; ii<len && ii<D; ii++)
-        vRAS[ii] = ras[ii];
-    for(size_t ii=len; ii<D; ii++)
-        vRAS[ii] = 0;
+	Matrix<double, D, 1> vInd;
+	Matrix<double, D, 1> vRAS;
+	// copy in
+	for(size_t ii=0; ii<len && ii<D; ii++)
+		vRAS[ii] = ras[ii];
+	for(size_t ii=len; ii<D; ii++)
+		vRAS[ii] = 0;
 
-    // apply transform
-    vInd = (m_inv_direction*vRAS).array()/m_spacing.array();
+	// apply transform
+	vInd = (m_inv_direction*vRAS).array()/m_spacing.array();
 
-    // copy out
-    for(size_t ii=0; ii<D && ii<len; ii++)
-        xyz[ii] = vInd[ii];
-    for(size_t ii=D; ii<len; ii++)
-        xyz[ii] = 0;
+	// copy out
+	for(size_t ii=0; ii<D && ii<len; ii++)
+		xyz[ii] = vInd[ii];
+	for(size_t ii=D; ii<len; ii++)
+		xyz[ii] = 0;
 
-    return 0;
+	return 0;
 }
 
 /**
@@ -1129,8 +1132,8 @@ int MRImageStore<D,T>::disOrientVector(size_t len, const double* ras,
 template <size_t D, typename T>
 bool MRImageStore<D,T>::pointInsideFOV(size_t len, const double* ras) const
 {
-    int64_t ind[D];
-    pointToIndex(len, ras, ind);
+	int64_t ind[D];
+	pointToIndex(len, ras, ind);
 
 	for(size_t ii=0; ii<D; ii++) {
 		if(ind[ii] < 0 || ind[ii] >= this->_m_dim[ii])
@@ -1225,7 +1228,7 @@ ptr<NDArray> MRImageStore<D,T>::createAnother() const
  */
 template <size_t D, typename T>
 ptr<NDArray> MRImageStore<D,T>::createAnother(size_t newdims,
-        const size_t* newsize, PixelT newtype) const
+		const size_t* newsize, PixelT newtype) const
 {
 	auto out = dPtrCast<MRImage>(createMRImage(newdims, newsize, newtype));
 	out->copyMetadata(getConstPtr());
@@ -1256,7 +1259,7 @@ ptr<NDArray> MRImageStore<D,T>::createAnother(PixelT newtype) const
  *
  * @param newdims Number of dimensions in output array
  * @param newsize Input array of length newdims that gives the size of
- *                output array,
+ *				output array,
  *
  * @return Image with identical orientation and pixel type but different
  * size from this
@@ -1349,18 +1352,18 @@ ptr<NDArray> MRImageStore<D,T>::copyCast(size_t newdims,
  * the overlapping segments of the new and old image will be copied. Also note
  * that index[] will not be accessed above ndim()
  *
- * @param len     Length of index/newsize arrays
+ * @param len	 Length of index/newsize arrays
  * @param index   ROI Index to start copying from.
- * @param size    ROI size. Note length 0 dimensions will be removed, while
+ * @param size	ROI size. Note length 0 dimensions will be removed, while
  * length 1 dimensions will be left.
  *
  * @return Image with overlapping sections cast and copied from 'in'
  */
 template <size_t D, typename T>
 ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
-        const size_t* size) const
+		const size_t* size) const
 {
-    return extractCast(len, index, size, type());
+	return extractCast(len, index, size, type());
 }
 
 /**
@@ -1372,7 +1375,7 @@ ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
  * input image. If this happens, then data will still be extracted, but only
  * the overlapping segments of the new and old image will be copied.
  *
- * @param len     Length of index/size arrays
+ * @param len	 Length of index/size arrays
  * @param index   Index to start copying from.
  * @param size Size of output image. Note length 0 dimensions will be
  * removed, while length 1 dimensions will be left.
@@ -1381,9 +1384,9 @@ ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
  */
 template <size_t D, typename T>
 ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len,
-        const size_t* size) const
+		const size_t* size) const
 {
-    return extractCast(len, NULL, size, type());
+	return extractCast(len, NULL, size, type());
 }
 
 /**
@@ -1391,7 +1394,7 @@ ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len,
  * smaller in each dimension, an have less than or equal to the number of input
  * dimensions.
  *
- * @param len     Length of index/size arrays
+ * @param len	 Length of index/size arrays
  * @param index   Index to start copying from.
  * @param size Size of output image. Note length 0 dimensions will be
  * removed, while length 1 dimensions will be left.
@@ -1401,55 +1404,55 @@ ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len,
  */
 template <size_t D, typename T>
 ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
-        const size_t* size, PixelT newtype) const
+		const size_t* size, PixelT newtype) const
 {
-    assert(size);
-    assert(len < 10);
+	assert(size);
+	assert(len < 10);
 
-    int64_t ilower[D];
+	int64_t ilower[D];
 	size_t isize[D];
 
-    size_t newdim = 0;
-    size_t newsize[10];
-    int64_t olower[10];
+	size_t newdim = 0;
+	size_t newsize[10];
+	int64_t olower[10];
 
-    // determine output size
-    for(size_t dd=0; dd<len && dd<D; dd++) {
-        if(size[dd] > 0) {
-            newsize[newdim] = size[dd];
-            olower[newdim] = 0;
-            newdim++;
-        }
-    }
+	// determine output size
+	for(size_t dd=0; dd<len && dd<D; dd++) {
+		if(size[dd] > 0) {
+			newsize[newdim] = size[dd];
+			olower[newdim] = 0;
+			newdim++;
+		}
+	}
 
-    // create ROI in input image
-    for(size_t dd=0; dd<D; dd++) {
-        if(dd < len) {
-            if(index)
-                ilower[dd] = index[dd];
-            else
-                ilower[dd] = 0;
+	// create ROI in input image
+	for(size_t dd=0; dd<D; dd++) {
+		if(dd < len) {
+			if(index)
+				ilower[dd] = index[dd];
+			else
+				ilower[dd] = 0;
 
-            if(size[dd] > 0)
-                isize[dd] = size[dd];
-            else
-                isize[dd] = 1;
+			if(size[dd] > 0)
+				isize[dd] = size[dd];
+			else
+				isize[dd] = 1;
 
-        } else {
-            ilower[dd] = 0;
-            isize[dd] = 1;
-        }
+		} else {
+			ilower[dd] = 0;
+			isize[dd] = 1;
+		}
 
-        if(size[dd]+ilower[dd] > dim(dd)) {
-            throw INVALID_ARGUMENT("Extracted Region is outside the input "
-                    "image FOV");
-        }
-    }
+		if(size[dd]+ilower[dd] > dim(dd)) {
+			throw INVALID_ARGUMENT("Extracted Region is outside the input "
+					"image FOV");
+		}
+	}
 
-    // create output
-    auto out = dPtrCast<MRImage>(
+	// create output
+	auto out = dPtrCast<MRImage>(
 			createMRImage(newdim, newsize, newtype));
-    copyROI(getConstPtr(), ilower, isize, out, olower, newsize, newtype);
+	copyROI(getConstPtr(), ilower, isize, out, olower, newsize, newtype);
 
 	// copy spacing, origin and direction to out
 	size_t odim1=0;
@@ -1499,7 +1502,7 @@ ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
  * the input array. Index assumed to be [0,0,...], so the output image will
  * start at the origin of this image.
  *
- * @param len     Length of index/size arrays
+ * @param len	 Length of index/size arrays
  * @param size Size of output image. Note length 0 dimensions will be
  * removed, while length 1 dimensions will be left.
  * @param newtype Pixel type of output image.
@@ -1508,9 +1511,9 @@ ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len, const int64_t* index,
  */
 template <size_t D, typename T>
 ptr<NDArray> MRImageStore<D,T>::extractCast(size_t len,
-        const size_t* size, PixelT newtype) const
+		const size_t* size, PixelT newtype) const
 {
-    return extractCast(len, NULL, size, newtype);
+	return extractCast(len, NULL, size, newtype);
 }
 
 
