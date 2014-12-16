@@ -440,14 +440,15 @@ template <size_t D, typename T>
 int NDArrayStore<D,T>::writeCSV(gzFile file) const
 {
 	ostringstream oss;
-	int64_t index[D];
-	for(NDConstIter<T> it(getConstPtr()); !it.eof(); ++it) {
-		it.index(D, index);
-		if(index[D-1] == 0)
+	ChunkConstIter<T> it(getConstPtr());
+	it.setLineChunk(0);
+	for(it.goBegin(); !it.eof(); it.nextChunk()) {
+		for(; !it.eoc(); ++it) {
+			oss << *it << ",";
+		}
+		if(!it.eof()) {
 			oss << "\n";
-		else
-			oss << ",";
-		oss << *it;
+		}
 	}
 
 	if(gzwrite(file, oss.str().c_str(), oss.str().length()) > 0)

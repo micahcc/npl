@@ -30,6 +30,7 @@
 
 #include <string>
 #include <iostream>
+#include <iomanip>
 using std::string;
 using std::to_string;
 using std::cerr;
@@ -954,17 +955,6 @@ vector<vector<string>> gzReadCSV(gzFile file, char& delim, char comment = '#')
 }
 
 /**
- * @brief Reads a comma, space or semicolon delimited file with each line as
- * the x dimension and each image
- *
- * @param file
- * @param ignore
- * @param makearray
- *
- * @return
- */
-
-/**
  * @brief Reads a column, space or semicolon delimited file where the columns
  * and rows correspond to the dimensions specified.
  *
@@ -994,32 +984,44 @@ ptr<NDArray> readTxtImage(gzFile file, bool makearray = false,
 	vector<size_t> size(odim, 1);
 	size[rowdim] = raw[0].size();
 	size[coldim] = raw.size();
+	cerr << "Row Size: " << size[rowdim] << " Col Size: " 
+		<< size[coldim] << endl;
 
 	// Determine Type
 	bool signed_dec = true; // only hexadecimal
 	bool unsigned_dec = true; // positive integral numbers
-	bool unsigned_hex = true; // hexadecimal
 	bool ftype = true; // float
 
 	int tmp_i;
 	unsigned int tmp_u;
 	float tmp_f;
+	char* endptr;
 	for(size_t ii=0; ii<raw.size(); ii++) {
 		for(size_t jj=0; jj<raw[ii].size(); jj++) {
-			if(sscanf(raw[ii][jj].c_str(), "%u", &tmp_u) != 1)
-				unsigned_dec = false;
-			if(sscanf(raw[ii][jj].c_str(), "%d", &tmp_i) != 1)
+			string str = raw[ii][jj];
+			
+			// Test Signed
+			tmp_i = strtol(str.c_str(), &endptr, 0);
+			if(errno == EINVAL || endptr-str.c_str() != str.size()) {
 				signed_dec = false;
-			if(sscanf(raw[ii][jj].c_str(), "%x", &tmp_u) != 1)
-				unsigned_hex = false;
-			if(sscanf(raw[ii][jj].c_str(), "%f", &tmp_f) != 1)
+				unsigned_dec = false;
+			} else if(tmp_i < 0)
+				unsigned_dec = false;
+
+			// Test Float
+			tmp_f = strtod(str.c_str(), &endptr);
+			if(errno == EINVAL || endptr-str.c_str() != str.size())
 				ftype = false;
+
+			cerr << str << ": " << unsigned_dec << ", " << signed_dec 
+				<< ", " << ftype << endl;
 		}
 	}
 
 	// Create Image with Correct Type
 	ptr<NDArray> out;
 	if(unsigned_dec) {
+		cerr << "UINT32" << endl;
 		if(makearray)
 			out = createNDArray(odim, size.data(), UINT32);
 		else
@@ -1030,26 +1032,13 @@ ptr<NDArray> readTxtImage(gzFile file, bool makearray = false,
 		it.goBegin();
 		for(size_t ii=0; ii<raw.size(); ii++, it.nextChunk()) {
 			for(size_t jj=0; jj<raw[ii].size(); jj++, ++it) {
-				sscanf(raw[ii][jj].c_str(), "%u", &tmp_u);
+				tmp_u = atol(raw[ii][jj].c_str());
 				it.set(tmp_u);
 			}
-		}
-	} else if(unsigned_hex) {
-		if(makearray)
-			out = createNDArray(odim, size.data(), UINT32);
-		else
-			out = createMRImage(odim, size.data(), UINT32);
-
-		ChunkIter<unsigned int> it(out);
-		it.setLineChunk(rowdim);
-		it.goBegin();
-		for(size_t ii=0; ii<raw.size(); ii++, it.nextChunk()) {
-			for(size_t jj=0; jj<raw[ii].size(); jj++, ++it) {
-				sscanf(raw[ii][jj].c_str(), "%x", &tmp_u);
-				it.set(tmp_u);
-			}
+			cerr << endl;
 		}
 	} else if(signed_dec) {
+		cerr << "INT32" << endl;
 		if(makearray)
 			out = createNDArray(odim, size.data(), INT32);
 		else
@@ -1060,11 +1049,14 @@ ptr<NDArray> readTxtImage(gzFile file, bool makearray = false,
 		it.goBegin();
 		for(size_t ii=0; ii<raw.size(); ii++, it.nextChunk()) {
 			for(size_t jj=0; jj<raw[ii].size(); jj++, ++it) {
-				sscanf(raw[ii][jj].c_str(), "%d", &tmp_i);
+				tmp_i = atoi(raw[ii][jj].c_str());
+				cerr << raw[ii][jj] << ", ";
 				it.set(tmp_i);
 			}
+			cerr << endl;
 		}
 	} else if(ftype) {
+		cerr << "FTYPE" << endl;
 		if(makearray)
 			out = createNDArray(odim, size.data(), FLOAT32);
 		else
@@ -1075,9 +1067,11 @@ ptr<NDArray> readTxtImage(gzFile file, bool makearray = false,
 		it.goBegin();
 		for(size_t ii=0; ii<raw.size(); ii++, it.nextChunk()) {
 			for(size_t jj=0; jj<raw[ii].size(); jj++, ++it) {
-				sscanf(raw[ii][jj].c_str(), "%f", &tmp_f);
+				tmp_f = atof(raw[ii][jj].c_str());
+				cerr << std::setprecision(10) << raw[ii][jj] << "f, ";
 				it.set(tmp_f);
 			}
+			cerr << endl;
 		}
 	}
 
