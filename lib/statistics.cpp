@@ -131,20 +131,24 @@ MatrixXd pcacov(const MatrixXd& cov, double varth)
 /**
  * @brief Computes the Principal Components of input matrix X
  *
- * Outputs reduced dimension (fewer cols) in output. Note that prio to this,
- * the columns of X should be 0 mean. 
- *
- * TODO put math here
+ * Outputs reduced dimension (fewer cols) in output. Note that prior to this,
+ * the columns of X should be 0 mean otherwise the first component will
+ * be the mean
  *
  * @param X 	RxC matrix where each column row is a sample, each column a
  *              dimension (or feature). The number of columns in the output
  *              will be fewer because there will be fewer features
- * @param varth Variance threshold. Don't include dimensions after this percent
- *              of the variance has been explained.
+ * @param varth Variance threshold. This is the ratio (0-1) of variance to
+ * include in the output. This is used to determine the dimensionality of the
+ * output. If this is 1 then all variance will be included. If this < 1 and
+ * odim > 0 then whichever gives a larger output dimension will be selected. 
+ * @param odim Threshold for output dimensions. If this is <= 0 then it is
+ * ignored, if it is > 0 then max(dim(varth), odim) is used as the output
+ * dimension.
  *
  * @return 		RxP matrix, where P is the number of principal components
  */
-MatrixXd pca(const MatrixXd& X, double varth)
+MatrixXd pca(const MatrixXd& X, double varth, int odim)
 {
     varth=1-varth; 
 
@@ -173,6 +177,10 @@ MatrixXd pca(const MatrixXd& X, double varth)
             << "\nCreating Reduced MatrixXd..." << std::endl;
 #endif //DEBUG
 
+	// Merge the two dimension estimation results
+	outdim = max(odim, outdim);
+
+	// Return whitened signal
     MatrixXd Xr(X.rows(), outdim);
 	for(int rr=0; rr<X.rows(); rr++) {
 		for(int cc=0; cc<outdim ; cc++) {
