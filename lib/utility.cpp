@@ -121,13 +121,13 @@ string chomp(string str)
 
 	if(begin == (int)str.size())
 		return string("");
-	
+
 	for(end = str.size()-1; end >= 0 && isspace(str[end]); end--)
 		continue;
 
 	if(end < 0) //this can't happen
 		end = str.length()-1;
-	
+
 	return str.substr(begin, end-begin+1);
 }
 
@@ -163,7 +163,7 @@ vector<string> parseLine(std::string line, string delim)
 			string tmp = chomp(line.substr(prev, pos-prev));
 			if(tmp.length() != 0)
 				out.push_back(tmp);
-			
+
 			//move past delimiter
 			pos++;
 
@@ -193,14 +193,14 @@ vector<string> parseLine(std::string line, string delim)
  */
 vector<vector<string>> readStrCSV(string filename, char& delim, char comment)
 {
-    std::ifstream fin(filename.c_str());
+	std::ifstream fin(filename.c_str());
 
 	if(!fin.is_open()) {
 		cerr << "Couldn't open:  " << filename << endl;
 		return vector<vector<string>>();
 	}
 
-    std::string line;
+	std::string line;
 	vector<string> tmparr;
 
 	list<vector<string> > outstore;
@@ -210,13 +210,13 @@ vector<vector<string>> readStrCSV(string filename, char& delim, char comment)
 	int maxwidth = 0;
 	int priority = 2;
 
-    std::string delims[] = {";", " \t", ","};
+	std::string delims[] = {";", " \t", ","};
 
 	/* Start trying delimiters. Priority is in reverse order so the last that
 	 * grants the same number of outputs on a line and isn't 1 is given the
 	 * highest priority
 	 */
-	
+
 	//grab the first few lines
 	list<string> firstlines;
 	for(int ii = 0 ; !fin.eof(); ii++ ) {
@@ -250,9 +250,9 @@ vector<vector<string>> readStrCSV(string filename, char& delim, char comment)
 		}
 	}
 
-    if(delims[priority].length() > 0)
-        delim = delims[priority][0];
-			
+	if(delims[priority].length() > 0)
+		delim = delims[priority][0];
+
 	//re-process first 10 lines using the proper delimiter
 	list<string>::iterator it = firstlines.begin();
 	minwidth = numeric_limits<int>::max();
@@ -281,7 +281,7 @@ vector<vector<string>> readStrCSV(string filename, char& delim, char comment)
 		if(line[0] == comment || tmp[0] == comment || tmp.size() == 0) {
 			continue;
 		}
-		
+
 		tmparr = parseLine(line, delims[priority]);
 		if((int)tmparr.size() < minwidth) {
 			minwidth = tmparr.size();
@@ -306,7 +306,7 @@ vector<vector<string>> readStrCSV(string filename, char& delim, char comment)
 			<< "differences in the number of fields per line" << endl;
 	}
 
-    return out;
+	return out;
 }
 
 /**
@@ -329,7 +329,7 @@ std::vector<std::vector<double>> readNumericCSV(string filename, char comment)
 {
 
 	vector<vector<string>> tmp = readStrCSV(filename, comment);
-	
+
 	//allocate output data
 	std::vector<std::vector<double>> out(tmp.size());
 	for(unsigned int rr = 0 ; rr < out.size(); rr++) {
@@ -338,14 +338,14 @@ std::vector<std::vector<double>> readNumericCSV(string filename, char comment)
 			out[rr][cc] = atof(tmp[rr][cc].c_str());
 		}
 	}
-	
+
 	return out;
 }
 
 /**
  * @brief Takes a 1 or 3 column format of regressor and produces
  * a timeseries sampeled every tr, starting at time t0, and running
- * for ntimes. 
+ * for ntimes.
  *
  * 3 column format:
  *
@@ -360,19 +360,19 @@ std::vector<std::vector<double>> readNumericCSV(string filename, char comment)
  * @param ntimes
  * @param t0
  *
- * @return 
+ * @return
  */
-vector<double> getRegressor(vector<vector<double>>& spec, 
+vector<double> getRegressor(vector<vector<double>>& spec,
 		double tr, size_t ntimes, double t0)
 {
 	const double upsample = 200;
 	assert(!spec.empty());
-	if(spec.empty()) 
+	if(spec.empty())
 		return vector<double>();
 
 	vector<double> out(ntimes);
 	vector<double> tseries(ntimes*upsample);
-	
+
 	// fill tseries with 0's
 	for(int ii=0; ii < tseries.size(); ii++)
 		tseries[ii] = 0;
@@ -387,12 +387,12 @@ vector<double> getRegressor(vector<vector<double>>& spec,
 			int64_t itstart  = lround((tstart-t0)*upsample/tr);
 			int64_t itstop = lround((tstop-t0)*upsample/tr);
 			for(int64_t it=itstart; it<=itstop; it++) {
-				if(it < 0 || it >= tseries.size()) 
+				if(it < 0 || it >= tseries.size())
 					continue;
 
 				if(!warned && tseries[it] != 0) {
 					cerr << "Warning, overlapping specification in 3 column "
-						"format: " << spec[ii][0] << " " << spec[ii][1] << " " 
+						"format: " << spec[ii][0] << " " << spec[ii][1] << " "
 						<< spec[ii][2] << endl;
 					warned = true;
 				}
@@ -400,7 +400,7 @@ vector<double> getRegressor(vector<vector<double>>& spec,
 			}
 		}
 	} else if(spec[0].size() == 1) {
-		
+
 		// find the points closes to the spec points and make them ones
 		for(size_t ii=0; ii<spec.size(); ii++) {
 			double tstart=spec[ii][0];
@@ -410,7 +410,7 @@ vector<double> getRegressor(vector<vector<double>>& spec,
 			}
 		}
 	} else {
-		cerr << "Unrecognized format provided to for " 
+		cerr << "Unrecognized format provided to for "
 			<< spec[0].size() << " cols." << endl;
 		return vector<double>();
 	}
@@ -433,7 +433,7 @@ vector<double> getRegressor(vector<vector<double>>& spec,
  * @param k 		Shape parameter
  * @param theta 	Scale parameter
  *
- * @return 
+ * @return
  */
 double gammaPDF(double x, double k, double theta)
 {
@@ -471,7 +471,7 @@ double cannonHrf(double t, double rdelay, double udelay, double rdisp,
 	if(t < 0 || t > total)
 		return 0;
 
-	double u = t-onset; 
+	double u = t-onset;
 	double g1 = gammaPDF(u, rdelay/rdisp, 1/rdisp);
 	double g2 = gammaPDF(u, udelay/udisp, 1/udisp);
 	return g1 - g2/puRatio;
@@ -482,7 +482,7 @@ double cannonHrf(double t, double rdelay, double udelay, double rdisp,
  *
  * @param t	Time from stimulus
  *
- * @return 	Response level 
+ * @return 	Response level
  */
 double cannonHrf(double t)
 {
@@ -493,7 +493,7 @@ double cannonHrf(double t)
  * @brief Convolves a signal and a function using loops (not fast)
  *
  * @param signal
- * @param foo		
+ * @param foo
  * @param tr		TR of input array
  * @param length	Length of input kernel in time (foo will be sampled at
  *					these points)
@@ -502,14 +502,14 @@ void convolve(std::vector<double>& signal, double(*foo)(double),
 		double tr, double length)
 {
 	std::vector<double> kern(length/tr);
-	for(size_t ii=0; ii<kern.size(); ii++) 
+	for(size_t ii=0; ii<kern.size(); ii++)
 		kern[ii] = foo(ii*tr);
 
 	std::vector<double> tmp(signal);
 	for(int64_t ii=0; ii<signal.size(); ii++) {
 		signal[ii] = 0;
 		for(int64_t jj=0; jj<kern.size(); jj++) {
-			if(jj-ii >= 0) 
+			if(jj-ii >= 0)
 				signal[ii] += tmp[ii]*kern[jj-ii];
 		}
 	}
