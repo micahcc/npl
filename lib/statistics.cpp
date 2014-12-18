@@ -1724,81 +1724,119 @@ int fastSearchFindDP(const MatrixXf& samples, double thresh, double outthresh,
  *     test for convergence
  * end for
  *
+ * set v_k = bk for k = 1,2,, ...,p
+ * set p_c = p and I = nullset
+ * for j = 1,2,3,.... until convergence fo p_c = 0; do
+ * 		compute ||v_j||
+ * 		if v_j should be deflated:
+ * 			if j - p_c > 0
+ * 				I = I union {j - p_c}
+ * 			set p_c = p_c - 1
+ * 			if p_c = 0
+ * 				set j = j-1
+ * 				stop
+ * 			// remove v_j, shift all vectors down 1
+ * 			for k = j,j+1,...j+p_c-1
+ * 				vk = vk+1
+ * 			restart loop
+ *
  * @param V input/output the initial and final vectors
  */
-//void bandlanczos(const MaxtrixXd& A, list<VectorXd>& V)
-//{
-//	// TODO fill V with random values
-//	double DTOL = 1e-20;
-//	int64_t pc = V.size();
-//	vector<bool> I(V.size(), false);
-//	list<VectorXd>::iterator Vk, Vj, Vjpc;
-//
-//	// Size?
-//	// sparse MatrixXd T(V.size(), V.size());
-//	// sparse MatrixXd S(V.size(), V.size());
-//
-//	Vj = V.begin();
-//	for(int64_t jj=0; pc >= 0; jj++) {
-//		// compute norm(vj)
-//		double vnorm = Vj->norm();
-//		if(vnorm < DTOL) {
-//			/* Deflate */
-//			if(jj - pc >= 0) I[jj-pc] = true;
-//			if(--pc < 0) {
-//				jj--;
-//				break;
-//			}
-//
-//			//erase Vj and return to beginning with jj unchanged
-//			Vj = V.erase(Vj);
-//			jj--;
-//		}
-//
-//		// set t(j,j-pc) = norm(vj) and normalize vj
-//		if(jj-pc >= 0)
-//			T(jj, jj-pc) = vnorm;
-//		(*Vj) /= vnorm;
-//
-//		Vk = Vj; ++Vk;
-//		for(int64_t kk=jj+1; kk<jj+pc; kk++, ++Vk) {
-//			double val = (Vj->transpose()*(*Vk));
-//			if(kk - pc >= 0) T(jj, kk-pc) = val;
-//			*Vk -= (*Vj)*val;
-//		}
-//		Vjpc = Vk;
-//		*Vjpc = A*(*Vj);
-//		k0 = max(0, jj-pc);
-//		
-//		Vk = V.begin();
-//		for(int64_t kk=0; kk<k0; kk++, ++Vk) continue;
-//		for(int64_t kk=k0; kk<jj; kk++) {
-//			T(kk, jj) = T(jj,kk);
-//			*Vjpc -= (*Vk)*T(kk,jj);
-//		}
-//
-//		// iterator through k for (I UNION j)
-//		// temporarily add j to I
-//		bool jval = I[jj];
-//		I[jj] = true;
-//		Vk = V.begin();
-//		for(int64_t kk=0; kk<I.size(); ++Vk, kk++) {
-//			if(I[kk]) {
-//				T(kk,jj) = (Vk->transpose())*(*Vjpc);
-//				*Vjpc -= (*Vk)*T(kk,jj);
-//			}
-//		}
-//		I[jj] = jval;
-//
-//		Vk = V.begin();
-//		for(int64_t kk=0; kk<I.size(); ++Vk, kk++) {
-//			if(I[kk])
-//				S(jj,kk) = T(kk, jj);
-//		}
-//
-//		T.col(jj) += S.col(j);
-//	}
-//}
+void bandlanczos(const MaxtrixXd& A, std::vector<VectorXd>& V)
+{
+	const double dtol = 1e-20;
+
+	// I in text, the iterators to nonzero rows of T(d) as well as the index
+	// of them in nonzero_i
+	std::list<int64_t> nonzero;
+
+	std::unordered_map<std::pair<int, int> double> Tcache;
+	std::unordered_map<std::pair<int, int> double> Scache;
+
+	// V is the list of candidates
+	size_t pc = V.size(); 
+	int64_t jj=0;
+
+	while(pc > 0) {
+
+		// (3) compute ||v_j||
+		double Vjnorm = V[jj].norm();
+
+		// decide if vj should be deflated
+		if(Vjnorm < dtol) {
+
+			// if j-pc > 0 (switch to 0 based indexing), I = I U {j-pc}
+			if(jj-bandrad >= 0)
+				nonzero.push_back(jj-bandrad);
+
+			// set pc = pc - 1
+			if(--bandrad == 0) {
+				// if pc==0 set j = j-1 and stop
+				jj--;
+				break;
+			}
+
+			// for k = j , ... j+pc-1, set v_k = v_{k+1}
+			// return to step 3
+			// Erase Vj and leave jj the same
+			V.erase(jj);
+			continue;
+		}
+
+		// set t_{j,j-pc} = ||V_j||
+		// normalize vj = vj/t{j,j-pc}
+		V[jj] /= Vjnorm;
+
+		Tcache[make_pair(jj, jj-pc)] = Vjnorm;
+
+		// for k = j+1, j+2, ... j+pc-1
+		for(int64_t kk=jj+1; kk<jj+bandrad; ++vk, kk++) {
+			// set t_{j,k-pc} = v^T_j v_k
+			double vj_vk = V[jj].dot(V[kk]);
+			Tcache[make_pair(jj, kk-pc)] = vj_vk;
+
+			// v_k = v_k - v_j t_{j,k-p_c}
+			V[kk] -= V[jj]*vj_vk;
+		}
+
+		// compute v_{j+pc} = A v_j
+		V.append(A*V[jj]);
+
+		// set k_0 = max{1,j-pc} for k = k_0,k_0+1, ... j-1 set
+		for(int64_t kk = max(0l, jj-pc); kk < jj; kk++) {
+
+			// t_kj = t_jk
+			double tmp = Tcache[make_pair(jj,kk)];
+
+			// v_{j+pc} = v_{j+pc} - v_k t_{k,j}
+			V.back() -= V[kk]*tmp;
+		}
+
+		// for k in I 
+		for(auto kk: nonzero) {
+			// t_{k,j} = v_k v_{j+pc}
+			double vk_vjpc = V[kk].dot(V.back());
+
+			// v_{j+pc} = v_{j+pc} - v_k t_{k,j}
+			V.back() -= V[kk]*vk_vjpc;
+		}
+		// include jj 
+		{
+			// t_{k,j} = v_k v_{j+pc}
+			double vk_vjpc = V[kk].dot(V.back());
+			
+			// v_{j+pc} = v_{j+pc} - v_k t_{k,j}
+			V.back() -= V[kk]*vk_vjpc;
+		}
+
+		// for k in I, set s_{j,k} = t_{k,j}
+		for(auto kk: nonzer)
+			Scache[make_pair(jj, kk)] = Tcache[make_pair(kk, jj)];
+
+		/// CHECK CONVERGENCE
+	}
+
+}
 
 int sign(double v)
 {
