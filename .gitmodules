@@ -4,6 +4,3 @@
 [submodule "deps/mathparse"]
 	path = deps/mathparse
 	url = git@github.com:MicahChambers/mathparse.git
-[submodule "deps/matrixtools"]
-	path = deps/matrixtools
-	url = git@github.com:MicahChambers/cppMatrixTools.git
