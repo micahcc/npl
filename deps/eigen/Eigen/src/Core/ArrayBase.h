@@ -64,8 +64,7 @@ template<typename Derived> class ArrayBase
     using Base::MaxSizeAtCompileTime;
     using Base::IsVectorAtCompileTime;
     using Base::Flags;
-    using Base::CoeffReadCost;
-
+    
     using Base::derived;
     using Base::const_cast_derived;
     using Base::rows;
@@ -118,40 +117,57 @@ template<typename Derived> class ArrayBase
     /** Special case of the template operator=, in order to prevent the compiler
       * from generating a default operator= (issue hit with g++ 4.1)
       */
+    EIGEN_DEVICE_FUNC
     Derived& operator=(const ArrayBase& other)
     {
-      return internal::assign_selector<Derived,Derived>::run(derived(), other.derived());
+      internal::call_assignment(derived(), other.derived());
+      return derived();
     }
+    
+    /** Set all the entries to \a value.
+      * \sa DenseBase::setConstant(), DenseBase::fill() */
+    EIGEN_DEVICE_FUNC
+    Derived& operator=(const Scalar &value)
+    { Base::setConstant(value); return derived(); }
 
-    Derived& operator+=(const Scalar& scalar)
-    { return *this = derived() + scalar; }
-    Derived& operator-=(const Scalar& scalar)
-    { return *this = derived() - scalar; }
+    EIGEN_DEVICE_FUNC
+    Derived& operator+=(const Scalar& scalar);
+    EIGEN_DEVICE_FUNC
+    Derived& operator-=(const Scalar& scalar);
 
     template<typename OtherDerived>
+    EIGEN_DEVICE_FUNC
     Derived& operator+=(const ArrayBase<OtherDerived>& other);
     template<typename OtherDerived>
+    EIGEN_DEVICE_FUNC
     Derived& operator-=(const ArrayBase<OtherDerived>& other);
 
     template<typename OtherDerived>
+    EIGEN_DEVICE_FUNC
     Derived& operator*=(const ArrayBase<OtherDerived>& other);
 
     template<typename OtherDerived>
+    EIGEN_DEVICE_FUNC
     Derived& operator/=(const ArrayBase<OtherDerived>& other);
 
   public:
+    EIGEN_DEVICE_FUNC
     ArrayBase<Derived>& array() { return *this; }
+    EIGEN_DEVICE_FUNC
     const ArrayBase<Derived>& array() const { return *this; }
 
     /** \returns an \link Eigen::MatrixBase Matrix \endlink expression of this array
       * \sa MatrixBase::array() */
-    MatrixWrapper<Derived> matrix() { return derived(); }
-    const MatrixWrapper<const Derived> matrix() const { return derived(); }
+    EIGEN_DEVICE_FUNC
+    MatrixWrapper<Derived> matrix() { return MatrixWrapper<Derived>(derived()); }
+    EIGEN_DEVICE_FUNC
+    const MatrixWrapper<const Derived> matrix() const { return MatrixWrapper<const Derived>(derived()); }
 
 //     template<typename Dest>
 //     inline void evalTo(Dest& dst) const { dst = matrix(); }
 
   protected:
+    EIGEN_DEVICE_FUNC
     ArrayBase() : Base() {}
 
   private:
@@ -176,8 +192,7 @@ template<typename OtherDerived>
 EIGEN_STRONG_INLINE Derived &
 ArrayBase<Derived>::operator-=(const ArrayBase<OtherDerived> &other)
 {
-  SelfCwiseBinaryOp<internal::scalar_difference_op<Scalar>, Derived, OtherDerived> tmp(derived());
-  tmp = other.derived();
+  call_assignment(derived(), other.derived(), internal::sub_assign_op<Scalar>());
   return derived();
 }
 
@@ -190,8 +205,7 @@ template<typename OtherDerived>
 EIGEN_STRONG_INLINE Derived &
 ArrayBase<Derived>::operator+=(const ArrayBase<OtherDerived>& other)
 {
-  SelfCwiseBinaryOp<internal::scalar_sum_op<Scalar>, Derived, OtherDerived> tmp(derived());
-  tmp = other.derived();
+  call_assignment(derived(), other.derived(), internal::add_assign_op<Scalar>());
   return derived();
 }
 
@@ -204,8 +218,7 @@ template<typename OtherDerived>
 EIGEN_STRONG_INLINE Derived &
 ArrayBase<Derived>::operator*=(const ArrayBase<OtherDerived>& other)
 {
-  SelfCwiseBinaryOp<internal::scalar_product_op<Scalar>, Derived, OtherDerived> tmp(derived());
-  tmp = other.derived();
+  call_assignment(derived(), other.derived(), internal::mul_assign_op<Scalar,typename OtherDerived::Scalar>());
   return derived();
 }
 
@@ -218,8 +231,7 @@ template<typename OtherDerived>
 EIGEN_STRONG_INLINE Derived &
 ArrayBase<Derived>::operator/=(const ArrayBase<OtherDerived>& other)
 {
-  SelfCwiseBinaryOp<internal::scalar_quotient_op<Scalar>, Derived, OtherDerived> tmp(derived());
-  tmp = other.derived();
+  call_assignment(derived(), other.derived(), internal::div_assign_op<Scalar>());
   return derived();
 }
 

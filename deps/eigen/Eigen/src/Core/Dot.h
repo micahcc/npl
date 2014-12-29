@@ -29,6 +29,7 @@ template<typename T, typename U,
 struct dot_nocheck
 {
   typedef typename scalar_product_traits<typename traits<T>::Scalar,typename traits<U>::Scalar>::ReturnType ResScalar;
+  EIGEN_DEVICE_FUNC
   static inline ResScalar run(const MatrixBase<T>& a, const MatrixBase<U>& b)
   {
     return a.template binaryExpr<scalar_conj_product_op<typename traits<T>::Scalar,typename traits<U>::Scalar> >(b).sum();
@@ -39,6 +40,7 @@ template<typename T, typename U>
 struct dot_nocheck<T, U, true>
 {
   typedef typename scalar_product_traits<typename traits<T>::Scalar,typename traits<U>::Scalar>::ReturnType ResScalar;
+  EIGEN_DEVICE_FUNC
   static inline ResScalar run(const MatrixBase<T>& a, const MatrixBase<U>& b)
   {
     return a.transpose().template binaryExpr<scalar_conj_product_op<typename traits<T>::Scalar,typename traits<U>::Scalar> >(b).sum();
@@ -59,6 +61,7 @@ struct dot_nocheck<T, U, true>
   */
 template<typename Derived>
 template<typename OtherDerived>
+EIGEN_DEVICE_FUNC
 typename internal::scalar_product_traits<typename internal::traits<Derived>::Scalar,typename internal::traits<OtherDerived>::Scalar>::ReturnType
 MatrixBase<Derived>::dot(const MatrixBase<OtherDerived>& other) const
 {
@@ -72,34 +75,6 @@ MatrixBase<Derived>::dot(const MatrixBase<OtherDerived>& other) const
 
   return internal::dot_nocheck<Derived,OtherDerived>::run(*this, other);
 }
-
-#ifdef EIGEN2_SUPPORT
-/** \returns the dot product of *this with other, with the Eigen2 convention that the dot product is linear in the first variable
-  * (conjugating the second variable). Of course this only makes a difference in the complex case.
-  *
-  * This method is only available in EIGEN2_SUPPORT mode.
-  *
-  * \only_for_vectors
-  *
-  * \sa dot()
-  */
-template<typename Derived>
-template<typename OtherDerived>
-typename internal::traits<Derived>::Scalar
-MatrixBase<Derived>::eigen2_dot(const MatrixBase<OtherDerived>& other) const
-{
-  EIGEN_STATIC_ASSERT_VECTOR_ONLY(Derived)
-  EIGEN_STATIC_ASSERT_VECTOR_ONLY(OtherDerived)
-  EIGEN_STATIC_ASSERT_SAME_VECTOR_SIZE(Derived,OtherDerived)
-  EIGEN_STATIC_ASSERT((internal::is_same<Scalar, typename OtherDerived::Scalar>::value),
-    YOU_MIXED_DIFFERENT_NUMERIC_TYPES__YOU_NEED_TO_USE_THE_CAST_METHOD_OF_MATRIXBASE_TO_CAST_NUMERIC_TYPES_EXPLICITLY)
-
-  eigen_assert(size() == other.size());
-
-  return internal::dot_nocheck<OtherDerived,Derived>::run(other,*this);
-}
-#endif
-
 
 //---------- implementation of L2 norm and related functions ----------
 
@@ -138,8 +113,7 @@ template<typename Derived>
 inline const typename MatrixBase<Derived>::PlainObject
 MatrixBase<Derived>::normalized() const
 {
-  typedef typename internal::nested<Derived>::type Nested;
-  typedef typename internal::remove_reference<Nested>::type _Nested;
+  typedef typename internal::nested_eval<Derived,2>::type _Nested;
   _Nested n(derived());
   return n / n.norm();
 }
@@ -164,6 +138,7 @@ template<typename Derived, int p>
 struct lpNorm_selector
 {
   typedef typename NumTraits<typename traits<Derived>::Scalar>::Real RealScalar;
+  EIGEN_DEVICE_FUNC
   static inline RealScalar run(const MatrixBase<Derived>& m)
   {
     using std::pow;
@@ -174,6 +149,7 @@ struct lpNorm_selector
 template<typename Derived>
 struct lpNorm_selector<Derived, 1>
 {
+  EIGEN_DEVICE_FUNC
   static inline typename NumTraits<typename traits<Derived>::Scalar>::Real run(const MatrixBase<Derived>& m)
   {
     return m.cwiseAbs().sum();
@@ -183,6 +159,7 @@ struct lpNorm_selector<Derived, 1>
 template<typename Derived>
 struct lpNorm_selector<Derived, 2>
 {
+  EIGEN_DEVICE_FUNC
   static inline typename NumTraits<typename traits<Derived>::Scalar>::Real run(const MatrixBase<Derived>& m)
   {
     return m.norm();
@@ -192,6 +169,7 @@ struct lpNorm_selector<Derived, 2>
 template<typename Derived>
 struct lpNorm_selector<Derived, Infinity>
 {
+  EIGEN_DEVICE_FUNC
   static inline typename NumTraits<typename traits<Derived>::Scalar>::Real run(const MatrixBase<Derived>& m)
   {
     return m.cwiseAbs().maxCoeff();
@@ -227,8 +205,8 @@ template<typename OtherDerived>
 bool MatrixBase<Derived>::isOrthogonal
 (const MatrixBase<OtherDerived>& other, const RealScalar& prec) const
 {
-  typename internal::nested<Derived,2>::type nested(derived());
-  typename internal::nested<OtherDerived,2>::type otherNested(other.derived());
+  typename internal::nested_eval<Derived,2>::type nested(derived());
+  typename internal::nested_eval<OtherDerived,2>::type otherNested(other.derived());
   return numext::abs2(nested.dot(otherNested)) <= prec * prec * nested.squaredNorm() * otherNested.squaredNorm();
 }
 
