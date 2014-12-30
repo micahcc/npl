@@ -123,6 +123,16 @@ int main(int argc, char** argv)
 	size_t tlen = tsing*tcat; // total timelength
 	size_t slen = ssing*scat; // total spacelength
 	example.reset();
+
+	if(a_verbose.getValue() >= 1) {
+		cerr << "Data Dimensions: " << endl;
+		cerr << "# Concatination in Time: " << tcat << endl;
+		cerr << "# Concatination in Space : " << scat << endl;
+		cerr << "Single Image Time Size: " << tsing << endl;
+		cerr << "Single Image Space Size: " << ssing << endl;
+		cerr << "Total Time Size: " << tlen << endl;
+		cerr << "Toal Space Size: " << slen << endl;
+	}
 	
 	MatrixXd cov;
 
@@ -137,6 +147,8 @@ int main(int argc, char** argv)
 	// X = space x time
 	// Compute either M M^T or M^T M
 	if(tlen < slen) {
+		cerr << "Covariance of samples in space" << endl;
+
 		// Time is the dimesion in the covariance matrix, 
 		// thus computing X
 		cov.resize(tlen, tlen);
@@ -149,7 +161,8 @@ int main(int argc, char** argv)
 		for(size_t ss=0; ss<scat; ss++) { // big space 
 			for(size_t tt=0; tt<tcat; tt++) { // big time
 				example = readMRImage(a_in.getValue()[ss*tcat + tt]);
-				if(example->tlen() != tlen || example->elements() != ssing*tlen){
+				cerr << "Read " << a_in.getValue()[ss*tcat + tt] << "\n" << *example << endl;
+				if(example->tlen() != tsing || example->elements() != ssing*tsing){
 					cerr << "Error Image sizes differ!" << endl;
 					return -1;
 				}
@@ -164,11 +177,14 @@ int main(int argc, char** argv)
 			if(a_verbose.getValue() >= 2) 
 				cerr << "X_" << ss << " = " << endl << endl << buff << endl << endl;
 			cov += buff.transpose()*buff;
+			if(a_verbose.getValue() >= 3) 
+				cerr << "Intermediate Covariance:\n\n" << cov << endl << endl;
 		}
 
 		if(a_verbose.getValue() >= 2) 
 			cerr << "Final Covariance:\n\n" << cov << endl << endl;
 	} else {
+		cerr << "Covariance of samples in time" << endl;
 
 		// Space is the dimension in the covariance matrix
 		cov.resize(slen, slen);
@@ -181,7 +197,8 @@ int main(int argc, char** argv)
 		for(size_t tt=0; tt<tcat; tt++) { // big time
 			for(size_t ss=0; ss<scat; ss++) { // big space 
 				example = readMRImage(a_in.getValue()[ss*tcat + tt]);
-				if(example->tlen() != tlen || example->elements() != ssing*tlen){
+				cerr << "Read " << a_in.getValue()[ss*tcat+tt] << "\n" << *example << endl;
+				if(example->tlen() != tsing || example->elements() != ssing*tsing){
 					cerr << "Error Image sizes differ!" << endl;
 					return -1;
 				}
@@ -197,6 +214,8 @@ int main(int argc, char** argv)
 				cerr << "X_" << tt << " = " << endl << endl << buff << endl << endl;
 
 			cov += buff*buff.transpose();
+			if(a_verbose.getValue() >= 3) 
+				cerr << "Intermediate Covariance:\n\n" << cov << endl << endl;
 		}
 		
 		if(a_verbose.getValue() >= 2) 
