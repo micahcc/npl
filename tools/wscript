@@ -66,9 +66,9 @@ def build(bld):
 			source = 'generalLinearModel.cpp',
 			use = 'mrimage_utils statistics nplio EIGEN tclap utility basic_plot')
 
-	bld.program(target = 'nplICA',
+	bld.program(target = 'nplGICA',
 			install_path='${PREFIX}/tools_incomplete',
-			source = 'fmri_ica.cpp',
+			source = 'fmri_gica.cpp',
 			use = 'mrimage_utils nplio statistics tclap');
 
 	bld.program(target = 'nplhd',

@@ -984,9 +984,13 @@ ptr<NDArray> readTxtImage(gzFile file, bool makearray = false,
 	vector<size_t> size(odim, 1);
 	size[rowdim] = raw[0].size();
 	size[coldim] = raw.size();
-	cerr << "Row Size: " << size[rowdim] << " Col Size: " 
-		<< size[coldim] << endl;
 
+//	cerr << "Reading Into Image: ";
+//	for(size_t ii=0; ii<size.size(); ii++) {
+//		if(ii != 0) cerr << ", ";
+//		cerr << size[ii];
+//	}
+//
 	// Determine Type
 	bool signed_dec = true; // only hexadecimal
 	bool unsigned_dec = true; // positive integral numbers
@@ -1013,15 +1017,15 @@ ptr<NDArray> readTxtImage(gzFile file, bool makearray = false,
 			if(errno == EINVAL || endptr-str.c_str() != str.size())
 				ftype = false;
 
-			cerr << str << ": " << unsigned_dec << ", " << signed_dec 
-				<< ", " << ftype << endl;
+//			cerr << str << ": " << unsigned_dec << ", " << signed_dec 
+//				<< ", " << ftype << endl;
 		}
 	}
 
 	// Create Image with Correct Type
 	ptr<NDArray> out;
 	if(unsigned_dec) {
-		cerr << "UINT32" << endl;
+//		cerr << "UINT32" << endl;
 		if(makearray)
 			out = createNDArray(odim, size.data(), UINT32);
 		else
@@ -1035,10 +1039,9 @@ ptr<NDArray> readTxtImage(gzFile file, bool makearray = false,
 				tmp_u = strtoul(raw[ii][jj].c_str(), NULL, 0);
 				it.set(tmp_u);
 			}
-			cerr << endl;
 		}
 	} else if(signed_dec) {
-		cerr << "INT32" << endl;
+//		cerr << "INT32" << endl;
 		if(makearray)
 			out = createNDArray(odim, size.data(), INT32);
 		else
@@ -1050,13 +1053,11 @@ ptr<NDArray> readTxtImage(gzFile file, bool makearray = false,
 		for(size_t ii=0; ii<raw.size(); ii++, it.nextChunk()) {
 			for(size_t jj=0; jj<raw[ii].size(); jj++, ++it) {
 				tmp_i = strtol(raw[ii][jj].c_str(), NULL, 0);
-				cerr << raw[ii][jj] << ", ";
 				it.set(tmp_i);
 			}
-			cerr << endl;
 		}
 	} else if(ftype) {
-		cerr << "FTYPE" << endl;
+//		cerr << "FTYPE" << endl;
 		if(makearray)
 			out = createNDArray(odim, size.data(), FLOAT32);
 		else
@@ -1068,13 +1069,15 @@ ptr<NDArray> readTxtImage(gzFile file, bool makearray = false,
 		for(size_t ii=0; ii<raw.size(); ii++, it.nextChunk()) {
 			for(size_t jj=0; jj<raw[ii].size(); jj++, ++it) {
 				tmp_f = strtof(raw[ii][jj].c_str(), NULL);
-				cerr << raw[ii][jj] << " -> " << std::setprecision(20) << tmp_f << ", ";
 				it.set(tmp_f);
 			}
-			cerr << endl;
 		}
 	}
 
+//	for(FlatIter<double> it(out); !it.eof(); ++it) {
+//		cerr << *it << ", ";
+//	}
+//	cerr << endl;
 	return out;
 }
 

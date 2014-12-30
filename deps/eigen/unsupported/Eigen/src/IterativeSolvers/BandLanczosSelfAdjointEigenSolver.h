@@ -163,7 +163,10 @@ public:
     {
         init();
         eigen_assert(A.rows() == V.rows());
-        compute(A, V);
+        if(A.rows() != V.rows())
+            m_status = InvalidInput;
+        else
+            compute(A, V);
     };
 
     /**
@@ -179,6 +182,10 @@ public:
     void compute(const MatrixType& A, size_t randbasis)
     {
         eigen_assert(randbasis > 1);
+        if(randbasis <= 1) {
+            m_status = InvalidInput;
+            return;
+        }
 
         // Create Random Matrix
         m_proj.resize(A.rows(), randbasis);

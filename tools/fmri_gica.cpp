@@ -23,6 +23,7 @@
 #include <stdexcept>
 
 #include <Eigen/Dense>
+#include <Eigen/IterativeSolvers>
 
 #include "mrimage.h"
 #include "nplio.h"
@@ -37,30 +38,8 @@ using std::to_string;
 using namespace Eigen;
 using namespace npl;
 
-MatrixXd reduce(shared_ptr<const MRImage> in)
-{
-    if(in->ndim() != 4)
-        throw INVALID_ARGUMENT(": Input mmust be 4D!");
-	
-    return X_ic;
-}
-
-
-// Idea:
-// Reduce Data using PCA
-// Perform ICA on reduced-dimensional data
-//
-// PCA:
-// XW = P
-//
-// X - each row is a sample
-// P - each row is a reduced dimension sample
-// W - projects X into lower dimensional space
-//
-// example: X is 100x5
-//          T is 100x2
-//          W is 5x2
-// 
+TCLAP::MultiSwitchArg a_verbose("v", "verbose", "Write lots of output. "
+		"Be wary for large datasets!", 1);
 
 
 int main(int argc, char** argv)
@@ -75,10 +54,14 @@ int main(int argc, char** argv)
 			"By default this will be a temporal ICA. You can perform "
 			"group-analysis by concatinating in space or time. ORDER OF INPUTS "
 			"MATTERS IF YOU CONCATINATE IN BOTH. Concatination in time occurs "
-			"for adjacent arguments. So for -t 2 -s 2 -i a -i b -i c -i d"
-			"a and b will be concatinated in time and c and d will be "
-			"concatinated in time then ab and cd will be concatined in space.",
-			' ', __version__ );
+			"for adjacent arguments. So to concatinate (a+b and c+d) in time "
+			"then (ab+cd) in space you would do -t 2 -s 2 -i a -i b -i c -i d "
+			". To concatinate a+b+c and d+e+f in time then abc+def in space. "
+			"You sould do -t 3 -s 2 -i a -i b -i c -i d -i e -i f . Note that "
+			"for efficiency we assume all the images are the same size, in "
+			"the future there may be a way to explicity specify the final "
+			"dimensions. By default a Temporal ICA will be performed, to do a "
+			"spatial ICA select -S.", ' ', __version__ );
 
 	TCLAP::SwitchArg a_spatial_ica("S", "spatial-ica", "Perform a spatial ICA"
 			", reducing unmixing timepoints to produce spatially independent "
@@ -104,6 +87,22 @@ int main(int argc, char** argv)
             "is the basename from -i and $num is the component number",
             true, "./", "/", cmd);
 
+	TCLAP::ValueArg<double> a_evthresh("T", "ev-thresh", "Threshold on "
+			"ratio of total variance to account for (default 0.99)", false,
+			0.99, "ratio", cmd);
+	TCLAP::ValueArg<int> a_simultaneous("V", "simul-vectors", "Simultaneous "
+			"vectors to estimate eigenvectors for in lambda. Bump this up "
+			"if you have convergence issues. This is part of the "
+			"Band Lanczos Eigenvalue Decomposition of the covariance matrix. "
+			"By default the covariance size is used, which is conservative. "
+			"Values less than 1 will default back to that", false, -1, 
+			"#vecs", cmd);
+	TCLAP::ValueArg<int> a_maxrank("R", "max-rank", "Maximum rank of output "
+			"in PCA. This sets are hard limit on the number of estimated "
+			"eigenvectors in the Band Lanczos Solver (and thus the maximum "
+			"number of singular values in the SVD)", false, -1, "#vecs", cmd);
+
+	cmd.add(a_verbose);
 	cmd.parse(argc, argv);
 
 	/**********
@@ -113,161 +112,232 @@ int main(int argc, char** argv)
 		cerr << "Need to provide at least 1 input image!" << endl;
 		return -1;
 	}
-	size_t multT = a_time_append.getValue();
-	size_t multV = a_voxel_append.getValue();
 
-	if(a_spatial_ica.isSet()) {
-		cout << "Performing Spatial ICA" << endl;
-		// Covariance Method (since presumably there will be more voxels
-		// than timepoints
-		MatrixXd cov;
-		VectorXd row;
-		VectorXd mu;
-		MatrixXd timecat;
+	// read first image for example
+	auto example = readMRImage(a_in.getValue()[0]);
+
+	size_t tcat = a_time_append.getValue(); // subjects to concat in space
+	size_t scat = a_space_append.getValue(); // subjects to conctat in time
+	size_t tsing = example->tlen(); // single timelength
+	size_t ssing = example->elements()/example->tlen(); // single spacelength
+	size_t tlen = tsing*tcat; // total timelength
+	size_t slen = ssing*scat; // total spacelength
+	example.reset();
+	
+	MatrixXd cov;
+
+	/*
+	 * First Perform SVD
+	 */
+
+	if(a_verbose.getValue() >= 1) 
+		cerr << "Computing Covariance..." << endl;
+	
+	// Data is formed with 
+	// X = space x time
+	// Compute either M M^T or M^T M
+	if(tlen < slen) {
+		// Time is the dimesion in the covariance matrix, 
+		// thus computing X
+		cov.resize(tlen, tlen);
+		cov.setZero();
+
+		// Buffer to hold all timepoints at one time
+		// essientially X(ss*ssing:ss*ssing+ssing, :)
+		MatrixXd buff(ssing, tlen);
 		
-		// fill Matrix with values from inputs
-		size_t subT = 0;
-		size_t subV = 0;
-		size_t totalT = 0;
-		size_t totalV = 0;
-		cout << "Computing Covariance Matrix" << endl;
-		for(size_t ss = 0; ss < multV; ss++) {
-			cout << "Group (row)" << ss << endl;
-			for(size_t tt = 0; tt < multT; tt++) {
-				cout << "Subject " << a_in.getValue()[ss*multT + tt] << endl;
-				auto img = readMRImage(a_in.getValue()[ss*multT + tt]);
-
-				// Initialize subT/subV on first round
-				if(subT == 0 && subV == 0) {
-					subT = img->tlen();
-					subV = img->elements()/img->tlen();
-					cov.resize(multT*subT, multT*subT);
-					mu.resize(multT*subT);
-					timecat.resize(subV, subT*multT);
-				}
-
-				// Check Input Size
-				if(!SubT || img->tlen() != subT) {
-					cerr << "Image has different number of timepoints from the "
-						"rest " << a_in.getValue()[tt] << endl;
-					return -1;
-				}
-				if(!subV || img->elements()/img->tlen() != subV) {
-					cerr << "Image has different number of voxels from the "
-						"rest " << a_in.getValue()[tt] << endl;
+		for(size_t ss=0; ss<scat; ss++) { // big space 
+			for(size_t tt=0; tt<tcat; tt++) { // big time
+				example = readMRImage(a_in.getValue()[ss*tcat + tt]);
+				if(example->tlen() != tlen || example->elements() != ssing*tlen){
+					cerr << "Error Image sizes differ!" << endl;
 					return -1;
 				}
 
-				// Add each timeseries timecat
-				size_t rr = 0;
-				for(Vector3DIter<double> it(img); !it.eof(); ++rr, ++it) {
-					// iterate over subjects time
-					for(size_t st=0; st<img->tlen(); st++) 
-						timecat(rr, st+tt*subT) = it[st];
+				Vector3DIter<double> it(example);
+				for(size_t s=0; s<ssing; ++it, s++) { // small space
+					for(size_t t=0; t<tsing; t++) // small time
+						buff(s, t+tt*tsing) = it[t];
 				}
 			}
-
-			// Compute Mu/Cov from Timecat
-			mu += (timecat.colSums()).transpose();
-			cov += timecat.transpose()*timecat;
+			
+			if(a_verbose.getValue() >= 2) 
+				cerr << "X_" << ss << " = " << endl << endl << buff << endl << endl;
+			cov += buff.transpose()*buff;
 		}
 
-		mu /= subV*multV;
-		cov = cov/(subV*multV) - mu*mu.transpose();
-
-		// perform PCA
-		std::cerr << "PCA...";
-		MatrixXd X_pc = pcacov(cov, 0.01);
-		std::cerr << "Done " << endl;
-		data.resize(multV*subV, X_pc.cols());
-    
-		// Now go back and create reduced dataset
-		for(size_t ss = 0; ss < multV; ss++) {
-			for(size_t tt = 0; tt < multT; tt++) {
-				auto img = readMRImage(a_in.getValue()[ss*multT + tt]);
-
-				// Check Input Size
-				if(!SubT || img->tlen() != subT) {
-					cerr << "Image has different number of timepoints from the "
-						"rest " << a_in.getValue()[tt] << endl;
-					return -1;
-				}
-				if(!subV || img->elements()/img->tlen() != subV) {
-					cerr << "Image has different number of voxels from the "
-						"rest " << a_in.getValue()[tt] << endl;
-					return -1;
-				}
-
-				// Add each timeseries timecat
-				size_t rr = 0;
-				for(Vector3DIter<double> it(img); !it.eof(); ++rr, ++it) {
-					// iterate over subjects time
-					for(size_t st=0; st<img->tlen(); st++) 
-						timecat(rr, st+tt*subT) = it[st];
-				}
-			}
-
-			// Project Timecat 
-			data.block(ss*subV, subV, 0, X_pc.cols()) = X_pc*timecat;
-		}
+		if(a_verbose.getValue() >= 2) 
+			cerr << "Final Covariance:\n\n" << cov << endl << endl;
 	} else {
-		// SVD Method (since presumably there will be more voxels than 
-		// timepoints)
-		cout << "Performing Temporal ICA" << endl;
 
-		size_t times = 0;
-		size_t voxels = 0;
-		size_t row = 0;
-		size_t col = 0;
-		size_t rr = 0;
-		size_t cc = 0;
-		for(size_t ss = 0; ss < multV; ss++) {
-			cout << "Group (col)" << ss << endl;
-			for(size_t tt = 0; tt < multT; tt++) {
-				cout << "Subject " << a_in.getValue()[ss*multT + tt] << endl;
-				auto img = readMRImage(a_in.getValue()[ss*multT + tt]);
-
-				// Initialize subT/subV on first round
-				if(subT == 0 && subV == 0) {
-					subT = img->tlen();
-					subV = img->elements()/img->tlen();
-					data.resize(subT*multT, subV*multV);
-				}
-
-				// Check Input Size
-				if(!SubT || img->tlen() != subT) {
-					cerr << "Image has different number of timepoints from the "
-						"rest " << a_in.getValue()[tt] << endl;
-					return -1;
-				}
-				if(!subV || img->elements()/img->tlen() != subV) {
-					cerr << "Image has different number of voxels from the "
-						"rest " << a_in.getValue()[tt] << endl;
+		// Space is the dimension in the covariance matrix
+		cov.resize(slen, slen);
+		cov.setZero();
+	
+		// Buffer to hold all spatial elements at one time
+		// essientially X(:,tt*tsing:tt*tsing+tsing)
+		MatrixXd buff(slen, tsing);
+		
+		for(size_t tt=0; tt<tcat; tt++) { // big time
+			for(size_t ss=0; ss<scat; ss++) { // big space 
+				example = readMRImage(a_in.getValue()[ss*tcat + tt]);
+				if(example->tlen() != tlen || example->elements() != ssing*tlen){
+					cerr << "Error Image sizes differ!" << endl;
 					return -1;
 				}
 
-				// Add each timeseries to data
-				size_t rr = 0;
-				for(Vector3DIter<double> it(img); !it.eof(); ++rr, ++it) {
-					// iterate over subjects time
-					for(size_t st=0; st<img->tlen(); st++) 
-						data(tt*subT + st, subV*ss + rr) = it[st];
+				Vector3DIter<double> it(example);
+				for(size_t s=0; s<ssing; ++it, s++) { // small space
+					for(size_t t=0; t<tsing; t++) // small time
+						buff(s+ss*ssing, t) = it[t];
 				}
 			}
-		}
+			
+			if(a_verbose.getValue() >= 2) 
+				cerr << "X_" << tt << " = " << endl << endl << buff << endl << endl;
 
+			cov += buff*buff.transpose();
+		}
 		
-		// perform PCA
-		std::cerr << "PCA...";
-		data = pca(data, 0.01);
-		std::cerr << "Done " << endl;
+		if(a_verbose.getValue() >= 2) 
+			cerr << "Final Covariance:\n\n" << cov << endl << endl;
 	}
 
-	// perform ICA
-	std::cerr << "ICA...";
-	MatrixXd X_ic = ica(X_pc, 0.01);
-	std::cerr << "Done" << endl;
+	if(a_verbose.getValue() >= 1) 
+		cerr << "Done with Covariance." << endl;
+	if(a_verbose.getValue() >= 2)
+		cerr << endl << cov << endl;
 
+	BandLanczosSelfAdjointEigenSolver<double> esolve;
+	
+	int simvecs = a_simultaneous.getValue();
+	if(simvecs <= 1) 
+		simvecs = cov.rows();
+
+	if(a_verbose.getValue() >= 1) {
+		cerr << "EigenSolving Covariance." << endl;
+		cerr << "Using " << simvecs << " simultaneous eigenvectors " << endl;
+		cerr << "Using " << a_evthresh.getValue() << "% of eigenvalues" << endl;
+	}
+	if(a_evthresh.isSet())
+		esolve.setTraceSqrStop(a_evthresh.getValue());
+	esolve.compute(cov, simvecs);
+
+	// Reduce singular values to > 0 components
+	int eigrows = esolve.eigenvalues().rows();
+	int rank = 0;
+	VectorXd singvals(eigrows);
+	for(int cc=0; cc<eigrows; cc++) {
+		if(esolve.eigenvalues()[cc] > 1e-10)
+			rank++;
+	}
+
+	if(a_verbose.getValue() >= 2)
+		cerr << "Singular Values: " << esolve.eigenvalues().tail(rank).transpose() << endl;
+
+	MatrixXd whitened;
+
+	// Note that because Eigen Solvers usually sort eigenvalues in
+	// increasing order but singular value decomposers do decreasing order,
+	// we need to reverse the singular value and singular vectors found.
+	if(tlen < slen) {
+		// Computed Covariance with time as dim, X^T X, so got right singular
+		// values, V
+		if(a_spatial_ica.isSet()) {
+			// X = USV*, U = XVS^-1
+			cerr << "Computing U from V, for spatial PCA\n";
+			whitened.resize(slen, rank);
+
+			cerr << "Computing Projection Matrix" << endl;
+			MatrixXd proj = esolve.eigenvectors().rightCols(rank)*
+				esolve.eigenvalues().tail(rank).cwiseInverse().asDiagonal();
+			cerr << "Done:\n\n" << proj << endl << endl; 
+
+			// Buffer to hold all timepoints at one time
+			MatrixXd buff(ssing, tlen);
+
+			for(size_t ss=0; ss<scat; ss++) { // big space 
+				for(size_t tt=0; tt<tcat; tt++) { // big time
+					example = readMRImage(a_in.getValue()[ss*tcat + tt]);
+					if(example->tlen() != tlen || example->elements() != ssing*tlen){
+						cerr << "Error Image sizes differ!" << endl;
+						return -1;
+					}
+
+					Vector3DIter<double> it(example);
+					for(size_t s=0; s<ssing; ++it, s++) { // small space
+						for(size_t t=0; t<tsing; t++) // small time
+							buff(s, t+tt*tsing) = it[t];
+					}
+				}
+
+				if(a_verbose.getValue() >= 2) 
+					cerr << "X_" << ss << " = " << endl << endl << buff << endl;
+				whitened.middleRows(ss*ssing, ssing) = buff*proj;
+				if(a_verbose.getValue() >= 2) 
+					cerr << "White:\n" << endl << whitened << endl << endl;
+			}
+		} else { 
+			// Already Have V
+			if(a_verbose.getValue() >= 2)
+				cerr << "Already have V, for spatial PCA\n";
+			whitened = esolve.eigenvectors().rightCols(rank);
+		}
+
+		if(a_verbose.getValue() >= 2)
+			cerr << "Done finding whitened data for spatial PCA\n";
+
+	} else {
+		// Computed left singular values (U), since we did X X^T
+		if(a_spatial_ica.isSet()) {
+			// Already Have U
+			if(a_verbose.getValue() >= 2)
+				cerr << "Already have U, for Spatial PCA\n";
+			whitened = esolve.eigenvectors().rightCols(rank);
+		} else {
+			// X = USV*, X^T = VSU*, V = X^T U S^-1
+			cerr << "Computing V from U, for Temporal PCA\n";
+			whitened.resize(tlen, rank);
+
+			cerr << "Computing Projection Matrix" << endl;
+			MatrixXd proj = esolve.eigenvectors().rightCols(rank)*
+				esolve.eigenvalues().tail(rank).cwiseInverse().asDiagonal();
+			cerr << "Done:\n\n" << proj << endl << endl; 
+			
+			// Buffer to hold all spatial elements at one time
+			MatrixXd buff(slen, tsing);
+
+			for(size_t tt=0; tt<tcat; tt++) { // big time
+				for(size_t ss=0; ss<scat; ss++) { // big space 
+					example = readMRImage(a_in.getValue()[ss*tcat + tt]);
+					if(example->tlen() != tlen || example->elements() != ssing*tlen){
+						cerr << "Error Image sizes differ!" << endl;
+						return -1;
+					}
+
+					Vector3DIter<double> it(example);
+					for(size_t s=0; s<ssing; ++it, s++) { // small space
+						for(size_t t=0; t<tsing; t++) // small time
+							buff(s+ss*ssing, t) = it[t];
+					}
+				}
+
+				if(a_verbose.getValue() >= 2) 
+					cerr << "X_" << tt << " = " << endl << endl << buff << endl;
+				
+				whitened.middleRows(tt*tsing, tsing) = buff.transpose()*proj;
+				if(a_verbose.getValue() >= 2) 
+					cerr << "White:\n" << endl << whitened << endl << endl;
+			}
+		}
+	}
+
+
+//	// perform ICA
+//	std::cerr << "ICA...";
+//	MatrixXd X_ic = ica(X_pc, 0.01);
+//	std::cerr << "Done" << endl;
+//
 //    // 
 //	MatrixXd regressors = reduce(inimg);
 //    for(size_t cc = 0; cc < regressors.cols(); cc++) {
