@@ -154,7 +154,7 @@ MatrixXd whiten(bool whiterows, int initrank, double varthresh, int maxrank,
 		initrank = std::max<int>(trows, tcols);
 
 	BandLanczosSelfAdjointEigenSolver<double> eig;
-	eig.setTraceSqrStop(INFINITY);
+	eig.setTraceSqrStop(varthresh);
 	eig.setRank(maxrank);
 	eig.compute(C, initrank);
 
@@ -378,18 +378,50 @@ int main(int argc, char** argv)
 	if(a_verbose.getValue() >= 1) 
 		cerr << "Computing Covariance..." << endl;
 
+	for(size_t ss=0; ss<scat; ss++) {
+		// Read in masked regions, subtract mean/divide by standard deviation,
+		// then save out to compact, 2D matrices
+		for(size_t tt=0; tt<tcat; tt++) {
+			readMRImage();
+			writeNDArray();
+		}
+	}
+
 	//MatrixLoader(int rows, int cols, int b_rows, int b_cols,
 	//		vector<string>& filenames)
 	MatrixLoader loader(tlen, slen, tsing, ssing, a_in.getValue());
-	MatrixXd white;
-//	try {
-		white = whiten(a_spatial_ica.isSet(), a_simultaneous.getValue(),
+	MatrixXd white = whiten(a_spatial_ica.isSet(), a_simultaneous.getValue(),
 				a_evthresh.getValue(), a_maxrank.getValue(), 1e-10, tlen, slen,
 				a_time_append.getValue(), a_space_append.getValue(), loader);
-//	} catch(std::string& s) {
-//		cerr << "Error Exception Occurred:\n" << s << endl;
-//	}
 
+	// Create Maps
+	if(a_spatial_ica.isSet()) {
+		for(int ss=0; ss<scat; ss++) {
+			for(int tt=0; tt<tcat; tt++) {
+				// Read Image
+				auto img = readMRImage(a_in.getValue()[ss*tcat + tt]);
+				MatrixXd X = imgToMatrix(img, true);
+				img.reset();
+
+				// Split Whitened spatial signal
+				MatrixXd regressors = white.middleRows(ss*ssing, ssing);
+				auto mapimg = regress(ts, );
+				mapimg->write(a_mapdir.getValue()+"_"+to_string(ss)+"_"+
+						to_string(tt)+".nii.gz");
+			}
+		}
+	} else {
+		for(int ss=0; ss<scat; ss++) {
+			for(int tt=0; tt<tcat; tt++) {
+				// Split Whitened time-series
+				MatrixXd ts = white.middleRows(tt*tsing, tsing);
+				auto mapimg = regress(ts, a_in.getValue()[ss*tcat + tt]);
+				mapimg->write(a_mapdir.getValue()+"_"+to_string(ss)+"_"+
+						to_string(tt)+".nii.gz");
+			}
+		}
+	}
+	
 	if(a_verbose.getValue() >= 3) {
 		cerr << "Whitened: " << endl << white << endl;
 	}
