@@ -191,18 +191,14 @@ public:
         m_proj.resize(A.rows(), randbasis);
         m_proj.setRandom();
 
-        // Normalize, Orthogonalize Each Column
+        // Normalize Each Column
         for(int cc=0; cc<m_proj.cols(); cc++) {
-            // Orthogonalize
-            for(int jj=0; jj<cc; jj++) {
-                Scalar vc_vj = m_proj.col(cc).dot(m_proj.col(jj));
-                m_proj.col(cc) -= m_proj.col(jj)*vc_vj;
-            }
-
-            // Normalize
+            
+			// Normalize
             m_proj.col(cc).normalize();
         }
 
+		cerr << m_proj << endl;
         _compute(A);
     };
 

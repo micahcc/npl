@@ -31,6 +31,8 @@
 #include "statistics.h"
 #include "macros.h"
 
+#define VERYVERBOSE
+
 using std::string;
 using std::shared_ptr;
 using std::to_string;
@@ -41,6 +43,239 @@ using namespace npl;
 TCLAP::MultiSwitchArg a_verbose("v", "verbose", "Write lots of output. "
 		"Be wary for large datasets!", 1);
 
+class MatrixLoader
+{
+public:
+	MatrixLoader(int rows, int cols, int b_rows, int b_cols,
+			const vector<string>& filenames)
+	{
+		m_sz[0] = rows;
+		m_sz[1] = cols;
+		m_bsz[0] = b_rows;
+		m_bsz[1] = b_cols;
+		m_chunks[0] = rows/b_rows;
+		m_chunks[1] = cols/b_cols;
+		assert(rows%b_rows == 0);
+		assert(cols%b_cols == 0);
+
+		m_fnames = filenames;
+	};
+
+	void load(MatrixXd& buffer, int buff_row, int buff_col, int brow, int bcol)
+	{
+		std::string fn = m_fnames[bcol*m_chunks[0]+brow];
+		auto img = readMRImage(fn);
+		if(!img || img->tlen() != m_bsz[0] || 
+				img->elements()/m_bsz[0]!= m_bsz[1]) {
+			throw std::string("Error reading ")+fn+
+				std::string(" or Image sizes differ!");
+		}
+		cerr << *img << endl;
+
+		Vector3DIter<double> it(img);
+		for(size_t s=0; s<m_bsz[1]; ++it, s++) { // small space
+			for(size_t t=0; t<m_bsz[0]; t++) // small time
+				buffer(buff_row+t, buff_col+s) = it[t];
+		}
+	};
+
+	vector<string> m_fnames;
+	int m_sz[2];
+	int m_bsz[2];
+	int m_chunks[2];
+};
+
+MatrixXd whiten(bool whiterows, int initrank, double varthresh, int maxrank,
+		double svthresh, int trows, int tcols, int rchunks, int cchunks, 
+		MatrixLoader& loader)
+{
+	MatrixXd whitened;
+	MatrixXd C;
+
+	/**************************************************************************
+	 * Load Individual Images and Concatinate to Produce Parts of X
+	 *************************************************************************/
+	if(trows > tcols) {
+#ifdef VERYVERBOSE
+		cerr << "Computing A^T*A" << endl;
+		cerr << endl << C << endl << endl;
+#endif //VERYVERBOSE
+		// Compute right singular vlaues (V)
+		C.resize(tcols, tcols);
+		C.setZero();
+
+		// we need to load entire rows (all cols) at a time
+		MatrixXd buffer(trows/rchunks, tcols);
+		for(int rr=0; rr<rchunks; rr++) {
+			for(int cc=0; cc<cchunks; cc++) {
+				loader.load(buffer, 0, cc*tcols/cchunks, rr, cc);
+			}
+#ifdef VERYVERBOSE
+			cerr << "Full Buffer " << rr << "\n" << buffer << endl << endl;
+#endif //VERYVERBOSE
+			C += buffer.transpose()*buffer;
+		}
+
+#ifdef VERYVERBOSE
+		cerr << "Computed A^T A" << endl;
+		cerr << endl << C << endl << endl;
+#endif //VERYVERBOSE
+	} else {
+#ifdef VERYVERBOSE
+		cerr << "Computing A*A^T" << endl;
+		cerr << endl << C << endl << endl;
+#endif //VERYVERBOSE
+		// Computed left singular values (U)
+		C.resize(trows, trows); 
+		C.setZero();
+
+		// we need to load entire cols (all rows) at a time
+		MatrixXd buffer(trows, tcols/cchunks);
+		for(int cc=0; cc<cchunks; cc++) {
+			for(int rr=0; rr<rchunks; rr++) {
+				loader.load(buffer, rr*trows/rchunks, 0, rr, cc);
+			}
+#ifdef VERYVERBOSE
+			cerr << "Full Buffer " << cc << "\n" << buffer << endl << endl;
+#endif //VERYVERBOSE
+			C += buffer*buffer.transpose();
+		}
+#ifdef VERYVERBOSE
+		cerr << "Computed A*A^T" << endl;
+		cerr << endl << C << endl << endl;
+#endif //VERYVERBOSE
+	}
+
+	/**************************************************************************
+	 * Perform EigenValue Decomp on either X^T X or X X^T
+	 *************************************************************************/
+	// This is a bit hackish, really the user should set this
+	if(initrank <= 1)
+		initrank = std::max<int>(trows, tcols);
+
+	BandLanczosSelfAdjointEigenSolver<double> eig;
+	eig.setTraceSqrStop(INFINITY);
+	eig.setRank(maxrank);
+	eig.compute(C, initrank);
+
+	if(eig.info() == NoConvergence) {
+		throw "Non-convergence!";
+	}
+
+#ifdef VERYVERBOSE
+	cerr << "Eigenvalues: " << eig.eigenvalues().transpose() << endl;
+	cerr << "EigenVectors: " << endl << eig.eigenvectors() << endl << endl;
+#endif //VERYVERBOSE
+	int eigrows = eig.eigenvalues().rows();
+	int rank = 0;
+	VectorXd singvals(eigrows);
+	for(int cc=0; cc<eigrows; cc++) {
+		if(eig.eigenvalues()[eigrows-1-cc] < svthresh)
+			singvals[cc] = 0;
+		else {
+			singvals[cc] = std::sqrt(eig.eigenvalues()[eigrows-1-cc]);
+			rank++;
+		}
+	}
+
+#ifdef VERYVERBOSE
+	for(int ee=0; ee<rank; ee++) {
+		double err = (eig.eigenvalues()[ee]*eig.eigenvectors().col(ee) -
+				C*eig.eigenvectors().col(ee)).squaredNorm();
+		cerr << "Error = " << err << endl;
+	}
+#endif //VERYVERBOSE
+
+	singvals.conservativeResize(rank);
+#ifdef VERYVERBOSE
+	cerr << "Singular Values: " << singvals.transpose() << endl;
+#endif //VERYVERBOSE
+
+	/**************************************************************************
+	 * If we want Independent Cols then we need U, for Independent Rows, V^T
+	 *************************************************************************/
+	// Note that because Eigen Solvers usually sort eigenvalues in
+	// increasing order but singular value decomposers do decreasing order,
+	// we need to reverse the singular value and singular vectors found.
+	if(trows > tcols) {
+		// Computed right singular vlaues (V)
+		// A = USV*, U = AVS^-1
+
+		// reverse and fill V
+		MatrixXd V(eig.eigenvectors().rows(), rank);
+		for(int cc=0; cc<rank; cc++)
+			V.col(cc) = eig.eigenvectors().col(eigrows-1-cc);
+
+#ifdef VERYVERBOSE
+		cerr << "V Matrix: " << endl << V << endl << endl;
+#endif //VERYVERBOSE
+
+		// Compute U if needed
+		if(!whiterows) {
+			cerr << "Whiten Columns, need to compute U" << endl;
+
+			// Need to load entire rows (all cols) of A, then set
+			// corresponding rows in U, U = A*VS;
+			MatrixXd VS = V*(singvals.cwiseInverse()).asDiagonal();
+			MatrixXd U(trows, rank);
+			MatrixXd buffer(trows/rchunks, tcols);
+			for(int rr=0; rr<rchunks; rr++) {
+				for(int cc=0; cc<cchunks; cc++) {
+					loader.load(buffer, 0, cc*tcols/cchunks, rr, cc);
+				}
+				U.middleRows(rr*trows/rchunks, trows/rchunks) = buffer*VS;
+#ifdef VERYVERBOSE
+				cerr << "Full Buffer " << rr << "\n" << buffer << endl << endl;
+				cerr << "Partial U" << rr << "\n" << U << endl << endl;
+#endif //VERYVERBOSE
+			}
+
+			cerr << "Finished Computing U" << endl;
+			return U;
+		} else {
+			cerr << "Whiten Rows, already have V" << endl;
+			return V;
+		}
+	} else {
+		// Computed left singular values (U)
+		// A = USV*, A^T = VSU*, V = A^T U S^-1
+
+		// reverse and fill U
+		MatrixXd U(eig.eigenvectors().rows(), rank);
+		for(int cc=0; cc<rank; cc++)
+			U.col(cc) = eig.eigenvectors().col(eigrows-1-cc);
+
+#ifdef VERYVERBOSE
+		cerr << "U Matrix: " << endl << U << endl << endl;
+#endif //VERYVERBOSE
+
+		if(!whiterows) {
+			cerr << "Whiten Columns, already have U" << endl;
+			return U;
+		} else {
+			cerr << "Whiten Rows, need to compute V" << endl;
+
+			// To Compute A^T US, we will compute R rows of V at a time, which
+			// corresponds to R columns of A (R rows of A^T)
+			// (all rows) of A at a time
+			MatrixXd US = U*(singvals.cwiseInverse()).asDiagonal();
+			MatrixXd V(tcols, rank);
+			MatrixXd buffer(trows, tcols/cchunks);
+			for(int cc=0; cc<rchunks; cc++) {
+				for(int rr=0; rr<rchunks; rr++) {
+					loader.load(buffer, rr*trows/rchunks, 0, rr, cc);
+				}
+
+				V.middleRows(cc*tcols/cchunks, tcols/cchunks) = buffer.transpose()*US;
+#ifdef VERYVERBOSE
+				cerr << "Full Buffer " << cc << "\n" << buffer << endl << endl;
+				cerr << "Partial V" << cc << "\n" << V << endl << endl;
+#endif //VERYVERBOSE
+			}
+			return V;
+		}
+	}
+}
 
 int main(int argc, char** argv)
 {
@@ -142,215 +377,22 @@ int main(int argc, char** argv)
 
 	if(a_verbose.getValue() >= 1) 
 		cerr << "Computing Covariance..." << endl;
-	
-	// Data is formed with 
-	// X = space x time
-	// Compute either M M^T or M^T M
-	if(tlen < slen) {
-		cerr << "Covariance of samples in space" << endl;
 
-		// Time is the dimesion in the covariance matrix, 
-		// thus computing X
-		cov.resize(tlen, tlen);
-		cov.setZero();
+	//MatrixLoader(int rows, int cols, int b_rows, int b_cols,
+	//		vector<string>& filenames)
+	MatrixLoader loader(tlen, slen, tsing, ssing, a_in.getValue());
+	MatrixXd white;
+//	try {
+		white = whiten(a_spatial_ica.isSet(), a_simultaneous.getValue(),
+				a_evthresh.getValue(), a_maxrank.getValue(), 1e-10, tlen, slen,
+				a_time_append.getValue(), a_space_append.getValue(), loader);
+//	} catch(std::string& s) {
+//		cerr << "Error Exception Occurred:\n" << s << endl;
+//	}
 
-		// Buffer to hold all timepoints at one time
-		// essientially X(ss*ssing:ss*ssing+ssing, :)
-		MatrixXd buff(ssing, tlen);
-		
-		for(size_t ss=0; ss<scat; ss++) { // big space 
-			for(size_t tt=0; tt<tcat; tt++) { // big time
-				example = readMRImage(a_in.getValue()[ss*tcat + tt]);
-				cerr << "Read " << a_in.getValue()[ss*tcat + tt] << "\n" << *example << endl;
-				if(example->tlen() != tsing || example->elements() != ssing*tsing){
-					cerr << "Error Image sizes differ!" << endl;
-					return -1;
-				}
-
-				Vector3DIter<double> it(example);
-				for(size_t s=0; s<ssing; ++it, s++) { // small space
-					for(size_t t=0; t<tsing; t++) // small time
-						buff(s, t+tt*tsing) = it[t];
-				}
-			}
-			
-			if(a_verbose.getValue() >= 2) 
-				cerr << "X_" << ss << " = " << endl << endl << buff << endl << endl;
-			cov += buff.transpose()*buff;
-			if(a_verbose.getValue() >= 3) 
-				cerr << "Intermediate Covariance:\n\n" << cov << endl << endl;
-		}
-
-		if(a_verbose.getValue() >= 2) 
-			cerr << "Final Covariance:\n\n" << cov << endl << endl;
-	} else {
-		cerr << "Covariance of samples in time" << endl;
-
-		// Space is the dimension in the covariance matrix
-		cov.resize(slen, slen);
-		cov.setZero();
-	
-		// Buffer to hold all spatial elements at one time
-		// essientially X(:,tt*tsing:tt*tsing+tsing)
-		MatrixXd buff(slen, tsing);
-		
-		for(size_t tt=0; tt<tcat; tt++) { // big time
-			for(size_t ss=0; ss<scat; ss++) { // big space 
-				example = readMRImage(a_in.getValue()[ss*tcat + tt]);
-				cerr << "Read " << a_in.getValue()[ss*tcat+tt] << "\n" << *example << endl;
-				if(example->tlen() != tsing || example->elements() != ssing*tsing){
-					cerr << "Error Image sizes differ!" << endl;
-					return -1;
-				}
-
-				Vector3DIter<double> it(example);
-				for(size_t s=0; s<ssing; ++it, s++) { // small space
-					for(size_t t=0; t<tsing; t++) // small time
-						buff(s+ss*ssing, t) = it[t];
-				}
-			}
-			
-			if(a_verbose.getValue() >= 2) 
-				cerr << "X_" << tt << " = " << endl << endl << buff << endl << endl;
-
-			cov += buff*buff.transpose();
-			if(a_verbose.getValue() >= 3) 
-				cerr << "Intermediate Covariance:\n\n" << cov << endl << endl;
-		}
-		
-		if(a_verbose.getValue() >= 2) 
-			cerr << "Final Covariance:\n\n" << cov << endl << endl;
+	if(a_verbose.getValue() >= 3) {
+		cerr << "Whitened: " << endl << white << endl;
 	}
-
-	if(a_verbose.getValue() >= 1) 
-		cerr << "Done with Covariance." << endl;
-	if(a_verbose.getValue() >= 2)
-		cerr << endl << cov << endl;
-
-	BandLanczosSelfAdjointEigenSolver<double> esolve;
-	
-	int simvecs = a_simultaneous.getValue();
-	if(simvecs <= 1) 
-		simvecs = cov.rows();
-
-	if(a_verbose.getValue() >= 1) {
-		cerr << "EigenSolving Covariance." << endl;
-		cerr << "Using " << simvecs << " simultaneous eigenvectors " << endl;
-		cerr << "Using " << a_evthresh.getValue() << "% of eigenvalues" << endl;
-	}
-	if(a_evthresh.isSet())
-		esolve.setTraceSqrStop(a_evthresh.getValue());
-	esolve.compute(cov, simvecs);
-
-	// Reduce singular values to > 0 components
-	int eigrows = esolve.eigenvalues().rows();
-	int rank = 0;
-	VectorXd singvals(eigrows);
-	for(int cc=0; cc<eigrows; cc++) {
-		if(esolve.eigenvalues()[cc] > 1e-10)
-			rank++;
-	}
-
-	if(a_verbose.getValue() >= 2)
-		cerr << "Singular Values: " << esolve.eigenvalues().tail(rank).transpose() << endl;
-
-	MatrixXd whitened;
-
-	// Note that because Eigen Solvers usually sort eigenvalues in
-	// increasing order but singular value decomposers do decreasing order,
-	// we need to reverse the singular value and singular vectors found.
-	if(tlen < slen) {
-		// Computed Covariance with time as dim, X^T X, so got right singular
-		// values, V
-		if(a_spatial_ica.isSet()) {
-			// X = USV*, U = XVS^-1
-			cerr << "Computing U from V, for spatial PCA\n";
-			whitened.resize(slen, rank);
-
-			cerr << "Computing Projection Matrix" << endl;
-			MatrixXd proj = esolve.eigenvectors().rightCols(rank)*
-				esolve.eigenvalues().tail(rank).cwiseInverse().asDiagonal();
-			cerr << "Done:\n\n" << proj << endl << endl; 
-
-			// Buffer to hold all timepoints at one time
-			MatrixXd buff(ssing, tlen);
-
-			for(size_t ss=0; ss<scat; ss++) { // big space 
-				for(size_t tt=0; tt<tcat; tt++) { // big time
-					example = readMRImage(a_in.getValue()[ss*tcat + tt]);
-					if(example->tlen() != tlen || example->elements() != ssing*tlen){
-						cerr << "Error Image sizes differ!" << endl;
-						return -1;
-					}
-
-					Vector3DIter<double> it(example);
-					for(size_t s=0; s<ssing; ++it, s++) { // small space
-						for(size_t t=0; t<tsing; t++) // small time
-							buff(s, t+tt*tsing) = it[t];
-					}
-				}
-
-				if(a_verbose.getValue() >= 2) 
-					cerr << "X_" << ss << " = " << endl << endl << buff << endl;
-				whitened.middleRows(ss*ssing, ssing) = buff*proj;
-				if(a_verbose.getValue() >= 2) 
-					cerr << "White:\n" << endl << whitened << endl << endl;
-			}
-		} else { 
-			// Already Have V
-			if(a_verbose.getValue() >= 2)
-				cerr << "Already have V, for spatial PCA\n";
-			whitened = esolve.eigenvectors().rightCols(rank);
-		}
-
-		if(a_verbose.getValue() >= 2)
-			cerr << "Done finding whitened data for spatial PCA\n";
-
-	} else {
-		// Computed left singular values (U), since we did X X^T
-		if(a_spatial_ica.isSet()) {
-			// Already Have U
-			if(a_verbose.getValue() >= 2)
-				cerr << "Already have U, for Spatial PCA\n";
-			whitened = esolve.eigenvectors().rightCols(rank);
-		} else {
-			// X = USV*, X^T = VSU*, V = X^T U S^-1
-			cerr << "Computing V from U, for Temporal PCA\n";
-			whitened.resize(tlen, rank);
-
-			cerr << "Computing Projection Matrix" << endl;
-			MatrixXd proj = esolve.eigenvectors().rightCols(rank)*
-				esolve.eigenvalues().tail(rank).cwiseInverse().asDiagonal();
-			cerr << "Done:\n\n" << proj << endl << endl; 
-			
-			// Buffer to hold all spatial elements at one time
-			MatrixXd buff(slen, tsing);
-
-			for(size_t tt=0; tt<tcat; tt++) { // big time
-				for(size_t ss=0; ss<scat; ss++) { // big space 
-					example = readMRImage(a_in.getValue()[ss*tcat + tt]);
-					if(example->tlen() != tlen || example->elements() != ssing*tlen){
-						cerr << "Error Image sizes differ!" << endl;
-						return -1;
-					}
-
-					Vector3DIter<double> it(example);
-					for(size_t s=0; s<ssing; ++it, s++) { // small space
-						for(size_t t=0; t<tsing; t++) // small time
-							buff(s+ss*ssing, t) = it[t];
-					}
-				}
-
-				if(a_verbose.getValue() >= 2) 
-					cerr << "X_" << tt << " = " << endl << endl << buff << endl;
-				
-				whitened.middleRows(tt*tsing, tsing) = buff.transpose()*proj;
-				if(a_verbose.getValue() >= 2) 
-					cerr << "White:\n" << endl << whitened << endl << endl;
-			}
-		}
-	}
-
 
 //	// perform ICA
 //	std::cerr << "ICA...";

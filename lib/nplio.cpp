@@ -1401,7 +1401,7 @@ ptr<MRImage> readMRImage(std::string fn, bool verbose, bool nopixeldata)
 	}
 
 	throw std::ios_base::failure("Error reading " + fn );
-	return NULL;
+	return dPtrCast<MRImage>(out);
 }
 
 /**
