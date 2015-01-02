@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file fmri_ica.cpp Tool for performing ICA on a fMRI image.
+ * @file fmri_gica.cpp Tool for performing ICA on multiple fMRI images, 
+ * note that this assumes either X^T X or XX^T can be stored in memory
  *
  *****************************************************************************/
 
@@ -325,24 +326,24 @@ int main(int argc, char** argv)
 				a_time_append.getValue(), a_space_append.getValue(), loader);
 
 	if(a_verbose.getValue() >= 4) {
-		cerr << "Whitened = [";
+		cout << "Whitened = [";
 		for(size_t rr=0; rr<white.rows(); rr++) {
-			if(rr) cerr << "],\n";
+			if(rr) cout << "],\n";
 			for(size_t cc=0; cc<white.cols(); cc++) {
-				if(cc) cerr << ",";
-				else cerr << "[";
-				cerr << white(rr,cc);
+				if(cc) cout << ",";
+				else cout << "[";
+				cout << white(rr,cc);
 			} 
 		}
-		cerr << "]]\n";
+		cout << "]]\n";
 	}
 
-//	// Each Column is a Dimension Now
-//	// perform ICA
-//	std::cerr << "ICA...";
-//	MatrixXd X_ic = ica(X_pc);
-//	std::cerr << "Done" << endl;
-//
+	// Each Column is a Dimension Now
+	// perform ICA
+	std::cerr << "ICA...";
+	MatrixXd X_ic = ica(white);
+	std::cerr << "Done" << endl;
+
 //    // 
 //	MatrixXd regressors = reduce(inimg);
 //    for(size_t cc = 0; cc < regressors.cols(); cc++) {
@@ -361,5 +362,4 @@ int main(int argc, char** argv)
 
     return 0;
 }
-
 
