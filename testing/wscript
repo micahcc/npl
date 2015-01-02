@@ -471,6 +471,11 @@ def build(bld):
 			target='comparison_test',
 			source='comparison_test.cpp',
 			use='ndarray_utils iterators mrimage')
+	
+	bld.program(install_path='${PREFIX}/tests',  features='test',
+			target='mmap_test',
+			source='mmap_test.cpp',
+			use='utility')
 	#
 
 #   Some day I may want to turn this into a real test

@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file utility.h File with random utilities, for string processing, for 
- * determining basic filename information (basename/dirname). 
+ * @file utility.h File with random utilities, for string processing, for
+ * determining basic filename information (basename/dirname).
  *
  *****************************************************************************/
 #ifndef UTILITY_FUNCTIONS_H
@@ -99,7 +99,7 @@ std::vector<std::string> parseLine(std::string line, std::string delim);
  *
  * @return out vector of rows (stored in vectors)
  */
-std::vector<std::vector<std::string>> readStrCSV(std::string filename, 
+std::vector<std::vector<std::string>> readStrCSV(std::string filename,
         char& delim, char comment = '#');
 
 /**
@@ -128,7 +128,7 @@ std::vector<std::vector<double>> readNumericCSV(std::string filename,
  * @param k 		Shape parameter
  * @param theta 	Scale parameter
  *
- * @return 
+ * @return
  */
 double gammaPDF(double x, double k, double theta);
 
@@ -162,14 +162,14 @@ double cannonHrf(double t, double rdelay, double udelay, double rdisp,
  *
  * @param t	Time from stimulus
  *
- * @return 	Response level 
+ * @return 	Response level
  */
 double cannonHrf(double t);
 
 /**
  * @brief Takes a 1 or 3 column format of regressor and produces
  * a timeseries sampeled every tr, starting at time t0, and running
- * for ntimes. 
+ * for ntimes.
  *
  * 3 column format:
  *
@@ -184,15 +184,15 @@ double cannonHrf(double t);
  * @param ntimes
  * @param t0
  *
- * @return 
+ * @return
  */
-std::vector<double> getRegressor(std::vector<std::vector<double>>& spec, 
+std::vector<double> getRegressor(std::vector<std::vector<double>>& spec,
 		double tr, size_t ntimes, double t0);
 
 /**
  * @brief Takes a 1 or 3 column format of regressor and produces
  * a timeseries sampeled every tr, starting at time t0, and running
- * for ntimes. 
+ * for ntimes.
  *
  * 3 column format:
  *
@@ -207,9 +207,9 @@ std::vector<double> getRegressor(std::vector<std::vector<double>>& spec,
  * @param ntimes
  * @param t0
  *
- * @return 
+ * @return
  */
-std::vector<double> getRegressor(std::vector<std::vector<double>>& spec, 
+std::vector<double> getRegressor(std::vector<std::vector<double>>& spec,
 		double tr, size_t ntimes, double t0);
 
 /**
@@ -235,22 +235,103 @@ void convolve(std::vector<double>& signal, double(*foo)(double),
 inline
 double fwhm_to_sd(double fwhm)
 {
-    return fwhm/(2*sqrt(2*log(2)));
+  return fwhm/(2*sqrt(2*log(2)));
 }
 
 /**
  * @brief Computes the FWHM from from standard deviation (because I can never
  * remember the ratio)
  *
- * @param sd Standard deviation of a Gaussian function. 
+ * @param sd Standard deviation of a Gaussian function.
  *
  * @return Full-width-half-max size of the same gaussian function
  */
 inline
 double sd_to_fwhm(double sd)
 {
-    return sd*(2*sqrt(2*log(2)));
+  return sd*(2*sqrt(2*log(2)));
 }
+
+/**
+ * @brief Memory map class. The basic gyst is that this works like a malloc
+ * except that data may be initialized by file contents or left empty. This
+ * is useful for matrix manipulation where files need to be opened and closed
+ * a good bit.
+ */
+class MemMap
+{
+public:
+	/**
+	 * @brief Create a new mmap class by opening the specified file
+	 * with the specified size. If createNew is set then a new file will be
+	 * created an existing file will be deleted (if permissions allow it). 
+	 *
+	 * @param fn Open the specified file for reading and writing.
+	 * @param bsize Make the file size this number of bytes. If createNew is
+	 * false then this must match the current file size
+	 * @param createNew Create a new file, removing any existing
+	 */
+	MemMap(std::string fn, size_t bsize, bool createNew);
+
+	/**
+	 * @brief Just create the object. Until open() is called the size() will
+	 * be 0 and returned data() will be NULL;
+	 */
+	MemMap();
+
+	/**
+	 * @brief Open the specified file with the specified size. If createNew is
+	 * set then a new file will be created an existing file will be deleted (if
+	 * permissions allow it).
+	 *
+	 * @param fn Open the specified file for reading and writing.
+	 * @param bsize Make the file size this number of bytes. If createNew is
+	 * false then this must match the current file size
+	 * @param createNew Create a new file, removing any existing
+	 */
+	int open(std::string fn, size_t bsize, bool createNew);
+
+	/**
+	 * @brief Close the current file (if one is open). data() will return NULL
+	 * and size() will return 0 after this until open() is called again.
+	 */
+	void close();
+
+	/**
+	 * @brief Destructor, close file.
+	 */
+	~MemMap();
+
+	/**
+	 * @brief Get pointer to data.
+	 *
+	 * @return pointer to current data
+	 */
+	void* data() { return m_data; };
+
+	/**
+	 * @brief Get constant pointer to current data
+	 *
+	 * @return pointer to current data
+	 */
+	const void* data() const { return m_data; };
+
+	/**
+	 * @brief Length (in bytes) of memory map
+	 *
+	 * 0 not error, but not open
+	 * >0 open
+	 * -1 error
+	 *
+	 * @return Tells what the current state of the memory map is
+	 */
+	int64_t size() { return m_size; };
+private:
+
+	int64_t m_size;
+	int m_fd;
+	void* m_data;
+};
 
 }
 #endif // UTILITY_FUNCTIONS_H
