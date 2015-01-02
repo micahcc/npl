@@ -79,12 +79,10 @@ MatrixXd pca(const Eigen::MatrixXd& X, double varth = 1, int odim = -1);
  * @param X 	RxC matrix where each column row is a sample, each column a
  *              dimension (or feature). The number of columns in the output
  *              will be fewer because there will be fewer features
- * @param varth Variance threshold. Don't include dimensions after this percent
- *              of the variance has been explained.
  *
  * @return 		RxP matrix, where P is the number of independent components
  */
-MatrixXd ica(const Eigen::MatrixXd& X, double varth = 1);
+MatrixXd ica(const Eigen::MatrixXd& X);
 
 /**
  * @brief Computes the Ordinary Least Square predictors, beta for 

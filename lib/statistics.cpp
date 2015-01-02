@@ -182,12 +182,7 @@ MatrixXd pca(const MatrixXd& X, double varth, int odim)
 	outdim = max(odim, outdim);
 
 	// Return whitened signal
-    MatrixXd Xr(X.rows(), outdim);
-	for(int rr=0; rr<X.rows(); rr++) {
-		for(int cc=0; cc<outdim ; cc++) {
-			Xr(rr,cc) = U(rr, cc);
-		}
-	}
+	MatrixXd Xr = U.leftCols(outdim)*W.head(outdim).asDiagonal();
 #ifndef NDEBUG
 	std::cout  << "  Done" << std::endl;
 #endif
@@ -223,8 +218,24 @@ MatrixXd pca(const MatrixXd& X, double varth, int odim)
  *
  * @return 		RxP matrix, where P is the number of independent components
  */
-MatrixXd ica(const MatrixXd& X)
+MatrixXd ica(const MatrixXd& Xin)
 {
+
+	// remove mean/variance
+	MatrixXd X(Xin.rows(), Xin.cols());
+	for(size_t cc=0; cc<X.cols(); cc++)  {
+		double sum = 0;
+		double sumsq = 0;
+		for(size_t rr=0; rr<X.rows(); rr++)  {
+			sum += Xin(rr,cc);
+			sumsq += Xin(rr,cc)*Xin(rr,cc);
+		}
+		double sigma = sqrt(sample_var(X.rows(), sum, sumsq));
+		double mean = sum/X.rows();
+
+		for(size_t rr=0; rr<X.rows(); rr++)
+			X(rr,cc) = (Xin(rr,cc)-mean)/sigma;
+	}
 
 	const size_t ITERS = 10000;
 	const double MAGTHRESH = 0.0001;

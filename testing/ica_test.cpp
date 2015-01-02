@@ -136,11 +136,14 @@ int main()
             data(rr,cc) = (data(rr,cc)-mean)/sigma;
     }
 
-
+	std::cerr << "PCA...";
     auto pdata = pca(data, 0.0001);
+	std::cerr << "Done" << std::endl;
     plotMat("after_pca.svg", pdata);
     
-    auto idata = ica(pdata, 0.0001);
+	std::cerr << "ICA...";
+    auto idata = ica(pdata);
+	std::cerr << "Done" << std::endl;
     plotMat("after_ica.svg", idata);
 
     /* 
