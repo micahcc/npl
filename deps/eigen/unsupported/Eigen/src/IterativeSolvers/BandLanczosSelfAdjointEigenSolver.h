@@ -194,11 +194,11 @@ public:
         // Normalize Each Column
         for(int cc=0; cc<m_proj.cols(); cc++) {
             
-			// Normalize
+            // Normalize
             m_proj.col(cc).normalize();
         }
 
-		cerr << m_proj << endl;
+        cerr << m_proj << endl;
         _compute(A);
     };
 
@@ -251,9 +251,9 @@ public:
      * @brief Stop after the trace of the similar matrix (T^2) exceeds the
      * ratio of total sum of squared eigenvalues.
      *
-     * @param stop 0 to 1 with 1 stopping when ALL the variance has been found
-     * and 0 stopping immediately. Set to INFINITY or NAN to only stop
-     * naturally (when the Kyrlov Subspace has been exhausted).
+     * @param stop fraction (0 to 1) with 1 stopping when ALL the variance has
+     * been found and 0 stopping immediately. Set to INFINITY or NAN to only
+     * stop naturally (when the Kyrlov Subspace has been exhausted).
      */
     void setTraceSqrStop(double stop) { m_tracesqr_stop = stop; };
 
@@ -272,6 +272,34 @@ public:
      * eigenvalues (trace squared)
      */
     double traceSqrStop() { return m_tracesqr_stop; };
+
+    /**
+     * @brief Stop after the trace of the similar matrix exceeds the
+     * ratio of total sum of eigenvalues. This is faster than trace squared
+     * but the matrix must have all positive eigenvalues for it to work.
+     *
+     * @param stop fraction (0 to 1) with 1 stopping when ALL the variance has
+     * been found and 0 stopping immediately. Set to INFINITY or NAN to only
+     * stop naturally (when the Kyrlov Subspace has been exhausted).
+     */
+    void setTraceStop(double stop) { m_trace_stop = stop; };
+
+    /**
+     * @brief Return trace squared stopping condition to default.
+     *
+     * @param Default_t default
+     */
+    void setTraceStop(Default_t d) { m_trace_stop = INFINITY; };
+
+    /**
+     * @brief Get stop parameter based on sum of sum of eigenvalues. This is 
+     * a specialized version of traceSqrStop for when it is known that the
+     * matrix is postive definite.
+     *
+     * @return Get the current stopping condition based on the sum 
+     * of eigenvalues (equal to the trace)
+     */
+    double traceStop() { return m_trace_stop; };
 private:
 
     void init()
@@ -315,10 +343,16 @@ private:
      */
     void _compute(const MatrixType& A)
     {
-        Scalar varsum = 0;
+        Scalar abssum = 0;
+
         Scalar vartotal = INFINITY;
         if(!isinf(m_tracesqr_stop) && !isnan(m_tracesqr_stop)) {
             vartotal = (A.transpose()*A).trace();
+        }
+
+        Scalar abstotal = INFINITY;
+        if(!isinf(m_trace_stop) && !isnan(m_trace_stop)) {
+            abstotal = A.trace();
         }
 
         MatrixType& V = m_proj;
@@ -456,11 +490,17 @@ private:
 
             // Compute Trace of M**2 if a stopping point was set based on the
             // total squared eigenvalue sum
-            if(!std::isinf(std::abs(vartotal))) {
-                varsum += (approx.topLeftCorner(jj+1,jj+1)*
+            if(!isinf(vartotal)) {
+                double varsum = (approx.topLeftCorner(jj+1,jj+1)*
                         approx.topLeftCorner(jj+1,jj+1)).trace();
 
-                if(std::abs(varsum) > std::abs(m_tracesqr_stop*vartotal))
+                if(std::abs(varsum) >= std::abs(m_tracesqr_stop*vartotal))
+                    break;
+            }
+
+            if(!isinf(abstotal)) {
+                abssum += approx(jj+1, jj+1);
+                if(std::abs(abssum) >= std::abs(m_trace_stop*abstotal))
                     break;
             }
 
@@ -502,10 +542,16 @@ private:
     double m_deflation_tol;
 
     /**
-     * @brief Stop after the trace of the similar matrix (T^2) exceeds some
-     * value, which may be known from the input matrices' trace.
-     * This could be used to stop after the sum of squared eigenvalues
-     * exceeds some value.
+     * @brief Stop after the trace of the similar matrix exceeds the ratio of
+     * the input matrices trace. This could be used to stop after the sum of
+     * found eigenvalues exceeds some percent of the total.
+     */
+    double m_trace_stop;
+
+    /**
+     * @brief Stop after the trace of the squared similar matrix (T^2) exceeds
+     * some ratio of the total squared eigenvalues (trace of the squared input
+     * matrices)
      */
     double m_tracesqr_stop;
 

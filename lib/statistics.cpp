@@ -216,33 +216,15 @@ MatrixXd pca(const MatrixXd& X, double varth, int odim)
  * Output: W = [w0 w1 w2 ... ]
  * Output: S = XW, where each column is a dimension, each row a sample
  *
- * @param Xin 	RxC matrix where each column row is a sample, each column a
+ * @param Xin 	RxC matrix where each row is a sample, each column a
  *              dimension (or feature). The number of columns in the output
- *              will be fewer because there will be fewer features
- * @param varth Variance threshold. Don't include dimensions after this percent
- *              of the variance has been explained.
+ *              will be fewer because there will be fewer features. 
+ *              Columns should be zero-mean and uncorrelated with one another.
  *
  * @return 		RxP matrix, where P is the number of independent components
  */
-MatrixXd ica(const MatrixXd& Xin, double varth)
+MatrixXd ica(const MatrixXd& X)
 {
-	(void)varth;
-
-	// remove mean/variance
-	MatrixXd X(Xin.rows(), Xin.cols());
-	for(size_t cc=0; cc<X.cols(); cc++)  {
-		double sum = 0;
-		double sumsq = 0;
-		for(size_t rr=0; rr<X.rows(); rr++)  {
-			sum += Xin(rr,cc);
-			sumsq += Xin(rr,cc)*Xin(rr,cc);
-		}
-		double sigma = sqrt(sample_var(X.rows(), sum, sumsq));
-		double mean = sum/X.rows();
-
-		for(size_t rr=0; rr<X.rows(); rr++)
-			X(rr,cc) = (Xin(rr,cc)-mean)/sigma;
-	}
 
 	const size_t ITERS = 10000;
 	const double MAGTHRESH = 0.0001;

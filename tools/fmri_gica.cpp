@@ -31,8 +31,6 @@
 #include "statistics.h"
 #include "macros.h"
 
-#define VERYVERBOSE
-
 using std::string;
 using std::shared_ptr;
 using std::to_string;
@@ -70,7 +68,9 @@ public:
 			throw std::string("Error reading ")+fn+
 				std::string(" or Image sizes differ!");
 		}
-		cerr << *img << endl;
+		if(a_verbose.getValue() >= 3) {
+			cerr << *img << endl;
+		}
 
 		Vector3DIter<double> it(img);
 		for(size_t s=0; s<m_bsz[1]; ++it, s++) { // small space
@@ -96,10 +96,6 @@ MatrixXd whiten(bool whiterows, int initrank, double varthresh, int maxrank,
 	 * Load Individual Images and Concatinate to Produce Parts of X
 	 *************************************************************************/
 	if(trows > tcols) {
-#ifdef VERYVERBOSE
-		cerr << "Computing A^T*A" << endl;
-		cerr << endl << C << endl << endl;
-#endif //VERYVERBOSE
 		// Compute right singular vlaues (V)
 		C.resize(tcols, tcols);
 		C.setZero();
@@ -110,21 +106,10 @@ MatrixXd whiten(bool whiterows, int initrank, double varthresh, int maxrank,
 			for(int cc=0; cc<cchunks; cc++) {
 				loader.load(buffer, 0, cc*tcols/cchunks, rr, cc);
 			}
-#ifdef VERYVERBOSE
-			cerr << "Full Buffer " << rr << "\n" << buffer << endl << endl;
-#endif //VERYVERBOSE
 			C += buffer.transpose()*buffer;
 		}
 
-#ifdef VERYVERBOSE
-		cerr << "Computed A^T A" << endl;
-		cerr << endl << C << endl << endl;
-#endif //VERYVERBOSE
 	} else {
-#ifdef VERYVERBOSE
-		cerr << "Computing A*A^T" << endl;
-		cerr << endl << C << endl << endl;
-#endif //VERYVERBOSE
 		// Computed left singular values (U)
 		C.resize(trows, trows); 
 		C.setZero();
@@ -135,15 +120,8 @@ MatrixXd whiten(bool whiterows, int initrank, double varthresh, int maxrank,
 			for(int rr=0; rr<rchunks; rr++) {
 				loader.load(buffer, rr*trows/rchunks, 0, rr, cc);
 			}
-#ifdef VERYVERBOSE
-			cerr << "Full Buffer " << cc << "\n" << buffer << endl << endl;
-#endif //VERYVERBOSE
 			C += buffer*buffer.transpose();
 		}
-#ifdef VERYVERBOSE
-		cerr << "Computed A*A^T" << endl;
-		cerr << endl << C << endl << endl;
-#endif //VERYVERBOSE
 	}
 
 	/**************************************************************************
@@ -154,7 +132,7 @@ MatrixXd whiten(bool whiterows, int initrank, double varthresh, int maxrank,
 		initrank = std::max<int>(trows, tcols);
 
 	BandLanczosSelfAdjointEigenSolver<double> eig;
-	eig.setTraceSqrStop(varthresh);
+	eig.setTraceStop(varthresh);
 	eig.setRank(maxrank);
 	eig.compute(C, initrank);
 
@@ -162,10 +140,6 @@ MatrixXd whiten(bool whiterows, int initrank, double varthresh, int maxrank,
 		throw "Non-convergence!";
 	}
 
-#ifdef VERYVERBOSE
-	cerr << "Eigenvalues: " << eig.eigenvalues().transpose() << endl;
-	cerr << "EigenVectors: " << endl << eig.eigenvectors() << endl << endl;
-#endif //VERYVERBOSE
 	int eigrows = eig.eigenvalues().rows();
 	int rank = 0;
 	VectorXd singvals(eigrows);
@@ -178,18 +152,7 @@ MatrixXd whiten(bool whiterows, int initrank, double varthresh, int maxrank,
 		}
 	}
 
-#ifdef VERYVERBOSE
-	for(int ee=0; ee<rank; ee++) {
-		double err = (eig.eigenvalues()[ee]*eig.eigenvectors().col(ee) -
-				C*eig.eigenvectors().col(ee)).squaredNorm();
-		cerr << "Error = " << err << endl;
-	}
-#endif //VERYVERBOSE
-
 	singvals.conservativeResize(rank);
-#ifdef VERYVERBOSE
-	cerr << "Singular Values: " << singvals.transpose() << endl;
-#endif //VERYVERBOSE
 
 	/**************************************************************************
 	 * If we want Independent Cols then we need U, for Independent Rows, V^T
@@ -206,14 +169,8 @@ MatrixXd whiten(bool whiterows, int initrank, double varthresh, int maxrank,
 		for(int cc=0; cc<rank; cc++)
 			V.col(cc) = eig.eigenvectors().col(eigrows-1-cc);
 
-#ifdef VERYVERBOSE
-		cerr << "V Matrix: " << endl << V << endl << endl;
-#endif //VERYVERBOSE
-
 		// Compute U if needed
 		if(!whiterows) {
-			cerr << "Whiten Columns, need to compute U" << endl;
-
 			// Need to load entire rows (all cols) of A, then set
 			// corresponding rows in U, U = A*VS;
 			MatrixXd VS = V*(singvals.cwiseInverse()).asDiagonal();
@@ -224,16 +181,11 @@ MatrixXd whiten(bool whiterows, int initrank, double varthresh, int maxrank,
 					loader.load(buffer, 0, cc*tcols/cchunks, rr, cc);
 				}
 				U.middleRows(rr*trows/rchunks, trows/rchunks) = buffer*VS;
-#ifdef VERYVERBOSE
-				cerr << "Full Buffer " << rr << "\n" << buffer << endl << endl;
-				cerr << "Partial U" << rr << "\n" << U << endl << endl;
-#endif //VERYVERBOSE
 			}
 
-			cerr << "Finished Computing U" << endl;
 			return U;
 		} else {
-			cerr << "Whiten Rows, already have V" << endl;
+			// Whiten Rows, already have V
 			return V;
 		}
 	} else {
@@ -245,15 +197,10 @@ MatrixXd whiten(bool whiterows, int initrank, double varthresh, int maxrank,
 		for(int cc=0; cc<rank; cc++)
 			U.col(cc) = eig.eigenvectors().col(eigrows-1-cc);
 
-#ifdef VERYVERBOSE
-		cerr << "U Matrix: " << endl << U << endl << endl;
-#endif //VERYVERBOSE
-
 		if(!whiterows) {
-			cerr << "Whiten Columns, already have U" << endl;
+			// Whiten Cols , already have U
 			return U;
 		} else {
-			cerr << "Whiten Rows, need to compute V" << endl;
 
 			// To Compute A^T US, we will compute R rows of V at a time, which
 			// corresponds to R columns of A (R rows of A^T)
@@ -267,11 +214,8 @@ MatrixXd whiten(bool whiterows, int initrank, double varthresh, int maxrank,
 				}
 
 				V.middleRows(cc*tcols/cchunks, tcols/cchunks) = buffer.transpose()*US;
-#ifdef VERYVERBOSE
-				cerr << "Full Buffer " << cc << "\n" << buffer << endl << endl;
-				cerr << "Partial V" << cc << "\n" << V << endl << endl;
-#endif //VERYVERBOSE
 			}
+
 			return V;
 		}
 	}
@@ -324,7 +268,7 @@ int main(int argc, char** argv)
 
 	TCLAP::ValueArg<double> a_evthresh("T", "ev-thresh", "Threshold on "
 			"ratio of total variance to account for (default 0.99)", false,
-			0.99, "ratio", cmd);
+			INFINITY, "ratio", cmd);
 	TCLAP::ValueArg<int> a_simultaneous("V", "simul-vectors", "Simultaneous "
 			"vectors to estimate eigenvectors for in lambda. Bump this up "
 			"if you have convergence issues. This is part of the "
@@ -372,63 +316,31 @@ int main(int argc, char** argv)
 	MatrixXd cov;
 
 	/*
-	 * First Perform SVD
+	 * First Perform SVD, Whiten
 	 */
 
-	if(a_verbose.getValue() >= 1) 
-		cerr << "Computing Covariance..." << endl;
-
-	for(size_t ss=0; ss<scat; ss++) {
-		// Read in masked regions, subtract mean/divide by standard deviation,
-		// then save out to compact, 2D matrices
-		for(size_t tt=0; tt<tcat; tt++) {
-			readMRImage();
-			writeNDArray();
-		}
-	}
-
-	//MatrixLoader(int rows, int cols, int b_rows, int b_cols,
-	//		vector<string>& filenames)
 	MatrixLoader loader(tlen, slen, tsing, ssing, a_in.getValue());
 	MatrixXd white = whiten(a_spatial_ica.isSet(), a_simultaneous.getValue(),
 				a_evthresh.getValue(), a_maxrank.getValue(), 1e-10, tlen, slen,
 				a_time_append.getValue(), a_space_append.getValue(), loader);
 
-	// Create Maps
-	if(a_spatial_ica.isSet()) {
-		for(int ss=0; ss<scat; ss++) {
-			for(int tt=0; tt<tcat; tt++) {
-				// Read Image
-				auto img = readMRImage(a_in.getValue()[ss*tcat + tt]);
-				MatrixXd X = imgToMatrix(img, true);
-				img.reset();
-
-				// Split Whitened spatial signal
-				MatrixXd regressors = white.middleRows(ss*ssing, ssing);
-				auto mapimg = regress(ts, );
-				mapimg->write(a_mapdir.getValue()+"_"+to_string(ss)+"_"+
-						to_string(tt)+".nii.gz");
-			}
+	if(a_verbose.getValue() >= 4) {
+		cerr << "Whitened = [";
+		for(size_t rr=0; rr<white.rows(); rr++) {
+			if(rr) cerr << "],\n";
+			for(size_t cc=0; cc<white.cols(); cc++) {
+				if(cc) cerr << ",";
+				else cerr << "[";
+				cerr << white(rr,cc);
+			} 
 		}
-	} else {
-		for(int ss=0; ss<scat; ss++) {
-			for(int tt=0; tt<tcat; tt++) {
-				// Split Whitened time-series
-				MatrixXd ts = white.middleRows(tt*tsing, tsing);
-				auto mapimg = regress(ts, a_in.getValue()[ss*tcat + tt]);
-				mapimg->write(a_mapdir.getValue()+"_"+to_string(ss)+"_"+
-						to_string(tt)+".nii.gz");
-			}
-		}
-	}
-	
-	if(a_verbose.getValue() >= 3) {
-		cerr << "Whitened: " << endl << white << endl;
+		cerr << "]]\n";
 	}
 
+//	// Each Column is a Dimension Now
 //	// perform ICA
 //	std::cerr << "ICA...";
-//	MatrixXd X_ic = ica(X_pc, 0.01);
+//	MatrixXd X_ic = ica(X_pc);
 //	std::cerr << "Done" << endl;
 //
 //    // 

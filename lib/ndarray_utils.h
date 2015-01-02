@@ -574,6 +574,14 @@ void standardizeIP(ptr<NDArray> img);
  */
 ptr<NDArray> standardize(ptr<const NDArray> img);
 
+/**
+ * @brief Takes the variance of the higher dimensions and returns a 3D image
+ *
+ * @param img Input image all dimensions about 3 will be removed
+ *
+ * @return Output image, variance of higher dimensions
+ */
+ptr<NDArray> varianceT(ptr<const NDArray> img);
 
 /** @}  NDArrayUtilities */
 

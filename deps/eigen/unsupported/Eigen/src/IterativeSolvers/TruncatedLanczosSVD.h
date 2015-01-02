@@ -114,7 +114,7 @@ public:
             initrank = m_initbasis;
 
         BandLanczosSelfAdjointEigenSolver<Scalar> eig;
-        eig.setTraceSqrStop(m_tracesqr_thresh);
+        eig.setTraceStop(m_trace_thresh);
         eig.setRank(m_maxrank);
         eig.compute(C, initrank);
 
@@ -249,22 +249,23 @@ public:
 
     /**
      * @brief Stop band lanczos algorithm after the trace of the estimated
-     * covariance matrix (T^2) exceeds the ratio of total sum of squared
+     * covariance matrix exceeds the ratio of total sum of 
      * eigenvalues. This is passed directly to the underlying
      * BandLanczosSelfAdjointEigenSolver
      *
-     * @param stop 0 to 1 with 1 stopping when ALL the variance has been found
-     * and 0 stopping immediately. Set to INFINITY or NAN to only stop
-     * naturally (when the Kyrlov Subspace has been exhausted).
+	 * @param stop Ratio of variance to account for (0 to 1) with 1 stopping
+	 * when ALL the variance has been found and 0 stopping immediately. Set to
+	 * INFINITY or NAN to only stop naturally (when the Kyrlov Subspace has
+	 * been exhausted).
      */
-    void setTraceSqrStop(double stop) { m_tracesqr_thresh = stop; };
+    void setTraceStop(double stop) { m_trace_thresh = stop; };
 
     /**
      * @brief Return trace squared stopping condition to default.
      *
      * @param Default_t default
      */
-    void setTraceSqrStop(Default_t d) { m_tracesqr_thresh = INFINITY; };
+    void setTraceStop(Default_t d) { m_trace_thresh = INFINITY; };
 
     /**
      * @brief Get stop parameter based on sum of squared eigenvalues.
@@ -273,7 +274,7 @@ public:
      * @return Get the current stopping condition based on the sum squared
      * eigenvalues (trace squared)
      */
-    double traceSqrStop() { return m_tracesqr_thresh; };
+    double traceStop() { return m_trace_thresh; };
 
     /**
      * @brief Allows to prescribe a threshold to be used by Lanczos algorithm
@@ -390,7 +391,7 @@ private:
     {
         m_initbasis = -1; // <= 0 -> .1*input rows
         m_sv_thresh = std::numeric_limits<Scalar>::epsilon();
-        m_tracesqr_thresh = INFINITY;
+        m_trace_thresh = INFINITY;
         m_maxrank = -1;
 
         m_computeU = false;
@@ -425,7 +426,7 @@ private:
      * @brief Stop the BandLanczosSelfAdjointEigenSolver after the given
      * percent of squared eigenvalues have been found
      */
-    double m_tracesqr_thresh;
+    double m_trace_thresh;
 
     bool m_computeU;
     bool m_computeV;

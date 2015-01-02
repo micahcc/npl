@@ -3016,6 +3016,43 @@ double information(ptr<const NDArray> a, ptr<const NDArray> b,
 	return 0;
 }
 
+
+/**
+ * @brief Takes the variance of the higher dimensions and returns a 3D image
+ *
+ * @param img Input image all dimensions about 3 will be removed
+ *
+ * @return Output image, variance of higher dimensions
+ */
+ptr<NDArray> varianceT(ptr<const NDArray> img)
+{
+	size_t tlen = img->tlen();
+	if(tlen <= 1)
+		throw INVALID_ARGUMENT("Input Image has less than 4 Dimensions");
+
+	vector<size_t> sz(img->dim(), img->dim()+img->ndim());
+	sz.resize(3, 1);
+
+	auto out = img->copyCast(sz.size(), sz.data());
+	NDIter<double> oit(out);
+	Vector3DConstIter<double> it(img);
+
+	for(it.goBegin(); !it.eof(); ++it, ++oit) {
+		double sum = 0;
+		double sumsq = 0;
+		for(size_t tt=0; tt<tlen; tt++) {
+			double tmp = it[tt];
+			sum += tmp;
+			sumsq += tmp*tmp;
+		}
+
+		sumsq = sample_var(tlen, sum, sumsq);
+		oit.set(sumsq);
+	}
+
+	return out;
+}
+
 } // npl
 
 

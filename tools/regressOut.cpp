@@ -903,7 +903,6 @@ void timeFilter(ptr<MRImage> inimg, double cutoff, double cuton)
 	double Fs = 1./inimg->spacing(3);
 
 	int psize = round2(inimg->tlen()); // padded data size
-	int bsize = psize*2;
 
 	auto rbuffer = fftw_alloc_real(psize);
 	auto ibuffer = fftw_alloc_complex(psize);
