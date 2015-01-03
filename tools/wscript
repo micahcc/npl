@@ -86,7 +86,7 @@ def build(bld):
 
 	bld.program(target = 'nplRemoveRegressors',
 			source = 'regressOut.cpp',
-			use = 'tclap mrimage nplio statistics mrimage_utils utility')
+			use = 'tclap mrimage nplio mrimage_utils utility statistics')
 
 	bld.program(target = 'nplGuessOrient',
 			source = 'guessorient.cpp',

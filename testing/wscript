@@ -348,7 +348,7 @@ def build(bld):
 	bld.program(install_path='${PREFIX}/tests', features='test',
 			target='ica_test',
 			source='ica_test.cpp',
-			use='statistics basic_plot')
+			use='basic_plot statistics')
 
 	bld.program(install_path='${PREFIX}/tests', features='test',
 			target='pca_test',

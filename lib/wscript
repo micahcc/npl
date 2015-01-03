@@ -9,7 +9,7 @@ def build(bld):
 		export_includes = ['.'])
 	bld.shlib(target = 'statistics',
 		source = 'statistics.cpp',
-		use='EIGEN slicer',
+		use='EIGEN FFTW slicer npltypes mrimage nplio ndarray_utils',
 		export_includes = ['.'])
 	bld.shlib(target = 'utility',
 		source = 'utility.cpp',

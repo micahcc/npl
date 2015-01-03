@@ -346,12 +346,12 @@ private:
         Scalar abssum = 0;
 
         Scalar vartotal = INFINITY;
-        if(!isinf(m_tracesqr_stop) && !isnan(m_tracesqr_stop)) {
+        if(!std::isinf(m_tracesqr_stop) && !std::isnan(m_tracesqr_stop)) {
             vartotal = (A.transpose()*A).trace();
         }
 
         Scalar abstotal = INFINITY;
-        if(!isinf(m_trace_stop) && !isnan(m_trace_stop)) {
+        if(!std::isinf(m_trace_stop) && !std::isnan(m_trace_stop)) {
             abstotal = A.trace();
         }
 
@@ -490,7 +490,7 @@ private:
 
             // Compute Trace of M**2 if a stopping point was set based on the
             // total squared eigenvalue sum
-            if(!isinf(vartotal)) {
+            if(!std::isinf(vartotal)) {
                 double varsum = (approx.topLeftCorner(jj+1,jj+1)*
                         approx.topLeftCorner(jj+1,jj+1)).trace();
 
@@ -498,7 +498,7 @@ private:
                     break;
             }
 
-            if(!isinf(abstotal)) {
+            if(!std::isinf(abstotal)) {
                 abssum += approx(jj+1, jj+1);
                 if(std::abs(abssum) >= std::abs(m_trace_stop*abstotal))
                     break;
