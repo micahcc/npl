@@ -71,6 +71,11 @@ def build(bld):
 			source = 'fmri_gica.cpp',
 			use = 'mrimage_utils nplio statistics tclap');
 
+	bld.program(target = 'nplSpaceCatICA',
+			install_path='${PREFIX}/tools_incomplete',
+			source = 'fmri_space_cat_ica.cpp',
+			use = 'mrimage_utils nplio statistics tclap utility');
+
 	bld.program(target = 'nplhd',
 			source = 'niiHeader.cpp',
 			use = 'mrimage nplio')
