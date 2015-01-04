@@ -1,108 +1,108 @@
 
 def build(bld):
-	# todo rename
-	bld.program(target = 'nplCompare',
-			source = 'imgcompare.cpp',
-			use = 'ndarray_utils tclap nplio iterators accessors')
+    # todo rename
+    bld.program(target = 'nplCompare',
+            source = 'imgcompare.cpp',
+            use = 'ndarray_utils tclap nplio iterators accessors')
 
-	bld.program(target = 'nplBiasFieldCorrect',
-			source = 'biascorrect.cpp',
-			use = 'mrimage_utils tclap nplio iterators accessors')
+    bld.program(target = 'nplBiasFieldCorrect',
+            source = 'biascorrect.cpp',
+            use = 'mrimage_utils tclap nplio iterators accessors')
 
-	bld.program(target = 'nplMotionCorr',
-			source = 'motioncorr.cpp',
-			use = 'mrimage_utils registration gradient tclap nplio iterators accessors')
+    bld.program(target = 'nplMotionCorr',
+            source = 'motioncorr.cpp',
+            use = 'mrimage_utils registration gradient tclap nplio iterators accessors')
 
-	bld.program(target = 'nplRigidReg',
-			source = 'rigidreg.cpp',
-			use = 'mrimage_utils registration lbfgs tclap nplio iterators accessors')
+    bld.program(target = 'nplRigidReg',
+            source = 'rigidreg.cpp',
+            use = 'mrimage_utils registration lbfgs tclap nplio iterators accessors')
 
-	bld.program(target = 'nplOrientToTransform',
-			source = 'gettransform.cpp',
-			use = 'mrimage_utils registration lbfgs tclap nplio iterators accessors')
+    bld.program(target = 'nplOrientToTransform',
+            source = 'gettransform.cpp',
+            use = 'mrimage_utils registration lbfgs tclap nplio iterators accessors')
 
-	bld.program(target = 'nplDistortionCorr',
-			source = 'distortioncorr.cpp',
-			use = 'mrimage_utils registration lbfgs tclap nplio iterators accessors')
+    bld.program(target = 'nplDistortionCorr',
+            source = 'distortioncorr.cpp',
+            use = 'mrimage_utils registration lbfgs tclap nplio iterators accessors')
 
-	bld.program(target = 'nplKMeansSegment',
-			install_path='${PREFIX}/tools_incomplete',
-			source = 'simplesegment.cpp',
-			use = 'mrimage_utils tclap nplio statistics iterators accessors')
+    bld.program(target = 'nplKMeansSegment',
+            install_path='${PREFIX}/tools_incomplete',
+            source = 'simplesegment.cpp',
+            use = 'mrimage_utils tclap nplio statistics iterators accessors')
 
-	bld.program(target = 'nplDensitySegment',
-			install_path='${PREFIX}/tools_incomplete',
-			source = 'densitycluster.cpp',
-			use = 'mrimage_utils tclap nplio statistics iterators accessors')
+    bld.program(target = 'nplDensitySegment',
+            install_path='${PREFIX}/tools_incomplete',
+            source = 'densitycluster.cpp',
+            use = 'mrimage_utils tclap nplio statistics iterators accessors')
 
-	bld.program(target = 'nplMath',
-			source = 'math.cpp',
-			use = 'mrimage_utils nplio iterators accessors mathexpression')
+    bld.program(target = 'nplMath',
+            source = 'math.cpp',
+            use = 'mrimage_utils nplio iterators accessors mathexpression')
 
-	bld.program(target = 'skullstrip',
-			install_path='${PREFIX}/tools_incomplete',
-			source = 'skullstrip.cpp',
-			use = 'mrimage_utils tclap nplio iterators accessors statistics')
+    bld.program(target = 'skullstrip',
+            install_path='${PREFIX}/tools_incomplete',
+            source = 'skullstrip.cpp',
+            use = 'mrimage_utils tclap nplio iterators accessors statistics')
 
-	bld.program(target = 'nplReduce4D',
-			source = 'treduce.cpp',
-			use = 'mrimage_utils tclap nplio iterators accessors')
+    bld.program(target = 'nplReduce4D',
+            source = 'treduce.cpp',
+            use = 'mrimage_utils tclap nplio iterators accessors')
 
-	bld.program(target = 'deformJacobianMap',
-			install_path='${PREFIX}/tools_incomplete',
-			source = 'deformJacobianMap.cpp',
-			use = 'mrimage_utils tclap nplio iterators accessors')
+    bld.program(target = 'deformJacobianMap',
+            install_path='${PREFIX}/tools_incomplete',
+            source = 'deformJacobianMap.cpp',
+            use = 'mrimage_utils tclap nplio iterators accessors')
 
-	bld.program(target = 'nplConvertDeform',
-			source = 'convertDeform.cpp',
-			use = 'mrimage_utils nplio tclap iterators accessors')
+    bld.program(target = 'nplConvertDeform',
+            source = 'convertDeform.cpp',
+            use = 'mrimage_utils nplio tclap iterators accessors')
 
-	bld.program(target = 'nplCopyOrientation',
-			source = 'copyOrientation.cpp',
-			use = 'mrimage_utils nplio tclap')
+    bld.program(target = 'nplCopyOrientation',
+            source = 'copyOrientation.cpp',
+            use = 'mrimage_utils nplio tclap')
 
-	bld.program(target = 'nplGLM',
-			install_path='${PREFIX}/tools_incomplete',
-			source = 'generalLinearModel.cpp',
-			use = 'mrimage_utils statistics nplio EIGEN tclap utility basic_plot')
+    bld.program(target = 'nplGLM',
+            install_path='${PREFIX}/tools_incomplete',
+            source = 'generalLinearModel.cpp',
+            use = 'mrimage_utils statistics nplio EIGEN tclap utility basic_plot')
 
-	bld.program(target = 'nplGICA',
-			install_path='${PREFIX}/tools_incomplete',
-			source = 'fmri_gica.cpp',
-			use = 'mrimage_utils nplio statistics tclap');
+    bld.program(target = 'nplGICA',
+            install_path='${PREFIX}/tools_incomplete',
+            source = 'fmri_gica.cpp',
+            use = 'ica_helpers mrimage_utils nplio statistics tclap');
 
-	bld.program(target = 'nplSpaceCatICA',
-			install_path='${PREFIX}/tools_incomplete',
-			source = 'fmri_space_cat_ica.cpp',
-			use = 'mrimage_utils nplio statistics tclap utility');
+    bld.program(target = 'nplSpaceCatICA',
+            install_path='${PREFIX}/tools_incomplete',
+            source = 'fmri_space_cat_ica.cpp',
+            use = 'ica_helpers mrimage_utils nplio statistics tclap utility');
 
-	bld.program(target = 'nplhd',
-			source = 'niiHeader.cpp',
-			use = 'mrimage nplio')
+    bld.program(target = 'nplhd',
+            source = 'niiHeader.cpp',
+            use = 'mrimage nplio')
 
-	bld.program(target = 'nplTouch',
-			source = 'touch.cpp',
-			use = 'nplio tclap mrimage mrimage_utils')
+    bld.program(target = 'nplTouch',
+            source = 'touch.cpp',
+            use = 'nplio tclap mrimage mrimage_utils')
 
-	bld.program(target = 'nplRemoveRegressors',
-			source = 'regressOut.cpp',
-			use = 'tclap mrimage nplio mrimage_utils utility statistics')
+    bld.program(target = 'nplRemoveRegressors',
+            source = 'regressOut.cpp',
+            use = 'tclap mrimage nplio mrimage_utils utility statistics')
 
-	bld.program(target = 'nplGuessOrient',
-			source = 'guessorient.cpp',
-			use = 'tclap utility mrimage nplio eigen')
+    bld.program(target = 'nplGuessOrient',
+            source = 'guessorient.cpp',
+            use = 'tclap utility mrimage nplio eigen')
 
-	bld.program(target = 'nplSelectVolumes',
-			source = 'extractTimePoints.cpp',
-			use = 'tclap utility mrimage nplio')
+    bld.program(target = 'nplSelectVolumes',
+            source = 'extractTimePoints.cpp',
+            use = 'tclap utility mrimage nplio')
 #
-#	bld.program(target = 'indexMapToOffsetMap',
-#			source = 'indexMapToOffsetMap.cpp',
-#			use = 'mrimage tclap kdtree kslicer')
+#    bld.program(target = 'indexMapToOffsetMap',
+#            source = 'indexMapToOffsetMap.cpp',
+#            use = 'mrimage tclap kdtree kslicer')
 #
-	bld.program(target = 'nplApplyDeform',
-			source = 'applyDeform.cpp',
-			use = 'mrimage nplio tclap')
-#	bld.program(target = 'applyDeform',
-#			source = 'applyDeform.cpp',
-#			use = 'mrimage_utils tclap iterators accessors')
+    bld.program(target = 'nplApplyDeform',
+            source = 'applyDeform.cpp',
+            use = 'mrimage nplio tclap')
+#    bld.program(target = 'applyDeform',
+#            source = 'applyDeform.cpp',
+#            use = 'mrimage_utils tclap iterators accessors')

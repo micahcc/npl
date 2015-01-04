@@ -268,7 +268,7 @@ public:
 	 *
 	 * @param fn Open the specified file for reading and writing.
 	 * @param bsize Make the file size this number of bytes. If createNew is
-	 * false then this must match the current file size
+	 * false then this is unused
 	 * @param createNew Create a new file, removing any existing
 	 */
 	MemMap(std::string fn, size_t bsize, bool createNew);
@@ -277,7 +277,7 @@ public:
 	 * @brief Just create the object. Until open() is called the size() will
 	 * be 0 and returned data() will be NULL;
 	 */
-	MemMap();
+	MemMap() : m_size(0), m_fd(0), m_data(NULL) {};
 
 	/**
 	 * @brief Open the specified file with the specified size. If createNew is
@@ -287,9 +287,22 @@ public:
 	 * @param fn Open the specified file for reading and writing.
 	 * @param bsize Make the file size this number of bytes. If createNew is
 	 * false then this must match the current file size
-	 * @param createNew Create a new file, removing any existing
 	 */
-	int open(std::string fn, size_t bsize, bool createNew);
+	int openNew(std::string fn, size_t bsize);
+
+	/**
+	 * @brief Open the specified file with the specified size. If createNew is
+	 * set then a new file will be created an existing file will be deleted (if
+	 * permissions allow it).
+	 *
+	 * @param fn Open the specified file for reading and writing.
+	 */
+	int openExisting(std::string fn);
+
+	/**
+	 * @brief Return true if a file is currently open
+	 */
+	bool isopen() { return m_size > 0; };
 
 	/**
 	 * @brief Close the current file (if one is open). data() will return NULL

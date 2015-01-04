@@ -68,7 +68,7 @@ int main(int argc, char** argv)
     }
 
     // Open Another
-    datamap.open(filename, mapsize*10, true);
+    datamap.openNew(filename, mapsize*10);
     write_double((double*)datamap.data(), ndouble*10);
     if(test_double((double*)datamap.data(), ndouble) != 0) {
         cerr << "Error Difference in writen double 2" << endl;
@@ -77,7 +77,7 @@ int main(int argc, char** argv)
 
     // Test Close then Reopen
     datamap.close();
-    datamap.open(filename, mapsize*10, false);
+    datamap.openExisting(filename);
     if(datamap.size() <= 0) {
         cerr << "Error when re-opening!" << endl;
         return -1;
@@ -88,15 +88,6 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    // Test Close then Reopen With Wrong Size
-    cerr << "IGNORE THE NEXT ERROR" << endl;
-    datamap.open(filename, mapsize, false);
-    cerr << "OK, STOP IGNORING" << endl;
-    if(datamap.size() > 0) {
-        cerr<<"Error should have gotten an error when opening with wrong size"
-            " but did not!" << endl;
-        return -1;
-    }
     return 0;
 }
 

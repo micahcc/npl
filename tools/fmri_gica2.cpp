@@ -82,6 +82,9 @@ int main(int argc, char** argv)
 			"in PCA. This sets are hard limit on the number of estimated "
 			"eigenvectors in the Band Lanczos Solver (and thus the maximum "
 			"number of singular values in the SVD)", false, -1, "#vecs", cmd);
+	TCLAP::ValueArg<double> a_gbram("M", "memory-max", "Maximum number of GB "
+			"of RAM to use for chunks. This is needed to decide how to divide "
+			"up data into spatial chunks. ", false, -1, "#vecs", cmd);
 
 	TCLAP::SwitchArg a_spatial_ica("S", "spatial-ica", "Perform a spatial ICA"
 			", reducing unmixing timepoints to produce spatially independent "
@@ -98,9 +101,10 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	return fmri_gica2(a_spatial_ica.isSet(), a_in.getValue(),
+	return fmri_gica(a_spatial_ica.isSet(), a_in.getValue(),
 			a_mapdir.getValue(), a_evthresh.getValue(),
-			a_simultaneous.getValue(), a_maxrank.getValue());
+			a_simultaneous.getValue(), a_maxrank.getValue()
+			a_gbram.getValue());
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
@@ -108,9 +112,9 @@ int main(int argc, char** argv)
 	return 0;
 }
 
-int fmri_gica2(bool spacial, const vector<string>& files,
+int fmri_gica(bool spacial, const vector<string>& files,
 		string maskfile, string workdir, double evthresh,
-		int lancvec, int maxrank)
+		int lancvec, int maxrank, double gbmax)
 {
 	ptr<MRImage> mask;
 
@@ -147,13 +151,15 @@ int fmri_gica2(bool spacial, const vector<string>& files,
 			mask->write(workdir+"/mask.nii.gz");
 		}
 
+		// Create mat file by memory mapping
 		string fn = workdir+"/mat_"+to_string(tt);
 		MemMap mmap(fn, nrows[ii]*ncols+sizeof(double), true);
 		if(mmap.size() <= 0)
 			return -1;
 
+		// Fill Matrix from Image
 		double* ptr = (double*)mmap.data();
-		if(fillMat(ptr, nrows, ncols[ii], img, mask) != 0) {
+		if(fillMat(ptr, nrows[ii], ncols, img, mask) != 0) {
 			cerr<<"Error Filling Matrix"<<endl;
 			return -1;
 		}
@@ -162,13 +168,20 @@ int fmri_gica2(bool spacial, const vector<string>& files,
 	if(a_verbose.getValue() >= 1) {
 		cerr << "Data Dimensions: " << endl;
 		cerr << "# Concatination in Time: " << tcat << endl;
-		cerr << "# Concatination in Space : " << scat << endl;
-		cerr << "Single Image Time Size: " << tsing << endl;
-		cerr << "Single Image Space Size: " << ssing << endl;
-		cerr << "Total Time Size: " << tlen << endl;
-		cerr << "Toal Space Size: " << slen << endl;
+		cerr << "Total Time Size: " << totalrows << endl;
+		cerr << "(Single) Image Space Size: " << ncols << endl;
 	}
 	
+	// Convert Row Blocks to Col Blocks
+	convert
+	TODO	
+	// Perform SVD on each block
+	
+	// Perform SVD on [U_1S_1 U_2S_2 ... ]
+	
+	// First 
+	size_t nscalar = ncols*totalrows;
+
 	MatrixXd cov;
 
 	/*

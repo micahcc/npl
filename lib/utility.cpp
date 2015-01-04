@@ -525,64 +525,68 @@ void convolve(std::vector<double>& signal, double(*foo)(double),
 	}
 }
 
-MemMap::MemMap(string fn, size_t bsize, bool createNew) :
+MemMap::MemMap(std::string fn, size_t bsize, bool createNew) :
 	m_size(0), m_fd(0), m_data(NULL)
 {
-	open(fn, bsize, createNew);
+	if(createNew) {
+		openNew(fn, bsize);
+	} else {
+		openExisting(fn);
+	}
 };
 
-int MemMap::open(string fn, size_t bsize, bool createNew)
+int MemMap::openNew(string fn, size_t bsize)
 {
 	close();
 
 	// Create an Emptry File
-	if(createNew) {
-		m_fd = ::open(fn.c_str(), O_LARGEFILE|O_CREAT|O_TRUNC|O_RDWR, S_IRWXU);
-		int result;
+	m_fd = ::open(fn.c_str(), O_LARGEFILE|O_CREAT|O_TRUNC|O_RDWR, S_IRWXU);
+	int result;
 
-		// Seek to end
-		result = lseek(m_fd, bsize-1, SEEK_SET);
-		if (result == -1) {
-			std::cerr << "Error when seeking in file" << endl;
-			::close(m_fd);
-			m_size = -1;
-			return -1;
-		}
+	// Seek to end
+	result = lseek(m_fd, bsize-1, SEEK_SET);
+	if (result == -1) {
+		std::cerr << "Error when seeking in file" << endl;
+		::close(m_fd);
+		m_size = -1;
+		return -1;
+	}
 
-		// Write a byte at the end
-		result = write(m_fd, "", 1);
-		if(result < 0) {
-			std::cerr << "Error when writing file" << endl;
-			::close(m_fd);
-			m_size = -1;
-			return -1;
-		}
-	} else {
-		// Check that the file size matches expectations
-		struct stat st;
-		if(stat(fn.c_str(), &st) != 0) {
-			std::cerr<<"Stat error on input file"<<fn<<endl;
-			m_size = -1;
-			return -1;
-		}
-
-		if(st.st_size != bsize) {
-			std::cerr<<"Error opening existing file: "<<fn<<" size does not "
-				"match requested size!"<<endl;
-			m_size = -1;
-			return -1;
-		}
-
-		m_fd = ::open(fn.c_str(), O_LARGEFILE|O_RDWR);
-		if(m_fd < 0) {
-			std::cerr<<"Error opening existing file: "<<fn<<endl;
-			m_size = -1;
-			return -1;
-		}
+	// Write a byte at the end
+	result = write(m_fd, "", 1);
+	if(result < 0) {
+		std::cerr << "Error when writing file" << endl;
+		::close(m_fd);
+		m_size = -1;
+		return -1;
 	}
 
 	m_data = mmap(NULL, bsize, PROT_READ|PROT_WRITE, MAP_SHARED, m_fd, 0);
 	m_size = bsize;
+	return m_size;
+};
+
+int MemMap::openExisting(string fn)
+{
+	close();
+
+	// Check that the file size matches expectations
+	struct stat st;
+	if(stat(fn.c_str(), &st) != 0) {
+		std::cerr<<"Stat error on input file"<<fn<<endl;
+		m_size = -1;
+		return -1;
+	}
+
+	m_size = st.st_size;;
+	m_fd = ::open(fn.c_str(), O_LARGEFILE|O_RDWR);
+	if(m_fd < 0) {
+		std::cerr<<"Error opening existing file: "<<fn<<endl;
+		m_size = -1;
+		return -1;
+	}
+
+	m_data = mmap(NULL, m_size, PROT_READ|PROT_WRITE, MAP_SHARED, m_fd, 0);
 	return m_size;
 };
 
