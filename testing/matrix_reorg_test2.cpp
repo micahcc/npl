@@ -37,7 +37,7 @@ int testWideMats(const MatrixReorg& reorg, const vector<ptr<MRImage>>& masks,
 	MatrixXd full(reorg.m_totalrows, reorg.m_totalcols);
 
 	size_t currow = 0;
-	for(size_t ii=0; ii<reorg.m_outcols.size(); ++ii) {
+	for(size_t ii=0; ii<reorg.m_outrows.size(); ++ii) {
 		MatMap mat(prefix+to_string(ii));
 		
 		full.middleRows(currow, reorg.m_outrows[ii]) = mat.mat;
@@ -60,7 +60,7 @@ int testWideMats(const MatrixReorg& reorg, const vector<ptr<MRImage>>& masks,
 				for(size_t s=0; !it.eof(); ++it, ++mit) {
 					if(*mit != 0) {
 						if(full(globrow+t, globcol+s) != it[t]) {
-							cerr << "Mismatch in tall mats!" << endl;
+							cerr << "Mismatch in wide mats!" << endl;
 							cerr << "Outer Column: " << cc << endl;
 							cerr << "Outer Row: " << rr << endl;
 							cerr << "Inner Column: " << s << endl;
@@ -133,7 +133,7 @@ int testTallMats(const MatrixReorg& reorg, const vector<ptr<MRImage>>& masks,
 
 int main()
 {
-	std::string pref = "reorg_test1";
+	std::string pref = "reorg_test2";
 	size_t timepoints = 15;
 	size_t ncols = 3;
 	size_t nrows = 4;
@@ -144,19 +144,13 @@ int main()
 	vector<std::string> fn_inputs(ncols*nrows);
 	vector<std::string> fn_masks(ncols);
 	for(size_t cc = 0; cc<ncols; cc++) {
-		masks[cc] = randImage(INT8, 0, 1, 8, 7, 6, 0);
+		masks[cc] = randImage(INT8, 0, 1, 11, 12, 13, 0);
+
 		fn_masks[cc] = pref+"mask_"+to_string(cc)+".nii.gz";
 		masks[cc]->write(fn_masks[cc]);
 
 		for(size_t rr = 0; rr<nrows; rr++) {
-			inputs[rr+cc*nrows] = randImage(FLOAT64, 0, 1, 8, 7, 6, timepoints);
-			int count = 0;
-			for(Vector3DIter<double> it(inputs[rr+cc*nrows]); !it.eof(); ++it) {
-				for(size_t tt=0; tt<timepoints; tt++) {
-					it.set(tt, cc*1e6+rr*1e4+count*1e2+tt);
-				}
-				count++;
-			}
+			inputs[rr+cc*nrows] = randImage(FLOAT64, 0, 1, 11, 12, 13, timepoints);
 			
 			fn_inputs[rr+cc*nrows] = pref+to_string(cc)+"_"+
 						to_string(rr)+".nii.gz";
@@ -164,7 +158,7 @@ int main()
 		}
 	}
 	
-	MatrixReorg reorg(pref, 45000, true);
+	MatrixReorg reorg(pref, 15000, true);
 	if(reorg.createMats(nrows, ncols, fn_masks, fn_inputs) != 0) 
 		return -1;
 	
