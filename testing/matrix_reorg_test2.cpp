@@ -134,7 +134,7 @@ int testTallMats(const MatrixReorg& reorg, const vector<ptr<MRImage>>& masks,
 int main()
 {
 	std::string pref = "reorg_test1";
-	size_t timepoints = 5;
+	size_t timepoints = 15;
 	size_t ncols = 3;
 	size_t nrows = 4;
 
@@ -144,12 +144,19 @@ int main()
 	vector<std::string> fn_inputs(ncols*nrows);
 	vector<std::string> fn_masks(ncols);
 	for(size_t cc = 0; cc<ncols; cc++) {
-		masks[cc] = randImage(INT8, 0, 1, 10, 11, 13, 0);
+		masks[cc] = randImage(INT8, 0, 1, 8, 7, 6, 0);
 		fn_masks[cc] = pref+"mask_"+to_string(cc)+".nii.gz";
 		masks[cc]->write(fn_masks[cc]);
 
 		for(size_t rr = 0; rr<nrows; rr++) {
-			inputs[rr+cc*nrows] = randImage(FLOAT64, 0, 1, 10, 11, 13, timepoints);
+			inputs[rr+cc*nrows] = randImage(FLOAT64, 0, 1, 8, 7, 6, timepoints);
+			int count = 0;
+			for(Vector3DIter<double> it(inputs[rr+cc*nrows]); !it.eof(); ++it) {
+				for(size_t tt=0; tt<timepoints; tt++) {
+					it.set(tt, cc*1e6+rr*1e4+count*1e2+tt);
+				}
+				count++;
+			}
 			
 			fn_inputs[rr+cc*nrows] = pref+to_string(cc)+"_"+
 						to_string(rr)+".nii.gz";

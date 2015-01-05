@@ -775,11 +775,9 @@ int fillMatPSD(double* rawdata, size_t nrows, size_t ncols,
 	// Create View of Matrix, and fill with PSD in each column
 	Eigen::Map<MatrixXd> mat(rawdata, nrows, ncols);
 
-	double* ibuffer;
-	fftw_complex* obuffer;
 	fftw_plan fwd;
-	ibuffer = fftw_alloc_real(mat.rows());
-	obuffer = fftw_alloc_complex(mat.rows());
+	auto ibuffer = (double*)fftw_malloc(sizeof(double)*mat.rows());
+	auto obuffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*mat.rows());
 	fwd = fftw_plan_dft_r2c_1d(mat.rows(), ibuffer, obuffer, FFTW_MEASURE);
 	for(size_t ii=0; ii<mat.rows(); ii++)
 		ibuffer[ii] = 0;
