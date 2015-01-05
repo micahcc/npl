@@ -37,7 +37,7 @@ int testWideMats(const MatrixReorg& reorg, const vector<ptr<MRImage>>& masks,
 	MatrixXd full(reorg.m_totalrows, reorg.m_totalcols);
 
 	size_t currow = 0;
-	for(size_t ii=0; ii<reorg.m_outcols.size(); ++ii) {
+	for(size_t ii=0; ii<reorg.m_outrows.size(); ++ii) {
 		MatMap mat(prefix+to_string(ii));
 		
 		full.middleRows(currow, reorg.m_outrows[ii]) = mat.mat;
@@ -60,7 +60,7 @@ int testWideMats(const MatrixReorg& reorg, const vector<ptr<MRImage>>& masks,
 				for(size_t s=0; !it.eof(); ++it, ++mit) {
 					if(*mit != 0) {
 						if(full(globrow+t, globcol+s) != it[t]) {
-							cerr << "Mismatch in tall mats!" << endl;
+							cerr << "Mismatch in wide mats!" << endl;
 							cerr << "Outer Column: " << cc << endl;
 							cerr << "Outer Row: " << rr << endl;
 							cerr << "Inner Column: " << s << endl;
