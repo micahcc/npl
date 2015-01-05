@@ -27,6 +27,7 @@
 
 #include "npltypes.h"
 #include "mrimage.h"
+#include "utility.h"
 
 namespace npl {
 
@@ -126,6 +127,108 @@ int fillMat(double* rawdata, size_t nrows, size_t ncols,
  */
 int fillMatPSD(double* rawdata, size_t nrows, size_t ncols,
 		ptr<const MRImage> img, ptr<const MRImage> mask);
+
+class MatrixReorg
+{
+public:
+
+	/**
+	 * @brief Constructor
+	 *
+	 * @param prefix Prefix for matrix files to be written 
+	 * PREFIX_tall_[0-9]* and  * PREFIX_wide_[0-9]*
+	 * @param maxd Maximum number of doubles to include in a block, this
+	 * should be sized to fit into memory
+	 * @param verbose Print information
+	 */
+	MatrixReorg(std::string prefix, size_t maxd=(1<<30), bool verbose=true);
+
+	/**
+	 * @brief Creates two sets of matrices from a set of input images. The matrices
+	 * (images) are ordered in column major order. In each column the mask is loaded
+	 * then each image in the column is loaded and the masked timepoints extracted.
+	 *
+	 * The order of reading from filenames is essentially:
+	 * time 0: 0246
+	 * time 1: 1357
+	 *
+	 * Masks correspond to each column so the number of masks should be = to number
+	 * masknames. Note that if no mask is provided, one will be generated from the
+	 * set of non-zero variance timeseries in the first input image in the column.
+	 *
+	 * This file writes matrices called /tall_# and /wide_#. Tall matrices have
+	 * the entire concatinated timeseries for a limited set of spacial locations,
+	 * Wide matrices have entire concatinated spacial signals for a limited number
+	 * of timepoints.
+	 *
+	 * @param timeblocks Number of timeseries to concatinate (concatined
+	 * time-series are adjacent in filenames vector)
+	 * @param spaceblocks Number of images to concatinate spacially. Unless PSD is
+	 * done, these images should have matching tasks
+	 * @param masknames Files matching columns of in the filenames matrix. That
+	 * indicate voxels to include
+	 * @param filenames Files to read in, images are stored in column (time)-major
+	 * order
+	 *
+	 * @return 0 if succesful, -1 if read failure, -2 if write failure
+	 */
+	int createMats(size_t timeblocks, size_t spaceblocks, 
+			const std::vector<std::string>& masknames, 
+			const std::vector<std::string>& filenames);
+
+	size_t m_totalrows;
+	size_t m_totalcols;
+	std::string m_prefix;
+	size_t m_maxdoubles;
+	bool m_verbose;
+	vector<int> m_inrows;
+	vector<int> m_incols;
+	vector<int> m_outrows;
+	vector<int> m_outcols;
+};
+
+class MatMap 
+{
+public:
+	MatMap() : mat(NULL, 0, 0)
+	{
+	};
+
+	MatMap(std::string filename) : mat(NULL, 0, 0)
+	{
+		open(filename);
+	};
+
+	void open(std::string filename)
+	{
+		datamap.openExisting(filename);
+		
+		size_t* nrowsptr = (size_t*)datamap.data();
+		size_t* ncolsptr = nrowsptr+1;
+		double* dataptr = (double*)((size_t*)datamap.data()+2);
+		
+		rows = *nrowsptr;
+		cols = *ncolsptr;
+		new (&this->mat) Eigen::Map<MatrixXd>(dataptr, rows, cols);
+	};
+
+	void close()
+	{
+		datamap.close();
+	};
+
+	bool isopen()
+	{
+		return datamap.isopen();
+	};
+
+	Eigen::Map<MatrixXd> mat;
+	size_t rows;
+	size_t cols;
+private:
+	MemMap datamap;
+};
+
 
 }
 

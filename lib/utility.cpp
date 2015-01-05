@@ -34,6 +34,7 @@
 #include <cmath>
 
 #include "utility.h"
+#include "macros.h"
 
 #include <string>
 #include <cassert>
@@ -573,17 +574,13 @@ int MemMap::openExisting(string fn)
 	// Check that the file size matches expectations
 	struct stat st;
 	if(stat(fn.c_str(), &st) != 0) {
-		std::cerr<<"Stat error on input file"<<fn<<endl;
-		m_size = -1;
-		return -1;
+		throw INVALID_ARGUMENT("Stat error on input file: "+fn);
 	}
 
 	m_size = st.st_size;;
 	m_fd = ::open(fn.c_str(), O_LARGEFILE|O_RDWR);
 	if(m_fd < 0) {
-		std::cerr<<"Error opening existing file: "<<fn<<endl;
-		m_size = -1;
-		return -1;
+		throw INVALID_ARGUMENT("Error opening existing file: "+fn);
 	}
 
 	m_data = mmap(NULL, m_size, PROT_READ|PROT_WRITE, MAP_SHARED, m_fd, 0);

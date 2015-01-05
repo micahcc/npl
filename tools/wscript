@@ -68,10 +68,10 @@ def build(bld):
 
     bld.program(target = 'nplGICA',
             install_path='${PREFIX}/tools_incomplete',
-            source = 'fmri_gica.cpp',
+            source = 'fmri_gica2.cpp',
             use = 'ica_helpers mrimage_utils nplio statistics tclap');
 
-    bld.program(target = 'nplSpaceCatICA',
+    bld.program(target = 'nplGICAsc',
             install_path='${PREFIX}/tools_incomplete',
             source = 'fmri_space_cat_ica.cpp',
             use = 'ica_helpers mrimage_utils nplio statistics tclap utility');

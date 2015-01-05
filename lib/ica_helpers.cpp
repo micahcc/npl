@@ -380,45 +380,11 @@ int spcat_ica(bool psd, const vector<string>& imgnames,
 	return 0;
 }
 
-class MatMap {
-public:
-	MatMap() : mat(NULL, 0, 0)
-	{
-	};
-
-	MatMap(string filename) : mat(NULL, 0, 0)
-	{
-		open(filename);
-	};
-
-	void open(string filename)
-	{
-		datamap.openExisting(filename);
-		
-		size_t* nrowsptr = (size_t*)datamap.data();
-		size_t* ncolsptr = nrowsptr+1;
-		double* dataptr = (double*)(nrowsptr+1);
-		
-		rows = *nrowsptr;
-		cols = *ncolsptr;
-		new (&this->mat) Eigen::Map<MatrixXd>(dataptr, rows, cols);
-	};
-
-	void close()
-	{
-		datamap.close();
-	};
-
-	bool isopen()
-	{
-		return datamap.isopen();
-	};
-
-	Eigen::Map<MatrixXd> mat;
-	size_t rows;
-	size_t cols;
-private:
-	MemMap datamap;
+MatrixReorg::MatrixReorg(std::string prefix, size_t maxdoubles, bool verbose)
+{
+	m_prefix = prefix;
+	m_maxdoubles = maxdoubles;
+	m_verbose = verbose;
 };
 
 /**
@@ -443,23 +409,31 @@ private:
  * time-series are adjacent in filenames vector)
  * @param spaceblocks Number of images to concatinate spacially. Unless PSD is
  * done, these images should have matching tasks
+ * @param masknames Files matching columns of in the filenames matrix. That
+ * indicate voxels to include
  * @param filenames Files to read in, images are stored in column (time)-major
  * order
- * @param dirname Directory to write matrices to
- * @param maxdoubles Maximum number of doubles we can store in a single image.
- * This is important so that entire matrices can be loaded into memory
  *
  * @return 0 if succesful, -1 if read failure, -2 if write failure
  */
-int createMats(size_t timeblocks, size_t spaceblocks, std::string dirname,
-		std::vector<std::string> masknames, std::vector<std::string> filenames,
-		size_t maxdoubles, bool verbose)
+int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks, 
+		const std::vector<std::string>& masknames, 
+		const std::vector<std::string>& filenames)
 {
-	std::string tallpr = dirname + "/tall_";
-	std::string widepr = dirname + "/wide_";
-	std::string maskpr = dirname + "/mask_";
+	// size_t m_totalrows;
+	// size_t m_totalcols;
+	// std::string m_prefix;
+	// size_t m_maxdoubles;
+	// bool m_verbose;
+	// vector<int> m_inrows;
+	// vector<int> m_incols;
+	// vector<int> m_outrows;
+	// vector<int> m_outcols;
+	std::string tallpr = m_prefix + "_tall_";
+	std::string widepr = m_prefix + "_wide_";
+	std::string maskpr = m_prefix + "_mask_";
 
-	if(verbose) {
+	if(m_verbose) {
 		cerr << "Tall Matrix Prefix: " << tallpr << endl;
 		cerr << "Wide Matrix Prefix: " << widepr << endl;
 		cerr << "Mask Prefix:        " << maskpr << endl;
@@ -471,10 +445,13 @@ int createMats(size_t timeblocks, size_t spaceblocks, std::string dirname,
 	 * rows in each block of rows and number of columns in each block of
 	 * columns, also create masks in the output folder
 	 */
-	vector<int> nrows(timeblocks, 0);
-	vector<int> ncols(spaceblocks, 0);
-	int totalrows = 0;
-	int totalcols = 0;
+	m_inrows.resize(timeblocks);
+	m_incols.resize(spaceblocks);
+	std::fill(m_inrows.begin(), m_inrows.end(), 0);
+	std::fill(m_incols.begin(), m_incols.end(), 0);
+
+	m_totalrows = 0;
+	m_totalcols = 0;
 
 	// Figure out the number of cols in each block, and create masks
 	ptr<MRImage> mask;
@@ -489,24 +466,28 @@ int createMats(size_t timeblocks, size_t spaceblocks, std::string dirname,
 		mask->write(maskpr+to_string(sb)+".nii.gz");
 		for(FlatIter<int> it(mask); !it.eof(); ++it) {
 			if(*it != 0)
-				ncols[sb]++;
+				m_incols[sb]++;
 		}
-		totalcols += ncols[sb];
+		if(m_incols[sb] == 0) {
+			throw INVALID_ARGUMENT("Error, input mask for column " +
+					to_string(sb) + " has no non-zero pixels");
+		}
+		m_totalcols += m_incols[sb];
 	}
 
 	// Figure out number of rows in each block
 	for(size_t tb = 0; tb<timeblocks; tb++) {
 		auto img = readMRImage(filenames[0*timeblocks+tb]);
 
-		nrows[tb] += img->tlen();
-		totalrows += nrows[tb];
+		m_inrows[tb] += img->tlen();
+		m_totalrows += m_inrows[tb];
 	}
 
-	if(verbose) {
+	if(m_verbose) {
 		cerr << "Row/Time  Blocks: " << timeblocks << endl;
 		cerr << "Col/Space Blocks: " << spaceblocks << endl;
-		cerr << "Total Rows/Timepoints: " << totalrows<< endl;
-		cerr << "Total Cols/Voxels:     " << totalcols << endl;
+		cerr << "Total Rows/Timepoints: " << m_totalrows<< endl;
+		cerr << "Total Cols/Voxels:     " << m_totalcols << endl;
 	}
 
 	/*
@@ -514,86 +495,104 @@ int createMats(size_t timeblocks, size_t spaceblocks, std::string dirname,
 	 * cross lines between images (this will make loading the matrices easier)
 	 */
 	// for wide matrices
-	std::vector<int> ob_nrows(1, 0); // number of rows per block
+	m_outrows.resize(1); m_outrows[0] = 0; // number of rows per block
 	std::vector<int> ob_srow(1, 0); // starting global row for each block
-	
+
 	// for tall matrices
-	std::vector<int> ob_ncols(1, 0); // number of cols per block
+	m_outcols.resize(1); m_outcols[0] = 0; // number of cols per block
 	std::vector<int> ob_scol(1, 0); // starting global col for each block
 	int blockind = 0;
 	int blocknum = 0;
 
 	// wide matrices, create files
-	if(totalcols > maxdoubles) {
+	// break up output blocks of rows into chunks that 1) don't cross images 
+	// and 2) with have fewer elements than m_maxdoubles
+	if(m_totalcols > m_maxdoubles) {
 		throw INVALID_ARGUMENT("maxdoubles is not large enough to hold a "
 				"single full row!");
 	}
 	blockind = 0;
 	blocknum = 0;
-	for(int rr=0; rr<totalrows; rr++) {
-		if(blockind+1 == nrows[blocknum]) {
+	for(int rr=0; rr<m_totalrows; rr++) {
+		if(blockind == m_inrows[blocknum]) {
 			// open file, create with proper size
-			MemMap wfile(widepr+to_string(ob_nrows.size()-1), 2*sizeof(size_t)+
-					ob_nrows.back()*totalcols*sizeof(double), true);
-			((size_t*)wfile.data())[0] = totalcols; // nrows
-			((size_t*)wfile.data())[1] = ob_nrows.back(); // nrows
+			MemMap wfile(widepr+to_string(m_outrows.size()-1), 2*sizeof(size_t)+
+					m_outrows.back()*m_totalcols*sizeof(double), true);
+			((size_t*)wfile.data())[0] = m_outrows.back(); // nrows
+			((size_t*)wfile.data())[1] = m_totalcols; // nrows
 
 			// if the index in the block would put us in a different image, then
 			// start a new out block
 			blockind = 0;
 			blocknum++;
-			ob_nrows.push_back(0);
+			m_outrows.push_back(0);
 			ob_srow.push_back(rr);
-		} else if((ob_nrows.back()+1)*totalcols > maxdoubles) {
+		} else if((m_outrows.back()+1)*m_totalcols > m_maxdoubles) {
 			// open file, create with proper size
-			MemMap wfile(widepr+to_string(ob_nrows.size()-1), 2*sizeof(size_t)+
-					ob_nrows.back()*totalcols*sizeof(double), true);
-			((size_t*)wfile.data())[0] = ob_nrows.back(); // nrows
-			((size_t*)wfile.data())[1] = totalcols; // ncols
-			
+			MemMap wfile(widepr+to_string(m_outrows.size()-1), 2*sizeof(size_t)+
+					m_outrows.back()*m_totalcols*sizeof(double), true);
+			((size_t*)wfile.data())[0] = m_outrows.back(); // nrows
+			((size_t*)wfile.data())[1] = m_totalcols; // ncols
+
 			// If this row won't fit in the current block of rows, start a new one, 
-			ob_nrows.push_back(0);
+			m_outrows.push_back(0);
 			ob_srow.push_back(rr);
 		}
-		ob_nrows.back()++;
+		blockind++;
+		m_outrows.back()++;
+	}
+	{ // Create Last File
+	MemMap wfile(widepr+to_string(m_outrows.size()-1), 2*sizeof(size_t)+
+			m_outrows.back()*m_totalcols*sizeof(double), true);
+	((size_t*)wfile.data())[0] = m_outrows.back(); // nrows
+	((size_t*)wfile.data())[1] = m_totalcols; // nrows
 	}
 
 	// tall matrices, create files
-	if(totalrows > maxdoubles) {
+	// break up output blocks of cols into chunks that 1) don't cross images 
+	// and 2) with have fewer elements than m_maxdoubles
+	if(m_totalrows > m_maxdoubles) {
 		throw INVALID_ARGUMENT("maxdoubles is not large enough to hold a "
 				"single full column!");
 	}
 	blockind = 0;
 	blocknum = 0;
-	for(int cc=0; cc<totalcols; cc++) {
-		if(blockind+1 == ncols[blocknum]) {
+	for(int cc=0; cc<m_totalcols; cc++) {
+		if(blockind == m_incols[blocknum]) {
 			// open file, create with proper size
-			MemMap tfile(tallpr+to_string(ob_ncols.size()-1), 2*sizeof(size_t)+
-					ob_ncols.back()*totalrows*sizeof(double), true);
-			((size_t*)tfile.data())[0] = totalrows; // nrows
-			((size_t*)tfile.data())[1] = ob_ncols.back(); // ncols
-			
+			MemMap tfile(tallpr+to_string(m_outcols.size()-1), 2*sizeof(size_t)+
+					m_outcols.back()*m_totalrows*sizeof(double), true);
+			((size_t*)tfile.data())[0] = m_totalrows; // nrows
+			((size_t*)tfile.data())[1] = m_outcols.back(); // ncols
+
 			// if the index in the block would put us in a different image, then
 			// start a new out block, and new in block
 			blockind = 0;
 			blocknum++;
-			ob_ncols.push_back(0);
+			m_outcols.push_back(0);
 			ob_scol.push_back(cc);
-		} else if((ob_ncols.back()+1)*totalrows > maxdoubles) {
-			MemMap tfile(tallpr+to_string(ob_ncols.size()-1), 2*sizeof(size_t)+
-					ob_ncols.back()*totalrows*sizeof(double), true);
-			((size_t*)tfile.data())[0] = totalrows; // nrows
-			((size_t*)tfile.data())[1] = ob_ncols.back(); // ncols
+		} else if((m_outcols.back()+1)*m_totalrows > m_maxdoubles) {
+			MemMap tfile(tallpr+to_string(m_outcols.size()-1), 2*sizeof(size_t)+
+					m_outcols.back()*m_totalrows*sizeof(double), true);
+			((size_t*)tfile.data())[0] = m_totalrows; // nrows
+			((size_t*)tfile.data())[1] = m_outcols.back(); // ncols
 
 			// If this col won't fit in the current block of cols, start a new one, 
-			ob_ncols.push_back(0);
+			m_outcols.push_back(0);
 			ob_scol.push_back(cc);
 		}
-		ob_ncols.back()++;
+		blockind++;
+		m_outcols.back()++;
+	}
+	{ // Create Last File
+	MemMap tfile(tallpr+to_string(m_outcols.size()-1), 2*sizeof(size_t)+
+			m_outcols.back()*m_totalrows*sizeof(double), true);
+	((size_t*)tfile.data())[0] = m_totalrows; // nrows
+	((size_t*)tfile.data())[1] = m_outcols.back(); // ncols
 	}
 
 	// Fill Tall and Wide Matrices by breaking up images along block rows and
-	// block cols specified in ob_ncols and ob_nrows. 
+	// block cols specified in m_outcols and m_outrows. 
 	int img_glob_row = 0;
 	int img_glob_col = 0;
 	int img_oblock_row = 0;
@@ -602,16 +601,19 @@ int createMats(size_t timeblocks, size_t spaceblocks, std::string dirname,
 	for(size_t sb = 0; sb<spaceblocks; sb++) {
 		auto mask = readMRImage(maskpr+to_string(sb)+".nii.gz");
 
+		img_glob_row = 0;
+		img_oblock_row = 0;
 		for(size_t tb = 0; tb<timeblocks; tb++) {
 			auto img = readMRImage(filenames[sb*timeblocks+tb]);
 
 			if(!img->matchingOrient(mask, false, true))
 				throw INVALID_ARGUMENT("Mismatch in mask/image size in col:"+
 						to_string(sb)+", row:"+to_string(tb));
-			if(img->tlen() != nrows[tb])
+			if(img->tlen() != m_inrows[tb])
 				throw INVALID_ARGUMENT("Mismatch in time-length in col:"+
 						to_string(sb)+", row:"+to_string(tb));
 
+			int rr, cc, colbl, rowbl, tt;
 			int tlen = img->tlen();
 			Vector3DIter<double> it(img);
 			NDIter<double> mit(mask);
@@ -620,14 +622,14 @@ int createMats(size_t timeblocks, size_t spaceblocks, std::string dirname,
 			// Start with invalid and load new columns as needed
 			// cc iterates over the columns in the block, colbl indicates the
 			// index of the block in the overall scheme
-			for(int cc=-1, colbl=img_oblock_col-1; !it.eof(); ++it, ++mit) {
+			for(cc=-1, colbl=img_oblock_col-1; !it.eof(); ++it, ++mit) {
 				if(*mit != 0) {
 					// If cc is invalid, open
-					if(cc < 0 || cc >= ob_ncols[colbl]) {
+					if(cc < 0 || cc >= m_outcols[colbl]) {
 						cc = 0;
 						colbl++;
 						datamap.open(tallpr+to_string(colbl));
-						if(datamap.rows != totalrows || datamap.cols != ob_ncols[colbl]) {
+						if(datamap.rows != m_totalrows || datamap.cols != m_outcols[colbl]) {
 							throw INVALID_ARGUMENT("Unexpected size in input " 
 									+ tallpr+to_string(colbl));
 						}
@@ -635,11 +637,13 @@ int createMats(size_t timeblocks, size_t spaceblocks, std::string dirname,
 
 					// rows are global, cols are local to block
 					for(size_t tt=0; tt<tlen; tt++) {
-						datamap.mat(tt+img_glob_row, cc);
+						datamap.mat(tt+img_glob_row, cc) = it[tt];
 					}
 					cc++;
 				}
 			}
+
+			assert(cc == m_outcols[colbl]);
 			datamap.close();
 
 			// Wide Matrix, fill mat[0:brows,img_glob_col:img_glob_col+nvox],
@@ -647,12 +651,13 @@ int createMats(size_t timeblocks, size_t spaceblocks, std::string dirname,
 			// rr iterates over the rows in the block
 			// rowbl is the index of the block in the set of output blocks
 			// tt is the index row position in the image
-			for(int rr=-1, rowbl=img_oblock_row-1, tt=0; tt < tlen; rr++, tt++){
-				if(rr < 0 || rr >= ob_nrows[rowbl]) {
+			for(rr=-1, rowbl=img_oblock_row-1, tt=0; tt < tlen; rr++, tt++){
+				if(rr < 0 || rr >= m_outrows[rowbl]) {
 					rr = 0;
 					rowbl++;
 					datamap.open(widepr+to_string(rowbl));
-					if(datamap.rows != ob_nrows[rowbl] || datamap.cols != totalcols) {
+					if(datamap.rows != m_outrows[rowbl] || datamap.cols !=
+							m_totalcols) {
 						throw INVALID_ARGUMENT("Unexpected size in input " 
 								+ tallpr+to_string(rowbl));
 					}
@@ -665,20 +670,23 @@ int createMats(size_t timeblocks, size_t spaceblocks, std::string dirname,
 				}
 			}
 
+			assert(rr == m_outrows[rowbl]);
+			datamap.close();
+
 			// Increment Global Row by Input Block Size (same as image rows)
-			img_glob_row += nrows[tb];
+			img_glob_row += m_inrows[tb];
 
 			// Increment Output block row to correspond to the next image
-			for(int ii=0; ii != nrows[tb]; )
-				ii += ob_nrows[img_oblock_row++];
+			for(int ii=0; ii != m_inrows[tb]; )
+				ii += m_outrows[img_oblock_row++];
 		}
 
 		// Increment Global Col by Input Block Size (same as image cols)
-		img_glob_col += ncols[sb];
+		img_glob_col += m_incols[sb];
 
 		// Increment Output block col to correspond to the next image
-		for(int ii=0; ii != ncols[sb]; )
-			ii += ob_ncols[img_oblock_col++];
+		for(int ii=0; ii != m_incols[sb]; )
+			ii += m_outcols[img_oblock_col++];
 	}
 
 	return 0;
@@ -814,62 +822,3 @@ int fillMatPSD(double* rawdata, size_t nrows, size_t ncols,
 
 } // NPL
 
-//			// Tall Matrices, start by opening first block
-//			for(int bb = ocblock; !mit.eof(); bb++) {
-//				// Open Block of Memory
-//				blocksize = 2*sizeof(size_t)+
-//					sizeof(double)*totalrows*ob_ncols[blocknum];
-//				curmem.open(tallpr+to_string(blocknum), blocksize, false);
-//				rawmat = (RawMat*)curmem.data();
-//				if(rawmat->rows != totalrows && rawmat->cols != ob_ncols[bb])
-//					throw INVALID_ARGUMENT("Error re-reading data from "+
-//							tallpr+to_string(bb));
-//				Map<MatrixXd> mat(rawmat->data, rawmat->rows, rawmat->cols);
-//
-//				// Iterate until we hit the end of the current block
-//				for(int ii = 0; ii < ob_ncols[bb] && !mit.eof(); ++mit, ++it) {
-//					if(*mit != 0) {
-//						for(int tt=0; tt<tlen; tt++)
-//							// 
-//							mat(ob_rcol[orblock]+tt, ob_scol[bb]+ii) = it[tt];
-//						}
-//						ii++;
-//					}
-//				}
-//			}
-//
-//			// Open the Current Memory Block and Set the Matrix Mapping to it
-//
-//			// Iterate Through Image Points (columns)
-//			for(blocknum = ocblock  !it.eof(); ++mit, ++it) {
-//				if(*mit != 0) {
-//					// End of current block, go to next
-//					if(blockind == ob_ncols[blocknum]) {
-//						blockind = 0;
-//						blocknum++;
-//						
-//						// Open new block, and re-point the matrix map to it
-//						blocksize = 2*sizeof(size_t)+
-//							sizeof(double)*totalrows*ob_ncols[blocknum];
-//						curmem.open(tallpr+to_string(blocknum), blocksize, false);
-//						rawmat = curmem.data();
-//						if(rawmat->rows != totalrows && rawmat->cols != ob_ncols[blocknum])
-//							throw INVALID_ARGUMENT("Error re-reading data from "+tallpr+
-//									to_string(blocknum));
-//						new (&matmap) Map<MatrixXd>(rawmat->data,rawmat->rows,rawmat->cols);
-//					}
-//
-//					for(size_t tt=0; tt<tlen; tt++) {
-//						it[tt];
-//					}
-//					cc++;
-//				}
-//			}
-//
-//			// Wide Matrices
-//
-//			for(int tt=0; tt<tlen; tt++) {
-//				cc = 0;
-//
-//			}
-//

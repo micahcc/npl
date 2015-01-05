@@ -226,6 +226,22 @@ double overlapRatio(ptr<const MRImage> a, ptr<const MRImage> b);
 ptr<MRImage> resampleNN(ptr<const MRImage> in, ptr<const MRImage> atlas,
 		PixelT type);
 
+/**
+ * @brief Create random image, with gaussian distribution
+ *
+ * @param type Type of pixels
+ * @param mean mean of Gaussian
+ * @param sd Standard deviation of distribution
+ * @param x X size
+ * @param y Y size
+ * @param z Z size
+ * @param t Time size, default 0 time
+ *
+ * @return Output MRImage
+ */
+ptr<MRImage> randImage(PixelT type, double mean, double sd, 
+		size_t x, size_t y, size_t z, size_t t);
+
 /** @}  MRImageUtilities */
 } // npl
 #endif  //MRIMAGE_UTILS_H

@@ -41,6 +41,7 @@
 #include <memory>
 #include <cstring>
 #include <cmath>
+#include <random>
 
 namespace npl {
 
@@ -911,6 +912,35 @@ ptr<MRImage> resampleNN(ptr<const MRImage> in, ptr<const MRImage> atlas,
 	return out;
 }
 
+/**
+ * @brief Create random image, with gaussian distribution
+ *
+ * @param type Type of pixels
+ * @param mean mean of Gaussian
+ * @param sd Standard deviation of distribution
+ * @param x X size
+ * @param y Y size
+ * @param z Z size
+ * @param t Time size, default 0 time
+ *
+ * @return Output MRImage
+ */
+ptr<MRImage> randImage(PixelT type, double mean, double sd, 
+		size_t x, size_t y, size_t z, size_t t)
+{
+	std::random_device rd;
+	std::default_random_engine rng(rd());
+	std::normal_distribution<double> dist(mean, sd);
+
+	size_t sz[4] = {x,y,z,t};
+	ptr<MRImage> out;
+	out = createMRImage(t==0 ? 3 : 4, sz, type);
+	for(FlatIter<double> it(out); !it.eof(); ++it) {
+		it.set(dist(rng));
+	}
+
+	return out;
+}
 
 
 } // npl
