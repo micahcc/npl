@@ -471,19 +471,30 @@ def build(bld):
             target='comparison_test',
             source='comparison_test.cpp',
             use='ndarray_utils iterators mrimage')
-    
+
     bld.program(install_path='${PREFIX}/tests',  features='test',
             target='mmap_test',
             source='mmap_test.cpp',
             use='utility')
-    
+
     bld.program(install_path='${PREFIX}/tests',  features='test',
             target='matrix_reorg_test1',
             source='matrix_reorg_test1.cpp',
             use='utility ica_helpers nplio mrimage_utils')
+
     bld.program(install_path='${PREFIX}/tests',  features='test',
             target='matrix_reorg_test2',
             source='matrix_reorg_test2.cpp',
+            use='utility ica_helpers nplio mrimage_utils')
+
+    bld.program(install_path='${PREFIX}/tests',  features='test',
+            target='big_pca_test1',
+            source='big_pca_test1.cpp',
+            use='utility ica_helpers nplio mrimage_utils')
+
+    bld.program(install_path='${PREFIX}/tests',  features='test',
+            target='big_pca_test2',
+            source='big_pca_test2.cpp',
             use='utility ica_helpers nplio mrimage_utils')
     #
 
