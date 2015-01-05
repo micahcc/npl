@@ -496,11 +496,9 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	 */
 	// for wide matrices
 	m_outrows.resize(1); m_outrows[0] = 0; // number of rows per block
-	std::vector<int> ob_srow(1, 0); // starting global row for each block
 
 	// for tall matrices
 	m_outcols.resize(1); m_outcols[0] = 0; // number of cols per block
-	std::vector<int> ob_scol(1, 0); // starting global col for each block
 	int blockind = 0;
 	int blocknum = 0;
 
@@ -526,7 +524,6 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 			blockind = 0;
 			blocknum++;
 			m_outrows.push_back(0);
-			ob_srow.push_back(rr);
 		} else if((m_outrows.back()+1)*m_totalcols > m_maxdoubles) {
 			// open file, create with proper size
 			MemMap wfile(widepr+to_string(m_outrows.size()-1), 2*sizeof(size_t)+
@@ -536,7 +533,6 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 
 			// If this row won't fit in the current block of rows, start a new one, 
 			m_outrows.push_back(0);
-			ob_srow.push_back(rr);
 		}
 		blockind++;
 		m_outrows.back()++;
@@ -570,7 +566,6 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 			blockind = 0;
 			blocknum++;
 			m_outcols.push_back(0);
-			ob_scol.push_back(cc);
 		} else if((m_outcols.back()+1)*m_totalrows > m_maxdoubles) {
 			MemMap tfile(tallpr+to_string(m_outcols.size()-1), 2*sizeof(size_t)+
 					m_outcols.back()*m_totalrows*sizeof(double), true);
@@ -579,7 +574,6 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 
 			// If this col won't fit in the current block of cols, start a new one, 
 			m_outcols.push_back(0);
-			ob_scol.push_back(cc);
 		}
 		blockind++;
 		m_outcols.back()++;
