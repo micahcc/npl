@@ -42,17 +42,17 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 {
 	double thresh = 0.00001;
 
-	size_t totrows = reorg.m_totalrows;
-	size_t totcols = reorg.m_totalcols;
+	size_t totrows = reorg.rows();
+	size_t totcols = reorg.cols();
 	
 	MatrixXd full(totrows, totcols);
 
 	size_t currow = 0;
-	for(size_t ii=0; ii<reorg.m_outrows.size(); ++ii) {
+	for(size_t ii=0; ii<reorg.nwide(); ++ii) {
 		MatMap mat(prefix+to_string(ii));
 		
-		full.middleRows(currow, reorg.m_outrows[ii]) = mat.mat;
-		currow += reorg.m_outrows[ii];
+		full.middleRows(currow, reorg.wideMatRows()[ii]) = mat.mat;
+		currow += reorg.wideMatRows()[ii];
 	}
 	
 	// Perform Full SVD
@@ -61,10 +61,10 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 	// Maximum number of columns/rows in sigma
 	size_t outrows = 0;
-	vector<MatrixXd> Umats(reorg.m_outrows.size());
-	vector<MatrixXd> Vmats(reorg.m_outrows.size());
-	vector<VectorXd> Smats(reorg.m_outrows.size());
-	for(size_t rr=0; rr<reorg.m_outrows.size(); rr++) {
+	vector<MatrixXd> Umats(reorg.nwide());
+	vector<MatrixXd> Vmats(reorg.nwide());
+	vector<VectorXd> Smats(reorg.nwide());
+	for(size_t rr=0; rr<reorg.nwide(); rr++) {
 		MatMap diskmat(prefix+to_string(rr));
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
 		JacobiSVD<MatrixXd> svd(diskmat.mat, ComputeThinU | ComputeThinV);
@@ -81,7 +81,7 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	// Merge / Construct Column(EV^T, EV^T, ... )
 	MatrixXd mergedEVt(outrows, totcols);
 	currow = 0;
-	for(size_t rr=0; rr<reorg.m_outrows.size(); rr++) {
+	for(size_t rr=0; rr<reorg.nwide(); rr++) {
 		mergedEVt.middleRows(currow, Smats[rr].rows()) = 
 			Smats[rr].asDiagonal()*Vmats[rr].transpose();
 		currow += Smats[rr].rows();
@@ -119,17 +119,17 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 {
 	double thresh = 0.00001;
 
-	size_t totrows = reorg.m_totalrows;
-	size_t totcols = reorg.m_totalcols;
+	size_t totrows = reorg.rows();
+	size_t totcols = reorg.cols();
 	size_t curcol = 0;
 	
 	// Create Full Matrix to Compare Against
 	MatrixXd full(totrows, totcols);
-	for(size_t ii=0; ii<reorg.m_outcols.size(); ++ii) {
+	for(size_t ii=0; ii<reorg.ntall(); ++ii) {
 		MatMap mat(prefix+to_string(ii));
 		
-		full.middleCols(curcol, reorg.m_outcols[ii]) = mat.mat;
-		curcol += reorg.m_outcols[ii];
+		full.middleCols(curcol, reorg.tallMatCols()[ii]) = mat.mat;
+		curcol += reorg.tallMatCols()[ii];
 	}
 	
 	// Perform Full SVD
@@ -138,10 +138,10 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 	// Maximum number of columns/rows in sigma
 	size_t outcols = 0;
-	vector<MatrixXd> Umats(reorg.m_outcols.size());
-	vector<MatrixXd> Vmats(reorg.m_outcols.size());
-	vector<VectorXd> Smats(reorg.m_outcols.size());
-	for(size_t ii=0; ii<reorg.m_outcols.size(); ii++) {
+	vector<MatrixXd> Umats(reorg.ntall());
+	vector<MatrixXd> Vmats(reorg.ntall());
+	vector<VectorXd> Smats(reorg.ntall());
+	for(size_t ii=0; ii<reorg.ntall(); ii++) {
 		MatMap diskmat(prefix+to_string(ii));
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
 		JacobiSVD<MatrixXd> svd(diskmat.mat, ComputeThinU | ComputeThinV);
@@ -158,7 +158,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	// Merge / Construct Column(EV^T, EV^T, ... )
 	MatrixXd mergedUE(totrows, outcols);
 	curcol = 0;
-	for(size_t ii=0; ii<reorg.m_outcols.size(); ii++) {
+	for(size_t ii=0; ii<reorg.ntall(); ii++) {
 		mergedUE.middleCols(curcol, Smats[ii].rows()) =
 			Umats[ii]*Smats[ii].asDiagonal();
 		curcol += Smats[ii].rows();

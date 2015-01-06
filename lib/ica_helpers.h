@@ -32,43 +32,6 @@
 namespace npl {
 
 /**
- * @brief Helper function for large-scale ICA analysis. This takes
- * a working directory, which should already have 'mat_#' files with data
- * (one per element of ncols) and orthogonalizes the data to produce a
- * set of variables variables which are orthogonal.
- *
- * This assumes that the input is a set of matrices which will be concat'd in
- * the row (spatial) direction. By default it is assumed that the columns
- * represent dimensions and the rows samples. This means that the output
- * of Xorth will normally have one row for every row of the original matrices
- * and far fewer columns. If rowdims is true then Xorth will have one row
- * for each of the columns in the merge mat_* files, and fewer columns than
- * the original matrices had rows.
- *
- * @param workdir Directory which should have mat_0, mat_1, ... up to
- * ncols.size()-1
- * @param evthresh Threshold for percent of variance to account for in the
- * original data when reducing dimensions to produce Xorth. This is determines
- * the number of dimensions to keep.
- * @param lancbasis Number of starting basis vectors to initialize the
- * BandLanczos algorithm with. If this is <= 1, one dimension of of XXT will be
- * used.
- * @param maxrank Maximum number of dimensions to keep in Xorth
- * @param rowdims Perform reduction on the original inputs rows. Note that the
- * output will still be in column format, where each columns is a dimension.
- * This makes it easier to perform ICA.
- * the original data).
- * @param ncols Number of columns in each block of columns
- * @param XXT Covariance (X*X.transpose())
- * @param Xorth Output orthogonal version of X
- *
- * @return
- */
-int spcat_orthog(std::string workdir, double evthresh,
-		int lancbasis, int maxrank, bool rowdims, const std::vector<int>& ncols,
-		const MatrixXd& XXT, MatrixXd& Xorth);
-
-/**
  * @brief Computes the the ICA of spatially concatinated images. Optionally
  * the data may be converted from time-series to a power spectral density,
  * making this function applicable to resting state data.
@@ -86,15 +49,16 @@ int spcat_orthog(std::string workdir, double evthresh,
  * singular values > sqrt(epsilon) to be kept
  * @param lancbasis Basis size of BandLanczos Algorithm. This is used as the
  * seed for the Krylov Subspace.
- * @param maxrank Maximum rank of reduced dimension PCA
+ * @param maxiters Maximum number of iterations for PCA
  * @param spatial Whether to do spatial ICA. Warning this is much more memory
  * and CPU intensive than PSD/Time ICA.
  *
- * @return 0 if successul
+ * @return Matrix with independent components in columns
+ *
  */
-int spcat_ica(bool psd, const std::vector<std::string>& imgnames,
-		const std::vector<std::string>& masknames, std::string workdir, double evthresh,
-		int lancbasis, int maxrank, bool spatial);
+MatrixXd spcat_ica(bool psd, const std::vector<std::string>& imgnames,
+		const std::vector<std::string>& masknames, std::string workdir, 
+		double evthresh, int lancbasis, int maxiters, bool spatial);
 
 /**
  * @brief Fill a matrix (nrows x ncols) at the memory location provided by
@@ -109,7 +73,7 @@ int spcat_ica(bool psd, const std::vector<std::string>& imgnames,
  *
  * @return 0 if successful
  */
-int fillMat(double* rawdata, size_t nrows, size_t ncols,
+void fillMat(double* rawdata, size_t nrows, size_t ncols,
 		ptr<const MRImage> img, ptr<const MRImage> mask);
 
 /**
@@ -125,9 +89,15 @@ int fillMat(double* rawdata, size_t nrows, size_t ncols,
  *
  * @return 0 if successful
  */
-int fillMatPSD(double* rawdata, size_t nrows, size_t ncols,
+void fillMatPSD(double* rawdata, size_t nrows, size_t ncols,
 		ptr<const MRImage> img, ptr<const MRImage> mask);
 
+/**
+ * @brief Reorganizes input images into tall and wide matrices (matrices that
+ * span the total rows and cols, respectively). 
+ *
+ * TODO allow for JUST tall or JUST wide construction
+ */
 class MatrixReorg
 {
 public:
@@ -176,8 +146,70 @@ public:
 			const std::vector<std::string>& masknames, 
 			const std::vector<std::string>& filenames);
 
-	size_t m_totalrows;
-	size_t m_totalcols;
+	inline int nwide() const { return m_outrows.size(); };
+	inline int ntall() const { return m_outcols.size(); };
+
+	inline const vector<int>& tallMatCols() const 
+	{ 
+		return m_outcols; 
+	};
+	
+	inline int tallMatRows() const 
+	{ 
+		return m_totalrows; 
+	};
+
+	inline const vector<int>& wideMatRows() const 
+	{ 
+		return m_outrows; 
+	};
+
+	inline int wideMatCols() const 
+	{ 
+		return m_totalcols; 
+	};
+
+	inline std::string tallMatName(size_t ii) const
+	{
+		return m_prefix+"_tall_"+std::to_string(ii);
+	};
+
+	inline std::string wideMatName(size_t ii) const
+	{
+		return m_prefix+"_wide_"+std::to_string(ii);
+	};
+
+	inline std::string inColMaskName(size_t ii) const
+	{
+		return m_prefix+"_mask_"+std::to_string(ii)+".nii.gz";
+	};
+
+	inline int rows() const { return m_totalrows; };
+	inline int cols() const { return m_totalcols; };
+
+	inline const std::vector<int>& inMatRows() const
+	{
+		return m_inrows;
+	};
+
+	inline const std::vector<int>& inMatCols() const
+	{
+		return m_incols;
+	};
+
+	inline size_t inRowBlocks() const
+	{
+		return m_inrows.size();
+	};
+
+	inline size_t inColBlocks() const
+	{
+		return m_incols.size();
+	};
+
+	private:
+	int m_totalrows;
+	int m_totalcols;
 	std::string m_prefix;
 	size_t m_maxdoubles;
 	bool m_verbose;

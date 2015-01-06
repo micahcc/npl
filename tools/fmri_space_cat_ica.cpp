@@ -109,7 +109,7 @@ int main(int argc, char** argv)
 	cmd.add(a_verbose);
 	cmd.parse(argc, argv);
 
-	return spcat_ica(a_psd.isSet(), a_in.getValue(), a_masks.getValue(), 
+	spcat_ica(a_psd.isSet(), a_in.getValue(), a_masks.getValue(), 
 			a_workdir.getValue(), a_evthresh.getValue(),
 			a_simultaneous.getValue(), a_maxrank.getValue(), 
 			a_spatial.isSet());
