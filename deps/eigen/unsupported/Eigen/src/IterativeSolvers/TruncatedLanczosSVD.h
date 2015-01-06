@@ -14,10 +14,6 @@
 #include <limits>
 #include <cmath>
 
-#include <iostream>
-using std::endl;
-using std::cerr;
-
 namespace Eigen {
 
 /**
@@ -77,7 +73,7 @@ class TruncatedLanczosSVD
     TruncatedLanczosSVD()
     {
         init();
-    };
+    }
 
     /**
      * @brief Construct and
@@ -88,7 +84,7 @@ class TruncatedLanczosSVD
      * since the size of U is determined by the convergence specification. The
      * same goes for ComputeThinV/ComputeFullV
      */
-    TruncatedLanczosSVD(const MatrixType& A, unsigned int computationOptions)
+    TruncatedLanczosSVD(const Ref<const MatrixType>& A, unsigned int computationOptions)
     {
         init();
         compute(A, computationOptions);
@@ -107,15 +103,14 @@ class TruncatedLanczosSVD
      * return 0 if successful, -1 if there is a failure (may need to have more
      * basis vectors)
      */
-    void compute(const MatrixType& A, unsigned int computationOptions)
+    void compute(const Ref<const MatrixType>& A, unsigned int computationOptions)
     {
-        m_status = 1;
         if(computationOptions & (ComputeThinV|ComputeFullV))
             m_computeV = true;
         if(computationOptions & (ComputeThinU|ComputeFullU))
             m_computeU = true;
 
-        MatrixType C;
+        WorkMatrixType C;
         if(A.rows() > A.cols()) {
             // Compute right singular vlaues (V)
             C = A.transpose()*A;
@@ -131,9 +126,9 @@ class TruncatedLanczosSVD
         if(m_initbasis > 0)
             initrank = m_initbasis;
 
-        BandLanczosSelfAdjointEigenSolver<Scalar> eig;
+        BandLanczosSelfAdjointEigenSolver<MatrixType> eig;
         eig.setTraceStop(m_trace_thresh);
-        eig.setRank(std::min(A.rows(),A.cols()));
+        eig.setMaxIters(m_maxiters);
         eig.compute(C, initrank);
 
         if(eig.info() == NoConvergence)
@@ -143,14 +138,13 @@ class TruncatedLanczosSVD
         int rank = 0;
         m_singvals.resize(eigrows);
         for(int cc=0; cc<eigrows; cc++) {
-            if(eig.eigenvalues()[eigrows-1-cc]/eig.eigenvalues()[eigrows-1] < m_sv_thresh)
+            if(eig.eigenvalues()[eigrows-1-cc] < m_sv_thresh)
                 m_singvals[cc] = 0;
             else {
                 m_singvals[cc] = std::sqrt(eig.eigenvalues()[eigrows-1-cc]);
                 rank++;
             }
         }
-
         m_singvals.conservativeResize(rank);
 
         // Note that because Eigen Solvers usually sort eigenvalues in
@@ -180,7 +174,7 @@ class TruncatedLanczosSVD
                 m_V = A.transpose()*m_U*(m_singvals.cwiseInverse()).asDiagonal();
         }
 
-		m_status = 1;
+        m_status = 1;
     };
 
     /**
@@ -188,9 +182,10 @@ class TruncatedLanczosSVD
      *
      * @return Vector of singular values
      */
+    inline
     const SingularValuesType& singularValues()
     {
-        eigen_assert(m_status == 1);
+        eigen_assert(m_status == 1 && "SVD Not Complete.");
         return m_singvals;
     };
 
@@ -199,9 +194,10 @@ class TruncatedLanczosSVD
      *
      * @return matrix U
      */
+    inline
     const MatrixUType& matrixU()
     {
-		eigen_assert(computeV() && "ComputeThinU not set.");
+        eigen_assert(computeU() && "ComputeThinU not set.");
         eigen_assert(m_status == 1 && "SVD Not Complete.");
         return m_U;
     };
@@ -211,9 +207,10 @@ class TruncatedLanczosSVD
      *
      * @return matrix V
      */
+    inline
     const MatrixVType& matrixV()
     {
-		eigen_assert(computeV() && "ComputeThinV not set.");
+        eigen_assert(computeV() && "ComputeThinV not set.");
         eigen_assert(m_status == 1 && "SVD Not Complete.");
         return m_V;
     };
@@ -223,6 +220,7 @@ class TruncatedLanczosSVD
      *
      * @return Whether the U matrix has been computed
      */
+    inline
     bool computeU() const { return m_computeU; };
 
     /**
@@ -230,6 +228,7 @@ class TruncatedLanczosSVD
      *
      * @return Whether the V matrix has been computed
      */
+    inline
     bool computeV() const { return m_computeV; };
 
     /**
@@ -246,27 +245,46 @@ class TruncatedLanczosSVD
      */
     inline Index cols() const { return m_V.rows(); }
 
-    /** \returns a (least squares) solution of \f$ A x = b \f$ using the
-     * current SVD decomposition of A.
+    /**
+     * @brief Solve the equation \f[Ax = b\f] for the given b vector and the
+     * approximation: \f[ x = VS^{-1}U^*b \f]
      *
-     * \param b the right-hand-side of the equation to solve.
+     * @param b Solution to \f$ Ax = b \f$
      *
-     * \note Solving requires both U and V to be computed. Thin U and V are
-     * enough, there is no need for full U or V.
-     *
-     * \note SVD solving is implicitly least-squares. Thus, this method serves
-     * both purposes of exact solving and least-squares solving. In other
-     * words, the returned solution is guaranteed to minimize the Euclidean
-     * norm \f$ \Vert A x - b \Vert \f$.
+     * @return Solution
      */
     template <typename Rhs>
-    SolveReturnType solve(const Rhs& b) const
+    SolveReturnType solve(const Ref<const Rhs>& b) const
     {
         eigen_assert(m_status == 1 && "SVD is not initialized.");
         eigen_assert(computeU() && computeV() && "SVD::solve() requires both "
                 "unitaries U and V to be computed (thin unitaries suffice).");
         return m_V*m_singvals.cwiseInverse()*m_U.transpose()*b;
-    };
+    }
+
+    /**
+     * @brief Maximum number of iterations to perform in the
+     * BandLanczosSelfAdjointEigenSolver. This is roughly the maximum rank
+     * computed, but be wary of setting it too low.
+     *
+     * @param maxiters Maximum number of iterations in underlying Eigen Solver
+     */
+    void setMaxIters(int maxiters) { m_maxiters = maxiters; };
+
+    /**
+     * @brief Set maximum iterations to infinity, which is triggered by any
+     * value less than 0. This constrols the maximum number of iterations to
+     * perform in the BandLanczosSelfAdjointEigenSolver.
+     *
+     * @param maxiters Maximum number of iterations in underlying Eigen Solver
+     */
+    void setMaxIters(Default_t d) { m_maxiters = -1; };
+
+    /**
+     * @brief Get maximum iterations. This constrols the maximum number of
+     * iterations to perform in the BandLanczosSelfAdjointEigenSolver.
+     */
+    int maxIters() { return m_maxiters; };
 
     /**
      * @brief Stop band lanczos algorithm after the trace of the estimated
@@ -290,7 +308,7 @@ class TruncatedLanczosSVD
 
     /**
      * @brief Get stop parameter based on sum of squared eigenvalues.
-     * See setTraceSqrStop()
+     * See setTraceStop()
      *
      * @return Get the current stopping condition based on the sum squared
      * eigenvalues (trace squared)
@@ -342,7 +360,7 @@ class TruncatedLanczosSVD
      */
     int nonzeroSingularValues()
     {
-        eigen_assert(m_status == 1);
+        eigen_assert(m_status == 1 && "SVD Not Complete.");
         return m_singvals.rows();
     };
 
@@ -351,7 +369,7 @@ class TruncatedLanczosSVD
      */
     int rank()
     {
-        eigen_assert(m_status == 1);
+        eigen_assert(m_status == 1 && "SVD Not Complete.");
         return m_singvals.rows();
     };
 
@@ -413,7 +431,7 @@ private:
         m_initbasis = -1; // <= 0 -> .1*input rows
         m_sv_thresh = std::numeric_limits<Scalar>::epsilon();
         m_trace_thresh = INFINITY;
-        m_maxrank = -1;
+        m_maxiters = -1;
 
         m_computeU = false;
         m_computeV = false;
@@ -421,7 +439,6 @@ private:
         m_status = 0;
     };
 
-    WorkMatrixType m_C; // MM* or M*M
     MatrixVType m_V; // V in USV*
     MatrixUType m_U; // U in USV*
     SingularValuesType m_singvals; // diag(S) in USV*
@@ -435,7 +452,7 @@ private:
      * @brief Maximum number of singular values to compute, if this is <= 0,
      * then the condition is ignored.
      */
-    int m_maxrank;
+    int m_maxiters;
 
     /**
      * @brief Stop after this amount of the sum of squared eigenvalues have

@@ -46,20 +46,49 @@ inline float conj(const float& v)
  * TODO: Fix for complex scalars
  *
  */
-template <typename _Scalar>
+template <typename _MatrixType>
 class BandLanczosSelfAdjointEigenSolver
 {
 public:
-    typedef _Scalar Scalar;
-    typedef Matrix<Scalar,Dynamic,1> VectorType;
-    typedef Matrix<Scalar,Dynamic,Dynamic> MatrixType;
+    typedef _MatrixType MatrixType;
+    typedef typename MatrixType::Scalar Scalar;
+    typedef typename NumTraits<typename MatrixType::Scalar>::Real RealScalar;
+    typedef typename MatrixType::Index Index;
+    enum {
+        RowsAtCompileTime = MatrixType::RowsAtCompileTime,
+        ColsAtCompileTime = MatrixType::ColsAtCompileTime,
+        DiagSizeAtCompileTime = EIGEN_SIZE_MIN_PREFER_DYNAMIC(
+                RowsAtCompileTime,ColsAtCompileTime),
+        MaxRowsAtCompileTime = MatrixType::MaxRowsAtCompileTime,
+        MaxColsAtCompileTime = MatrixType::MaxColsAtCompileTime,
+        MaxDiagSizeAtCompileTime = EIGEN_SIZE_MIN_PREFER_FIXED(
+                MaxRowsAtCompileTime,MaxColsAtCompileTime),
+        MatrixOptions = MatrixType::Options
+    };
+
+    // Vector Type
+    typedef Matrix<Scalar, RowsAtCompileTime, 1, MatrixOptions,
+            MaxRowsAtCompileTime, 1> VectorType;
+
+    // Similar Matrix Type
+    typedef Matrix<Scalar, Dynamic, Dynamic, MatrixOptions,
+            MaxRowsAtCompileTime, MaxDiagSizeAtCompileTime> ApproxType;
+
+    // EigenVectors Type
+    typedef Matrix<Scalar, RowsAtCompileTime, Dynamic, MatrixOptions,
+            MaxRowsAtCompileTime, MaxDiagSizeAtCompileTime> EigenVectorType;
+
+    // EigenValus Type
+    typedef Matrix<Scalar, Dynamic, 1, MatrixOptions,
+            MaxDiagSizeAtCompileTime> EigenValuesType;
+
 
     /**
      * @brief Return vector of selected eigenvalues
      *
      * @return Eigenvalues as vector
      */
-    const VectorType& eigenvalues() { return m_evals; };
+    const EigenValuesType& eigenvalues() { return m_evals; };
 
     /**
      * @brief Return Matrix of selected eigenvectors (columns correspond to
@@ -67,7 +96,7 @@ public:
      *
      * @return Eigenvectors as matrix, 1 vector per row
      */
-    const MatrixType& eigenvectors() { return m_evecs; };
+    const EigenVectorType& eigenvectors() { return m_evecs; };
 
     /**
      * @brief Basic constructor
@@ -89,7 +118,7 @@ public:
      */
     MatrixType operatorInverseSqrt() const
     {
-        eigen_assert(m_status == 1);
+        eigen_assert(m_status == 1 && "Eigenvectors not yet computed.");
         return eigenvectors()*eigenvalues.cwiseInverse().cwiseSqrt()*
                     eigenvectors().transpose();
     };
@@ -107,7 +136,7 @@ public:
      */
     MatrixType operatorSqrt() const
     {
-        eigen_assert(m_status == 1);
+        eigen_assert(m_status == 1 && "Eigenvectors not yet computed.");
         return eigenvectors()*eigenvalues.cwiseSqrt()*eigenvectors().transpose();
     };
 
@@ -141,7 +170,7 @@ public:
      * from, this should be roughly the number of clustered large eigenvalues.
      * If results are not sufficiently good, it may be worth increasing this
      */
-    BandLanczosSelfAdjointEigenSolver(const MatrixType& A, size_t randbasis)
+    BandLanczosSelfAdjointEigenSolver(const Ref<const MatrixType>& A, size_t randbasis)
     {
         init();
         compute(A, randbasis);
@@ -155,10 +184,11 @@ public:
      * @param V initial projection, to build Krylove basis from. If you have a
      * guess of large eigenvectors that would be good.
      */
-    BandLanczosSelfAdjointEigenSolver(const MatrixType& A, const MatrixType& V)
+    BandLanczosSelfAdjointEigenSolver(const Ref<const MatrixType>& A,
+            const Ref<const MatrixType>& V)
     {
         init();
-        eigen_assert(A.rows() == V.rows());
+        eigen_assert(A.rows() == V.rows() && "A is not Square.");
         if(A.rows() != V.rows())
             m_status = InvalidInput;
         else
@@ -175,9 +205,9 @@ public:
      * from, this should be roughly the number of clustered large eigenvalues.
      * If results are not sufficiently good, it may be worth increasing this
      */
-    void compute(const MatrixType& A, size_t randbasis)
+    void compute(const Ref<const MatrixType>& A, size_t randbasis)
     {
-        eigen_assert(randbasis > 1);
+        eigen_assert(randbasis > 1 && "Rand Basis Must be > 1");
         if(randbasis <= 1) {
             m_status = InvalidInput;
             return;
@@ -189,8 +219,6 @@ public:
 
         // Normalize Each Column
         for(int cc=0; cc<m_proj.cols(); cc++) {
-            
-            // Normalize
             m_proj.col(cc).normalize();
         }
 
@@ -204,25 +232,11 @@ public:
      *
      * @param A matrix to compute the eigensystem of
      */
-    void compute(const MatrixType& A, const MatrixType& V)
+    void compute(const Ref<const MatrixType>& A, const Ref<const MatrixType>& V)
     {
         m_proj = V;
         _compute(A);
     };
-
-    /**
-     * @brief Set a hard limit on the number of eigenvectors to compute
-     *
-     * @param rank of eigenvector output. Set to < 0 to loop infinitely
-     */
-    void setRank(int rank) { m_rank = rank; };
-
-    /**
-     * @brief Get the current limit on the number of eigenvectors
-     *
-     * @return Maximum rank of eigenvector output
-     */
-    int getRank() { return m_rank; };
 
     /**
      * @brief Set the tolerance for deflation. Algorithm stops when #of
@@ -287,22 +301,48 @@ public:
     void setTraceStop(Default_t d) { m_trace_stop = INFINITY; };
 
     /**
-     * @brief Get stop parameter based on sum of sum of eigenvalues. This is 
+     * @brief Get stop parameter based on sum of sum of eigenvalues. This is
      * a specialized version of traceSqrStop for when it is known that the
      * matrix is postive definite.
      *
-     * @return Get the current stopping condition based on the sum 
+     * @return Get the current stopping condition based on the sum
      * of eigenvalues (equal to the trace)
      */
     double traceStop() { return m_trace_stop; };
+
+    /**
+     * @brief Maximum number of iterations to perform in the
+     * BandLanczosSelfAdjointEigenSolver. This is roughly the maximum rank
+     * computed, but be wary of setting it too low.
+     *
+     * @param maxiters Maximum number of iterations in underlying Eigen Solver
+     */
+    void setMaxIters(int maxiters) { m_maxiters = maxiters; };
+
+    /**
+     * @brief Set maximum iterations to infinity, which is triggered by any
+     * value less than 0. This constrols the maximum number of iterations to
+     * perform in the BandLanczosSelfAdjointEigenSolver.
+     *
+     * @param maxiters Maximum number of iterations in underlying Eigen Solver
+     */
+    void setMaxIters(Default_t d) { m_maxiters = -1; };
+
+    /**
+     * @brief Get maximum iterations. This constrols the maximum number of
+     * iterations to perform in the BandLanczosSelfAdjointEigenSolver.
+     */
+    int maxIters() { return m_maxiters; };
+
 private:
 
     void init()
     {
         m_status = 0;
-        m_rank = -1;
+        m_maxiters= -1;
         m_deflation_tol = std::sqrt(std::numeric_limits<double>::epsilon());
         m_tracesqr_stop = INFINITY;
+        m_trace_stop = INFINITY;
     };
 
     /**
@@ -336,21 +376,20 @@ private:
      *
      * @param A Matrix to decompose
      */
-    void _compute(const MatrixType& A)
+    void _compute(const Ref<const MatrixType>& A)
     {
-        Scalar abssum = 0;
-
-        Scalar vartotal = INFINITY;
-        if(!std::isinf(m_tracesqr_stop) && !std::isnan(m_tracesqr_stop)) {
-            vartotal = (A.transpose()*A).trace();
+        Scalar fulltracesq = INFINITY;
+        if(!isinf(m_tracesqr_stop) && !isnan(m_tracesqr_stop)) {
+            fulltracesq = (A.transpose()*A).trace();
         }
 
-        Scalar abstotal = INFINITY;
-        if(!std::isinf(m_trace_stop) && !std::isnan(m_trace_stop)) {
-            abstotal = A.trace();
+        Scalar runtrace = 0;
+        Scalar fulltrace = INFINITY;
+        if(!isinf(m_trace_stop) && !isnan(m_trace_stop)) {
+            fulltrace = A.trace();
         }
 
-        MatrixType& V = m_proj;
+        EigenVectorType& V = m_proj;
 
         // I in text, the iterators to nonzero rows of T(d) as well as the index
         // of them in nonzero_i
@@ -360,14 +399,14 @@ private:
         // We are going to continuously grow these as more Lanczos Vectors are
         // computed
         int csize = V.cols()*2;
-        MatrixType approx(csize, csize);
+        ApproxType approx(csize, csize);
         V.conservativeResize(NoChange, V.cols()*2);
 
         // V is the list of candidates
         VectorType band(pc); // store values in the band T[jj,jj-pc] to T[jj, jj-1]
         int jj=0;
 
-        while(pc > 0 && (m_rank < 0 || jj < m_rank)) {
+        while(pc > 0 && (m_maxiters < 0 || jj < m_maxiters)) {
             if(jj+pc >= csize) {
                 // Need to Grow
                 csize *= 2;
@@ -485,17 +524,19 @@ private:
 
             // Compute Trace of M**2 if a stopping point was set based on the
             // total squared eigenvalue sum
-            if(!std::isinf(vartotal)) {
-                double varsum = (approx.topLeftCorner(jj+1,jj+1)*
+            if(!std::isinf(fulltracesq)) {
+                Scalar varsum = (approx.topLeftCorner(jj+1,jj+1)*
                         approx.topLeftCorner(jj+1,jj+1)).trace();
 
-                if(std::abs(varsum) >= std::abs(m_tracesqr_stop*vartotal))
+                if(std::abs(varsum) > std::abs(m_tracesqr_stop*fulltracesq))
                     break;
             }
 
-            if(!std::isinf(abstotal)) {
-                abssum += approx(jj+1, jj+1);
-                if(std::abs(abssum) >= std::abs(m_trace_stop*abstotal))
+            // Compute Trace of M**2 if a stopping point was set based on the
+            // total squared eigenvalue sum
+            if(!std::isinf(fulltrace)) {
+                runtrace += approx(jj+1, jj+1);
+                if(std::abs(runtrace) > std::abs(m_trace_stop*fulltrace))
                     break;
             }
 
@@ -507,7 +548,7 @@ private:
         V.conservativeResize(NoChange, jj+1);
 
         // Compute Eigen Solution to Similar Matrix, then project through V
-        SelfAdjointEigenSolver<MatrixType> computer(approx);
+        SelfAdjointEigenSolver<ApproxType> computer(approx);
         m_evals = computer.eigenvalues();
         m_evecs = V*computer.eigenvectors();
 
@@ -528,7 +569,7 @@ private:
      * @brief Maximum rank to compute (sets max size of T matrix). < 0 will
      * remove all limits.
      */
-    int m_rank;
+    int m_maxiters;
 
     /**
      * @brief Tolerance for deflation. Algorithm designer recommends
@@ -537,22 +578,22 @@ private:
     double m_deflation_tol;
 
     /**
+     * @brief Stop after the trace of the squared similar matrix (T^2) exceeds
+     * some ratio of the total squared eigenvalues (trace of the squared input
+     * matrices)
+      */
+    double m_tracesqr_stop;
+
+    /**
      * @brief Stop after the trace of the similar matrix exceeds the ratio of
      * the input matrices trace. This could be used to stop after the sum of
      * found eigenvalues exceeds some percent of the total.
      */
     double m_trace_stop;
 
-    /**
-     * @brief Stop after the trace of the squared similar matrix (T^2) exceeds
-     * some ratio of the total squared eigenvalues (trace of the squared input
-     * matrices)
-     */
-    double m_tracesqr_stop;
-
-    VectorType m_evals;
-    MatrixType m_evecs;
-    MatrixType m_proj; // Computed Projection Matrix (V)
+    EigenValuesType m_evals;
+    EigenVectorType m_evecs;
+    EigenVectorType m_proj; // Computed Projection Matrix (V)
 
     /**
      * @brief Status of computation
