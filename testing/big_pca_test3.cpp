@@ -94,7 +94,10 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	}
 
 	cerr<<"Merge SVD:"<<mergedEVt.rows()<<"x"<<mergedEVt.cols()<<endl;
-	TruncatedLanczosSVD<MatrixXd> mergesvd(mergedEVt, ComputeThinU | ComputeThinV);
+	TruncatedLanczosSVD<MatrixXd> mergesvd;
+	mergesvd.setThreshold(svt);
+	mergesvd.setTraceStop(0.90);
+	mergesvd.compute(mergedEVt, ComputeThinU | ComputeThinV);
 
 	cerr<<"Comparing Full S with Merge S"<<endl;
 	const auto& fullS = fullsvd.singularValues();
@@ -127,7 +130,7 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 {
-	double thresh = 0.3;
+	double thresh = 0.1;
 
 	size_t totrows = reorg.m_totalrows;
 	size_t totcols = reorg.m_totalcols;

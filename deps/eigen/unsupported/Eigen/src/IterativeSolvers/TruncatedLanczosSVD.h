@@ -137,8 +137,9 @@ class TruncatedLanczosSVD
         int eigrows = eig.eigenvalues().rows();
         int rank = 0;
         m_singvals.resize(eigrows);
+        double maxev = eig.eigenvalues()[eigrows-1];
         for(int cc=0; cc<eigrows; cc++) {
-            if(eig.eigenvalues()[eigrows-1-cc] < m_sv_thresh)
+            if(eig.eigenvalues()[eigrows-1-cc]/maxev < m_sv_thresh)
                 m_singvals[cc] = 0;
             else {
                 m_singvals[cc] = std::sqrt(eig.eigenvalues()[eigrows-1-cc]);
