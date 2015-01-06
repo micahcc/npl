@@ -81,9 +81,8 @@ int timecat_orthog(std::string workdir, double evthresh,
 		const MatrixXd& XXT, MatrixXd& Xorth)
 {
 	// Compute EigenVectors (U)
-	Eigen::BandLanczosSelfAdjointEigenSolver<double> eig;
+	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
 	eig.setTraceStop(evthresh);
-	eig.setRank(maxrank);
 	eig.compute(XXT, lancbasis);
 
 	if(eig.info() == Eigen::NoConvergence) {
@@ -183,9 +182,8 @@ int spcat_orthog(std::string workdir, double evthresh,
 		const MatrixXd& XXT, MatrixXd& Xorth)
 {
 	// Compute EigenVectors (U)
-	Eigen::BandLanczosSelfAdjointEigenSolver<double> eig;
+	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
 	eig.setTraceStop(evthresh);
-	eig.setRank(maxrank);
 	eig.compute(XXT, lancbasis);
 
 	if(eig.info() == Eigen::NoConvergence) {
