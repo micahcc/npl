@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file big_pca_test2.cpp Similar to test1, but with much larger datasets that
- * have space for rank reduction. 
+ * @file big_pca_test3.cpp Similar to pca_test1 and test2, but larger and using
+ * TruncatedSVD
  *
  *****************************************************************************/
 
@@ -37,6 +37,7 @@ using namespace std;
 using Eigen::ComputeThinV;
 using Eigen::ComputeThinU;
 using Eigen::JacobiSVD;
+using Eigen::TruncatedLanczosSVD;
 
 int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 {
@@ -57,7 +58,7 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	
 	// Perform Full SVD
 	cerr<<"Full SVD:"<<full.rows()<<"x"<<full.cols()<<endl;
-	JacobiSVD<MatrixXd> fullsvd(full, ComputeThinU | ComputeThinV);
+	TruncatedLanczosSVD<MatrixXd> fullsvd(full, ComputeThinU | ComputeThinV);
 
 	// Maximum number of columns/rows in sigma
 	size_t outrows = 0;
@@ -68,8 +69,11 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	for(size_t rr=0; rr<reorg.m_outrows.size(); rr++) {
 		MatMap diskmat(prefix+to_string(rr));
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
-		JacobiSVD<MatrixXd> svd(diskmat.mat, ComputeThinU | ComputeThinV);
+		
+		TruncatedLanczosSVD<MatrixXd> svd;
 		svd.setThreshold(svt);
+		svd.setTraceStop(0.95);
+		svd.compute(diskmat.mat, ComputeThinU | ComputeThinV);
 		
 		cerr << "SVD Rank: " << svd.rank() << endl;
 		maxrank = std::max<size_t>(maxrank, svd.rank());
@@ -90,11 +94,13 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	}
 
 	cerr<<"Merge SVD:"<<mergedEVt.rows()<<"x"<<mergedEVt.cols()<<endl;
-	JacobiSVD<MatrixXd> mergesvd(mergedEVt, ComputeThinU | ComputeThinV);
+	TruncatedLanczosSVD<MatrixXd> mergesvd(mergedEVt, ComputeThinU | ComputeThinV);
 
 	cerr<<"Comparing Full S with Merge S"<<endl;
 	const auto& fullS = fullsvd.singularValues();
 	const auto& mergeS = mergesvd.singularValues();
+	cerr << fullS.transpose() << endl;
+	cerr << mergeS.transpose() << endl;
 	for(size_t ii=0; ii<maxrank; ++ii) {
 		cerr << fullS[ii] << " vs " << mergeS[ii] << endl;
 		if(2*fabs(mergeS[ii] - fullS[ii])/fabs(mergeS[ii]+fullS[ii]) > thresh) {
@@ -121,7 +127,7 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 {
-	double thresh = 0.1;
+	double thresh = 0.3;
 
 	size_t totrows = reorg.m_totalrows;
 	size_t totcols = reorg.m_totalcols;
@@ -138,7 +144,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	
 	// Perform Full SVD
 	cerr<<"Full SVD:"<<full.rows()<<"x"<<full.cols()<<endl;
-	JacobiSVD<MatrixXd> fullsvd(full, ComputeThinU | ComputeThinV);
+	TruncatedLanczosSVD<MatrixXd> fullsvd(full, ComputeThinU | ComputeThinV);
 
 	// Maximum number of columns/rows in sigma
 	size_t outcols = 0;
@@ -149,8 +155,10 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	for(size_t ii=0; ii<reorg.m_outcols.size(); ii++) {
 		MatMap diskmat(prefix+to_string(ii));
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
-		JacobiSVD<MatrixXd> svd(diskmat.mat, ComputeThinU | ComputeThinV);
+		TruncatedLanczosSVD<MatrixXd> svd;
 		svd.setThreshold(svt);
+		svd.setTraceStop(0.95);
+		svd.compute(diskmat.mat, ComputeThinU | ComputeThinV);
 		
 		cerr << "SVD Rank: " << svd.rank() << endl;
 		maxrank = std::max<size_t>(maxrank, svd.rank());
@@ -171,7 +179,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	}
 
 	cerr<<"Merge SVD:"<<mergedUE.rows()<<"x"<<mergedUE.cols()<<endl;
-	JacobiSVD<MatrixXd> mergesvd(mergedUE, ComputeThinU | ComputeThinV);
+	TruncatedLanczosSVD<MatrixXd> mergesvd(mergedUE, ComputeThinU | ComputeThinV);
 	
 	cerr<<"Comparing Full S with Merge S"<<endl;
 	const auto& fullS = fullsvd.singularValues();
@@ -202,7 +210,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 int main(int argc, char** argv)
 {
-	double evthresh = 0.2;
+	double evthresh = 0.1;
 
 	if(argc == 2)
 		evthresh = atof(argv[1]);
@@ -211,7 +219,7 @@ int main(int argc, char** argv)
 	std::default_random_engine rng(rd());
 	std::uniform_real_distribution<double> dist(-1,1);
 
-	std::string pref = "pca2";
+	std::string pref = "pca3";
 	size_t timepoints = 50;
 	size_t ncols = 3;
 	size_t nrows = 4;
@@ -238,7 +246,7 @@ int main(int argc, char** argv)
 		auto weights = randImage(FLOAT64, 0, 1, 5, 17, 19, numhidden);
 
 		for(size_t rr = 0; rr<nrows; rr++) {
-			inputs[rr+cc*nrows] = randImage(FLOAT64, 0, 1, 5, 17, 19, timepoints);
+			inputs[rr+cc*nrows] = randImage(FLOAT64, 0, 0.01, 5, 17, 19, timepoints);
 
 			// Add primary signals
 			for(size_t ww=0; ww<numhidden; ww++) {
@@ -262,11 +270,11 @@ int main(int argc, char** argv)
 	
 	if(testTallPCAJoin(reorg, pref+"_tall_", evthresh) != 0)
 		return -1;
-
-	// TODO test with Wide
-	// use Matrix
-	if(testWidePCAJoin(reorg, pref+"_wide_", evthresh) != 0)
-		return -1;
+//
+//	// TODO test with Wide
+//	// use Matrix
+//	if(testWidePCAJoin(reorg, pref+"_wide_", evthresh) != 0)
+//		return -1;
 	
 }
 

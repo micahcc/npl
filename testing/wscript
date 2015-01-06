@@ -496,6 +496,11 @@ def build(bld):
             target='big_pca_test2',
             source='big_pca_test2.cpp',
             use='utility ica_helpers nplio mrimage_utils')
+    
+    bld.program(install_path='${PREFIX}/tests',  features='test',
+            target='big_pca_test3',
+            source='big_pca_test3.cpp',
+            use='utility ica_helpers nplio mrimage_utils')
     #
 
 #   Some day I may want to turn this into a real test

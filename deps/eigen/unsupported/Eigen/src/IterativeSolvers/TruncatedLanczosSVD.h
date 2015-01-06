@@ -14,11 +14,9 @@
 #include <limits>
 #include <cmath>
 
-#ifdef VERYVERBOSE
 #include <iostream>
 using std::endl;
 using std::cerr;
-#endif //VERYVERBOSE
 
 namespace Eigen {
 
@@ -37,13 +35,41 @@ namespace Eigen {
  * TODO: template over Matrix Type
  * TODO: Fix for complex Scalars
  */
-template <typename _Scalar>
+template <typename _MatrixType>
 class TruncatedLanczosSVD
 {
-public:
-    typedef _Scalar Scalar;
-    typedef Matrix<Scalar,Dynamic,1> VectorType;
-    typedef Matrix<Scalar,Dynamic,Dynamic> MatrixType;
+  public:
+
+    typedef _MatrixType MatrixType;
+    typedef typename MatrixType::Scalar Scalar;
+    typedef typename NumTraits<typename MatrixType::Scalar>::Real RealScalar;
+    typedef typename MatrixType::Index Index;
+    enum {
+        RowsAtCompileTime = MatrixType::RowsAtCompileTime,
+        ColsAtCompileTime = MatrixType::ColsAtCompileTime,
+        DiagSizeAtCompileTime = EIGEN_SIZE_MIN_PREFER_DYNAMIC(
+                RowsAtCompileTime,ColsAtCompileTime),
+        MaxRowsAtCompileTime = MatrixType::MaxRowsAtCompileTime,
+        MaxColsAtCompileTime = MatrixType::MaxColsAtCompileTime,
+        MaxDiagSizeAtCompileTime = EIGEN_SIZE_MIN_PREFER_FIXED(
+                MaxRowsAtCompileTime,MaxColsAtCompileTime),
+        MatrixOptions = MatrixType::Options
+    };
+
+    typedef Matrix<Scalar, RowsAtCompileTime, Dynamic, MatrixOptions,
+            MaxRowsAtCompileTime, MaxDiagSizeAtCompileTime> MatrixUType;
+    typedef Matrix<Scalar, ColsAtCompileTime, Dynamic, MatrixOptions,
+            MaxColsAtCompileTime, MaxDiagSizeAtCompileTime> MatrixVType;
+    typedef Matrix<RealScalar, Dynamic, 1, MatrixOptions,
+            MaxDiagSizeAtCompileTime> SingularValuesType;
+
+    // Technically this scalar should be the merging of Scalar and b::Scalar
+    typedef Matrix<Scalar, RowsAtCompileTime, 1, MatrixOptions,
+            MaxRowsAtCompileTime, MaxRowsAtCompileTime> SolveReturnType;
+
+    // Store M*M or MM*
+    typedef Matrix<Scalar, Dynamic, Dynamic, MatrixOptions,
+            MaxDiagSizeAtCompileTime, MaxDiagSizeAtCompileTime> WorkMatrixType;
 
     /**
      * @brief Default constructor
@@ -94,42 +120,30 @@ public:
             // Compute right singular vlaues (V)
             C = A.transpose()*A;
             m_computeV = true;
-#ifdef VERYVERBOSE
-            cerr << "Computed A^T*A" << endl;
-            cerr << endl << C << endl << endl;
-#endif //VERYVERBOSE
         } else {
             // Computed left singular values (U)
             C = A*A.transpose();
             m_computeU = true;
-#ifdef VERYVERBOSE
-            cerr << "Computed A*A^T" << endl;
-            cerr << endl << C << endl << endl;
-#endif //VERYVERBOSE
         }
 
         // This is a bit hackish, really the user should set this
-        int initrank = std::max<int>(A.rows(), A.cols());
+        int initrank = std::min<int>(A.rows(), A.cols());
         if(m_initbasis > 0)
             initrank = m_initbasis;
 
         BandLanczosSelfAdjointEigenSolver<Scalar> eig;
         eig.setTraceStop(m_trace_thresh);
-        eig.setRank(m_maxrank);
+        eig.setRank(std::min(A.rows(),A.cols()));
         eig.compute(C, initrank);
 
         if(eig.info() == NoConvergence)
             m_status = -2;
 
-#ifdef VERYVERBOSE
-        cerr << "Eigenvalues: " << eig.eigenvalues().transpose() << endl;
-        cerr << "EigenVectors: " << endl << eig.eigenvectors() << endl << endl;
-#endif //VERYVERBOSE
         int eigrows = eig.eigenvalues().rows();
         int rank = 0;
         m_singvals.resize(eigrows);
         for(int cc=0; cc<eigrows; cc++) {
-            if(eig.eigenvalues()[eigrows-1-cc] < m_sv_thresh)
+            if(eig.eigenvalues()[eigrows-1-cc]/eig.eigenvalues()[eigrows-1] < m_sv_thresh)
                 m_singvals[cc] = 0;
             else {
                 m_singvals[cc] = std::sqrt(eig.eigenvalues()[eigrows-1-cc]);
@@ -137,18 +151,7 @@ public:
             }
         }
 
-#ifdef VERYVERBOSE
-        for(int ee=0; ee<rank; ee++) {
-            double err = (eig.eigenvalues()[ee]*eig.eigenvectors().col(ee) -
-                    C*eig.eigenvectors().col(ee)).squaredNorm();
-            cerr << "Error = " << err << endl;
-        }
-#endif //VERYVERBOSE
-
         m_singvals.conservativeResize(rank);
-#ifdef VERYVERBOSE
-        cerr << "Singular Values: " << m_singvals.transpose() << endl;
-#endif //VERYVERBOSE
 
         // Note that because Eigen Solvers usually sort eigenvalues in
         // increasing order but singular value decomposers do decreasing order,
@@ -162,10 +165,6 @@ public:
             for(int cc=0; cc<rank; cc++)
                 m_V.col(cc) = eig.eigenvectors().col(eigrows-1-cc);
 
-#ifdef VERYVERBOSE
-            cerr << "V Matrix: " << endl << m_V << endl << endl;
-#endif //VERYVERBOSE
-
             // Compute U if needed
             if(m_computeU)
                 m_U = A*m_V*(m_singvals.cwiseInverse()).asDiagonal();
@@ -177,13 +176,11 @@ public:
             for(int cc=0; cc<rank; cc++)
                 m_U.col(cc) = eig.eigenvectors().col(eigrows-1-cc);
 
-#ifdef VERYVERBOSE
-            cerr << "U Matrix: " << endl << m_U << endl << endl;
-#endif //VERYVERBOSE
-
             if(m_computeV)
                 m_V = A.transpose()*m_U*(m_singvals.cwiseInverse()).asDiagonal();
         }
+
+		m_status = 1;
     };
 
     /**
@@ -191,7 +188,7 @@ public:
      *
      * @return Vector of singular values
      */
-    const VectorType& singularValues()
+    const SingularValuesType& singularValues()
     {
         eigen_assert(m_status == 1);
         return m_singvals;
@@ -202,9 +199,10 @@ public:
      *
      * @return matrix U
      */
-    const MatrixType& matrixU()
+    const MatrixUType& matrixU()
     {
-        eigen_assert(m_status == 1);
+		eigen_assert(computeV() && "ComputeThinU not set.");
+        eigen_assert(m_status == 1 && "SVD Not Complete.");
         return m_U;
     };
 
@@ -213,9 +211,10 @@ public:
      *
      * @return matrix V
      */
-    const MatrixType& matrixV()
+    const MatrixVType& matrixV()
     {
-        eigen_assert(m_status == 1);
+		eigen_assert(computeV() && "ComputeThinV not set.");
+        eigen_assert(m_status == 1 && "SVD Not Complete.");
         return m_V;
     };
 
@@ -234,29 +233,51 @@ public:
     bool computeV() const { return m_computeV; };
 
     /**
-     * @brief Solve the equation \f[Ax = b\f] for the given b vector and the
-     * approximation: \f[ x = VS^{-1}U^*b \f]
+     * @brief Return number of rows from the last compute operation
      *
-     * @param b Solution to \f$ Ax = b \f$
-     *
-     * @return Solution
+     * @return Number of rows in input matrix
      */
-    VectorType solve(const VectorType& b) const
+    inline Index rows() const { return m_U.rows(); }
+
+    /**
+     * @brief Return number of cols from the last compute operation
+     *
+     * @return Number of cols in input matrix
+     */
+    inline Index cols() const { return m_V.rows(); }
+
+    /** \returns a (least squares) solution of \f$ A x = b \f$ using the
+     * current SVD decomposition of A.
+     *
+     * \param b the right-hand-side of the equation to solve.
+     *
+     * \note Solving requires both U and V to be computed. Thin U and V are
+     * enough, there is no need for full U or V.
+     *
+     * \note SVD solving is implicitly least-squares. Thus, this method serves
+     * both purposes of exact solving and least-squares solving. In other
+     * words, the returned solution is guaranteed to minimize the Euclidean
+     * norm \f$ \Vert A x - b \Vert \f$.
+     */
+    template <typename Rhs>
+    SolveReturnType solve(const Rhs& b) const
     {
-        eigen_assert(m_status == 1);
+        eigen_assert(m_status == 1 && "SVD is not initialized.");
+        eigen_assert(computeU() && computeV() && "SVD::solve() requires both "
+                "unitaries U and V to be computed (thin unitaries suffice).");
         return m_V*m_singvals.cwiseInverse()*m_U.transpose()*b;
     };
 
     /**
      * @brief Stop band lanczos algorithm after the trace of the estimated
-     * covariance matrix exceeds the ratio of total sum of 
+     * covariance matrix exceeds the ratio of total sum of
      * eigenvalues. This is passed directly to the underlying
      * BandLanczosSelfAdjointEigenSolver
      *
-	 * @param stop Ratio of variance to account for (0 to 1) with 1 stopping
-	 * when ALL the variance has been found and 0 stopping immediately. Set to
-	 * INFINITY or NAN to only stop naturally (when the Kyrlov Subspace has
-	 * been exhausted).
+     * @param stop Ratio of variance to account for (0 to 1) with 1 stopping
+     * when ALL the variance has been found and 0 stopping immediately. Set to
+     * INFINITY or NAN to only stop naturally (when the Kyrlov Subspace has
+     * been exhausted).
      */
     void setTraceStop(double stop) { m_trace_thresh = stop; };
 
@@ -400,10 +421,10 @@ private:
         m_status = 0;
     };
 
-    MatrixType m_C; // MM* or M*M
-    MatrixType m_V; // V in USV*
-    MatrixType m_U; // U in USV*
-    VectorType m_singvals; // diag(S) in USV*
+    WorkMatrixType m_C; // MM* or M*M
+    MatrixVType m_V; // V in USV*
+    MatrixUType m_U; // U in USV*
+    SingularValuesType m_singvals; // diag(S) in USV*
 
     /**
      * @brief Number of basis vectors to start BandLanczos Algorithm with

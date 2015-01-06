@@ -16,10 +16,6 @@ namespace Eigen {
 #include <limits>
 #include <cmath>
 
-#include <iostream>
-using std::cerr;
-using std::endl;
-
 namespace internal {
 template <typename T>
 inline T conj(const T& v)
@@ -198,7 +194,6 @@ public:
             m_proj.col(cc).normalize();
         }
 
-        cerr << m_proj << endl;
         _compute(A);
     };
 
