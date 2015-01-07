@@ -583,6 +583,19 @@ ptr<NDArray> standardize(ptr<const NDArray> img);
  */
 ptr<NDArray> varianceT(ptr<const NDArray> img);
 
+/**
+ * @brief Create a random label map with the same size/orientation as the
+ * example image, and with nlabels unique labels, plus 0
+ *
+ * @param example Example image to copy for basic image information
+ * @param nlabels Number of non-zero labels
+ * @param sd standard deviation of smoothing, larger values will create larger
+ * regions
+ *
+ * @return New image with the given number of labels
+ */
+ptr<NDArray> createRandLabels(ptr<const NDArray> example, size_t nlabels, double sd);
+
 /** @}  NDArrayUtilities */
 
 } // npl

@@ -30,6 +30,31 @@
 namespace npl {
 
 /**
+ * @brief Computes mutual information between signal a and signal b which
+ * are of length len. Marginal bins used is mbin
+ *
+ * @param len Length of signal and and b
+ * @param a Signal a
+ * @param b Signal b
+ * @param mbin Bins to use in marginal distribution (mbin*mbin) used in joint
+ *
+ * @return
+ */
+double mutualInformation(size_t len, double* a, double* b, size_t mbin);
+
+/**
+ * @brief Computes correlation between signal a and signal b which
+ * are of length len.
+ *
+ * @param len Length of signal and and b
+ * @param a Signal a
+ * @param b Signal b
+ *
+ * @return
+ */
+double correlation(size_t len, double* a, double* b);
+
+/**
  * @brief Returns the directory name for the given file
  *
  * @param path Input path
@@ -213,17 +238,25 @@ std::vector<double> getRegressor(std::vector<std::vector<double>>& spec,
 		double tr, size_t ntimes, double t0);
 
 /**
- * @brief In place simulation of BOL timeseries using the balloon model
+ * @brief In place simulation of BOL timeseries using the balloon model.
+ * Habituation is accomplished by subtracting exponential moving average of
+ * u, thus if u tends to be on a lot, the effective u will be lower, if it
+ * turns on for the first time in a long time, the spike will be greater.
+ * Learn is the weight of the current point, the previous moving average
+ * value is weighted (1-learn)
  *
  * @param len Length of input/output buffer
  * @param iobuff Input/Output Buffer of values (input stimulus, output signal)
  * @param dt Timestep for simulation
+ * @param learn The weight of the current point, the previous moving average
+ * value is weighted (1-learn), setting learn to 1 removes all habituation
+ * This limits the effect of habituation.
  */
-void boldsim(size_t len, double* iobuff, double dt);
+void boldsim(size_t len, double* iobuff, double dt, double learn);
 
 /**
  * @brief Convolves a signal and a function using loops (not fast)
- * No wrapping is done. 
+ * No wrapping is done.
  *
  * for ii in 0...N-1
  * for jj in 0...M-1
@@ -279,7 +312,7 @@ public:
 	/**
 	 * @brief Create a new mmap class by opening the specified file
 	 * with the specified size. If createNew is set then a new file will be
-	 * created an existing file will be deleted (if permissions allow it). 
+	 * created an existing file will be deleted (if permissions allow it).
 	 *
 	 * @param fn Open the specified file for reading and writing.
 	 * @param bsize Make the file size this number of bytes. If createNew is

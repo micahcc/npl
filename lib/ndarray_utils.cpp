@@ -305,7 +305,7 @@ bool comparable(const NDArray* left, const NDArray* right, bool* elL, bool* elR)
  * @param inout Input/output image to smooth
  * @param dim dimensions to smooth in. If you are smoothing individual volumes
  * of an fMRI you would provide dim={0,1,2}
- * @param stddev standard deviation in physical units index*spacing
+ * @param stddev standard deviation in index
  *
  */
 void gaussianSmooth1D(ptr<NDArray> inout, size_t dim,
@@ -386,7 +386,7 @@ ptr<NDArray> erode(ptr<NDArray> in, size_t rad)
 		for(size_t kk=0; kk<kit.ksize(); kk++) {
 			double dist = 0;
 
-			for(size_t dd=0; dd<in->ndim(); dd++) 
+			for(size_t dd=0; dd<in->ndim(); dd++)
 				dist += kit.offsetK(kk, dd)*kit.offsetK(kk, dd);
 
 			if(dist < sphere && kit[kk] == 0) {
@@ -429,7 +429,7 @@ ptr<NDArray> dilate(ptr<NDArray> in, size_t rad)
 		for(size_t kk=0; kk<kit.ksize(); kk++) {
 			double dist = 0;
 
-			for(size_t dd=0; dd<in->ndim(); dd++) 
+			for(size_t dd=0; dd<in->ndim(); dd++)
 				dist += kit.offsetK(kk, dd)*kit.offsetK(kk, dd);
 
 			if(dist < sphere && kit[kk] != 0) {
@@ -3048,6 +3048,45 @@ ptr<NDArray> varianceT(ptr<const NDArray> img)
 
 		sumsq = sample_var(tlen, sum, sumsq);
 		oit.set(sumsq);
+	}
+
+	return out;
+}
+
+/**
+ * @brief Create a random label map with the same size/orientation as the
+ * example image, and with nlabels unique labels, plus 0
+ *
+ * @param example Example image to copy for basic image information
+ * @param nlabels Number of non-zero labels
+ * @param sd standard deviation of smoothing, larger values will create larger
+ * regions
+ *
+ * @return New image with the given number of labels
+ */
+ptr<NDArray> createRandLabels(ptr<const NDArray> example, size_t nlabels, double sd)
+{
+	auto out = example->copyCast(INT32);
+	FlatIter<int> lit(out);
+	for(lit.goBegin(); !lit.eof(); ++lit)
+		lit.set(0);
+
+	auto tmp = example->copyCast(FLOAT32);
+	auto best = example->copyCast(FLOAT32);
+	for(FlatIter<double> bit(best); !bit.eof(); ++bit)
+		bit.set(0);
+
+	for(size_t ii = 0; ii<nlabels; ii++) {
+		// Create Gaussian Random Field
+		fillGaussian(tmp);
+		for(size_t dd=0; dd<3; dd++)
+			gaussianSmooth1D(tmp, dd, sd);
+
+		lit.goBegin();
+		for(FlatIter<double> tit(tmp),bit(best); !tit.eof(); ++tit,++bit,++lit){
+			if(*tit > *bit)
+				lit.set(ii+1);
+		}
 	}
 
 	return out;

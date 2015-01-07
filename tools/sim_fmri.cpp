@@ -22,6 +22,7 @@
 #include <tclap/CmdLine.h>
 #include <string>
 #include <stdexcept>
+#include <fstream>
 #include <algorithm>
 
 #include "nplio.h"
@@ -29,13 +30,26 @@
 #include "ndarray_utils.h"
 #include "iterators.h"
 #include "utility.h"
+#include "basic_plot.h"
 
-using std::string;
 using namespace npl;
+using namespace std;
+
+/**
+ * @brief Creates a random (poisson) series of events, with average number of
+ * events per unit time of lambda. Events occur between time tf and t0.
+ *
+ * @param lambda Number of events per unit time (per second)
+ * @param t0 Time 0 to start simulating
+ * @param tf Final time to end on
+ *
+ * @return vector of spike times
+ */
+vector<double> createRandAct(double lambda, double t0, double tf);
 
 /**
  * @brief Takes a set of timepoints at which unit impulses occur and returns a
- * timeseries of simulated BOLD signal, from the given input. Note that up to 
+ * timeseries of simulated BOLD signal, from the given input. Note that up to
  * 15 (T0) seconds BEFORE 0, unit impulses will be included so that t0 won't
  * doesn't * have to be at state 0
  *
@@ -61,12 +75,18 @@ vector<double> sampleBOLD(const vector<double>& times, double tlen, double tr);
  * create a more realistic mixing of activation patterns
  * @param tlen Number of volumes in the output
  * @param tr Sampling time of the output
+ * @param plotfile Create a plot of the time-courses in the given file
+ * (if not empty)
+ * @param hdtr TR in highres BOLD simulation
+ * @param learn The weight of the current point, the previous moving average
+ * value is weighted (1-learn), setting learn to 1 removes all habituation
+ * This limits the effect of habituation.
  *
  * @return simulated fMRI
  */
 ptr<MRImage> simulate(ptr<MRImage> labelmap, ptr<MRImage> gm,
 		const vector<vector<double>>& act, double sd,
-		size_t tlen, double tr);
+		size_t tlen, double tr, string plotfile, double hdtr, double learn);
 
 int main(int argc, char** argv)
 {
@@ -83,14 +103,27 @@ int main(int argc, char** argv)
 	TCLAP::ValueArg<string> a_anatomy("g", "greymatter", "Greymatter "
 			"probability image. Signal is weited by GM prob.",
 			true, "", "*.nii.gz", cmd);
-	TCLAP::ValueArg<string> a_regions("r", "regions", "Labelmap where label 1 "
+
+	TCLAP::ValueArg<string> a_regions("r", "region-map", "Labelmap where label 1 "
 			"gets the signal from the first column of activation table, label "
-			"2 from the second and so on. ", true, "", "*.nii.gz", cmd);
-	TCLAP::ValueArg<string> a_activation("a", "activate", "Activation spike "
+			"2 from the second and so on. ", false, "", "*.nii.gz");
+	TCLAP::SwitchArg a_randregions("R", "region-rand", "Randomize regions "
+			"by smoothing a gaussian random field, then arbitrarily assigning "
+			"to fit the needed number of regions");
+	cmd.xorAdd(a_regions, a_randregions);
+
+	TCLAP::ValueArg<string> a_actfile("a", "act-file", "Activation spike "
 			"train for each label. Lines (1-... ) correspond to labels. "
 			"Spike times dhould be separated by commans or spaces.",
-			true, "", "*.csv", cmd);
-	
+			false, "", "*.csv");
+	TCLAP::MultiArg<double> a_actrand("A", "act-rand", "Create a random "
+			"spike activation profile with poisson distribution. ", false,
+			"lambda");
+	cmd.xorAdd(a_actrand, a_actfile);
+
+	TCLAP::ValueArg<string> a_plot("p", "plot", "Plot the activations in the "
+			"specified file", false, "", "*.svd", cmd);
+
 	TCLAP::ValueArg<double> a_smooth("s", "smooth", "Smoothing standard "
 			"deviation to apply to each activation region prior to applying "
 			"activation. The mixing should create more realistic 'mixed' "
@@ -101,9 +134,17 @@ int main(int argc, char** argv)
 			false, "", "*.nii.gz", cmd);
 
 	TCLAP::ValueArg<size_t> a_tlen("t", "times", "Number of output timepoints "
-			"in output image.", false, 1024, "*.nii.gz", cmd);
+			"in output image.", false, 1024, "n", cmd);
 	TCLAP::ValueArg<double> a_tr("T", "tr", "Output image TR (sampling period).",
-			false, 1.5, "*.nii.gz", cmd);
+			false, 1.5, "sec", cmd);
+	TCLAP::ValueArg<double> a_hdres("", "sim-dt", "Sampling rate during "
+			"during BOLD simulation. If you are getting NAN's then "
+			"decrease this.", false, 0.01, "sec", cmd);
+	TCLAP::ValueArg<double> a_learn("", "habrate", "Habituation rate/learning "
+			"rate for the exponential moving average that is used to estimate "
+			"the habituation factor in BOLD simulation. This is the weight "
+			"given to the most recent sample, the current MA is weighted (1-r).",
+			false, 0.1, "ratio", cmd);
 
 	cmd.parse(argc, argv);
 
@@ -111,12 +152,51 @@ int main(int argc, char** argv)
 	 * Input
 	 *********/
 	// read regions
-	auto labelmap = readMRImage(a_regions.getValue());
+	cerr << "Reading Graymatter Probability...";
 	auto gmprob = readMRImage(a_anatomy.getValue());
-	auto activate = readNumericCSV(a_activation.getValue());
+	cerr << "Done\n";
 
+	vector<vector<double>> activate;
+	if(a_actrand.isSet()) {
+		cerr << "Simulating Random Activations: ";
+		for(size_t ii=0; ii<a_actrand.getValue().size(); ii++) {
+			cerr << "lambda "<<a_actrand.getValue()[ii]<<", ";
+			activate.push_back(createRandAct(a_actrand.getValue()[ii], -15,
+					a_tlen.getValue()*a_tr.getValue()));
+
+		}
+		ofstream ofs("randact.csv");
+		for(size_t ii=0; ii<activate.size(); ii++) {
+			if(ii != 0) ofs << "\n";
+			for(size_t jj=0; jj<activate[ii].size(); jj++){
+				if(jj != 0) ofs << ",";
+				ofs << activate[ii][jj];
+			}
+		}
+		ofs<<"\n";
+		cerr << "Done\n";
+	} else if(a_actfile.isSet()) {
+		cerr << "Reading Activation File...";
+		activate = readNumericCSV(a_actfile.getValue());
+		cerr << "Done\n";
+	}
+
+	ptr<MRImage> labelmap;
+	if(a_regions.isSet()) {
+		cerr << "Reading Region Map...";
+		labelmap = readMRImage(a_regions.getValue());
+		cerr << "Done\n";
+	} else if(a_randregions.isSet()) {
+		cerr << "Simulating Region Map...";
+		labelmap = dPtrCast<MRImage>(createRandLabels(gmprob, activate.size(), 5));
+		cerr << "Done\n";
+	}
+
+	cerr << "Simulating fMRI...";
 	auto out = simulate(labelmap, gmprob, activate, a_smooth.getValue(),
-			a_tlen.getValue(), a_tr.getValue());
+			a_tlen.getValue(), a_tr.getValue(), a_plot.getValue(),
+			a_hdres.getValue(), a_learn.getValue());
+	cerr << "Done\n";
 
 	if(a_out.isSet())
 		out->write(a_out.getValue());
@@ -126,8 +206,37 @@ int main(int argc, char** argv)
 }
 
 /**
+ * @brief Creates a random (poisson) series of events, with average number of
+ * events per unit time of lambda. Events occur between time tf and t0.
+ *
+ * @param lambda Number of events per unit time (per second)
+ * @param t0 Time 0 to start simulating
+ * @param tf Final time to end on
+ *
+ * @return vector of spike times
+ */
+vector<double> createRandAct(double lambda, double t0, double tf)
+{
+	std::random_device rd;
+	std::default_random_engine rng(rd());
+	std::uniform_real_distribution<double> dist(0, 1);
+
+	vector<double> out;
+	double tr = 0.0001;
+
+	while(t0 < tf) {
+		double prob = lambda*tr;
+		if(dist(rng) < prob)
+			out.push_back(t0);
+		t0 += tr;
+	}
+
+	return out;
+}
+
+/**
  * @brief Takes a set of timepoints at which unit impulses occur and returns a
- * timeseries of simulated BOLD signal, from the given input. Note that up to 
+ * timeseries of simulated BOLD signal, from the given input. Note that up to
  * 15 (T0) seconds BEFORE 0, unit impulses will be included so that t0 won't
  * doesn't * have to be at state 0
  *
@@ -135,31 +244,34 @@ int main(int argc, char** argv)
  * occur in the range (-15, tlen), and still be included
  * @param tlen Total timeseries length in seconds
  * @param tr Sampling time of output in seconds
+ * @param hdtr TR in highres BOLD simulation
+ * @param learn The weight of the current point, the previous moving average
+ * value is weighted (1-learn), setting learn to 1 removes all habituation
+ * This limits the effect of habituation.
  *
  * @return Timeseries for the given spike times smoothed by the BOLD signal
  */
-vector<double> sampleBOLD(const vector<double>& times, double tlen, double tr)
+vector<double> sampleBOLD(const vector<double>& times, double tlen, double tr,
+		double hdtr, double learn)
 {
-	const double T0 = 15; // offset upsampled timeseries by negative this 
-	const double UPSAMPLE = 10; // Upsampled by this ratio
-	double utr = tr/UPSAMPLE; // upsampled sampling time
-	
-	size_t usz = (tlen+T0)/utr; // Size of upsampled timeseries
+	const double T0 = 15; // offset upsampled timeseries by negative this
+
+	size_t usz = (tlen+T0)/hdtr; // Size of upsampled timeseries
 	size_t osz = tlen/tr; // Size of output timeseries
-	
+
 	vector<double> highres(usz);
 	std::fill(highres.begin(), highres.end(), 0);
 
 	// Place all spikes in highres sampling (note the area of each is 1 because
-	// tr/UPSAMPLE is the time of a box, and the value added is UPSAMPLE/tr)
+	// tr/upsample is the time of a box, and the value added is upsample/tr)
 	for(auto t : times) {
-		int i = round((t-T0)/utr);
+		int i = round((t+T0)/hdtr);
 		if(i >= 0 && i < highres.size())
-			highres[i] += 1./utr;
+			highres[i] += 1./hdtr;
 	}
 
 	// Simulate BOLD with HRF
-	boldsim(usz, highres.data(), utr);
+	boldsim(usz, highres.data(), hdtr, learn);
 
 	// Sample at lower frequency
 	vector<double> out(osz);
@@ -167,9 +279,12 @@ vector<double> sampleBOLD(const vector<double>& times, double tlen, double tr)
 
 	for(size_t ii=0; ii<osz; ii++) {
 		double t = tr*ii;
-		int jj = round((t-T0)/utr);
-		if(jj >= 0 && jj < highres.size())
+		int jj = round((t+T0)/hdtr);
+		if(jj >= 0 && jj < highres.size()) {
 			out[ii] = highres[jj];
+			if(std::isnan(out[ii] || std::isinf(out[ii])))
+				throw RUNTIME_ERROR("NAN/INF in Simulation");
+		}
 	}
 	return out;
 }
@@ -187,16 +302,20 @@ vector<double> sampleBOLD(const vector<double>& times, double tlen, double tr)
  * create a more realistic mixing of activation patterns
  * @param tlen Number of volumes in the output
  * @param tr Sampling time of the output
+ * @param hdtr TR in highres simulation dataset
+ * @param learn The weight of the current point, the previous moving average
+ * value is weighted (1-learn), setting learn to 1 removes all habituation
+ * This limits the effect of habituation.
  *
  * @return simulated fMRI
  */
 ptr<MRImage> simulate(ptr<MRImage> labelmap, ptr<MRImage> gm,
 		const vector<vector<double>>& act, double sd,
-		size_t tlen, double tr)
+		size_t tlen, double tr, string plotfile, double hdtr, double learn)
 {
-	if(labelmap->ndim() != 3) 
+	if(labelmap->ndim() != 3)
 		throw INVALID_ARGUMENT("Non-3D Image Provided as Labelmap");
-	if(gm->ndim() != 3) 
+	if(gm->ndim() != 3)
 		throw INVALID_ARGUMENT("Non-3D Image Provided for GM Probability Map");
 	if(!labelmap->matchingOrient(gm, true, true))
 		throw INVALID_ARGUMENT("Greymatter and Labelmaps provided do not "
@@ -204,17 +323,35 @@ ptr<MRImage> simulate(ptr<MRImage> labelmap, ptr<MRImage> gm,
 
 	size_t nreg = act.size(); // # of regions
 	vector<vector<double>> design(nreg);
-	
+
 	/* create timeseries for each of the activation spike trains */
+	Plotter plotter;
 	for(size_t rr=0; rr<nreg; rr++) {
-		design[rr] = sampleBOLD(act[rr], tr*tlen, tr);
+		cerr<<"Simulating timeseries "<<rr<<"...";
+		design[rr] = sampleBOLD(act[rr], tr*tlen, tr, hdtr, learn);
 		assert(design[rr].size() == tlen);
+
+		if(!plotfile.empty())
+			plotter.addArray(design[rr].size(), design[rr].data());
+
+		cerr<<"Done, Mutual Information with Previous: ";
+		for(size_t ii=0; ii<rr; ii++) {
+			if(ii != 0) cerr << ",";
+			cerr << correlation(tlen, design[rr].data(),
+					design[ii].data());
+//			cerr << mutualInformation(tlen, design[rr].data(),
+//					design[ii].data(), std::sqrt(tlen));
+		}
+		cerr << endl;
 	}
-	
+
+	// Write out plot
+	if(!plotfile.empty()) plotter.write(plotfile);
+
 	/* create 4D image where each volume is a label probability */
 	vector<size_t> tmpsize(labelmap->dim(), labelmap->dim()+labelmap->ndim());
 	tmpsize.push_back(nreg);
-	auto prob = dPtrCast<MRImage>(labelmap->copyCast(tmpsize.size(), 
+	auto prob = dPtrCast<MRImage>(labelmap->copyCast(tmpsize.size(),
 				tmpsize.data(), FLOAT32));
 	for(FlatIter<double> it(prob); !it.eof(); ++it)
 		it.set(0);
@@ -234,14 +371,14 @@ ptr<MRImage> simulate(ptr<MRImage> labelmap, ptr<MRImage> gm,
 	}
 
 	prob->write("prob_presmooth.nii.gz");
-	
+
 	/* smooth each of the 4D volumes */
 	for(size_t dd=0; dd<3; dd++)
 		gaussianSmooth1D(prob, dd, sd);
-	
-	/* 
+
+	/*
 	 * for each pixel sum up the contribution of each timeseries then scale by
-	 * greymatter probability 
+	 * greymatter probability
 	 */
 	tmpsize[3] = tlen;
 	auto out = dPtrCast<MRImage>(labelmap->copyCast(tmpsize.size(),
@@ -253,7 +390,7 @@ ptr<MRImage> simulate(ptr<MRImage> labelmap, ptr<MRImage> gm,
 		for(size_t tt=0; tt<tlen; tt++) {
 			// Weight Sum of each regions value
 			double v = 0;
-			for(size_t rr=0; rr<nreg; rr++) 
+			for(size_t rr=0; rr<nreg; rr++)
 				v += design[rr][tt]*pit[rr];
 
 			// Weigtht by GM Prob

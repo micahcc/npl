@@ -35,6 +35,7 @@
 
 #include "utility.h"
 #include "macros.h"
+#include "basic_functions.h"
 
 #include <string>
 #include <cassert>
@@ -49,6 +50,89 @@ using std::cerr;
 using std::numeric_limits;
 
 namespace npl {
+
+/**
+ * @brief Computes mutual information between signal a and signal b which
+ * are of length len. Marginal bins used is mbin
+ *
+ * @param len Length of signal and and b
+ * @param a Signal a
+ * @param b Signal b
+ * @param mbin Bins to use in marginal distribution (mbin*mbin) used in joint
+ *
+ * @return
+ */
+double mutualInformation(size_t len, double* a, double* b, size_t mbin)
+{
+	vector<vector<double>> joint(mbin, vector<double>(mbin, 0));
+	vector<double> marg1(mbin, 0);
+	vector<double> marg2(mbin, 0);
+
+	double amin = INFINITY;
+	double bmin = INFINITY;
+	double awidth = -INFINITY;
+	double bwidth = -INFINITY;
+	for(size_t tt=0; tt<len; tt++) {
+		amin = std::min(amin, a[tt]);
+		awidth = std::max(awidth, a[tt]);
+		bmin = std::min(bmin, b[tt]);
+		bwidth = std::max(bwidth, b[tt]);
+	}
+	awidth = (awidth-amin)/(mbin-1);
+	bwidth = (bwidth-bmin)/(mbin-1);
+
+	for(size_t tt=0; tt<len; tt++) {
+		int ai = ((a[tt]-amin)/awidth);
+		int bi = ((b[tt]-bmin)/bwidth);
+		assert(ai >= 0 && ai < mbin);
+		assert(bi >= 0 && bi < mbin);
+
+		marg1[ai]++;
+		marg2[bi]++;
+		joint[ai][bi]++;
+	}
+
+	double mi = 0;
+	for(size_t ii=0; ii<mbin; ii++) {
+		for(size_t jj=0; jj<mbin; jj++) {
+			double pj = joint[ii][jj]/len;
+			double pa = marg1[ii]/len;
+			double pb = marg2[jj]/len;
+			if(pj > 0)
+				mi += pj*log(pj/(pa*pb));
+		}
+	}
+
+	return mi;
+}
+
+/**
+ * @brief Computes correlation between signal a and signal b which
+ * are of length len.
+ *
+ * @param len Length of signal and and b
+ * @param a Signal a
+ * @param b Signal b
+ *
+ * @return
+ */
+double correlation(size_t len, double* a, double* b)
+{
+	double ab = 0;
+	double aa = 0;
+	double bb = 0;
+	double ma = 0;
+	double mb = 0;
+
+	for(size_t ii=0; ii<len; ii++) {
+		ab += a[ii]*b[ii];
+		aa += a[ii]*a[ii];
+		bb += b[ii]*b[ii];
+		ma += a[ii];
+		mb += b[ii];
+	}
+	return sample_corr(len, ma, mb, aa, bb, ab);
+}
 
 /**
  * @brief Returns the directory name for the given file. TODO: windows support
@@ -501,13 +585,20 @@ double cannonHrf(double t)
 }
 
 /**
- * @brief In place simulation of BOL timeseries using the balloon model
+ * @brief In place simulation of BOL timeseries using the balloon model.
+ * Habituation is accomplished by subtracting exponential moving average of
+ * u, thus if u tends to be on a lot, the effective u will be lower, if it
+ * turns on for the first time in a long time, the spike will be greater.
+ * Learn is the weight of the current point, the previous moving average
+ * value is weighted (1-learn)
  *
  * @param len Length of input/output buffer
  * @param iobuff Input/Output Buffer of values (input stimulus, output signal)
  * @param dt Timestep for simulation
+ * @param learn The weight of the current point, the previous moving average
+ * value is weighted (1-learn), setting learn to 1 removes all habituation
  */
-void boldsim(size_t len, double* iobuff, double dt)
+void boldsim(size_t len, double* iobuff, double dt, double learn)
 {
 	//const double EPSILON_0 = 1.43;
 	//const double NU_0 = 40.3;
@@ -536,10 +627,15 @@ void boldsim(size_t len, double* iobuff, double dt)
 
 	double ut; // input
 	double y; // output value
+	double ma = 0; // moving average of ut
 
 	for(size_t ii=0; ii<len; ii++) {
 		/* Compute Change in State */
 		ut = iobuff[ii];
+		ma = learn*ut + (1-learn)*ma;
+
+		// habituate - subtract moving average, but ut must be positive,
+		if(ut < ma) ut = 0;
 
 		// Normalized Blood Volume
 		//V_t* = (1/tau_0) * ( f_t - v_t ^ (1/\alpha))
@@ -571,7 +667,7 @@ void boldsim(size_t len, double* iobuff, double dt)
 
 /**
  * @brief Convolves a signal and a function using loops (not fast)
- * No wrapping is done. 
+ * No wrapping is done.
  *
  * for ii in 0...N-1
  * for jj in 0...M-1
