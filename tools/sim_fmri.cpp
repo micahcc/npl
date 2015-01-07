@@ -134,15 +134,21 @@ int main(int argc, char** argv)
 			"lambda");
 	cmd.xorAdd(a_actrand, a_actfile);
 
-	TCLAP::ValueArg<string> a_probmap("p", "probmaps", 
+	TCLAP::ValueArg<string> a_oactfile("", "out-act", "Output simulated "
+			"activation map, which may be used as input later. Lines "
+			"(1-... ) correspond to labels. "
+			"Spike times dhould be separated by commans or spaces.",
+			false, "", "*.csv");
+
+	TCLAP::ValueArg<string> a_probmap("p", "probmaps",
 			"Write regional probability maps", false, "", "*.nii.gz", cmd);
 
-	TCLAP::ValueArg<string> a_plot("P", "plot", "Plot the activations in the "
+	TCLAP::ValueArg<string> a_plot("", "aplot", "Plot the activations in the "
 			"specified file", false, "", "*.svg", cmd);
 
 	TCLAP::ValueArg<double> a_noise("n", "noise-sd", "Noise standard "
-			"deviation. Note the true signal tends to be < 0.05", false, 
-			0.02, "ratio", cmd);
+			"deviation. Note the true signal tends to be < 0.05", false,
+			0.01, "ratio", cmd);
 
 	TCLAP::ValueArg<double> a_smooth("s", "smooth", "Smoothing standard "
 			"deviation to apply to each activation region prior to applying "
@@ -153,9 +159,9 @@ int main(int argc, char** argv)
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
 			false, "", "*.nii.gz", cmd);
 
-	TCLAP::ValueArg<size_t> a_tlen("t", "times", "Number of output timepoints "
+	TCLAP::ValueArg<size_t> a_tlen("", "tdim", "Number of output timepoints "
 			"in output image.", false, 1024, "n", cmd);
-	TCLAP::ValueArg<double> a_tr("T", "tr", "Output image TR (sampling period).",
+	TCLAP::ValueArg<double> a_tr("", "tr", "Output image TR (sampling period).",
 			false, 1.5, "sec", cmd);
 	TCLAP::ValueArg<double> a_hdres("", "sim-dt", "Sampling rate during "
 			"during BOLD simulation. If you are getting NAN's then "
@@ -175,7 +181,7 @@ int main(int argc, char** argv)
 	cerr << "Reading Graymatter Probability...";
 	auto gmprob = readMRImage(a_anatomy.getValue());
 	cerr << "Done\n";
-	
+
 	ptr<MRImage> t2star;
 	if(a_t2star.isSet()) {
 		t2star = readMRImage(a_t2star.getValue());
@@ -192,15 +198,20 @@ int main(int argc, char** argv)
 					a_tlen.getValue()*a_tr.getValue()));
 
 		}
-		ofstream ofs("randact.csv");
-		for(size_t ii=0; ii<activate.size(); ii++) {
-			if(ii != 0) ofs << "\n";
-			for(size_t jj=0; jj<activate[ii].size(); jj++){
-				if(jj != 0) ofs << ",";
-				ofs << activate[ii][jj];
+
+		if(a_oactfile.isSet()) {
+			ofstream ofs(a_oactfile.getValue().c_str());
+			if(!ofs.is_open())
+				throw INVALID_ARGUMENT("Could not open "+a_oactfile.getValue());
+			for(size_t ii=0; ii<activate.size(); ii++) {
+				if(ii != 0) ofs << "\n";
+				for(size_t jj=0; jj<activate[ii].size(); jj++){
+					if(jj != 0) ofs << ",";
+					ofs << activate[ii][jj];
+				}
 			}
+			ofs<<"\n";
 		}
-		ofs<<"\n";
 		cerr << "Done\n";
 	} else if(a_actfile.isSet()) {
 		cerr << "Reading Activation File...";
@@ -238,16 +249,15 @@ int main(int argc, char** argv)
 
 	/* create timeseries for each of the activation spike trains */
 	Plotter plotter;
+	cerr<<"Simulating timeseries...Correlations:\n";
 	for(size_t rr=0; rr<nreg; rr++) {
-		cerr<<"Simulating timeseries "<<rr<<"...";
 		design[rr] = sampleBOLD(activate[rr], tr*tlen, tr, hdtr, learn);
 		assert(design[rr].size() == tlen);
 
 		if(!a_plot.isSet())
 			plotter.addArray(design[rr].size(), design[rr].data());
 
-		cerr<<"Done\nCorrelation with Previous: ";
-		for(size_t ii=0; ii<rr; ii++) {
+		for(size_t ii=0; ii<=rr; ii++) {
 			if(ii != 0) cerr << ",";
 			cerr << correlation(tlen, design[rr].data(),
 					design[ii].data());
@@ -256,6 +266,7 @@ int main(int argc, char** argv)
 		}
 		cerr << endl;
 	}
+	cerr<<"Done\n";
 
 	// Write out plot
 	if(!a_plot.isSet()) plotter.write(a_plot.getValue());
@@ -329,9 +340,9 @@ int main(int argc, char** argv)
 
 	if(a_t2star.isSet()) {
 		cerr << "Overlaying on T2* Image...";
-		NDIter<double> tit(t2star); 
+		NDIter<double> tit(t2star);
 		for(oit.goBegin(); !tit.eof(); ++tit, ++oit) {
-			for(size_t tt=0; tt<tlen; tt++) 
+			for(size_t tt=0; tt<tlen; tt++)
 				oit.set(tt, (1+oit[tt])*tit.get());
 		}
 		cerr << "Done" <<endl;

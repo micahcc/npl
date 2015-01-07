@@ -76,7 +76,7 @@ int main(int argc, char** argv)
 			"$prefix_$input_$num.nii.gz where $prefix is this, $input "
 			"is the basename from -i and $num is the component number",
 			true, "./", "/", cmd);
-	
+
 	TCLAP::ValueArg<int> a_time_append("t", "time-concat", "Number of images "
 			"in a rows of time-concatination. ", false, -1,
 			"#vecs", cmd);
@@ -129,11 +129,11 @@ int main(int argc, char** argv)
 }
 
 /**
- * @brief The basic idea is to split the rows into digesteable chunks, then 
+ * @brief The basic idea is to split the rows into digesteable chunks, then
  * perform the SVD on each of them
  *
  *
- * @return 
+ * @return
  */
 int fmri_gica(size_t timeblocks, size_t spaceblocks, string prefix,
 		const vector<string>& masks, const vector<string>& files,
@@ -142,9 +142,9 @@ int fmri_gica(size_t timeblocks, size_t spaceblocks, string prefix,
 	// Don't use more than half of memory on each block of rows
 	MatrixReorg omats(prefix, (size_t)0.5*gbmax*(1<<27), a_verbose.isSet());
 	int status = omats.createMats(timeblocks, spaceblocks, masks, files);
-	
+
 	if(status != 0) return status;
-	
+
 //
 //	// Clusters of rows must 1) be able to fit into memory, 2) the square of
 //	// min(rows,cols) must fit into memory (for XXT)
@@ -155,15 +155,15 @@ int fmri_gica(size_t timeblocks, size_t spaceblocks, string prefix,
 //		cerr << "Total Time Size: " << totalrows << endl;
 //		cerr << "(Single) Image Space Size: " << ncols << endl;
 //	}
-//	
+//
 //	// Convert Row Blocks to Col Blocks
 //	convert
-//	TODO	
+//	TODO
 //	// Perform SVD on each block
-//	
+//
 //	// Perform SVD on [U_1S_1 U_2S_2 ... ]
-//	
-//	// First 
+//
+//	// First
 //	size_t nscalar = ncols*totalrows;
 //
 //	MatrixXd cov;
