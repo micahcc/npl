@@ -61,6 +61,12 @@ def build(bld):
             source = 'copyOrientation.cpp',
             use = 'mrimage_utils nplio tclap')
 
+    ## FMRI
+    bld.program(target = 'nplSimFMRI',
+            install_path='${PREFIX}/tools_incomplete',
+            source = 'sim_fmri.cpp',
+            use = 'ndarray_utils mrimage utility nplio tclap');
+
     bld.program(target = 'nplGLM',
             install_path='${PREFIX}/tools_incomplete',
             source = 'generalLinearModel.cpp',

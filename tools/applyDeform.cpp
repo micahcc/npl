@@ -56,17 +56,6 @@ double overlapRatio(ptr<MRImage> a, ptr<MRImage> b)
 	return (double)(incount)/(double)(maskcount);
 }
 
-
-void binarize(ptr<MRImage> in)
-{
-	OrderIter<int> it(in);
-	for(it.goBegin(); !it.eof(); ++it) {
-		if(*it != 0)
-			it.set(1);
-	}
-
-}
-
 int main(int argc, char** argv)
 {
 	cerr << "Version: " << __version__ << endl;

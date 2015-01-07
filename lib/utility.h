@@ -213,12 +213,27 @@ std::vector<double> getRegressor(std::vector<std::vector<double>>& spec,
 		double tr, size_t ntimes, double t0);
 
 /**
- * @brief Convolves a signal and a function using loops (not fast)
+ * @brief In place simulation of BOL timeseries using the balloon model
  *
- * @param signal
- * @param foo
- * @param tr
- * @param length
+ * @param len Length of input/output buffer
+ * @param iobuff Input/Output Buffer of values (input stimulus, output signal)
+ * @param dt Timestep for simulation
+ */
+void boldsim(size_t len, double* iobuff, double dt);
+
+/**
+ * @brief Convolves a signal and a function using loops (not fast)
+ * No wrapping is done. 
+ *
+ * for ii in 0...N-1
+ * for jj in 0...M-1
+ * if jj-ii valid:
+ *     s[ii] = s[ii]*kern[jj-ii]
+ *
+ * @param signal Input signal sampled every (tr)
+ * @param foo Function to sample backwards
+ * @param tr Sampling time of input signal
+ * @param length Number of samples to draw from foo
  */
 void convolve(std::vector<double>& signal, double(*foo)(double),
 		double tr, double length);

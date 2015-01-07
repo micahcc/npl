@@ -501,13 +501,87 @@ double cannonHrf(double t)
 }
 
 /**
- * @brief Convolves a signal and a function using loops (not fast)
+ * @brief In place simulation of BOL timeseries using the balloon model
  *
- * @param signal
- * @param foo
- * @param tr		TR of input array
- * @param length	Length of input kernel in time (foo will be sampled at
- *					these points)
+ * @param len Length of input/output buffer
+ * @param iobuff Input/Output Buffer of values (input stimulus, output signal)
+ * @param dt Timestep for simulation
+ */
+void boldsim(size_t len, double* iobuff, double dt)
+{
+	//const double EPSILON_0 = 1.43;
+	//const double NU_0 = 40.3;
+	//const double TE = .04; //40ms
+	//const double k1 = 4.3*NU_0*TE ;
+	//const double k2 = EPSILON_0*25*TE;
+	//const double k3 = EPSILON_0-1;
+
+	const double TAU_0 = .98; //Hu = .98, Vakorin = 1.18
+	const double ALPHA = .33; //Hu = .33,
+	const double E_0 = .34; //Hu = .34
+	const double V_0 = 0.04; //Hu = .03
+	const double TAU_S = 1.54; //Hu = 1.54, Vakorin = 2.72
+	const double TAU_F = 2.46; //Hu = 2.46, Vakorin = .56
+	const double EPSILON = .7; //Hu = .54
+	const double k1 = 7*E_0;
+	const double k2 = 2;
+	const double k3 = 2*E_0-0.2;
+
+	// state variables
+	double vt = 1; // blood volume
+	double qt = 1; // deogyenated hemogrlobin
+	double st = 0; // derivative of flow
+	double ft = 1;  // blood flow
+	double dvt, dqt, dst, dft; // derivatives of states
+
+	double ut; // input
+	double y; // output value
+
+	for(size_t ii=0; ii<len; ii++) {
+		/* Compute Change in State */
+		ut = iobuff[ii];
+
+		// Normalized Blood Volume
+		//V_t* = (1/tau_0) * ( f_t - v_t ^ (1/\alpha))
+		dvt = ((ft - pow(vt, 1./ALPHA))/TAU_0);
+
+		// Normalized Deoxyhaemoglobin Content
+		//Q_t* = \frac{1}{tau_0} * (\frac{f_t}{E_0} * (1- (1-E_0)^{1/f_t}) -
+		//              \frac{q_t}{v_t^{1-1/\alpha}})
+		dqt = ((ft/E_0)*(1 - pow(1-E_0, 1./ft)) - qt/pow(vt, 1-1./ALPHA))/TAU_0;
+
+		// Second Derivative of Cerebral Blood Flow
+		//S_t* = \epsilon*u_t - 1/\tau_s * s_t - 1/\tau_f * (f_t - 1)
+		dst = ut*EPSILON - st/TAU_S - (ft-1.)/TAU_F;
+
+		// Normalized Cerebral Blood Flow
+		//f_t* = s_t;
+		dft = st;
+
+		/* Integrate / Compute New State */
+		vt += dvt*dt;
+		qt += dqt*dt;
+		st += dst*dt;
+		ft += dft*dt;
+
+		y = V_0*(k1*(1-qt) + k2*(1-qt/vt) + k3*(1 - vt));
+		iobuff[ii] = y;
+	}
+}
+
+/**
+ * @brief Convolves a signal and a function using loops (not fast)
+ * No wrapping is done. 
+ *
+ * for ii in 0...N-1
+ * for jj in 0...M-1
+ * if jj-ii valid:
+ *     s[ii] = s[ii]*kern[jj-ii]
+ *
+ * @param signal Input signal sampled every (tr)
+ * @param foo Function to sample backwards
+ * @param tr Sampling time of input signal
+ * @param length Number of samples to draw from foo
  */
 void convolve(std::vector<double>& signal, double(*foo)(double),
 		double tr, double length)
