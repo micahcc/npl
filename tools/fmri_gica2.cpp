@@ -43,9 +43,43 @@ using namespace npl;
 TCLAP::MultiSwitchArg a_verbose("v", "verbose", "Write lots of output. "
 		"Be wary for large datasets!", 1);
 
-int fmri_gica(size_t timeblocks, size_t spaceblocks, string prefix,
+/**
+ * @brief The basic idea is to split the rows into digesteable chunks, then
+ * perform the SVD on each of them.
+ *
+ * A = [A1 A2 A3 ... ]
+ * A = [UEV1 UEV2 .... ]
+ * A = [UE1 UE2 UE3 ...] diag([V1, V2, V3...])
+ *
+ * UE1 should have far fewer columns than rows so that where A is RxC,
+ * with R < C, [UE1 ... ] should have be R x LN with LN < R
+ *
+ * Say we are concatinating S subjects each with T timepoints, then
+ * A is STxC, assuming a rank of L then [UE1 ... ] will be ST x SL
+ *
+ * Even if L = T / 2 then this is a 1/4 savings in the SVD computation
+ *
+ * @param timeblocks Number of fMRI images to append in time direction
+ * @param spaceblocks Number of fMRI images to append in space direction
+ * @param prefix Prefix for output files (matrices)
+ * @param masks Masks, one per spaceblock (columns of matching space)
+ * @param files Files in time-major order, [s0t0 s0t1 s0t2 s1t0 s1t1 s1t2]
+ * where s0 means 0th space-appended image, and t0 means the same for time
+ * @param evthresh Threshold for eigenvalues (ratio of maximum)
+ * @param sumvar Total variance to explain with SVD/PCA
+ * @param lancvec Number of lanczos vectors to initialize SVD/BandLanczos Eigen
+ * Solver with, a good starting point is 2* the number of expected PC's, if
+ * convergence fails, use more
+ * @param iters Maximum number of iterations in BandLanczos Eigen Solve
+ * @param gbmax Maximum number of gigabytes of memory to use
+ * @param spatial Perform Spatial ICA, if not a temporal ICA is done
+ *
+ * @return
+ */
+MatrixXd fmri_gica(size_t timeblocks, size_t spaceblocks, string prefix,
 		const vector<string>& masks, const vector<string>& files,
-		double evthresh, int lancvec, int maxrank, double gbmax);
+		double evthresh, double sumvar, int lancvec, int iters, double gbmax,
+		bool spatial);
 
 int main(int argc, char** argv)
 {
@@ -84,9 +118,12 @@ int main(int argc, char** argv)
 			"in a rows of spatial-concatination. ", false, -1,
 			"#vecs", cmd);
 
-	TCLAP::ValueArg<double> a_evthresh("T", "ev-thresh", "Threshold on "
-			"ratio of total variance to account for (default 0.99)", false,
-			INFINITY, "ratio", cmd);
+	TCLAP::ValueArg<double> a_evthresh("", "ev-thresh", "Threshold on "
+			"ratio of total variance to account for (default 0.99)",
+			false, 0.1, "ratio", cmd);
+	TCLAP::ValueArg<double> a_varthresh("", "ev-thresh", "Threshold on "
+			"ratio of total variance to account for (default 0.99)",
+			false, 0.99, "ratio", cmd);
 	TCLAP::ValueArg<int> a_simultaneous("V", "simul-vectors", "Simultaneous "
 			"vectors to estimate eigenvectors for in lambda. Bump this up "
 			"if you have convergence issues. This is part of the "
@@ -94,10 +131,11 @@ int main(int argc, char** argv)
 			"By default the covariance size is used, which is conservative. "
 			"Values less than 1 will default back to that", false, -1,
 			"#vecs", cmd);
-	TCLAP::ValueArg<int> a_maxrank("R", "max-rank", "Maximum rank of output "
+	TCLAP::ValueArg<int> a_iters("", "max-iters", "Maximum iterations "
 			"in PCA. This sets are hard limit on the number of estimated "
 			"eigenvectors in the Band Lanczos Solver (and thus the maximum "
-			"number of singular values in the SVD)", false, -1, "#vecs", cmd);
+			"number of singular values in the SVD. Be wary of making it "
+			"too small). -1 removes limit", false, -1, "#vecs", cmd);
 	TCLAP::ValueArg<double> a_gbram("M", "memory-max", "Maximum number of GB "
 			"of RAM to use for chunks. This is needed to decide how to divide "
 			"up data into spatial chunks. ", false, -1, "#vecs", cmd);
@@ -117,10 +155,11 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	return fmri_gica(a_time_append.getValue(), a_space_append.getValue(),
-			a_prefix.getValue(), a_masks.getValue(), a_in.getValue(),
-			a_evthresh.getValue(), a_simultaneous.getValue(),
-			a_maxrank.getValue(), a_gbram.getValue());
+	MatrixXd ics = fmri_gica(a_time_append.getValue(),
+			a_space_append.getValue(), a_prefix.getValue(), a_masks.getValue(),
+			a_in.getValue(), a_evthresh.getValue(), a_varthresh.getValue(),
+			a_simultaneous.getValue(), a_iters.getValue(), a_gbram.getValue(),
+			a_spatial_ica.isSet());
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
@@ -130,222 +169,155 @@ int main(int argc, char** argv)
 
 /**
  * @brief The basic idea is to split the rows into digesteable chunks, then
- * perform the SVD on each of them
+ * perform the SVD on each of them.
  *
+ * A = [A1 A2 A3 ... ]
+ * A = [UEV1 UEV2 .... ]
+ * A = [UE1 UE2 UE3 ...] diag([V1, V2, V3...])
+ *
+ * UE1 should have far fewer columns than rows so that where A is RxC,
+ * with R < C, [UE1 ... ] should have be R x LN with LN < R
+ *
+ * Say we are concatinating S subjects each with T timepoints, then
+ * A is STxC, assuming a rank of L then [UE1 ... ] will be ST x SL
+ *
+ * Even if L = T / 2 then this is a 1/4 savings in the SVD computation
+ *
+ * @param timeblocks Number of fMRI images to append in time direction
+ * @param spaceblocks Number of fMRI images to append in space direction
+ * @param prefix Prefix for output files (matrices)
+ * @param masks Masks, one per spaceblock (columns of matching space)
+ * @param files Files in time-major order, [s0t0 s0t1 s0t2 s1t0 s1t1 s1t2]
+ * where s0 means 0th space-appended image, and t0 means the same for time
+ * @param evthresh Threshold for eigenvalues (ratio of maximum)
+ * @param sumvar Total variance to explain with SVD/PCA
+ * @param lancvec Number of lanczos vectors to initialize SVD/BandLanczos Eigen
+ * Solver with, a good starting point is 2* the number of expected PC's, if
+ * convergence fails, use more
+ * @param iters Maximum number of iterations in BandLanczos Eigen Solve
+ * @param gbmax Maximum number of gigabytes of memory to use
+ * @param spatial Perform Spatial ICA, if not a temporal ICA is done
  *
  * @return
  */
-int fmri_gica(size_t timeblocks, size_t spaceblocks, string prefix,
+MatrixXd fmri_gica(size_t timeblocks, size_t spaceblocks, string prefix,
 		const vector<string>& masks, const vector<string>& files,
-		double evthresh, int lancvec, int maxrank, double gbmax)
+		double evthresh, double sumvar, int lancvec, int iters, double gbmax,
+		bool spatial)
 {
 	// Don't use more than half of memory on each block of rows
-	MatrixReorg omats(prefix, (size_t)0.5*gbmax*(1<<27), a_verbose.isSet());
-	int status = omats.createMats(timeblocks, spaceblocks, masks, files);
+	cerr << "Reorganizing data into matrices...";
+	MatrixReorg reorg(prefix, (size_t)0.5*gbmax*(1<<27), a_verbose.isSet());
+	int status = reorg.createMats(timeblocks, spaceblocks, masks, files);
+	if(status != 0)
+		throw RUNTIME_ERROR("Error while reorganizing data into 2D Matrices");
 
-	if(status != 0) return status;
+	cerr<<"Done"<<endl;
 
-//
-//	// Clusters of rows must 1) be able to fit into memory, 2) the square of
-//	// min(rows,cols) must fit into memory (for XXT)
-//
-//	if(a_verbose.getValue() >= 1) {
-//		cerr << "Data Dimensions: " << endl;
-//		cerr << "# Concatination in Time: " << tcat << endl;
-//		cerr << "Total Time Size: " << totalrows << endl;
-//		cerr << "(Single) Image Space Size: " << ncols << endl;
-//	}
-//
-//	// Convert Row Blocks to Col Blocks
-//	convert
-//	TODO
-//	// Perform SVD on each block
-//
-//	// Perform SVD on [U_1S_1 U_2S_2 ... ]
-//
-//	// First
-//	size_t nscalar = ncols*totalrows;
-//
-//	MatrixXd cov;
-//
-//	/*
-//	 * First Perform SVD, Whiten
-//	 */
-//
-//	MatrixLoader loader(tlen, slen, tsing, ssing, a_in.getValue());
-//	MatrixXd white = whiten(a_spatial_ica.isSet(), a_simultaneous.getValue(),
-//				a_evthresh.getValue(), a_maxrank.getValue(), 1e-10, tlen, slen,
-//				a_time_append.getValue(), a_space_append.getValue(), loader);
-//
-//	if(a_verbose.getValue() >= 4) {
-//		cout << "Whitened = [";
-//		for(size_t rr=0; rr<white.rows(); rr++) {
-//			if(rr) cout << "],\n";
-//			for(size_t cc=0; cc<white.cols(); cc++) {
-//				if(cc) cout << ",";
-//				else cout << "[";
-//				cout << white(rr,cc);
-//			}
-//		}
-//		cout << "]]\n";
-//	}
-//
-//	// Each Column is a Dimension Now
-//	// perform ICA
-//	std::cerr << "ICA...";
-//	MatrixXd X_ic = ica(white);
-//	std::cerr << "Done" << endl;
-//
-//	//
-//	MatrixXd regressors = reduce(inimg);
-//	for(size_t cc = 0; cc < regressors.cols(); cc++) {
-//		// perform regression
-//		//RegrResult tmp = regress(inimg, regressors.row(cc));
-//
-//		// write out each of the images
-//		//tmp.rsqr->write("rsqr_"+to_string(cc)+".nii.gz");
-//		//tmp.T->write("T_"+to_string(cc)+".nii.gz");
-//		//tmp.p->write("p_"+to_string(cc)+".nii.gz");
-//		//tmp.beta->write("beta_"+to_string(cc)+".nii.gz");
-//	}
+	double thresh = 0.1;
+	size_t totrows = reorg.rows();
+	size_t totcols = reorg.cols();
+	size_t curcol = 0;
+	size_t catcols = 0; // Number of Columns when concatinating horizontally
+	size_t maxrank = 0;
 
-	return 0;
+	for(size_t ii=0; ii<reorg.ntall(); ii++) {
+		MatMap talldata(reorg.tallMatName(ii));
+
+		cerr<<"Chunk SVD:"<<talldata.mat.rows()<<"x"<<talldata.mat.cols()<<endl;
+		TruncatedLanczosSVD<MatrixXd> svd;
+		svd.setThreshold(evthresh);
+		svd.setTraceStop(sumvar);
+		svd.setLanczosBasis(lancvec);
+		svd.compute(talldata.mat, ComputeThinU | ComputeThinV);
+		if(svd.info() == NoConvergence)
+			throw RUNTIME_ERROR("Error computing Tall SVD, might want to "
+					"increase # of lanczos vectors");
+
+		cerr << "SVD Rank: " << svd.rank() << endl;
+		maxrank = std::max<size_t>(maxrank, svd.rank());
+
+		// write
+		string usname = prefix+"US_"+to_string(ii);
+		string vname = prefix +"V_"+to_string(ii);
+
+		MatMap tmpmat;
+
+		// Create UE
+		tmpmat.create(usname, talldata.mat.rows(), svd.rank());
+		tmpmat.mat = svd.matrixU().leftCols(svd.rank())*
+			svd.singularValues().head(svd.rank());
+
+		tmpmat.create(vname, talldata.mat.cols(), svd.rank());
+		tmpmat.mat = svd.matrixV().leftCols(svd.rank());
+
+		catcols += svd.rank();
+	}
+
+	// Merge / Construct Column(EV^T, EV^T, ... )
+	MatrixXd mergedUE(totrows, catcols);
+	curcol = 0;
+	for(size_t ii=0; ii<reorg.ntall(); ii++) {
+		MatMap tmpmat(prefix+"US_"+to_string(ii));
+
+		mergedUE.middleCols(curcol, tmpmat.cols) = tmpmat.mat;
+		curcol += tmpmat.cols;
+	}
+
+	cerr<<"Merge SVD:"<<mergedUE.rows()<<"x"<<mergedUE.cols()<<endl;
+	MatrixXd U, V;
+	VectorXd E;
+	{
+		TruncatedLanczosSVD<MatrixXd> svd;
+		svd.setThreshold(evthresh);
+		svd.setTraceStop(sumvar);
+		svd.setLanczosBasis(lancvec);
+		svd.compute(mergedUE, ComputeThinU | ComputeThinV);
+		if(svd.info() == NoConvergence)
+			throw RUNTIME_ERROR("Error computing Merged SVD, might want to "
+					"increase # of lanczos vectors");
+
+		U = svd.matrixU();
+		E = svd.singularValues();
+		V = svd.matrixV();
+	}
+
+	/*
+	 * Recall:
+	 *
+	 * Assume A1 = T1 S1 C1, etc
+	 * (note C is actually C^T and V is actually V^T)
+	 *
+	 * A = [TS1 TS2 TS3 ...] diag([C1, C2, C3...])
+	 *
+	 * Given [TS1 ... ] = UEV
+	 * A = UEV diag([C1, C2, C3...])
+	 * U_A = U
+	 * E_A = E
+	 * V_A^T = V^T diag([C1^T, C2^T, C3^T...])
+	 * V_A = diag([C1 C2 C3...]) V
+	 *
+	 *
+	 * */
+	if(!spatial) {
+		cerr << "Performing ICA" << endl;
+		return ica(U);
+	} else {
+		cerr << "Constructing Full V...";
+		// store fullV in U, since unneeded
+		U.resize(reorg.rows(), V.cols());
+
+		size_t currow = 0;
+		for(size_t ii=0; ii<reorg.ntall(); ii++) {
+			string vname = prefix +"V_"+to_string(ii);
+			MatMap C(vname);
+
+			U.middleRows(currow, C.mat.rows()) = C.mat*V;
+			currow += C.mat.rows();
+		}
+		cerr << "Done\nPerforming ICA" << endl;
+		return ica(U);
+	}
 }
-
-//MatrixXd whiten(bool whiterows, int initrank, double varthresh, int maxrank,
-//		double svthresh, int trows, int tcols, int rchunks, int cchunks,
-//		MatrixLoader& loader)
-//{
-//	MatrixXd whitened;
-//	MatrixXd C;
-//
-//	/**************************************************************************
-//	 * Load Individual Images and Concatinate to Produce Parts of X
-//	 *************************************************************************/
-//	if(trows > tcols) {
-//		// Compute right singular vlaues (V)
-//		C.resize(tcols, tcols);
-//		C.setZero();
-//
-//		// we need to load entire rows (all cols) at a time
-//		MatrixXd buffer(trows/rchunks, tcols);
-//		for(int rr=0; rr<rchunks; rr++) {
-//			for(int cc=0; cc<cchunks; cc++) {
-//				loader.load(buffer, 0, cc*tcols/cchunks, rr, cc);
-//			}
-//			C += buffer.transpose()*buffer;
-//		}
-//
-//	} else {
-//		// Computed left singular values (U)
-//		C.resize(trows, trows);
-//		C.setZero();
-//
-//		// we need to load entire cols (all rows) at a time
-//		MatrixXd buffer(trows, tcols/cchunks);
-//		for(int cc=0; cc<cchunks; cc++) {
-//			for(int rr=0; rr<rchunks; rr++) {
-//				loader.load(buffer, rr*trows/rchunks, 0, rr, cc);
-//			}
-//			C += buffer*buffer.transpose();
-//		}
-//	}
-//
-//	/**************************************************************************
-//	 * Perform EigenValue Decomp on either X^T X or X X^T
-//	 *************************************************************************/
-//	// This is a bit hackish, really the user should set this
-//	if(initrank <= 1)
-//		initrank = std::max<int>(trows, tcols);
-//
-//	BandLanczosSelfAdjointEigenSolver<double> eig;
-//	eig.setTraceStop(varthresh);
-//	eig.setRank(maxrank);
-//	eig.compute(C, initrank);
-//
-//	if(eig.info() == NoConvergence) {
-//		throw "Non-convergence!";
-//	}
-//
-//	int eigrows = eig.eigenvalues().rows();
-//	int rank = 0;
-//	VectorXd singvals(eigrows);
-//	for(int cc=0; cc<eigrows; cc++) {
-//		if(eig.eigenvalues()[eigrows-1-cc] < svthresh)
-//			singvals[cc] = 0;
-//		else {
-//			singvals[cc] = std::sqrt(eig.eigenvalues()[eigrows-1-cc]);
-//			rank++;
-//		}
-//	}
-//
-//	singvals.conservativeResize(rank);
-//
-//	/**************************************************************************
-//	 * If we want Independent Cols then we need U, for Independent Rows, V^T
-//	 *************************************************************************/
-//	// Note that because Eigen Solvers usually sort eigenvalues in
-//	// increasing order but singular value decomposers do decreasing order,
-//	// we need to reverse the singular value and singular vectors found.
-//	if(trows > tcols) {
-//		// Computed right singular vlaues (V)
-//		// A = USV*, U = AVS^-1
-//
-//		// reverse and fill V
-//		MatrixXd V(eig.eigenvectors().rows(), rank);
-//		for(int cc=0; cc<rank; cc++)
-//			V.col(cc) = eig.eigenvectors().col(eigrows-1-cc);
-//
-//		// Compute U if needed
-//		if(!whiterows) {
-//			// Need to load entire rows (all cols) of A, then set
-//			// corresponding rows in U, U = A*VS;
-//			MatrixXd VS = V*(singvals.cwiseInverse()).asDiagonal();
-//			MatrixXd U(trows, rank);
-//			MatrixXd buffer(trows/rchunks, tcols);
-//			for(int rr=0; rr<rchunks; rr++) {
-//				for(int cc=0; cc<cchunks; cc++) {
-//					loader.load(buffer, 0, cc*tcols/cchunks, rr, cc);
-//				}
-//				U.middleRows(rr*trows/rchunks, trows/rchunks) = buffer*VS;
-//			}
-//
-//			return U;
-//		} else {
-//			// Whiten Rows, already have V
-//			return V;
-//		}
-//	} else {
-//		// Computed left singular values (U)
-//		// A = USV*, A^T = VSU*, V = A^T U S^-1
-//
-//		// reverse and fill U
-//		MatrixXd U(eig.eigenvectors().rows(), rank);
-//		for(int cc=0; cc<rank; cc++)
-//			U.col(cc) = eig.eigenvectors().col(eigrows-1-cc);
-//
-//		if(!whiterows) {
-//			// Whiten Cols , already have U
-//			return U;
-//		} else {
-//
-//			// To Compute A^T US, we will compute R rows of V at a time, which
-//			// corresponds to R columns of A (R rows of A^T)
-//			// (all rows) of A at a time
-//			MatrixXd US = U*(singvals.cwiseInverse()).asDiagonal();
-//			MatrixXd V(tcols, rank);
-//			MatrixXd buffer(trows, tcols/cchunks);
-//			for(int cc=0; cc<rchunks; cc++) {
-//				for(int rr=0; rr<rchunks; rr++) {
-//					loader.load(buffer, rr*trows/rchunks, 0, rr, cc);
-//				}
-//
-//				V.middleRows(cc*tcols/cchunks, tcols/cchunks) = buffer.transpose()*US;
-//			}
-//
-//			return V;
-//		}
-//	}
-//}
 
 

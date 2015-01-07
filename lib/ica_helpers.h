@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  * @file ica_helpers.h Tools for performing ICA, including rewriting images as
- * matrices. 
+ * matrices.
  *
  *****************************************************************************/
 #ifndef ICA_HELPERS_H
@@ -57,7 +57,7 @@ namespace npl {
  *
  */
 MatrixXd spcat_ica(bool psd, const std::vector<std::string>& imgnames,
-		const std::vector<std::string>& masknames, std::string workdir, 
+		const std::vector<std::string>& masknames, std::string workdir,
 		double evthresh, int lancbasis, int maxiters, bool spatial);
 
 /**
@@ -94,7 +94,7 @@ void fillMatPSD(double* rawdata, size_t nrows, size_t ncols,
 
 /**
  * @brief Reorganizes input images into tall and wide matrices (matrices that
- * span the total rows and cols, respectively). 
+ * span the total rows and cols, respectively).
  *
  * TODO allow for JUST tall or JUST wide construction
  */
@@ -105,7 +105,7 @@ public:
 	/**
 	 * @brief Constructor
 	 *
-	 * @param prefix Prefix for matrix files to be written 
+	 * @param prefix Prefix for matrix files to be written
 	 * PREFIX_tall_[0-9]* and  * PREFIX_wide_[0-9]*
 	 * @param maxd Maximum number of doubles to include in a block, this
 	 * should be sized to fit into memory
@@ -142,31 +142,31 @@ public:
 	 *
 	 * @return 0 if succesful, -1 if read failure, -2 if write failure
 	 */
-	int createMats(size_t timeblocks, size_t spaceblocks, 
-			const std::vector<std::string>& masknames, 
+	int createMats(size_t timeblocks, size_t spaceblocks,
+			const std::vector<std::string>& masknames,
 			const std::vector<std::string>& filenames);
 
 	inline int nwide() const { return m_outrows.size(); };
 	inline int ntall() const { return m_outcols.size(); };
 
-	inline const vector<int>& tallMatCols() const 
-	{ 
-		return m_outcols; 
-	};
-	
-	inline int tallMatRows() const 
-	{ 
-		return m_totalrows; 
+	inline const vector<int>& tallMatCols() const
+	{
+		return m_outcols;
 	};
 
-	inline const vector<int>& wideMatRows() const 
-	{ 
-		return m_outrows; 
+	inline int tallMatRows() const
+	{
+		return m_totalrows;
 	};
 
-	inline int wideMatCols() const 
-	{ 
-		return m_totalcols; 
+	inline const vector<int>& wideMatRows() const
+	{
+		return m_outrows;
+	};
+
+	inline int wideMatCols() const
+	{
+		return m_totalcols;
 	};
 
 	inline std::string tallMatName(size_t ii) const
@@ -219,7 +219,7 @@ public:
 	vector<int> m_outcols;
 };
 
-class MatMap 
+class MatMap
 {
 public:
 	MatMap() : mat(NULL, 0, 0)
@@ -234,13 +234,28 @@ public:
 	void open(std::string filename)
 	{
 		datamap.openExisting(filename);
-		
+
 		size_t* nrowsptr = (size_t*)datamap.data();
 		size_t* ncolsptr = nrowsptr+1;
 		double* dataptr = (double*)((size_t*)datamap.data()+2);
-		
+
 		rows = *nrowsptr;
 		cols = *ncolsptr;
+		new (&this->mat) Eigen::Map<MatrixXd>(dataptr, rows, cols);
+	};
+
+	void create(std::string filename, size_t newrows, size_t newcols)
+	{
+		datamap.openNew(filename, 2*sizeof(size_t)+rows*cols*sizeof(double));
+		rows = newrows;
+		cols = newcols;
+
+		size_t* nrowsptr = (size_t*)datamap.data();
+		size_t* ncolsptr = nrowsptr+1;
+		double* dataptr = (double*)((size_t*)datamap.data()+2);
+
+		*nrowsptr = rows;
+		*ncolsptr = cols;
 		new (&this->mat) Eigen::Map<MatrixXd>(dataptr, rows, cols);
 	};
 

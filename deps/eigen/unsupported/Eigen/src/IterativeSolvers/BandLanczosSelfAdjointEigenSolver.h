@@ -42,8 +42,7 @@ inline float conj(const float& v)
  *
  * TODO: documentation with usage examples
  * TODO: documentation of settings
- * TODO: make a template over type of Matrix
- * TODO: Fix for complex scalars
+ * TODO: Test complex scalars
  *
  */
 template <typename _MatrixType>

@@ -496,18 +496,23 @@ def build(bld):
             target='big_pca_test2',
             source='big_pca_test2.cpp',
             use='utility ica_helpers nplio mrimage_utils')
-    
+
     bld.program(install_path='${PREFIX}/tests',  features='test',
             target='big_pca_test3',
             source='big_pca_test3.cpp',
             use='utility ica_helpers nplio mrimage_utils')
-    #
+
+    bld.program(install_path='${PREFIX}/tests',  features='test',
+            target='big_pca_test3',
+            source='big_pca_test3.cpp',
+            use='utility ica_helpers nplio mrimage_utils')
+
 
 #   Some day I may want to turn this into a real test
 #    bld(install_path='${PREFIX}/tests',  features='test',
 #            rule='python3 ${SRC} > ${TGT}',
 #            depends='nplGICA',
-#            target='fmri_gica_test.result', 
+#            target='fmri_gica_test.result',
 #            source='fmri_gica_test.py')
 #    bld.program(install_path='${PREFIX}/tests', features='test',
 #            target='fract_fft_test',
