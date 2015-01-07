@@ -57,10 +57,15 @@ vector<double> createRandAct(double lambda, double t0, double tf);
  * occur in the range (-15, tlen), and still be included
  * @param tlen Total timeseries length in seconds
  * @param tr Sampling time of output in seconds
+ * @param hdtr TR in highres BOLD simulation
+ * @param learn The weight of the current point, the previous moving average
+ * value is weighted (1-learn), setting learn to 1 removes all habituation
+ * This limits the effect of habituation.
  *
  * @return Timeseries for the given spike times smoothed by the BOLD signal
  */
-vector<double> sampleBOLD(const vector<double>& times, double tlen, double tr);
+vector<double> sampleBOLD(const vector<double>& times, double tlen, double tr,
+		double hdtr, double learn);
 
 /**
  * @brief Simulate an fMRI with regions specified by labelmap, constrained to
@@ -98,11 +103,19 @@ int main(int argc, char** argv)
 
 	TCLAP::CmdLine cmd("Creates a 4D fMRI image where activations throughout "
 			"the brain are given by spikes convolved with the hemodynamic "
-			"response function, please noise. ", ' ', __version__ );
+			"response function. The following are needed: a greymatter map "
+			"to determine where signal is present, a labelmap of activated "
+			"regions (alternatively it can be generated with -R), and a signal "
+			"time course for each label (these can simulated with multiple "
+			"-A lambda -A lambda ...). A t2* image (-m) is optional, but make "
+			"the output look more like an fMRI. ", ' ', __version__ );
 
 	TCLAP::ValueArg<string> a_anatomy("g", "greymatter", "Greymatter "
 			"probability image. Signal is weited by GM prob.",
 			true, "", "*.nii.gz", cmd);
+	TCLAP::ValueArg<string> a_t2star("m", "t2-map", "T2* Map to overlay the"
+			"signal onto. This is useful, for instance, if you intend to "
+			"simulate motion.", false, "", "*.nii.gz", cmd);
 
 	TCLAP::ValueArg<string> a_regions("r", "region-map", "Labelmap where label 1 "
 			"gets the signal from the first column of activation table, label "
@@ -121,8 +134,15 @@ int main(int argc, char** argv)
 			"lambda");
 	cmd.xorAdd(a_actrand, a_actfile);
 
-	TCLAP::ValueArg<string> a_plot("p", "plot", "Plot the activations in the "
-			"specified file", false, "", "*.svd", cmd);
+	TCLAP::ValueArg<string> a_probmap("p", "probmaps", 
+			"Write regional probability maps", false, "", "*.nii.gz", cmd);
+
+	TCLAP::ValueArg<string> a_plot("P", "plot", "Plot the activations in the "
+			"specified file", false, "", "*.svg", cmd);
+
+	TCLAP::ValueArg<double> a_noise("n", "noise-sd", "Noise standard "
+			"deviation. Note the true signal tends to be < 0.05", false, 
+			0.02, "ratio", cmd);
 
 	TCLAP::ValueArg<double> a_smooth("s", "smooth", "Smoothing standard "
 			"deviation to apply to each activation region prior to applying "
@@ -144,7 +164,7 @@ int main(int argc, char** argv)
 			"rate for the exponential moving average that is used to estimate "
 			"the habituation factor in BOLD simulation. This is the weight "
 			"given to the most recent sample, the current MA is weighted (1-r).",
-			false, 0.1, "ratio", cmd);
+			false, 0.05, "ratio", cmd);
 
 	cmd.parse(argc, argv);
 
@@ -155,6 +175,13 @@ int main(int argc, char** argv)
 	cerr << "Reading Graymatter Probability...";
 	auto gmprob = readMRImage(a_anatomy.getValue());
 	cerr << "Done\n";
+	
+	ptr<MRImage> t2star;
+	if(a_t2star.isSet()) {
+		t2star = readMRImage(a_t2star.getValue());
+		if(!t2star->matchingOrient(gmprob, false, true))
+			throw INVALID_ARGUMENT("T2* Has Different Orientation from GM Image");
+	}
 
 	vector<vector<double>> activate;
 	if(a_actrand.isSet()) {
@@ -192,11 +219,123 @@ int main(int argc, char** argv)
 		cerr << "Done\n";
 	}
 
-	cerr << "Simulating fMRI...";
-	auto out = simulate(labelmap, gmprob, activate, a_smooth.getValue(),
-			a_tlen.getValue(), a_tr.getValue(), a_plot.getValue(),
-			a_hdres.getValue(), a_learn.getValue());
+	/* Check Images for Matching Orientation */
+	if(labelmap->ndim() != 3)
+		throw INVALID_ARGUMENT("Non-3D Image Provided as Labelmap");
+	if(gmprob->ndim() != 3)
+		throw INVALID_ARGUMENT("Non-3D Image Provided for GM Probability Map");
+	if(!labelmap->matchingOrient(gmprob, true, true))
+		throw INVALID_ARGUMENT("Greymatter and Labelmaps provided do not "
+				"have the same orientation!");
+
+	double sd = a_smooth.getValue();
+	double learn = a_learn.getValue();
+	double hdtr = a_hdres.getValue();
+	double tr = a_tr.getValue();
+	size_t tlen = a_tlen.getValue();
+	size_t nreg = activate.size(); // # of regions
+	vector<vector<double>> design(nreg);
+
+	/* create timeseries for each of the activation spike trains */
+	Plotter plotter;
+	for(size_t rr=0; rr<nreg; rr++) {
+		cerr<<"Simulating timeseries "<<rr<<"...";
+		design[rr] = sampleBOLD(activate[rr], tr*tlen, tr, hdtr, learn);
+		assert(design[rr].size() == tlen);
+
+		if(!a_plot.isSet())
+			plotter.addArray(design[rr].size(), design[rr].data());
+
+		cerr<<"Done\nCorrelation with Previous: ";
+		for(size_t ii=0; ii<rr; ii++) {
+			if(ii != 0) cerr << ",";
+			cerr << correlation(tlen, design[rr].data(),
+					design[ii].data());
+//			cerr << mutualInformation(tlen, design[rr].data(),
+//					design[ii].data(), std::sqrt(tlen));
+		}
+		cerr << endl;
+	}
+
+	// Write out plot
+	if(!a_plot.isSet()) plotter.write(a_plot.getValue());
+
+	/* create 4D image where each volume is a label probability */
+	vector<size_t> tmpsize(labelmap->dim(), labelmap->dim()+labelmap->ndim());
+	tmpsize.push_back(nreg);
+	auto prob = dPtrCast<MRImage>(labelmap->copyCast(tmpsize.size(),
+				tmpsize.data(), FLOAT32));
+	for(FlatIter<double> it(prob); !it.eof(); ++it)
+		it.set(0);
+
+	cerr << "Creating indivudal probability maps...";
+	Vector3DIter<double> pit(prob);
+	NDIter<int> lit(labelmap);
+	for(pit.goBegin(), lit.goBegin(); !pit.eof(); ++pit, ++lit) {
+		int l = *lit;
+		if(l < 0 || l > nreg) {
+			throw INVALID_ARGUMENT("Error, input labelmap has labels outside "
+					"the the range provided by the input spike trains. The "
+					"labels should range from 0 (unlabeled), 1, .. N for the "
+					"N rows of the spike train input");
+		} else if(l != 0) {
+			pit.set(l-1, 1);
+		}
+	}
 	cerr << "Done\n";
+
+	/* smooth each of the 4D volumes */
+	cerr << "Smoothing probability maps...";
+	for(size_t dd=0; dd<3; dd++)
+		gaussianSmooth1D(prob, dd, sd);
+	cerr << "Done\n";
+
+	if(a_probmap.isSet())
+		prob->write(a_probmap.getValue());
+
+	/*
+	 * for each pixel sum up the contribution of each timeseries then scale by
+	 * greymatter probability
+	 */
+	tmpsize[3] = tlen;
+	auto out = dPtrCast<MRImage>(labelmap->copyCast(tmpsize.size(),
+				tmpsize.data(), FLOAT32));
+
+	cerr << "Merging activation maps...";
+	NDIter<double> git(gmprob);
+	Vector3DIter<double> oit(out);
+	for(pit.goBegin(); !pit.eof(); ++pit,++oit,++git){
+		for(size_t tt=0; tt<tlen; tt++) {
+			// Weight Sum of each regions value
+			double v = 0;
+			for(size_t rr=0; rr<nreg; rr++)
+				v += design[rr][tt]*pit[rr];
+
+			// Weigtht by GM Prob
+			oit.set(tt, v*(*git));
+		}
+	}
+	cerr << "Done\n";
+
+	cerr<<"Adding Noise...";
+	std::random_device rd;
+	std::default_random_engine rng(rd());
+	std::normal_distribution<double> dist(0, a_noise.getValue());
+	for(oit.goBegin(); !oit.eof(); ++oit) {
+		for(size_t tt=0; tt<tlen; tt++)
+			oit.set(tt, oit[tt]+dist(rng));
+	}
+	cerr<<"Done"<<endl;
+
+	if(a_t2star.isSet()) {
+		cerr << "Overlaying on T2* Image...";
+		NDIter<double> tit(t2star); 
+		for(oit.goBegin(); !tit.eof(); ++tit, ++oit) {
+			for(size_t tt=0; tt<tlen; tt++) 
+				oit.set(tt, (1+oit[tt])*tit.get());
+		}
+		cerr << "Done" <<endl;
+	}
 
 	if(a_out.isSet())
 		out->write(a_out.getValue());
@@ -288,117 +427,3 @@ vector<double> sampleBOLD(const vector<double>& times, double tlen, double tr,
 	}
 	return out;
 }
-
-/**
- * @brief Simulate an fMRI with regions specified by labelmap, constrained to
- * GM, (set by gm), using the spike timing for each of the labels (act), with
- * total simulation time tlen, and sampling rate tr
- *
- * @param labelmap Activation regions (regions > 0). Label numbers (1-M) should
- * match the number of rows (M) in act.
- * @param gm Gray matter probability, overall signal is weighted by this.
- * @param act Activation spike timings
- * @param sd Standard deviation of smoothing to apply to individual labels to
- * create a more realistic mixing of activation patterns
- * @param tlen Number of volumes in the output
- * @param tr Sampling time of the output
- * @param hdtr TR in highres simulation dataset
- * @param learn The weight of the current point, the previous moving average
- * value is weighted (1-learn), setting learn to 1 removes all habituation
- * This limits the effect of habituation.
- *
- * @return simulated fMRI
- */
-ptr<MRImage> simulate(ptr<MRImage> labelmap, ptr<MRImage> gm,
-		const vector<vector<double>>& act, double sd,
-		size_t tlen, double tr, string plotfile, double hdtr, double learn)
-{
-	if(labelmap->ndim() != 3)
-		throw INVALID_ARGUMENT("Non-3D Image Provided as Labelmap");
-	if(gm->ndim() != 3)
-		throw INVALID_ARGUMENT("Non-3D Image Provided for GM Probability Map");
-	if(!labelmap->matchingOrient(gm, true, true))
-		throw INVALID_ARGUMENT("Greymatter and Labelmaps provided do not "
-				"have the same orientation!");
-
-	size_t nreg = act.size(); // # of regions
-	vector<vector<double>> design(nreg);
-
-	/* create timeseries for each of the activation spike trains */
-	Plotter plotter;
-	for(size_t rr=0; rr<nreg; rr++) {
-		cerr<<"Simulating timeseries "<<rr<<"...";
-		design[rr] = sampleBOLD(act[rr], tr*tlen, tr, hdtr, learn);
-		assert(design[rr].size() == tlen);
-
-		if(!plotfile.empty())
-			plotter.addArray(design[rr].size(), design[rr].data());
-
-		cerr<<"Done, Mutual Information with Previous: ";
-		for(size_t ii=0; ii<rr; ii++) {
-			if(ii != 0) cerr << ",";
-			cerr << correlation(tlen, design[rr].data(),
-					design[ii].data());
-//			cerr << mutualInformation(tlen, design[rr].data(),
-//					design[ii].data(), std::sqrt(tlen));
-		}
-		cerr << endl;
-	}
-
-	// Write out plot
-	if(!plotfile.empty()) plotter.write(plotfile);
-
-	/* create 4D image where each volume is a label probability */
-	vector<size_t> tmpsize(labelmap->dim(), labelmap->dim()+labelmap->ndim());
-	tmpsize.push_back(nreg);
-	auto prob = dPtrCast<MRImage>(labelmap->copyCast(tmpsize.size(),
-				tmpsize.data(), FLOAT32));
-	for(FlatIter<double> it(prob); !it.eof(); ++it)
-		it.set(0);
-
-	Vector3DIter<double> pit(prob);
-	NDIter<int> lit(labelmap);
-	for(pit.goBegin(), lit.goBegin(); !pit.eof(); ++pit, ++lit) {
-		int l = *lit;
-		if(l < 0 || l > nreg) {
-			throw INVALID_ARGUMENT("Error, input labelmap has labels outside "
-					"the the range provided by the input spike trains. The "
-					"labels should range from 0 (unlabeled), 1, .. N for the "
-					"N rows of the spike train input");
-		} else if(l != 0) {
-			pit.set(l-1, 1);
-		}
-	}
-
-	prob->write("prob_presmooth.nii.gz");
-
-	/* smooth each of the 4D volumes */
-	for(size_t dd=0; dd<3; dd++)
-		gaussianSmooth1D(prob, dd, sd);
-
-	/*
-	 * for each pixel sum up the contribution of each timeseries then scale by
-	 * greymatter probability
-	 */
-	tmpsize[3] = tlen;
-	auto out = dPtrCast<MRImage>(labelmap->copyCast(tmpsize.size(),
-				tmpsize.data(), FLOAT32));
-
-	NDIter<double> git(gm);
-	Vector3DIter<double> oit(out);
-	for(pit.goBegin(); !pit.eof(); ++pit,++oit,++git){
-		for(size_t tt=0; tt<tlen; tt++) {
-			// Weight Sum of each regions value
-			double v = 0;
-			for(size_t rr=0; rr<nreg; rr++)
-				v += design[rr][tt]*pit[rr];
-
-			// Weigtht by GM Prob
-			oit.set(tt, v*(*git));
-		}
-	}
-
-	return out;
-}
-
-

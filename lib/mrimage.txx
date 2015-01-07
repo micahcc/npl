@@ -827,11 +827,23 @@ int MRImageStore<D,T>::writePixels(gzFile file) const
 	for(size_t ii=0 ; ii<ndim(); ii++)
 		order.push_back(ii);
 
+	vector<T> buffer(1<<20);
 	Slicer it(ndim(), dim());
 	it.setOrder(order);
-	for(it.goBegin(); !it.isEnd(); ++it) {
-		gzwrite(file, &this->_m_data[*it], sizeof(T));
+
+	// fill buffer
+	size_t bi = 0;
+	for(it.goBegin(); !it.isEnd(); ++it, ++bi) {
+		// flush buffer
+		if(bi == buffer.size()) {
+			gzwrite(file, buffer.data(), bi*sizeof(T));
+			bi = 0;
+		}
+
+		buffer[bi] = this->_m_data[*it];
 	}
+	gzwrite(file, buffer.data(), bi*sizeof(T));
+
 	return 0;
 }
 
