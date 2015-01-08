@@ -18,7 +18,7 @@
  *
  *****************************************************************************/
 
-#include <version.h>
+#include "version.h"
 #include <tclap/CmdLine.h>
 #include <string>
 #include <stdexcept>
