@@ -1,64 +1,12 @@
 
 def build(bld):
-    bld(name = 'kdtree', export_includes = ['.'])
-    bld(name = 'basic_functions', export_includes = ['.'])
+    
+    bld.stlib(target = 'npl', source = 
+        'registration.cpp statistics.cpp utility.cpp ndarray.cpp '
+        'ndarray_utils.cpp slicer.cpp nplio.cpp mrimage.cpp mrimage_utils.cpp '
+        'fract_fft.cpp npltypes.cpp iterators.cpp basic_plot.cpp chirpz.cpp '
+        'ica_helpers.cpp',
+        export_includes = ['.'],
+        use = 'ZLIB FFTW EIGEN optimizers mathexpression')
 
-    bld.shlib(target = 'registration',
-        source = 'registration.cpp',
-        use='mrimage ndarray mrimage_utils ndarray_utils accessors iterators lbfgs',
-        export_includes = ['.'])
-    bld.shlib(target = 'statistics',
-        source = 'statistics.cpp',
-        use='EIGEN slicer npltypes',
-        export_includes = ['.'])
-    bld.shlib(target = 'utility',
-        source = 'utility.cpp',
-        use='EIGEN',
-        export_includes = ['.'])
-    bld.shlib(target = 'ndarray',
-        source = 'ndarray.cpp',
-        use='npltypes slicer ZLIB',
-        export_includes = ['.'])
-    bld.shlib(target = 'ndarray_utils',
-        source = 'ndarray_utils.cpp',
-        use='utility npltypes slicer slicer chirpz ndarray FFTW',
-        export_includes = ['.'])
-    bld.shlib(target = 'slicer',
-        source = 'slicer.cpp',
-        export_includes = ['.'])
-    bld.shlib( target = 'nplio',
-        source = 'nplio.cpp',
-        export_includes = ['.'],
-        use='ZLIB mrimage ndarray utility')
-    bld.shlib( target = 'mrimage',
-        source = 'mrimage.cpp',
-        export_includes = ['.'],
-        use='ndarray slicer EIGEN')
-    bld.shlib( target = 'mrimage_utils',
-        source = 'mrimage_utils.cpp',
-        export_includes = ['.'],
-        use='mrimage iterators ndarray_utils fftw EIGEN')
-#    bld.shlib( target = 'fractfft',
-#        source = 'fract_fft.cpp ',
-#        export_includes = ['.'],
-#        use='FFTW utility basic_plot')
-    bld.shlib( target = 'npltypes',
-        source = 'npltypes.cpp ',
-        export_includes = ['.'],
-        use = 'EIGEN')
-    bld.shlib( target = 'iterators',
-        source = 'iterators.cpp',
-        use='ndarray slicer slicer',
-        export_includes = ['.'])
-    bld.shlib( target = 'basic_plot',
-        source = 'basic_plot.cpp',
-        export_includes = ['.'])
-    bld.shlib( target = 'chirpz',
-        source = 'chirpz.cpp',
-        use = 'basic_plot FFTW',
-        export_includes = ['.'])
-
-    bld.shlib(target='ica_helpers',
-            source = 'ica_helpers.cpp',
-            use = 'nplio utility statistics FFTW EIGEN')
 

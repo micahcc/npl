@@ -196,6 +196,7 @@ double hannWindow(double x, double a)
  *
  * @return Weight
  */
+inline
 double lanczosKern(double x, double a)
 {
        if(x == 0)
@@ -214,6 +215,7 @@ double lanczosKern(double x, double a)
  *
  * @return Weight
  */
+inline
 double dLanczosKern(double x, double a)
 {
        if(x == 0)
@@ -227,12 +229,14 @@ double dLanczosKern(double x, double a)
 }
 
 /* Linear Kernel Sampling */
+inline
 double linKern(double x, double a)
 {
 	return fabs(1-fmin(1,fabs(x/a)))/a;
 }
 
 /* Linear Kernel Sampling */
+inline
 double dLinKern(double x, double a)
 {
 	if(x < -a || x > a)
@@ -466,6 +470,7 @@ int64_t round2(int64_t in)
  *
  * @return list of factors
  */
+inline
 std::list<int64_t> factor(int64_t f)
 {
 	std::list<int64_t> factors;
@@ -487,6 +492,7 @@ std::list<int64_t> factor(int64_t f)
  *
  * @return Next number up that matches the requirement
  */
+inline
 int64_t round357(int64_t in)
 {
 	// make it odd

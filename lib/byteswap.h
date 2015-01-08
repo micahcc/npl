@@ -43,6 +43,7 @@ void swap(T* val)
 }
 
 template <>
+inline
 void swap<signed char>(signed char* val)
 {
 	(void)val;
@@ -50,12 +51,14 @@ void swap<signed char>(signed char* val)
 
 
 template <>
+inline
 void swap<char>(char* val)
 {
 	(void)val;
 }
 
 template <>
+inline
 void swap<uint8_t>(uint8_t* val)
 {
 	(void)val;
@@ -63,6 +66,7 @@ void swap<uint8_t>(uint8_t* val)
 
 // swap the real and imaginary parts individualy
 template <>
+inline
 void swap<cquad_t>(cquad_t* val)
 {
 	Bytes<long double> real;
@@ -82,6 +86,7 @@ void swap<cquad_t>(cquad_t* val)
 
 // swap the real and imaginary parts individualy
 template <>
+inline
 void swap<cdouble_t>(cdouble_t* val)
 {
 	Bytes<double> real;
@@ -101,6 +106,7 @@ void swap<cdouble_t>(cdouble_t* val)
 
 // swap the real and imaginary parts individualy
 template <>
+inline
 void swap<cfloat_t>(cfloat_t* val)
 {
 	Bytes<float> real;
@@ -120,12 +126,14 @@ void swap<cfloat_t>(cfloat_t* val)
 
 // do no byte swapping
 template <>
+inline
 void swap<rgba_t>(rgba_t* val)
 {
 	(void)val;
 }
 
 template <>
+inline
 void swap<rgb_t>(rgb_t* val)
 {
 	(void)val;

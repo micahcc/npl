@@ -871,6 +871,7 @@ private:
 ///////////////
 
 /* Linear Kernel Sampling */
+inline
 double linKern(double x)
 {
 	return fabs(1-fmin(1,fabs(x)));
