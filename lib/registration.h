@@ -847,6 +847,7 @@ int distcorDerivTest(double step, double tol,
  *
  * @return after this is inserted, stream
  */
+inline
 std::ostream& operator<< (std::ostream& stream, const Rigid3DTrans& rigid)
 {
 	stream << "Rigid3DTrans ";
