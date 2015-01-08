@@ -276,6 +276,94 @@ private:
 	MemMap datamap;
 };
 
+/**
+ * @brief Perform Group ICA on multiple fMRI Images
+ */
+class GICAfmri
+{
+public:
+	GICAfmri(std::string pref) 
+	{
+		m_pref = pref;
+		evthresh = 0.1;
+		varthresh = 0.99;
+		initbasis = 400;
+		maxiters = -1;
+		maxmem = (1lu<<32); //4gigs
+		verbose = 0;
+	};
+
+	/**
+	 * @brief Cutoff threshold for eigenvalues (ratio of maximum), everything
+	 * below this will be ignored
+	 */
+	double evthresh;
+
+	/**
+	 * @brief Total variance to explain with SVD/PCA, 0.9 will try to find 90%
+	 * of the variance, 0.99 will find 99%
+	 */
+	double varthresh;
+
+	/**
+	 * @brief lancvec Number of lanczos vectors to initialize SVD/BandLanczos Eigen
+	 * Solver with, a good starting point is 2* the number of expected PC's, if
+	 * convergence fails, use more
+	 */
+	int initbasis;
+
+	/**
+	 * @brief Maximum number of iterations in BandLanczos Eigen Solve
+	 */
+	int maxiters;
+
+	/**
+	 * @brief Maximum number of gigabytes of memory to use 
+	 */
+	double maxmem;
+
+	/**
+	 * @brief Print more information
+	 */
+	int verbose;
+
+	/**
+	 * @brief Compute ICA for the given group, defined by tcat x scat images
+	 * laid out in column major ordering.
+	 * 
+	 * The basic idea is to split the rows into digesteable chunks, then
+	 * perform the SVD on each of them.
+	 *
+	 * A = [A1 A2 A3 ... ]
+	 * A = [UEV1 UEV2 .... ]
+	 * A = [UE1 UE2 UE3 ...] diag([V1, V2, V3...])
+	 *
+	 * UE1 should have far fewer columns than rows so that where A is RxC,
+	 * with R < C, [UE1 ... ] should have be R x LN with LN < R
+	 *
+	 * Say we are concatinating S subjects each with T timepoints, then
+	 * A is STxC, assuming a rank of L then [UE1 ... ] will be ST x SL
+	 *
+	 * Even if L = T / 2 then this is a 1/4 savings in the SVD computation
+	 *
+	 * @param tcat Number of fMRI images to append in time direction
+	 * @param scat Number of fMRI images to append in space direction
+	 * @param masks Masks, one per spaceblock (columns of matching space)
+	 * @param inputs Files in time-major order, [s0t0 s0t1 s0t2 s1t0 s1t1 s1t2]
+	 * where s0 means 0th space-appended image, and t0 means the same for time
+	 * @param spatial Perform Spatial ICA, if not a temporal ICA is done
+	 */
+	void compute(size_t tcat, size_t scat, std::vector<std::string> masks, 
+			vector<std::string> inputs, bool spatial);
+private:
+	std::string m_pref;
+	
+	/**
+	 * @brief Storage of independent components, each column representing a
+	 * dimension, each row a sample
+	 */
+	MatrixXd m_ics;
+};
 
 }
 

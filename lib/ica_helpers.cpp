@@ -63,7 +63,7 @@ namespace npl {
 // * @param evthresh Threshold for percent of variance to account for in the
 // * original data when reducing dimensions to produce Xorth. This is determines
 // * the number of dimensions to keep.
-// * @param lancbasis Number of starting basis vectors to initialize the
+// * @param initbasis Number of starting basis vectors to initialize the
 // * BandLanczos algorithm with. If this is <= 1, one dimension of of XXT will be
 // * used.
 // * @param maxrank Maximum number of dimensions to keep in Xorth
@@ -78,13 +78,13 @@ namespace npl {
 // * @return
 // */
 //int timecat_orthog(std::string prefix, double evthresh,
-//		int lancbasis, int maxiters, bool rowdims, const std::vector<int>& ncols,
+//		int initbasis, int maxiters, bool rowdims, const std::vector<int>& ncols,
 //		const MatrixXd& XXT, MatrixXd& Xorth)
 //{
 //	// Compute EigenVectors (U)
 //	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
 //	eig.setTraceStop(evthresh);
-//	eig.compute(XXT, lancbasis);
+//	eig.compute(XXT, initbasis);
 //
 //	if(eig.info() == Eigen::NoConvergence) {
 //		cerr << "Non Convergence of BandLanczosSelfAdjointEigenSolver" << endl;
@@ -164,7 +164,7 @@ namespace npl {
  * @param evthresh Threshold for ratio (0-1) of variance to account for in the
  * original data when reducing dimensions to produce Xorth. This is determines
  * the number of dimensions to keep.
- * @param lancbasis Number of starting basis vectors to initialize the
+ * @param initbasis Number of starting basis vectors to initialize the
  * BandLanczos algorithm with. If this is <= 1, one dimension of of XXT will be
  * used.
  * @param maxiters Maximum number of iterations to perform in EV decomp
@@ -179,14 +179,14 @@ namespace npl {
  * @return
  */
 //int spcat_orthog(std::string prefix, double evthresh,
-//		int lancbasis, int maxiters, bool rowdims, const std::vector<int>& ncols,
+//		int initbasis, int maxiters, bool rowdims, const std::vector<int>& ncols,
 //		const MatrixXd& XXT, MatrixXd& Xorth)
 //{
 //	// Compute EigenVectors (U)
 //	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
 //	eig.setTraceStop(evthresh);
 //	eig.setMaxIters(maxiters);
-//	eig.compute(XXT, lancbasis);
+//	eig.compute(XXT, initbasis);
 //
 //	if(eig.info() == Eigen::NoConvergence)
 //		throw RUNTIME_ERROR("Non Convergence of BandLanczosSelfAdjointEigen"
@@ -255,7 +255,7 @@ namespace npl {
  * is a ratio from 0 to 1 relative to the total sum of eigenvalues/variance.
  * Infinity will the BandLanczos Algorithm to run to completion and only
  * singular values > sqrt(epsilon) to be kept
- * @param lancbasis Basis size of BandLanczos Algorithm. This is used as the
+ * @param initbasis Basis size of BandLanczos Algorithm. This is used as the
  * seed for the Krylov Subspace.
  * @param maxiters Maximum number of iterations for PCA
  * @param spatial Whether to do spatial ICA. Warning this is much more memory
@@ -266,7 +266,7 @@ namespace npl {
  */
 MatrixXd tcat_ica(const vector<string>& imgnames,
 		string& maskname, string prefix, double evthresh,
-		int lancbasis, int maxiters, bool spatial)
+		int initbasis, int maxiters, bool spatial)
 {
 	/**********
 	 * Input
@@ -311,7 +311,7 @@ MatrixXd tcat_ica(const vector<string>& imgnames,
 	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
 	eig.setTraceStop(evthresh);
 	eig.setMaxIters(maxiters);
-	eig.compute(XXt, lancbasis);
+	eig.compute(XXt, initbasis);
 
 	if(eig.info() == Eigen::NoConvergence)
 		throw RUNTIME_ERROR("Non Convergence of BandLanczosSelfAdjointEigen"
@@ -377,7 +377,7 @@ MatrixXd tcat_ica(const vector<string>& imgnames,
  * is a ratio from 0 to 1 relative to the total sum of eigenvalues/variance.
  * Infinity will the BandLanczos Algorithm to run to completion and only
  * singular values > sqrt(epsilon) to be kept
- * @param lancbasis Basis size of BandLanczos Algorithm. This is used as the
+ * @param initbasis Basis size of BandLanczos Algorithm. This is used as the
  * seed for the Krylov Subspace.
  * @param maxiters Maximum number of iterations for PCA
  * @param spatial Whether to do spatial ICA. Warning this is much more memory
@@ -388,7 +388,7 @@ MatrixXd tcat_ica(const vector<string>& imgnames,
  */
 MatrixXd spcat_ica(bool psd, const vector<string>& imgnames,
 		const vector<string>& masknames, string prefix, double evthresh,
-		int lancbasis, int maxiters, bool spatial)
+		int initbasis, int maxiters, bool spatial)
 {
 	/**********
 	 * Input
@@ -479,7 +479,7 @@ MatrixXd spcat_ica(bool psd, const vector<string>& imgnames,
 	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
 	eig.setTraceStop(evthresh);
 	eig.setMaxIters(maxiters);
-	eig.compute(XXt, lancbasis);
+	eig.compute(XXt, initbasis);
 
 	if(eig.info() == Eigen::NoConvergence)
 		throw RUNTIME_ERROR("Non Convergence of BandLanczosSelfAdjointEigen"
@@ -945,6 +945,148 @@ void fillMatPSD(double* rawdata, size_t nrows, size_t ncols,
 	if(cc != nrows)
 		throw INVALID_ARGUMENT("Number of masked pixels != ncols");
 }
+	
+/**
+ * @brief Compute ICA for the given group, defined by tcat x scat images
+ * laid out in column major ordering.
+ * 
+ * The basic idea is to split the rows into digesteable chunks, then
+ * perform the SVD on each of them.
+ *
+ * A = [A1 A2 A3 ... ]
+ * A = [UEV1 UEV2 .... ]
+ * A = [UE1 UE2 UE3 ...] diag([V1, V2, V3...])
+ *
+ * UE1 should have far fewer columns than rows so that where A is RxC,
+ * with R < C, [UE1 ... ] should have be R x LN with LN < R
+ *
+ * Say we are concatinating S subjects each with T timepoints, then
+ * A is STxC, assuming a rank of L then [UE1 ... ] will be ST x SL
+ *
+ * Even if L = T / 2 then this is a 1/4 savings in the SVD computation
+ *
+ * @param tcat Number of fMRI images to append in time direction
+ * @param scat Number of fMRI images to append in space direction
+ * @param masks Masks, one per spaceblock (columns of matching space)
+ * @param inputs Files in time-major order, [s0t0 s0t1 s0t2 s1t0 s1t1 s1t2]
+ * where s0 means 0th space-appended image, and t0 means the same for time
+ * @param spatial Perform Spatial ICA, if not a temporal ICA is done
+ */
+void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
+		vector<string> inputs, bool spatial)
+{
+	// Don't use more than half of memory on each block of rows
+	cerr << "Reorganizing data into matrices...";
+	MatrixReorg reorg(m_pref, (size_t)0.5*maxmem*(1<<27), verbose);
+	int status = reorg.createMats(tcat, scat, masks, inputs);
+	if(status != 0)
+		throw RUNTIME_ERROR("Error while reorganizing data into 2D Matrices");
+	cerr<<"Done"<<endl;
+
+	size_t totrows = reorg.rows();
+	size_t curcol = 0;
+	size_t catcols = 0; // Number of Columns when concatinating horizontally
+	size_t maxrank = 0;
+
+	for(size_t ii=0; ii<reorg.ntall(); ii++) {
+		MatMap talldata(reorg.tallMatName(ii));
+
+		cerr<<"Chunk SVD:"<<talldata.mat.rows()<<"x"<<talldata.mat.cols()<<endl;
+		Eigen::TruncatedLanczosSVD<MatrixXd> svd;
+		svd.setThreshold(evthresh);
+		svd.setTraceStop(varthresh);
+		svd.setLanczosBasis(initbasis);
+		svd.compute(talldata.mat, Eigen::ComputeThinU | Eigen::ComputeThinV);
+		if(svd.info() == Eigen::NoConvergence)
+			throw RUNTIME_ERROR("Error computing Tall SVD, might want to "
+					"increase # of lanczos vectors");
+
+		cerr << "SVD Rank: " << svd.rank() << endl;
+		maxrank = std::max<size_t>(maxrank, svd.rank());
+
+		// write
+		string usname = m_pref+"US_"+to_string(ii);
+		string vname = m_pref+"V_"+to_string(ii);
+
+		MatMap tmpmat;
+
+		// Create UE
+		tmpmat.create(usname, talldata.mat.rows(), svd.rank());
+		tmpmat.mat = svd.matrixU().leftCols(svd.rank())*
+			svd.singularValues().head(svd.rank());
+
+		tmpmat.create(vname, talldata.mat.cols(), svd.rank());
+		tmpmat.mat = svd.matrixV().leftCols(svd.rank());
+
+		catcols += svd.rank();
+	}
+
+	// Merge / Construct Column(EV^T, EV^T, ... )
+	MatrixXd mergedUE(totrows, catcols);
+	curcol = 0;
+	for(size_t ii=0; ii<reorg.ntall(); ii++) {
+		MatMap tmpmat(m_pref+"US_"+to_string(ii));
+
+		mergedUE.middleCols(curcol, tmpmat.cols) = tmpmat.mat;
+		curcol += tmpmat.cols;
+	}
+
+	cerr<<"Merge SVD:"<<mergedUE.rows()<<"x"<<mergedUE.cols()<<endl;
+	MatrixXd U, V;
+	VectorXd E;
+	{
+		Eigen::TruncatedLanczosSVD<MatrixXd> svd;
+		svd.setThreshold(evthresh);
+		svd.setTraceStop(varthresh);
+		svd.setLanczosBasis(initbasis);
+		svd.compute(mergedUE, Eigen::ComputeThinU | Eigen::ComputeThinV);
+		if(svd.info() == Eigen::NoConvergence)
+			throw RUNTIME_ERROR("Error computing Merged SVD, might want to "
+					"increase # of lanczos vectors");
+
+		U = svd.matrixU();
+		E = svd.singularValues();
+		V = svd.matrixV();
+	}
+
+	/*
+	 * Recall:
+	 *
+	 * Assume A1 = T1 S1 C1, etc
+	 * (note C is actually C^T and V is actually V^T)
+	 *
+	 * A = [TS1 TS2 TS3 ...] diag([C1, C2, C3...])
+	 *
+	 * Given [TS1 ... ] = UEV
+	 * A = UEV diag([C1, C2, C3...])
+	 * U_A = U
+	 * E_A = E
+	 * V_A^T = V^T diag([C1^T, C2^T, C3^T...])
+	 * V_A = diag([C1 C2 C3...]) V
+	 *
+	 *
+	 * */
+	if(!spatial) {
+		cerr << "Performing ICA" << endl;
+		m_ics = ica(U);
+	} else {
+		cerr << "Constructing Full V...";
+		// store fullV in U, since unneeded
+		U.resize(reorg.rows(), V.cols());
+
+		size_t currow = 0;
+		for(size_t ii=0; ii<reorg.ntall(); ii++) {
+			string vname = m_pref+"V_"+to_string(ii);
+			MatMap C(vname);
+
+			U.middleRows(currow, C.mat.rows()) = C.mat*V;
+			currow += C.mat.rows();
+		}
+		cerr << "Done\nPerforming ICA" << endl;
+		m_ics = ica(U);
+	}
+}
+
 
 } // NPL
 
