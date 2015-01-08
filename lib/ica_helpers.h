@@ -146,6 +146,15 @@ public:
 			const std::vector<std::string>& masknames,
 			const std::vector<std::string>& filenames);
 
+	/**
+	 * @brief Loads existing matrices by first reading ${prefix}_tall_0, 
+	 * ${prefix}_wide_0, and ${prefix}_mask_*, and checking that all the dimensions
+	 * can be made to match (by loading the appropriate number of matrices/masks).
+	 *
+	 * @return 0 if succesful, -1 if read failure, -2 if write failure
+	 */
+	int loadMats();
+
 	inline int nwide() const { return m_outrows.size(); };
 	inline int ntall() const { return m_outcols.size(); };
 
@@ -187,36 +196,14 @@ public:
 	inline int rows() const { return m_totalrows; };
 	inline int cols() const { return m_totalcols; };
 
-	inline const std::vector<int>& inMatRows() const
-	{
-		return m_inrows;
-	};
-
-	inline const std::vector<int>& inMatCols() const
-	{
-		return m_incols;
-	};
-
-	inline size_t inRowBlocks() const
-	{
-		return m_inrows.size();
-	};
-
-	inline size_t inColBlocks() const
-	{
-		return m_incols.size();
-	};
-
 	private:
 	int m_totalrows;
 	int m_totalcols;
 	std::string m_prefix;
-	size_t m_maxdoubles;
 	bool m_verbose;
-	vector<int> m_inrows;
-	vector<int> m_incols;
 	vector<int> m_outrows;
 	vector<int> m_outcols;
+	size_t m_maxdoubles; 
 };
 
 class MatMap
@@ -282,16 +269,7 @@ private:
 class GICAfmri
 {
 public:
-	GICAfmri(std::string pref) 
-	{
-		m_pref = pref;
-		evthresh = 0.1;
-		varthresh = 0.99;
-		initbasis = 400;
-		maxiters = -1;
-		maxmem = (1lu<<32); //4gigs
-		verbose = 0;
-	};
+	GICAfmri(std::string pref) ;
 
 	/**
 	 * @brief Cutoff threshold for eigenvalues (ratio of maximum), everything
@@ -326,6 +304,39 @@ public:
 	 * @brief Print more information
 	 */
 	int verbose;
+	
+	/**
+	 * @brief Whether to perform spatial ICA (rather than temporal)
+	 */
+	bool spatial;
+
+	/**
+	 * @brief Compute ICA for the given group, using existing tall/wide mats
+	 * 
+	 * The basic idea is to split the rows into digesteable chunks, then
+	 * perform the SVD on each of them.
+	 *
+	 * A = [A1 A2 A3 ... ]
+	 * A = [UEV1 UEV2 .... ]
+	 * A = [UE1 UE2 UE3 ...] diag([V1, V2, V3...])
+	 *
+	 * UE1 should have far fewer columns than rows so that where A is RxC,
+	 * with R < C, [UE1 ... ] should have be R x LN with LN < R
+	 *
+	 * Say we are concatinating S subjects each with T timepoints, then
+	 * A is STxC, assuming a rank of L then [UE1 ... ] will be ST x SL
+	 *
+	 * Even if L = T / 2 then this is a 1/4 savings in the SVD computation
+	 *
+	 * @param tcat Number of fMRI images to append in time direction
+	 * @param scat Number of fMRI images to append in space direction
+	 * @param masks Masks, one per spaceblock (columns of matching space)
+	 * @param inputs Files in time-major order, [s0t0 s0t1 s0t2 s1t0 s1t1 s1t2]
+	 * where s0 means 0th space-appended image, and t0 means the same for time
+	 * @param spatial Perform Spatial ICA, if not a temporal ICA is done
+	 * @param use existing tall/wide matrices
+	 */
+	void compute();
 
 	/**
 	 * @brief Compute ICA for the given group, defined by tcat x scat images
@@ -351,18 +362,16 @@ public:
 	 * @param masks Masks, one per spaceblock (columns of matching space)
 	 * @param inputs Files in time-major order, [s0t0 s0t1 s0t2 s1t0 s1t1 s1t2]
 	 * where s0 means 0th space-appended image, and t0 means the same for time
-	 * @param spatial Perform Spatial ICA, if not a temporal ICA is done
 	 */
 	void compute(size_t tcat, size_t scat, std::vector<std::string> masks, 
-			vector<std::string> inputs, bool spatial);
+			vector<std::string> inputs);
+
+	void computeSpatialMaps();
+
 private:
 	std::string m_pref;
 	
-	/**
-	 * @brief Storage of independent components, each column representing a
-	 * dimension, each row a sample
-	 */
-	MatrixXd m_ics;
+	int m_status;
 };
 
 }

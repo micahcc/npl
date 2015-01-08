@@ -30,7 +30,8 @@
 using namespace npl;
 using namespace std;
 
-int testWideMats(const MatrixReorg& reorg, const vector<ptr<MRImage>>& masks,
+int testWideMats(size_t nrows, size_t ncols,
+	const MatrixReorg& reorg, const vector<ptr<MRImage>>& masks,
 		const vector<ptr<MRImage>>& inputs, std::string prefix)
 {
 	MatrixXd full(reorg.rows(), reorg.cols());
@@ -45,12 +46,14 @@ int testWideMats(const MatrixReorg& reorg, const vector<ptr<MRImage>>& masks,
 
 	size_t globcol = 0;
 	size_t globrow = 0;
-	for(size_t cc=0; cc<reorg.inColBlocks(); cc++) {
+	for(size_t cc=0; cc<ncols; cc++) {
 		auto mask = masks[cc];
 		NDIter<int> mit(mask);
 		globrow = 0;
-		for(size_t rr=0; rr<reorg.inRowBlocks(); rr++) {
-			auto img = inputs[cc*reorg.inRowBlocks() + rr];
+		size_t localcols = 0;
+		for(size_t rr=0; rr<nrows; rr++) {
+			localcols = 0;
+			auto img = inputs[cc*nrows + rr];
 			size_t tlen = img->tlen();
 			Vector3DIter<double> it(img);
 			mit.goBegin();
@@ -69,17 +72,19 @@ int testWideMats(const MatrixReorg& reorg, const vector<ptr<MRImage>>& masks,
 							return -1;
 						}
 						s++;
+						localcols++;
 					}
 				}
 			}
-			globrow += reorg.inMatRows()[rr];
+			globrow += tlen;
 		}
-		globcol += reorg.inMatCols()[cc];
+		globcol += localcols;
 	}
 	return 0;
 }
 
-int testTallMats(const MatrixReorg& reorg, const vector<ptr<MRImage>>& masks,
+int testTallMats(size_t nrows, size_t ncols,
+		const MatrixReorg& reorg, const vector<ptr<MRImage>>& masks,
 		const vector<ptr<MRImage>>& inputs, std::string prefix)
 {
 	MatrixXd full(reorg.rows(), reorg.cols());
@@ -94,12 +99,14 @@ int testTallMats(const MatrixReorg& reorg, const vector<ptr<MRImage>>& masks,
 
 	size_t globcol = 0;
 	size_t globrow = 0;
-	for(size_t cc=0; cc<reorg.inColBlocks(); cc++) {
+	for(size_t cc=0; cc<ncols; cc++) {
 		auto mask = masks[cc];
 		NDIter<int> mit(mask);
 		globrow = 0;
-		for(size_t rr=0; rr<reorg.inRowBlocks(); rr++) {
-			auto img = inputs[cc*reorg.inRowBlocks()+ rr];
+		size_t localcols = 0;
+		for(size_t rr=0; rr<nrows; rr++) {
+			localcols = 0;
+			auto img = inputs[cc*nrows+ rr];
 			size_t tlen = img->tlen();
 			Vector3DIter<double> it(img);
 			mit.goBegin();
@@ -118,13 +125,13 @@ int testTallMats(const MatrixReorg& reorg, const vector<ptr<MRImage>>& masks,
 							return -1;
 						}
 						s++;
+						localcols++;
 					}
 				}
 			}
-
-			globrow += reorg.inMatRows()[rr];
+			globrow += tlen;
 		}
-		globcol += reorg.inMatCols()[cc];
+		globcol += localcols;
 	}
 	return 0;
 }
@@ -161,10 +168,10 @@ int main()
 		return -1;
 	
 	// use Matrix
-	if(testTallMats(reorg, masks, inputs, pref+"_tall_") != 0)
+	if(testTallMats(nrows, ncols, reorg, masks, inputs, pref+"_tall_") != 0)
 		return -1;
 	
-	if(testWideMats(reorg, masks, inputs, pref+"_wide_") != 0)
+	if(testWideMats(nrows, ncols, reorg, masks, inputs, pref+"_wide_") != 0)
 		return -1;
 
 }

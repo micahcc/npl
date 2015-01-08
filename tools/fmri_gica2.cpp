@@ -132,14 +132,11 @@ int main(int argc, char** argv)
 	gica.initbasis = a_simultaneous.getValue();
 	gica.maxiters = a_iters.getValue();
 	gica.maxmem = a_gbram.getValue();
+	gica.spatial = a_spatial_ica.isSet();
 	
 	gica.compute(a_time_append.getValue(), a_space_append.getValue(),
-			a_masks.getValue(), a_in.getValue(), a_spatial_ica.isSet());
-
-//	gica.writeMaps(a_tmap.getValue());
-//	gica.writeSignals(a_tmap.getValue());
-//	gica.maps()->write(a_tmap.getValue());
-//	gica.signals()->write(a_tmap.getValue());
+			a_masks.getValue(), a_in.getValue());
+	gica.computeSpatialMaps();
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }

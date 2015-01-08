@@ -129,7 +129,7 @@ namespace npl {
 //
 //		int curr_row = 0;
 //		for(int ii=0; ii<ncols.size(); ii++) {
-//			string fn = prefix+"mat_"+to_string(ii);
+//			string fn = prefix+"_mat_"+to_string(ii);
 //			MemMap mmap(fn, ncols[ii]*U.rows()*sizeof(double), false);
 //			if(mmap.size() < 0)
 //				return -1;
@@ -228,7 +228,7 @@ namespace npl {
 //
 //		int curr_row = 0;
 //		for(int ii=0; ii<ncols.size(); ii++) {
-//			string fn = prefix+"mat_"+to_string(ii);
+//			string fn = prefix+"_mat_"+to_string(ii);
 //			MemMap mmap(fn, ncols[ii]*U.rows()*sizeof(double), false);
 //			if(mmap.size() < 0)
 //				return -1;
@@ -428,7 +428,7 @@ MatrixXd spcat_ica(bool psd, const vector<string>& imgnames,
 		totalcols += ncols[ii];
 
 		// Write Mask
-		mask->write(prefix+"mask_"+to_string(ii)+"_"+".nii.gz");
+		mask->write(prefix+"_mask_"+to_string(ii)+"_"+".nii.gz");
 
 		// Create Output File to buffer file, if we are going to FFT, the
 		// round to the nearest power of 2
@@ -446,7 +446,7 @@ MatrixXd spcat_ica(bool psd, const vector<string>& imgnames,
 		} else if(nrows != tmprows)
 			throw INVALID_ARGUMENT("Number of time-points differ in inputs!");
 
-		string fn = prefix+"mat_"+to_string(ii);
+		string fn = prefix+"_mat_"+to_string(ii);
 		MemMap mmap(fn, ncols[ii]*nrows+sizeof(double), true);
 		if(mmap.size() <= 0)
 			throw RUNTIME_ERROR("Error opening "+fn+" for writing");
@@ -465,7 +465,7 @@ MatrixXd spcat_ica(bool psd, const vector<string>& imgnames,
 
 	// Sum XXt_i for i in 1...subjects
 	for(int ii=0; ii<imgnames.size(); ii++) {
-		string fn = prefix+"mat_"+to_string(ii);
+		string fn = prefix+"_mat_"+to_string(ii);
 		MemMap mmap(fn, ncols[ii]*nrows+sizeof(double), false);
 		if(mmap.size() <= 0)
 			throw RUNTIME_ERROR("Error opening "+fn+" for reading");
@@ -517,7 +517,7 @@ MatrixXd spcat_ica(bool psd, const vector<string>& imgnames,
 		// rows of V correspond to cols of X
 		int curr_row = 0; // Current row in input (col in V)
 		for(int ii=0; ii<ncols.size(); ii++) {
-			string fn = prefix+"mat_"+to_string(ii);
+			string fn = prefix+"_mat_"+to_string(ii);
 			MemMap mmap(fn, ncols[ii]*nrows*sizeof(double), false);
 			if(mmap.size() < 0)
 				throw RUNTIME_ERROR("Error opening "+fn+" for reading");
@@ -538,6 +538,78 @@ MatrixReorg::MatrixReorg(std::string prefix, size_t maxdoubles, bool verbose)
 	m_maxdoubles = maxdoubles;
 	m_verbose = verbose;
 };
+
+/**
+ * @brief Loads existing matrices by first reading ${prefix}_tall_0, 
+ * ${prefix}_wide_0, and ${prefix}_mask_*, and checking that all the dimensions
+ * can be made to match (by loading the appropriate number of matrices/masks).
+ *
+ * @return 0 if succesful, -1 if read failure, -2 if write failure
+ */
+int MatrixReorg::loadMats()
+{
+	m_outrows.clear();
+	m_outcols.clear();
+	std::string tallpr = m_prefix + "_tall_";
+	std::string widepr = m_prefix + "_wide_";
+	std::string maskpr = m_prefix + "_mask_";
+
+	if(m_verbose) {
+		cerr << "Tall Matrix Prefix: " << tallpr << endl;
+		cerr << "Wide Matrix Prefix: " << widepr << endl;
+		cerr << "Mask Prefix:        " << maskpr << endl;
+	}
+
+	/* Read First Tall and Wide to get totalrows and totalcols */
+	MatMap map;
+	map.open(tallpr+"0");
+	m_totalrows = map.rows;
+
+	map.open(widepr+"0");
+	m_totalcols = map.cols;
+
+	if(m_verbose) {
+		cerr << "Total Rows/Timepoints: " << m_totalrows<< endl;
+		cerr << "Total Cols/Voxels:     " << m_totalcols << endl;
+	}
+
+	int rows = 0;
+	for(int ii=0; rows!=m_totalrows; ii++) {
+		map.open(widepr+to_string(ii));
+		m_outrows.push_back(map.rows);
+		rows += map.rows;
+
+		// should exactly match up
+		if(rows > m_totalrows)
+			return -1;
+	}
+	
+	int cols = 0;
+	for(int ii=0; cols!=m_totalcols; ii++) {
+		map.open(tallpr+to_string(ii));
+		m_outcols.push_back(map.cols);
+		cols += map.cols;
+
+		// should exactly match up
+		if(cols > m_totalcols)
+			return -1;
+	}
+
+	// check masks
+	cols = 0;
+	for(int ii=0; cols!=m_totalcols; ii++) {
+		auto mask = readMRImage(maskpr+to_string(ii)+".nii.gz");
+		for(FlatIter<int> mit(mask); !mit.eof(); ++mit) {
+			if(*mit != 0)
+				cols++;
+		}
+		
+		// should exactly match up
+		if(cols > m_totalcols)
+			return -1;
+	}
+	return 0;
+}
 
 /**
  * @brief Creates two sets of matrices from a set of input images. The matrices
@@ -577,10 +649,11 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	// std::string m_prefix;
 	// size_t m_maxdoubles;
 	// bool m_verbose;
-	// vector<int> m_inrows;
-	// vector<int> m_incols;
 	// vector<int> m_outrows;
 	// vector<int> m_outcols;
+	 
+	vector<int> inrows;
+	vector<int> incols;
 	std::string tallpr = m_prefix + "_tall_";
 	std::string widepr = m_prefix + "_wide_";
 	std::string maskpr = m_prefix + "_mask_";
@@ -597,10 +670,10 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	 * rows in each block of rows and number of columns in each block of
 	 * columns, also create masks in the output folder
 	 */
-	m_inrows.resize(timeblocks);
-	m_incols.resize(spaceblocks);
-	std::fill(m_inrows.begin(), m_inrows.end(), 0);
-	std::fill(m_incols.begin(), m_incols.end(), 0);
+	inrows.resize(timeblocks);
+	incols.resize(spaceblocks);
+	std::fill(inrows.begin(), inrows.end(), 0);
+	std::fill(incols.begin(), incols.end(), 0);
 
 	m_totalrows = 0;
 	m_totalcols = 0;
@@ -618,21 +691,21 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 		mask->write(maskpr+to_string(sb)+".nii.gz");
 		for(FlatIter<int> it(mask); !it.eof(); ++it) {
 			if(*it != 0)
-				m_incols[sb]++;
+				incols[sb]++;
 		}
-		if(m_incols[sb] == 0) {
+		if(incols[sb] == 0) {
 			throw INVALID_ARGUMENT("Error, input mask for column " +
 					to_string(sb) + " has no non-zero pixels");
 		}
-		m_totalcols += m_incols[sb];
+		m_totalcols += incols[sb];
 	}
 
 	// Figure out number of rows in each block
 	for(size_t tb = 0; tb<timeblocks; tb++) {
 		auto img = readMRImage(filenames[0*timeblocks+tb]);
 
-		m_inrows[tb] += img->tlen();
-		m_totalrows += m_inrows[tb];
+		inrows[tb] += img->tlen();
+		m_totalrows += inrows[tb];
 	}
 
 	if(m_verbose) {
@@ -664,7 +737,7 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	blockind = 0;
 	blocknum = 0;
 	for(int rr=0; rr<m_totalrows; rr++) {
-		if(blockind == m_inrows[blocknum]) {
+		if(blockind == inrows[blocknum]) {
 			// open file, create with proper size
 			MemMap wfile(widepr+to_string(m_outrows.size()-1), 2*sizeof(size_t)+
 					m_outrows.back()*m_totalcols*sizeof(double), true);
@@ -706,7 +779,7 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	blockind = 0;
 	blocknum = 0;
 	for(int cc=0; cc<m_totalcols; cc++) {
-		if(blockind == m_incols[blocknum]) {
+		if(blockind == incols[blocknum]) {
 			// open file, create with proper size
 			MemMap tfile(tallpr+to_string(m_outcols.size()-1), 2*sizeof(size_t)+
 					m_outcols.back()*m_totalrows*sizeof(double), true);
@@ -755,7 +828,7 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 			if(!img->matchingOrient(mask, false, true))
 				throw INVALID_ARGUMENT("Mismatch in mask/image size in col:"+
 						to_string(sb)+", row:"+to_string(tb));
-			if(img->tlen() != m_inrows[tb])
+			if(img->tlen() != inrows[tb])
 				throw INVALID_ARGUMENT("Mismatch in time-length in col:"+
 						to_string(sb)+", row:"+to_string(tb));
 
@@ -820,18 +893,18 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 			datamap.close();
 
 			// Increment Global Row by Input Block Size (same as image rows)
-			img_glob_row += m_inrows[tb];
+			img_glob_row += inrows[tb];
 
 			// Increment Output block row to correspond to the next image
-			for(int ii=0; ii != m_inrows[tb]; )
+			for(int ii=0; ii != inrows[tb]; )
 				ii += m_outrows[img_oblock_row++];
 		}
 
 		// Increment Global Col by Input Block Size (same as image cols)
-		img_glob_col += m_incols[sb];
+		img_glob_col += incols[sb];
 
 		// Increment Output block col to correspond to the next image
-		for(int ii=0; ii != m_incols[sb]; )
+		for(int ii=0; ii != incols[sb]; )
 			ii += m_outcols[img_oblock_col++];
 	}
 
@@ -946,9 +1019,21 @@ void fillMatPSD(double* rawdata, size_t nrows, size_t ncols,
 		throw INVALID_ARGUMENT("Number of masked pixels != ncols");
 }
 	
+GICAfmri::GICAfmri(std::string pref)
+{
+	m_pref = pref;
+	evthresh = 0.1;
+	varthresh = 0.99;
+	initbasis = 400;
+	maxiters = -1;
+	maxmem = (1lu<<32); //4gigs
+	verbose = 0;
+	m_status = 0; //unitialized
+	spatial = false; // spatial maps
+}
+
 /**
- * @brief Compute ICA for the given group, defined by tcat x scat images
- * laid out in column major ordering.
+ * @brief Compute ICA for the given group, using existing tall/wide matices
  * 
  * The basic idea is to split the rows into digesteable chunks, then
  * perform the SVD on each of them.
@@ -965,23 +1050,17 @@ void fillMatPSD(double* rawdata, size_t nrows, size_t ncols,
  *
  * Even if L = T / 2 then this is a 1/4 savings in the SVD computation
  *
- * @param tcat Number of fMRI images to append in time direction
- * @param scat Number of fMRI images to append in space direction
- * @param masks Masks, one per spaceblock (columns of matching space)
- * @param inputs Files in time-major order, [s0t0 s0t1 s0t2 s1t0 s1t1 s1t2]
- * where s0 means 0th space-appended image, and t0 means the same for time
- * @param spatial Perform Spatial ICA, if not a temporal ICA is done
  */
-void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
-		vector<string> inputs, bool spatial)
+void GICAfmri::compute()
 {
-	// Don't use more than half of memory on each block of rows
-	cerr << "Reorganizing data into matrices...";
+	m_status = -1;
+
 	MatrixReorg reorg(m_pref, (size_t)0.5*maxmem*(1<<27), verbose);
-	int status = reorg.createMats(tcat, scat, masks, inputs);
+	cerr<<"Loading existing matrices at prefix \""<<m_pref<<"\"...";
+	int status = reorg.loadMats();
 	if(status != 0)
-		throw RUNTIME_ERROR("Error while reorganizing data into 2D Matrices");
-	cerr<<"Done"<<endl;
+		throw RUNTIME_ERROR("Error while loading existing 2D Matrices");
+	cerr<<"Done\n";
 
 	size_t totrows = reorg.rows();
 	size_t curcol = 0;
@@ -1005,8 +1084,8 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 		maxrank = std::max<size_t>(maxrank, svd.rank());
 
 		// write
-		string usname = m_pref+"US_"+to_string(ii);
-		string vname = m_pref+"V_"+to_string(ii);
+		string usname = m_pref+"_US_"+to_string(ii);
+		string vname = m_pref+"_V_"+to_string(ii);
 
 		MatMap tmpmat;
 
@@ -1025,7 +1104,7 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 	MatrixXd mergedUE(totrows, catcols);
 	curcol = 0;
 	for(size_t ii=0; ii<reorg.ntall(); ii++) {
-		MatMap tmpmat(m_pref+"US_"+to_string(ii));
+		MatMap tmpmat(m_pref+"_US_"+to_string(ii));
 
 		mergedUE.middleCols(curcol, tmpmat.cols) = tmpmat.mat;
 		curcol += tmpmat.cols;
@@ -1068,7 +1147,9 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 	 * */
 	if(!spatial) {
 		cerr << "Performing ICA" << endl;
-		m_ics = ica(U);
+		MatMap tmpmat;
+		tmpmat.create(m_pref+"_SICA", U.rows(), U.cols());
+		tmpmat.mat = ica(U);
 	} else {
 		cerr << "Constructing Full V...";
 		// store fullV in U, since unneeded
@@ -1076,14 +1157,201 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 
 		size_t currow = 0;
 		for(size_t ii=0; ii<reorg.ntall(); ii++) {
-			string vname = m_pref+"V_"+to_string(ii);
+			string vname = m_pref+"_V_"+to_string(ii);
 			MatMap C(vname);
 
 			U.middleRows(currow, C.mat.rows()) = C.mat*V;
 			currow += C.mat.rows();
 		}
 		cerr << "Done\nPerforming ICA" << endl;
-		m_ics = ica(U);
+
+		MatMap tmpmat;
+		tmpmat.create(m_pref+"_TICA", U.rows(), U.cols());
+		tmpmat.mat = ica(U);
+	}
+
+	m_status = 1;
+}
+
+/**
+ * @brief Compute ICA for the given group, defined by tcat x scat images
+ * laid out in column major ordering.
+ * 
+ * The basic idea is to split the rows into digesteable chunks, then
+ * perform the SVD on each of them.
+ *
+ * A = [A1 A2 A3 ... ]
+ * A = [UEV1 UEV2 .... ]
+ * A = [UE1 UE2 UE3 ...] diag([V1, V2, V3...])
+ *
+ * UE1 should have far fewer columns than rows so that where A is RxC,
+ * with R < C, [UE1 ... ] should have be R x LN with LN < R
+ *
+ * Say we are concatinating S subjects each with T timepoints, then
+ * A is STxC, assuming a rank of L then [UE1 ... ] will be ST x SL
+ *
+ * Even if L = T / 2 then this is a 1/4 savings in the SVD computation
+ *
+ * @param tcat Number of fMRI images to append in time direction
+ * @param scat Number of fMRI images to append in space direction
+ * @param masks Masks, one per spaceblock (columns of matching space)
+ * @param inputs Files in time-major order, [s0t0 s0t1 s0t2 s1t0 s1t1 s1t2]
+ * where s0 means 0th space-appended image, and t0 means the same for time
+ */
+void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
+		vector<string> inputs)
+{
+	m_status = -1;
+
+	MatrixReorg reorg(m_pref, (size_t)0.5*maxmem*(1<<27), verbose);
+	// Don't use more than half of memory on each block of rows
+	cerr << "Reorganizing data into matrices...";
+	int status = reorg.createMats(tcat, scat, masks, inputs);
+	if(status != 0)
+		throw RUNTIME_ERROR("Error while reorganizing data into 2D Matrices");
+	cerr<<"Done"<<endl;
+
+	compute();
+}
+
+void GICAfmri::computeSpatialMaps()
+{
+	if(spatial) {
+		MatMap ics(m_pref+"_SICA");
+		// Re-associate each column with a spatial signal (map)
+		// Columns of ics correspond to rows of the wide matrices/voxels
+		int npt = 0; // number of points in the current image
+		int nptii = 0; // iterate through total points in all images
+		int mm = 0; // current map
+		int comp = 0; // current Independent Component
+		int rr=0; // Current Row/Sample of IC
+		for(size_t fullrows=0; fullrows != ics.rows; fullrows += npt) {
+			for(mm=0; nptii<ics.rows; nptii+=npt, ++mm) {
+				auto mask = readMRImage(m_pref+"_mask_"+to_string(mm)+".nii.gz");
+				auto out = mask->copyCast(FLOAT32);
+				FlatIter<int> mit(mask);
+				FlatIter<double> oit(out);
+
+				// count cols
+				npt = 0;
+				for(mit.goBegin(); !mit.eof(); ++mit) {
+					if(*mit != 0) 
+						npt++;
+				}
+
+				// Iterate through Components
+				for(comp=0; comp<ics.cols; comp++) {
+					for(rr=0, mit.goBegin(),oit.goBegin(); !mit.eof(); ++mit, ++oit) {
+						if(*mit != 0) {
+							oit.set(ics.mat(rr, comp));
+							rr++;
+						}
+					}
+					out->write(m_pref+"_map_m"+to_string(mm)+"_c"+to_string(comp)+
+							".nii.gz");
+				}
+			}
+			if(nptii > ics.rows) {
+				throw RUNTIME_ERROR("Error:\n"+m_pref+"_SICA\nSize does not match "
+						"input masks");
+			}
+
+		}
+
+		// TODO Mixture Model for T-Score
+	} else {
+		// Regress each column with each input timeseries
+		MatMap ics(m_pref+"_TICA");
+
+		// Get Total Columns from first wide image
+		size_t totalcols = 0;
+		{
+			MatMap tmp(m_pref+"_wide_0");
+			totalcols = tmp.cols;
+		}
+		
+		// Iterate through mask as we iterate through the columns of the ICs
+		ptr<MRImage> mask;
+		ptr<MRImage> out;
+		FlatIter<int> mit;
+		Vector3DIter<double> oit;
+		
+		// Create 4D Image matching mask
+		size_t odim[4] = {0,0,0, ics.cols};
+		int64_t index[4] = {0,0,0,0};
+
+		int ii; // iterate through tall matrices
+		int cc = 0; // iterate through columns of tall matrix
+		int mm = -1; // iterate through masks
+		int ff = 0; // iterate through all columns of all tall matrices
+
+		/*
+		 * Convert statistics of each column of each tall matrix back to
+		 * spatial position
+		 */
+		//
+		for(ii=0; ff < totalcols; ii++, ff += cc) {
+			MatMap tall(m_pref+"_tall_"+to_string(ii));
+
+			// Iterate through columns of tall matrix
+			for(cc=0; cc<tall.cols; cc++, ++mit, ++oit) {
+				// Match iterations of tall columns with mask iteration
+				if(!mask || mit.eof()) {
+					if(cc != 0) {
+						throw RUNTIME_ERROR("Error Tall Matrix:\n"+m_pref+
+								"_tall_"+to_string(ii)+"\nMismatches mask:"+
+								m_pref+"_mask_"+to_string(mm));
+					}
+
+					// If there is currently an open output image, write as multiple
+					if(out) {
+						for(size_t dd=0; dd<3; dd++)
+							odim[dd] = out->dim(dd);
+						odim[3] = 0;
+						for(index[3] = 0; index[3]<ics.cols; index[3]++)
+							out->extractCast(3, index, odim)->write(
+									m_pref+"_tmap_m"+to_string(mm)+"_c"+
+									to_string(index[3])+".nii.gz");
+					}
+					
+					// Read Mask
+					mask = readMRImage(m_pref+"_mask_"+to_string(++mm)+".nii.gz");
+					if(mask->ndim() != 3) 
+						throw RUNTIME_ERROR("Error input mask is not 3D!");
+					for(size_t dd=0; dd<3; dd++)
+						odim[ii] = mask->dim(ii);
+					odim[3] = ics.cols;
+
+					out = dPtrCast<MRImage>(mask->createAnother(4, 
+								odim, FLOAT32));
+					mit.setArray(mask);
+					oit.setArray(out);
+					mit.goBegin();
+					oit.goBegin();
+				}
+
+				// regress each component with current column of tall
+				RegrResult res = regress(tall.mat.col(cc), ics.mat); 
+				for(size_t comp=0; comp<ics.cols; comp++)
+					oit.set(comp, res.t[comp]);
+			}
+		}
+		// Sanity check size
+		if(ff > totalcols) {
+			throw RUNTIME_ERROR("Error, Tall Matrix Columns mismatched "
+					"expected number of columns");
+		}
+
+		// If there is currently an open output image, write as multiple, last
+		if(out) {
+			for(size_t dd=0; dd<3; dd++)
+				odim[dd] = out->dim(dd);
+			odim[3] = 0;
+			for(index[3] = 0; index[3]<ics.cols; index[3]++)
+				out->extractCast(3, index, odim)->write(
+						m_pref+"_tmap_m"+to_string(mm)+"_c"+
+						to_string(index[3])+".nii.gz");
+		}
 	}
 }
 

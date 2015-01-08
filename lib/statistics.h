@@ -52,7 +52,7 @@ namespace npl {
  *
  * @return 		RxP matrix, where P is the number of principal components
  */
-MatrixXd pca(const Eigen::MatrixXd& X, double varth = 1, int odim = -1);
+MatrixXd pca(const Ref<const MatrixXd> X, double varth = 1, int odim = -1);
 
 /**
  * @brief Computes the Independent Components of input matrix X. Note that
@@ -81,19 +81,7 @@ MatrixXd pca(const Eigen::MatrixXd& X, double varth = 1, int odim = -1);
  *
  * @return 		RxP matrix, where P is the number of independent components
  */
-MatrixXd ica(const Eigen::MatrixXd& X);
-
-/**
- * @brief Computes the Ordinary Least Square predictors, beta for
- *
- * \f$ y = \hat \beta X \f$
- *
- * Returning beta
- *
- * @return beta value, the weights of the independent variables to produce the
- * least squares predictor for y.
- */
-VectorXd regress(const MatrixXd& y, const MatrixXd& X);
+MatrixXd ica(const Ref<const MatrixXd> X);
 
 struct RegrResult
 {
@@ -259,8 +247,11 @@ private:
  *
  * @return Struct with Regression Results.
  */
-RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
-		const MatrixXd& Xinv, const StudentsT& distrib);
+RegrResult regress(const Ref<const VectorXd> y,
+		const Ref<const MatrixXd> X,
+		const Ref<const MatrixXd> covInv,
+		const Ref<const MatrixXd> Xinv,
+		const StudentsT& distrib);
 
 /**
  * @brief Computes the Ordinary Least Square predictors, beta for
@@ -275,7 +266,8 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
  *
  * @return Struct with Regression Results.
  */
-RegrResult regress(const VectorXd& y, const MatrixXd& X);
+RegrResult regress(const Ref<const VectorXd> y,
+		const Ref<const MatrixXd> X);
 
 /**
  * @brief Computes the pseudoinverse of the input matrix
@@ -284,7 +276,7 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X);
  *
  * @return Psueodinverse
  */
-MatrixXd pseudoInverse(const MatrixXd& X);
+MatrixXd pseudoInverse(const Ref<const MatrixXd> X);
 
 /**
  * @brief Performs LASSO regression using the 'shooting' algorithm of
@@ -305,7 +297,8 @@ MatrixXd pseudoInverse(const MatrixXd& X);
  *
  * @return Beta vector
  */
-VectorXd shootingRegr(const MatrixXd& X, const VectorXd& y, double gamma);
+VectorXd shootingRegr(const Ref<const MatrixXd> X,
+		const Ref<const VectorXd> y, double gamma);
 
 /**
  * @brief Performs LASSO regression using the 'activeShooting' algorithm of
@@ -326,7 +319,8 @@ VectorXd shootingRegr(const MatrixXd& X, const VectorXd& y, double gamma);
  *
  * @return Beta vector
  */
-VectorXd activeShootingRegr(const MatrixXd& X, const VectorXd& y, double gamma);
+VectorXd activeShootingRegr(const Ref<const MatrixXd> X,
+		const Ref<const VectorXd> y, double gamma);
 
 
 /**
@@ -341,29 +335,7 @@ VectorXd activeShootingRegr(const MatrixXd& X, const VectorXd& y, double gamma);
  *
  * @return 		RxP matrix, where P is the number of principal components
  */
-MatrixXd pcacov(const MatrixXd& cov, double varth);
-
-/**
- * @brief Computes the Principal Components of input matrix X
- *
- * Outputs reduced dimension (fewer cols) in output. Note that prior to this,
- * the columns of X should be 0 mean otherwise the first component will
- * be the mean
- *
- * @param X 	RxC matrix where each column row is a sample, each column a
- * dimension (or feature). The number of columns in the output
- * will be fewer because there will be fewer features
- * @param varth Variance threshold. This is the ratio (0-1) of variance to
- * include in the output. This is used to determine the dimensionality of the
- * output. If this is 1 then all variance will be included. If this < 1 and
- * odim > 0 then whichever gives a larger output dimension will be selected.
- * @param odim Threshold for output dimensions. If this is <= 0 then it is
- * ignored, if it is > 0 then max(dim(varth), odim) is used as the output
- * dimension.
- *
- * @return 		RxP matrix, where P is the number of principal components
- */
-MatrixXd pca(const MatrixXd& X, double varth, int odim);
+MatrixXd pcacov(const Ref<const MatrixXd> cov, double varth);
 
 /**
  * @brief Computes the Independent Components of input matrix X. Note that
@@ -393,7 +365,7 @@ MatrixXd pca(const MatrixXd& X, double varth, int odim);
  *
  * @return 		RxP matrix, where P is the number of independent components
  */
-MatrixXd ica(const MatrixXd& Xin);
+MatrixXd ica(const Ref<const MatrixXd> Xin);
 
 /*
  * \defgroup Clustering algorithms
@@ -411,7 +383,8 @@ MatrixXd ica(const MatrixXd& Xin);
  * @param nclass Number of classes to break samples up into
  * @param means Estimated mid-points/means
  */
-void approxKMeans(const MatrixXd& samples, size_t nclass, MatrixXd& means);
+void approxKMeans(const Ref<const MatrixXd> samples,
+		size_t nclass, MatrixXd& means);
 
 /**
  * @brief Base class for all ND classifiers.
@@ -435,7 +408,7 @@ public:
 	 * @return Vector of classes, rows match up with input sample rows
 	 */
 	virtual
-		Eigen::VectorXi classify(const MatrixXd& samples) = 0;
+		Eigen::VectorXi classify(const Ref<const MatrixXd> samples) = 0;
 
 	/**
 	 * @brief Given a matrix of samples (Samples x Dims, sample on each row),
@@ -448,7 +421,8 @@ public:
 	 * @return the number of changed classifications
 	 */
 	virtual
-		size_t classify(const MatrixXd& samples, Eigen::VectorXi& oclass) = 0;
+		size_t classify(const Ref<const MatrixXd> samples,
+				Eigen::VectorXi& oclass) = 0;
 
 	/**
 	 * @brief Updates the classifier with new samples, if reinit is true then
@@ -463,7 +437,7 @@ public:
 	 * return -1 if maximum number of iterations hit, 0 otherwise (converged)
 	 */
 	virtual
-		int update(const MatrixXd& samples, bool reinit = false) = 0;
+		int update(const Ref<const MatrixXd> samples, bool reinit = false) = 0;
 
 	/**
 	 * @brief Alias for updateClasses with reinit = true. This will perform
@@ -472,7 +446,11 @@ public:
 	 * @param samples Samples, S x D matrix with S is the number of samples and
 	 * D is the dimensionality. This must match the internal dimension count.
 	 */
-	void compute(const MatrixXd& samples) { update(samples, true); };
+	inline
+	void compute(const Ref<const MatrixXd> samples)
+	{
+		update(samples, true);
+	};
 
 	/**
 	 * @brief Number of dimensions, must be set at construction. This is the
@@ -520,7 +498,7 @@ public:
 	 *
 	 * @param newmeans Matrix with new mean
 	 */
-	void updateMeans(const MatrixXd& newmeans);
+	void updateMeans(const Ref<const MatrixXd> newmeans);
 
 	/**
 	 * @brief Updates the mean coordinates by providing a set of labeled samples.
@@ -530,7 +508,8 @@ public:
 	 * Classes should be integers 0 <= c < K where K is the number of classes
 	 * in this.
 	 */
-	void updateMeans(const MatrixXd samples, const Eigen::VectorXi classes);
+	void updateMeans(const Ref<const MatrixXd> samples,
+			const Ref<const Eigen::VectorXi> classes);
 
 	/**
 	 * @brief Given a matrix of samples (Samples x Dims, sample on each row),
@@ -540,7 +519,7 @@ public:
 	 *
 	 * @return Vector of classes, rows match up with input sample rows
 	 */
-	Eigen::VectorXi classify(const MatrixXd& samples);
+	Eigen::VectorXi classify(const Ref<const MatrixXd> samples);
 
 	/**
 	 * @brief Given a matrix of samples (Samples x Dims, sample on each row),
@@ -550,7 +529,8 @@ public:
 	 * @param oclass Output classes. This vector will be resized to have the
 	 * same number of rows as samples matrix.
 	 */
-	size_t classify(const MatrixXd& samples, Eigen::VectorXi& oclass);
+	size_t classify(const Ref<const MatrixXd> samples,
+			Eigen::VectorXi& oclass);
 
 	/**
 	 * @brief Updates the classifier with new samples, if reinit is true then
@@ -564,7 +544,7 @@ public:
 	 *
 	 * @return -1 if maximum number of iterations hit, 0 otherwise
 	 */
-	int update(const MatrixXd& samples, bool reinit = false);
+	int update(const Ref<const MatrixXd> samples, bool reinit = false);
 
 	/**
 	 * @brief Returns the current mean matrix
@@ -586,7 +566,7 @@ private:
 };
 
 /**
- * @brief K-means classifier.
+ * @brief Expectation Maximization With Gaussian Mixture Model
  */
 class ExpMax : public Classifier
 {
@@ -619,8 +599,8 @@ public:
 	 * @param newcovs the new covariance matrices to set in the classifier
 	 * @param tau the prior probaibilities of each of the mixture gaussians
 	 */
-	void updateMeanCovTau(const MatrixXd& newmeans, const MatrixXd& newcovs,
-			const VectorXd& tau);
+	void updateMeanCovTau(const Ref<const MatrixXd> newmeans, const Ref<const MatrixXd> newcovs,
+			const Ref<const VectorXd> tau);
 
 	/**
 	 * @brief Updates the mean and covariance matrices by using a set of
@@ -631,7 +611,7 @@ public:
 	 * Classes should be integers 0 <= c < K where K is the number of classes
 	 * in this.
 	 */
-	void updateMeanCovTau(const MatrixXd samples, const Eigen::VectorXi classes);
+	void updateMeanCovTau(const Ref<const MatrixXd> samples, const Eigen::VectorXi classes);
 
 	/**
 	 * @brief Given a matrix of samples (Samples x Dims, sample on each row),
@@ -641,7 +621,7 @@ public:
 	 *
 	 * @return Vector of classes, rows match up with input sample rows
 	 */
-	Eigen::VectorXi classify(const MatrixXd& samples);
+	Eigen::VectorXi classify(const Ref<const MatrixXd> samples);
 
 	/**
 	 * @brief Given a matrix of samples (Samples x Dims, sample on each row),
@@ -651,7 +631,7 @@ public:
 	 * @param oclass Output classes. This vector will be resized to have the
 	 * same number of rows as samples matrix.
 	 */
-	size_t classify(const MatrixXd& samples, Eigen::VectorXi& oclass);
+	size_t classify(const Ref<const MatrixXd> samples, Eigen::VectorXi& oclass);
 
 	/**
 	 * @brief Updates the classifier with new samples, if reinit is true then
@@ -665,7 +645,7 @@ public:
 	 *
 	 * return 0 if converged, -1 otherwise
 	 */
-	int update(const MatrixXd& samples, bool reinit = false);
+	int update(const Ref<const MatrixXd> samples, bool reinit = false);
 
 
 	/**

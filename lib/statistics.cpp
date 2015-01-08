@@ -191,8 +191,11 @@ void StudentsT::init()
  *
  * @return Struct with Regression Results.
  */
-RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
-		const MatrixXd& Xinv, const StudentsT& distrib)
+RegrResult regress(const Ref<const VectorXd> y,
+		const Ref<const MatrixXd> X,
+		const Ref<const MatrixXd> covInv,
+		const Ref<const MatrixXd> Xinv,
+		const StudentsT& distrib)
 {
 	if(y.rows() != X.rows())
 		throw INVALID_ARGUMENT("y and X matrices row mismatch");
@@ -241,7 +244,8 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X, const MatrixXd& covInv,
  *
  * @return Struct with Regression Results.
  */
-RegrResult regress(const VectorXd& y, const MatrixXd& X)
+RegrResult regress(const Ref<const VectorXd> y,
+		const Ref<const MatrixXd> X)
 {
 	if(y.rows() != X.rows())
 		throw INVALID_ARGUMENT("y and X matrices row mismatch");
@@ -294,7 +298,7 @@ RegrResult regress(const VectorXd& y, const MatrixXd& X)
  *
  * @return Psueodinverse
  */
-MatrixXd pseudoInverse(const MatrixXd& X)
+MatrixXd pseudoInverse(const Ref<const MatrixXd> X)
 {
 	double THRESH = 0.000001;
 	JacobiSVD<MatrixXd> svd(X, Eigen::ComputeThinU | Eigen::ComputeThinV);
@@ -323,7 +327,8 @@ MatrixXd pseudoInverse(const MatrixXd& X)
  * @param nclass Number of classes to break samples up into
  * @param extimated groupings
  */
-void approxKMeans(const MatrixXd& samples, size_t nclass, Eigen::VectorXi& labels)
+void approxKMeans(const Ref<const MatrixXd> samples, size_t nclass,
+		Eigen::VectorXi& labels)
 {
 	DBG1(cerr << "Approximating K-Means" << endl);
 	size_t ndim = samples.cols();
@@ -405,7 +410,8 @@ void approxKMeans(const MatrixXd& samples, size_t nclass, Eigen::VectorXi& label
  * @param nclass Number of classes to break samples up into
  * @param means Estimated mid-points/means
  */
-void approxKMeans(const MatrixXd& samples, size_t nclass, MatrixXd& means)
+void approxKMeans(const Ref<const MatrixXd> samples,
+		size_t nclass, MatrixXd& means)
 {
 	DBG1(cerr << "Approximating K-Means" << endl);
 	size_t ndim = samples.cols();
@@ -487,7 +493,7 @@ void KMeans::setk(size_t ngroups)
  *
  * @param newmeans Matrix with new mean
  */
-void KMeans::updateMeans(const MatrixXd& newmeans)
+void KMeans::updateMeans(const Ref<const MatrixXd> newmeans)
 {
 	if(newmeans.rows() != m_mu.rows() || newmeans.cols() != m_mu.cols()) {
 		throw RUNTIME_ERROR("new mean must have matching size with old!");
@@ -504,7 +510,8 @@ void KMeans::updateMeans(const MatrixXd& newmeans)
  * Classes should be integers 0 <= c < K where K is the number of classes
  * in this.
  */
-void KMeans::updateMeans(const MatrixXd samples, const Eigen::VectorXi classes)
+void KMeans::updateMeans(const Ref<const MatrixXd> samples,
+		const Ref<const Eigen::VectorXi> classes)
 {
 	if(classes.rows() != samples.rows()){
 		throw RUNTIME_ERROR("Rows in sample and group membership vectors "
@@ -546,7 +553,7 @@ void KMeans::updateMeans(const MatrixXd samples, const Eigen::VectorXi classes)
  *
  * @return Vector of classes, rows match up with input sample rows
  */
-Eigen::VectorXi KMeans::classify(const MatrixXd& samples)
+Eigen::VectorXi KMeans::classify(const Ref<const MatrixXd> samples)
 {
 	Eigen::VectorXi out;
 	classify(samples, out);
@@ -563,7 +570,7 @@ Eigen::VectorXi KMeans::classify(const MatrixXd& samples)
  *
  * @return Number of classes that changed
  */
-size_t KMeans::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
+size_t KMeans::classify(const Ref<const MatrixXd> samples, Eigen::VectorXi& classes)
 {
 	if(!m_valid) {
 		throw RUNTIME_ERROR("Error, cannot classify samples because "
@@ -611,7 +618,7 @@ size_t KMeans::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
  *
  * @return -1 if maximum iterations hit, 0 otherwise
  */
-int KMeans::update(const MatrixXd& samples, bool reinit)
+int KMeans::update(const Ref<const MatrixXd> samples, bool reinit)
 {
 	Eigen::VectorXi classes(samples.rows());
 
@@ -661,8 +668,8 @@ void ExpMax::setk(size_t ngroups)
  *
  * @param newmeans Matrix with new mean
  */
-void ExpMax::updateMeanCovTau(const MatrixXd& newmeans, const MatrixXd& newcov,
-		const VectorXd& tau)
+void ExpMax::updateMeanCovTau(const Ref<const MatrixXd> newmeans, const Ref<const MatrixXd> newcov,
+		const Ref<const VectorXd> tau)
 {
 	if(newmeans.rows() != m_mu.rows() || newmeans.cols() != m_mu.cols()) {
 		throw RUNTIME_ERROR("new mean must have matching size with old!"
@@ -690,7 +697,7 @@ void ExpMax::updateMeanCovTau(const MatrixXd& newmeans, const MatrixXd& newcov,
  * Classes should be integers 0 <= c < K where K is the number of classes
  * in this.
  */
-void ExpMax::updateMeanCovTau(const MatrixXd samples, const Eigen::VectorXi classes)
+void ExpMax::updateMeanCovTau(const Ref<const MatrixXd> samples, const Eigen::VectorXi classes)
 {
 	if(classes.rows() != samples.rows()){
 		throw RUNTIME_ERROR("Rows in sample and group membership vectors "
@@ -760,7 +767,7 @@ void ExpMax::updateMeanCovTau(const MatrixXd samples, const Eigen::VectorXi clas
  *
  * @return Vector of classes, rows match up with input sample rows
  */
-Eigen::VectorXi ExpMax::classify(const MatrixXd& samples)
+Eigen::VectorXi ExpMax::classify(const Ref<const MatrixXd> samples)
 {
 	Eigen::VectorXi out;
 	classify(samples, out);
@@ -777,7 +784,7 @@ Eigen::VectorXi ExpMax::classify(const MatrixXd& samples)
  *
  * @return Number of classes that changed
  */
-size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
+size_t ExpMax::classify(const Ref<const MatrixXd> samples, Eigen::VectorXi& classes)
 {
 	if(!m_valid) {
 		throw RUNTIME_ERROR("Error, cannot classify samples because "
@@ -903,7 +910,7 @@ size_t ExpMax::classify(const MatrixXd& samples, Eigen::VectorXi& classes)
  *
  * @return -1 if maximum iterations hit, 0 otherwise
  */
-int ExpMax::update(const MatrixXd& samples, bool reinit)
+int ExpMax::update(const Ref<const MatrixXd> samples, bool reinit)
 {
 	Eigen::VectorXi classes(samples.rows());
 
@@ -1377,7 +1384,7 @@ int fastSearchFindDP(const MatrixXf& samples, double thresh, double outthresh,
 // *
 // * @return Parameters that give the minimum squared error (y - Xb)^2
 // */
-//VectorXd leastSquares(const MatrixXd& X, const VectorXd& y)
+//VectorXd leastSquares(const Ref<const MatrixXd> X, const Ref<const VectorXd> y)
 //{
 //	assert(X.rows() == y.rows());
 //	Eigen::JacobiSVD<MatrixXd> svd;
@@ -1396,7 +1403,7 @@ int fastSearchFindDP(const MatrixXf& samples, double thresh, double outthresh,
 // *
 // * @return Parameters that give the minimum squared error (y - Xb)^2
 // */
-//VectorXd IRLS(const MatrixXd& X, const VectorXd& y, VectorXd& w)
+//VectorXd IRLS(const Ref<const MatrixXd> X, const Ref<const VectorXd> y, VectorXd& w)
 //{
 //	assert(X.rows() == y.rows());
 //	VectorXd beta(X.cols());
@@ -1440,7 +1447,7 @@ int sign(double v)
  *
  * @return Beta vector
  */
-VectorXd activeShootingRegr(const MatrixXd& X, const VectorXd& y, double gamma)
+VectorXd activeShootingRegr(const Ref<const MatrixXd> X, const Ref<const VectorXd> y, double gamma)
 {
 	double THRESH = 0.1;
 //	// Start with least squares
@@ -1532,7 +1539,7 @@ VectorXd activeShootingRegr(const MatrixXd& X, const VectorXd& y, double gamma)
  *
  * @return Beta vector
  */
-VectorXd shootingRegr(const MatrixXd& X, const VectorXd& y, double gamma)
+VectorXd shootingRegr(const Ref<const MatrixXd> X, const Ref<const VectorXd> y, double gamma)
 {
 	double THRESH = 0.1;
 //	// Start with least squares
@@ -1585,7 +1592,7 @@ VectorXd shootingRegr(const MatrixXd& X, const VectorXd& y, double gamma)
  *
  * @return 		RxP matrix, where P is the number of principal components
  */
-MatrixXd pcacov(const MatrixXd& cov, double varth)
+MatrixXd pcacov(const Ref<const MatrixXd> cov, double varth)
 {
 	assert(cov.rows() == cov.cols());
 
@@ -1652,7 +1659,7 @@ MatrixXd pcacov(const MatrixXd& cov, double varth)
  *
  * @return 		RxP matrix, where P is the number of principal components
  */
-MatrixXd pca(const MatrixXd& X, double varth, int odim)
+MatrixXd pca(const Ref<const MatrixXd> X, double varth, int odim)
 {
 	varth=1-varth;
 
@@ -1751,7 +1758,7 @@ double fastICA_dg2(double u)
  *
  * @return 		RxP matrix, where P is the number of independent components
  */
-MatrixXd ica(const MatrixXd& Xin)
+MatrixXd ica(const Ref<const MatrixXd> Xin)
 {
 
 	// remove mean/variance
