@@ -9,4 +9,10 @@ def build(bld):
         export_includes = ['.'],
         use = 'ZLIB FFTW EIGEN optimizers mathexpression')
 
-
+    bld.stlib(target = 'nplDyn', source = 
+        'registration.cpp statistics.cpp utility.cpp ndarray.cpp '
+        'ndarray_utils.cpp slicer.cpp nplio.cpp mrimage.cpp mrimage_utils.cpp '
+        'fract_fft.cpp npltypes.cpp iterators.cpp basic_plot.cpp chirpz.cpp '
+        'ica_helpers.cpp',
+        export_includes = ['.'],
+        use = 'ZLIB FFTW EIGEN optimizersDyn mathexpressionDyn')
