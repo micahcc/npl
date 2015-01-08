@@ -17,11 +17,24 @@ def configure(conf):
     conf.load('compiler_cxx python waf_unit_test')
 
     env = conf.env
+    conf.env.RPATH = []
+    if opts['enable_rpath'] or opts['enable_build_rpath']:
+        conf.env.RPATH.append('$ORIGIN/../lib')
+        conf.env.RPATH.append('$ORIGIN/../deps/mathparse/')
+        conf.env.RPATH.append('$ORIGIN/../deps/optimizers/lib')
+
+    if opts['enable_rpath'] or opts['enable_install_rpath']:
+        conf.env.RPATH.append('$ORIGIN/../lib')
 
     conf.env.LINKFLAGS = ['-lm']
     conf.env.DEFINES = []
     conf.env.CXXFLAGS = ['-Wall', '-Wextra', '-std=c++11', '-Wno-sign-compare']
+    
     conf.env.STATIC_LINK = False
+    if opts['static']:
+        conf.env.LIBPOST = 'Static'
+    else:
+        conf.env.LIBPOST = 'Dyn'
 
     if opts['profile']:
         conf.env.DEFINES.append('DEBUG=1')
@@ -55,10 +68,15 @@ def options(ctx):
 
     gr = ctx.get_option_group('configure options')
     
+    gr.add_option('--enable-rpath', action='store_true', default = False, help = 'Set RPATH to build/install dirs')
+    gr.add_option('--enable-install-rpath', action='store_true', default = False, help = 'Set RPATH to install dir only')
+    gr.add_option('--enable-build-rpath', action='store_true', default = False, help = 'Set RPATH to build dir only')
+
     gr.add_option('--debug', action='store_true', default = False, help = 'Build with debug flags')
     gr.add_option('--profile', action='store_true', default = False, help = 'Build with debug and profiler flags')
     gr.add_option('--release', action='store_true', default = False, help = 'Build with tuned compiler optimizations')
     gr.add_option('--native', action='store_true', default = False, help = 'Build with highly specific compiler optimizations')
+    gr.add_option('--static', action='store_true', default = False, help = 'Statically link programs')
     
 def build(bld):
 

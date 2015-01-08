@@ -1,18 +1,20 @@
 
 def build(bld):
-    
-    bld.stlib(target = 'npl', source = 
+    # unused fract_fft.cpp 
+    bld.stlib(target = 'nplStatic', source = 
         'registration.cpp statistics.cpp utility.cpp ndarray.cpp '
         'ndarray_utils.cpp slicer.cpp nplio.cpp mrimage.cpp mrimage_utils.cpp '
-        'fract_fft.cpp npltypes.cpp iterators.cpp basic_plot.cpp chirpz.cpp '
+        'npltypes.cpp iterators.cpp basic_plot.cpp chirpz.cpp '
         'ica_helpers.cpp',
         export_includes = ['.'],
-        use = 'ZLIB FFTW EIGEN optimizers mathexpression')
+        install_path = '${PREFIX}/lib',
+        use = 'ZLIB FFTW EIGEN optimizersStatic mathexpressionStatic')
 
-    bld.stlib(target = 'nplDyn', source = 
+    bld.shlib(target = 'nplDyn', source = 
         'registration.cpp statistics.cpp utility.cpp ndarray.cpp '
         'ndarray_utils.cpp slicer.cpp nplio.cpp mrimage.cpp mrimage_utils.cpp '
-        'fract_fft.cpp npltypes.cpp iterators.cpp basic_plot.cpp chirpz.cpp '
+        'npltypes.cpp iterators.cpp basic_plot.cpp chirpz.cpp '
         'ica_helpers.cpp',
         export_includes = ['.'],
+        install_path = '${PREFIX}/lib',
         use = 'ZLIB FFTW EIGEN optimizersDyn mathexpressionDyn')

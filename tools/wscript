@@ -1,116 +1,116 @@
 
 def build(bld):
-    
+    npl = 'npl'+bld.env.LIBPOST
 
     # todo rename
     bld.program(target = 'nplCompare',
             source = 'imgcompare.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'nplBiasFieldCorrect',
             source = 'biascorrect.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'nplMotionCorr',
             source = 'motioncorr.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'nplRigidReg',
             source = 'rigidreg.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'nplOrientToTransform',
             source = 'gettransform.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'nplDistortionCorr',
             source = 'distortioncorr.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'nplKMeansSegment',
             install_path='${PREFIX}/tools_incomplete',
             source = 'simplesegment.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'nplDensitySegment',
             install_path='${PREFIX}/tools_incomplete',
             source = 'densitycluster.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'nplMath',
             source = 'math.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'skullstrip',
             install_path='${PREFIX}/tools_incomplete',
             source = 'skullstrip.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'nplReduce4D',
             source = 'treduce.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'deformJacobianMap',
             install_path='${PREFIX}/tools_incomplete',
             source = 'deformJacobianMap.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'nplConvertDeform',
             source = 'convertDeform.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'nplCopyOrientation',
             source = 'copyOrientation.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     ## FMRI
     bld.program(target = 'nplSimFMRI',
             install_path='${PREFIX}/tools_incomplete',
             source = 'sim_fmri.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'nplGLM',
             install_path='${PREFIX}/tools_incomplete',
             source = 'generalLinearModel.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'nplGICA',
             install_path='${PREFIX}/tools_incomplete',
             source = 'fmri_gica2.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'nplGICAsc',
             install_path='${PREFIX}/tools_incomplete',
             source = 'fmri_space_cat_ica.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'nplhd',
             source = 'niiHeader.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'nplTouch',
             source = 'touch.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'nplRemoveRegressors',
             source = 'regressOut.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'nplGuessOrient',
             source = 'guessorient.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 
     bld.program(target = 'nplSelectVolumes',
             source = 'extractTimePoints.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 #
 #    bld.program(target = 'indexMapToOffsetMap',
 #            source = 'indexMapToOffsetMap.cpp',
-#            use = 'npl tclap')
+#            use = [npl, 'tclap'])
 #
     bld.program(target = 'nplApplyDeform',
             source = 'applyDeform.cpp',
-            use = 'npl tclap')
+            use = [npl, 'tclap'])
 #    bld.program(target = 'applyDeform',
 #            source = 'applyDeform.cpp',
-#            use = 'npl tclap')
+#            use = [npl, 'tclap'])
