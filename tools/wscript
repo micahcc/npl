@@ -2,6 +2,10 @@
 def build(bld):
     npl = 'npl'+bld.env.LIBPOST
 
+    bld.program(target = 'nplOLS',
+            source = 'ols.cpp',
+            use = [npl, 'tclap'])
+
     # todo rename
     bld.program(target = 'nplCompare',
             source = 'imgcompare.cpp',
