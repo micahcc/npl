@@ -29,6 +29,7 @@ namespace npl {
 using Eigen::Ref;
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
+using Eigen::VectorXi;
 using Eigen::Matrix3d;
 using Eigen::Vector3d;
 using Eigen::Matrix;

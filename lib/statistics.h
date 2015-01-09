@@ -408,7 +408,7 @@ public:
 	 * @return Vector of classes, rows match up with input sample rows
 	 */
 	virtual
-		Eigen::VectorXi classify(const Ref<const MatrixXd> samples) = 0;
+	Eigen::VectorXi classify(const Ref<const MatrixXd> samples) = 0;
 
 	/**
 	 * @brief Given a matrix of samples (Samples x Dims, sample on each row),
@@ -421,8 +421,7 @@ public:
 	 * @return the number of changed classifications
 	 */
 	virtual
-		size_t classify(const Ref<const MatrixXd> samples,
-				Eigen::VectorXi& oclass) = 0;
+	size_t classify(const Ref<const MatrixXd> samples, Ref<VectorXi> oclass) = 0;
 
 	/**
 	 * @brief Updates the classifier with new samples, if reinit is true then
@@ -519,7 +518,7 @@ public:
 	 *
 	 * @return Vector of classes, rows match up with input sample rows
 	 */
-	Eigen::VectorXi classify(const Ref<const MatrixXd> samples);
+	VectorXi classify(const Ref<const MatrixXd> samples);
 
 	/**
 	 * @brief Given a matrix of samples (Samples x Dims, sample on each row),
@@ -529,8 +528,7 @@ public:
 	 * @param oclass Output classes. This vector will be resized to have the
 	 * same number of rows as samples matrix.
 	 */
-	size_t classify(const Ref<const MatrixXd> samples,
-			Eigen::VectorXi& oclass);
+	size_t classify(const Ref<const MatrixXd> samples, Ref<VectorXi> oclass);
 
 	/**
 	 * @brief Updates the classifier with new samples, if reinit is true then
@@ -603,15 +601,25 @@ public:
 			const Ref<const VectorXd> tau);
 
 	/**
-	 * @brief Updates the mean and covariance matrices by using a set of
-	 * classified points.
+	 * @brief Updates the mean/cov/tau coordinates by using the weighted class
+	 * estimates (rather than hard classification, like the previous)
 	 *
 	 * @param samples Matrix of samples, where each row is an ND-sample.
-	 * @param classes Classes, where rows match the rows of the samples matrix.
-	 * Classes should be integers 0 <= c < K where K is the number of classes
-	 * in this.
+	 * @param prob Probability that each sample is in a given distribution
 	 */
-	void updateMeanCovTau(const Ref<const MatrixXd> samples, const Eigen::VectorXi classes);
+	void updateMeanCovTau(const Ref<const MatrixXd> samples, Ref<MatrixXd> prob);
+
+	/**
+	 * @brief Given a matrix of samples (Samples x Dims, sample on each row),
+	 * apply the classifier to each sample and return a vector of the classes.
+	 *
+	 * @param samples Set of samples, 1 per row
+	 * @param prob Class probability of each sample, for each of the potential
+	 * distributions
+	 *
+	 * @return Change in summed likelihood
+	 */
+	double expectation(const Ref<const MatrixXd> samples, Ref<MatrixXd> prob);
 
 	/**
 	 * @brief Given a matrix of samples (Samples x Dims, sample on each row),
@@ -631,7 +639,7 @@ public:
 	 * @param oclass Output classes. This vector will be resized to have the
 	 * same number of rows as samples matrix.
 	 */
-	size_t classify(const Ref<const MatrixXd> samples, Eigen::VectorXi& oclass);
+	size_t classify(const Ref<const MatrixXd> samples, Ref<VectorXi> oclass);
 
 	/**
 	 * @brief Updates the classifier with new samples, if reinit is true then
@@ -690,6 +698,11 @@ private:
 	 * points that lie within the group
 	 */
 	VectorXd m_tau;
+
+	/**
+	 * @brief Current log likelihood
+	 */
+	double m_ll;
 };
 
 /**

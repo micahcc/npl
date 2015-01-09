@@ -555,7 +555,7 @@ void KMeans::updateMeans(const Ref<const MatrixXd> samples,
  */
 Eigen::VectorXi KMeans::classify(const Ref<const MatrixXd> samples)
 {
-	Eigen::VectorXi out;
+	Eigen::VectorXi out(samples.rows());
 	classify(samples, out);
 	return out;
 }
@@ -570,7 +570,7 @@ Eigen::VectorXi KMeans::classify(const Ref<const MatrixXd> samples)
  *
  * @return Number of classes that changed
  */
-size_t KMeans::classify(const Ref<const MatrixXd> samples, Eigen::VectorXi& classes)
+size_t KMeans::classify(const Ref<const MatrixXd> samples, Ref<VectorXi> classes)
 {
 	if(!m_valid) {
 		throw RUNTIME_ERROR("Error, cannot classify samples because "
@@ -581,8 +581,10 @@ size_t KMeans::classify(const Ref<const MatrixXd> samples, Eigen::VectorXi& clas
 		throw RUNTIME_ERROR("Number of columns does in samples matrix should "
 				"match KMeans classifier, but doesn't");
 	}
-	classes.resize(samples.rows());
-
+	if(classes.rows() != samples.rows()) {
+		throw RUNTIME_ERROR("Number of rows does in samples matrix should "
+				"match # of rows in samples, but doesn't");
+	}
 	size_t change = 0;
 	for(size_t rr=0; rr<samples.rows(); rr++) {
 
@@ -690,71 +692,54 @@ void ExpMax::updateMeanCovTau(const Ref<const MatrixXd> newmeans, const Ref<cons
 }
 
 /**
- * @brief Updates the mean coordinates by providing a set of labeled samples.
+ * @brief Updates the mean/cov/tau coordinates by using the weighted class
+ * estimates (rather than hard classification, like the previous)
  *
  * @param samples Matrix of samples, where each row is an ND-sample.
- * @param classes Classes, where rows match the rows of the samples matrix.
- * Classes should be integers 0 <= c < K where K is the number of classes
- * in this.
+ * @param prob Probability that each sample is in a given distribution
  */
-void ExpMax::updateMeanCovTau(const Ref<const MatrixXd> samples, const Eigen::VectorXi classes)
+void ExpMax::updateMeanCovTau(const Ref<const MatrixXd> samples, Ref<MatrixXd> prob)
 {
-	if(classes.rows() != samples.rows()){
+	if(prob.rows() != samples.rows()){
 		throw RUNTIME_ERROR("Rows in sample and group membership vectors "
+				"must match, but do not!");
+	}
+	if(prob.cols() != m_k){
+		throw RUNTIME_ERROR("Cols in group membership prob vectors and m_k "
 				"must match, but do not!");
 	}
 	if(ndim != samples.cols()){
 		throw RUNTIME_ERROR("Columns in sample vector must match number of "
 				"dimensions, but do not!");
 	}
-	for(size_t ii=0; ii<classes.rows(); ii++) {
-		if(classes[ii] < 0 || classes[ii] >= m_k) {
-			throw RUNTIME_ERROR("Invalid class: "+to_string(classes[ii])+
-					" class must be > 0 and < "+to_string(m_k));
-		}
-	}
 
-#ifdef VERYDEBUG
-	for(size_t cc=0; cc<m_k; cc++) {
-		cerr << "Cluster " << cc << endl;
-		cerr << "[";
-		for(size_t rr = 0; rr < samples.rows(); rr++ ){
-			if(classes[rr] == cc)
-				cerr << "[" << samples.row(rr) << "];\n";
-		}
-		cerr << "]\n";
-	}
-#endif
+	// Compute Tau
+	prob /= prob.sum();
+	m_tau = prob.colwise().sum().transpose();
 
 	// compute mean, store counts in tau
 	m_mu.setZero();
-	m_tau.setZero();
-	size_t total = 0;
 	for(size_t rr = 0; rr < samples.rows(); rr++ ){
-		size_t c = classes[rr];
-		m_mu.row(c) += samples.row(rr);
-		m_tau[c]++;
-		total++;
+		for(size_t cc=0; cc<m_k; cc++) {
+			m_mu.row(cc) += prob(rr, cc)*samples.row(rr);
+		}
 	}
+
 	for(size_t cc=0; cc<m_k; cc++)
 		m_mu.row(cc) /= m_tau[cc];
 
 	// compute covariance
-	VectorXd x(ndim);
 	m_cov.setZero();
+	VectorXd x(ndim);
 	for(size_t rr = 0; rr < samples.rows(); rr++) {
-		assert(classes[rr] < m_k);
-		size_t c = classes[rr];
-		x = samples.row(rr)-m_mu.row(c);
-		m_cov.middleRows(c*ndim, ndim) += (x*x.transpose());
+		for(size_t cc=0; cc<m_k; cc++) {
+			x = (samples.row(rr)-m_mu.row(cc));
+			m_cov.middleRows(cc*ndim, ndim) += prob(rr,cc)*x*x.transpose();
+		}
 	}
-	// normalize covariance
-	for(size_t cc = 0; cc < m_k; cc++)
-		m_cov.middleRows(cc*ndim, ndim) /= (m_tau[cc]-1);
 
-	// convert tau from count to ratio
-	for(size_t cc = 0; cc < m_k; cc++)
-		m_tau[cc] = m_tau[cc]/total;
+	for(size_t cc=0; cc<m_k; cc++)
+		m_cov.middleRows(cc*ndim, ndim) /= m_tau[cc];
 
 	m_valid = true;
 }
@@ -769,7 +754,7 @@ void ExpMax::updateMeanCovTau(const Ref<const MatrixXd> samples, const Eigen::Ve
  */
 Eigen::VectorXi ExpMax::classify(const Ref<const MatrixXd> samples)
 {
-	Eigen::VectorXi out;
+	Eigen::VectorXi out(samples.rows());
 	classify(samples, out);
 	return out;
 }
@@ -784,7 +769,52 @@ Eigen::VectorXi ExpMax::classify(const Ref<const MatrixXd> samples)
  *
  * @return Number of classes that changed
  */
-size_t ExpMax::classify(const Ref<const MatrixXd> samples, Eigen::VectorXi& classes)
+size_t ExpMax::classify(const Ref<const MatrixXd> samples, Ref<VectorXi> classes)
+{
+	if(ndim != samples.cols()){
+		throw RUNTIME_ERROR("Columns in sample vector must match number of "
+				"dimensions, but do not!");
+	}
+	if(classes.rows() != samples.rows()) {
+		throw RUNTIME_ERROR("Number of rows does in samples matrix should "
+				"match # of rows in samples, but doesn't");
+	}
+	MatrixXd prob(samples.rows(), m_k);
+	expectation(samples, prob);
+
+	// Classify Based on Maximum Probability
+	size_t change = 0;
+	for(int pp = 0 ; pp < samples.rows(); pp++) {
+		double max = -INFINITY;
+		int max_class = -1;
+		for(int cc = 0 ; cc < m_k; cc++) {
+			if(prob(pp, cc) > max) {
+				max = prob(pp,cc);
+				max_class = cc;
+			}
+		}
+
+		if(classes[pp] != max_class)
+			change++;
+		classes[pp] = max_class;
+	}
+
+	return change;
+}
+
+/**
+ * @brief Given a matrix of samples (Samples x Dims, sample on each row),
+ * apply the classifier to each sample and return a vector of the classes.
+ *
+ * @param samples Set of samples, 1 per row
+ * @param Class probability of each sample, for each of the potential
+ * distributions
+ * @param classes input/output samples. Returned value indicates number that
+ * changed.
+ *
+ * @return Number of classes that changed
+ */
+double ExpMax::expectation(const Ref<const MatrixXd> samples, Ref<MatrixXd> prob)
 {
 	if(!m_valid) {
 		throw RUNTIME_ERROR("Error, cannot classify samples because "
@@ -795,22 +825,21 @@ size_t ExpMax::classify(const Ref<const MatrixXd> samples, Eigen::VectorXi& clas
 		throw RUNTIME_ERROR("Number of columns does in samples matrix should "
 				"match ExpMax classifier, but doesn't");
 	}
-	classes.resize(samples.rows());
+	prob.resize(samples.rows(), m_k);
 
 	static std::default_random_engine rng;
 
 	Eigen::FullPivHouseholderQR<MatrixXd> qr(ndim, ndim);
-	MatrixXd prob(samples.rows(), m_k);
 	VectorXd x(ndim);
 	MatrixXd Cinv(ndim, ndim);
 	double det = 0;
-	size_t change = 0;
+	double newll = 0;
 	vector<int64_t> zero_tau;
 	zero_tau.reserve(m_k);
 
 	//compute Cholesky decomp, then determinant and inverse covariance matrix
 	for(int cc = 0; cc < m_k; cc++) {
-		cerr << "Covariance:\n" << m_cov.block(cc*ndim, 0, ndim, ndim) << endl;
+		DBG2(cerr<<"Covariance:\n"<<m_cov.block(cc*ndim, 0, ndim, ndim)<<endl);
 		if(m_tau[cc] > 0) {
 			if(ndim == 1) {
 				det = m_cov(0,0);
@@ -837,27 +866,32 @@ size_t ExpMax::classify(const Ref<const MatrixXd> samples, Eigen::VectorXi& clas
 		for(int pp = 0; pp < samples.rows(); pp++) {
 			x = samples.row(pp) - m_mu.row(cc);
 
-			//log likelihood = (note that last part is ignored because it is
-			// constant for all points)
+			//log likelihood =
 			//log(tau) - log(sigma)/2 - (x-mu)^Tsigma^-1(x-mu) - dlog(2pi)/2
 			double llike = cval - .5*(x.dot(Cinv*x));
 
-			llike = (std::isinf(llike) || std::isnan(llike)) ? -INFINITY : llike;
-			prob(pp, cc) = llike;
+			if(std::isinf(llike) || std::isnan(llike))
+				llike =  -INFINITY;
+			else
+				newll += llike;
+			prob(pp, cc) = exp(llike);
 		}
 	}
 
+	for(int pp = 0; pp < samples.rows(); pp++)
+		prob.row(pp) /= prob.row(pp).sum();
 
+	double max = -INFINITY;
+	int max_class = -1;
 	double RANDFACTOR = 10;
 	double reassigned = 0;
 	//place every point in its most probable group
-	std::uniform_int_distribution<int> randi(0, zero_tau.size()-1);
 	std::uniform_real_distribution<double> randf(0, 1);
 	if(zero_tau.size() > 0) {
-		cerr << "Zero Tau, Randomly Assigning Based on Probabilities" << endl;
+		DBG1(cerr<<"Zero Tau, Randomly Assigning Based on Probabilities"<<endl);
 		for(int pp = 0 ; pp < samples.rows(); pp++) {
-			double max = -INFINITY;
-			int max_class = -1;
+			max = -INFINITY;
+			max_class = -1;
 			for(int cc = 0 ; cc < m_k; cc++) {
 				if(prob(pp, cc) > max) {
 					max = prob(pp,cc);
@@ -865,38 +899,32 @@ size_t ExpMax::classify(const Ref<const MatrixXd> samples, Eigen::VectorXi& clas
 				}
 			}
 
-			double p = pow(1-exp(prob(pp, max_class)),RANDFACTOR);
+			double p = pow(1-prob(pp, max_class),RANDFACTOR);
 			bool reassign = randf(rng) < p;
 			if(reassign) {
 				reassigned++;
-//				cerr << "Original p: " << exp(prob(pp, max_class)) << endl;
-//				cerr << "p=" << p << ", " << "Reassigned? " << reassign;
-				max_class = zero_tau[randi(rng)];
-//				cerr << " to " << max_class << endl;
-			}
 
-			if(classes[pp] != max_class)
-				change++;
-			classes[pp] = max_class;
-		}
-		cerr << "Reassigned: " << 100*reassigned/samples.rows() <<"%" << endl;
-	} else {
-		for(int pp = 0 ; pp < samples.rows(); pp++) {
-			double max = -INFINITY;
-			int max_class = -1;
-			for(int cc = 0 ; cc < m_k; cc++) {
-				if(prob(pp, cc) > max) {
-					max = prob(pp,cc);
-					max_class = cc;
+				// Randomly Set Probabilities
+				for(size_t cc=0; cc<m_k; cc++)
+					prob(pp, cc) = randf(rng);
+
+				// Reset Class Based on New Probabilities
+				max = -INFINITY;
+				max_class = -1;
+				for(int cc = 0 ; cc < m_k; cc++) {
+					if(prob(pp, cc) > max) {
+						max = prob(pp,cc);
+						max_class = cc;
+					}
 				}
-			}
 
-			if(classes[pp] != max_class)
-				change++;
-			classes[pp] = max_class;
+			}
 		}
+		DBG1(cerr<<"Reassigned: "<<100*reassigned/samples.rows()<<"%"<< endl);
 	}
-	return change;
+
+	swap(newll, m_ll);
+	return fabs(newll - m_ll);
 }
 
 /**
@@ -912,17 +940,21 @@ size_t ExpMax::classify(const Ref<const MatrixXd> samples, Eigen::VectorXi& clas
  */
 int ExpMax::update(const Ref<const MatrixXd> samples, bool reinit)
 {
+	// each row is a sample, each column represents a class prob
+	Eigen::MatrixXd classprobs(samples.rows(), m_k);
 	Eigen::VectorXi classes(samples.rows());
+	m_ll = std::numeric_limits<double>::lowest();
 
 	// initialize with approximate k-means
 	if(reinit || !m_valid) {
 		approxKMeans(samples, m_k, classes);
-//		cerr << "Randomly Assigning Groups" << endl;
-//		// In real world data random works as well as anything else
-//		for(size_t ii=0; ii < samples.rows(); ii++)
-//			classes[ii] = ii%m_k;
-		cerr << "Updating Mean/Cov/Tau" << endl;
-		updateMeanCovTau(samples, classes);
+		DBG1(cerr<<"Updating Mean/Cov/Tau"<<endl);
+		// Set Probabilities from Classes)
+		classprobs.setZero();
+		for(size_t rr=0; rr<samples.rows(); rr++)
+			classprobs(rr, classes[rr]) = 1;
+
+		updateMeanCovTau(samples, classprobs);
 #ifndef NDEBUG
 		cout << "==========================================" << endl;
 		cout << "Init Distributions: " << endl;
@@ -938,33 +970,34 @@ int ExpMax::update(const Ref<const MatrixXd> samples, bool reinit)
 	m_valid = true;
 
 	// now for the 'real' k-means
-	size_t change = SIZE_MAX;
+	double change = SIZE_MAX;
 	int ii = 0;
 	DBG1(auto c = clock());
-	for(ii=0; ii != maxit && change > 0; ++ii, ++maxit) {
+	for(ii=0; ii != maxit && change > 1; ++ii, ++maxit) {
 		DBG1(c = clock());
-		change = classify(samples, classes);
+		change = expectation(samples, classprobs);
 		DBG1(c = clock() - c);
 		DBG1(cerr << "Classify Time: " << c << endl);
+		DBG1(cerr << "LL="<<m_ll<<" dLL="<<change<<endl);
 
 		DBG1(c = clock());
-		updateMeanCovTau(samples, classes);
+		updateMeanCovTau(samples, classprobs);
 		DBG1(c = clock() -c );
 		DBG1(cerr << "Mean/Cov Time: " << c << endl);
 
 #ifndef NDEBUG
 		cout << "==========================================" << endl;
-		cout << "Changed Labels: " << change << endl;
+		cout << "Changed Prob: " << change << endl;
 		cout << "Current Distributions: " << endl;
 		for(size_t cc=0; cc<m_k; cc++ ) {
 			cout << "Cluster " << cc << ", prob: " << m_tau[cc] << endl;
 			cout << "Mean:\n" << m_mu.row(cc) << endl;
 			cout << "Covariance:\n" <<
-				m_cov.block(cc*ndim, 0, ndim, ndim) << endl << endl;
+				m_cov.middleRows(cc*ndim, ndim) << endl << endl;
 		}
 		cout << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^" << endl;
 #endif
-		cerr << "iter: " << ii << ", " << change << " changed" << endl;
+		cerr<<"iter: "<<ii<<", logl: "<<m_ll<<", dlogl: "<<change<<endl;
 	}
 
 	if(ii == maxit) {
