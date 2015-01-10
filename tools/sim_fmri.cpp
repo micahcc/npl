@@ -134,11 +134,14 @@ int main(int argc, char** argv)
 			"lambda");
 	cmd.xorAdd(a_actrand, a_actfile);
 
-	TCLAP::ValueArg<string> a_oactfile("", "out-act", "Output simulated "
-			"activation map, which may be used as input later. Lines "
+	TCLAP::ValueArg<string> a_oactfile("", "out-spikes", "Output spike "
+			"timing. This may be used as input later (-a). Lines "
 			"(1-... ) correspond to labels. "
 			"Spike times dhould be separated by commans or spaces.",
-			false, "", "*.csv");
+			false, "", "*.csv", cmd);
+	TCLAP::ValueArg<string> a_timeseries("t", "timeseries", "Write BOLD "
+			"timeseries' into CSV file, for instance to do regression on later.",
+			false, "", "*csv", cmd);
 
 	TCLAP::ValueArg<string> a_probmap("p", "probmaps",
 			"Write regional probability maps", false, "", "*.nii.gz", cmd);
@@ -154,7 +157,7 @@ int main(int argc, char** argv)
 			"deviation to apply to each activation region prior to applying "
 			"activation. The mixing should create more realistic 'mixed' "
 			"activations. This won't create significant out-of-GM activation "
-			"due to the limits of anatomy.", false, 5, "mm", cmd);
+			"due to the limits of anatomy.", false, 1, "mm", cmd);
 
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
 			false, "", "*.nii.gz", cmd);
@@ -254,7 +257,7 @@ int main(int argc, char** argv)
 		design[rr] = sampleBOLD(activate[rr], tr*tlen, tr, hdtr, learn);
 		assert(design[rr].size() == tlen);
 
-		if(!a_plot.isSet())
+		if(a_plot.isSet())
 			plotter.addArray(design[rr].size(), design[rr].data());
 
 		for(size_t ii=0; ii<=rr; ii++) {
@@ -269,7 +272,25 @@ int main(int argc, char** argv)
 	cerr<<"Done\n";
 
 	// Write out plot
-	if(!a_plot.isSet()) plotter.write(a_plot.getValue());
+	if(a_plot.isSet()) plotter.write(a_plot.getValue());
+
+	/* Write Out BOLD Timeseries */
+	if(a_timeseries.isSet()) {
+		ofstream ofs(a_timeseries.getValue());
+		if(!ofs.is_open()) {
+			cerr<<"Error, could not open "<<a_timeseries.getValue()
+				<<" for writing"<<endl;
+		} else {
+			for(size_t rr=0; rr<tlen; rr++) {
+				if(rr != 0) ofs << "\n";
+				for(size_t cc=0; cc<nreg; cc++) {
+					if(cc != 0) ofs << ",";
+					ofs << design[cc][rr];
+				}
+			}
+			ofs << "\n";
+		}
+	}
 
 	/* create 4D image where each volume is a label probability */
 	vector<size_t> tmpsize(labelmap->dim(), labelmap->dim()+labelmap->ndim());
