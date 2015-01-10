@@ -1,1 +1,1 @@
-#define __version__ "3.0.3"
+#define __version__ "3.0.4"

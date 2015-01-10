@@ -77,11 +77,11 @@ def build(bld):
             source = 'sim_fmri.cpp',
             use = [npl, 'tclap'])
 
-    bld.program(target = 'nplGLM',
-            install_path='${PREFIX}/tools_incomplete',
-            source = 'generalLinearModel.cpp',
-            use = [npl, 'tclap'])
-
+#    bld.program(target = 'nplGLM',
+#            install_path='${PREFIX}/tools_incomplete',
+#            source = 'generalLinearModel.cpp',
+#            use = [npl, 'tclap'])
+#
     bld.program(target = 'nplGICA',
             install_path='${PREFIX}/tools_incomplete',
             source = 'fmri_gica2.cpp',

@@ -73,7 +73,7 @@ int main(int argc, char* argv[])
 	TCLAP::ValueArg<std::string> a_tscore("t","tscore","Output 4D Image, "
 			"containing t-statistics. One volume per input regressor", false, 
 			"", "4D Image", cmd);
-	
+
 	TCLAP::ValueArg<std::string> a_beta("b","bimg","Output 4D Image, "
 			"containing beta (slope). One volume per input regressor", false, 
 			"", "4D Image", cmd);
@@ -105,12 +105,12 @@ int main(int argc, char* argv[])
 			cerr<<"Regressor rows have different sizes!"<<endl;
 			return -2;
 		}
-				
+
 		for(size_t cc=0; cc<nregr; cc++) {
 			X(rr, cc) = regr[rr][cc];
 		}
 	}
-	
+
 	// Add Intercept
 	for(size_t rr=0; rr<X.rows(); rr++)
 		X(rr, nregr) = 1;
@@ -124,7 +124,13 @@ int main(int argc, char* argv[])
 	auto betaimg = dPtrCast<MRImage>(fmri->createAnother(4, statsz, FLOAT32));
 
 	// Load Each Timeseries and perform regression
+	auto Xinv = pseudoInverse(X);
+	auto covInv = pseudoInverse(X.transpose()*X);
 	VectorXd y(tlen);
+
+	const double MAX_T = 100;
+	const double STEP_T = 0.1;
+	StudentsT distrib(X.rows(), STEP_T, MAX_T);
 
 	RegrResult result;
 	Vector3DIter<double> tit(timg);
@@ -134,7 +140,7 @@ int main(int argc, char* argv[])
 		for(size_t tt=0; tt<tlen; tt++)
 			y[tt] = iit[tt];
 
-		result = regress(y, X);
+		regress(result, y, X, covInv, Xinv, distrib);
 		for(size_t cc=0; cc<nregr; cc++) {
 			tit.set(cc, result.t[cc]);
 			bit.set(cc, result.bhat[cc]);
@@ -143,10 +149,10 @@ int main(int argc, char* argv[])
 
 	if(a_beta.isSet()) 
 		betaimg->write(a_beta.getValue());
-	
+
 	if(a_tscore.isSet()) 
 		timg->write(a_tscore.getValue());
-	
+
 	// done, catch all argument errors
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }

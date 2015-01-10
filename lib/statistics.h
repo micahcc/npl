@@ -238,16 +238,18 @@ private:
  * Returning beta. This is the same as the other regress function, but allows
  * for cacheing of pseudoinverse of X
  *
+ * @param out Struct with Regression Results.
  * @param y response variables
  * @param X independent variables
  * @param covInv Inverse of covariance matrix, to compute us pseudoinverse(X^TX)
  * @param Xinv Pseudo inverse of X. Compute with pseudoInverse(X)
- * @param distrib Pre-computed students' T distribution. Example:
+ * @param student_cdf Pre-computed students' T distribution. Example:
  * auto v = students_t_cdf(X.rows()-1, .1, 1000);
  *
  * @return Struct with Regression Results.
  */
-RegrResult regress(const Ref<const VectorXd> y,
+RegrResult regress(RegrResult& out,
+		const Ref<const VectorXd> y,
 		const Ref<const MatrixXd> X,
 		const Ref<const MatrixXd> covInv,
 		const Ref<const MatrixXd> Xinv,
@@ -261,12 +263,13 @@ RegrResult regress(const Ref<const VectorXd> y,
  * Returning beta. This is the same as the other regress function, but allows
  * for cacheing of pseudoinverse of X
  *
+ * @param out Struct with Regression Results.
  * @param y response variables
  * @param X independent variables
  *
- * @return Struct with Regression Results.
  */
-RegrResult regress(const Ref<const VectorXd> y,
+void regress(RegrResult& out,
+		const Ref<const VectorXd> y,
 		const Ref<const MatrixXd> X);
 
 /**

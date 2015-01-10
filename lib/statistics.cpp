@@ -87,7 +87,7 @@ double StudentsT::cumulative(double t) const
 		std::lower_bound(m_tvals.begin(), m_tvals.end(), t);
 
 	if(it == m_tvals.end()) {
-		cerr << "Warning, effectively 0 p-value returned!" << endl;
+//		cerr << "Warning, effectively 0 p-value returned!" << endl;
 		return 0;
 	}
 
@@ -182,6 +182,7 @@ void StudentsT::init()
  * Returning beta. This is the same as the other regress function, but allows
  * for cacheing of pseudoinverse of X
  *
+ * @param out Struct with Regression Results.
  * @param y response variables
  * @param X independent variables
  * @param covInv Inverse of covariance matrix, to compute us pseudoinverse(X^TX)
@@ -191,7 +192,8 @@ void StudentsT::init()
  *
  * @return Struct with Regression Results.
  */
-RegrResult regress(const Ref<const VectorXd> y,
+RegrResult regress(RegrResult& out,
+		const Ref<const VectorXd> y,
 		const Ref<const MatrixXd> X,
 		const Ref<const MatrixXd> covInv,
 		const Ref<const MatrixXd> Xinv,
@@ -202,7 +204,6 @@ RegrResult regress(const Ref<const VectorXd> y,
 	if(X.rows() != Xinv.cols())
 		throw INVALID_ARGUMENT("X and pseudo inverse of X row mismatch");
 
-	RegrResult out;
 	out.bhat = Xinv*y;
 	out.yhat = X*out.bhat;
 	out.ssres = (out.yhat - y).squaredNorm();
@@ -239,12 +240,13 @@ RegrResult regress(const Ref<const VectorXd> y,
  * Returning beta. This is the same as the other regress function, but allows
  * for cacheing of pseudoinverse of X
  *
+ * @param out Struct with Regression Results.
  * @param y response variables
  * @param X independent variables
  *
- * @return Struct with Regression Results.
  */
-RegrResult regress(const Ref<const VectorXd> y,
+void regress(RegrResult& out,
+		const Ref<const VectorXd> y,
 		const Ref<const MatrixXd> X)
 {
 	if(y.rows() != X.rows())
@@ -253,9 +255,8 @@ RegrResult regress(const Ref<const VectorXd> y,
 	auto Xinv = pseudoInverse(X);
 	auto covInv = pseudoInverse(X.transpose()*X);
 
-	RegrResult out;
 	out.bhat = Xinv*y;
-	out.yhat = out.bhat*X;
+	out.yhat = X*out.bhat;
 	out.ssres = (out.yhat - y).squaredNorm();
 
 	// compute total sum of squares
@@ -286,8 +287,6 @@ RegrResult regress(const Ref<const VectorXd> y,
 		out.t[ii] = t;
 		out.p[ii] = distrib.cdf(t);
 	}
-
-	return out;
 }
 
 
