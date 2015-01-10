@@ -178,9 +178,47 @@ double freqGaussian(double x, double sd)
  * @return weight
  */
 inline
-double hannWindow(double x, double a)
+double hammingWindow(double x, double a)
 {
 	const double alpha = .54;
+	const double beta = 1-alpha;
+	if(fabs(x) < a)
+		return alpha-beta*cos(M_PI*x/a+M_PI);
+	else
+		return 0;
+}
+
+/*
+ * @brief Sinc function centered at 0, with radius a, range should be = 2a.
+ * Zero < -a, > a
+ *
+ * @param x distance from center
+ * @param a radius
+ *
+ * @return weight
+ */
+inline
+double welchWindow(double x, double a)
+{
+	if(fabs(x) < a) {
+		return 1-x*x/(a*a);
+	} else
+		return 0;
+}
+
+/*
+ * @brief Sinc function centered at 0, with radius a, range should be = 2a.
+ * Zero < -a, > a
+ *
+ * @param x distance from center
+ * @param a radius
+ *
+ * @return weight
+ */
+inline
+double hannWindow(double x, double a)
+{
+	const double alpha = .50;
 	const double beta = 1-alpha;
 	if(fabs(x) < a)
 		return alpha-beta*cos(M_PI*x/a+M_PI);
