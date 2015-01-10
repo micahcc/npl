@@ -515,17 +515,17 @@ ptr<NDArray> readNiftiImage(gzFile file, bool verbose, bool makearray,
 			dk = sqrt(dk);
 
 			// set direction and spacing
-			oimage->spacing(0) = sqrt(di);
+			oimage->spacing(0) = di;
 			tmpdirection(0,0) = saffine[4*0+0]/di;
 
 			if(oimage->ndim() > 1) {
-				oimage->spacing(1) = sqrt(dj);
+				oimage->spacing(1) = dj;
 				tmpdirection(0,1) = saffine[4*0+1]/dj;
 				tmpdirection(1,1) = saffine[4*1+1]/dj;
 				tmpdirection(1,0) = saffine[4*1+0]/di;
 			}
 			if(oimage->ndim() > 2) {
-				oimage->spacing(2) = sqrt(dk);
+				oimage->spacing(2) = dk;
 				tmpdirection(0,2) = saffine[4*0+2]/dk;
 				tmpdirection(1,2) = saffine[4*1+2]/dk;
 				tmpdirection(2,2) = saffine[4*2+2]/dk;
