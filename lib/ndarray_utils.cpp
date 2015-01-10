@@ -3076,7 +3076,7 @@ ptr<NDArray> createRandLabels(ptr<const NDArray> example, size_t nlabels, double
 	for(FlatIter<double> bit(best); !bit.eof(); ++bit)
 		bit.set(0);
 
-	for(size_t ii = 0; ii<nlabels; ii++) {
+	for(size_t ii = 0; ii<=nlabels; ii++) {
 		// Create Gaussian Random Field
 		fillGaussian(tmp);
 		for(size_t dd=0; dd<3; dd++)
@@ -3084,8 +3084,10 @@ ptr<NDArray> createRandLabels(ptr<const NDArray> example, size_t nlabels, double
 
 		lit.goBegin();
 		for(FlatIter<double> tit(tmp),bit(best); !tit.eof(); ++tit,++bit,++lit){
-			if(*tit > *bit)
-				lit.set(ii+1);
+			if(*tit > *bit) {
+				lit.set(ii);
+				bit.set(*tit);
+			}
 		}
 	}
 
