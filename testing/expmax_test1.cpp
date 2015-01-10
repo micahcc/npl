@@ -20,6 +20,8 @@
 #include "statistics.h"
 #include "basic_plot.h"
 #include "npltypes.h"
+
+#include <algorithm>
 #include <iostream>
 #include <Eigen/Dense>
 #include <ctime>
@@ -119,48 +121,39 @@ int main()
     /****************************
      * Test output
      ***************************/
-    // align truemean with estmeans
+	// align truemean with estmeans
     Eigen::VectorXi cmap(NCLUSTER);
+	size_t best_misscount = SIZE_MAX;
 	for(size_t ii=0; ii<NCLUSTER; ii++)
 		cmap[ii] = ii;
 
-    double err = 0;
-    for(size_t ii=0; ii<NCLUSTER; ii++) {
-        double best = INFINITY;
-        int bi = ii; 
-        for(size_t jj=0; jj<NCLUSTER; jj++) {
-            double d = (truemean.row(ii)-cluster.getMeans().row(jj)).norm();
-            if(d < best) {
-                best = d;
-                bi = jj;
-            }
-        }
-        err += best;
-        cmap[bi] = ii;
-    }
+	do {
+		size_t misscount = 0;
+		for(size_t ii=0; ii<NSAMPLES; ii++) {
+			if(cmap[oclass[ii]] != trueclass[ii])
+				misscount++;
+		}
+		if(misscount < best_misscount)
+			best_misscount = misscount;
+
+		cerr<<"Misscount: "<<misscount<<endl;
+	} while (std::next_permutation(cmap.data(),cmap.data()+NCLUSTER));
+	double err = (double)best_misscount/NSAMPLES;
 
     cerr << "Class Map: " << cmap.transpose() << endl;
-    
     cerr << "Means:\n";
     for(size_t ii=0; ii<NCLUSTER; ii++) {
         cerr << "True:\n" << truemean.row(cmap[ii]) << endl;
         cerr << "Est:\n" << cluster.getMeans().row(ii) << endl;
     }
     cerr << "Error: " << err/(NDIM*NCLUSTER) << endl;
-   
     cerr << "True Covariance:\n" << truecov << endl << endl;
     cerr << "calc Covariance:\n" << cluster.getCovs() << endl << endl;
 
-    size_t misscount = 0;
-    for(size_t ii=0; ii<NSAMPLES; ii++) {
-        if(cmap[oclass[ii]] != trueclass[ii])
-            misscount++;
-    }
+    cerr << best_misscount << "/" << NSAMPLES << " (" << 
+        (double)best_misscount/NSAMPLES << ") Incorrect" << endl;
 
-    cerr << misscount << "/" << NSAMPLES << " (" << 
-        (double)misscount/NSAMPLES << ") Incorrect" << endl;
-
-    if(err/(NDIM*NCLUSTER) > 0.1) {
+    if(err > 0.1) {
         cerr << "Fail" << endl;
         return -1;
     }
