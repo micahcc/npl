@@ -2,6 +2,10 @@
 def build(bld):
     npl = 'npl'+bld.env.LIBPOST
 
+    bld.program(target = 'nplResample',
+            source = 'resample.cpp',
+            use = [npl, 'tclap'])
+
     bld.program(target = 'nplOLS',
             source = 'ols.cpp',
             use = [npl, 'tclap'])

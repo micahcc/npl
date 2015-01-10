@@ -264,6 +264,8 @@ ptr<MRImage> fft_backward(ptr<const MRImage> in,
  * @brief Performs fourier resampling using fourier transform and the provided
  * window function.
  *
+ * TODO fix for upsampling
+ *
  * Given Lv (input length), Lz (input pad), and Lu (output size),
  * Padded size = Lv + Lz
  * Truncated/Padded Fourier domain = Lv + Lz + Ly (Ly may be negative)
