@@ -199,7 +199,6 @@ public:
 	 */
 	double cdf(double t) const { return cumulative(t); };
 
-
 	/**
 	 * @brief Get the probability density at some t value.
 	 *
@@ -217,6 +216,26 @@ public:
 	 * @return Probability density at t.
 	 */
 	double pdf(double t) const { return density(t); };
+
+	/**
+	 * @brief Get the T-score that corresponds to a particular p-value.
+	 * Alias for tthresh
+	 *
+	 * @param p probability value is less than this
+	 *
+	 * @return T value that matches p.
+	 */
+	double icdf(double t) const;
+
+	/**
+	 * @brief Get the T-score that corresponds to a particular p-value.
+	 * Alias for icdf
+	 *
+	 * @param p probability value is less than this
+	 *
+	 * @return T value that matches p.
+	 */
+	double tthresh(double p) const { return icdf(p); };
 
 private:
 	void init();

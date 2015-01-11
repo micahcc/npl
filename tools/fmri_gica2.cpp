@@ -18,7 +18,6 @@
  *
  *****************************************************************************/
 
-#include <version.h>
 #include <tclap/CmdLine.h>
 #include <string>
 #include <stdexcept>
@@ -26,6 +25,7 @@
 #include <Eigen/Dense>
 #include <Eigen/IterativeSolvers>
 
+#include "version.h"
 #include "ica_helpers.h"
 #include "mrimage.h"
 #include "nplio.h"
@@ -133,7 +133,7 @@ int main(int argc, char** argv)
 	gica.maxiters = a_iters.getValue();
 	gica.maxmem = a_gbram.getValue();
 	gica.spatial = a_spatial_ica.isSet();
-	
+
 	gica.compute(a_time_append.getValue(), a_space_append.getValue(),
 			a_masks.getValue(), a_in.getValue());
 	gica.computeSpatialMaps();

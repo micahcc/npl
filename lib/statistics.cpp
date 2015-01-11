@@ -83,26 +83,23 @@ double StudentsT::cumulative(double t) const
 	}
 
 	double out = 0;
-	vector<double>::const_iterator it =
-		std::lower_bound(m_tvals.begin(), m_tvals.end(), t);
+	auto it = std::upper_bound(m_tvals.begin(), m_tvals.end(), t);
 
 	if(it == m_tvals.end()) {
-//		cerr << "Warning, effectively 0 p-value returned!" << endl;
+#ifndef NDEBUG
+		cerr << "Warning, effectively 0 p-value returned!" << endl;
+#endif
 		return 0;
 	}
+	assert(it != m_tvals.begin());
 
+	// Linear Interpolate
 	int ii = distance(m_tvals.begin(), it);
-	if(ii > 0) {
-		double tp = m_tvals[ii-1];
-		double tn = m_tvals[ii];
-
-		double prev = m_cdf[ii-1];
-		double next = m_cdf[ii];
-		out = prev*(tn-t)/(tn-tp) + next*(t-tp)/(tn-tp);
-	} else {
-		assert(m_cdf[ii] == 0.5);
-		out = m_cdf[ii];
-	}
+	double tp = m_tvals[ii-1];
+	double tn = m_tvals[ii];
+	double prev = m_cdf[ii-1];
+	double next = m_cdf[ii];
+	out = prev*(tn-t)/(tn-tp) + next*(t-tp)/(tn-tp);
 
 	if(negative)
 		return 1-out;
@@ -119,7 +116,7 @@ double StudentsT::density(double t) const
 	}
 
 	double out = 0;
-	vector<double>::const_iterator it = std::lower_bound(m_tvals.begin(),
+	auto it = std::upper_bound(m_tvals.begin(),
 			m_tvals.end(), t);
 	if(it == m_tvals.end()) {
 #ifndef NDEBUG
@@ -127,22 +124,51 @@ double StudentsT::density(double t) const
 #endif
 		return 0;
 	}
+	assert(it != m_tvals.begin());
 
+	// Linear Interpolate
 	int ii = distance(m_tvals.begin(), it);
-	if(ii > 0) {
-		double tp = m_tvals[ii-1];
-		double tn = m_tvals[ii];
-
-		double prev = m_pdf[ii-1];
-		double next = m_pdf[ii];
-		out = prev*(tn-t)/(tn-tp) + next*(t-tp)/(tn-tp);
-	} else {
-		assert(m_pdf[ii] == 0.5);
-		out = m_pdf[ii];
-	}
+	double tp = m_tvals[ii-1];
+	double tn = m_tvals[ii];
+	double prev = m_pdf[ii-1];
+	double next = m_pdf[ii];
+	out = prev*(tn-t)/(tn-tp) + next*(t-tp)/(tn-tp);
 
 	if(negative)
 		return 1-out;
+	else
+		return out;
+};
+
+double StudentsT::icdf(double p) const
+{
+	bool negative = false;
+	if(p < 0.5) {
+		negative = true;
+		p = 1-p;
+	}
+
+	double out = 0;
+	auto it = std::upper_bound(m_cdf.begin(), m_cdf.end(), p);
+
+	if(it == m_cdf.end()) {
+#ifndef NDEBUG
+		cerr << "Warning, effectively infinite t-value returned!" << endl;
+#endif
+		return 0;
+	}
+	assert(it != m_cdf.begin());
+
+	// Linear Interpolate
+	int ii = distance(m_cdf.begin(), it);
+	double tp = m_tvals[ii-1];
+	double tn = m_tvals[ii];
+	double cp = m_cdf[ii-1];
+	double cn = m_cdf[ii];
+	out = tp*(cn-p)/(cn-cp) + tn*(p-cp)/(cn-cp);
+
+	if(negative)
+		return -out;
 	else
 		return out;
 };
@@ -153,24 +179,27 @@ void StudentsT::init()
 	m_pdf.resize(m_tmax/m_dt);
 	m_tvals.resize(m_tmax/m_dt);
 
-	double sum = 0.5;
-	double coeff;
-	if(m_dof%2 == 0) {
-		coeff = 1./(2*sqrt((double)m_dof));
-		for(int ii = m_dof-1; ii >= 3; ii-=2)
-			coeff *= ((double)ii)/(ii-1.);
-	} else {
-		coeff = 1./(M_PI*sqrt((double)m_dof));
-		for(int ii = m_dof-1; ii >= 2; ii-=2)
-			coeff *= ((double)ii)/(ii-1.);
-	}
+	double dof = m_dof;
+	double coeff = tgamma((dof+1)/2)/(sqrt(dof*M_PI)*tgamma(dof/2));
 
-	for(size_t ii = 0; ii*m_dt < m_tmax; ii++) {
+	// Evaluate PDF
+	for(size_t ii=0; ii < m_pdf.size(); ii++) {
 		double t = ii*m_dt;
 		m_tvals[ii] = t;
-		m_pdf[ii] = coeff*pow(1+t*t/m_dof, -(m_dof+1)/2);
-		m_cdf[ii] = sum;
-		sum += m_dt*m_pdf[ii];
+		m_pdf[ii] = coeff*pow(1+t*t/dof, -(dof+1)/2);
+	}
+
+	// Perform Integration with Simpsons Rule
+	m_cdf.front() = 0.5;
+	for(size_t ii = 1; ii<m_cdf.size(); ii++) {
+		// Evaluate Integral Up to ii
+		// int_a^b f(x) dx = (f(a)+4f((a+b)/2)+f(b))(b-a)/6
+		double a = (ii-1)*m_dt;
+		double b = ii*m_dt;
+		double ab2 = (ii-0.5)*m_dt; // (a+b)/2
+		double fab2 = coeff*pow(1+ab2*ab2/dof, -(dof+1)/2); // f((a+b)/2)
+
+		m_cdf[ii] = m_cdf[ii-1] + (m_pdf[ii-1]+ 4*fab2 + m_pdf[ii])*(b-a)/6;
 	}
 };
 
