@@ -1026,7 +1026,7 @@ GICAfmri::GICAfmri(std::string pref)
 	varthresh = 0.99;
 	initbasis = 400;
 	maxiters = -1;
-	maxmem = (1lu<<32); //4gigs
+	maxmem = 4; //gigs
 	verbose = 0;
 	m_status = 0; //unitialized
 	spatial = false; // spatial maps
@@ -1203,7 +1203,8 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 {
 	m_status = -1;
 
-	MatrixReorg reorg(m_pref, (size_t)0.5*maxmem*(1<<27), verbose);
+	size_t ndoubles = (size_t)(0.5*maxmem*(1<<27));
+	MatrixReorg reorg(m_pref, ndoubles, verbose);
 	// Don't use more than half of memory on each block of rows
 	cerr << "Reorganizing data into matrices...";
 	int status = reorg.createMats(tcat, scat, masks, inputs);

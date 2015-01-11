@@ -62,7 +62,7 @@ int main(int argc, char** argv)
 			"s is the value provided by -s).",
 			true, "*.nii.gz", cmd);
 	TCLAP::MultiArg<string> a_masks("m", "mask", "Mask images.",
-			true, "*.nii.gz", cmd);
+			false, "*.nii.gz", cmd);
 
 	TCLAP::ValueArg<string> a_prefix("p", "prefix", "Output "
 			"prefix for ICA significance maps and intermediate data files. "
@@ -74,18 +74,21 @@ int main(int argc, char** argv)
 			true, "./", "/", cmd);
 
 	TCLAP::ValueArg<int> a_time_append("t", "time-concat", "Number of images "
-			"in a rows of time-concatination. ", false, -1,
-			"#vecs", cmd);
+			"in a rows of time-concatination. ", false, 1,
+			"time-columns", cmd);
 	TCLAP::ValueArg<int> a_space_append("s", "space-concat", "Number of images "
-			"in a rows of spatial-concatination. ", false, -1,
-			"#vecs", cmd);
+			"in a rows of spatial-concatination. ", false, 1,
+			"spatial-rows", cmd);
 
-	TCLAP::ValueArg<double> a_evthresh("", "ev-thresh", "Threshold on "
-			"ratio of total variance to account for (default 0.99)",
-			false, 0.1, "ratio", cmd);
-	TCLAP::ValueArg<double> a_varthresh("", "ev-thresh", "Threshold on "
+	TCLAP::ValueArg<double> a_svthresh("", "sv-thresh", "During dimension "
+			"reduction, A singular value will be considered nonzero if its "
+			"value is strictly greater than "
+			"|singular value| < threshold x |max singular value|",
+			false, 0.01, "ratio", cmd);
+	TCLAP::ValueArg<double> a_varthresh("", "var-thresh", "Threshold on "
 			"ratio of total variance to account for (default 0.99)",
 			false, 0.99, "ratio", cmd);
+
 	TCLAP::ValueArg<int> a_simultaneous("V", "simul-vectors", "Simultaneous "
 			"vectors to estimate eigenvectors for in lambda. Bump this up "
 			"if you have convergence issues. This is part of the "
@@ -97,18 +100,18 @@ int main(int argc, char** argv)
 			"in PCA. This sets are hard limit on the number of estimated "
 			"eigenvectors in the Band Lanczos Solver (and thus the maximum "
 			"number of singular values in the SVD. Be wary of making it "
-			"too small). -1 removes limit", false, -1, "#vecs", cmd);
+			"too small). -1 removes limit", false, -1, "iters", cmd);
 	TCLAP::ValueArg<double> a_gbram("M", "memory-max", "Maximum number of GB "
 			"of RAM to use for chunks. This is needed to decide how to divide "
-			"up data into spatial chunks. ", false, -1, "#vecs", cmd);
+			"up data into spatial chunks. ", false, -1, "#GB", cmd);
 
 	TCLAP::SwitchArg a_spatial_ica("S", "spatial-ica", "Perform a spatial ICA"
 			", reducing unmixing timepoints to produce spatially independent "
 			"maps.", cmd);
-	TCLAP::ValueArg<string> a_tmap("T", "t-maps", "Significance of acivation "
-			"throughout the brain. This is computed with Regression for "
-			"temporal ICA, and a Mixture Model for spacial ICA",
-			false, "", "#vecs", cmd);
+//	TCLAP::ValueArg<string> a_tmap("T", "t-maps", "Significance of acivation "
+//			"throughout the brain. This is computed with Regression for "
+//			"temporal ICA, and a Mixture Model for spacial ICA",
+//			false, "", "#vecs", cmd);
 
 	cmd.add(a_verbose);
 	cmd.parse(argc, argv);
@@ -127,12 +130,13 @@ int main(int argc, char** argv)
 //			a_simultaneous.getValue(), a_iters.getValue(), a_gbram.getValue(),
 //			a_spatial_ica.isSet());
 	GICAfmri gica(a_prefix.getValue());
-	gica.evthresh = a_evthresh.getValue();
+	gica.evthresh = a_svthresh.getValue();
 	gica.varthresh = a_varthresh.getValue();
 	gica.initbasis = a_simultaneous.getValue();
 	gica.maxiters = a_iters.getValue();
 	gica.maxmem = a_gbram.getValue();
 	gica.spatial = a_spatial_ica.isSet();
+	gica.verbose = a_verbose.isSet();
 
 	gica.compute(a_time_append.getValue(), a_space_append.getValue(),
 			a_masks.getValue(), a_in.getValue());
