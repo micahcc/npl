@@ -365,6 +365,11 @@ def build(bld):
             use=npl)
 
     bld.program(install_path='${PREFIX}/tests', features='test',
+            target='student_test_cdf',
+            source='student_test_cdf.cpp',
+            use=npl)
+
+    bld.program(install_path='${PREFIX}/tests', features='test',
             target='student_test',
             source='student_test.cpp',
             use=npl)
