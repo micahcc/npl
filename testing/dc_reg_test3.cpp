@@ -94,9 +94,9 @@ int main()
 	// create image with gaussian kernel in it
 	distorted->write("dcrt3_distorted.nii.gz");
 
-	vector<double> sigmas({5, 4, 3, 2, 1, 0.5, 0});
+	vector<double> sigmas({5, 3, 2, 1, 0.5});
 	auto p = infoDistCor(origimg, distorted, false, dir, 10, 0, 0, sigmas,
-			100, 4, "MI");
+			100, 4, "MI", 4, 0.001, 0.1);
 
 	cerr << "True Params:\n" << *b_vw.getParams() << endl;
 	cerr << "Est Params:\n" << *p << endl;
