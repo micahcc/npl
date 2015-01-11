@@ -28,8 +28,7 @@ namespace Eigen {
  *
  * TODO: documentation with usage examples
  * TODO: documentation of settings
- * TODO: template over Matrix Type
- * TODO: Fix for complex Scalars
+ * TODO: Test complex Scalars
  */
 template <typename _MatrixType>
 class TruncatedLanczosSVD
