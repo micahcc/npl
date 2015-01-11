@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file FSFDP_test.cpp Test of the Fast Search and Find of Density Peaks 
+ * @file FSFDP_test.cpp Test of the Fast Search and Find of Density Peaks
  * algorith from Rodriguez et al 2014.
  *
  *****************************************************************************/
@@ -37,7 +37,7 @@ int main(int argc, char** argv)
 	 ***************************/
 	const size_t NCLUSTER = 4;
 	const size_t NDIM = 2;
-	const size_t NSAMPLES = 10000;
+	const size_t NSAMPLES = 1000;
 
 	std::random_device rd;
 	size_t seed = rd();
@@ -58,7 +58,7 @@ int main(int argc, char** argv)
 		samples(ii, 0) = radius*cos(angle);
 		samples(ii, 1) = radius*sin(angle);
 	}
-	
+
 	/*************************************************************************
 	 * Test That Preliminary Parts of algorithms return the same thing
 	 *************************************************************************/
@@ -82,10 +82,10 @@ int main(int argc, char** argv)
 		if(delta1[ii] != delta2[ii]) {
 			cerr << "Mismatched delta:\n";
 			cerr << "Bin Method: " << ii << " Rho: " << rho1[ii] << " Parent: "
-				<< parent1[ii] << " Parent Rho: " << rho1[parent1[ii]] 
+				<< parent1[ii] << " Parent Rho: " << rho1[parent1[ii]]
 				<< " Delta: " << delta1[ii] << endl;
 			cerr << "Brute Method: " << ii << " Rho: " << rho2[ii] << " Parent: "
-				<< parent2[ii] << " Parent Rho: " << rho2[parent2[ii]] 
+				<< parent2[ii] << " Parent Rho: " << rho2[parent2[ii]]
 				<< " Delta: " << delta2[ii] << endl;
 			return -1;
 		}
@@ -125,20 +125,21 @@ int main(int argc, char** argv)
 	Eigen::MatrixXf coincidence(NCLUSTER, maxc+1);
 	coincidence.setZero();
 
-	for(int64_t rr=0; rr<trueclass.rows(); rr++) 
+	for(int64_t rr=0; rr<trueclass.rows(); rr++)
 		coincidence(trueclass[rr], classes[rr])++;
 	cerr << "Coincidence Matrix:\n" << coincidence << endl;
 
 	double ratio = 0;
 	for(size_t rr=0; rr<coincidence.rows(); rr++) {
 		double maxr = 0;
-		for(size_t cc=0; cc<coincidence.rows(); cc++) {
-			double r = coincidence(rr,cc)/(double)NSAMPLES;
+		for(size_t cc=0; cc<coincidence.cols(); cc++) {
+			double r = coincidence(rr,cc);
 			if(r > maxr)
 				maxr = r;
 		}
 		ratio += maxr;
 	}
+	ratio /= NSAMPLES;
 
 	cerr << "Match Percent: " << ratio << endl;
 
@@ -146,12 +147,12 @@ int main(int argc, char** argv)
 		cerr << "Writing classification to " << argv[1] << endl;
 		ofstream ofs(argv[1]);
 		ofs << setw(10) << "Index ";
-		for(size_t cc=0; cc<samples.cols(); cc++) 
+		for(size_t cc=0; cc<samples.cols(); cc++)
 			ofs << setw(10) << cc;
 		ofs << setw(10) << "TrueClass" << setw(10) << "EstClass" << endl;
 		for(size_t rr=0; rr<samples.rows(); rr++) {
 			ofs << rr;
-			for(size_t cc=0; cc<samples.cols(); cc++) 
+			for(size_t cc=0; cc<samples.cols(); cc++)
 				ofs << setw(15) << samples(rr, cc);
 			ofs << setw(15) << trueclass[rr] << setw(15) << classes[rr] << endl;
 		}
