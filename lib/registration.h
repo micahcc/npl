@@ -326,7 +326,7 @@ private:
 	ptr<const MRImage> m_fixed;
 	ptr<const MRImage> m_moving;
 	ptr<MRImage> m_dmoving;
-	
+
 	double m_center[3];
 
 };
@@ -757,12 +757,14 @@ Rigid3DTrans corReg3D(ptr<const MRImage> fixed, ptr<const MRImage> moving,
  *                  with have nbins*nbins)
  * @param binradius During parzen window, the radius of the smoothing kernel
  * @param metric metric to use (default is MI)
+ * @param stopx Smallest step to take, stop after steps reach this size
  *
  * @return          Rigid transform.
  */
 Rigid3DTrans informationReg3D(ptr<const MRImage> fixed,
 		ptr<const MRImage> moving, const std::vector<double>& sigmas,
-		size_t nbins = 128, size_t binradius = 4, std::string metric = "MI");
+		size_t nbins = 128, size_t binradius = 4, std::string metric = "MI",
+		double stopx = 0.001);
 
 /**
  * @brief Information based registration between two 3D volumes. note

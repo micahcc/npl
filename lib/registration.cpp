@@ -140,6 +140,7 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
  * @param nbins number of bins for estimation of marginal pdf's
  * @param binrarius Radius of kernel in pdf density estimation
  * @param metric metric to use (default is MI)
+ * @param stopx Smallest step to take, stop after steps reach this size
  *
  * @return          4x4 Matrix, indicating rotation about the center then
  *                  shift. Rotation matrix is the first 3x3 and shift is the
@@ -147,7 +148,7 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
  */
 Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
 		shared_ptr<const MRImage> moving, const std::vector<double>& sigmas,
-		size_t nbins, size_t binradius, string metric)
+		size_t nbins, size_t binradius, string metric, double stopx)
 {
 	using namespace std::placeholders;
 	using std::bind;
@@ -186,7 +187,7 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
 		// initialize optimizer
 		LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
 		opt.stop_Its = 10000;
-		opt.stop_X = 0.00001;
+		opt.stop_X = stopx;
 		opt.stop_G = 0;
 		opt.stop_F = 0;
 

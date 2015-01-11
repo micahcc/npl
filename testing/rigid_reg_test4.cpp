@@ -40,7 +40,7 @@ double gaussGen(double x, double y, double z, double xsz, double ysz, double zsz
     double v = exp(-pow(xsz/2-x,2)/9)*exp(-pow(ysz/2-y,2)/16)*exp(-pow(zsz/2-z,2)/64);
     if(v > 0.00001)
         return v;
-    else 
+    else
         return 0;
 }
 
@@ -51,7 +51,7 @@ shared_ptr<MRImage> gaussianImage()
     int64_t index[3];
     auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, FLOAT64);
 
-    // fill with a shape that is somewhat unique when rotated. 
+    // fill with a shape that is somewhat unique when rotated.
     OrderIter<double> sit(in);
     double sum = 0;
     while(!sit.eof()) {
@@ -62,7 +62,7 @@ shared_ptr<MRImage> gaussianImage()
         ++sit;
     }
 
-    for(sit.goBegin(); !sit.eof(); ++sit) 
+    for(sit.goBegin(); !sit.eof(); ++sit)
         sit.set(sit.get()/sum);
 
     return in;
@@ -72,15 +72,15 @@ shared_ptr<MRImage> squareImage()
 {
     // create test image
 	int64_t index[3];
-	size_t sz[] = {64, 64, 64};
+	size_t sz[] = {50, 50, 50};
 	auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, FLOAT64);
 
 	// fill with square
 	OrderIter<double> sit(in);
 	while(!sit.eof()) {
 		sit.index(3, index);
-		if(index[0] > sz[0]/4 && index[0] < 2*sz[0]/3 && 
-				index[1] > sz[1]/5 && index[1] < sz[1]/2 && 
+		if(index[0] > sz[0]/4 && index[0] < 2*sz[0]/3 &&
+				index[1] > sz[1]/5 && index[1] < sz[1]/2 &&
 				index[2] > sz[2]/3 && index[2] < 2*sz[2]/3) {
 			sit.set(1);
 		} else {
@@ -106,19 +106,20 @@ int main()
 
 	for(size_t ii=0; ii<3; ii++)
 		shiftImageKern(moved, ii, trueshift[ii]);
-    
+
     // invert
-    for(NDIter<double> it(moved); !it.eof(); ++it) 
+    for(NDIter<double> it(moved); !it.eof(); ++it)
         it.set(-it.get());
-    
+
     cerr << "Input Image:\n" << *img << endl;
     cerr << "Rigidly Transformed Image:\n" << *moved << endl;
 
-    std::vector<double> sigma_schedule({5,3,2,1,0});
-    auto out = informationReg3D(img, moved, sigma_schedule);
+    std::vector<double> sigma_schedule({5,3,2,1,0.5});
+	auto out = informationReg3D(img, moved, sigma_schedule, 128, 4, "MI",
+			0.001);
 	out.toIndexCoords(moved, true);
     cerr << "Final Parameters: " << out << endl;
-	
+
 	for(size_t dd=0; dd<3; dd++) {
 		if(fabs(truerotate[dd] - out.rotation[dd]) > 0.01) {
 			cerr << "Rotate " << dd << " differs!" << endl;
