@@ -85,10 +85,10 @@ int main(int argc, char** argv)
 			"value is strictly greater than "
 			"|singular value| < threshold x |max singular value|",
 			false, 0.01, "ratio", cmd);
-	TCLAP::ValueArg<double> a_deftol("", "def-tol", "Deflation tolerance in "
-			"eigenvalue decomposition of MM*. Larger values will cause faster "
-			"convergence. ", false,
-			std::sqrt(std::numeric_limits<double>::epsilon()), "ratio", cmd);
+	TCLAP::ValueArg<double> a_deftol("", "dtol", "Deflation tolerance in "
+			"eigenvalue computation. Larger values will result in fewer "
+			"singular values. ", false,
+			std::sqrt(std::numeric_limits<double>::epsilon()), "tol", cmd);
 
 	TCLAP::ValueArg<int> a_simultaneous("V", "simul-vectors", "Simultaneous "
 			"vectors to estimate eigenvectors for in lambda. Bump this up "
