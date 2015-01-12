@@ -1,6 +1,6 @@
 
 def build(bld):
-    npl = 'npl'+bld.env.LIBPOST
+    npl = 'npl'+bld.env.LIBPOST+' '
 
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='regex_test',
@@ -500,6 +500,11 @@ def build(bld):
             target='matrix_reorg_test2',
             source='matrix_reorg_test2.cpp',
             use=npl)
+
+    bld.program(install_path='${PREFIX}/tests',  features='test',
+            target='svd_test',
+            source='svd_test.cpp',
+            use=npl+"tclap")
 
     bld.program(install_path='${PREFIX}/tests',  features='test',
             target='big_pca_test1',
