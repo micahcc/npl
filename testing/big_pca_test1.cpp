@@ -44,17 +44,17 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 	size_t totrows = reorg.rows();
 	size_t totcols = reorg.cols();
-	
+
 	MatrixXd full(totrows, totcols);
 
 	size_t currow = 0;
 	for(size_t ii=0; ii<reorg.nwide(); ++ii) {
 		MatMap mat(prefix+to_string(ii));
-		
+
 		full.middleRows(currow, reorg.wideMatRows()[ii]) = mat.mat;
 		currow += reorg.wideMatRows()[ii];
 	}
-	
+
 	// Perform Full SVD
 	cerr<<"Full SVD:"<<full.rows()<<"x"<<full.cols()<<endl;
 	JacobiSVD<MatrixXd> fullsvd(full, ComputeThinU | ComputeThinV);
@@ -69,12 +69,12 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
 		JacobiSVD<MatrixXd> svd(diskmat.mat, ComputeThinU | ComputeThinV);
 		svd.setThreshold(svt);
-		
+
 		cerr << "SVD Rank: " << svd.rank() << endl;
 		Umats[rr] = svd.matrixU().leftCols(svd.rank());
 		Vmats[rr] = svd.matrixV().rightCols(svd.rank());
 		Smats[rr] = svd.singularValues().head(svd.rank());
-		
+
 		outrows += Smats[rr].rows();
 	}
 
@@ -82,14 +82,14 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	MatrixXd mergedEVt(outrows, totcols);
 	currow = 0;
 	for(size_t rr=0; rr<reorg.nwide(); rr++) {
-		mergedEVt.middleRows(currow, Smats[rr].rows()) = 
+		mergedEVt.middleRows(currow, Smats[rr].rows()) =
 			Smats[rr].asDiagonal()*Vmats[rr].transpose();
 		currow += Smats[rr].rows();
 	}
 
 	cerr<<"Merge SVD:"<<mergedEVt.rows()<<"x"<<mergedEVt.cols()<<endl;
 	JacobiSVD<MatrixXd> mergesvd(mergedEVt, ComputeThinU | ComputeThinV);
-	
+
 	cerr<<"Comparing Full S with Merge S"<<endl;
 	const auto& fullS = fullsvd.singularValues();
 	const auto& mergeS = mergesvd.singularValues();
@@ -100,7 +100,7 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 			return -1;
 		}
 	}
-	
+
 	cerr<<"Comparing Full V with Merge V"<<endl;
 	const auto& fullV = fullsvd.matrixV();
 	const auto& mergeV = mergesvd.matrixV();
@@ -122,16 +122,16 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	size_t totrows = reorg.rows();
 	size_t totcols = reorg.cols();
 	size_t curcol = 0;
-	
+
 	// Create Full Matrix to Compare Against
 	MatrixXd full(totrows, totcols);
 	for(size_t ii=0; ii<reorg.ntall(); ++ii) {
 		MatMap mat(prefix+to_string(ii));
-		
+
 		full.middleCols(curcol, reorg.tallMatCols()[ii]) = mat.mat;
 		curcol += reorg.tallMatCols()[ii];
 	}
-	
+
 	// Perform Full SVD
 	cerr<<"Full SVD:"<<full.rows()<<"x"<<full.cols()<<endl;
 	JacobiSVD<MatrixXd> fullsvd(full, ComputeThinU | ComputeThinV);
@@ -146,12 +146,12 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
 		JacobiSVD<MatrixXd> svd(diskmat.mat, ComputeThinU | ComputeThinV);
 		svd.setThreshold(svt);
-		
+
 		cerr << "SVD Rank: " << svd.rank() << endl;
 		Umats[ii] = svd.matrixU().leftCols(svd.rank());
 		Vmats[ii] = svd.matrixV().rightCols(svd.rank());
 		Smats[ii] = svd.singularValues().head(svd.rank());
-		
+
 		outcols += Smats[ii].rows();
 	}
 
@@ -166,7 +166,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 	cerr<<"Merge SVD:"<<mergedUE.rows()<<"x"<<mergedUE.cols()<<endl;
 	JacobiSVD<MatrixXd> mergesvd(mergedUE, ComputeThinU | ComputeThinV);
-	
+
 	cerr<<"Comparing Full S with Merge S"<<endl;
 	const auto& fullS = fullsvd.singularValues();
 	const auto& mergeS = mergesvd.singularValues();
@@ -177,7 +177,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 			return -1;
 		}
 	}
-	
+
 	cerr<<"Comparing Full V with Merge V"<<endl;
 	const auto& fullU = fullsvd.matrixU();
 	const auto& mergeU = mergesvd.matrixU();
@@ -218,24 +218,24 @@ int main()
 				}
 				count++;
 			}
-			
+
 			fn_inputs[rr+cc*nrows] = pref+to_string(cc)+"_"+
 						to_string(rr)+".nii.gz";
 			inputs[rr+cc*nrows]->write(fn_inputs[rr+cc*nrows]);
 		}
 	}
-	
+
 	MatrixReorg reorg(pref, 45000, true);
-	if(reorg.createMats(nrows, ncols, fn_masks, fn_inputs) != 0) 
+	if(reorg.createMats(nrows, ncols, fn_masks, fn_inputs) != 0)
 		return -1;
-	
+
 	// use Matrix
 	if(testWidePCAJoin(reorg, pref+"_wide_", 1e-20) != 0)
 		return -1;
-	
+
 	if(testTallPCAJoin(reorg, pref+"_tall_", 1e-20) != 0)
 		return -1;
-	
+
 
 }
 

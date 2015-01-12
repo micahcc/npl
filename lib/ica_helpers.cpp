@@ -83,7 +83,7 @@ namespace npl {
 //{
 //	// Compute EigenVectors (U)
 //	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
-//	eig.setTraceStop(evthresh);
+//	eig.setDeflationTol(deftol);
 //	eig.compute(XXT, initbasis);
 //
 //	if(eig.info() == Eigen::NoConvergence) {
@@ -161,9 +161,7 @@ namespace npl {
  *
  * @param prefix Directory which should have mat_0, mat_1, ... up to
  * ncols.size()-1
- * @param evthresh Threshold for ratio (0-1) of variance to account for in the
- * original data when reducing dimensions to produce Xorth. This is determines
- * the number of dimensions to keep.
+ * @param svthresh Ratio of sum of eigenvalues to capture.
  * @param initbasis Number of starting basis vectors to initialize the
  * BandLanczos algorithm with. If this is <= 1, one dimension of of XXT will be
  * used.
@@ -178,70 +176,70 @@ namespace npl {
  *
  * @return
  */
-//int spcat_orthog(std::string prefix, double evthresh,
-//		int initbasis, int maxiters, bool rowdims, const std::vector<int>& ncols,
-//		const MatrixXd& XXT, MatrixXd& Xorth)
-//{
-//	// Compute EigenVectors (U)
-//	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
-//	eig.setTraceStop(evthresh);
-//	eig.setMaxIters(maxiters);
-//	eig.compute(XXT, initbasis);
-//
-//	if(eig.info() == Eigen::NoConvergence)
-//		throw RUNTIME_ERROR("Non Convergence of BandLanczosSelfAdjointEigen"
-//				"Solver, try increasing lanczos basis or maxiters");
-//
-//	double minev = sqrt(std::numeric_limits<double>::epsilon());
-//	double sum = 0;
-//	double totalev = eig.eigenvalues().sum();
-//	int eigrows = eig.eigenvalues().rows();
-//	int rank = 0;
-//	VectorXd S(eigrows);
-//	for(int cc=0; cc<eigrows; cc++) {
-//		double v = eig.eigenvalues()[eigrows-1-cc];
-//		if(v > minev && (evthresh<0 || evthresh>1 || sum>totalev*evthresh)) {
-//			S[cc] = std::sqrt(eig.eigenvalues()[eigrows-1-cc]);
-//			rank++;
-//		}
-//		sum += v;
-//	}
-//	S.conservativeResize(rank);
-//
-//	// Computed left singular values (U), reverse order
-//	// A = USV*, A^T = VSU*, V = A^T U S^-1
-//	MatrixXd U(eig.eigenvectors().rows(), rank);
-//	for(int cc=0; cc<rank; cc++)
-//		U.col(cc) = eig.eigenvectors().col(eigrows-1-cc);
-//
-//	if(!rowdims) {
-//		// U is what we need, since each COLUMN represents a dim
-//		Xorth = U;
-//	} else {
-//		// Need V since each ROW represents a DIM, in V each COLUMN will be a
-//		// DIM, which will correspond to a ROW of X
-//		// Compute V = X^T U S^-1
-//		// rows of V correspond to cols of X
-//		size_t totalcols = 0;
-//		for(auto C : ncols) totalcols += C;
-//		Xorth.resize(totalcols, S.rows());
-//
-//		int curr_row = 0;
-//		for(int ii=0; ii<ncols.size(); ii++) {
-//			string fn = prefix+"_mat_"+to_string(ii);
-//			MemMap mmap(fn, ncols[ii]*U.rows()*sizeof(double), false);
-//			if(mmap.size() < 0)
-//				return -1;
-//
-//			Eigen::Map<MatrixXd> X((double*)mmap.data(), U.rows(), ncols[ii]);
-//			Xorth.middleRows(curr_row, ncols[ii]) = X.transpose()*U*
-//						S.cwiseInverse().asDiagonal();
-//
-//			curr_row += ncols[ii];
-//		}
-//	}
-//	return 0;
-//}
+int spcat_orthog(std::string prefix, double svthresh,
+		int initbasis, int maxiters, bool rowdims, const std::vector<int>& ncols,
+		const MatrixXd& XXT, MatrixXd& Xorth)
+{
+	// Compute EigenVectors (U)
+	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
+	eig.setDeflationTol(std::numeric_limits<double>::epsilon());
+	eig.setMaxIters(maxiters);
+	eig.compute(XXT, initbasis);
+
+	if(eig.info() == Eigen::NoConvergence)
+		throw RUNTIME_ERROR("Non Convergence of BandLanczosSelfAdjointEigen"
+				"Solver, try increasing lanczos basis or maxiters");
+
+	double minev = sqrt(std::numeric_limits<double>::epsilon());
+	double sum = 0;
+	double totalev = eig.eigenvalues().sum();
+	int eigrows = eig.eigenvalues().rows();
+	int rank = 0;
+	VectorXd S(eigrows);
+	for(int cc=0; cc<eigrows; cc++) {
+		double v = eig.eigenvalues()[eigrows-1-cc];
+		if(v > minev && (svthresh<0 || svthresh>1 || sum>totalev*svthresh)) {
+			S[cc] = std::sqrt(eig.eigenvalues()[eigrows-1-cc]);
+			rank++;
+		}
+		sum += v;
+	}
+	S.conservativeResize(rank);
+
+	// Computed left singular values (U), reverse order
+	// A = USV*, A^T = VSU*, V = A^T U S^-1
+	MatrixXd U(eig.eigenvectors().rows(), rank);
+	for(int cc=0; cc<rank; cc++)
+		U.col(cc) = eig.eigenvectors().col(eigrows-1-cc);
+
+	if(!rowdims) {
+		// U is what we need, since each COLUMN represents a dim
+		Xorth = U;
+	} else {
+		// Need V since each ROW represents a DIM, in V each COLUMN will be a
+		// DIM, which will correspond to a ROW of X
+		// Compute V = X^T U S^-1
+		// rows of V correspond to cols of X
+		size_t totalcols = 0;
+		for(auto C : ncols) totalcols += C;
+		Xorth.resize(totalcols, S.rows());
+
+		int curr_row = 0;
+		for(int ii=0; ii<ncols.size(); ii++) {
+			string fn = prefix+"_mat_"+to_string(ii);
+			MemMap mmap(fn, ncols[ii]*U.rows()*sizeof(double), false);
+			if(mmap.size() < 0)
+				return -1;
+
+			Eigen::Map<MatrixXd> X((double*)mmap.data(), U.rows(), ncols[ii]);
+			Xorth.middleRows(curr_row, ncols[ii]) = X.transpose()*U*
+						S.cwiseInverse().asDiagonal();
+
+			curr_row += ncols[ii];
+		}
+	}
+	return 0;
+}
 
 /**
  * @brief Computes the the ICA of temporally concatinated images.
@@ -251,7 +249,9 @@ namespace npl {
  * @param maskname Common mask for the all the input images. If empty, then
  * non-zero variance areas will be used.
  * @param prefix Directory to create mat_* files and mask_* files in
- * @param evthresh Threshold for eigenvalues of XXT and singular values. Scale
+ * @param svthresh Threshold for singular values (drop values this ratio of the
+ * max)
+ * @param deftol Threshold for eigenvalues of XXT and singular values. Scale
  * is a ratio from 0 to 1 relative to the total sum of eigenvalues/variance.
  * Infinity will the BandLanczos Algorithm to run to completion and only
  * singular values > sqrt(epsilon) to be kept
@@ -265,7 +265,7 @@ namespace npl {
  *
  */
 MatrixXd tcat_ica(const vector<string>& imgnames,
-		string& maskname, string prefix, double evthresh,
+		string& maskname, string prefix, double svthresh, double deftol,
 		int initbasis, int maxiters, bool spatial)
 {
 	/**********
@@ -310,6 +310,7 @@ MatrixXd tcat_ica(const vector<string>& imgnames,
 	// Compute EigenVectors (U)
 	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
 	eig.setMaxIters(maxiters);
+	eig.setDeflationTol(deftol);
 	eig.compute(XXt, initbasis);
 
 	if(eig.info() == Eigen::NoConvergence)
@@ -317,13 +318,13 @@ MatrixXd tcat_ica(const vector<string>& imgnames,
 				"Solver, try increasing lanczos basis or maxiters");
 
 	double tmp = 0;
-	double totalev = eig.eigenvalues().sum();
+	double maxev = eig.eigenvalues().maxCoeff();
 	int eigrows = eig.eigenvalues().rows();
 	tmp = 0;
 	singvals.resize(eigrows);
 	for(int cc=0; cc<eigrows; cc++) {
 		double v = eig.eigenvalues()[eigrows-1-cc];
-		if(v > MINSV && (evthresh<0 || evthresh>1 || tmp>totalev*evthresh)) {
+		if(v > MINSV && (svthresh<0 || svthresh>1 || v > maxev*svthresh)) {
 			singvals[cc] = std::sqrt(eig.eigenvalues()[eigrows-1-cc]);
 			rank++;
 		}
@@ -372,7 +373,9 @@ MatrixXd tcat_ica(const vector<string>& imgnames,
  * or have missing masks at the end (in which case zero-variance timeseries are
  * assumed to be outside the mask)
  * @param prefix Directory to create mat_* files and mask_* files in
- * @param evthresh Threshold for eigenvalues of XXT and singular values. Scale
+ * @param svthresh Threshold for singular values (drop values this ratio of the
+ * max)
+ * @param deftol Threshold for eigenvalues of XXT and singular values. Scale
  * is a ratio from 0 to 1 relative to the total sum of eigenvalues/variance.
  * Infinity will the BandLanczos Algorithm to run to completion and only
  * singular values > sqrt(epsilon) to be kept
@@ -386,8 +389,8 @@ MatrixXd tcat_ica(const vector<string>& imgnames,
  *
  */
 MatrixXd spcat_ica(bool psd, const vector<string>& imgnames,
-		const vector<string>& masknames, string prefix, double evthresh,
-		int initbasis, int maxiters, bool spatial)
+		const vector<string>& masknames, string prefix, double deftol,
+		double svthresh, int initbasis, int maxiters, bool spatial)
 {
 	/**********
 	 * Input
@@ -477,6 +480,7 @@ MatrixXd spcat_ica(bool psd, const vector<string>& imgnames,
 	// Compute EigenVectors (U)
 	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
 	eig.setMaxIters(maxiters);
+	eig.setDeflationTol(deftol);
 	eig.compute(XXt, initbasis);
 
 	if(eig.info() == Eigen::NoConvergence)
@@ -484,13 +488,13 @@ MatrixXd spcat_ica(bool psd, const vector<string>& imgnames,
 				"Solver, try increasing lanczos basis or maxiters");
 
 	double tmp = 0;
-	double totalev = eig.eigenvalues().sum();
 	int eigrows = eig.eigenvalues().rows();
+	double maxev = eig.eigenvalues().maxCoeff();
 	tmp = 0;
 	singvals.resize(eigrows);
 	for(int cc=0; cc<eigrows; cc++) {
 		double v = eig.eigenvalues()[eigrows-1-cc];
-		if(v > MINSV && (evthresh<0 || evthresh>1 || tmp>totalev*evthresh)) {
+		if(v > MINSV && (svthresh<0 || svthresh>1 || v > maxev*svthresh)) {
 			singvals[cc] = std::sqrt(eig.eigenvalues()[eigrows-1-cc]);
 			rank++;
 		}
@@ -1054,7 +1058,7 @@ void GICAfmri::compute()
 	m_status = -1;
 
 	MatrixReorg reorg(m_pref, (size_t)0.5*maxmem*(1<<27), verbose);
-	cerr<<"Loading existing matrices at prefix \""<<m_pref<<"\"...";
+	cerr<<"Chcking matrices at prefix \""<<m_pref<<"\"...";
 	int status = reorg.loadMats();
 	if(status != 0)
 		throw RUNTIME_ERROR("Error while loading existing 2D Matrices");
@@ -1088,11 +1092,15 @@ void GICAfmri::compute()
 		MatMap tmpmat;
 
 		// Create UE
+		cerr<<"Creating UE ("<<talldata.mat.rows()<<"x"<<svd.rank()<<")"<<endl;
 		tmpmat.create(usname, talldata.mat.rows(), svd.rank());
+		cerr << "Writing UE" << endl;
 		tmpmat.mat = svd.matrixU().leftCols(svd.rank())*
 			svd.singularValues().head(svd.rank());
 
+		cerr<<"Creating V ("<<talldata.mat.cols()<<"x"<<svd.rank()<<")"<<endl;
 		tmpmat.create(vname, talldata.mat.cols(), svd.rank());
+		cerr << "Writing V" << endl;
 		tmpmat.mat = svd.matrixV().leftCols(svd.rank());
 
 		catcols += svd.rank();
@@ -1116,11 +1124,13 @@ void GICAfmri::compute()
 		svd.setThreshold(svthresh);
 		svd.setDeflationTol(deftol);
 		svd.setLanczosBasis(initbasis);
+		cerr << "Computing...";
 		svd.compute(mergedUE, Eigen::ComputeThinU | Eigen::ComputeThinV);
 		if(svd.info() == Eigen::NoConvergence)
 			throw RUNTIME_ERROR("Error computing Merged SVD, might want to "
 					"increase # of lanczos vectors");
 
+		cerr << "Done"<< endl;
 		U = svd.matrixU();
 		E = svd.singularValues();
 		V = svd.matrixV();

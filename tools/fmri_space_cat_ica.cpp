@@ -15,7 +15,7 @@
  *
  * @file fmri_psd_ica.cpp Tool for performing ICA on multiple fMRI images by
  * first concatinating in space. This requires much less memory for the SVD
- * than concatinating in time. For more general usage you can optionally 
+ * than concatinating in time. For more general usage you can optionally
  * perform ICA on Power Spectral Density, which makes the specific time-courses
  * irrelevent, and insteady groups data by frequency.
  *****************************************************************************/
@@ -70,7 +70,7 @@ int main(int argc, char** argv)
 			"Note that LxS values must fit into memory to do this, where L is "
 			"the PCA-reduced dataset and S is the totally number of masked "
 			"spatial locations across all subjects", cmd);
-	
+
 	TCLAP::SwitchArg a_psd("p", "power-spectral-density", "Compute the power "
 			"spectral density of timer-series. The advantage of this is that "
 			"concating in space will work even if the timeseries of the "
@@ -91,15 +91,17 @@ int main(int argc, char** argv)
             "directory. Large intermediate matrices will be written here as "
 			"well as the spatial maps. ", true, "./", "path", cmd);
 
-	TCLAP::ValueArg<double> a_evthresh("T", "ev-thresh", "Threshold on "
-			"ratio of total variance to account for (default 0.99)", false,
+	TCLAP::ValueArg<double> a_svthresh("T", "sv-thresh", "Threshold on "
+			"ratio of largest to smallest singular value. ", false,
 			INFINITY, "ratio", cmd);
+	TCLAP::ValueArg<double> a_deftol("t", "tol", "Deflation tolerance in "
+			"BandLanczos algorithm.", false, INFINITY, "num", cmd);
 	TCLAP::ValueArg<int> a_simultaneous("V", "simul-vectors", "Simultaneous "
 			"vectors to estimate eigenvectors for in lambda. Bump this up "
 			"if you have convergence issues. This is part of the "
 			"Band Lanczos Eigenvalue Decomposition of the covariance matrix. "
 			"By default the covariance size is used, which is conservative. "
-			"Values less than 1 will default back to that", false, -1, 
+			"Values less than 1 will default back to that", false, -1,
 			"#vecs", cmd);
 	TCLAP::ValueArg<int> a_maxrank("R", "max-rank", "Maximum rank of output "
 			"in PCA. This sets are hard limit on the number of estimated "
@@ -109,9 +111,9 @@ int main(int argc, char** argv)
 	cmd.add(a_verbose);
 	cmd.parse(argc, argv);
 
-	spcat_ica(a_psd.isSet(), a_in.getValue(), a_masks.getValue(), 
-			a_workdir.getValue(), a_evthresh.getValue(),
-			a_simultaneous.getValue(), a_maxrank.getValue(), 
+	spcat_ica(a_psd.isSet(), a_in.getValue(), a_masks.getValue(),
+			a_workdir.getValue(), a_deftol.getValue(), a_svthresh.getValue(),
+			a_simultaneous.getValue(), a_maxrank.getValue(),
 			a_spatial.isSet());
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions

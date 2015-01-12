@@ -28,6 +28,7 @@
 #include "npltypes.h"
 #include "mrimage.h"
 #include "utility.h"
+#include "macros.h"
 
 namespace npl {
 
@@ -42,12 +43,14 @@ namespace npl {
  * @param masknames List of masks fo each of the in input image. May be empty
  * or have missing masks at the end (in which case zero-variance timeseries are
  * assumed to be outside the mask)
- * @param workdir Directory to create mat_* files and mask_* files in
- * @param evthresh Threshold for eigenvalues of XXT and singular values. Scale
+ * @param prefix Directory to create mat_* files and mask_* files in
+ * @param svthresh Threshold for singular values (drop values this ratio of the
+ * max)
+ * @param deftol Threshold for eigenvalues of XXT and singular values. Scale
  * is a ratio from 0 to 1 relative to the total sum of eigenvalues/variance.
  * Infinity will the BandLanczos Algorithm to run to completion and only
  * singular values > sqrt(epsilon) to be kept
- * @param lancbasis Basis size of BandLanczos Algorithm. This is used as the
+ * @param initbasis Basis size of BandLanczos Algorithm. This is used as the
  * seed for the Krylov Subspace.
  * @param maxiters Maximum number of iterations for PCA
  * @param spatial Whether to do spatial ICA. Warning this is much more memory
@@ -57,8 +60,9 @@ namespace npl {
  *
  */
 MatrixXd spcat_ica(bool psd, const std::vector<std::string>& imgnames,
-		const std::vector<std::string>& masknames, std::string workdir,
-		double evthresh, int lancbasis, int maxiters, bool spatial);
+		const std::vector<std::string>& masknames, std::string prefix,
+		double deftol, double svthresh, int initbasis, int maxiters,
+		bool spatial);
 
 /**
  * @brief Fill a matrix (nrows x ncols) at the memory location provided by
@@ -220,7 +224,8 @@ public:
 
 	void open(std::string filename)
 	{
-		datamap.openExisting(filename);
+		if(datamap.openExisting(filename) < 0)
+			throw RUNTIME_ERROR("Error opening"+filename);
 
 		size_t* nrowsptr = (size_t*)datamap.data();
 		size_t* ncolsptr = nrowsptr+1;
@@ -233,9 +238,11 @@ public:
 
 	void create(std::string filename, size_t newrows, size_t newcols)
 	{
-		datamap.openNew(filename, 2*sizeof(size_t)+rows*cols*sizeof(double));
 		rows = newrows;
 		cols = newcols;
+		if(datamap.openNew(filename, 2*sizeof(size_t)+
+					rows*cols*sizeof(double)) < 0)
+			throw RUNTIME_ERROR("Error creating "+filename);
 
 		size_t* nrowsptr = (size_t*)datamap.data();
 		size_t* ncolsptr = nrowsptr+1;

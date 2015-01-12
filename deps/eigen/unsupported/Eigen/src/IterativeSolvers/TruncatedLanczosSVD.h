@@ -245,7 +245,7 @@ class TruncatedLanczosSVD
      */
     inline Index cols() const { return m_V.rows(); }
 
-   /**
+    /**
      * @brief Return the pseudo-inverse
      *
      * @return Pseudo-inverse matrix

@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  * @file big_pca_test2.cpp Similar to test1, but with much larger datasets that
- * have space for rank reduction. 
+ * have space for rank reduction.
  *
  *****************************************************************************/
 
@@ -50,11 +50,11 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	MatrixXd full(totrows, totcols);
 	for(size_t ii=0; ii<reorg.nwide(); ++ii) {
 		MatMap mat(prefix+to_string(ii));
-		
+
 		full.middleRows(currow, reorg.wideMatRows()[ii]) = mat.mat;
 		currow += reorg.wideMatRows()[ii];
 	}
-	
+
 	// Perform Full SVD
 	cerr<<"Full SVD:"<<full.rows()<<"x"<<full.cols()<<endl;
 	JacobiSVD<MatrixXd> fullsvd(full, ComputeThinU | ComputeThinV);
@@ -70,13 +70,13 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
 		JacobiSVD<MatrixXd> svd(diskmat.mat, ComputeThinU | ComputeThinV);
 		svd.setThreshold(svt);
-		
+
 		cerr << "SVD Rank: " << svd.rank() << endl;
 		maxrank = std::max<size_t>(maxrank, svd.rank());
 		Umats[rr] = svd.matrixU().leftCols(svd.rank());
 		Vmats[rr] = svd.matrixV().rightCols(svd.rank());
 		Smats[rr] = svd.singularValues().head(svd.rank());
-		
+
 		outrows += Smats[rr].rows();
 	}
 
@@ -84,7 +84,7 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	MatrixXd mergedEVt(outrows, totcols);
 	currow = 0;
 	for(size_t rr=0; rr<reorg.nwide(); rr++) {
-		mergedEVt.middleRows(currow, Smats[rr].rows()) = 
+		mergedEVt.middleRows(currow, Smats[rr].rows()) =
 			Smats[rr].asDiagonal()*Vmats[rr].transpose();
 		currow += Smats[rr].rows();
 	}
@@ -126,16 +126,16 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	size_t totrows = reorg.rows();
 	size_t totcols = reorg.cols();
 	size_t curcol = 0;
-	
+
 	// Create Full Matrix to Compare Against
 	MatrixXd full(totrows, totcols);
 	for(size_t ii=0; ii<reorg.ntall(); ++ii) {
 		MatMap mat(prefix+to_string(ii));
-		
+
 		full.middleCols(curcol, reorg.tallMatCols()[ii]) = mat.mat;
 		curcol += reorg.tallMatCols()[ii];
 	}
-	
+
 	// Perform Full SVD
 	cerr<<"Full SVD:"<<full.rows()<<"x"<<full.cols()<<endl;
 	JacobiSVD<MatrixXd> fullsvd(full, ComputeThinU | ComputeThinV);
@@ -151,13 +151,13 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
 		JacobiSVD<MatrixXd> svd(diskmat.mat, ComputeThinU | ComputeThinV);
 		svd.setThreshold(svt);
-		
+
 		cerr << "SVD Rank: " << svd.rank() << endl;
 		maxrank = std::max<size_t>(maxrank, svd.rank());
 		Umats[ii] = svd.matrixU().leftCols(svd.rank());
 		Vmats[ii] = svd.matrixV().rightCols(svd.rank());
 		Smats[ii] = svd.singularValues().head(svd.rank());
-		
+
 		outcols += Smats[ii].rows();
 	}
 
@@ -172,7 +172,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 	cerr<<"Merge SVD:"<<mergedUE.rows()<<"x"<<mergedUE.cols()<<endl;
 	JacobiSVD<MatrixXd> mergesvd(mergedUE, ComputeThinU | ComputeThinV);
-	
+
 	cerr<<"Comparing Full S with Merge S"<<endl;
 	const auto& fullS = fullsvd.singularValues();
 	const auto& mergeS = mergesvd.singularValues();
@@ -184,7 +184,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 			return -1;
 		}
 	}
-	
+
 	cerr<<"Comparing Full V with Merge V"<<endl;
 	const auto& fullU = fullsvd.matrixU();
 	const auto& mergeU = mergesvd.matrixU();
@@ -215,7 +215,7 @@ int main(int argc, char** argv)
 	size_t timepoints = 50;
 	size_t ncols = 3;
 	size_t nrows = 4;
-	
+
 	size_t numhidden = 10;
 	MatrixXd hidden(timepoints*nrows, numhidden);
 	for(size_t cc=0; cc<hidden.cols(); cc++) {
@@ -233,7 +233,7 @@ int main(int argc, char** argv)
 		masks[cc] = randImage(INT8, 0, 1, 5, 17, 19, 0);
 		fn_masks[cc] = pref+"mask_"+to_string(cc)+".nii.gz";
 		masks[cc]->write(fn_masks[cc]);
-		
+
 		// Add 3 Primary Signals and Make the weights
 		auto weights = randImage(FLOAT64, 0, 1, 5, 17, 19, numhidden);
 
@@ -249,25 +249,25 @@ int main(int argc, char** argv)
 						it.set(tt, wit[ww]*hidden(tt+rr*timepoints, ww)+it[tt]);
 				}
 			}
-			
+
 			fn_inputs[rr+cc*nrows] = pref+to_string(cc)+"_"+
 						to_string(rr)+".nii.gz";
 			inputs[rr+cc*nrows]->write(fn_inputs[rr+cc*nrows]);
 		}
 	}
-	
+
 	MatrixReorg reorg(pref, 500000, true);
-	if(reorg.createMats(nrows, ncols, fn_masks, fn_inputs) != 0) 
+	if(reorg.createMats(nrows, ncols, fn_masks, fn_inputs) != 0)
 		return -1;
-	
+
 	if(testTallPCAJoin(reorg, pref+"_tall_", evthresh) != 0)
 		return -1;
-//
-//	// TODO test with Wide
-//	// use Matrix
-//	if(testWidePCAJoin(reorg, pref+"_wide_", evthresh) != 0)
-//		return -1;
-	
+
+	// TODO test with Wide
+	// use Matrix
+	if(testWidePCAJoin(reorg, pref+"_wide_", evthresh) != 0)
+		return -1;
+
 }
 
 
