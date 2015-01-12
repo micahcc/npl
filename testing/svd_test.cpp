@@ -20,6 +20,7 @@
 #include "version.h"
 #include "statistics.h"
 #include "npltypes.h"
+#include "ica_helpers.h"
 
 #include <iostream>
 #include <iomanip>
@@ -71,6 +72,8 @@ int main(int argc, char** argv)
 	TCLAP::ValueArg<int> a_iters("", "iters", "Maximum number of iterations "
 			"during eigenvalue computation of U or V matrix. Default: -1 "
 			"(max of rows/cols)", false, -1, "iters", cmd);
+	TCLAP::ValueArg<int> a_startvecs("", "nsimul", "Number of simultaneus "
+			"vectors to expand in Kyrlov Subspace. ", false, -1, "#vec", cmd);
 
 	TCLAP::ValueArg<string> a_out("R", "randmat", "Output generated (random) "
 			"matrix.", false, "", "mat.bin", cmd);
@@ -82,7 +85,8 @@ int main(int argc, char** argv)
 	MatrixXd V;
 	VectorXd E;
 	if(a_in.isSet()) {
-
+		MatMap mat(a_in.getValue());
+		A = mat.mat;
 	} else {
 		U.resize(a_rows.getValue(), a_rank.getValue());
 		V.resize(a_cols.getValue(), a_rank.getValue());
@@ -128,10 +132,11 @@ int main(int argc, char** argv)
 
 	}
 
-	cerr<<"Performing SVD"<<endl;
+	cerr<<"Performing SVD ("<<A.rows()<<"x"<<A.cols()<<")"<<endl;
 	Eigen::TruncatedLanczosSVD<MatrixXd> svd;
 	svd.setThreshold(a_svthresh.getValue());
 	svd.setDeflationTol(a_deftol.getValue());
+	svd.setLanczosBasis(a_startvecs.getValue());
 	svd.setMaxIters(a_iters.getValue());
 	svd.compute(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	cerr<<"Done"<<endl;
@@ -162,9 +167,10 @@ int main(int argc, char** argv)
 			err += std::abs(V.col(ii).dot(svd.matrixV().col(ii)))-1;
 		cerr<<"V Error: "<<err<<endl;
 
+		err = 0;
 		for(size_t ii=0; ii<min<int>(V.cols(), svd.rank()); ii++)
 			err += std::abs(svd.singularValues()[ii]-E[ii]);
-		cerr<<"SV Error: "<<err<<endl;
+		cerr<<"S Error: "<<err<<endl;
 	}
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions

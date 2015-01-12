@@ -49,7 +49,7 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 	// Create Full Matrix to Compare Against
 	MatrixXd full(totrows, totcols);
-	for(size_t ii=0; ii<reorg.wideMatRows().size(); ++ii) {
+	for(size_t ii=0; ii<reorg.nwide(); ++ii) {
 		MatMap mat(prefix+to_string(ii));
 
 		full.middleRows(currow, reorg.wideMatRows()[ii]) = mat.mat;

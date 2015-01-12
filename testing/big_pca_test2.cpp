@@ -14,7 +14,8 @@
  * limitations under the License.
  *
  * @file big_pca_test2.cpp Similar to test1, but with much larger datasets that
- * have space for rank reduction.
+ * have space for rank reduction. This test has been replaced by big_pca_test3
+ * which uses truncated SVD
  *
  *****************************************************************************/
 
@@ -68,8 +69,9 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	for(size_t rr=0; rr<reorg.nwide(); rr++) {
 		MatMap diskmat(prefix+to_string(rr));
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
-		JacobiSVD<MatrixXd> svd(diskmat.mat, ComputeThinU | ComputeThinV);
+		JacobiSVD<MatrixXd> svd;
 		svd.setThreshold(svt);
+		svd.compute(diskmat.mat, ComputeThinU | ComputeThinV);
 
 		cerr << "SVD Rank: " << svd.rank() << endl;
 		maxrank = std::max<size_t>(maxrank, svd.rank());
@@ -90,11 +92,15 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	}
 
 	cerr<<"Merge SVD:"<<mergedEVt.rows()<<"x"<<mergedEVt.cols()<<endl;
-	JacobiSVD<MatrixXd> mergesvd(mergedEVt, ComputeThinU | ComputeThinV);
+	JacobiSVD<MatrixXd> mergesvd;
+	mergesvd.setThreshold(svt);
+	mergesvd.compute(mergedEVt, ComputeThinU | ComputeThinV);
 
 	cerr<<"Comparing Full S with Merge S"<<endl;
 	const auto& fullS = fullsvd.singularValues();
 	const auto& mergeS = mergesvd.singularValues();
+	cerr << fullS.transpose() << endl;
+	cerr << mergeS.transpose() << endl;
 	for(size_t ii=0; ii<maxrank; ++ii) {
 		cerr << fullS[ii] << " vs " << mergeS[ii] << endl;
 		if(2*fabs(mergeS[ii] - fullS[ii])/fabs(mergeS[ii]+fullS[ii]) > thresh) {
@@ -149,8 +155,9 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	for(size_t ii=0; ii<reorg.ntall(); ii++) {
 		MatMap diskmat(prefix+to_string(ii));
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
-		JacobiSVD<MatrixXd> svd(diskmat.mat, ComputeThinU | ComputeThinV);
+		JacobiSVD<MatrixXd> svd;
 		svd.setThreshold(svt);
+		svd.compute(diskmat.mat, ComputeThinU | ComputeThinV);
 
 		cerr << "SVD Rank: " << svd.rank() << endl;
 		maxrank = std::max<size_t>(maxrank, svd.rank());
@@ -202,7 +209,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 int main(int argc, char** argv)
 {
-	double evthresh = 0.2;
+	double evthresh = 0.1;
 
 	if(argc == 2)
 		evthresh = atof(argv[1]);
@@ -238,7 +245,7 @@ int main(int argc, char** argv)
 		auto weights = randImage(FLOAT64, 0, 1, 5, 17, 19, numhidden);
 
 		for(size_t rr = 0; rr<nrows; rr++) {
-			inputs[rr+cc*nrows] = randImage(FLOAT64, 0, 1, 5, 17, 19, timepoints);
+			inputs[rr+cc*nrows] = randImage(FLOAT64, 0, 0.01, 5, 17, 19, timepoints);
 
 			// Add primary signals
 			for(size_t ww=0; ww<numhidden; ww++) {
@@ -263,10 +270,10 @@ int main(int argc, char** argv)
 	if(testTallPCAJoin(reorg, pref+"_tall_", evthresh) != 0)
 		return -1;
 
-	// TODO test with Wide
-	// use Matrix
-	if(testWidePCAJoin(reorg, pref+"_wide_", evthresh) != 0)
-		return -1;
+//	// TODO test with Wide
+//	// use Matrix
+//	if(testWidePCAJoin(reorg, pref+"_wide_", evthresh) != 0)
+//		return -1;
 
 }
 
