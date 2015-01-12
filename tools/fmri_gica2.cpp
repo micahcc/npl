@@ -85,9 +85,10 @@ int main(int argc, char** argv)
 			"value is strictly greater than "
 			"|singular value| < threshold x |max singular value|",
 			false, 0.01, "ratio", cmd);
-	TCLAP::ValueArg<double> a_varthresh("", "var-thresh", "Threshold on "
-			"ratio of total variance to account for (default 0.99)",
-			false, 0.99, "ratio", cmd);
+	TCLAP::ValueArg<double> a_deftol("", "def-tol", "Deflation tolerance in "
+			"eigenvalue decomposition of MM*. Larger values will cause faster "
+			"convergence. ", false,
+			std::sqrt(std::numeric_limits<double>::epsilon()), "ratio", cmd);
 
 	TCLAP::ValueArg<int> a_simultaneous("V", "simul-vectors", "Simultaneous "
 			"vectors to estimate eigenvectors for in lambda. Bump this up "
@@ -130,8 +131,8 @@ int main(int argc, char** argv)
 //			a_simultaneous.getValue(), a_iters.getValue(), a_gbram.getValue(),
 //			a_spatial_ica.isSet());
 	GICAfmri gica(a_prefix.getValue());
-	gica.evthresh = a_svthresh.getValue();
-	gica.varthresh = a_varthresh.getValue();
+	gica.svthresh = a_svthresh.getValue();
+	gica.deftol = a_deftol.getValue();
 	gica.initbasis = a_simultaneous.getValue();
 	gica.maxiters = a_iters.getValue();
 	gica.maxmem = a_gbram.getValue();

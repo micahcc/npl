@@ -126,8 +126,8 @@ class TruncatedLanczosSVD
             initrank = m_initbasis;
 
         BandLanczosSelfAdjointEigenSolver<MatrixType> eig;
-        eig.setTraceStop(m_trace_thresh);
         eig.setMaxIters(m_maxiters);
+        eig.setDeflationTol(m_deftol);
         eig.compute(C, initrank);
 
         if(eig.info() == NoConvergence)
@@ -245,6 +245,19 @@ class TruncatedLanczosSVD
      */
     inline Index cols() const { return m_V.rows(); }
 
+   /**
+     * @brief Return the pseudo-inverse
+     *
+     * @return Pseudo-inverse matrix
+     */
+    MatrixType inverse() const
+    {
+        eigen_assert(m_status == 1 && "SVD is not initialized.");
+        eigen_assert(computeU() && computeV() && "SVD::solve() requires both "
+                "unitaries U and V to be computed (thin unitaries suffice).");
+        return m_V*m_singvals.cwiseInverse()*m_U.transpose();
+    }
+
     /**
      * @brief Solve the equation \f[Ax = b\f] for the given b vector and the
      * approximation: \f[ x = VS^{-1}U^*b \f]
@@ -287,33 +300,32 @@ class TruncatedLanczosSVD
     int maxIters() { return m_maxiters; };
 
     /**
-     * @brief Stop band lanczos algorithm after the trace of the estimated
-     * covariance matrix exceeds the ratio of total sum of
-     * eigenvalues. This is passed directly to the underlying
-     * BandLanczosSelfAdjointEigenSolver
+     * @brief Set the tolerance for deflation. Algorithm stops when #of
+     * deflations hits the number of basis vectors. A higher tolerance will
+     * thus cause faster convergence and DOES NOT AFFECT ACCURACY, it may
+     * affect the number of found eigenvalues though. Recommended value is
+     * sqrt(epsilon), approx 1e-8.
      *
-     * @param stop Ratio of variance to account for (0 to 1) with 1 stopping
-     * when ALL the variance has been found and 0 stopping immediately. Set to
-     * INFINITY or NAN to only stop naturally (when the Kyrlov Subspace has
-     * been exhausted).
+     * @param tol Tolerance
      */
-    void setTraceStop(double stop) { m_trace_thresh = stop; };
+    void setDeflationTol(RealScalar tol) { m_deftol = tol; };
 
     /**
-     * @brief Return trace squared stopping condition to default.
+     * @brief Set the default deflation tolerance, which is sqrt of epsilon.
      *
-     * @param Default_t default
+     * @param Default_t d
      */
-    void setTraceStop(Default_t d) { m_trace_thresh = INFINITY; };
+    void setDeflationTol(Default_t d)
+    {
+        m_deftol = sqrt(std::numeric_limits<RealScalar>::epsilon());
+    };
 
     /**
-     * @brief Get stop parameter based on sum of squared eigenvalues.
-     * See setTraceStop()
+     * @brief Get the current deflation tolerance for BandLanczos
      *
-     * @return Get the current stopping condition based on the sum squared
-     * eigenvalues (trace squared)
+     * @return deflation tolerance
      */
-    double traceStop() { return m_trace_thresh; };
+    RealScalar deflationTol() { return m_deftol; }
 
     /**
      * @brief Allows to prescribe a threshold to be used by Lanczos algorithm
@@ -429,8 +441,8 @@ private:
     void init()
     {
         m_initbasis = -1; // <= 0 -> .1*input rows
-        m_sv_thresh = std::numeric_limits<Scalar>::epsilon();
-        m_trace_thresh = INFINITY;
+        m_sv_thresh = std::numeric_limits<RealScalar>::epsilon();
+        m_deftol = std::sqrt(std::numeric_limits<RealScalar>::epsilon());
         m_maxiters = -1;
 
         m_computeU = false;
@@ -458,13 +470,13 @@ private:
      * @brief Stop after this amount of the sum of squared eigenvalues have
      * been found in the MM* or M*M matrix
      */
-    double m_sv_thresh;
+    RealScalar m_sv_thresh;
 
     /**
-     * @brief Stop the BandLanczosSelfAdjointEigenSolver after the given
-     * percent of squared eigenvalues have been found
+    * @brief Deflation tolerance for BandLanczos Algorithm. Larger values will
+    * converge faster, default is epsilon
      */
-    double m_trace_thresh;
+    RealScalar m_deftol;
 
     bool m_computeU;
     bool m_computeV;

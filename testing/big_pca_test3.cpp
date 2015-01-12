@@ -72,7 +72,6 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 		TruncatedLanczosSVD<MatrixXd> svd;
 		svd.setThreshold(svt);
-		svd.setTraceStop(0.95);
 		svd.compute(diskmat.mat, ComputeThinU | ComputeThinV);
 
 		cerr << "SVD Rank: " << svd.rank() << endl;
@@ -96,7 +95,6 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	cerr<<"Merge SVD:"<<mergedEVt.rows()<<"x"<<mergedEVt.cols()<<endl;
 	TruncatedLanczosSVD<MatrixXd> mergesvd;
 	mergesvd.setThreshold(svt);
-	mergesvd.setTraceStop(0.90);
 	mergesvd.compute(mergedEVt, ComputeThinU | ComputeThinV);
 
 	cerr<<"Comparing Full S with Merge S"<<endl;
@@ -159,7 +157,6 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
 		TruncatedLanczosSVD<MatrixXd> svd;
 		svd.setThreshold(svt);
-		svd.setTraceStop(0.95);
 		svd.compute(diskmat.mat, ComputeThinU | ComputeThinV);
 
 		cerr << "SVD Rank: " << svd.rank() << endl;

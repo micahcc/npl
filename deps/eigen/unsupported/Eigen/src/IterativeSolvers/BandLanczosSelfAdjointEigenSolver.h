@@ -246,68 +246,24 @@ public:
      *
      * @param dtol Tolerance for deflation
      */
-    void setDeflationTol(double dtol) { m_deflation_tol = dtol; };
+    void setDeflationTol(RealScalar dtol) { m_deflation_tol = dtol; };
+
+    /**
+     * @brief Set the default deflation tolerance, which is sqrt of epsilon.
+     *
+     * @param Default_t d
+     */
+    void SetDeflationTol(Default_t d)
+    {
+        m_deflation_tol = sqrt(std::numeric_limits<RealScalar>::epsilon());
+    };
 
     /**
      * @brief Get the tolerance for deflation. See setDeflationTol()
      *
      * @return dtol Tolerance for deflation
      */
-    double getDeflationTol() { return m_deflation_tol; };
-
-    /**
-     * @brief Stop after the trace of the similar matrix (T^2) exceeds the
-     * ratio of total sum of squared eigenvalues.
-     *
-     * @param stop fraction (0 to 1) with 1 stopping when ALL the variance has
-     * been found and 0 stopping immediately. Set to INFINITY or NAN to only
-     * stop naturally (when the Kyrlov Subspace has been exhausted).
-     */
-    void setTraceSqrStop(double stop) { m_tracesqr_stop = stop; };
-
-    /**
-     * @brief Return trace squared stopping condition to default.
-     *
-     * @param Default_t default
-     */
-    void setTraceSqrStop(Default_t d) { m_tracesqr_stop = INFINITY; };
-
-    /**
-     * @brief Get stop parameter based on sum of squared eigenvalues.
-     * See setTraceSqrStop()
-     *
-     * @return Get the current stopping condition based on the sum squared
-     * eigenvalues (trace squared)
-     */
-    double traceSqrStop() { return m_tracesqr_stop; };
-
-    /**
-     * @brief Stop after the trace of the similar matrix exceeds the
-     * ratio of total sum of eigenvalues. This is faster than trace squared
-     * but the matrix must have all positive eigenvalues for it to work.
-     *
-     * @param stop fraction (0 to 1) with 1 stopping when ALL the variance has
-     * been found and 0 stopping immediately. Set to INFINITY or NAN to only
-     * stop naturally (when the Kyrlov Subspace has been exhausted).
-     */
-    void setTraceStop(double stop) { m_trace_stop = stop; };
-
-    /**
-     * @brief Return trace squared stopping condition to default.
-     *
-     * @param Default_t default
-     */
-    void setTraceStop(Default_t d) { m_trace_stop = INFINITY; };
-
-    /**
-     * @brief Get stop parameter based on sum of sum of eigenvalues. This is
-     * a specialized version of traceSqrStop for when it is known that the
-     * matrix is postive definite.
-     *
-     * @return Get the current stopping condition based on the sum
-     * of eigenvalues (equal to the trace)
-     */
-    double traceStop() { return m_trace_stop; };
+    RealScalar DeflationTol() { return m_deflation_tol; };
 
     /**
      * @brief Maximum number of iterations to perform in the
@@ -340,8 +296,6 @@ private:
         m_status = 0;
         m_maxiters= -1;
         m_deflation_tol = std::sqrt(std::numeric_limits<double>::epsilon());
-        m_tracesqr_stop = INFINITY;
-        m_trace_stop = INFINITY;
     };
 
     /**
@@ -377,17 +331,6 @@ private:
      */
     void _compute(const Ref<const MatrixType>& A)
     {
-        Scalar fulltracesq = INFINITY;
-        if(!isinf(m_tracesqr_stop) && !isnan(m_tracesqr_stop)) {
-            fulltracesq = (A.transpose()*A).trace();
-        }
-
-        Scalar runtrace = 0;
-        Scalar fulltrace = INFINITY;
-        if(!isinf(m_trace_stop) && !isnan(m_trace_stop)) {
-            fulltrace = A.trace();
-        }
-
         EigenVectorType& V = m_proj;
 
         // I in text, the iterators to nonzero rows of T(d) as well as the index
@@ -521,24 +464,8 @@ private:
                 approx(jj, *kk) = internal::conj(approx(*kk, jj));
             }
 
-            // Compute Trace of M**2 if a stopping point was set based on the
-            // total squared eigenvalue sum
-            if(!std::isinf(fulltracesq)) {
-                Scalar varsum = (approx.topLeftCorner(jj+1,jj+1)*
-                        approx.topLeftCorner(jj+1,jj+1)).trace();
-
-                if(std::abs(varsum) > std::abs(m_tracesqr_stop*fulltracesq))
-                    break;
-            }
-
-            // Compute Trace of M**2 if a stopping point was set based on the
-            // total squared eigenvalue sum
-            if(!std::isinf(fulltrace)) {
-                runtrace += approx(jj+1, jj+1);
-                if(std::abs(runtrace) > std::abs(m_trace_stop*fulltrace))
-                    break;
-            }
-
+            // TODO EVALUATE EIGENVALUES/VECTORS, DETERMINE IF THEY ARE
+            // ACCURATE ENOUGH
             jj++;
         }
 
@@ -575,20 +502,6 @@ private:
      * sqrt(epsilon), which is the default
      */
     double m_deflation_tol;
-
-    /**
-     * @brief Stop after the trace of the squared similar matrix (T^2) exceeds
-     * some ratio of the total squared eigenvalues (trace of the squared input
-     * matrices)
-      */
-    double m_tracesqr_stop;
-
-    /**
-     * @brief Stop after the trace of the similar matrix exceeds the ratio of
-     * the input matrices trace. This could be used to stop after the sum of
-     * found eigenvalues exceeds some percent of the total.
-     */
-    double m_trace_stop;
 
     EigenValuesType m_evals;
     EigenVectorType m_evecs;

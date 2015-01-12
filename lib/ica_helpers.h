@@ -147,7 +147,7 @@ public:
 			const std::vector<std::string>& filenames);
 
 	/**
-	 * @brief Loads existing matrices by first reading ${prefix}_tall_0, 
+	 * @brief Loads existing matrices by first reading ${prefix}_tall_0,
 	 * ${prefix}_wide_0, and ${prefix}_mask_*, and checking that all the dimensions
 	 * can be made to match (by loading the appropriate number of matrices/masks).
 	 *
@@ -203,7 +203,7 @@ public:
 	bool m_verbose;
 	vector<int> m_outrows;
 	vector<int> m_outcols;
-	size_t m_maxdoubles; 
+	size_t m_maxdoubles;
 };
 
 class MatMap
@@ -272,16 +272,15 @@ public:
 	GICAfmri(std::string pref) ;
 
 	/**
-	 * @brief Cutoff threshold for eigenvalues (ratio of maximum), everything
-	 * below this will be ignored
+	 * @brief Cutoff threshold for singular values (ratio of maximum),
+	 * everything below this will be ignored (treated as 0)
 	 */
-	double evthresh;
+	double svthresh;
 
 	/**
-	 * @brief Total variance to explain with SVD/PCA, 0.9 will try to find 90%
-	 * of the variance, 0.99 will find 99%
+	 * @brief Deflation tolerance in BandLanczos.
 	 */
-	double varthresh;
+	double deftol;
 
 	/**
 	 * @brief lancvec Number of lanczos vectors to initialize SVD/BandLanczos Eigen
@@ -296,7 +295,7 @@ public:
 	int maxiters;
 
 	/**
-	 * @brief Maximum number of gigabytes of memory to use 
+	 * @brief Maximum number of gigabytes of memory to use
 	 */
 	double maxmem;
 
@@ -304,7 +303,7 @@ public:
 	 * @brief Print more information
 	 */
 	int verbose;
-	
+
 	/**
 	 * @brief Whether to perform spatial ICA (rather than temporal)
 	 */
@@ -312,7 +311,7 @@ public:
 
 	/**
 	 * @brief Compute ICA for the given group, using existing tall/wide mats
-	 * 
+	 *
 	 * The basic idea is to split the rows into digesteable chunks, then
 	 * perform the SVD on each of them.
 	 *
@@ -341,7 +340,7 @@ public:
 	/**
 	 * @brief Compute ICA for the given group, defined by tcat x scat images
 	 * laid out in column major ordering.
-	 * 
+	 *
 	 * The basic idea is to split the rows into digesteable chunks, then
 	 * perform the SVD on each of them.
 	 *
@@ -363,14 +362,14 @@ public:
 	 * @param inputs Files in time-major order, [s0t0 s0t1 s0t2 s1t0 s1t1 s1t2]
 	 * where s0 means 0th space-appended image, and t0 means the same for time
 	 */
-	void compute(size_t tcat, size_t scat, std::vector<std::string> masks, 
+	void compute(size_t tcat, size_t scat, std::vector<std::string> masks,
 			vector<std::string> inputs);
 
 	void computeSpatialMaps();
 
 private:
 	std::string m_pref;
-	
+
 	int m_status;
 };
 

@@ -309,7 +309,6 @@ MatrixXd tcat_ica(const vector<string>& imgnames,
 
 	// Compute EigenVectors (U)
 	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
-	eig.setTraceStop(evthresh);
 	eig.setMaxIters(maxiters);
 	eig.compute(XXt, initbasis);
 
@@ -477,7 +476,6 @@ MatrixXd spcat_ica(bool psd, const vector<string>& imgnames,
 
 	// Compute EigenVectors (U)
 	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
-	eig.setTraceStop(evthresh);
 	eig.setMaxIters(maxiters);
 	eig.compute(XXt, initbasis);
 
@@ -1022,8 +1020,8 @@ void fillMatPSD(double* rawdata, size_t nrows, size_t ncols,
 GICAfmri::GICAfmri(std::string pref)
 {
 	m_pref = pref;
-	evthresh = 0.1;
-	varthresh = 0.99;
+	svthresh = 0.1;
+	deftol = sqrt(std::numeric_limits<double>::epsilon());
 	initbasis = 400;
 	maxiters = -1;
 	maxmem = 4; //gigs
@@ -1072,8 +1070,8 @@ void GICAfmri::compute()
 
 		cerr<<"Chunk SVD:"<<talldata.mat.rows()<<"x"<<talldata.mat.cols()<<endl;
 		Eigen::TruncatedLanczosSVD<MatrixXd> svd;
-		svd.setThreshold(evthresh);
-		svd.setTraceStop(varthresh);
+		svd.setThreshold(svthresh);
+		svd.setDeflationTol(deftol);
 		svd.setLanczosBasis(initbasis);
 		svd.compute(talldata.mat, Eigen::ComputeThinU | Eigen::ComputeThinV);
 		if(svd.info() == Eigen::NoConvergence)
@@ -1115,8 +1113,8 @@ void GICAfmri::compute()
 	VectorXd E;
 	{
 		Eigen::TruncatedLanczosSVD<MatrixXd> svd;
-		svd.setThreshold(evthresh);
-		svd.setTraceStop(varthresh);
+		svd.setThreshold(svthresh);
+		svd.setDeflationTol(deftol);
 		svd.setLanczosBasis(initbasis);
 		svd.compute(mergedUE, Eigen::ComputeThinU | Eigen::ComputeThinV);
 		if(svd.info() == Eigen::NoConvergence)
