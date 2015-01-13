@@ -90,6 +90,230 @@ class TruncatedLanczosSVD
     };
 
     /**
+     * @brief Band Lanczos Methof for Hessian Positive Definite Matrices
+     *
+	 * Input A, R
+	 *
+     * @param A Matrix to decompose
+	 * @param initrank initial rank to start with
+	 * @param save_V save the eigenvectors in m_V (if false then saves in m_U)
+     */
+    void _compute(const Ref<const MatrixType>& A, int initrank, bool save_V)
+    {
+		// Generate Initial Vectors
+		std::list<VectorXd> V;
+		for(size_t rr=0; rr<initrank; rr++) {
+			V.push_back(VectorXd());
+			V.back().resize(A.rows());
+			V.back().setRandom();
+			V.back().normalize();
+		}
+
+		// Radius of Band/Current Candidate Vectors
+		int mc = initrank;
+
+		std::list<int> deflated; // list of deflated indexes, matching Vdef
+		std::list<VectorType> Vdef; // list of deflated vectors (Vdef)
+		double A_norm = 1; // Keep at 1 for initial
+
+		// Iterator Matching nn
+        vector<double> Delta;
+		std::list<VectorXd>::iterator vn_it = V.begin();
+        std::list<VectorXd>::iterator vj_it;
+        std::list<VectorXd>::iterator pj_it;
+		std::list<int>::iterator def_it;
+		std::list<double>::iterator delta_it;
+		for(int nn=0; (m_maxiters < 0 || nn<m_maxiters) ; nn++, ++vn_it) {
+
+            // (3) compute ||v_j||
+            double vn_norm = vn_it->norm();
+
+            /*******************************************************************
+             * Perform Deflation until we find a large enough column of V
+             ******************************************************************/
+            while(vn_norm < m_deflation_tol*A_norm) {
+                // If Vj was NOT one of the original candidates, add to the
+                // most recent Krylov column to the list of deflated, IE if we
+                // are at A^2R_2 then deflate A^1R_2
+                if(nn >= mc) {
+                    deflated.push_back(nn-mc);
+
+                    // Move V_{n} from V to V_{def}
+					vj_it = vn_it;
+                    vn_it++;
+                    vdef.splice(vdef.end(), V, vj_it);
+                } else {
+                    vn_it = V.erase(vn_it);
+                }
+
+                mc--;
+				if(mc == 0) {
+					assert(vn_it == V.end());
+					break;
+				}
+                vn_norm = vn_it->norm();
+             }
+
+			// Normalize V_n
+			*vn_it /= vn_norm;
+
+			if(nn >= mc) {
+				// current length: = n-1, need to go to index n-m_c
+				delta_it = delta.end();
+				std::advance(delta_it, -mc+1);
+				assert(nn != mc || delta_it == delta.begin());
+				U[std::make_pair(nn-mc, nn)] = vn_norm/(*delta_it);
+			} else {
+				rho[std::make_pair(n,n, nn-mc+initrank)] = vn_norm;
+			}
+
+			// If this is the last in the starting block, set m1
+			if(nn+1 == mc) {
+				m1 = mc; // number of non-deflated starting vectors
+
+				// Compute estimate of A_norm
+				A_norm = 0;
+				for(pj_it = P.begin(); pj_it != P.end(); ++pj_it) {
+					A_norm = max(A_norm, A*(*pj_it)/pj_it->norm());
+				}
+			}
+
+			// Orthogonalize the vectors v_{n+j}, 1<=j<mc against vn
+			// this is all the remaining candidate vectors
+			vj_it = vn_it; vj_it++;
+			for(int jj=nn+1; vj_it != V.end() jj++, ++vj_it) {
+				double tau = vn_it->dot(*vj_it);
+				*vj_it -= tau*(*vn_it);
+
+				if(jj >= mc) {
+					// delta_it was already = n-m_mc
+					++delta_it;
+					assert(delta_it != delta.end());
+					U[std::make_pair(jj-mc, nn)] = tau/(*delta_it);
+				} else {
+					rho[std::make_pair(nn, jj+initrank-mc)] = tau;
+				}
+			}
+			assert(delta_it == delta.end() && vj_it == V.end());
+
+			// Update the Spiked Part of U_n
+			delta_it = delta.begin();
+			int ii = 0; // use to find matching deltas
+			for(vj_it=Vdef.begin(), def_it=deflated.begin(); vj_it!=Vdef.end();
+						++def_it, ++vj_it) {
+				// Find j delta_j, for j \in I
+				while(delta_t != delta.end() && ii != *def_it) {
+					++ii
+					++delta_it
+				}
+
+				double tau = vn_it->dot(*vj_it)/(*delta_it);
+				U[std::make_pair(*def_it, nn)] = tau;
+			}
+
+			// Compute the vector P_n
+			P.push_back(*vn_it);
+
+			// subtract p_j u_jn for j in I
+			ii = 0;
+			pj_it = P.begin();
+			for(def_it=deflated.begin(); def_it!=deflated.end(); ++def_it) {
+				// Find j p_j, for j \in I
+				while(pj_it != P.end() && ii != *def_it) {
+					++ii
+					++pj_it
+				}
+
+				P.back() -= *pj_it*U[std::make_pair(ii, nn)];
+			}
+
+			// subtract p_j u_jn for j in previous mc
+			pj_it = P.end();
+			for(ii=0; ii<mc; ii++) {
+				pj_it--;
+				P.back() -= *pj_it*U[std::make_pair(nn-1-ii, nn)];
+
+				// if we just checked the beginning, stop
+				if(pj_it == P.begin()) {
+					assert(nn-1-ii == 0 || ii == mc-1);
+					break;
+				}
+			}
+			// set U_nn = 1 (do when we actually create)
+
+			// Advance the Krylov Subspace
+			V.push_back(A*P.back());
+			delta.push_back(P.back().dot(V.back()));
+
+			if(delta.back() == 0) {
+				break; // TODO look ahead
+			}
+
+			V.back() -= delta.back()*vn_it;
+		}
+
+		// compute order of delta
+		vector<int> order(delta.size());
+		for(ii=0; ii<order.size(); ii++)
+			order[ii] = ii;
+		std::sort(order.begin(), order.end(),
+				[&delta](int lhs, int rhs) { return delta[lhs] < delta[rhs]; });
+		m_singvals.resize(delta.size());
+
+		if(save_V) {
+			matrixV.resize(A.rows(), P.size());
+			ii = 0;
+			pj_it = P.begin();
+			std::list<Scalar> sit = delta.begin();
+			for(size_t kk=0; kk<order.size(); kk++) {
+				// iterate to order's location
+				advance(pj_it, order[kk]-ii);
+				advance(sit, order[kk]-ii);
+				matrixV.col(kk) = *pj_it;
+				m_singvals[kk] = *sit;
+			}
+		} else {
+			matrixU.resize(A.cols(), P.size());
+			pj_it = P.begin();
+			for(size_t kk=0; kk<order.size(); kk++) {
+				// iterate to order's location
+				advance(pj_it, order[kk]-ii);
+				advance(sit, order[kk]-ii);
+				matrixU.col(kk) = *pj_it;
+				m_singvals[kk] = *sit;
+			}
+		}
+        m_status = 1;
+    };
+
+    /**
+     * @brief Maximum rank to compute (sets max size of T matrix). < 0 will
+     * remove all limits.
+     */
+    int m_maxiters;
+
+    /**
+     * @brief Tolerance for deflation. Algorithm designer recommends
+     * sqrt(epsilon), which is the default
+     */
+    double m_deflation_tol;
+
+    EigenValuesType m_evals;
+    EigenVectorType m_evecs;
+    EigenVectorType m_proj; // Computed Projection Matrix (V)
+
+    /**
+     * @brief Status of computation
+     * 0 nothing has happened yet
+     * 1 success
+     * -1 invalid input
+     * -2 non-convergnence
+     * -3 Numerical Issue
+     */
+    int m_status;
+};
+
+    /**
      * @brief Computes the SVD decomposition of A, seeding the underlying
      * eigen solver with a bsis of size initbasis.
      *
@@ -120,18 +344,24 @@ class TruncatedLanczosSVD
             m_computeU = true;
         }
 
-        // This is a bit hackish, really the user should set this
-        int initrank = std::min<int>(A.rows(), A.cols());
-        if(m_initbasis > 0)
-            initrank = m_initbasis;
-
-        BandLanczosSelfAdjointEigenSolver<MatrixType> eig;
-        eig.setMaxIters(m_maxiters);
-        eig.setDeflationTol(m_deftol);
-        eig.compute(C, initrank);
-
-        if(eig.info() == NoConvergence)
-            m_status = -2;
+		// sets
+		// m_singvals
+		if(_compute(C, initrank, A.rows() > A.cols()) != 0) {
+			m_status = -1;
+			return;
+		}
+//        // This is a bit hackish, really the user should set this
+//        int initrank = std::min<int>(A.rows(), A.cols());
+//        if(m_initbasis > 0)
+//            initrank = m_initbasis;
+//
+//        BandLanczosSelfAdjointEigenSolver<MatrixType> eig;
+//        eig.setMaxIters(m_maxiters);
+//        eig.setDeflationTol(m_deftol);
+//        eig.compute(C, initrank);
+//
+//        if(eig.info() == NoConvergence)
+//            m_status = -2;
 
         int eigrows = eig.eigenvalues().rows();
         int rank = 0;
