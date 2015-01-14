@@ -22,6 +22,11 @@ using namespace std;
 
 namespace Eigen {
 
+	// TODO
+	// fix interface
+	// stopping condition
+	// clean up
+	// change system to lists in bandlanczos
 namespace internal
 {
 
@@ -140,34 +145,18 @@ class TruncatedLanczosSVD
         compute(A, computationOptions);
     };
 
-    /**
-     * @brief Band Lanczos Methof for Hessian Positive Definite Matrices
-     *
-	 * Input A, R
-	 *
-     * @param A Matrix to decompose
-	 * @param initrank initial rank to start with
-	 * @param save_V save the eigenvectors in m_V (if false then saves in m_U)
-     */
-    void _compute(const Ref<const MatrixType>& A, int initrank, bool save_V)
+	int update_TV(const Ref<const MatrixType>& A, int initrank)
 	{
+		// m_maxiters - number of times we are allowed to recompute in case of
+		// bad convergence
+		// m_maxsize - maximum size of T, if -1 then no restriction
+		// m_trace_stop - stop after sum of eigenvalues reaches this percent of
+		// the total trace, values outside [0,1] indicate 1
+		// m_tracesq_stop - stop after sum of eigenvalues reaches this percent of
+		// the total trace, values outside [0,1] indicate 1
+
 		std::list<VectorType> V; // Store Lanczos Vectors
 		std::list<VectorType> P; // Store P vectors (eigenvectors)
-
-		// cheat
-		SelfAdjointEigenSolver<MatrixType> eig(A);
-
-		// Generate Initial Vectors
-		for(size_t rr=0; rr<initrank; rr++) {
-			if(rr%2 == 0) {
-				V.push_front(eig.eigenvectors().col(rr));
-			} else {
-				V.push_back(VectorType());
-				V.back().resize(A.rows());
-				V.back().setRandom();
-				V.back().normalize();
-			}
-		}
 
 		// Radius of Band/Current Candidate Vectors
 		int bandrad = initrank;
@@ -195,7 +184,8 @@ class TruncatedLanczosSVD
 			// (3) compute ||v_j||
 			double vnorm = vn_it->norm();
 
-			/*******************************************************************
+			cerr <<nn<<"/"<<bandrad<<"/"<<vnorm<<"/"<<m_deftol*Anorm<<endl;
+			/*****************************************************************
 			 * Perform Deflation until we find a large enough column of V
 			 ******************************************************************/
 			while(!(vnorm > m_deftol*Anorm)) {
@@ -215,6 +205,7 @@ class TruncatedLanczosSVD
 
 				bandrad--;
 				if(bandrad == 0) {
+					// TODO will this have the right size?
 					assert(vn_it == V.end());
 					break;
 				}
@@ -379,6 +370,45 @@ class TruncatedLanczosSVD
 //				m_singvals[kk] = *sit;
 //			}
 //		}
+
+	}
+    /**
+     * @brief Band Lanczos Methof for Hessian Positive Definite Matrices
+     *
+	 * Input A, R
+	 *
+     * @param A Matrix to decompose
+	 * @param initrank initial rank to start with
+	 * @param save_V save the eigenvectors in m_V (if false then saves in m_U)
+     */
+    void _compute_ev(const Ref<const MatrixType>& A, int initrank, bool save_V)
+	{
+
+		bool mtm = false;
+		int psize = 0;
+		if(A.rows() >= A.cols()) {
+			mtm = true;
+			psize = A.cols();
+		} else if(A.cols() > A.rows()) {
+			mtm = false;
+			psize = A.rows();
+		}
+
+		MatrixXd V(psize, initrank);
+		// Generate Initial Vectors
+		for(size_t cc=0; cc<initrank; cc++) {
+			V.col(cc).setRandom();
+			V.col(cc).normalize();
+		}
+
+		MatrixXd T;
+		for(int ii=0; ii<m_maxiters; ii++) {
+			update_TV(A, mtm, &T, &V);
+
+			// check eigenvalues
+
+		}
+
         m_status = 1;
     };
 
