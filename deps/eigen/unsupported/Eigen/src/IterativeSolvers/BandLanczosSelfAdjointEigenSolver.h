@@ -14,27 +14,6 @@ namespace Eigen {
 
 #include <Eigen/Eigenvalues>
 #include <limits>
-#include <cmath>
-
-namespace internal {
-template <typename T>
-inline T conj(const T& v)
-{
-    return std::conj(v);
-}
-
-template <>
-inline double conj(const double& v)
-{
-    return v;
-}
-
-template <>
-inline float conj(const float& v)
-{
-    return v;
-}
-}
 
 /**
  * @brief Solves eigenvalues and eigenvectors of a hermitian matrix. Currently
@@ -427,7 +406,7 @@ private:
 
                 // t_kj = conj(t_jk)
                 Scalar t_kj;
-                t_kj = internal::conj(band[kk-(jj-pc)]);
+                t_kj = numext::conj(band[kk-(jj-pc)]);
                 approx(kk, jj) = t_kj;
 
                 // v_{j+pc} = v_{j+pc} - v_k t_{k,j}
@@ -461,7 +440,7 @@ private:
             // for k in I, set s_{j,k} = conj(t_{k,j})
             for(std::list<int>::iterator kk = nonzero.begin();
                             kk != nonzero.end(); ++kk) {
-                approx(jj, *kk) = internal::conj(approx(*kk, jj));
+                approx(jj, *kk) = numext::conj(approx(*kk, jj));
             }
 
             // TODO EVALUATE EIGENVALUES/VECTORS, DETERMINE IF THEY ARE

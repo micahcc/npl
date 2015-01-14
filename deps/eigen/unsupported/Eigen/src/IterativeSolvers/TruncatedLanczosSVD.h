@@ -12,9 +12,58 @@
 
 #include <Eigen/Eigenvalues>
 #include <limits>
+#include <vector>
+#include <functional>
+#include <unordered_map>
 #include <cmath>
 
+#include <iostream>
+using namespace std;
+
 namespace Eigen {
+
+namespace internal
+{
+
+/**
+ * @brief Less Function that prioritizes row (row major)
+ */
+struct RowLess
+{
+	bool operator()(const std::pair<int,int>& lhs, const std::pair<int,int>& rhs)
+	{
+		if(lhs.first < rhs.first)
+			return true;
+		if(lhs.first > rhs.first)
+			return false;
+		if(lhs.second < rhs.second)
+			return true;
+		if(lhs.second > rhs.second)
+			return false;
+		return false;
+	};
+};
+
+/**
+ * @brief A less function that prioritizes col. So iterating will
+ * iterate down the col.
+ */
+struct ColLess
+{
+	bool operator()(const std::pair<int,int>& lhs, const std::pair<int,int>& rhs)
+	{
+		if(lhs.second<rhs.second)
+			return true;
+		if(lhs.second>rhs.second)
+			return false;
+		if(lhs.first<rhs.first)
+			return true;
+		if(lhs.first> rhs.first)
+			return false;
+		return false;
+	};
+};
+}
 
 /**
  * @brief SVD decomposition of input matrix
@@ -51,6 +100,8 @@ class TruncatedLanczosSVD
         MatrixOptions = MatrixType::Options
     };
 
+    typedef Matrix<Scalar, RowsAtCompileTime, 1, MatrixOptions,
+            MaxRowsAtCompileTime, 1> VectorType;
     typedef Matrix<Scalar, RowsAtCompileTime, Dynamic, MatrixOptions,
             MaxRowsAtCompileTime, MaxDiagSizeAtCompileTime> MatrixUType;
     typedef Matrix<Scalar, ColsAtCompileTime, Dynamic, MatrixOptions,
@@ -99,190 +150,235 @@ class TruncatedLanczosSVD
 	 * @param save_V save the eigenvectors in m_V (if false then saves in m_U)
      */
     void _compute(const Ref<const MatrixType>& A, int initrank, bool save_V)
-    {
+	{
+		std::list<VectorType> V; // Store Lanczos Vectors
+		std::list<VectorType> P; // Store P vectors (eigenvectors)
+
+		// cheat
+		SelfAdjointEigenSolver<MatrixType> eig(A);
+
 		// Generate Initial Vectors
-		std::list<VectorXd> V;
 		for(size_t rr=0; rr<initrank; rr++) {
-			V.push_back(VectorXd());
-			V.back().resize(A.rows());
-			V.back().setRandom();
-			V.back().normalize();
+			if(rr%2 == 0) {
+				V.push_front(eig.eigenvectors().col(rr));
+			} else {
+				V.push_back(VectorType());
+				V.back().resize(A.rows());
+				V.back().setRandom();
+				V.back().normalize();
+			}
 		}
 
 		// Radius of Band/Current Candidate Vectors
-		int mc = initrank;
+		int bandrad = initrank;
+		int initkept = initrank; // number of non-deflated original vectors
 
 		std::list<int> deflated; // list of deflated indexes, matching Vdef
 		std::list<VectorType> Vdef; // list of deflated vectors (Vdef)
-		double A_norm = 1; // Keep at 1 for initial
+		RealScalar Anorm = 1; // Start at 1
+
+		std::map<std::pair<int,int>, Scalar, internal::RowLess> U;
+		std::map<std::pair<int,int>, Scalar, internal::ColLess> rho;
+
+		// Diagonal Matrix
+		std::vector<Scalar> Delta;
 
 		// Iterator Matching nn
-        vector<double> Delta;
-		std::list<VectorXd>::iterator vn_it = V.begin();
-        std::list<VectorXd>::iterator vj_it;
-        std::list<VectorXd>::iterator pj_it;
-		std::list<int>::iterator def_it;
-		std::list<double>::iterator delta_it;
-		for(int nn=0; (m_maxiters < 0 || nn<m_maxiters) ; nn++, ++vn_it) {
+		typename std::list<VectorType>::iterator vn_it = V.begin();
+		typename std::list<VectorType>::iterator vj_it;
+		typename std::list<VectorType>::iterator pj_it; // iterate over eigenvectors
+		std::list<int>::iterator def_it; // iterate over deflited indexes
 
-            // (3) compute ||v_j||
-            double vn_norm = vn_it->norm();
+		int nn;
+		for(nn=0; (m_maxiters < 0 || nn<m_maxiters) ; nn++, ++vn_it) {
 
-            /*******************************************************************
-             * Perform Deflation until we find a large enough column of V
-             ******************************************************************/
-            while(vn_norm < m_deflation_tol*A_norm) {
-                // If Vj was NOT one of the original candidates, add to the
-                // most recent Krylov column to the list of deflated, IE if we
-                // are at A^2R_2 then deflate A^1R_2
-                if(nn >= mc) {
-                    deflated.push_back(nn-mc);
+			// (3) compute ||v_j||
+			double vnorm = vn_it->norm();
 
-                    // Move V_{n} from V to V_{def}
+			/*******************************************************************
+			 * Perform Deflation until we find a large enough column of V
+			 ******************************************************************/
+			while(!(vnorm > m_deftol*Anorm)) {
+				// If Vj was NOT one of the original candidates, add to the
+				// most recent Krylov column to the list of deflated, IE if we
+				// are at A^2R_2 then deflate A^1R_2
+				if(nn >= bandrad) {
+					deflated.push_back(nn-bandrad);
+
+					// Move V_{n} from V to V_{def}
 					vj_it = vn_it;
-                    vn_it++;
-                    vdef.splice(vdef.end(), V, vj_it);
-                } else {
-                    vn_it = V.erase(vn_it);
-                }
+					vn_it++;
+					Vdef.splice(Vdef.end(), V, vj_it);
+				} else {
+					vn_it = V.erase(vn_it);
+				}
 
-                mc--;
-				if(mc == 0) {
+				bandrad--;
+				if(bandrad == 0) {
 					assert(vn_it == V.end());
 					break;
 				}
-                vn_norm = vn_it->norm();
-             }
+				vnorm = vn_it->norm();
+			}
+			if(bandrad == 0) break;
 
 			// Normalize V_n
-			*vn_it /= vn_norm;
+			*vn_it /= vnorm;
 
-			if(nn >= mc) {
-				// current length: = n-1, need to go to index n-m_c
-				delta_it = delta.end();
-				std::advance(delta_it, -mc+1);
-				assert(nn != mc || delta_it == delta.begin());
-				U[std::make_pair(nn-mc, nn)] = vn_norm/(*delta_it);
-			} else {
-				rho[std::make_pair(n,n, nn-mc+initrank)] = vn_norm;
-			}
-
-			// If this is the last in the starting block, set m1
-			if(nn+1 == mc) {
-				m1 = mc; // number of non-deflated starting vectors
-
-				// Compute estimate of A_norm
-				A_norm = 0;
-				for(pj_it = P.begin(); pj_it != P.end(); ++pj_it) {
-					A_norm = max(A_norm, A*(*pj_it)/pj_it->norm());
-				}
-			}
+			if(nn >= bandrad)
+				U[{nn-bandrad, nn}] = vnorm/Delta[nn-bandrad];
+			else
+				rho[{nn,nn-bandrad+initrank}] = vnorm;
 
 			// Orthogonalize the vectors v_{n+j}, 1<=j<mc against vn
-			// this is all the remaining candidate vectors
+			// (orthogonalize all the candidate vectors)
 			vj_it = vn_it; vj_it++;
-			for(int jj=nn+1; vj_it != V.end() jj++, ++vj_it) {
+			for(int jj=nn+1; vj_it != V.end(); jj++, ++vj_it) {
 				double tau = vn_it->dot(*vj_it);
 				*vj_it -= tau*(*vn_it);
 
-				if(jj >= mc) {
-					// delta_it was already = n-m_mc
-					++delta_it;
-					assert(delta_it != delta.end());
-					U[std::make_pair(jj-mc, nn)] = tau/(*delta_it);
-				} else {
-					rho[std::make_pair(nn, jj+initrank-mc)] = tau;
-				}
+				if(jj >= bandrad)
+					U[{jj-bandrad, nn}] = tau/Delta[jj-bandrad];
+				else
+					rho[{nn, jj+initrank-bandrad}] = tau;
 			}
-			assert(delta_it == delta.end() && vj_it == V.end());
 
 			// Update the Spiked Part of U_n
-			delta_it = delta.begin();
-			int ii = 0; // use to find matching deltas
 			for(vj_it=Vdef.begin(), def_it=deflated.begin(); vj_it!=Vdef.end();
-						++def_it, ++vj_it) {
-				// Find j delta_j, for j \in I
-				while(delta_t != delta.end() && ii != *def_it) {
-					++ii
-					++delta_it
-				}
-
-				double tau = vn_it->dot(*vj_it)/(*delta_it);
-				U[std::make_pair(*def_it, nn)] = tau;
+					++def_it, ++vj_it) {
+				int jj = *def_it;
+				double tau = vn_it->dot(*vj_it)/Delta[jj];;
+				U[{jj, nn}] = tau;
 			}
 
 			// Compute the vector P_n
 			P.push_back(*vn_it);
 
 			// subtract p_j u_jn for j in I
-			ii = 0;
 			pj_it = P.begin();
+			int jj = 0;
 			for(def_it=deflated.begin(); def_it!=deflated.end(); ++def_it) {
 				// Find j p_j, for j \in I
-				while(pj_it != P.end() && ii != *def_it) {
-					++ii
-					++pj_it
+				while(pj_it != P.end() && jj < *def_it) {
+					++jj;
+					++pj_it;
 				}
 
-				P.back() -= *pj_it*U[std::make_pair(ii, nn)];
+				P.back() -= (*pj_it)*U[{jj,nn}];
 			}
 
-			// subtract p_j u_jn for j in previous mc
-			pj_it = P.end();
-			for(ii=0; ii<mc; ii++) {
-				pj_it--;
-				P.back() -= *pj_it*U[std::make_pair(nn-1-ii, nn)];
-
-				// if we just checked the beginning, stop
-				if(pj_it == P.begin()) {
-					assert(nn-1-ii == 0 || ii == mc-1);
-					break;
-				}
-			}
-			// set U_nn = 1 (do when we actually create)
+			// subtract p_j u_jn for j in previous mc, start at nn-1
+			pj_it = P.end(); --pj_it; --pj_it;
+			for(jj=nn-1; jj >= nn-bandrad && jj >= 0; jj--, --pj_it)
+				P.back() -= (*pj_it)*U[{jj, nn}];
+			U[{nn, nn}] = 1;
 
 			// Advance the Krylov Subspace
 			V.push_back(A*P.back());
-			delta.push_back(P.back().dot(V.back()));
+			Delta.push_back(P.back().dot(V.back()));
 
-			if(delta.back() == 0) {
+			if(Delta.back() == 0) {
 				break; // TODO look ahead
 			}
 
-			V.back() -= delta.back()*vn_it;
+			V.back() -= Delta.back()*(*vn_it);
+
+			// If this is the last in the starting block,
+			if(nn+1 == bandrad) {
+				initkept = bandrad; // number of non-deflated starting vectors
+
+				// Compute estimate of Anorm
+				Anorm = 0;
+				for(pj_it = P.begin(); pj_it != P.end(); ++pj_it) {
+					Anorm = std::max(Anorm, (A*(*pj_it)).norm()/pj_it->norm());
+				}
+			}
+
 		}
 
-		// compute order of delta
-		vector<int> order(delta.size());
-		for(ii=0; ii<order.size(); ii++)
-			order[ii] = ii;
-		std::sort(order.begin(), order.end(),
-				[&delta](int lhs, int rhs) { return delta[lhs] < delta[rhs]; });
-		m_singvals.resize(delta.size());
-
-		if(save_V) {
-			matrixV.resize(A.rows(), P.size());
-			ii = 0;
-			pj_it = P.begin();
-			std::list<Scalar> sit = delta.begin();
-			for(size_t kk=0; kk<order.size(); kk++) {
-				// iterate to order's location
-				advance(pj_it, order[kk]-ii);
-				advance(sit, order[kk]-ii);
-				matrixV.col(kk) = *pj_it;
-				m_singvals[kk] = *sit;
-			}
-		} else {
-			matrixU.resize(A.cols(), P.size());
-			pj_it = P.begin();
-			for(size_t kk=0; kk<order.size(); kk++) {
-				// iterate to order's location
-				advance(pj_it, order[kk]-ii);
-				advance(sit, order[kk]-ii);
-				matrixU.col(kk) = *pj_it;
-				m_singvals[kk] = *sit;
-			}
+		MatrixType upper(nn, nn);
+		upper.setZero();
+		for(auto it=U.begin(); it != U.end(); it++) {
+			int r = it->first.first;
+			int c = it->first.second;
+			assert(r >= 0 && r < nn);
+			assert(c >= 0 && c < nn);
+			upper(r, c) = it->second;
 		}
+
+//		cerr << "U Matrix:\n" << upper << endl;
+//
+		VectorType dvec(nn);
+		for(size_t ii=0; ii<nn; ii++)
+			dvec[ii] = Delta[ii];
+//		cerr << "Delta Vector:\n"<<dvec<<endl;
+//
+		MatrixType T = upper.transpose()*dvec.asDiagonal()*upper;
+		cerr<<"T Matrix:\n"<<T<<endl;
+
+//		pj_it = P.begin();
+//		MatrixType pmatrix(A.rows(), nn);
+//		for(size_t ii=0; ii<nn; ii++, ++pj_it) {
+//			assert(pj_it != P.end());
+//			double nrm = pj_it->squaredNorm();
+//			pmatrix.col(ii) = *pj_it/std::sqrt(nrm);
+//			dvec[ii] *= nrm;
+//		}
+//
+//		cerr<<"P Matirx:\n"<<pmatrix<<endl;
+//		cerr<<"dvec Matirx:\n"<<dvec<<endl;
+//
+		cerr << "Eigenvalues of T:"<<endl;
+		eig.compute(T);
+		cerr<<"EigenValues:\n"<<eig.eigenvalues().transpose()<<endl;
+
+		MatrixType Vmatrix(A.rows(), T.cols());
+		auto vit = V.begin();
+		for(size_t cc=0; cc<T.cols(); cc++, ++vit)
+			Vmatrix.col(cc) = *vit;
+
+		MatrixType eigenvectors = Vmatrix*eig.eigenvectors();;
+		cerr<<"EigenVectors:\n"<<eigenvectors<<endl;
+
+		cerr<<"Full Matrix Eigenvectors:\n"<<endl;
+		cerr<<"Full Matrix:\n"<<A<<endl;
+		eig.compute(A);
+		cerr<<"EigenValues:\n"<<eig.eigenvalues()<<endl;
+		cerr<<"EigenVectors:\n"<<eig.eigenvectors()<<endl;
+
+//		// compute order of delta
+//		std::vector<int> order(Delta.size());
+//		for(int ii=0; ii<order.size(); ii++)
+//			order[ii] = ii;
+//		std::sort(order.begin(), order.end(),
+//				[&Delta](int lhs, int rhs) { return Delta[lhs] < Delta[rhs]; });
+//		m_singvals.resize(Delta.size());
+//
+//		if(save_V) {
+//			matrixV.resize(A.rows(), P.size());
+//			int ii = 0;
+//			pj_it = P.begin();
+//			typename std::vector<Scalar>::iterator sit = Delta.begin();
+//			for(size_t kk=0; kk<order.size(); kk++) {
+//				// iterate to order's location
+//				advance(pj_it, order[kk]-ii);
+//				advance(sit, order[kk]-ii);
+//				matrixV.col(kk) = *pj_it;
+//				m_singvals[kk] = *sit;
+//			}
+//		} else {
+//			matrixU.resize(A.cols(), P.size());
+//			pj_it = P.begin();
+//			int ii = 0;
+//			typename std::vector<Scalar>::iterator sit = Delta.begin();
+//			for(size_t kk=0; kk<order.size(); kk++) {
+//				// iterate to order's location
+//				advance(pj_it, order[kk]-ii);
+//				advance(sit, order[kk]-ii);
+//				matrixU.col(kk) = *pj_it;
+//				m_singvals[kk] = *sit;
+//			}
+//		}
         m_status = 1;
     };
 
@@ -293,16 +389,6 @@ class TruncatedLanczosSVD
     int m_maxiters;
 
     /**
-     * @brief Tolerance for deflation. Algorithm designer recommends
-     * sqrt(epsilon), which is the default
-     */
-    double m_deflation_tol;
-
-    EigenValuesType m_evals;
-    EigenVectorType m_evecs;
-    EigenVectorType m_proj; // Computed Projection Matrix (V)
-
-    /**
      * @brief Status of computation
      * 0 nothing has happened yet
      * 1 success
@@ -311,7 +397,6 @@ class TruncatedLanczosSVD
      * -3 Numerical Issue
      */
     int m_status;
-};
 
     /**
      * @brief Computes the SVD decomposition of A, seeding the underlying
@@ -346,14 +431,14 @@ class TruncatedLanczosSVD
 
 		// sets
 		// m_singvals
-		if(_compute(C, initrank, A.rows() > A.cols()) != 0) {
-			m_status = -1;
+        int initrank = std::min<int>(A.rows(), A.cols())/2;
+        if(m_initbasis > 0)
+            initrank = m_initbasis;
+		_compute(C, initrank, A.rows() > A.cols());
+
+		if(m_status < 0)
 			return;
-		}
 //        // This is a bit hackish, really the user should set this
-//        int initrank = std::min<int>(A.rows(), A.cols());
-//        if(m_initbasis > 0)
-//            initrank = m_initbasis;
 //
 //        BandLanczosSelfAdjointEigenSolver<MatrixType> eig;
 //        eig.setMaxIters(m_maxiters);
@@ -362,48 +447,48 @@ class TruncatedLanczosSVD
 //
 //        if(eig.info() == NoConvergence)
 //            m_status = -2;
-
-        int eigrows = eig.eigenvalues().rows();
-        int rank = 0;
-        m_singvals.resize(eigrows);
-        double maxev = eig.eigenvalues()[eigrows-1];
-        for(int cc=0; cc<eigrows; cc++) {
-            if(eig.eigenvalues()[eigrows-1-cc]/maxev < m_sv_thresh)
-                m_singvals[cc] = 0;
-            else {
-                m_singvals[cc] = std::sqrt(eig.eigenvalues()[eigrows-1-cc]);
-                rank++;
-            }
-        }
-        m_singvals.conservativeResize(rank);
-
-        // Note that because Eigen Solvers usually sort eigenvalues in
-        // increasing order but singular value decomposers do decreasing order,
-        // we need to reverse the singular value and singular vectors found.
-        if(A.rows() > A.cols()) {
-            // Computed right singular vlaues (V)
-            // A = USV*, U = AVS^-1
-
-            // reverse
-            m_V.resize(eig.eigenvectors().rows(), rank);
-            for(int cc=0; cc<rank; cc++)
-                m_V.col(cc) = eig.eigenvectors().col(eigrows-1-cc);
-
-            // Compute U if needed
-            if(m_computeU)
-                m_U = A*m_V*(m_singvals.cwiseInverse()).asDiagonal();
-        } else {
-            // Computed left singular values (U)
-            // A = USV*, A^T = VSU*, V = A^T U S^-1
-
-            m_U.resize(eig.eigenvectors().rows(), rank);
-            for(int cc=0; cc<rank; cc++)
-                m_U.col(cc) = eig.eigenvectors().col(eigrows-1-cc);
-
-            if(m_computeV)
-                m_V = A.transpose()*m_U*(m_singvals.cwiseInverse()).asDiagonal();
-        }
-
+//
+//        int eigrows = m_singvals.rows();
+//        int rank = 0;
+//        m_singvals.resize(eigrows);
+//        double maxev = m_singvals[eigrows-1];
+//        for(int cc=0; cc<eigrows; cc++) {
+//            if(m_singvals[eigrows-1-cc]/maxev < m_sv_thresh)
+//                m_singvals[cc] = 0;
+//            else {
+//                m_singvals[cc] = std::sqrt(eig.eigenvalues()[eigrows-1-cc]);
+//                rank++;
+//            }
+//        }
+//        m_singvals.conservativeResize(rank);
+//
+//        // Note that because Eigen Solvers usually sort eigenvalues in
+//        // increasing order but singular value decomposers do decreasing order,
+//        // we need to reverse the singular value and singular vectors found.
+//        if(A.rows() > A.cols()) {
+//            // Computed right singular vlaues (V)
+//            // A = USV*, U = AVS^-1
+//
+//            // reverse
+//            m_V.resize(eig.eigenvectors().rows(), rank);
+//            for(int cc=0; cc<rank; cc++)
+//                m_V.col(cc) = eig.eigenvectors().col(eigrows-1-cc);
+//
+//            // Compute U if needed
+//            if(m_computeU)
+//                m_U = A*m_V*(m_singvals.cwiseInverse()).asDiagonal();
+//        } else {
+//            // Computed left singular values (U)
+//            // A = USV*, A^T = VSU*, V = A^T U S^-1
+//
+//            m_U.resize(eig.eigenvectors().rows(), rank);
+//            for(int cc=0; cc<rank; cc++)
+//                m_U.col(cc) = eig.eigenvectors().col(eigrows-1-cc);
+//
+//            if(m_computeV)
+//                m_V = A.transpose()*m_U*(m_singvals.cwiseInverse()).asDiagonal();
+//        }
+//
         m_status = 1;
     };
 
@@ -691,12 +776,6 @@ private:
     int m_initbasis;
 
     /**
-     * @brief Maximum number of singular values to compute, if this is <= 0,
-     * then the condition is ignored.
-     */
-    int m_maxiters;
-
-    /**
      * @brief Stop after this amount of the sum of squared eigenvalues have
      * been found in the MM* or M*M matrix
      */
@@ -710,8 +789,6 @@ private:
 
     bool m_computeU;
     bool m_computeV;
-
-    int m_status;
 };
 
 } // Eigen
