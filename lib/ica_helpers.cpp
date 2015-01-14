@@ -286,7 +286,7 @@ MatrixXd tcat_ica(const vector<string>& imgnames,
 	size_t maxd = (1<<30); // roughly 8GB
 	vector<string> masks(1, maskname);
 	MatrixReorg reorg(prefix, maxd, false);
-	reorg.createMats(imgnames.size(), 1, masks, imgnames);
+	reorg.createMats(imgnames.size(), 1, masks, imgnames, true);
 
 	/*
 	 * Compute SVD of input
@@ -639,12 +639,13 @@ int MatrixReorg::loadMats()
  * indicate voxels to include
  * @param filenames Files to read in, images are stored in column (time)-major
  * order
+ * @param normts Normalize each column before writing
  *
  * @return 0 if succesful, -1 if read failure, -2 if write failure
  */
 int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 		const std::vector<std::string>& masknames,
-		const std::vector<std::string>& filenames)
+		const std::vector<std::string>& filenames, bool normts)
 {
 	// size_t m_totalrows;
 	// size_t m_totalcols;
@@ -825,7 +826,8 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 		img_glob_row = 0;
 		img_oblock_row = 0;
 		for(size_t tb = 0; tb<timeblocks; tb++) {
-			auto img = readMRImage(filenames[sb*timeblocks+tb]);
+			auto img = dPtrCast<MRImage>(readMRImage(filenames[sb*timeblocks+tb])
+					->copyCast(FLOAT64));
 
 			if(!img->matchingOrient(mask, false, true))
 				throw INVALID_ARGUMENT("Mismatch in mask/image size in col:"+
@@ -833,6 +835,9 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 			if(img->tlen() != inrows[tb])
 				throw INVALID_ARGUMENT("Mismatch in time-length in col:"+
 						to_string(sb)+", row:"+to_string(tb));
+
+			if(normts)
+				normalizeTS(img);
 
 			int rr, cc, colbl, rowbl, tt;
 			int tlen = img->tlen();
@@ -1024,7 +1029,7 @@ void fillMatPSD(double* rawdata, size_t nrows, size_t ncols,
 GICAfmri::GICAfmri(std::string pref)
 {
 	m_pref = pref;
-	svthresh = 0.1;
+	svthresh = 0.99;
 	deftol = sqrt(std::numeric_limits<double>::epsilon());
 	initbasis = 400;
 	maxiters = -1;
@@ -1073,17 +1078,28 @@ void GICAfmri::compute()
 		MatMap talldata(reorg.tallMatName(ii));
 
 		cerr<<"Chunk SVD:"<<talldata.mat.rows()<<"x"<<talldata.mat.cols()<<endl;
-		Eigen::TruncatedLanczosSVD<MatrixXd> svd;
-		svd.setThreshold(svthresh);
-		svd.setDeflationTol(deftol);
-		svd.setLanczosBasis(initbasis);
-		svd.compute(talldata.mat, Eigen::ComputeThinU | Eigen::ComputeThinV);
-		if(svd.info() == Eigen::NoConvergence)
-			throw RUNTIME_ERROR("Error computing Tall SVD, might want to "
-					"increase # of lanczos vectors");
+		Eigen::BDCSVD<MatrixXd> svd(talldata.mat,
+				Eigen::ComputeThinV|Eigen::ComputeThinU);
+//		Eigen::TruncatedLanczosSVD<MatrixXd> svd;
+//		svd.setThreshold(svthresh);
+//		svd.setDeflationTol(deftol);
+//		svd.setLanczosBasis(initbasis);
+//		svd.compute(talldata.mat, Eigen::ComputeThinU | Eigen::ComputeThinV);
+//		if(svd.info() == Eigen::NoConvergence)
+//			throw RUNTIME_ERROR("Error computing Tall SVD, might want to "
+//					"increase # of lanczos vectors");
 
-		cerr << "SVD Rank: " << svd.rank() << endl;
-		maxrank = std::max<size_t>(maxrank, svd.rank());
+		int rank = 0;
+		double totalvar = svd.singularValues().squaredNorm();
+		double sumvar = 0;
+		for(rank=0; rank<svd.singularValues().rows(); rank++) {
+			sumvar += svd.singularValues()[rank]*svd.singularValues()[rank];
+			if(sumvar > svthresh*totalvar)
+				break;
+		}
+		rank++;
+		cerr << "SVD Rank: " << rank << endl;
+		maxrank = std::max<size_t>(maxrank, rank);
 
 		// write
 		string usname = m_pref+"_US_"+to_string(ii);
@@ -1092,18 +1108,18 @@ void GICAfmri::compute()
 		MatMap tmpmat;
 
 		// Create UE
-		cerr<<"Creating UE ("<<talldata.mat.rows()<<"x"<<svd.rank()<<")"<<endl;
-		tmpmat.create(usname, talldata.mat.rows(), svd.rank());
+		cerr<<"Creating UE ("<<talldata.mat.rows()<<"x"<<rank<<")"<<endl;
+		tmpmat.create(usname, svd.matrixU().rows(), rank);
 		cerr << "Writing UE" << endl;
-		tmpmat.mat = svd.matrixU().leftCols(svd.rank())*
-			svd.singularValues().head(svd.rank());
+		MatrixXd tmp1 = svd.matrixU().leftCols(rank)*svd.singularValues().head(rank);
+		tmpmat.mat = tmp1;
 
-		cerr<<"Creating V ("<<talldata.mat.cols()<<"x"<<svd.rank()<<")"<<endl;
-		tmpmat.create(vname, talldata.mat.cols(), svd.rank());
+		cerr<<"Creating V ("<<talldata.mat.cols()<<"x"<<rank<<")"<<endl;
+		tmpmat.create(vname, talldata.mat.cols(), rank);
 		cerr << "Writing V" << endl;
-		tmpmat.mat = svd.matrixV().leftCols(svd.rank());
+		tmpmat.mat = svd.matrixV().leftCols(rank);
 
-		catcols += svd.rank();
+		catcols += rank;
 	}
 
 	// Merge / Construct Column(EV^T, EV^T, ... )
@@ -1215,7 +1231,7 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 	MatrixReorg reorg(m_pref, ndoubles, verbose);
 	// Don't use more than half of memory on each block of rows
 	cerr << "Reorganizing data into matrices...";
-	int status = reorg.createMats(tcat, scat, masks, inputs);
+	int status = reorg.createMats(tcat, scat, masks, inputs, normts);
 	if(status != 0)
 		throw RUNTIME_ERROR("Error while reorganizing data into 2D Matrices");
 	cerr<<"Done"<<endl;

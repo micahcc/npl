@@ -143,12 +143,13 @@ public:
 	 * indicate voxels to include
 	 * @param filenames Files to read in, images are stored in column (time)-major
 	 * order
+	 * @param normts Normalize each column before writing
 	 *
 	 * @return 0 if succesful, -1 if read failure, -2 if write failure
 	 */
 	int createMats(size_t timeblocks, size_t spaceblocks,
 			const std::vector<std::string>& masknames,
-			const std::vector<std::string>& filenames);
+			const std::vector<std::string>& filenames, bool normts = true);
 
 	/**
 	 * @brief Loads existing matrices by first reading ${prefix}_tall_0,
@@ -315,6 +316,8 @@ public:
 	 * @brief Whether to perform spatial ICA (rather than temporal)
 	 */
 	bool spatial;
+
+	bool normts;
 
 	/**
 	 * @brief Compute ICA for the given group, using existing tall/wide mats

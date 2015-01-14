@@ -80,11 +80,8 @@ int main(int argc, char** argv)
 			"in a rows of spatial-concatination. ", false, 1,
 			"spatial-rows", cmd);
 
-	TCLAP::ValueArg<double> a_svthresh("", "sv-thresh", "During dimension "
-			"reduction, A singular value will be considered nonzero if its "
-			"value is strictly greater than "
-			"|singular value| < threshold x |max singular value|",
-			false, 0.01, "ratio", cmd);
+	TCLAP::ValueArg<double> a_svthresh("", "sv-thresh", "Cut off after this "
+			"ratio of the variance has been accounted for.", false, 0.99, "ratio", cmd);
 	TCLAP::ValueArg<double> a_deftol("", "dtol", "Deflation tolerance in "
 			"eigenvalue computation. Larger values will result in fewer "
 			"singular values. ", false,
@@ -109,6 +106,8 @@ int main(int argc, char** argv)
 	TCLAP::SwitchArg a_spatial_ica("S", "spatial-ica", "Perform a spatial ICA"
 			", reducing unmixing timepoints to produce spatially independent "
 			"maps.", cmd);
+	TCLAP::SwitchArg a_no_norm_ts("N", "no-norm-ts", "Do not normalize each "
+			"timeseries prior to data-reduction.", cmd);
 //	TCLAP::ValueArg<string> a_tmap("T", "t-maps", "Significance of acivation "
 //			"throughout the brain. This is computed with Regression for "
 //			"temporal ICA, and a Mixture Model for spacial ICA",
@@ -137,6 +136,7 @@ int main(int argc, char** argv)
 	gica.maxiters = a_iters.getValue();
 	gica.maxmem = a_gbram.getValue();
 	gica.spatial = a_spatial_ica.isSet();
+	gica.normts = !a_no_norm_ts.isSet();
 	gica.verbose = a_verbose.isSet();
 
 	gica.compute(a_time_append.getValue(), a_space_append.getValue(),

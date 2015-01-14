@@ -170,7 +170,7 @@ int main()
 	}
 	
 	MatrixReorg reorg(pref, 45000, true);
-	if(reorg.createMats(nrows, ncols, fn_masks, fn_inputs) != 0) 
+	if(reorg.createMats(nrows, ncols, fn_masks, fn_inputs, false) != 0) 
 		return -1;
 	
 	// use Matrix

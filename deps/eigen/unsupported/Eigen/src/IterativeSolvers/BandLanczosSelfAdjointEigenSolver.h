@@ -10,11 +10,12 @@
 #ifndef EIGEN_BAND_LANCZOS_SELF_ADJOINT_EIGEN_SOLVER_H
 #define EIGEN_BAND_LANCZOS_SELF_ADJOINT_EIGEN_SOLVER_H
 
-namespace Eigen {
-
 #include <Eigen/Eigenvalues>
 #include <limits>
 #include <cmath>
+#include <iostream>
+
+namespace Eigen {
 
 namespace internal {
 template <typename T>
@@ -216,11 +217,6 @@ public:
         m_proj.resize(A.rows(), randbasis);
         m_proj.setRandom();
 
-        // Normalize Each Column
-        for(int cc=0; cc<m_proj.cols(); cc++) {
-            m_proj.col(cc).normalize();
-        }
-
         _compute(A);
     };
 
@@ -332,6 +328,11 @@ private:
     void _compute(const Ref<const MatrixType>& A)
     {
         EigenVectorType& V = m_proj;
+        
+        // Normalize Inputs, So Deflation Tolerance Makes Sense
+        for(size_t ii=0; ii<V.cols(); ii++) {
+            V.col(ii).normalize();
+        }
 
         // I in text, the iterators to nonzero rows of T(d) as well as the index
         // of them in nonzero_i
@@ -347,6 +348,8 @@ private:
         // V is the list of candidates
         VectorType band(pc); // store values in the band T[jj,jj-pc] to T[jj, jj-1]
         int jj=0;
+
+        RealScalar anorm = 0;
 
         while(pc > 0 && (m_maxiters < 0 || jj < m_maxiters)) {
             if(jj+pc >= csize) {
@@ -364,7 +367,7 @@ private:
              * on the previous vectors
              ******************************************************************/
             // decide if vj should be deflated
-            if(Vjnorm < m_deflation_tol) {
+            if(!(Vjnorm > anorm*m_deflation_tol)) {
                 // if j-pc > 0 (switch to 0 based indexing), I = I U {j-pc}
                 if(jj-pc>= 0)
                     nonzero.push_back(jj-pc);
@@ -418,6 +421,9 @@ private:
             // compute v_{j+pc} = A v_j
             //            V.col(jj+pc) = A*V.col(jj);
             V.col(jj+pc) = A*V.col(jj);
+            
+            // update estimate of ||A||
+            anorm = std::max(anorm, V.col(jj+pc).norm());
 
             /*******************************************************
              * Fill Off Diagonals with reflection T(k,j) =

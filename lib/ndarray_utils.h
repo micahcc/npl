@@ -596,6 +596,14 @@ ptr<NDArray> varianceT(ptr<const NDArray> img);
  */
 ptr<NDArray> createRandLabels(ptr<const NDArray> example, size_t nlabels, double sd);
 
+/**
+ * @brief Normalize timeseries' so that their mean is 1 and standard deviation
+ * is 0.
+ *
+ * @param inout Input/output image, should be > 3D
+ */
+void normalizeTS(ptr<NDArray> inout);
+
 /** @}  NDArrayUtilities */
 
 } // npl

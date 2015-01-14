@@ -3094,6 +3094,44 @@ ptr<NDArray> createRandLabels(ptr<const NDArray> example, size_t nlabels, double
 	return out;
 }
 
+
+/**
+ * @brief Normalize timeseries' so that their mean is 1 and standard deviation
+ * is 0.
+ *
+ * @param inout Input/output image, should be > 3D
+ */
+void normalizeTS(ptr<NDArray> inout)
+{
+	if(inout->tlen() <= 1) {
+		throw INVALID_ARGUMENT("Input image is not 4D");
+	}
+			
+	Vector3DIter<double> it(inout);
+	size_t tlen = inout->tlen();
+	double mu = 0;
+	double sd =  0;
+
+	for(it.goBegin(); !it.eof(); ++it) {
+		mu = 0;
+		sd = 0;
+		for(size_t tt=0; tt<tlen; tt++) {
+			mu += it[tt];
+			sd += it[tt]*it[tt];
+		}
+
+		sd = sqrt(sample_var(tlen, mu, sd));
+		mu /= tlen;
+		
+		for(size_t tt=0; tt<tlen; tt++) {
+			if(sd <= std::numeric_limits<double>::epsilon())
+				it.set(tt, 0);
+			else
+				it.set(tt, (it[tt]-mu)/sd);
+		}
+	}
+}
+
 } // npl
 
 

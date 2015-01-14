@@ -133,12 +133,14 @@ int main(int argc, char** argv)
 	}
 
 	cerr<<"Performing SVD ("<<A.rows()<<"x"<<A.cols()<<")"<<endl;
-	Eigen::TruncatedLanczosSVD<MatrixXd> svd;
-	svd.setThreshold(a_svthresh.getValue());
-	svd.setDeflationTol(a_deftol.getValue());
-	svd.setLanczosBasis(a_startvecs.getValue());
-	svd.setMaxIters(a_iters.getValue());
-	svd.compute(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	Eigen::BDCSVD<MatrixXd> svd(A, Eigen::ComputeThinV|Eigen::ComputeThinU);
+//	Eigen::JacobiSVD<MatrixXd> svd(A, Eigen::ComputeThinV|Eigen::ComputeThinU);
+//	Eigen::TruncatedLanczosSVD<MatrixXd> svd;
+//	svd.setThreshold(a_svthresh.getValue());
+//	svd.setDeflationTol(a_deftol.getValue());
+//	svd.setLanczosBasis(a_startvecs.getValue());
+//	svd.setMaxIters(a_iters.getValue());
+//	svd.compute(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	cerr<<"Done"<<endl;
 
 	cerr<<"Rank: "<<svd.rank()<<endl;
@@ -151,9 +153,6 @@ int main(int argc, char** argv)
 
 	if(a_in.isSet()) {
 		// Talk about results
-		double diff = (A*svd.inverse()-MatrixXd::Identity(A.rows(), A.cols())).
-				array().square().sum();
-		cerr<<"Estimate Squared Error: "<<diff<<endl;
 	} else {
 		// Comare
 		double err;
