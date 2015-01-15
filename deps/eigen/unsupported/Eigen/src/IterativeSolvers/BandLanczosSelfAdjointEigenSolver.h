@@ -13,29 +13,13 @@
 #include <Eigen/Eigenvalues>
 #include <limits>
 #include <cmath>
+
 #include <iostream>
+using std::cerr;
+using std::endl;
 
 namespace Eigen {
 
-namespace internal {
-template <typename T>
-inline T conj(const T& v)
-{
-    return std::conj(v);
-}
-
-template <>
-inline double conj(const double& v)
-{
-    return v;
-}
-
-template <>
-inline float conj(const float& v)
-{
-    return v;
-}
-}
 
 /**
  * @brief Solves eigenvalues and eigenvectors of a hermitian matrix. Currently
@@ -234,6 +218,63 @@ public:
     };
 
     /**
+     * @brief After this ratio of eigenvalues have been found, stop.
+     * Note that this won't work of the matrix is non-positive definite. use
+     * TraceSquareStop for that.
+     *
+     * @param ratio Ratio of total eigenvalues to stop at.
+     */
+    void setEValStop(Scalar ratio) { m_trace_stop = ratio; };
+
+    /**
+     * @brief After this ratio of eigenvalues have been found, stop.
+     * Note that this won't work of the matrix is non-positive definite. use
+     * TraceSquareStop for that. This resets the default behavior which is 1.
+     *
+     */
+    void setEValStop(Default_t)
+    {
+        m_trace_stop = INFINITY;
+    };
+
+    /**
+     * @brief After this ratio of eigenvalues have been found, stop.
+     * Note that this won't work of the matrix is non-positive definite. use
+     * TraceSquareStop for that. This resets the default behavior which is 1.
+     *
+     * @return Ratio of total eigenvalues to recover
+     */
+    Scalar eValStop() { return m_trace_stop; };
+
+    /**
+     * @brief After this ratio of squared eigenvalues have been found, stop.
+     *
+     * @param ratio Ratio of total squared eigenvalues to stop at.
+     */
+    void setEValSquareStop(Scalar ratio) { m_tracesq_stop = ratio; };
+
+    /**
+     * @brief After this ratio of squared eigenvalues have been found, stop.
+     *
+     * @param ratio Ratio of total squared eigenvalues to stop at.
+     * This resets the default behavior which is 1.
+     *
+     * @param d default (1)
+     */
+    void setEValSquareStop(Default_t)
+    {
+        m_tracesq_stop = 1;
+    };
+
+    /**
+     * @brief After this ratio of squared eigenvalues have been found, stop.
+     *
+     * @return Ratio of total squared eigenvalues to stop at.
+     * This resets the default behavior which is 1.
+     */
+    Scalar eValSquareStop() { return m_tracesq_stop ; };
+
+    /**
      * @brief Set the tolerance for deflation. Algorithm stops when #of
      * deflations hits the number of basis vectors. A higher tolerance will
      * thus cause faster convergence and DOES NOT AFFECT ACCURACY, it may
@@ -249,7 +290,7 @@ public:
      *
      * @param Default_t d
      */
-    void SetDeflationTol(Default_t d)
+    void SetDeflationTol(Default_t)
     {
         m_deflation_tol = sqrt(std::numeric_limits<RealScalar>::epsilon());
     };
@@ -262,37 +303,46 @@ public:
     RealScalar DeflationTol() { return m_deflation_tol; };
 
     /**
-     * @brief Maximum number of iterations to perform in the
-     * BandLanczosSelfAdjointEigenSolver. This is roughly the maximum rank
-     * computed, but be wary of setting it too low.
+     * @brief Set desired number of output vectors. Less may be returned in the
+     * matrix is rank deficient. This is more a guideline
      *
-     * @param maxiters Maximum number of iterations in underlying Eigen Solver
+     * @param numvecs Expected number of vectors we would like. Note that less
+     * maybe returned if the matrix is rank-deficient or more could be returned
+     * if as a consequence of a few extra iterations, more are available at
+     * respectible accuracy
      */
-    void setMaxIters(int maxiters) { m_maxiters = maxiters; };
+    void setDesiredVecs(int maxiters) { m_outvecs = maxiters; };
 
     /**
-     * @brief Set maximum iterations to infinity, which is triggered by any
-     * value less than 0. This constrols the maximum number of iterations to
-     * perform in the BandLanczosSelfAdjointEigenSolver.
+     * @brief Set desired number of output vectors. Less may be returned in the
+     * matrix is rank deficient. This is more a guideline
      *
-     * @param maxiters Maximum number of iterations in underlying Eigen Solver
+     * @param numvecs Expected number of vectors we would like. Note that less
+     * maybe returned if the matrix is rank-deficient or more could be returned
+     * if as a consequence of a few extra iterations, more are available at
+     * respectible accuracy
      */
-    void setMaxIters(Default_t d) { m_maxiters = -1; };
+    void setDesiredVecs(Default_t) { m_outvecs = -1; };
 
     /**
-     * @brief Get maximum iterations. This constrols the maximum number of
-     * iterations to perform in the BandLanczosSelfAdjointEigenSolver.
+     * @brief Get estimated number of vectors
      */
-    int maxIters() { return m_maxiters; };
+    int desiredVecs() { return m_outvecs; };
 
 private:
 
     void init()
     {
         m_status = 0;
-        m_maxiters= -1;
+        m_outvecs= -1;
         m_deflation_tol = std::sqrt(std::numeric_limits<double>::epsilon());
+        setEValSquareStop(Default);
+        setEValStop(Default);
     };
+
+    bool check(const Ref<const MatrixType> A, const Ref<const MatrixType> T,
+            const Ref<const MatrixType> V,
+            int bandrad, double ev_sum_t, double ev_sumsq_t);
 
     /**
      * @brief Band Lanczos Methof for Hessian Matrices
@@ -325,10 +375,10 @@ private:
      *
      * @param A Matrix to decompose
      */
-    void _compute(const Ref<const MatrixType>& A)
+    void _compute(const Ref<const MatrixType> A)
     {
         EigenVectorType& V = m_proj;
-        
+
         // Normalize Inputs, So Deflation Tolerance Makes Sense
         for(size_t ii=0; ii<V.cols(); ii++) {
             V.col(ii).normalize();
@@ -349,9 +399,24 @@ private:
         VectorType band(pc); // store values in the band T[jj,jj-pc] to T[jj, jj-1]
         int jj=0;
 
+        // Estimate of Matrix A's Induced Norm
         RealScalar anorm = 0;
 
-        while(pc > 0 && (m_maxiters < 0 || jj < m_maxiters)) {
+        /* Stopping Conditions */
+        // Eigensolver
+        SelfAdjointEigenSolver<ApproxType> eig;
+
+        // Trace
+        double tr_thresh = NAN;
+        if(m_trace_stop >= 0 && m_trace_stop <= 1)
+            tr_thresh = m_trace_stop*A.trace();
+
+        // Trace Squared
+        double trsq_thresh = NAN;
+        if(m_tracesq_stop >= 0 && m_tracesq_stop <= 1)
+            trsq_thresh = m_tracesq_stop*(A*A).trace();
+
+        while(pc > 0) {
             if(jj+pc >= csize) {
                 // Need to Grow
                 csize *= 2;
@@ -421,7 +486,7 @@ private:
             // compute v_{j+pc} = A v_j
             //            V.col(jj+pc) = A*V.col(jj);
             V.col(jj+pc) = A*V.col(jj);
-            
+
             // update estimate of ||A||
             anorm = std::max(anorm, V.col(jj+pc).norm());
 
@@ -433,7 +498,7 @@ private:
 
                 // t_kj = conj(t_jk)
                 Scalar t_kj;
-                t_kj = internal::conj(band[kk-(jj-pc)]);
+                t_kj = numext::conj(band[kk-(jj-pc)]);
                 approx(kk, jj) = t_kj;
 
                 // v_{j+pc} = v_{j+pc} - v_k t_{k,j}
@@ -467,11 +532,12 @@ private:
             // for k in I, set s_{j,k} = conj(t_{k,j})
             for(std::list<int>::iterator kk = nonzero.begin();
                             kk != nonzero.end(); ++kk) {
-                approx(jj, *kk) = internal::conj(approx(*kk, jj));
+                approx(jj, *kk) = numext::conj(approx(*kk, jj));
             }
 
-            // TODO EVALUATE EIGENVALUES/VECTORS, DETERMINE IF THEY ARE
-            // ACCURATE ENOUGH
+            if(check(A, approx.topLeftCorner(jj+1,jj+1), V.leftCols(jj+1), pc,
+                    tr_thresh, trsq_thresh))
+                break;
             jj++;
         }
 
@@ -479,8 +545,9 @@ private:
         approx.conservativeResize(jj+1, jj+1);
         V.conservativeResize(NoChange, jj+1);
 
+        SelfAdjointEigenSolver<MatrixType> computer(approx);
+
         // Compute Eigen Solution to Similar Matrix, then project through V
-        SelfAdjointEigenSolver<ApproxType> computer(approx);
         m_evals = computer.eigenvalues();
         m_evecs = V*computer.eigenvectors();
 
@@ -501,13 +568,16 @@ private:
      * @brief Maximum rank to compute (sets max size of T matrix). < 0 will
      * remove all limits.
      */
-    int m_maxiters;
+    int m_outvecs;
 
     /**
      * @brief Tolerance for deflation. Algorithm designer recommends
      * sqrt(epsilon), which is the default
      */
     double m_deflation_tol;
+
+    double m_trace_stop;
+    double m_tracesq_stop;
 
     EigenValuesType m_evals;
     EigenVectorType m_evecs;
@@ -523,6 +593,61 @@ private:
      */
     int m_status;
 };
+
+template <typename _MatrixType>
+bool BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
+        const Ref<const MatrixType> A, const Ref<const MatrixType> T,
+        const Ref<const MatrixType> V, int bandrad, double ev_sum_t,
+        double ev_sumsq_t)
+{
+    // Return Not Done if 1) haven't reached the desired number of EV's,
+    // 2) trace hasn't reached the desired value, 3) trace of TT has not
+    // reached the desired value
+    if(m_outvecs > 1 && T.rows() < m_outvecs)
+        return false;
+
+    if(!isinf(ev_sum_t) && !isnan(ev_sum_t) && T.trace()<ev_sum_t)
+        return false;
+
+    if(!isinf(ev_sumsq_t) && !isnan(ev_sumsq_t) && (T*T).trace()<ev_sumsq_t)
+        return false;
+
+    SelfAdjointEigenSolver<MatrixType> eig(T);
+
+    const double EVTHRESH = 1e-8;
+    cerr<< "T:\n"<<T<<endl;
+    cerr<<"LAMBDA:"<<eig.eigenvalues().transpose()<<endl;
+    cerr<<"EVs:\n"<<eig.eigenvectors()<<endl;
+    cerr<<"Proj EVs:\n"<<V*eig.eigenvectors()<<endl;
+    double sum = 0;
+    double sumsq = 0;
+    double esterr = 0;
+    double fullerr = 0;
+    size_t nvalid = 0;
+    VectorType fullev;
+    for(int vv=0; vv<T.cols(); vv++) {
+        esterr = (T.topRows(bandrad)*eig.eigenvectors().col(T.cols()-1-vv)).norm();
+        fullev = V*eig.eigenvectors().col(T.cols()-1-vv);
+        fullerr = (eig.eigenvalues()[T.cols()-1-vv]*fullev - A*fullev).norm();
+        cerr << esterr << " vs " << fullerr;
+
+        if(esterr > EVTHRESH)
+            break;
+
+        nvalid++;
+
+        sum += eig.eigenvalues()[vv];
+        sumsq += eig.eigenvalues()[vv]*eig.eigenvalues()[vv];
+    }
+
+    if((m_outvecs <= 1 || nvalid >= m_outvecs) &&
+            (std::isnan(ev_sumsq_t) || std::isinf(ev_sumsq_t)
+             || sumsq>ev_sumsq_t) && (std::isnan(ev_sum_t) ||
+                 std::isinf(ev_sum_t) || sum>ev_sum_t)) {
+        return true;
+    }
+    return false;
+}
 
 } // end namespace Eigen
 

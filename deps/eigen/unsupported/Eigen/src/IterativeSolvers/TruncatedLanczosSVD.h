@@ -126,7 +126,7 @@ class TruncatedLanczosSVD
             initrank = m_initbasis;
 
         BandLanczosSelfAdjointEigenSolver<MatrixType> eig;
-        eig.setMaxIters(m_maxiters);
+        eig.setDesiredVecs(m_maxiters);
         eig.setDeflationTol(m_deftol);
         eig.compute(C, initrank);
 
