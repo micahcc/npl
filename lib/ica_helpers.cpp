@@ -183,7 +183,7 @@ int spcat_orthog(std::string prefix, double svthresh,
 	// Compute EigenVectors (U)
 	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
 	eig.setDeflationTol(std::numeric_limits<double>::epsilon());
-	eig.setMaxIters(maxiters);
+	eig.setDesiredVecs(maxiters);
 	eig.compute(XXT, initbasis);
 
 	if(eig.info() == Eigen::NoConvergence)
@@ -309,7 +309,7 @@ MatrixXd tcat_ica(const vector<string>& imgnames,
 
 	// Compute EigenVectors (U)
 	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
-	eig.setMaxIters(maxiters);
+	eig.setDesiredVecs(maxiters);
 	eig.setDeflationTol(deftol);
 	eig.compute(XXt, initbasis);
 
@@ -479,7 +479,7 @@ MatrixXd spcat_ica(bool psd, const vector<string>& imgnames,
 
 	// Compute EigenVectors (U)
 	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
-	eig.setMaxIters(maxiters);
+	eig.setDesiredVecs(maxiters);
 	eig.setDeflationTol(deftol);
 	eig.compute(XXt, initbasis);
 
@@ -1111,8 +1111,7 @@ void GICAfmri::compute()
 		cerr<<"Creating UE ("<<talldata.mat.rows()<<"x"<<rank<<")"<<endl;
 		tmpmat.create(usname, svd.matrixU().rows(), rank);
 		cerr << "Writing UE" << endl;
-		MatrixXd tmp1 = svd.matrixU().leftCols(rank)*svd.singularValues().head(rank);
-		tmpmat.mat = tmp1;
+		tmpmat.mat = svd.matrixU().leftCols(rank)*svd.singularValues().head(rank).asDiagonal();
 
 		cerr<<"Creating V ("<<talldata.mat.cols()<<"x"<<rank<<")"<<endl;
 		tmpmat.create(vname, talldata.mat.cols(), rank);
@@ -1136,17 +1135,19 @@ void GICAfmri::compute()
 	MatrixXd U, V;
 	VectorXd E;
 	{
-		Eigen::TruncatedLanczosSVD<MatrixXd> svd;
-		svd.setThreshold(svthresh);
-		svd.setDeflationTol(deftol);
-		svd.setLanczosBasis(initbasis);
-		cerr << "Computing...";
-		svd.compute(mergedUE, Eigen::ComputeThinU | Eigen::ComputeThinV);
-		if(svd.info() == Eigen::NoConvergence)
-			throw RUNTIME_ERROR("Error computing Merged SVD, might want to "
-					"increase # of lanczos vectors");
+		Eigen::BDCSVD<MatrixXd> svd(mergedUE,
+				Eigen::ComputeThinV|Eigen::ComputeThinU);
 
-		cerr << "Done"<< endl;
+		int rank = 0;
+		double totalvar = svd.singularValues().squaredNorm();
+		double sumvar = 0;
+		for(rank=0; rank<svd.singularValues().rows(); rank++) {
+			sumvar += svd.singularValues()[rank]*svd.singularValues()[rank];
+			if(sumvar > svthresh*totalvar)
+				break;
+		}
+		rank++;
+		cerr << "SVD Rank: " << rank << endl;
 		U = svd.matrixU();
 		E = svd.singularValues();
 		V = svd.matrixV();
@@ -1170,10 +1171,11 @@ void GICAfmri::compute()
 	 *
 	 * */
 	if(!spatial) {
-		cerr << "Performing ICA" << endl;
+		cerr << "Performing ICA...";
 		MatMap tmpmat;
-		tmpmat.create(m_pref+"_SICA", U.rows(), U.cols());
+		tmpmat.create(m_pref+"_TICA", U.rows(), U.cols());
 		tmpmat.mat = ica(U);
+		cerr << "Done" << endl;
 	} else {
 		cerr << "Constructing Full V...";
 		// store fullV in U, since unneeded
@@ -1190,7 +1192,7 @@ void GICAfmri::compute()
 		cerr << "Done\nPerforming ICA" << endl;
 
 		MatMap tmpmat;
-		tmpmat.create(m_pref+"_TICA", U.rows(), U.cols());
+		tmpmat.create(m_pref+"_SICA", U.rows(), U.cols());
 		tmpmat.mat = ica(U);
 	}
 
@@ -1242,6 +1244,7 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 void GICAfmri::computeSpatialMaps()
 {
 	if(spatial) {
+		cerr << "Spatial ICA" << endl;
 		MatMap ics(m_pref+"_SICA");
 		// Re-associate each column with a spatial signal (map)
 		// Columns of ics correspond to rows of the wide matrices/voxels
@@ -1285,8 +1288,19 @@ void GICAfmri::computeSpatialMaps()
 
 		// TODO Mixture Model for T-Score
 	} else {
+		cerr << "Regressing Temporal Components" << endl;
 		// Regress each column with each input timeseries
 		MatMap ics(m_pref+"_TICA");
+
+		// need to compute the CDF for students_t_cdf
+		const double MAX_T = 2000;
+		const double STEP_T = 0.1;
+		StudentsT distrib(ics.rows-1, STEP_T, MAX_T);
+		cerr << "Computing Inverse of ICs"<<endl;
+		MatrixXd Xinv = pseudoInverse(ics.mat);
+		cerr << "Computing Inverse of Covariance of ICs"<<endl;
+		MatrixXd Cinv = pseudoInverse(ics.mat.transpose()*ics.mat);
+		cerr << "Done" << endl;
 
 		// Get Total Columns from first wide image
 		size_t totalcols = 0;
@@ -1322,29 +1336,39 @@ void GICAfmri::computeSpatialMaps()
 			for(cc=0; cc<tall.cols; cc++, ++mit, ++oit) {
 				// Match iterations of tall columns with mask iteration
 				if(!mask || mit.eof()) {
+					cerr << "Loading Mask" << endl;
 					if(cc != 0) {
 						throw RUNTIME_ERROR("Error Tall Matrix:\n"+m_pref+
 								"_tall_"+to_string(ii)+"\nMismatches mask:"+
 								m_pref+"_mask_"+to_string(mm));
 					}
 
-					// If there is currently an open output image, write as multiple
+					// If there is currently an open output image, write
 					if(out) {
 						for(size_t dd=0; dd<3; dd++)
 							odim[dd] = out->dim(dd);
 						odim[3] = 0;
-						for(index[3] = 0; index[3]<ics.cols; index[3]++)
+
+						out->write(m_pref+"_tmap_m"+to_string(mm)+".nii.gz");
+						assert(out->tlen() == ics.cols);
+						// each row corresponds to a tmap (stored in dim 3)
+						for(index[3] = 0; index[3]<ics.cols; index[3]++) {
+							cerr << "Writing"<<m_pref+"_tmap_m"<<mm<<"_c"
+								<<index[3]<<".nii.gz";
 							out->extractCast(3, index, odim)->write(
 									m_pref+"_tmap_m"+to_string(mm)+"_c"+
 									to_string(index[3])+".nii.gz");
+						}
 					}
 
-					// Read Mask
+					// Read Next Mask
+					cerr<<"Reading mask ("<<(1+mm)<<") = "<<m_pref<<"_mask_"
+							<<(1+mm)<<".nii.gz"<<endl;
 					mask = readMRImage(m_pref+"_mask_"+to_string(++mm)+".nii.gz");
 					if(mask->ndim() != 3)
 						throw RUNTIME_ERROR("Error input mask is not 3D!");
 					for(size_t dd=0; dd<3; dd++)
-						odim[ii] = mask->dim(ii);
+						odim[dd] = mask->dim(dd);
 					odim[3] = ics.cols;
 
 					out = dPtrCast<MRImage>(mask->createAnother(4,
@@ -1356,7 +1380,7 @@ void GICAfmri::computeSpatialMaps()
 				}
 
 				// regress each component with current column of tall
-				regress(result, tall.mat.col(cc), ics.mat);
+				regress(result, tall.mat.col(cc), ics.mat, Cinv, Xinv, distrib);
 				for(size_t comp=0; comp<ics.cols; comp++)
 					oit.set(comp, result.t[comp]);
 			}
@@ -1377,6 +1401,7 @@ void GICAfmri::computeSpatialMaps()
 						m_pref+"_tmap_m"+to_string(mm)+"_c"+
 						to_string(index[3])+".nii.gz");
 		}
+		cerr << "Done with Regression" << endl;
 	}
 }
 
