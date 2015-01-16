@@ -79,8 +79,10 @@ int main(int argc, char** argv)
         << evals << endl;
 
     BandLanczosSelfAdjointEigenSolver<MatrixXd> blsolver;
+    blsolver.setEValStop(0.9);
     cerr << "Computing with BandLanczosHermitian";
     t = clock();
+
     blsolver.compute(A, nbasis);
     t = clock()-t;
     MatrixXd bvecs = blsolver.eigenvectors();

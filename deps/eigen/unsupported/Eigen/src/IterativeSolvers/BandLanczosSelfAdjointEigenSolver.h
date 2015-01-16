@@ -263,7 +263,7 @@ public:
      */
     void setEValSquareStop(Default_t)
     {
-        m_tracesq_stop = 1;
+        m_tracesq_stop = NAN;
     };
 
     /**
@@ -340,9 +340,46 @@ private:
         setEValStop(Default);
     };
 
-    bool check(const Ref<const MatrixType> A, const Ref<const MatrixType> T,
-            const Ref<const MatrixType> V,
-            int bandrad, double ev_sum_t, double ev_sumsq_t);
+    /**
+     * @brief Checks to see if the BandLanczos Algorithm can stop by checking
+     * the number of converged eigenvectors. Also sets m_evals/m_evecs to the
+     * eigenvalues and vectors of T.
+     *
+     * Number of valid eigenpairs is estimated by computing
+     * the Eigenvectors for the approximate (T) matrix, then using the approximate
+     * error from Ruhe:
+     *
+     * ||r|| = ||T_{pj}z||
+     *
+     * where r is the residual/error in the  eigenvector, T_{pj} is the the next
+     * p rows of T and z is the eigenvector of T (size jxj). The error is
+     * approximate because we don't include the off diagonals (deflated) vectors
+     *
+     * Ruhe A. Implementation aspects of band Lanczos algorithms for computation of
+     * eigenvalues of large sparse symmetric matrices. Math Comput. 1979
+     * May 1;33(146):680–680. Available from:
+     * http://www.ams.org/jourcgi/jour-getitem?pii=S0025-5718-1979-0521282-9
+     *
+     * @tparam _MatrixType Type of matrix
+     * @param T Matrix that is similar to A (same eigenvalues and vectors). Prior
+     * to convergence some of the eigenvalues will be incorrect, the purpose of
+     * this function is to measure the approximate error in eigenvectors/values
+     * @param V Lanczos Vectors (including the candidates, which are used to
+     * estimate the next band rows of T)
+     * @param bandrad Current band radius, bandwidth is 2*bandrad+1
+     * @param ev_sum_t Threshold for stopping based on sum of eigenvalues, absolute
+     * value, ignored if this values is NAN or INF
+     * @param ev_sumsq_t Threshold for stopping based on sum of sequared
+     * eigenvalues, absolute value, ignored if this values is NAN or INF
+     * @param A Original matrix (this isn't strictly needed unless debugging is on),
+     * or 0 if other stopping conditions aren't met
+     *
+     * @return Number of valid eigenvalues, or 0 if not all the convergeance
+     * criteria have been met
+     */
+    int check(Ref<MatrixType> T, const Ref<const MatrixType> V,
+            int bandrad, double ev_sum_t,
+            double ev_sumsq_t, const Ref<const MatrixType> A);
 
     /**
      * @brief Band Lanczos Methof for Hessian Matrices
@@ -391,9 +428,9 @@ private:
 
         // We are going to continuously grow these as more Lanczos Vectors are
         // computed
-        int csize = V.cols()*2;
+        int csize = V.cols();
         ApproxType approx(csize, csize);
-        V.conservativeResize(NoChange, V.cols()*2);
+        approx.fill(0);
 
         // V is the list of candidates
         VectorType band(pc); // store values in the band T[jj,jj-pc] to T[jj, jj-1]
@@ -417,11 +454,17 @@ private:
             trsq_thresh = m_tracesq_stop*(A*A).trace();
 
         while(pc > 0) {
-            if(jj+pc >= csize) {
+            if(jj+pc+1 >= csize) {
                 // Need to Grow
-                csize *= 2;
-                approx.conservativeResize(csize, csize);
-                V.conservativeResize(NoChange, csize);
+                int newsize = (jj+1+pc)*2;
+                approx.conservativeResize(newsize, newsize);
+                approx.topRightCorner(csize, newsize-csize).fill(0);
+                approx.bottomRightCorner(newsize-csize, newsize-csize).fill(0);
+                approx.bottomLeftCorner(newsize-csize, csize).fill(0);
+
+                V.conservativeResize(NoChange, newsize);
+                approx.rightCols(newsize-csize).fill(0);
+                csize = newsize;
             }
 
             // (3) compute ||v_j||
@@ -535,32 +578,24 @@ private:
                 approx(jj, *kk) = numext::conj(approx(*kk, jj));
             }
 
-            if(check(A, approx.topLeftCorner(jj+1,jj+1), V.leftCols(jj+1), pc,
-                    tr_thresh, trsq_thresh))
+            if(check(approx.topLeftCorner(jj+pc+1,jj+pc+1),
+                        V.leftCols(jj+pc+1), pc, tr_thresh, trsq_thresh, A)>0)
                 break;
             jj++;
         }
 
-        // Set Approximate and Projection to Final Size
-        approx.conservativeResize(jj+1, jj+1);
-        V.conservativeResize(NoChange, jj+1);
-
-        SelfAdjointEigenSolver<MatrixType> computer(approx);
+        // Check Number of Good Eigenvalues, and update eigenpairs for T
+        int ndim = check(approx.topLeftCorner(jj+pc+1,jj+pc+1),
+                    V.leftCols(jj+pc+1), pc, tr_thresh, trsq_thresh, A);
+        if(ndim <= 0) {
+            m_status = -1;
+            return;
+        }
 
         // Compute Eigen Solution to Similar Matrix, then project through V
-        m_evals = computer.eigenvalues();
-        m_evecs = V*computer.eigenvectors();
+        m_evals = m_evals.tail(ndim);
+        m_evecs = V.leftCols(ndim)*m_evecs.rightCols(ndim);
 
-        // check results to determine numerical issue or non convergence
-        for(int ee = 0; ee<m_evals.rows(); ee++) {
-            double err = (m_evals[ee]*m_evecs.col(ee) -
-                    A*m_evecs.col(ee)).squaredNorm();
-            // numerical issue
-            if(err > std::sqrt(std::numeric_limits<double>::epsilon())) {
-                m_status = -2;
-                return ;
-            }
-        }
         m_status = 1;
     }
 
@@ -594,42 +629,97 @@ private:
     int m_status;
 };
 
+/**
+ * @brief Checks to see if the BandLanczos Algorithm can stop by checking
+ * the number of converged eigenvectors. Also sets m_evals/m_evecs to the
+ * eigenvalues and vectors of T.
+ *
+ * Number of valid eigenpairs is estimated by computing
+ * the Eigenvectors for the approximate (T) matrix, then using the approximate
+ * error from Ruhe:
+ *
+ * ||r|| = ||T_{pj}z||
+ *
+ * where r is the residual/error in the  eigenvector, T_{pj} is the the next
+ * p rows of T and z is the eigenvector of T (size jxj). The error is
+ * approximate because we don't include the off diagonals (deflated) vectors
+ *
+ * Ruhe A. Implementation aspects of band Lanczos algorithms for computation of
+ * eigenvalues of large sparse symmetric matrices. Math Comput. 1979
+ * May 1;33(146):680–680. Available from:
+ * http://www.ams.org/jourcgi/jour-getitem?pii=S0025-5718-1979-0521282-9
+ *
+ * @tparam _MatrixType Type of matrix
+ * @param T Matrix that is similar to A (same eigenvalues and vectors). Prior
+ * to convergence some of the eigenvalues will be incorrect, the purpose of
+ * this function is to measure the approximate error in eigenvectors/values
+ * @param V Lanczos Vectors (including the candidates, which are used to
+ * estimate the next band rows of T)
+ * @param bandrad Current band radius, bandwidth is 2*bandrad+1
+ * @param ev_sum_t Threshold for stopping based on sum of eigenvalues, absolute
+ * value, ignored if this values is NAN or INF
+ * @param ev_sumsq_t Threshold for stopping based on sum of sequared
+ * eigenvalues, absolute value, ignored if this values is NAN or INF
+ * @param A Original matrix (this isn't strictly needed unless debugging is on),
+ * or 0 if other stopping conditions aren't met
+ *
+ * @return Number of valid eigenvalues, or 0 if not all the convergeance
+ * criteria have been met
+ */
 template <typename _MatrixType>
-bool BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
-        const Ref<const MatrixType> A, const Ref<const MatrixType> T,
-        const Ref<const MatrixType> V, int bandrad, double ev_sum_t,
-        double ev_sumsq_t)
+int BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
+        Ref<MatrixType> T, const Ref<const MatrixType> V,
+        int bandrad, double ev_sum_t,
+        double ev_sumsq_t, const Ref<const MatrixType> A)
 {
+    const double EVTHRESH = 0.001;
     // Return Not Done if 1) haven't reached the desired number of EV's,
     // 2) trace hasn't reached the desired value, 3) trace of TT has not
     // reached the desired value
+
+    if(T.cols() < 2*bandrad)
+        return 0;
+
     if(m_outvecs > 1 && T.rows() < m_outvecs)
-        return false;
+        return 0;
 
     if(!isinf(ev_sum_t) && !isnan(ev_sum_t) && T.trace()<ev_sum_t)
-        return false;
+        return 0;
 
     if(!isinf(ev_sumsq_t) && !isnan(ev_sumsq_t) && (T*T).trace()<ev_sumsq_t)
-        return false;
+        return 0;
 
-    SelfAdjointEigenSolver<MatrixType> eig(T);
+    int N = T.rows()-bandrad; // Finished Rows/Columns of T
+    SelfAdjointEigenSolver<MatrixType> eig(T.topLeftCorner(N,N));
+    m_evals = eig.eigenvalues();
+    m_evecs = eig.eigenvectors();
 
-    const double EVTHRESH = 1e-8;
-    cerr<< "T:\n"<<T<<endl;
-    cerr<<"LAMBDA:"<<eig.eigenvalues().transpose()<<endl;
+#ifdef DEBUG
+    cerr<< "\n=======================\nT:\n"<<T<<endl;
+    cerr<<"\nLAMBDA:"<<eig.eigenvalues().transpose()<<endl;
     cerr<<"EVs:\n"<<eig.eigenvectors()<<endl;
-    cerr<<"Proj EVs:\n"<<V*eig.eigenvectors()<<endl;
+    cerr<<"Proj EVs:\n"<<V.leftCols(N)*eig.eigenvectors()<<endl;
+    cerr<<"A:\n"<<A<<endl;
+#endif //DEBUG
+    size_t nvalid = 0;
+    for(int rr=N; rr<N+bandrad; rr++) {
+        double vnorm = V.col(rr).norm();
+        for(int cc=rr-bandrad; cc<N; cc++)
+            T(rr, cc) = V.col(rr).dot(V.col(cc+bandrad))/vnorm;
+    }
+#ifdef DEBUG
+    cerr << "T Est:\n\n"<<T.bottomLeftCorner(bandrad, N)<<endl;
+#endif //DEBUG
     double sum = 0;
     double sumsq = 0;
-    double esterr = 0;
-    double fullerr = 0;
-    size_t nvalid = 0;
-    VectorType fullev;
-    for(int vv=0; vv<T.cols(); vv++) {
-        esterr = (T.topRows(bandrad)*eig.eigenvectors().col(T.cols()-1-vv)).norm();
-        fullev = V*eig.eigenvectors().col(T.cols()-1-vv);
-        fullerr = (eig.eigenvalues()[T.cols()-1-vv]*fullev - A*fullev).norm();
-        cerr << esterr << " vs " << fullerr;
+    for(int vv=0; vv<N; vv++) {
+        double esterr = (T.bottomLeftCorner(bandrad, N)*
+                eig.eigenvectors().col(N-1-vv)).norm();
+#ifdef DEBUG
+        VectorType fullev = V.leftCols(N)*eig.eigenvectors().col(N-1-vv);
+        double fullerr = (eig.eigenvalues()[N-1-vv]*fullev - A*fullev).norm();
+        cerr << "Est Err: " << esterr << " vs True Err: " << fullerr << endl;
+#endif //DEBUG
 
         if(esterr > EVTHRESH)
             break;
@@ -640,13 +730,18 @@ bool BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
         sumsq += eig.eigenvalues()[vv]*eig.eigenvalues()[vv];
     }
 
+    // Remove Predictions Made (in case deflation happens and the true band
+    // ends up being smaller than the predicted one)
+    T.bottomLeftCorner(bandrad, N).setZero();
+
+
     if((m_outvecs <= 1 || nvalid >= m_outvecs) &&
             (std::isnan(ev_sumsq_t) || std::isinf(ev_sumsq_t)
              || sumsq>ev_sumsq_t) && (std::isnan(ev_sum_t) ||
                  std::isinf(ev_sum_t) || sum>ev_sum_t)) {
-        return true;
+        return nvalid;
     }
-    return false;
+    return 0;
 }
 
 } // end namespace Eigen
