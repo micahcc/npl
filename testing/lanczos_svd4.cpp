@@ -87,7 +87,7 @@ Matrix<Scalar, Dynamic, Dynamic> createRandomSVD(size_t rows, size_t cols,
     return U*S.asDiagonal()*V.transpose();
 }
 
-bool test(size_t rows, size_t cols, size_t rank, size_t nbasis)
+int test(size_t rows, size_t cols, size_t rank, size_t nbasis)
 {
     MatrixXd true_U, true_V;
     VectorXd true_S;
@@ -112,7 +112,7 @@ bool test(size_t rows, size_t cols, size_t rank, size_t nbasis)
 
     if(lsvd.info() == Eigen::NoConvergence) {
         cerr << "Non-Convergence!" << endl;
-        return false;
+        return -1;
     }
 
     const VectorXd& lvals = lsvd.singularValues();
@@ -128,7 +128,7 @@ bool test(size_t rows, size_t cols, size_t rank, size_t nbasis)
             if(std::abs(jvals[ii] - lvals[ii]) > 0.05) {
                 cerr << "Difference in singular values" << endl;
                 cerr << jvals[ii] << " vs. " << lvals[ii] << endl;
-                return false;
+                return -1;
             }
         }
     }
@@ -141,7 +141,7 @@ bool test(size_t rows, size_t cols, size_t rank, size_t nbasis)
                 cerr << "Difference in eigenvector " << ii << endl;
                 cerr << lU.col(ii) << endl << "vs. " << endl
                     << lV.col(ii) << endl;
-                return false;
+                return -1;
             }
         }
     }
@@ -152,13 +152,13 @@ bool test(size_t rows, size_t cols, size_t rank, size_t nbasis)
             double v = std::abs(lV.col(ii).dot(jV.col(ii)));
             if(std::abs(v) < .95) {
                 cerr << "Difference in eigenvector " << ii << endl;
-                return false;
+                return -1;
             }
         }
     }
 
     cerr << "Success!"<<endl;
-    return true;
+    return 0;
 }
 
 int main(int argc, char** argv)
