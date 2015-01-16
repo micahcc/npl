@@ -209,23 +209,19 @@ int main(int argc, char** argv)
     }
 
     cerr << "Test " << matrows << "x" << matcols << endl;
-    if(!test(matrows, matcols, rank, nbasis))
+    if(test(matrows, matcols, rank, nbasis))
         return -1;
 
     cerr << "Test " << matcols << "x" << matrows << endl;
-    if(!test(matcols, matrows, rank, nbasis))
-        return -1;
-
-    cerr << "Test NonConvergence" << matcols << "x" << matrows << endl;
-    if(test(matcols, matrows, rank, max(max(3lu, matcols/10), matrows/10)))
+    if(test(matcols, matrows, rank, nbasis))
         return -1;
 
     cerr << "Test " << matcols << "x" << matcols << endl;
-    if(!test(matcols, matcols, rank, nbasis))
+    if(test(matcols, matcols, rank, nbasis))
         return -1;
 
     cerr << "Test " << matrows << "x" << matrows << endl;
-    if(!test(matrows, matrows, rank, nbasis))
+    if(test(matrows, matrows, rank, nbasis))
         return -1;
 
 }
