@@ -463,7 +463,7 @@ private:
                 approx.bottomLeftCorner(newsize-csize, csize).fill(0);
 
                 V.conservativeResize(NoChange, newsize);
-                approx.rightCols(newsize-csize).fill(0);
+                V.rightCols(newsize-csize).fill(0);
                 csize = newsize;
             }
 
