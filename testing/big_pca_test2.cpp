@@ -270,10 +270,8 @@ int main(int argc, char** argv)
 	if(testTallPCAJoin(reorg, pref+"_tall_", evthresh) != 0)
 		return -1;
 
-//	// TODO test with Wide
-//	// use Matrix
-//	if(testWidePCAJoin(reorg, pref+"_wide_", evthresh) != 0)
-//		return -1;
+	if(testWidePCAJoin(reorg, pref+"_wide_", evthresh) != 0)
+		return -1;
 
 }
 

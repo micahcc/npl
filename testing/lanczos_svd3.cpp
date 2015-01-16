@@ -16,6 +16,8 @@
 #include <Eigen/Dense>
 #include <unsupported/Eigen/IterativeSolvers>
 
+#define VERYDEBUG
+
 using namespace std;
 using namespace Eigen;
 
@@ -77,9 +79,10 @@ Matrix<Scalar, Dynamic, Dynamic> createRandomSVD(size_t rows, size_t cols,
     U = createRandomUnitary<Scalar>(rows, rank);
     V = createRandomUnitary<Scalar>(cols, rank);
     S.resize(rank);
-    S.setRandom();
+	std::default_random_engine rng;
+	std::exponential_distribution<double> dist;
     for(size_t rr=0; rr<rank; rr++)
-        S[rr] = abs(S[rr]);
+        S[rr] = dist(rng);
     S.normalize();
     std::sort(S.array().data(), S.array().data()+rank);
     std::reverse(S.array().data(), S.array().data()+rank);
@@ -95,7 +98,7 @@ int main(int argc, char** argv)
     size_t matcols = 200;
 
     // Number of orthogonal vectors to start with
-    size_t nbasis = 50;
+    size_t nbasis = 5;
 
     // Rank
     size_t rank = 50;
@@ -127,69 +130,79 @@ int main(int argc, char** argv)
     Matrix<double,Dynamic,Dynamic> A = createRandomSVD<double>(
             matrows, matcols, rank, true_U, true_S, true_V);
 
-    cerr << "Computing with Eigen::JacobiSVD";
-    clock_t t = clock();
-    Eigen::JacobiSVD<MatrixXd> jacsvd(A, ComputeThinV|ComputeThinU);
-    t = clock()-t;
-    const VectorXd& jvals = jacsvd.singularValues();
-    const MatrixXd& jU = jacsvd.matrixU();
-    const MatrixXd& jV = jacsvd.matrixV();
-    cerr << "Done ("<<t<<")"<<endl;
-
-    Eigen::TruncatedLanczosSVD<MatrixXd> lsvd;
+	Eigen::TruncatedLanczosSVD<MatrixXd> lsvd;
     lsvd.setLanczosBasis(nbasis);
-    lsvd.setVarThreshold(0.9);
+    lsvd.setVarThreshold(0.95);
     cerr << "Computing with TruncatedLanczosSVD";
-    t = clock();
     lsvd.compute(A, ComputeThinV|ComputeThinU);
-    t = clock()-t;
+    cerr << "Done\n";
 
     if(lsvd.info() == Eigen::NoConvergence) {
         cerr << "Non-Convergence!" << endl;
         return -1;
     }
 
-    const VectorXd& lvals = lsvd.singularValues();
-    const MatrixXd& lU = lsvd.matrixU();
-    const MatrixXd& lV = lsvd.matrixV();
-    cerr << "Done ("<<t<<")"<<endl;
+	const VectorXd& E = lsvd.singularValues();
+    const MatrixXd& U = lsvd.matrixU();
+    const MatrixXd& V = lsvd.matrixV();
 
-    int64_t srows = min(lvals.rows(), jvals.rows());
+	double err;
+	err = (U.transpose()*U-MatrixXd::Identity(U.cols(),
+				U.cols())).array().square().sum();
+	cerr << "UtU Error:"<<err<< endl;
+	if(err > 0.00001) {
+		cerr<<"Error, lots of off-diagonal entries during UtU!"<<endl;
+		cerr<<"\n"<<U<<endl;
+		return -1;
+	}
+	err = (V.transpose()*V-MatrixXd::Identity(V.cols(),
+				V.cols())).array().square().sum();
+	cerr << "VtV Error:"<<err<< endl;
+	if(err > 0.00001) {
+		cerr<<"Error, lots of off-diagonal entries during VtV!"<<endl;
+		cerr<<"\n"<<V<<endl;
+		return -1;
+	}
 
-    cerr << "Comparing Singular Values"<<endl;
-    for(int64_t ii=0; ii<srows; ii++) {
-        if(fabs(jvals[ii]) > .01) {
-            if(fabs(jvals[ii] - lvals[ii]) > 0.05) {
-                cerr << "Difference in singular values" << endl;
-                cerr << jvals[ii] << " vs. " << lvals[ii] << endl;
-                return -1;
-            }
-        }
-    }
-
-    cerr << "Comparing U Matrix" << endl;
-    for(int64_t ii=0; ii<srows; ii++) {
-        if(fabs(jvals[ii]) > .01) {
-            double v = fabs(lU.col(ii).dot(jU.col(ii)));
-            if(fabs(v) < .95) {
-                cerr << "Difference in eigenvector " << ii << endl;
-                cerr << lU.col(ii) << endl << "vs. " << endl
-                    << lV.col(ii) << endl;
-                return -1;
-            }
-        }
-    }
-
-    cerr << "Comparing V Matrix" << endl;
-    for(int64_t ii=0; ii<srows; ii++) {
-        if(fabs(jvals[ii]) > .01) {
-            double v = fabs(lV.col(ii).dot(jV.col(ii)));
-            if(fabs(v) < .95) {
-                cerr << "Difference in eigenvector " << ii << endl;
-                return -1;
-            }
-        }
-    }
+	err = (A - U*E.asDiagonal()*V.transpose()).array().square().sum();
+	cerr << "Recon Error:"<<err<<endl;
+	if(err > 0.1)
+		return -1;
+//
+//    cerr << "Comparing Singular Values"<<endl;
+//    for(int64_t ii=0; ii<srows; ii++) {
+//        if(fabs(jvals[ii]) > .01) {
+//            if(fabs(jvals[ii] - lvals[ii]) > 0.05) {
+//                cerr << "Difference in singular values" << endl;
+//                cerr << jvals[ii] << " vs. " << lvals[ii] << endl;
+//                return -1;
+//            }
+//        }
+//    }
+//
+//    cerr << "Comparing U Matrix" << endl;
+//    for(int64_t ii=0; ii<srows; ii++) {
+//        if(fabs(jvals[ii]) > .01) {
+//            double v = fabs(lU.col(ii).dot(jU.col(ii)));
+//            if(fabs(v) < .95) {
+//                cerr << "Difference in eigenvector " << ii << endl;
+//                cerr << lU.col(ii) << endl << "vs. " << endl
+//                    << lV.col(ii) << endl;
+//                return -1;
+//            }
+//        }
+//    }
+//
+//    cerr << "Comparing V Matrix" << endl;
+//    for(int64_t ii=0; ii<srows; ii++) {
+//        if(fabs(jvals[ii]) > .01) {
+//            double v = fabs(lV.col(ii).dot(jV.col(ii)));
+//            if(fabs(v) < .95) {
+//                cerr << "Difference in eigenvector " << ii << endl;
+//                return -1;
+//            }
+//        }
+//    }
 
     return 0;
 }

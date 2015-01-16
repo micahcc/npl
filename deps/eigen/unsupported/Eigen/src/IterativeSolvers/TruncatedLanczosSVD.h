@@ -164,10 +164,17 @@ class TruncatedLanczosSVD
         eig.setEValStop(m_var_thresh);
         eig.setDeflationTol(m_deftol);
         eig.compute(C, initrank);
-        int retrank = eig.eigenvalues().rows();
 
         if(eig.info() == NoConvergence)
             m_status = -2;
+
+        int rows = eig.eigenvalues().rows();
+        int rank = 0;
+        for(size_t rr=0; rr<rows; rr++) {
+            if(eig.eigenvalues()[rr] > std::sqrt(std::numeric_limits
+                        <RealScalar>::epsilon()))
+                rank++;
+        }
 
         // Note that because Eigen Solvers usually sort eigenvalues in
         // increasing order but singular value decomposers do decreasing order,
@@ -177,11 +184,11 @@ class TruncatedLanczosSVD
             // A = USV*, U = AVS^-1
 
             // reverse
-            m_V.resize(A.cols(), retrank);
-            m_singvals.resize(retrank);
-            for(int cc=0; cc<retrank; cc++) {
-                m_V.col(cc) = eig.eigenvectors().col(retrank-1-cc);
-                m_singvals[cc] = eig.eigenvalues()[retrank-1-cc];
+            m_V.resize(A.cols(), rank);
+            m_singvals.resize(rank);
+            for(int cc=0; cc<rank; cc++) {
+                m_V.col(cc) = eig.eigenvectors().col(rows-1-cc);
+                m_singvals[cc] = std::sqrt(eig.eigenvalues()[rows-1-cc]);
             }
 
             // Compute U if needed
@@ -191,11 +198,11 @@ class TruncatedLanczosSVD
             // Computed left singular values (U)
             // A = USV*, A^T = VSU*, V = A^T U S^-1
 
-            m_U.resize(A.rows(), retrank);
-            m_singvals.resize(retrank);
-            for(int cc=0; cc<retrank; cc++) {
-                m_U.col(cc) = eig.eigenvectors().col(retrank-1-cc);
-                m_singvals[cc] = eig.eigenvalues()[retrank-1-cc];
+            m_U.resize(A.rows(), rank);
+            m_singvals.resize(rank);
+            for(int cc=0; cc<rank; cc++) {
+                m_U.col(cc) = eig.eigenvectors().col(rows-1-cc);
+                m_singvals[cc] = std::sqrt(eig.eigenvalues()[rows-1-cc]);
             }
 
             if(m_computeV)
