@@ -183,7 +183,7 @@ int spcat_orthog(std::string prefix, double svthresh,
 	// Compute EigenVectors (U)
 	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
 	eig.setDeflationTol(std::numeric_limits<double>::epsilon());
-	eig.setDesiredVecs(maxiters);
+	eig.setDesiredRank(maxiters);
 	eig.compute(XXT, initbasis);
 
 	if(eig.info() == Eigen::NoConvergence)
@@ -309,7 +309,7 @@ MatrixXd tcat_ica(const vector<string>& imgnames,
 
 	// Compute EigenVectors (U)
 	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
-	eig.setDesiredVecs(maxiters);
+	eig.setDesiredRank(maxiters);
 	eig.setDeflationTol(deftol);
 	eig.compute(XXt, initbasis);
 
@@ -479,7 +479,7 @@ MatrixXd spcat_ica(bool psd, const vector<string>& imgnames,
 
 	// Compute EigenVectors (U)
 	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
-	eig.setDesiredVecs(maxiters);
+	eig.setDesiredRank(maxiters);
 	eig.setDeflationTol(deftol);
 	eig.compute(XXt, initbasis);
 

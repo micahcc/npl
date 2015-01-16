@@ -311,7 +311,7 @@ public:
      * if as a consequence of a few extra iterations, more are available at
      * respectible accuracy
      */
-    void setDesiredVecs(int maxiters) { m_outvecs = maxiters; };
+    void setDesiredRank(int maxiters) { m_outvecs = maxiters; };
 
     /**
      * @brief Set desired number of output vectors. Less may be returned in the
@@ -322,7 +322,7 @@ public:
      * if as a consequence of a few extra iterations, more are available at
      * respectible accuracy
      */
-    void setDesiredVecs(Default_t) { m_outvecs = -1; };
+    void setDesiredRank(Default_t) { m_outvecs = -1; };
 
     /**
      * @brief Get estimated number of vectors
@@ -371,15 +371,13 @@ private:
      * value, ignored if this values is NAN or INF
      * @param ev_sumsq_t Threshold for stopping based on sum of sequared
      * eigenvalues, absolute value, ignored if this values is NAN or INF
-     * @param A Original matrix (this isn't strictly needed unless debugging is on),
-     * or 0 if other stopping conditions aren't met
      *
      * @return Number of valid eigenvalues, or 0 if not all the convergeance
      * criteria have been met
      */
     int check(Ref<MatrixType> T, const Ref<const MatrixType> V,
             int bandrad, double ev_sum_t,
-            double ev_sumsq_t, const Ref<const MatrixType> A);
+            double ev_sumsq_t);
 
     /**
      * @brief Band Lanczos Methof for Hessian Matrices
@@ -579,14 +577,14 @@ private:
             }
 
             if(check(approx.topLeftCorner(jj+pc+1,jj+pc+1),
-                        V.leftCols(jj+pc+1), pc, tr_thresh, trsq_thresh, A)>0)
+                        V.leftCols(jj+pc+1), pc, tr_thresh, trsq_thresh) > 0)
                 break;
             jj++;
         }
 
         // Check Number of Good Eigenvalues, and update eigenpairs for T
         int ndim = check(approx.topLeftCorner(jj+pc+1,jj+pc+1),
-                    V.leftCols(jj+pc+1), pc, tr_thresh, trsq_thresh, A);
+                    V.leftCols(jj+pc+1), pc, tr_thresh, trsq_thresh);
         if(ndim <= 0) {
             m_status = -1;
             return;
@@ -660,8 +658,6 @@ private:
  * value, ignored if this values is NAN or INF
  * @param ev_sumsq_t Threshold for stopping based on sum of sequared
  * eigenvalues, absolute value, ignored if this values is NAN or INF
- * @param A Original matrix (this isn't strictly needed unless debugging is on),
- * or 0 if other stopping conditions aren't met
  *
  * @return Number of valid eigenvalues, or 0 if not all the convergeance
  * criteria have been met
@@ -669,8 +665,7 @@ private:
 template <typename _MatrixType>
 int BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
         Ref<MatrixType> T, const Ref<const MatrixType> V,
-        int bandrad, double ev_sum_t,
-        double ev_sumsq_t, const Ref<const MatrixType> A)
+        int bandrad, double ev_sum_t, double ev_sumsq_t)
 {
     const double EVTHRESH = 0.001;
     // Return Not Done if 1) haven't reached the desired number of EV's,

@@ -116,8 +116,7 @@ int main(int argc, char** argv)
         nbasis = atoi(argv[4]);
     } else {
         cerr << "Using default size, basis size, and rank (to set use "
-            "arguments: " << argv[0] << " [matrows] [matcols] [nbasis] [rank]"
-            << endl;
+            "arguments: " << argv[0] << " [matrows] [matcols] [rank] [nbasis]\n";
     }
 
     cerr << "Matrix (rank "<<rank<<"): " << matrows << "x" << matcols << endl;
@@ -139,6 +138,7 @@ int main(int argc, char** argv)
 
     Eigen::TruncatedLanczosSVD<MatrixXd> lsvd;
     lsvd.setLanczosBasis(nbasis);
+    lsvd.setVarThreshold(0.9);
     cerr << "Computing with TruncatedLanczosSVD";
     t = clock();
     lsvd.compute(A, ComputeThinV|ComputeThinU);

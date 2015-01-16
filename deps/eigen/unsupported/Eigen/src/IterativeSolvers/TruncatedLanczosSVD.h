@@ -66,6 +66,36 @@ class TruncatedLanczosSVD
     typedef Matrix<Scalar, Dynamic, Dynamic, MatrixOptions,
             MaxDiagSizeAtCompileTime, MaxDiagSizeAtCompileTime> WorkMatrixType;
 
+
+    /**
+     * @brief Given the current desired rank (setDesiredRank), desired total
+     * variance (setVarThreshold), and threshold (setThreshold), remove extra
+     * singular values that go beyond the stated limit (ie are after the
+     * maximum rank, beyond the desired threshold of found variance, or below
+     * the minimum threshold for zero).
+     *
+     * Because the underlying solver may need to run for
+     * additional iterations to achieve high accuracy, additional singular
+     * values may at times be returned 'at no additional cost'. Calling this
+     * function removes any additional singular values that may have been
+     * returned.
+     *
+     * Further, if limits are placed AFTER the compute()
+     * function, this can be used to further truncate the singular values
+     * matrix. Note that after calling hardenLimits compute() must be called
+     * again to re-calculate truncated elements.
+     */
+    void hardenLimits()
+    {
+        eigen_assert(m_status == 1 && "SVD Not Complete.");
+
+        int r = rank();
+        m_singvals.conservativeResize(r);
+        m_U = m_U.leftCols(r);
+        m_V = m_V.rightCols(r);
+
+    }
+
     /**
      * @brief Default constructor
      */
@@ -83,10 +113,11 @@ class TruncatedLanczosSVD
      * since the size of U is determined by the convergence specification. The
      * same goes for ComputeThinV/ComputeFullV
      */
-    TruncatedLanczosSVD(const Ref<const MatrixType>& A, unsigned int computationOptions)
+    TruncatedLanczosSVD(const Ref<const MatrixType>& A,
+            unsigned int computationOptions, bool hardlimits = false)
     {
         init();
-        compute(A, computationOptions);
+        compute(A, computationOptions, hardlimits);
     };
 
     /**
@@ -102,7 +133,8 @@ class TruncatedLanczosSVD
      * return 0 if successful, -1 if there is a failure (may need to have more
      * basis vectors)
      */
-    void compute(const Ref<const MatrixType>& A, unsigned int computationOptions)
+    void compute(const Ref<const MatrixType>& A, unsigned int computationOptions,
+            bool hardlimits = false)
     {
         if(computationOptions & (ComputeThinV|ComputeFullV))
             m_computeV = true;
@@ -120,32 +152,23 @@ class TruncatedLanczosSVD
             m_computeU = true;
         }
 
+        // update totalvar (sum of variances)
+        m_totalvar = C.trace();
+
         // This is a bit hackish, really the user should set this
-        int initrank = std::min<int>(A.rows(), A.cols());
+        int initrank = std::max(10, std::min<int>(A.rows(), A.cols()));
         if(m_initbasis > 0)
             initrank = m_initbasis;
 
         BandLanczosSelfAdjointEigenSolver<MatrixType> eig;
-        eig.setDesiredVecs(m_maxiters);
+        eig.setDesiredRank(m_nvec);
+        eig.setEValStop(m_var_thresh);
         eig.setDeflationTol(m_deftol);
         eig.compute(C, initrank);
+        int retrank = eig.eigenvalues().cols();
 
         if(eig.info() == NoConvergence)
             m_status = -2;
-
-        int eigrows = eig.eigenvalues().rows();
-        int rank = 0;
-        m_singvals.resize(eigrows);
-        double maxev = eig.eigenvalues()[eigrows-1];
-        for(int cc=0; cc<eigrows; cc++) {
-            if(eig.eigenvalues()[eigrows-1-cc]/maxev < m_sv_thresh)
-                m_singvals[cc] = 0;
-            else {
-                m_singvals[cc] = std::sqrt(eig.eigenvalues()[eigrows-1-cc]);
-                rank++;
-            }
-        }
-        m_singvals.conservativeResize(rank);
 
         // Note that because Eigen Solvers usually sort eigenvalues in
         // increasing order but singular value decomposers do decreasing order,
@@ -155,9 +178,9 @@ class TruncatedLanczosSVD
             // A = USV*, U = AVS^-1
 
             // reverse
-            m_V.resize(eig.eigenvectors().rows(), rank);
-            for(int cc=0; cc<rank; cc++)
-                m_V.col(cc) = eig.eigenvectors().col(eigrows-1-cc);
+            m_V.resize(eig.eigenvectors().rows(), retrank);
+            for(int cc=0; cc<retrank; cc++)
+                m_V.col(cc) = eig.eigenvectors().col(retrank-1-cc);
 
             // Compute U if needed
             if(m_computeU)
@@ -166,14 +189,16 @@ class TruncatedLanczosSVD
             // Computed left singular values (U)
             // A = USV*, A^T = VSU*, V = A^T U S^-1
 
-            m_U.resize(eig.eigenvectors().rows(), rank);
-            for(int cc=0; cc<rank; cc++)
-                m_U.col(cc) = eig.eigenvectors().col(eigrows-1-cc);
+            m_U.resize(eig.eigenvectors().rows(), retrank);
+            for(int cc=0; cc<retrank; cc++)
+                m_U.col(cc) = eig.eigenvectors().col(retrank-1-cc);
 
             if(m_computeV)
                 m_V = A.transpose()*m_U*(m_singvals.cwiseInverse()).asDiagonal();
         }
 
+        if(hardlimits)
+            hardenLimits();
         m_status = 1;
     };
 
@@ -276,28 +301,61 @@ class TruncatedLanczosSVD
     }
 
     /**
-     * @brief Maximum number of iterations to perform in the
-     * BandLanczosSelfAdjointEigenSolver. This is roughly the maximum rank
-     * computed, but be wary of setting it too low.
+     * @brief Smallest value of singular values that is not considered zero for
+     * matrix rank.
      *
-     * @param maxiters Maximum number of iterations in underlying Eigen Solver
+     * @param threshold Value (default is sqr(epsilon))
      */
-    void setMaxIters(int maxiters) { m_maxiters = maxiters; };
+    void setThreshold(RealScalar threshold)
+    {
+        m_thresh = threshold;
+    }
 
     /**
-     * @brief Set maximum iterations to infinity, which is triggered by any
-     * value less than 0. This constrols the maximum number of iterations to
-     * perform in the BandLanczosSelfAdjointEigenSolver.
-     *
-     * @param maxiters Maximum number of iterations in underlying Eigen Solver
+     * @brief Smallest value of singular values that is not considered zero for
+     * matrix rank, sets the threshold to the square root of machine precision,
+     * since the square of singular values are initially computed.
      */
-    void setMaxIters(Default_t d) { m_maxiters = -1; };
+    void setThreshold(Default_t)
+    {
+        m_thresh = std::sqrt(std::numeric_limits<RealScalar>::epsilon());
+    }
 
     /**
-     * @brief Get maximum iterations. This constrols the maximum number of
-     * iterations to perform in the BandLanczosSelfAdjointEigenSolver.
+     * @brief Get smallest value of singular values that is not considered zero
+     * for matrix rank.
      */
-    int maxIters() { return m_maxiters; };
+    RealScalar threshold()
+    {
+        return m_thresh;
+    }
+
+    /**
+     * @brief The number of desired vectors in output. This is only a
+     * guideline, but setting it will aid convergence speed by suppressing
+     * early checks for convergence. Fewer components may still be returned if
+     * the Kyrlov sequence does not have enough variation (in which case
+     * increase lanczos basis). More vectors could be returned if additional
+     * iterations were needed to provide sufficent accuracy.
+     *
+     * @param nvec Rough estimate of desired number of vectors
+     */
+    void setDesiredRank(int nvec) { m_nvec = nvec; };
+
+    /**
+     * @brief Remove limits on stopping. This implicity sets the value at 1
+     * least 1 and less than infinity.
+     *
+     */
+    void setDesiredRank(Default_t) { m_nvec = -1; };
+
+    /**
+     * @brief Get stopping condition based on rank. Negative values indicate no
+     * requirement.
+     *
+     * @return Current number of dsired singular values
+     */
+    int desiredRank() { return m_nvec; };
 
     /**
      * @brief Set the tolerance for deflation. Algorithm stops when #of
@@ -315,9 +373,9 @@ class TruncatedLanczosSVD
      *
      * @param Default_t d
      */
-    void setDeflationTol(Default_t d)
+    void setDeflationTol(Default_t)
     {
-        m_deftol = sqrt(std::numeric_limits<RealScalar>::epsilon());
+        m_deftol = std::sqrt(std::numeric_limits<RealScalar>::epsilon());
     };
 
     /**
@@ -329,17 +387,17 @@ class TruncatedLanczosSVD
 
     /**
      * @brief Allows to prescribe a threshold to be used by Lanczos algorithm
-     * to determine when to stop. Unlike in the JacobiSVD this is used during
-     * the SVD decomposition, and will affect output of solve() and rank()
-     * until compute() is called again. By default the algorithm stops
-     * when the Krylov subspace is exhausted.
+     * to determine when to stop. Unlike in the JacobiSVD this is a ratio of
+     * the total singular values that is searched for in the output (found by
+     * the trace of the covariance matrix). This also must be set BEFORE
+     * compute is called to have an effect.
      *
-     * @param threshold Ratio of total variance to account for in underlying
-     * eigenvalue problem.
+     * @param threshold Ratio of total variance to account for [0,1] or
+     * infinite to let the algorithm run to completion.
      */
-    void setThreshold(const Scalar& threshold)
+    void setVarThreshold(const Scalar& threshold)
     {
-        m_sv_thresh = threshold;
+        m_var_thresh = threshold;
     };
 
     /**
@@ -348,9 +406,9 @@ class TruncatedLanczosSVD
      *
      * @param Eigen::Default_t default, only 1 option
      */
-    void setThreshold(Default_t Default)
+    void setVarThreshold(Default_t)
     {
-        m_sv_thresh = std::numeric_limits<Scalar>::epsilon();
+        m_var_thresh = INFINITY;
     };
 
     /**
@@ -358,45 +416,74 @@ class TruncatedLanczosSVD
      *
      * @return The current threshold (inf if not set)
      */
-    Scalar threshold()
+    Scalar varThreshold()
     {
-        return m_sv_thresh;
+        return m_var_thresh;
     }
 
     /**
-     * @brief Returns number of singular values that are not exactly zero.
-     * Note that since truncation is part of the process, this ends up being
-     * the same as the number of rows in the singularValues() vector.
+     * @brief See rank()
      *
      * @return Number of nonzero singular values.
      */
     int nonzeroSingularValues()
     {
         eigen_assert(m_status == 1 && "SVD Not Complete.");
-        return m_singvals.rows();
+        return rank();
     };
 
     /**
-     * @brief Returns estimated rank of A.
+     * @brief Returns estimated rank of A. This is the minimum of 1) desired
+     * rank, 2) # values > threshold 3) # values on the upper end of the
+     * spectrum before the sum of the singular values exceeds the Variance
+     * Threshold.
+     *
      */
     int rank()
     {
         eigen_assert(m_status == 1 && "SVD Not Complete.");
-        return m_singvals.rows();
-    };
 
+        int desrank = m_nvec > 0 ? m_nvec : std::numeric_limits<int>::max();
+        int varrank = 0;
+        int threshrank = 0;
+        RealScalar sum = 0;
+        for(int cc=0; cc<m_singvals.rows(); cc++) {
+            // if m_thresh is invalid (NAN, negative) or the value is greater
+            if(!(m_thresh>= 0) || m_singvals[cc]/m_singvals[0] > m_thresh)
+                threshrank++;
+            // if m_var_thresh is invalid (not in [0,1]) or sum < thresh
+            if(!(m_var_thresh<=1&&m_var_thresh>=0) ||
+                    m_singvals[cc]*m_singvals[cc] + sum >
+                    m_totalvar*m_var_thresh) {
+                varrank++;
+            }
+            sum += m_singvals[cc]*m_singvals[cc];
+        }
+
+        return std::min(std::min(varrank, threshrank), desrank);
+    };
 
     /**
      * @brief Size of random basis vectors to build Krylov basis
      * from in Eigenvalue decomposition of MM* or M*M. This should be roughly
-     * the number of clustered large eigenvalues. If results are not
-     * sufficiently good, it may be worth increasing this
+     * the number of clustered large eigenvalues. If not enough eigenvalues
+     * are being found, it may be worth increasing this
      *
-     * @param basis New random Lanczos basis size
+     * @param basis Random Lanczos basis size
      */
     void setLanczosBasis(int basis)
     {
         m_initbasis = basis;
+    };
+
+    /**
+     * @brief Size of random basis vectors to build Krylov basis basck
+     * to default (which is max(10, 1/10 min(rows,cols)).
+     *
+     */
+    void setLanczosBasis(Default_t)
+    {
+        m_initbasis = -1;
     };
 
     /**
@@ -440,10 +527,11 @@ private:
 
     void init()
     {
-        m_initbasis = -1; // <= 0 -> .1*input rows
-        m_sv_thresh = std::numeric_limits<RealScalar>::epsilon();
-        m_deftol = std::sqrt(std::numeric_limits<RealScalar>::epsilon());
-        m_maxiters = -1;
+        setLanczosBasis(Default);
+        setDeflationTol(Default);
+        setVarThreshold(Default);
+        setThreshold(Default);
+        setDesiredRank(Default);
 
         m_computeU = false;
         m_computeV = false;
@@ -464,13 +552,14 @@ private:
      * @brief Maximum number of singular values to compute, if this is <= 0,
      * then the condition is ignored.
      */
-    int m_maxiters;
+    int m_nvec;
 
     /**
-     * @brief Stop after this amount of the sum of squared eigenvalues have
-     * been found in the MM* or M*M matrix
+     * @brief Stop after this amount of the variance has been accounted for
      */
-    RealScalar m_sv_thresh;
+    RealScalar m_var_thresh;
+
+    RealScalar m_thresh;
 
     /**
     * @brief Deflation tolerance for BandLanczos Algorithm. Larger values will
@@ -482,6 +571,8 @@ private:
     bool m_computeV;
 
     int m_status;
+
+    double m_totalvar;
 };
 
 } // Eigen
