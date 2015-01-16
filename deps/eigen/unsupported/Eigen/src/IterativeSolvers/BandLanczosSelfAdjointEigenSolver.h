@@ -376,8 +376,8 @@ private:
      * criteria have been met
      */
     int check(Ref<MatrixType> T, const Ref<const MatrixType> V,
-            int bandrad, double ev_sum_t,
-            double ev_sumsq_t);
+            int bandrad, double ev_sum_t, double ev_sumsq_t);
+//            const Ref<const MatrixType> A);
 
     /**
      * @brief Band Lanczos Methof for Hessian Matrices
@@ -666,8 +666,10 @@ template <typename _MatrixType>
 int BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
         Ref<MatrixType> T, const Ref<const MatrixType> V,
         int bandrad, double ev_sum_t, double ev_sumsq_t)
+//        const Ref<const MatrixType> A)
 {
-    const double EVTHRESH = 0.01;
+    const double EVTHRESH = 0.0001;
+
     // Return Not Done if 1) haven't reached the desired number of EV's,
     // 2) trace hasn't reached the desired value, 3) trace of TT has not
     // reached the desired value
@@ -709,14 +711,15 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
     for(int vv=0; vv<N; vv++) {
         double esterr = (T.bottomLeftCorner(bandrad, N)*
                 eig.eigenvectors().col(N-1-vv)).norm();
-
+//        VectorXd ev = V.leftCols(N)*eig.eigenvectors().col(N-1-vv);
+//        double esterr = (A*ev-eig.eigenvalues()[N-1-vv]*ev).norm();
         if(esterr > EVTHRESH)
             break;
 
         nvalid++;
 
-        sum += eig.eigenvalues()[vv];
-        sumsq += eig.eigenvalues()[vv]*eig.eigenvalues()[vv];
+        sum += eig.eigenvalues()[N-1-vv];
+        sumsq += eig.eigenvalues()[N-1-vv]*eig.eigenvalues()[N-1-vv];
     }
 
     // Remove Predictions Made (in case deflation happens and the true band

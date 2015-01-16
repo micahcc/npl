@@ -465,7 +465,7 @@ class TruncatedLanczosSVD
                 threshrank++;
             // if m_var_thresh is invalid (not in [0,1]) or sum < thresh
             if(!(m_var_thresh<=1&&m_var_thresh>=0) ||
-                    m_singvals[cc]*m_singvals[cc] + sum >
+                    m_singvals[cc]*m_singvals[cc] + sum <
                     m_totalvar*m_var_thresh) {
                 varrank++;
             }

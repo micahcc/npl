@@ -62,7 +62,6 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 	// Maximum number of columns/rows in sigma
 	size_t outrows = 0;
-	size_t maxrank = 0;
 	vector<MatrixXd> Umats(reorg.nwide());
 	vector<MatrixXd> Vmats(reorg.nwide());
 	vector<VectorXd> Smats(reorg.nwide());
@@ -71,11 +70,10 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
 
 		TruncatedLanczosSVD<MatrixXd> svd;
-		svd.setVarThreshold(0.90);
+		svd.setVarThreshold(0.99);
 		svd.compute(diskmat.mat, ComputeThinU | ComputeThinV);
 
 		cerr << "SVD Rank: " << svd.rank() << endl;
-		maxrank = std::max<size_t>(maxrank, svd.rank());
 		Umats[rr] = svd.matrixU().leftCols(svd.rank());
 		Vmats[rr] = svd.matrixV().leftCols(svd.rank());
 		Smats[rr] = svd.singularValues().head(svd.rank());
@@ -94,7 +92,7 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 	cerr<<"Merge SVD:"<<mergedEVt.rows()<<"x"<<mergedEVt.cols()<<endl;
 	TruncatedLanczosSVD<MatrixXd> mergesvd;
-	mergesvd.setVarThreshold(0.90);
+	mergesvd.setVarThreshold(0.99);
 	mergesvd.compute(mergedEVt, ComputeThinU | ComputeThinV);
 
 	cerr<<"Comparing Full S with Merge S"<<endl;
@@ -102,7 +100,7 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	const auto& mergeS = mergesvd.singularValues();
 	cerr << fullS.transpose() << endl;
 	cerr << mergeS.transpose() << endl;
-	for(size_t ii=0; ii<maxrank; ++ii) {
+	for(size_t ii=0; ii<min(fullS.rows(), mergeS.rows()); ++ii) {
 		cerr << fullS[ii] << " vs " << mergeS[ii] << endl;
 		if(2*fabs(mergeS[ii] - fullS[ii])/fabs(mergeS[ii]+fullS[ii]) > thresh) {
 			cerr<<"Difference in Singular Value "<<ii<<": "<<mergeS[ii]<<" vs "
@@ -114,7 +112,7 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	cerr<<"Comparing Full V with Merge V"<<endl;
 	const auto& fullV = fullsvd.matrixV();
 	const auto& mergeV = mergesvd.matrixV();
-	for(size_t ii=0; ii<maxrank;  ++ii) {
+	for(size_t ii=0; ii<min(fullV.cols(), mergeV.cols());  ++ii) {
 		cerr<<"Dot "<<ii<<": "<<(mergeV.col(ii).dot(fullV.col(ii)))<<endl;
 		if(1-fabs(mergeV.col(ii).dot(fullV.col(ii))) > thresh) {
 			cerr<<"Difference in V col "<<ii<<": "<<mergeV.col(ii)<<" vs "
@@ -148,7 +146,6 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	TruncatedLanczosSVD<MatrixXd> fullsvd(full, ComputeThinU | ComputeThinV);
 
 	size_t outcols = 0;
-	size_t maxrank = 0;
 	vector<MatrixXd> Umats(reorg.ntall());
 	vector<MatrixXd> Vmats(reorg.ntall());
 	vector<VectorXd> Smats(reorg.ntall());
@@ -156,11 +153,10 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		MatMap diskmat(prefix+to_string(ii));
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
 		TruncatedLanczosSVD<MatrixXd> svd;
-		svd.setVarThreshold(0.9);
+		svd.setVarThreshold(0.99);
 		svd.compute(diskmat.mat, ComputeThinU | ComputeThinV);
 
 		cerr << "SVD Rank: " << svd.rank() << endl;
-		maxrank = std::max<size_t>(maxrank, svd.rank());
 		Umats[ii] = svd.matrixU().leftCols(svd.rank());
 		Vmats[ii] = svd.matrixV().leftCols(svd.rank());
 		Smats[ii] = svd.singularValues().head(svd.rank());
@@ -179,13 +175,13 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 	cerr<<"Merge SVD:"<<mergedUE.rows()<<"x"<<mergedUE.cols()<<endl;
 	TruncatedLanczosSVD<MatrixXd> mergesvd;
-    mergesvd.setVarThreshold(0.90);
+    mergesvd.setVarThreshold(0.99);
     mergesvd.compute(mergedUE, ComputeThinU | ComputeThinV);
 
 	cerr<<"Comparing Full S with Merge S"<<endl;
 	const auto& fullS = fullsvd.singularValues();
 	const auto& mergeS = mergesvd.singularValues();
-	for(size_t ii=0; ii<maxrank; ++ii) {
+	for(size_t ii=0; ii<min(fullS.rows(), mergeS.rows()); ++ii) {
 		cerr << fullS[ii] << " vs " << mergeS[ii] << endl;
 		if(2*fabs(mergeS[ii] - fullS[ii])/fabs(mergeS[ii]+fullS[ii]) > thresh) {
 			cerr<<"Difference in Singular Value "<<ii<<": "<<mergeS[ii]<<" vs "
@@ -197,7 +193,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	cerr<<"Comparing Full V with Merge V"<<endl;
 	const auto& fullU = fullsvd.matrixU();
 	const auto& mergeU = mergesvd.matrixU();
-	for(size_t ii=0; ii<maxrank;  ++ii) {
+	for(size_t ii=0; ii<min(fullU.cols(), mergeU.cols());  ++ii) {
 		cerr<<"Dot "<<ii<<":"<<(mergeU.col(ii).dot(fullU.col(ii)))<<endl;
 		if(1-fabs(mergeU.col(ii).dot(fullU.col(ii))) > thresh) {
 			cerr<<"Difference in U col "<<ii<<": "<<mergeU.col(ii)<<" vs "
