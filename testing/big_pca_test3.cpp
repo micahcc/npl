@@ -71,13 +71,13 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
 
 		TruncatedLanczosSVD<MatrixXd> svd;
-		svd.setThreshold(svt);
+		svd.setVarThreshold(svt);
 		svd.compute(diskmat.mat, ComputeThinU | ComputeThinV);
 
 		cerr << "SVD Rank: " << svd.rank() << endl;
 		maxrank = std::max<size_t>(maxrank, svd.rank());
 		Umats[rr] = svd.matrixU().leftCols(svd.rank());
-		Vmats[rr] = svd.matrixV().rightCols(svd.rank());
+		Vmats[rr] = svd.matrixV().leftCols(svd.rank());
 		Smats[rr] = svd.singularValues().head(svd.rank());
 
 		outrows += Smats[rr].rows();
@@ -94,7 +94,7 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 	cerr<<"Merge SVD:"<<mergedEVt.rows()<<"x"<<mergedEVt.cols()<<endl;
 	TruncatedLanczosSVD<MatrixXd> mergesvd;
-	mergesvd.setThreshold(svt);
+	mergesvd.setVarThreshold(0.99);
 	mergesvd.compute(mergedEVt, ComputeThinU | ComputeThinV);
 
 	cerr<<"Comparing Full S with Merge S"<<endl;
@@ -156,13 +156,13 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		MatMap diskmat(prefix+to_string(ii));
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
 		TruncatedLanczosSVD<MatrixXd> svd;
-		svd.setThreshold(svt);
+		svd.setVarThreshold(svt);
 		svd.compute(diskmat.mat, ComputeThinU | ComputeThinV);
 
 		cerr << "SVD Rank: " << svd.rank() << endl;
 		maxrank = std::max<size_t>(maxrank, svd.rank());
 		Umats[ii] = svd.matrixU().leftCols(svd.rank());
-		Vmats[ii] = svd.matrixV().rightCols(svd.rank());
+		Vmats[ii] = svd.matrixV().leftCols(svd.rank());
 		Smats[ii] = svd.singularValues().head(svd.rank());
 
 		outcols += Smats[ii].rows();
@@ -178,7 +178,9 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	}
 
 	cerr<<"Merge SVD:"<<mergedUE.rows()<<"x"<<mergedUE.cols()<<endl;
-	TruncatedLanczosSVD<MatrixXd> mergesvd(mergedUE, ComputeThinU | ComputeThinV);
+	TruncatedLanczosSVD<MatrixXd> mergesvd;
+    mergesvd.setVarThreshold(0.99);
+    mergesvd.compute(mergedUE, ComputeThinU | ComputeThinV);
 
 	cerr<<"Comparing Full S with Merge S"<<endl;
 	const auto& fullS = fullsvd.singularValues();
@@ -209,7 +211,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 int main(int argc, char** argv)
 {
-	double evthresh = 0.1;
+	double evthresh = 0.95;
 
 	if(argc == 2)
 		evthresh = atof(argv[1]);

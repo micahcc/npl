@@ -76,7 +76,7 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		cerr << "SVD Rank: " << svd.rank() << endl;
 		maxrank = std::max<size_t>(maxrank, svd.rank());
 		Umats[rr] = svd.matrixU().leftCols(svd.rank());
-		Vmats[rr] = svd.matrixV().rightCols(svd.rank());
+		Vmats[rr] = svd.matrixV().leftCols(svd.rank());
 		Smats[rr] = svd.singularValues().head(svd.rank());
 
 		outrows += Smats[rr].rows();
@@ -162,7 +162,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		cerr << "SVD Rank: " << svd.rank() << endl;
 		maxrank = std::max<size_t>(maxrank, svd.rank());
 		Umats[ii] = svd.matrixU().leftCols(svd.rank());
-		Vmats[ii] = svd.matrixV().rightCols(svd.rank());
+		Vmats[ii] = svd.matrixV().leftCols(svd.rank());
 		Smats[ii] = svd.singularValues().head(svd.rank());
 
 		outcols += Smats[ii].rows();
@@ -258,7 +258,7 @@ int main(int argc, char** argv)
 			}
 
 			fn_inputs[rr+cc*nrows] = pref+to_string(cc)+"_"+
-						to_string(rr)+".nii.gz";
+				to_string(rr)+".nii.gz";
 			inputs[rr+cc*nrows]->write(fn_inputs[rr+cc*nrows]);
 		}
 	}

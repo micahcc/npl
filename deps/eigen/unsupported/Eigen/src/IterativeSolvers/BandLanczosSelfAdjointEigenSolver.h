@@ -576,15 +576,15 @@ private:
                 approx(jj, *kk) = numext::conj(approx(*kk, jj));
             }
 
-            if(check(approx.topLeftCorner(jj+pc+1,jj+pc+1),
-                        V.leftCols(jj+pc+1), pc, tr_thresh, trsq_thresh) > 0)
+            if(check(approx.topLeftCorner(jj+1+pc,jj+1+pc),
+                        V.leftCols(jj+1+pc), pc, tr_thresh, trsq_thresh) > 0)
                 break;
             jj++;
         }
 
         // Check Number of Good Eigenvalues, and update eigenpairs for T
-        int ndim = check(approx.topLeftCorner(jj+pc+1,jj+pc+1),
-                    V.leftCols(jj+pc+1), pc, tr_thresh, trsq_thresh);
+        int ndim = check(approx.topLeftCorner(jj+1+pc,jj+1+pc),
+                    V.leftCols(jj+1+pc), pc, tr_thresh, trsq_thresh);
         if(ndim <= 0) {
             m_status = -1;
             return;
@@ -592,7 +592,7 @@ private:
 
         // Compute Eigen Solution to Similar Matrix, then project through V
         m_evals = m_evals.tail(ndim);
-        m_evecs = V.leftCols(ndim)*m_evecs.rightCols(ndim);
+        m_evecs = V.leftCols(jj+1)*m_evecs.rightCols(ndim);
 
         m_status = 1;
     }
@@ -667,7 +667,7 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
         Ref<MatrixType> T, const Ref<const MatrixType> V,
         int bandrad, double ev_sum_t, double ev_sumsq_t)
 {
-    const double EVTHRESH = 0.001;
+    const double EVTHRESH = 0.01;
     // Return Not Done if 1) haven't reached the desired number of EV's,
     // 2) trace hasn't reached the desired value, 3) trace of TT has not
     // reached the desired value
@@ -689,32 +689,26 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
     m_evals = eig.eigenvalues();
     m_evecs = eig.eigenvectors();
 
-#ifdef DEBUG
-    cerr<< "\n=======================\nT:\n"<<T<<endl;
-    cerr<<"\nLAMBDA:"<<eig.eigenvalues().transpose()<<endl;
-    cerr<<"EVs:\n"<<eig.eigenvectors()<<endl;
-    cerr<<"Proj EVs:\n"<<V.leftCols(N)*eig.eigenvectors()<<endl;
-    cerr<<"A:\n"<<A<<endl;
-#endif //DEBUG
+//#ifdef DEBUG
+//    cerr<< "\n=======================\nT:\n"<<T<<endl;
+//    cerr<<"\nLAMBDA:"<<eig.eigenvalues().transpose()<<endl;
+//    cerr<<"EVs:\n"<<eig.eigenvectors()<<endl;
+//    cerr<<"Proj EVs:\n"<<V.leftCols(N)*eig.eigenvectors()<<endl;
+//#endif //DEBUG
     size_t nvalid = 0;
     for(int rr=N; rr<N+bandrad; rr++) {
         double vnorm = V.col(rr).norm();
         for(int cc=rr-bandrad; cc<N; cc++)
             T(rr, cc) = V.col(rr).dot(V.col(cc+bandrad))/vnorm;
     }
-#ifdef DEBUG
-    cerr << "T Est:\n\n"<<T.bottomLeftCorner(bandrad, N)<<endl;
-#endif //DEBUG
+//#ifdef DEBUG
+//    cerr << "T Est:\n\n"<<T.bottomLeftCorner(bandrad, N)<<endl;
+//#endif //DEBUG
     double sum = 0;
     double sumsq = 0;
     for(int vv=0; vv<N; vv++) {
         double esterr = (T.bottomLeftCorner(bandrad, N)*
                 eig.eigenvectors().col(N-1-vv)).norm();
-#ifdef DEBUG
-        VectorType fullev = V.leftCols(N)*eig.eigenvectors().col(N-1-vv);
-        double fullerr = (eig.eigenvalues()[N-1-vv]*fullev - A*fullev).norm();
-        cerr << "Est Err: " << esterr << " vs True Err: " << fullerr << endl;
-#endif //DEBUG
 
         if(esterr > EVTHRESH)
             break;
@@ -728,7 +722,6 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
     // Remove Predictions Made (in case deflation happens and the true band
     // ends up being smaller than the predicted one)
     T.bottomLeftCorner(bandrad, N).setZero();
-
 
     if((m_outvecs <= 1 || nvalid >= m_outvecs) &&
             (std::isnan(ev_sumsq_t) || std::isinf(ev_sumsq_t)

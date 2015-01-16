@@ -72,7 +72,7 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 		cerr << "SVD Rank: " << svd.rank() << endl;
 		Umats[rr] = svd.matrixU().leftCols(svd.rank());
-		Vmats[rr] = svd.matrixV().rightCols(svd.rank());
+		Vmats[rr] = svd.matrixV().leftCols(svd.rank());
 		Smats[rr] = svd.singularValues().head(svd.rank());
 
 		outrows += Smats[rr].rows();
@@ -149,7 +149,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 		cerr << "SVD Rank: " << svd.rank() << endl;
 		Umats[ii] = svd.matrixU().leftCols(svd.rank());
-		Vmats[ii] = svd.matrixV().rightCols(svd.rank());
+		Vmats[ii] = svd.matrixV().leftCols(svd.rank());
 		Smats[ii] = svd.singularValues().head(svd.rank());
 
 		outcols += Smats[ii].rows();

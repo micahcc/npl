@@ -92,8 +92,7 @@ class TruncatedLanczosSVD
         int r = rank();
         m_singvals.conservativeResize(r);
         m_U = m_U.leftCols(r);
-        m_V = m_V.rightCols(r);
-
+        m_V = m_V.leftCols(r);
     }
 
     /**
@@ -156,7 +155,7 @@ class TruncatedLanczosSVD
         m_totalvar = C.trace();
 
         // This is a bit hackish, really the user should set this
-        int initrank = std::max(10, std::min<int>(A.rows(), A.cols()));
+        int initrank = std::max(10, std::min<int>(A.rows(), A.cols())/10);
         if(m_initbasis > 0)
             initrank = m_initbasis;
 
@@ -165,7 +164,7 @@ class TruncatedLanczosSVD
         eig.setEValStop(m_var_thresh);
         eig.setDeflationTol(m_deftol);
         eig.compute(C, initrank);
-        int retrank = eig.eigenvalues().cols();
+        int retrank = eig.eigenvalues().rows();
 
         if(eig.info() == NoConvergence)
             m_status = -2;
@@ -178,9 +177,12 @@ class TruncatedLanczosSVD
             // A = USV*, U = AVS^-1
 
             // reverse
-            m_V.resize(eig.eigenvectors().rows(), retrank);
-            for(int cc=0; cc<retrank; cc++)
+            m_V.resize(A.cols(), retrank);
+            m_singvals.resize(retrank);
+            for(int cc=0; cc<retrank; cc++) {
                 m_V.col(cc) = eig.eigenvectors().col(retrank-1-cc);
+                m_singvals[cc] = eig.eigenvalues()[retrank-1-cc];
+            }
 
             // Compute U if needed
             if(m_computeU)
@@ -189,9 +191,12 @@ class TruncatedLanczosSVD
             // Computed left singular values (U)
             // A = USV*, A^T = VSU*, V = A^T U S^-1
 
-            m_U.resize(eig.eigenvectors().rows(), retrank);
-            for(int cc=0; cc<retrank; cc++)
+            m_U.resize(A.rows(), retrank);
+            m_singvals.resize(retrank);
+            for(int cc=0; cc<retrank; cc++) {
                 m_U.col(cc) = eig.eigenvectors().col(retrank-1-cc);
+                m_singvals[cc] = eig.eigenvalues()[retrank-1-cc];
+            }
 
             if(m_computeV)
                 m_V = A.transpose()*m_U*(m_singvals.cwiseInverse()).asDiagonal();
