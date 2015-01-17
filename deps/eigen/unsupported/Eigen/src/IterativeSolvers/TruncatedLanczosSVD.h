@@ -164,9 +164,12 @@ class TruncatedLanczosSVD
         eig.setEValStop(m_var_thresh);
         eig.setDeflationTol(m_deftol);
         eig.compute(C, initrank);
+		cerr<<eig.eigenvalues().transpose()<<endl;
 
-        if(eig.info() == NoConvergence)
+        if(eig.info() != Success) {
             m_status = -2;
+			return;
+		}
 
         int rows = eig.eigenvalues().rows();
         int rank = 0;

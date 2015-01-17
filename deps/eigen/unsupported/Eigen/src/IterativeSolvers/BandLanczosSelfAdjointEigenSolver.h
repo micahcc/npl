@@ -367,6 +367,8 @@ private:
      * @param V Lanczos Vectors (including the candidates, which are used to
      * estimate the next band rows of T)
      * @param bandrad Current band radius, bandwidth is 2*bandrad+1
+     * @param outvecs minimum number of desired output vectors, return 0 if this
+     * is not found
      * @param ev_sum_t Threshold for stopping based on sum of eigenvalues, absolute
      * value, ignored if this values is NAN or INF
      * @param ev_sumsq_t Threshold for stopping based on sum of sequared
@@ -375,9 +377,10 @@ private:
      * @return Number of valid eigenvalues, or 0 if not all the convergeance
      * criteria have been met
      */
-    int check(Ref<MatrixType> T, const Ref<const MatrixType> V,
-            int bandrad, double ev_sum_t, double ev_sumsq_t);
-//            const Ref<const MatrixType> A);
+    int check(
+            Ref<MatrixType> T, const Ref<const MatrixType> V,
+            int bandrad, int outvecs, double ev_sum_t, double ev_sumsq_t);
+//          const Ref<const MatrixType> A);
 
     /**
      * @brief Band Lanczos Methof for Hessian Matrices
@@ -577,22 +580,28 @@ private:
             }
 
             if(check(approx.topLeftCorner(jj+1+pc,jj+1+pc),
-                        V.leftCols(jj+1+pc), pc, tr_thresh, trsq_thresh) > 0)
+                        V.leftCols(jj+1+pc), pc, m_outvecs,
+                        tr_thresh, trsq_thresh) > 0)
                 break;
             jj++;
         }
 
         // Check Number of Good Eigenvalues, and update eigenpairs for T
+        // note that we ignore all restrictions at this point
         int ndim = check(approx.topLeftCorner(jj+1+pc,jj+1+pc),
-                    V.leftCols(jj+1+pc), pc, tr_thresh, trsq_thresh);
+                    V.leftCols(jj+1+pc), pc, -1, NAN, NAN);
         if(ndim <= 0) {
-            m_status = -1;
+            m_status = -3;
             return;
         }
 
         // Compute Eigen Solution to Similar Matrix, then project through V
+        cerr<<"T\n:"<<approx.topLeftCorner(jj+1,jj+1)<<endl;
+        cerr<<"EV:"<<m_evals.transpose()<<endl;
         m_evals = m_evals.tail(ndim);
         m_evecs = V.leftCols(jj+1)*m_evecs.rightCols(ndim);
+        eigen_assert(m_evecs.rows() == A.rows() && m_evecs.cols() == m_evals.rows()
+                && "Internal Error, call the developer.");
 
         m_status = 1;
     }
@@ -654,6 +663,8 @@ private:
  * @param V Lanczos Vectors (including the candidates, which are used to
  * estimate the next band rows of T)
  * @param bandrad Current band radius, bandwidth is 2*bandrad+1
+ * @param outvecs minimum number of desired output vectors, return 0 if this
+ * is not found
  * @param ev_sum_t Threshold for stopping based on sum of eigenvalues, absolute
  * value, ignored if this values is NAN or INF
  * @param ev_sumsq_t Threshold for stopping based on sum of sequared
@@ -665,10 +676,10 @@ private:
 template <typename _MatrixType>
 int BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
         Ref<MatrixType> T, const Ref<const MatrixType> V,
-        int bandrad, double ev_sum_t, double ev_sumsq_t)
+        int bandrad, int outvecs, double ev_sum_t, double ev_sumsq_t)
 //        const Ref<const MatrixType> A)
 {
-    const double EVTHRESH = 0.0001;
+    const double EVTHRESH = 0.001;
 
     // Return Not Done if 1) haven't reached the desired number of EV's,
     // 2) trace hasn't reached the desired value, 3) trace of TT has not
@@ -677,7 +688,7 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
     if(T.cols() < 2*bandrad)
         return 0;
 
-    if(m_outvecs > 1 && T.rows() < m_outvecs)
+    if(outvecs > 1 && T.rows() < outvecs)
         return 0;
 
     if(!isinf(ev_sum_t) && !isnan(ev_sum_t) && T.trace()<ev_sum_t)
@@ -692,7 +703,7 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
     m_evecs = eig.eigenvectors();
 
 //#ifdef DEBUG
-//    cerr<< "\n=======================\nT:\n"<<T<<endl;
+//    cerr<< "\n=======================\n"<<endl;
 //    cerr<<"\nLAMBDA:"<<eig.eigenvalues().transpose()<<endl;
 //    cerr<<"EVs:\n"<<eig.eigenvectors()<<endl;
 //    cerr<<"Proj EVs:\n"<<V.leftCols(N)*eig.eigenvectors()<<endl;
@@ -726,7 +737,7 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
     // ends up being smaller than the predicted one)
     T.bottomLeftCorner(bandrad, N).setZero();
 
-    if((m_outvecs <= 1 || nvalid >= m_outvecs) &&
+    if((outvecs <= 1 || nvalid >= outvecs) &&
             (std::isnan(ev_sumsq_t) || std::isinf(ev_sumsq_t)
              || sumsq>ev_sumsq_t) && (std::isnan(ev_sum_t) ||
                  std::isinf(ev_sum_t) || sum>ev_sum_t)) {

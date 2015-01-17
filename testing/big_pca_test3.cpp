@@ -34,6 +34,7 @@
 using namespace npl;
 using namespace std;
 
+using Eigen::Success;
 using Eigen::ComputeThinV;
 using Eigen::ComputeThinU;
 using Eigen::JacobiSVD;
@@ -41,6 +42,7 @@ using Eigen::TruncatedLanczosSVD;
 
 int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 {
+	cerr<<"Wide PCA"<<endl;
 	double thresh = 0.1;
 
 	size_t totrows = reorg.rows();
@@ -58,7 +60,7 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 	// Perform Full SVD
 	cerr<<"Full SVD:"<<full.rows()<<"x"<<full.cols()<<endl;
-	TruncatedLanczosSVD<MatrixXd> fullsvd(full, ComputeThinU | ComputeThinV);
+	JacobiSVD<MatrixXd> fullsvd(full, ComputeThinU | ComputeThinV);
 
 	// Maximum number of columns/rows in sigma
 	size_t outrows = 0;
@@ -70,8 +72,12 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
 
 		TruncatedLanczosSVD<MatrixXd> svd;
-		svd.setVarThreshold(0.99);
+		svd.setVarThreshold(svt);
 		svd.compute(diskmat.mat, ComputeThinU | ComputeThinV);
+		if(svd.info() != Success) {
+			cerr << "Error Computing Chunk SVD" << endl;
+			return -1;
+		}
 
 		cerr << "SVD Rank: " << svd.rank() << endl;
 		Umats[rr] = svd.matrixU().leftCols(svd.rank());
@@ -92,8 +98,13 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 	cerr<<"Merge SVD:"<<mergedEVt.rows()<<"x"<<mergedEVt.cols()<<endl;
 	TruncatedLanczosSVD<MatrixXd> mergesvd;
-	mergesvd.setVarThreshold(0.99);
+	mergesvd.setVarThreshold(svt);
 	mergesvd.compute(mergedEVt, ComputeThinU | ComputeThinV);
+	if(mergesvd.info() != Success) {
+		cerr << "Error Computing Full SVD" << endl;
+		return -1;
+	}
+	cerr << "SVD Rank: " << mergesvd.rank() << endl;
 
 	cerr<<"Comparing Full S with Merge S"<<endl;
 	const auto& fullS = fullsvd.singularValues();
@@ -126,6 +137,7 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 {
+	cerr<<"Tall PCA"<<endl;
 	double thresh = 0.1;
 
 	size_t totrows = reorg.rows();
@@ -143,7 +155,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 	// Perform Full SVD
 	cerr<<"Full SVD:"<<full.rows()<<"x"<<full.cols()<<endl;
-	TruncatedLanczosSVD<MatrixXd> fullsvd(full, ComputeThinU | ComputeThinV);
+	JacobiSVD<MatrixXd> fullsvd(full, ComputeThinU | ComputeThinV);
 
 	size_t outcols = 0;
 	vector<MatrixXd> Umats(reorg.ntall());
@@ -153,8 +165,12 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		MatMap diskmat(prefix+to_string(ii));
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
 		TruncatedLanczosSVD<MatrixXd> svd;
-		svd.setVarThreshold(0.99);
+		svd.setVarThreshold(svt);
 		svd.compute(diskmat.mat, ComputeThinU | ComputeThinV);
+		if(svd.info() != Success) {
+			cerr << "Error Computing Chunk SVD" << endl;
+			return -1;
+		}
 
 		cerr << "SVD Rank: " << svd.rank() << endl;
 		Umats[ii] = svd.matrixU().leftCols(svd.rank());
@@ -173,14 +189,26 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		curcol += Smats[ii].rows();
 	}
 
+	cerr<<mergedUE<<endl;
 	cerr<<"Merge SVD:"<<mergedUE.rows()<<"x"<<mergedUE.cols()<<endl;
 	TruncatedLanczosSVD<MatrixXd> mergesvd;
-    mergesvd.setVarThreshold(0.99);
+    mergesvd.setVarThreshold(svt);
     mergesvd.compute(mergedUE, ComputeThinU | ComputeThinV);
+	if(mergesvd.info() != Success) {
+		cerr << "Error Computing Merge SVD" << endl;
+		return -1;
+	}
+	cerr << "SVD Rank: " << mergesvd.rank() << endl;
 
 	cerr<<"Comparing Full S with Merge S"<<endl;
 	const auto& fullS = fullsvd.singularValues();
 	const auto& mergeS = mergesvd.singularValues();
+	const auto& fullU = fullsvd.matrixU();
+	const auto& mergeU = mergesvd.matrixU();
+	cerr<<"Full S\n"<<fullS.transpose()<<endl;
+	cerr<<"Full U\n"<<fullU.transpose()<<endl;
+	cerr<<"Merge S\n"<<mergeS.transpose()<<endl;
+	cerr<<"Merge U\n"<<mergeU.transpose()<<endl;
 	for(size_t ii=0; ii<min(fullS.rows(), mergeS.rows()); ++ii) {
 		cerr << fullS[ii] << " vs " << mergeS[ii] << endl;
 		if(2*fabs(mergeS[ii] - fullS[ii])/fabs(mergeS[ii]+fullS[ii]) > thresh) {
@@ -190,9 +218,9 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		}
 	}
 
-	cerr<<"Comparing Full V with Merge V"<<endl;
-	const auto& fullU = fullsvd.matrixU();
-	const auto& mergeU = mergesvd.matrixU();
+	cerr<<"Comparing Full U with Merge U"<<endl;
+	cerr<<fullS.rows()<<endl;
+	cerr<<mergeS.rows()<<endl;
 	for(size_t ii=0; ii<min(fullU.cols(), mergeU.cols());  ++ii) {
 		cerr<<"Dot "<<ii<<":"<<(mergeU.col(ii).dot(fullU.col(ii)))<<endl;
 		if(1-fabs(mergeU.col(ii).dot(fullU.col(ii))) > thresh) {
@@ -207,13 +235,17 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 int main(int argc, char** argv)
 {
-	double evthresh = 0.95;
+	double evthresh = 1;
 
 	if(argc == 2)
 		evthresh = atof(argv[1]);
 
 	std::random_device rd;
-	std::default_random_engine rng(rd());
+	unsigned int seed = rd();
+//	seed = 3888816431;
+	
+	cerr<<"Seed: "<<seed<<endl;
+	std::default_random_engine rng(seed);
 	std::uniform_real_distribution<double> dist(-1,1);
 
 	std::string pref = "pca3";
