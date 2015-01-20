@@ -14,12 +14,6 @@
 #include <limits>
 #include <cmath>
 
-#ifdef VERYDEBUG
-#include <iostream>
-using std::cerr;
-using std::endl;
-#endif //VERYDEBUG
-
 namespace Eigen {
 
 /**
@@ -145,9 +139,6 @@ class TruncatedLanczosSVD
             m_computeV = true;
         if(computationOptions & (ComputeThinU|ComputeFullU))
             m_computeU = true;
-#ifdef VERYDEBUG
-        cerr<<"A = ["<<A<<endl<<"]\n";
-#endif //VERYDEBUG
         WorkMatrixType C;
         if(A.rows() > A.cols()) {
             // Compute right singular vlaues (V)
@@ -158,9 +149,6 @@ class TruncatedLanczosSVD
             C = A*A.transpose();
             m_computeU = true;
         }
-#ifdef VERYDEBUG
-        cerr<<"C = ["<<C<<endl<<"]\n";
-#endif //VERYDEBUG
 
         // update totalvar (sum of variances)
         m_totalvar = C.trace();
@@ -179,9 +167,6 @@ class TruncatedLanczosSVD
         eig.setEValStop(evalstop);
         eig.setDeflationTol(m_deftol);
         eig.compute(C, initrank);
-#ifdef VERYDEBUG
-        cerr<<eig.eigenvalues().transpose()<<endl;
-#endif //VERYDEBUG
 
         if(eig.info() != Success) {
             m_status = -2;
@@ -190,7 +175,7 @@ class TruncatedLanczosSVD
 
         int rows = eig.eigenvalues().rows();
         int rank = 0;
-        for(size_t rr=rows-1; rr>=0; rr--) {
+        for(int rr=rows-1; rr>=0; rr--) {
             if(eig.eigenvalues()[rr] > std::numeric_limits<RealScalar>::epsilon())
                 rank++;
             else
@@ -601,6 +586,10 @@ private:
      */
     RealScalar m_var_thresh;
 
+    /**
+     * @brief Minimum singular value that is considered non-zero for rank
+     * computation.
+     */
     RealScalar m_thresh;
 
     /**
@@ -609,11 +598,35 @@ private:
      */
     RealScalar m_deftol;
 
+    /**
+    * @brief Whether U will/was computed
+     */
     bool m_computeU;
+
+    /**
+    * @brief Whether V will/was computed
+     */
     bool m_computeV;
 
+    /**
+    * @brief Status, where
+    *
+    * 1:  Computation successful
+    *
+    * 0:  computation not yet run
+    *
+    * -1: Invalid Input
+    *
+    * -2: The algorithm did not converge
+    *
+    * -3: There were numerical issues
+    */
     int m_status;
 
+    /**
+    * @brief Total variance (sum of singular values) present in the input, used
+    * to determine when the algorithm is nearing compleation
+    */
     double m_totalvar;
 };
 

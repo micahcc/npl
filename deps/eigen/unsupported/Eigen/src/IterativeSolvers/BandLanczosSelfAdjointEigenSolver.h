@@ -14,14 +14,6 @@
 #include <limits>
 #include <cmath>
 
-//#define VERYDEBUG
-
-#ifdef VERYDEBUG
-#include <iostream>
-using std::cerr;
-using std::endl;
-#endif //VERYDEBUG
-
 namespace Eigen {
 
 
@@ -395,7 +387,6 @@ private:
     int checkSolution(
             const Ref<const MatrixType> T, const Ref<const MatrixType> V,
             int bandrad, int outvecs, double ev_sum_t, double ev_sumsq_t);
-//          const Ref<const MatrixType> A);
 
     /**
      * @brief Band Lanczos Methof for Hessian Matrices
@@ -428,204 +419,7 @@ private:
      *
      * @param A Matrix to decompose
      */
-    void _compute(const Ref<const MatrixType> A)
-    {
-        EigenVectorType& V = m_proj;
-
-        // Deflate Based on Change in magnitude from original mag
-        std::list<double> Vnorms;
-        for(size_t ii=0; ii<V.cols(); ii++)
-            Vnorms.push_back(V.col(ii).norm());
-
-        // I in text, the iterators to nonzero rows of T(d) as well as the index
-        // of them in nonzero_i
-        std::list<int> nonzero;
-        int pc = V.cols();
-
-        // We are going to continuously grow these as more Lanczos Vectors are
-        // computed
-        int csize = V.cols();
-        ApproxType approx(csize, csize);
-        approx.fill(0);
-
-        // V is the list of candidates
-        VectorType band(pc); // store values in the band T[jj,jj-pc] to T[jj, jj-1]
-        int jj=0;
-
-        // Estimate of Matrix A's Induced Norm
-        RealScalar anorm = 0;
-
-        /* Stopping Conditions */
-        // Eigensolver
-        SelfAdjointEigenSolver<ApproxType> eig;
-
-        // Trace
-        double tr_thresh = NAN;
-        if(m_trace_stop >= 0 && m_trace_stop <= 1)
-            tr_thresh = m_trace_stop*A.trace();
-
-        // Trace Squared
-        double trsq_thresh = NAN;
-        if(m_tracesq_stop >= 0 && m_tracesq_stop <= 1)
-            trsq_thresh = m_tracesq_stop*(A*A).trace();
-
-        while(pc > 0) {
-            if(jj+pc+1 >= csize) {
-                // Need to Grow
-                int newsize = (jj+1+pc)*2;
-                approx.conservativeResize(newsize, newsize);
-                approx.topRightCorner(csize, newsize-csize).fill(0);
-                approx.bottomRightCorner(newsize-csize, newsize-csize).fill(0);
-                approx.bottomLeftCorner(newsize-csize, csize).fill(0);
-
-                V.conservativeResize(NoChange, newsize);
-                V.rightCols(newsize-csize).fill(0);
-                csize = newsize;
-            }
-
-            // (3) compute ||v_j||
-            double Vjnorm = V.col(jj).norm();
-            double Vjnorm_init = Vnorms.front();
-            Vnorms.pop_front();
-
-            /*******************************************************************
-             * Perform Deflation if current (jth vector) is linearly dependent
-             * on the previous vectors
-             ******************************************************************/
-            // decide if vj should be deflated
-            if(!(Vjnorm > Vjnorm_init*m_deflation_tol)) {
-                // if j-pc > 0 (switch to 0 based indexing), I = I U {j-pc}
-                if(jj-pc>= 0)
-                    nonzero.push_back(jj-pc);
-
-                // set pc = pc - 1
-                if(--pc == 0) {
-                    // if pc==0 set j = j-1 and stop
-                    jj--;
-                    break;
-                }
-
-                // for k = j , ... j+pc-1, set v_k = v_{k+1}
-                // return to step 3
-                // Erase Vj and leave jj the same
-                // NOTE THAT THIS DOESN't HAPPEN MUCH SO WE DON'T WORRY AOBUT THE
-                // LINEAR TIME NECESSARY
-                for(int cc = jj; cc<jj+pc; cc++)
-                    V.col(cc) = V.col(cc+1);
-                continue;
-            }
-
-            // set t_{j,j-pc} = ||V_j||
-            band[0] = Vjnorm;
-            if(jj-pc >= 0)
-                approx(jj, jj-pc) = Vjnorm;
-
-            // normalize vj = vj/t{j,j-pc}
-            V.col(jj) /= Vjnorm;
-
-            /************************************************************
-             * Orthogonalize Candidate Vectors Against Vj
-             * and make T(j,k-pc) = V(j).V(k) for k = j+1, ... jj+pc
-             * or say T(j,k) = V(j).V(k+pc) for k = j-pc, ... jj-1
-             ************************************************************/
-            // for k = j+1, j+2, ... j+pc-1
-            for(int kk=jj+1; kk<jj+pc; kk++) {
-                // set t_{j,k-pc} = v^T_j v_k
-                Scalar vj_vk = V.col(jj).dot(V.col(kk));
-                band[kk-pc-(jj-pc)] = vj_vk;
-
-                if(kk-pc >= 0)
-                    approx(jj,kk-pc) = vj_vk;
-
-                // v_k = v_k - v_j t_{j,k-p_c}
-                V.col(kk) -= V.col(jj)*vj_vk;
-            }
-
-            /************************************************************
-             * Create a New Candidate Vector by transforming current
-             ***********************************************************/
-            // compute v_{j+pc} = A v_j
-            //            V.col(jj+pc) = A*V.col(jj);
-            V.col(jj+pc) = A*V.col(jj);
-            Vnorms.push_back(V.col(jj+pc).norm());
-
-            /*******************************************************
-             * Fill Off Diagonals with reflection T(k,j) =
-             *******************************************************/
-            // set k_0 = max{1,j-pc} for k = k_0,k_0+1, ... j-1 set
-            for(int kk = std::max(0, jj-pc); kk < jj; kk++) {
-
-                // t_kj = conj(t_jk)
-                Scalar t_kj;
-                t_kj = numext::conj(band[kk-(jj-pc)]);
-                approx(kk, jj) = t_kj;
-
-                // v_{j+pc} = v_{j+pc} - v_k t_{k,j}
-                V.col(jj+pc) -= V.col(kk)*t_kj;
-            }
-
-            /*****************************************************
-             * Orthogonalize Future vectors with deflated vectors
-             * and the current vector
-             ****************************************************/
-            // for k in I
-            for(std::list<int>::iterator kk = nonzero.begin();
-                            kk != nonzero.end(); ++kk) {
-                // t_{k,j} = v_k v_{j+pc}
-                Scalar vk_vjpc = V.col(*kk).dot(V.col(jj+pc));
-                approx(*kk, jj) = vk_vjpc;
-
-                // v_{j+pc} = v_{j+pc} - v_k t_{k,j}
-                V.col(jj+pc) -= V.col(*kk)*vk_vjpc;
-            }
-            // include jj
-            {
-                // t_{k,j} = v_k v_{j+pc}
-                Scalar vk_vjpc = V.col(jj).dot(V.col(jj+pc));
-                approx(jj, jj) = vk_vjpc;
-
-                // v_{j+pc} = v_{j+pc} - v_k t_{k,j}
-                V.col(jj+pc) -= V.col(jj)*vk_vjpc;
-            }
-
-            // for k in I, set s_{j,k} = conj(t_{k,j})
-            for(std::list<int>::iterator kk = nonzero.begin();
-                            kk != nonzero.end(); ++kk) {
-                approx(jj, *kk) = numext::conj(approx(*kk, jj));
-            }
-
-            if(checkSolution(approx.topLeftCorner(jj+1,jj+1),
-                        V.leftCols(jj+1+pc), pc, m_outvecs,
-                        tr_thresh, trsq_thresh) > 0)
-                break;
-#ifdef VERYDEBUG
-            cerr<<"T_"<<jj<<"=["<<approx.topLeftCorner(jj+1,jj+1)<<endl<<"]\n";
-#endif //VERYDEBUG
-            jj++;
-        }
-
-        // Check Number of Good Eigenvalues, and update eigenpairs for T
-        // note that we ignore all restrictions at this point
-        int ndim = checkSolution(approx.topLeftCorner(jj+1,jj+1),
-                    V.leftCols(jj+1+pc), pc, -1, NAN, NAN);
-        if(ndim <= 0) {
-            m_status = -3;
-            return;
-        }
-
-        // Compute Eigen Solution to Similar Matrix, then project through V
-#ifdef VERYDEBUG
-        cerr<<"T\n:"<<approx.topLeftCorner(jj+1,jj+1)<<endl;
-        cerr<<"EV:"<<m_evals.transpose()<<endl;
-#endif //VERYDEBUG
-        m_evals = m_evals.tail(ndim);
-        m_evecs = V.leftCols(jj+1)*m_evecs.rightCols(ndim);
-        eigen_assert(m_evecs.rows() == A.rows() && m_evecs.cols() == m_evals.rows()
-                && "Internal Error, call the developer.");
-
-        m_status = 1;
-    }
-
+    void _compute(const Ref<const MatrixType> A);
 
     /**
      * @brief Maximum rank to compute (sets max size of T matrix). < 0 will
@@ -645,7 +439,7 @@ private:
     EigenValuesType m_evals;
     EigenVectorType m_evecs;
     EigenVectorType m_proj; // Computed Projection Matrix (V)
-	EigenVectorType m_Tpred; // predicted next values of T
+    EigenVectorType m_Tpred; // predicted next values of T
 
     /**
      * @brief Status of computation
@@ -657,6 +451,230 @@ private:
      */
     int m_status;
 };
+
+/**
+ * @brief Band Lanczos Methof for Hessian Matrices
+ *
+ * p initial guesses (b_1...b_p)
+ * set v_k = b_k for k = 1,2,...p
+ * set p_c = p
+ * set I = nullset
+ * for j = 1,2, ..., until convergence or p_c = 0; do
+ * (3) compute ||v_j||
+ *     decide if v_j should be deflated, if yes, then
+ *         if j - p_c > 0, set I = I union {j-p_c}
+ *         set p_c = p_c-1. If p_c = 0, set j = j-1 and STOP
+ *         for k = j, j+1, ..., j+p_c-1, set v_k = v_{k+1}
+ *         return to step (3)
+ *     set t(j,j-p_c) = ||v_j|| and normalize v_j = v_j/t(j,j-p_c)
+ *     for k = j+1, j+2, ..., j+p_c-1, set
+ *         t(j,k-p_c) = v_j^*v_k and v_k = v_k - v_j t(j,k-p_c)
+ *     compute v(j+p_c) = Av_j
+ *     set k_0 = max{1,j-p_c}. For k = k_0, k_0+1,...,j-1, set
+ *         t(k,j) = conjugate(t(j,k)) and v_{j+p_c} = v_{j+p_c}-v_k t(k,j)
+ *     for k in (I union {j}) (in ascending order), set
+ *         t(k,j) = v^*_k v_{j+p_c} and v_{j+p_c} = v_{j+p_c} - v_k t(k,j)
+ *     for k in I, set s(j,k) = conjugate(t(k,j))
+ *     set T_j^(pr) = T_j + S_j = [t(i,k)] + [s(i,k)] for (i,k=1,2,3...j)
+ *     test for convergence
+ * end for
+ *
+ * TODO Sparse storage of T?
+ *
+ * @param A Matrix to decompose
+ */
+template <typename _MatrixType>
+void BandLanczosSelfAdjointEigenSolver<_MatrixType>::_compute(
+        const Ref<const MatrixType> A)
+{
+    EigenVectorType& V = m_proj;
+
+    // Deflate Based on Change in magnitude from original mag
+    std::list<double> Vnorms;
+    for(int ii=0; ii<V.cols(); ii++)
+        Vnorms.push_back(V.col(ii).norm());
+
+    // I in text, the iterators to nonzero rows of T(d) as well as the index
+    // of them in nonzero_i
+    std::list<int> nonzero;
+    int pc = V.cols();
+
+    // We are going to continuously grow these as more Lanczos Vectors are
+    // computed
+    int csize = V.cols();
+    ApproxType approx(csize, csize);
+    approx.fill(0);
+
+    // V is the list of candidates
+    VectorType band(pc); // store values in the band T[jj,jj-pc] to T[jj, jj-1]
+    int jj=0;
+
+    // Estimate of Matrix A's Induced Norm
+    RealScalar anorm = 0;
+
+    /* Stopping Conditions */
+    // Eigensolver
+    SelfAdjointEigenSolver<ApproxType> eig;
+
+    // Trace
+    double tr_thresh = NAN;
+    if(m_trace_stop >= 0 && m_trace_stop <= 1)
+        tr_thresh = m_trace_stop*A.trace();
+
+    // Trace Squared
+    double trsq_thresh = NAN;
+    if(m_tracesq_stop >= 0 && m_tracesq_stop <= 1)
+        trsq_thresh = m_tracesq_stop*(A*A).trace();
+
+    while(pc > 0) {
+        if(jj+pc+1 >= csize) {
+            // Need to Grow
+            int newsize = (jj+1+pc)*2;
+            approx.conservativeResize(newsize, newsize);
+            approx.topRightCorner(csize, newsize-csize).fill(0);
+            approx.bottomRightCorner(newsize-csize, newsize-csize).fill(0);
+            approx.bottomLeftCorner(newsize-csize, csize).fill(0);
+
+            V.conservativeResize(NoChange, newsize);
+            V.rightCols(newsize-csize).fill(0);
+            csize = newsize;
+        }
+
+        // (3) compute ||v_j||
+        double Vjnorm = V.col(jj).norm();
+        double Vjnorm_init = Vnorms.front();
+        Vnorms.pop_front();
+
+        /*******************************************************************
+         * Perform Deflation if current (jth vector) is linearly dependent
+         * on the previous vectors
+         ******************************************************************/
+        // decide if vj should be deflated
+        if(!(Vjnorm > Vjnorm_init*m_deflation_tol)) {
+            // if j-pc > 0 (switch to 0 based indexing), I = I U {j-pc}
+            if(jj-pc>= 0)
+                nonzero.push_back(jj-pc);
+
+            // set pc = pc - 1
+            if(--pc == 0) {
+                // if pc==0 set j = j-1 and stop
+                jj--;
+                break;
+            }
+
+            // for k = j , ... j+pc-1, set v_k = v_{k+1}
+            // return to step 3
+            // Erase Vj and leave jj the same
+            // NOTE THAT THIS DOESN't HAPPEN MUCH SO WE DON'T WORRY AOBUT THE
+            // LINEAR TIME NECESSARY
+            for(int cc = jj; cc<jj+pc; cc++)
+                V.col(cc) = V.col(cc+1);
+            continue;
+        }
+
+        // set t_{j,j-pc} = ||V_j||
+        band[0] = Vjnorm;
+        if(jj-pc >= 0)
+            approx(jj, jj-pc) = Vjnorm;
+
+        // normalize vj = vj/t{j,j-pc}
+        V.col(jj) /= Vjnorm;
+
+        /************************************************************
+         * Orthogonalize Candidate Vectors Against Vj
+         * and make T(j,k-pc) = V(j).V(k) for k = j+1, ... jj+pc
+         * or say T(j,k) = V(j).V(k+pc) for k = j-pc, ... jj-1
+         ************************************************************/
+        // for k = j+1, j+2, ... j+pc-1
+        for(int kk=jj+1; kk<jj+pc; kk++) {
+            // set t_{j,k-pc} = v^T_j v_k
+            Scalar vj_vk = V.col(jj).dot(V.col(kk));
+            band[kk-pc-(jj-pc)] = vj_vk;
+
+            if(kk-pc >= 0)
+                approx(jj,kk-pc) = vj_vk;
+
+            // v_k = v_k - v_j t_{j,k-p_c}
+            V.col(kk) -= V.col(jj)*vj_vk;
+        }
+
+        /************************************************************
+         * Create a New Candidate Vector by transforming current
+         ***********************************************************/
+        // compute v_{j+pc} = A v_j
+        //            V.col(jj+pc) = A*V.col(jj);
+        V.col(jj+pc) = A*V.col(jj);
+        Vnorms.push_back(V.col(jj+pc).norm());
+
+        /*******************************************************
+         * Fill Off Diagonals with reflection T(k,j) =
+         *******************************************************/
+        // set k_0 = max{1,j-pc} for k = k_0,k_0+1, ... j-1 set
+        for(int kk = std::max(0, jj-pc); kk < jj; kk++) {
+
+            // t_kj = conj(t_jk)
+            Scalar t_kj;
+            t_kj = numext::conj(band[kk-(jj-pc)]);
+            approx(kk, jj) = t_kj;
+
+            // v_{j+pc} = v_{j+pc} - v_k t_{k,j}
+            V.col(jj+pc) -= V.col(kk)*t_kj;
+        }
+
+        /*****************************************************
+         * Orthogonalize Future vectors with deflated vectors
+         * and the current vector
+         ****************************************************/
+        // for k in I
+        for(std::list<int>::iterator kk = nonzero.begin();
+                kk != nonzero.end(); ++kk) {
+            // t_{k,j} = v_k v_{j+pc}
+            Scalar vk_vjpc = V.col(*kk).dot(V.col(jj+pc));
+            approx(*kk, jj) = vk_vjpc;
+
+            // v_{j+pc} = v_{j+pc} - v_k t_{k,j}
+            V.col(jj+pc) -= V.col(*kk)*vk_vjpc;
+        }
+        // include jj
+        {
+            // t_{k,j} = v_k v_{j+pc}
+            Scalar vk_vjpc = V.col(jj).dot(V.col(jj+pc));
+            approx(jj, jj) = vk_vjpc;
+
+            // v_{j+pc} = v_{j+pc} - v_k t_{k,j}
+            V.col(jj+pc) -= V.col(jj)*vk_vjpc;
+        }
+
+        // for k in I, set s_{j,k} = conj(t_{k,j})
+        for(std::list<int>::iterator kk = nonzero.begin();
+                kk != nonzero.end(); ++kk) {
+            approx(jj, *kk) = numext::conj(approx(*kk, jj));
+        }
+
+        if(checkSolution(approx.topLeftCorner(jj+1,jj+1),
+                    V.leftCols(jj+1+pc), pc, m_outvecs,
+                    tr_thresh, trsq_thresh) > 0)
+            break;
+        jj++;
+    }
+
+    // Check Number of Good Eigenvalues, and update eigenpairs for T
+    // note that we ignore all restrictions at this point
+    int ndim = checkSolution(approx.topLeftCorner(jj+1,jj+1),
+            V.leftCols(jj+1+pc), pc, -1, NAN, NAN);
+    if(ndim <= 0) {
+        m_status = -3;
+        return;
+    }
+
+    // Compute Eigen Solution to Similar Matrix, then project through V
+    m_evals = m_evals.tail(ndim);
+    m_evecs = V.leftCols(jj+1)*m_evecs.rightCols(ndim);
+    eigen_assert(m_evecs.rows() == A.rows() && m_evecs.cols() == m_evals.rows()
+            && "Internal Error, call the developer.");
+
+    m_status = 1;
+}
 
 /**
  * @brief Checks to see if the BandLanczos Algorithm can stop by checking
@@ -699,7 +717,6 @@ template <typename _MatrixType>
 int BandLanczosSelfAdjointEigenSolver<_MatrixType>::checkSolution(
         const Ref<const MatrixType> T, const Ref<const MatrixType> V,
         int bandrad, int outvecs, double ev_sum_t, double ev_sumsq_t)
-//        const Ref<const MatrixType> A)
 {
     const double EVTHRESH = 0.001;
 
@@ -707,10 +724,11 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::checkSolution(
     // 2) trace hasn't reached the desired value, 3) trace of TT has not
     // reached the desired value
 
-    if(T.cols() < bandrad)
+    int N = T.rows(); // Finished Rows/Columns of T
+    if(N < bandrad)
         return 0;
 
-    if(outvecs > 1 && T.rows() < outvecs)
+    if(outvecs > 1 && N < outvecs)
         return 0;
 
     if(!isinf(ev_sum_t) && !isnan(ev_sum_t) && T.trace()<ev_sum_t)
@@ -719,37 +737,35 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::checkSolution(
     if(!isinf(ev_sumsq_t) && !isnan(ev_sumsq_t) && (T*T).trace()<ev_sumsq_t)
         return 0;
 
-    int N = T.rows(); // Finished Rows/Columns of T
     SelfAdjointEigenSolver<MatrixType> eig(T);
     m_evals = eig.eigenvalues();
     m_evecs = eig.eigenvectors();
 
-	if(m_Tpred.rows() < bandrad || m_Tpred.cols() < bandrad)
-		m_Tpred.resize(bandrad, bandrad);
-	m_Tpred.topLeftCorner(bandrad, bandrad).setZero();
-//#ifdef DEBUG
-//    cerr<< "\n=======================\n"<<endl;
-//    cerr<<"\nLAMBDA:"<<eig.eigenvalues().transpose()<<endl;
-//    cerr<<"EVs:\n"<<eig.eigenvectors()<<endl;
-//    cerr<<"Proj EVs:\n"<<V.leftCols(N)*eig.eigenvectors()<<endl;
-//#endif //DEBUG
-    size_t nvalid = 0;
+    /*
+     * Update Prediction for next section of T
+     */
+    if(m_Tpred.rows() < bandrad || m_Tpred.cols() < bandrad)
+        m_Tpred.resize(bandrad, bandrad);
+    m_Tpred.topLeftCorner(bandrad, bandrad).setZero();
+    int nvalid = 0;
     for(int rr=N; rr<N+bandrad; rr++) {
         double vnorm = V.col(rr).norm();
         for(int cc=rr-bandrad; cc<N; cc++)
             m_Tpred(rr-N, cc-N+bandrad) = V.col(rr).dot(V.col(cc+bandrad))/vnorm;
     }
-//#ifdef DEBUG
-//    cerr << "T Est:\n\n"<<T.bottomLeftCorner(bandrad, N)<<endl;
-//#endif //DEBUG
+
+    /*
+     * Estimate the error of eigenvalues in descending order of magnitude, see:
+     * Ruhe A. Implementation aspects of band Lanczos algorithms for
+     * computation of eigenvalues of large sparse symmetric matrices. Math
+     * Comput. 1979 May 1;33(146):683. Available from:
+     * http://www.ams.org/jourcgi/jour-getitem?pii=S0025-5718-1979-0521282-9
+     */
     double sum = 0;
     double sumsq = 0;
     for(int vv=0; vv<N; vv++) {
         double esterr = (m_Tpred.topLeftCorner(bandrad, bandrad)*
                 eig.eigenvectors().col(N-1-vv).tail(bandrad)).norm();
-//        VectorXd ev = V.leftCols(N)*eig.eigenvectors().col(N-1-vv);
-//        double truerr = (A*ev-eig.eigenvalues()[N-1-vv]*ev).norm();
-//		cerr << esterr << " vs " << truerr<<endl;
         if(esterr > EVTHRESH)
             break;
 

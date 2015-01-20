@@ -63,6 +63,8 @@ Matrix<Scalar, Dynamic, Dynamic> createRandomUnitary(size_t rows, size_t cols)
  * U^H must be chosen so that dot(U_i, conj(U_i)) = 1, dot(U_i, conj(U_j)) = 0
  * if i != j. Further the columns of U should form an orthonormal basis.
  *
+ * An exponential distribution is used for singular values
+ *
  * @param rows Number of rows in output
  * @param cols Number of columns in output
  * @param U U matrix, which is unitary
@@ -79,10 +81,11 @@ Matrix<Scalar, Dynamic, Dynamic> createRandomSVD(size_t rows, size_t cols,
     U = createRandomUnitary<Scalar>(rows, rank);
     V = createRandomUnitary<Scalar>(cols, rank);
     S.resize(rank);
-    std::default_random_engine rng;
-    std::exponential_distribution<double> dist;
-    for(size_t rr=0; rr<rank; rr++)
-        S[rr] = dist(rng);
+    double lambda = .1;
+    for(size_t rr=0; rr<rank; rr++) {
+        double randu = (double)rand()/(double)RAND_MAX;
+        S[rr] = -log(1-randu)/lambda;
+    }
     S.normalize();
     std::sort(S.array().data(), S.array().data()+rank);
     std::reverse(S.array().data(), S.array().data()+rank);
