@@ -245,7 +245,7 @@ int main(int argc, char** argv)
 	std::random_device rd;
 	unsigned int seed = rd();
 //	seed = 3888816431;
-	
+
 	cerr<<"Seed: "<<seed<<endl;
 	std::default_random_engine rng(seed);
 	std::uniform_real_distribution<double> dist(-1,1);
@@ -302,8 +302,8 @@ int main(int argc, char** argv)
 	if(testTallPCAJoin(reorg, pref+"_tall_", evthresh) != 0)
 		return -1;
 
-	if(testWidePCAJoin(reorg, pref+"_wide_", evthresh) != 0)
-		return -1;
+//	if(testWidePCAJoin(reorg, pref+"_wide_", evthresh) != 0)
+//		return -1;
 
 }
 

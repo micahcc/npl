@@ -1,9 +1,9 @@
 #ifndef __version__
 	#if defined(DEBUG)
-		#define __version__ "3.0.6-debug"
+		#define __version__ "3.0.7-debug"
 	#elif defined(NDEBUG)
-		#define __version__ "3.0.6-release"
+		#define __version__ "3.0.7-release"
 	#else
-		#define __version__ "3.0.6"
+		#define __version__ "3.0.7"
 	#endif
 #endif
