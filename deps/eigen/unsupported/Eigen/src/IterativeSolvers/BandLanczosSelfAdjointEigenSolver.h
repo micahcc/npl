@@ -392,8 +392,8 @@ private:
      * @return Number of valid eigenvalues, or 0 if not all the convergeance
      * criteria have been met
      */
-    int check(
-            Ref<MatrixType> T, const Ref<const MatrixType> V,
+    int checkSolution(
+            const Ref<const MatrixType> T, const Ref<const MatrixType> V,
             int bandrad, int outvecs, double ev_sum_t, double ev_sumsq_t);
 //          const Ref<const MatrixType> A);
 
@@ -594,7 +594,7 @@ private:
                 approx(jj, *kk) = numext::conj(approx(*kk, jj));
             }
 
-            if(check(approx.topLeftCorner(jj+1+pc,jj+1+pc),
+            if(checkSolution(approx.topLeftCorner(jj+1,jj+1),
                         V.leftCols(jj+1+pc), pc, m_outvecs,
                         tr_thresh, trsq_thresh) > 0)
                 break;
@@ -606,7 +606,7 @@ private:
 
         // Check Number of Good Eigenvalues, and update eigenpairs for T
         // note that we ignore all restrictions at this point
-        int ndim = check(approx.topLeftCorner(jj+1+pc,jj+1+pc),
+        int ndim = checkSolution(approx.topLeftCorner(jj+1,jj+1),
                     V.leftCols(jj+1+pc), pc, -1, NAN, NAN);
         if(ndim <= 0) {
             m_status = -3;
@@ -626,6 +626,7 @@ private:
         m_status = 1;
     }
 
+
     /**
      * @brief Maximum rank to compute (sets max size of T matrix). < 0 will
      * remove all limits.
@@ -644,6 +645,7 @@ private:
     EigenValuesType m_evals;
     EigenVectorType m_evecs;
     EigenVectorType m_proj; // Computed Projection Matrix (V)
+	EigenVectorType m_Tpred; // predicted next values of T
 
     /**
      * @brief Status of computation
@@ -694,8 +696,8 @@ private:
  * criteria have been met
  */
 template <typename _MatrixType>
-int BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
-        Ref<MatrixType> T, const Ref<const MatrixType> V,
+int BandLanczosSelfAdjointEigenSolver<_MatrixType>::checkSolution(
+        const Ref<const MatrixType> T, const Ref<const MatrixType> V,
         int bandrad, int outvecs, double ev_sum_t, double ev_sumsq_t)
 //        const Ref<const MatrixType> A)
 {
@@ -705,7 +707,7 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
     // 2) trace hasn't reached the desired value, 3) trace of TT has not
     // reached the desired value
 
-    if(T.cols() < 2*bandrad)
+    if(T.cols() < bandrad)
         return 0;
 
     if(outvecs > 1 && T.rows() < outvecs)
@@ -717,11 +719,14 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
     if(!isinf(ev_sumsq_t) && !isnan(ev_sumsq_t) && (T*T).trace()<ev_sumsq_t)
         return 0;
 
-    int N = T.rows()-bandrad; // Finished Rows/Columns of T
-    SelfAdjointEigenSolver<MatrixType> eig(T.topLeftCorner(N,N));
+    int N = T.rows(); // Finished Rows/Columns of T
+    SelfAdjointEigenSolver<MatrixType> eig(T);
     m_evals = eig.eigenvalues();
     m_evecs = eig.eigenvectors();
 
+	if(m_Tpred.rows() < bandrad || m_Tpred.cols() < bandrad)
+		m_Tpred.resize(bandrad, bandrad);
+	m_Tpred.topLeftCorner(bandrad, bandrad).setZero();
 //#ifdef DEBUG
 //    cerr<< "\n=======================\n"<<endl;
 //    cerr<<"\nLAMBDA:"<<eig.eigenvalues().transpose()<<endl;
@@ -732,7 +737,7 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
     for(int rr=N; rr<N+bandrad; rr++) {
         double vnorm = V.col(rr).norm();
         for(int cc=rr-bandrad; cc<N; cc++)
-            T(rr, cc) = V.col(rr).dot(V.col(cc+bandrad))/vnorm;
+            m_Tpred(rr-N, cc-N+bandrad) = V.col(rr).dot(V.col(cc+bandrad))/vnorm;
     }
 //#ifdef DEBUG
 //    cerr << "T Est:\n\n"<<T.bottomLeftCorner(bandrad, N)<<endl;
@@ -740,10 +745,11 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
     double sum = 0;
     double sumsq = 0;
     for(int vv=0; vv<N; vv++) {
-        double esterr = (T.bottomLeftCorner(bandrad, N)*
-                eig.eigenvectors().col(N-1-vv)).norm();
+        double esterr = (m_Tpred.topLeftCorner(bandrad, bandrad)*
+                eig.eigenvectors().col(N-1-vv).tail(bandrad)).norm();
 //        VectorXd ev = V.leftCols(N)*eig.eigenvectors().col(N-1-vv);
-//        double esterr = (A*ev-eig.eigenvalues()[N-1-vv]*ev).norm();
+//        double truerr = (A*ev-eig.eigenvalues()[N-1-vv]*ev).norm();
+//		cerr << esterr << " vs " << truerr<<endl;
         if(esterr > EVTHRESH)
             break;
 
@@ -752,10 +758,6 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::check(
         sum += eig.eigenvalues()[N-1-vv];
         sumsq += eig.eigenvalues()[N-1-vv]*eig.eigenvalues()[N-1-vv];
     }
-
-    // Remove Predictions Made (in case deflation happens and the true band
-    // ends up being smaller than the predicted one)
-    T.bottomLeftCorner(bandrad, N).setZero();
 
     if((outvecs <= 1 || nvalid >= outvecs) &&
             (std::isnan(ev_sumsq_t) || std::isinf(ev_sumsq_t)
