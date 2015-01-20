@@ -16,7 +16,7 @@
 #include <Eigen/Dense>
 #include <unsupported/Eigen/IterativeSolvers>
 
-#define VERYDEBUG
+//#define VERYDEBUG
 
 using namespace std;
 using namespace Eigen;
@@ -79,8 +79,8 @@ Matrix<Scalar, Dynamic, Dynamic> createRandomSVD(size_t rows, size_t cols,
     U = createRandomUnitary<Scalar>(rows, rank);
     V = createRandomUnitary<Scalar>(cols, rank);
     S.resize(rank);
-	std::default_random_engine rng;
-	std::exponential_distribution<double> dist;
+    std::default_random_engine rng;
+    std::exponential_distribution<double> dist;
     for(size_t rr=0; rr<rank; rr++)
         S[rr] = dist(rng);
     S.normalize();
@@ -130,9 +130,10 @@ int main(int argc, char** argv)
     Matrix<double,Dynamic,Dynamic> A = createRandomSVD<double>(
             matrows, matcols, rank, true_U, true_S, true_V);
 
-	Eigen::TruncatedLanczosSVD<MatrixXd> lsvd;
+    Eigen::TruncatedLanczosSVD<MatrixXd> lsvd;
     lsvd.setLanczosBasis(nbasis);
     lsvd.setVarThreshold(0.95);
+//    lsvd.setDeflationTol(0.01);
     cerr << "Computing with TruncatedLanczosSVD";
     lsvd.compute(A, ComputeThinV|ComputeThinU);
     cerr << "Done\n";
@@ -142,32 +143,35 @@ int main(int argc, char** argv)
         return -1;
     }
 
-	const VectorXd& E = lsvd.singularValues();
+    const VectorXd& E = lsvd.singularValues();
     const MatrixXd& U = lsvd.matrixU();
     const MatrixXd& V = lsvd.matrixV();
 
-	double err;
-	err = (U.transpose()*U-MatrixXd::Identity(U.cols(),
-				U.cols())).array().square().sum();
-	cerr << "UtU Error:"<<err<< endl;
-	if(err > 0.00001) {
-		cerr<<"Error, lots of off-diagonal entries during UtU!"<<endl;
-		cerr<<"\n"<<U<<endl;
-		return -1;
-	}
-	err = (V.transpose()*V-MatrixXd::Identity(V.cols(),
-				V.cols())).array().square().sum();
-	cerr << "VtV Error:"<<err<< endl;
-	if(err > 0.00001) {
-		cerr<<"Error, lots of off-diagonal entries during VtV!"<<endl;
-		cerr<<"\n"<<V<<endl;
-		return -1;
-	}
+    double err;
+    err = (U.transpose()*U-MatrixXd::Identity(U.cols(),
+                U.cols())).array().square().sum()/(U.cols()*U.cols());
+    cerr << "UtU Error:"<<err<< endl;
+    if(err > 0.0001) {
+        cerr<<"Error, lots of off-diagonal entries during UtU!"<<endl;
+        cerr<<"\n"<<U<<endl;
+        return -1;
+    }
 
-	err = (A - U*E.asDiagonal()*V.transpose()).array().square().sum();
-	cerr << "Recon Error:"<<err<<endl;
-	if(err > 0.1)
-		return -1;
+    MatrixXd vtv = (V.transpose()*V - MatrixXd::Identity(V.cols(), V.cols()));
+    err = vtv.array().square().sum();
+    err /= (V.cols()*V.cols());
+    cerr << "VtV Error:"<<err<< endl;
+    if(err > 0.0001) {
+        cerr<<"Error, lots of off-diagonal entries during VtV!"<<endl;
+        cerr<<"\n"<<V<<endl;
+        return -1;
+    }
+
+    err = (A - U*E.asDiagonal()*V.transpose()).array().square().sum()/
+                (A.cols()*A.rows());
+    cerr << "Recon Error:"<<err<<endl;
+    if(err > 0.01)
+        return -1;
 //
 //    cerr << "Comparing Singular Values"<<endl;
 //    for(int64_t ii=0; ii<srows; ii++) {

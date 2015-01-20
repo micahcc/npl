@@ -14,9 +14,13 @@
 #include <limits>
 #include <cmath>
 
+//#define VERYDEBUG
+
+#ifdef VERYDEBUG
 #include <iostream>
 using std::cerr;
 using std::endl;
+#endif //VERYDEBUG
 
 namespace Eigen {
 
@@ -28,6 +32,9 @@ namespace Eigen {
  * TODO: documentation with usage examples
  * TODO: documentation of settings
  * TODO: Test complex scalars
+ * TODO: Test different values of deflation tolerance. Very small values
+ * (eg sqrt(epsilon)) introduce repeated eigenvalues although its possible
+ * changing the number of starting vectors would have an effect as well.
  *
  */
 template <typename _MatrixType>
@@ -275,24 +282,30 @@ public:
     Scalar eValSquareStop() { return m_tracesq_stop ; };
 
     /**
-     * @brief Set the tolerance for deflation. Algorithm stops when #of
-     * deflations hits the number of basis vectors. A higher tolerance will
-     * thus cause faster convergence and DOES NOT AFFECT ACCURACY, it may
-     * affect the number of found eigenvalues though. Recommended value is
-     * sqrt(epsilon), approx 1e-8.
+     * @brief Set the deflation tolerance in the Band Lanczos
+     * algorithm, which is 0.05. Deflation testing is done in comparison to
+     * initial vector norm, so that deflation occurrs more naturally.
+     * Setting this smaller may result in more found eigenvalues values, but it
+     * may also result in spurious repeated values. Larger values may result in
+     * faster convergence, but this must be less thant 1.
      *
      * @param dtol Tolerance for deflation
      */
     void setDeflationTol(RealScalar dtol) { m_deflation_tol = dtol; };
 
     /**
-     * @brief Set the default deflation tolerance, which is sqrt of epsilon.
+     * @brief Set deflation tolerance to the default in the Band Lanczos
+     * algorithm, which is 0.05. Deflation testing is done in comparison to
+     * initial vector norm, so that deflation occurrs more naturally.
+     * Setting this smaller may result in more found eigenvalues values, but it
+     * may also result in spurious repeated values. Larger values may result in
+     * faster convergence, but this must be less thant 1.
      *
      * @param Default_t d
      */
-    void SetDeflationTol(Default_t)
+    void setDeflationTol(Default_t)
     {
-        m_deflation_tol = sqrt(std::numeric_limits<RealScalar>::epsilon());
+        m_deflation_tol = 0.05;
     };
 
     /**
@@ -300,16 +313,18 @@ public:
      *
      * @return dtol Tolerance for deflation
      */
-    RealScalar DeflationTol() { return m_deflation_tol; };
+    RealScalar deflationTol() { return m_deflation_tol; };
 
     /**
      * @brief Set desired number of output vectors. Less may be returned in the
-     * matrix is rank deficient. This is more a guideline
+     * starting basis is made up of eigenvectors. A better stopping condition
+     * is the sum of squared eigenvalues (setEValSquaredStop)
      *
-     * @param numvecs Expected number of vectors we would like. Note that less
-     * maybe returned if the matrix is rank-deficient or more could be returned
-     * if as a consequence of a few extra iterations, more are available at
-     * respectible accuracy
+     * More could also be returned if as a consequence of a few extra
+     * iterations, more are available at respectible accuracy. To reduce the
+     * number of eigenvectors after calling compute, use hardenLimits().
+     *
+     * @param numvecs Expected number of vectors we would like.
      */
     void setDesiredRank(int maxiters) { m_outvecs = maxiters; };
 
@@ -417,10 +432,10 @@ private:
     {
         EigenVectorType& V = m_proj;
 
-        // Normalize Inputs, So Deflation Tolerance Makes Sense
-        for(size_t ii=0; ii<V.cols(); ii++) {
-            V.col(ii).normalize();
-        }
+        // Deflate Based on Change in magnitude from original mag
+        std::list<double> Vnorms;
+        for(size_t ii=0; ii<V.cols(); ii++)
+            Vnorms.push_back(V.col(ii).norm());
 
         // I in text, the iterators to nonzero rows of T(d) as well as the index
         // of them in nonzero_i
@@ -470,13 +485,15 @@ private:
 
             // (3) compute ||v_j||
             double Vjnorm = V.col(jj).norm();
+            double Vjnorm_init = Vnorms.front();
+            Vnorms.pop_front();
 
             /*******************************************************************
              * Perform Deflation if current (jth vector) is linearly dependent
              * on the previous vectors
              ******************************************************************/
             // decide if vj should be deflated
-            if(!(Vjnorm > anorm*m_deflation_tol)) {
+            if(!(Vjnorm > Vjnorm_init*m_deflation_tol)) {
                 // if j-pc > 0 (switch to 0 based indexing), I = I U {j-pc}
                 if(jj-pc>= 0)
                     nonzero.push_back(jj-pc);
@@ -530,9 +547,7 @@ private:
             // compute v_{j+pc} = A v_j
             //            V.col(jj+pc) = A*V.col(jj);
             V.col(jj+pc) = A*V.col(jj);
-
-            // update estimate of ||A||
-            anorm = std::max(anorm, V.col(jj+pc).norm());
+            Vnorms.push_back(V.col(jj+pc).norm());
 
             /*******************************************************
              * Fill Off Diagonals with reflection T(k,j) =
@@ -583,6 +598,9 @@ private:
                         V.leftCols(jj+1+pc), pc, m_outvecs,
                         tr_thresh, trsq_thresh) > 0)
                 break;
+#ifdef VERYDEBUG
+            cerr<<"T_"<<jj<<"=["<<approx.topLeftCorner(jj+1,jj+1)<<endl<<"]\n";
+#endif //VERYDEBUG
             jj++;
         }
 
@@ -596,8 +614,10 @@ private:
         }
 
         // Compute Eigen Solution to Similar Matrix, then project through V
+#ifdef VERYDEBUG
         cerr<<"T\n:"<<approx.topLeftCorner(jj+1,jj+1)<<endl;
         cerr<<"EV:"<<m_evals.transpose()<<endl;
+#endif //VERYDEBUG
         m_evals = m_evals.tail(ndim);
         m_evecs = V.leftCols(jj+1)*m_evecs.rightCols(ndim);
         eigen_assert(m_evecs.rows() == A.rows() && m_evecs.cols() == m_evals.rows()

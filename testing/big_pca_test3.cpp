@@ -104,6 +104,7 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		cerr << "Error Computing Full SVD" << endl;
 		return -1;
 	}
+	mergesvd.hardenLimits();
 	cerr << "SVD Rank: " << mergesvd.rank() << endl;
 
 	cerr<<"Comparing Full S with Merge S"<<endl;
@@ -198,6 +199,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		cerr << "Error Computing Merge SVD" << endl;
 		return -1;
 	}
+	mergesvd.hardenLimits();
 	cerr << "SVD Rank: " << mergesvd.rank() << endl;
 
 	cerr<<"Comparing Full S with Merge S"<<endl;
@@ -235,7 +237,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 int main(int argc, char** argv)
 {
-	double evthresh = 1;
+	double evthresh = 0.999;
 
 	if(argc == 2)
 		evthresh = atof(argv[1]);

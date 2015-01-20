@@ -14,6 +14,12 @@
 #include <limits>
 #include <cmath>
 
+#ifdef VERYDEBUG
+#include <iostream>
+using std::cerr;
+using std::endl;
+#endif //VERYDEBUG
+
 namespace Eigen {
 
 /**
@@ -139,7 +145,9 @@ class TruncatedLanczosSVD
             m_computeV = true;
         if(computationOptions & (ComputeThinU|ComputeFullU))
             m_computeU = true;
-
+#ifdef VERYDEBUG
+        cerr<<"A = ["<<A<<endl<<"]\n";
+#endif //VERYDEBUG
         WorkMatrixType C;
         if(A.rows() > A.cols()) {
             // Compute right singular vlaues (V)
@@ -150,6 +158,9 @@ class TruncatedLanczosSVD
             C = A*A.transpose();
             m_computeU = true;
         }
+#ifdef VERYDEBUG
+        cerr<<"C = ["<<C<<endl<<"]\n";
+#endif //VERYDEBUG
 
         // update totalvar (sum of variances)
         m_totalvar = C.trace();
@@ -159,24 +170,31 @@ class TruncatedLanczosSVD
         if(m_initbasis > 0)
             initrank = m_initbasis;
 
+        double evalstop = 1;
+        if(!isnan(m_var_thresh) && !isinf(m_var_thresh))
+            evalstop = m_var_thresh;
+
         BandLanczosSelfAdjointEigenSolver<MatrixType> eig;
         eig.setDesiredRank(m_nvec);
-        eig.setEValStop(m_var_thresh);
+        eig.setEValStop(evalstop);
         eig.setDeflationTol(m_deftol);
         eig.compute(C, initrank);
-		cerr<<eig.eigenvalues().transpose()<<endl;
+#ifdef VERYDEBUG
+        cerr<<eig.eigenvalues().transpose()<<endl;
+#endif //VERYDEBUG
 
         if(eig.info() != Success) {
             m_status = -2;
-			return;
-		}
+            return;
+        }
 
         int rows = eig.eigenvalues().rows();
         int rank = 0;
-        for(size_t rr=0; rr<rows; rr++) {
-            if(eig.eigenvalues()[rr] > std::sqrt(std::numeric_limits
-                        <RealScalar>::epsilon()))
+        for(size_t rr=rows-1; rr>=0; rr--) {
+            if(eig.eigenvalues()[rr] > std::numeric_limits<RealScalar>::epsilon())
                 rank++;
+            else
+                break;
         }
 
         // Note that because Eigen Solvers usually sort eigenvalues in
@@ -319,17 +337,20 @@ class TruncatedLanczosSVD
      * @brief Smallest value of singular values that is not considered zero for
      * matrix rank.
      *
-     * @param threshold Value (default is sqr(epsilon))
+     * @param threshold Value (default is epsilon)
      */
     void setThreshold(RealScalar threshold)
     {
+        eigen_assert(threshold >= 0 && "Threshold must be >= 0");
+        eigen_assert(m_status == 1 && "SVD Not Complete.");
         m_thresh = threshold;
     }
 
     /**
-     * @brief Smallest value of singular values that is not considered zero for
-     * matrix rank, sets the threshold to the square root of machine precision,
-     * since the square of singular values are initially computed.
+     * @brief Set the threshold for smallest singular values to the default
+     * value (sqrt(epsilon)). Determines matrix rank, sets the threshold to the
+     * square root of machine precision, since the square of singular values
+     * are initially computed.
      */
     void setThreshold(Default_t)
     {
@@ -373,24 +394,30 @@ class TruncatedLanczosSVD
     int desiredRank() { return m_nvec; };
 
     /**
-     * @brief Set the tolerance for deflation. Algorithm stops when #of
-     * deflations hits the number of basis vectors. A higher tolerance will
-     * thus cause faster convergence and DOES NOT AFFECT ACCURACY, it may
-     * affect the number of found eigenvalues though. Recommended value is
-     * sqrt(epsilon), approx 1e-8.
+     * @brief Set the deflation tolerance in the Band Lanczos
+     * algorithm, which is 0.05. Deflation testing is done in comparison to
+     * initial vector norm, so that deflation occurrs more naturally.
+     * Setting this smaller may result in more found eigenvalues values, but it
+     * may also result in spurious repeated values. Larger values may result in
+     * faster convergence, but this must be less thant 1.
      *
      * @param tol Tolerance
      */
     void setDeflationTol(RealScalar tol) { m_deftol = tol; };
 
     /**
-     * @brief Set the default deflation tolerance, which is sqrt of epsilon.
+     * @brief Set deflation tolerance to the default in the Band Lanczos
+     * algorithm, which is 0.05. Deflation testing is done in comparison to
+     * initial vector norm, so that deflation occurrs more naturally.
+     * Setting this smaller may result in more found eigenvalues values, but it
+     * may also result in spurious repeated values. Larger values may result in
+     * faster convergence, but this must be less thant 1.
      *
      * @param Default_t d
      */
     void setDeflationTol(Default_t)
     {
-        m_deftol = std::sqrt(std::numeric_limits<RealScalar>::epsilon());
+        m_deftol = 0.05;
     };
 
     /**
