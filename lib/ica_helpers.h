@@ -286,6 +286,11 @@ public:
 	double svthresh;
 
 	/**
+	 * @brief Cutoff for explained variance in PCA
+	 */
+	double varthresh;
+
+	/**
 	 * @brief Deflation tolerance in BandLanczos.
 	 */
 	double deftol;

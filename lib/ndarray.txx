@@ -250,6 +250,12 @@ void NDArrayStore<D,T>::resize(const size_t dim[D])
 }
 
 template <size_t D, typename T>
+size_t NDArrayStore<D,T>::bytesper() const
+{
+	return sizeof(T);
+}
+
+template <size_t D, typename T>
 size_t NDArrayStore<D,T>::bytes() const
 {
 	size_t out = 1;

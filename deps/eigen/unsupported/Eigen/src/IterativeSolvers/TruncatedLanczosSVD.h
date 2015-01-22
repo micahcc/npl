@@ -327,7 +327,6 @@ class TruncatedLanczosSVD
     void setThreshold(RealScalar threshold)
     {
         eigen_assert(threshold >= 0 && "Threshold must be >= 0");
-        eigen_assert(m_status == 1 && "SVD Not Complete.");
         m_thresh = threshold;
     }
 

@@ -80,8 +80,11 @@ int main(int argc, char** argv)
 			"in a rows of spatial-concatination. ", false, 1,
 			"spatial-rows", cmd);
 
-	TCLAP::ValueArg<double> a_svthresh("", "sv-thresh", "Cut off after this "
+	TCLAP::ValueArg<double> a_varthresh("", "var-thresh", "Cut off after this "
 			"ratio of the variance has been accounted for.", false, 0.99, "ratio", cmd);
+	TCLAP::ValueArg<double> a_svthresh("", "sv-thresh", "Cut off after this "
+			"ratio of maximum singular value. Everything smaller is considered 0",
+			false, NAN, "ratio", cmd);
 	TCLAP::ValueArg<double> a_deftol("", "dtol", "Deflation tolerance in "
 			"eigenvalue computation. Larger values will result in fewer "
 			"singular values. ", false,
@@ -130,6 +133,7 @@ int main(int argc, char** argv)
 //			a_simultaneous.getValue(), a_iters.getValue(), a_gbram.getValue(),
 //			a_spatial_ica.isSet());
 	GICAfmri gica(a_prefix.getValue());
+	gica.varthresh = a_varthresh.getValue();
 	gica.svthresh = a_svthresh.getValue();
 	gica.deftol = a_deftol.getValue();
 	gica.initbasis = a_simultaneous.getValue();

@@ -392,9 +392,6 @@ template <size_t D, typename T>
 int MRImageStore<D,T>::write(std::string filename, double version) const
 {
 	std::string mode = "wb";
-#if ZLIB_VERNUM >= 0x1280
-	const size_t BSIZE = 1024*1024; //1M
-#endif
 	gzFile gz;
 
 	// remove .gz to find the "real" format,
@@ -415,6 +412,7 @@ int MRImageStore<D,T>::write(std::string filename, double version) const
 	}
 
 #if ZLIB_VERNUM >= 0x1280
+	const size_t BSIZE = 1024*1024; //1M
 	gzbuffer(gz, BSIZE);
 #endif
 

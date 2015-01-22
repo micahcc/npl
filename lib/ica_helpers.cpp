@@ -1078,26 +1078,17 @@ void GICAfmri::compute()
 		MatMap talldata(reorg.tallMatName(ii));
 
 		cerr<<"Chunk SVD:"<<talldata.mat.rows()<<"x"<<talldata.mat.cols()<<endl;
-		Eigen::BDCSVD<MatrixXd> svd(talldata.mat,
-				Eigen::ComputeThinV|Eigen::ComputeThinU);
+		Eigen::JacobiSVD<MatrixXd> svd;
+		svd.compute(talldata.mat, Eigen::ComputeThinU | Eigen::ComputeThinV);
+		svd.setThreshold(0.01);
 //		Eigen::TruncatedLanczosSVD<MatrixXd> svd;
-//		svd.setThreshold(svthresh);
-//		svd.setDeflationTol(deftol);
-//		svd.setLanczosBasis(initbasis);
+//		svd.setVarThreshold(varthresh);
 //		svd.compute(talldata.mat, Eigen::ComputeThinU | Eigen::ComputeThinV);
 //		if(svd.info() == Eigen::NoConvergence)
 //			throw RUNTIME_ERROR("Error computing Tall SVD, might want to "
 //					"increase # of lanczos vectors");
 
-		int rank = 0;
-		double totalvar = svd.singularValues().squaredNorm();
-		double sumvar = 0;
-		for(rank=0; rank<svd.singularValues().rows(); rank++) {
-			sumvar += svd.singularValues()[rank]*svd.singularValues()[rank];
-			if(sumvar > svthresh*totalvar)
-				break;
-		}
-		rank++;
+		int rank = svd.rank();
 		cerr << "SVD Rank: " << rank << endl;
 		maxrank = std::max<size_t>(maxrank, rank);
 
@@ -1135,23 +1126,56 @@ void GICAfmri::compute()
 	MatrixXd U, V;
 	VectorXd E;
 	{
-		Eigen::BDCSVD<MatrixXd> svd(mergedUE,
-				Eigen::ComputeThinV|Eigen::ComputeThinU);
+		Eigen::JacobiSVD<MatrixXd> svd;
+		svd.compute(mergedUE, Eigen::ComputeThinU | Eigen::ComputeThinV);
+		svd.setThreshold(0.01);
+//		Eigen::TruncatedLanczosSVD<MatrixXd> svd;
+//		svd.setVarThreshold(varthresh);
+//		svd.compute(mergedUE, Eigen::ComputeThinU | Eigen::ComputeThinV);
 
-		int rank = 0;
-		double totalvar = svd.singularValues().squaredNorm();
-		double sumvar = 0;
-		for(rank=0; rank<svd.singularValues().rows(); rank++) {
-			sumvar += svd.singularValues()[rank]*svd.singularValues()[rank];
-			if(sumvar > svthresh*totalvar)
-				break;
-		}
-		rank++;
+		int rank = svd.rank();
 		cerr << "SVD Rank: " << rank << endl;
 		U = svd.matrixU();
 		E = svd.singularValues();
 		V = svd.matrixV();
 	}
+
+#ifndef NDEBUG
+	{
+		cerr << "Testing PCA, Computing Full V...";
+		MatrixXd mergeV(reorg.cols(), V.cols());
+
+		size_t currow = 0;
+		size_t curcol = 0;
+		for(size_t ii=0; ii<reorg.ntall(); ii++) {
+			string vname = m_pref+"_V_"+to_string(ii);
+			MatMap C(vname);
+
+			mergeV.middleRows(currow, C.mat.rows()) =
+				C.mat*V.middleRows(curcol, C.mat.cols());
+			currow += C.mat.rows();
+			curcol += C.mat.cols();
+		}
+		cerr << "Done\n" << endl;
+
+		cerr << "Multiplying Out (note this may use lots of memory)...";
+		cerr << "U*E*Vt = "<<U.rows()<<"x"<<U.cols()<<" . "<<E.rows()<<"x"<<E.cols()
+			<<" . "<<mergeV.cols()<<"x"<<mergeV.rows()<<endl;
+		MatrixXd fullMat = U*E.asDiagonal()*mergeV.transpose();
+		int cc = 0;
+		double err = 0;
+		double totalv = 0;
+		for(size_t ii=0; ii<reorg.ntall(); ii++) {
+			MatMap talldata(reorg.tallMatName(ii));
+			for(size_t jj=0; jj<talldata.mat.cols(); jj++) {
+				err += (talldata.mat.col(jj) - fullMat.col(cc)).squaredNorm();
+				totalv += talldata.mat.col(jj).squaredNorm();
+				cc++;
+			}
+		}
+		cerr << "Relative Error: " << err/totalv << endl;
+	}
+#endif //NDEBUG
 
 	/*
 	 * Recall:
@@ -1344,22 +1368,8 @@ void GICAfmri::computeSpatialMaps()
 					}
 
 					// If there is currently an open output image, write
-					if(out) {
-						for(size_t dd=0; dd<3; dd++)
-							odim[dd] = out->dim(dd);
-						odim[3] = 0;
-
+					if(out)
 						out->write(m_pref+"_tmap_m"+to_string(mm)+".nii.gz");
-						assert(out->tlen() == ics.cols);
-						// each row corresponds to a tmap (stored in dim 3)
-						for(index[3] = 0; index[3]<ics.cols; index[3]++) {
-							cerr << "Writing"<<m_pref+"_tmap_m"<<mm<<"_c"
-								<<index[3]<<".nii.gz";
-							out->extractCast(3, index, odim)->write(
-									m_pref+"_tmap_m"+to_string(mm)+"_c"+
-									to_string(index[3])+".nii.gz");
-						}
-					}
 
 					// Read Next Mask
 					cerr<<"Reading mask ("<<(1+mm)<<") = "<<m_pref<<"_mask_"
@@ -1392,15 +1402,8 @@ void GICAfmri::computeSpatialMaps()
 		}
 
 		// If there is currently an open output image, write as multiple, last
-		if(out) {
-			for(size_t dd=0; dd<3; dd++)
-				odim[dd] = out->dim(dd);
-			odim[3] = 0;
-			for(index[3] = 0; index[3]<ics.cols; index[3]++)
-				out->extractCast(3, index, odim)->write(
-						m_pref+"_tmap_m"+to_string(mm)+"_c"+
-						to_string(index[3])+".nii.gz");
-		}
+		if(out)
+			out->write(m_pref+"_tmap_m"+to_string(mm)+".nii.gz");
 		cerr << "Done with Regression" << endl;
 	}
 }

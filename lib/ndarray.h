@@ -48,7 +48,7 @@ enum PixelT {UNKNOWN_TYPE=0, UINT8=2, INT16=4, INT32=8, FLOAT32=16,
 class NDArray;
 
 /**
- * @brief Defines the maximum supported dimension by image, used for 
+ * @brief Defines the maximum supported dimension by image, used for
  * stack-allocations
  */
 const size_t MAXDIM = 10;
@@ -180,6 +180,7 @@ public:
 
 	virtual size_t ndim() const = 0;
 	virtual size_t bytes() const = 0;
+	virtual size_t bytesper() const = 0;
 	virtual size_t elements() const = 0;
 	virtual size_t dim(size_t dir) const = 0;
 	virtual const size_t* dim() const = 0;
@@ -219,7 +220,7 @@ public:
 	bool signedType() const {
 		return type()==INT8|| type()==INT16 || type()==INT32 || type()==INT64;
 	};
-	
+
 	/**
 	 * @brief Returns true if the stored type is a variant of unsigned signed
 	 * integer.
@@ -234,7 +235,7 @@ public:
 	ptr<NDArray> getPtr()  {
 		return shared_from_this();
 	};
-	
+
 	ptr<const NDArray> getConstPtr() const {
 		return shared_from_this();
 	};
@@ -424,12 +425,12 @@ public:
 	virtual void* __getAddr(const std::vector<int64_t>& index) const = 0;
 	virtual void* __getAddr(int64_t i) const = 0;
 	virtual void* __getAddr(int64_t x, int64_t y, int64_t z, int64_t t) const = 0;
-	
+
 	virtual int64_t getLinIndex(std::initializer_list<int64_t> index) const = 0;
 	virtual int64_t getLinIndex(size_t len, const int64_t* index) const = 0;
 	virtual int64_t getLinIndex(const std::vector<int64_t>& index) const = 0;
 	virtual int64_t getLinIndex(int64_t x, int64_t y, int64_t z, int64_t t) const = 0;
-	
+
 	/**
 	 * @brief This function just returns the number of elements in a theoretical
 	 * fourth dimension (ignoring orgnaization of higher dimensions)
@@ -488,7 +489,7 @@ public:
 	 * then D then additional dimensions are left as size 1.
 	 */
 	NDArrayStore(const std::vector<size_t>& dim);
-	
+
 	/**
 	 * @brief Constructor with array of length len, Orientation will be default
 	 * (direction = identity, spacing = 1, origin = 0).
@@ -499,7 +500,7 @@ public:
 	 * then D then additional dimensions are left as size 1.
 	 */
 	NDArrayStore(size_t len, const size_t* dim);
-	
+
 	/**
 	 * @brief Constructor which uses a preexsting array, to graft into the
 	 * array. No new allocation will be performed, however ownership of the
@@ -516,7 +517,7 @@ public:
 	 */
 	NDArrayStore(size_t len, const size_t* dim, T* ptr,
             const std::function<void(void*)>& deleter);
-	
+
 	~NDArrayStore() { m_freefunc(_m_data); };
 
 	/*
@@ -526,7 +527,7 @@ public:
 	T& operator[](const std::vector<int64_t>& index);
 	T& operator[](std::initializer_list<int64_t> index);
 	T& operator[](int64_t pixel);
-	
+
 	const T& operator[](const int64_t* index) const;
 	const T& operator[](const std::vector<int64_t>& index) const;
 	const T& operator[](std::initializer_list<int64_t> index) const;
@@ -537,6 +538,7 @@ public:
 	 */
 	size_t ndim() const;
 	size_t bytes() const;
+	size_t bytesper() const;
 	size_t elements() const;
 	size_t dim(size_t dir) const;
 	const size_t* dim() const;
@@ -548,7 +550,7 @@ public:
 	 * @param dim New size
 	 */
 	void resize(const size_t dim[D]);
-	
+
 	/**
 	 * @brief Changes the dimensions (size) of the image. This does not affect
 	 * rank/dimensionality
@@ -559,14 +561,14 @@ public:
 
 	// return the pixel type
 	PixelT type() const;
-	
+
 	/**
 	 * @brief Returns a pointer to the data array. Be careful
 	 *
 	 * @return Pointer to data
 	 */
 	void* data() {return _m_data; };
-	
+
 	/**
 	 * @brief Returns a pointer to the data array. Be careful
 	 *
@@ -594,11 +596,11 @@ public:
      * @return 0 if successful
      */
 	virtual int write(std::string filename, double version = 1) const;
-	
+
 	/**************************************************************************
 	 * Duplication Functions
 	 *************************************************************************/
-	
+
 	/**
 	 * @brief Performs a deep copy of the entire array
 	 *
@@ -770,12 +772,12 @@ public:
 //			bool elevR);
 //	virtual ptr<NDArray> opnew(const NDArray* right,
 //			double(*func)(double,double), bool elevR);
-	
+
 	inline virtual void* __getAddr(std::initializer_list<int64_t> index) const
 	{
 		return &_m_data[getLinIndex(index)];
 	};
-	
+
 	inline virtual void* __getAddr(size_t len, const int64_t* index) const
 	{
 		return &_m_data[getLinIndex(len, index)];
@@ -812,7 +814,7 @@ public:
 		else
 			return 1;
 	};
-	
+
 	T* _m_data;
 	size_t _m_stride[D]; // steps between pixels
 	size_t _m_dim[D];	// overall image dimension
