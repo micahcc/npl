@@ -101,7 +101,7 @@ int test(size_t rows, size_t cols, size_t rank, size_t nbasis)
     const VectorXd& jvals = jacsvd.singularValues();
     const MatrixXd& jU = jacsvd.matrixU();
     const MatrixXd& jV = jacsvd.matrixV();
-    cerr << "Done ("<<t<<")"<<endl;
+    cerr << "\nDone ("<<t<<")"<<endl;
 
     Eigen::TruncatedLanczosSVD<MatrixXd> lsvd;
     lsvd.setLanczosBasis(nbasis);
@@ -118,7 +118,7 @@ int test(size_t rows, size_t cols, size_t rank, size_t nbasis)
     const VectorXd& lvals = lsvd.singularValues();
     const MatrixXd& lU = lsvd.matrixU();
     const MatrixXd& lV = lsvd.matrixV();
-    cerr << "Done ("<<t<<")"<<endl;
+    cerr << "\nDone ("<<t<<")"<<endl;
 
     int64_t srows = min(lvals.rows(), jvals.rows());
 
