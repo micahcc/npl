@@ -65,10 +65,12 @@ int main(int argc, char** argv)
 	 */
 
 	TCLAP::CmdLine cmd("Applies 3D deformation to a volume."
-			" If you have a *.svreg.map.* file use '$ convertDeform --in-index -1 "
-			"-i *.svreg.map.nii.gz -a atlas.bfc.nii.gz "
-			"-o offset.nii.gz' to generate an "
-			"appropriate input (offset.nii.gz).", ' ', __version__ );
+			" If you have a *.svreg.map.* file use "
+			"' nplApplyDeform -1 -l -d *.map.nii.gz -i *.atlas.space.nii.gz'"
+			"Note that there may be issue if your input has different "
+			"orientation from the atlas. It is usually better to use physical "
+			"space offset maps (which is why that is the default).",
+			' ', __version__ );
 
 	TCLAP::ValueArg<string> a_in("i", "input", "Input image.",
 			true, "", "*.nii.gz", cmd);
@@ -78,10 +80,12 @@ int main(int argc, char** argv)
 	TCLAP::ValueArg<string> a_interp("I", "interp", "Interpolation method. "
 			"One of: lanczos, linear, nn. Default is lanczos", false,
 			"lanczos", "type", cmd);
-	TCLAP::SwitchArg a_ignoreorient("O", "orient-ignore", "Ignore orientation. "
-			"Warning this is risky. However it is necessary if you know that "
-			"the inputs are in the same pixel space but someone left "
-			"out the orienation. ", cmd);
+	TCLAP::SwitchArg a_indexmap("l", "lookup", "Index lookup map "
+			"(rather offsets in physical space). Indexes refer to indexes in "
+			"input image. ", cmd);
+	TCLAP::SwitchArg a_onebased("1", "one-based", "One based indexes (rather "
+			"than 0 based). Just subtracts 1 from values in the deformation "
+			"IF -l /--lookup is set.", cmd);
 
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
 			true, "", "*.nii.gz", cmd);
@@ -104,46 +108,6 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	if(a_ignoreorient.isSet() || !defimg->isOriented()) {
-		cerr << "Assuming input and deform have matching pixels" << endl;
-		for(size_t dd=0; dd<3; dd++) {
-			if(defimg->dim(dd) != inimg->dim(dd)) {
-				cerr << "Input pixel sizes differ (deform versus input!)"
-					<< endl;
-				return -1;
-			}
-		}
-
-		defimg->setOrient(inimg->getOrigin(), inimg->getSpacing(),
-				inimg->getDirection(), false);
-	} else if(defimg->getDirection() != inimg->getDirection() ||
-			defimg->getOrigin() != inimg->getOrigin() ||
-			defimg->getSpacing() != inimg->getSpacing()) {
-		if(overlapRatio(inimg, defimg) < 0.5) {
-			cerr << "Deformation and Input do not overlap!" << endl;
-			return -1;
-		}
-
-		cerr << "Linearly Resampling Deform into space of input." << endl;
-		size_t newsize[4] = {inimg->dim(0), inimg->dim(1), inimg->dim(2), 3};
-		auto odef = dPtrCast<MRImage>(inimg->createAnother(4, newsize, FLOAT32));
-		LinInterp3DView<double> definterp(defimg);
-		definterp.m_ras = true;
-
-		double pt[3];
-		for(Vector3DIter<double> dit(odef); !dit.eof(); ++dit) {
-			dit.index(3, pt);
-			odef->indexToPoint(3, pt, pt);
-
-			for(size_t dd=0; dd<3; dd++)
-				dit.set(dd, definterp.get(pt[0], pt[1], pt[2], dd));
-		}
-
-		odef->write("definterp.nii.gz");
-		defimg = odef;
-	}
-
-
 	ptr<Vector3DConstView<double>> interp;
 	if(a_interp.getValue() == "lanczos")
 		interp.reset(new LanczosInterp3DView<double>(inimg));
@@ -154,26 +118,42 @@ int main(int argc, char** argv)
 	else
 		interp.reset(new LanczosInterp3DView<double>(inimg));
 
-	ptr<MRImage> out;
+	ptr<MRImage> outimg;
+	vector<size_t> outsize(inimg->ndim());
+	for(size_t ii=0; ii<inimg->ndim(); ii++)
+		outsize[ii] = defimg->dim(ii);
+	if(inimg->ndim() == 4)
+		outsize[3] = inimg->dim(3);
+
 	if(a_interp.getValue() == "nn")
-		dPtrCast<MRImage>(inimg->createAnother());
+		outimg = dPtrCast<MRImage>(defimg->createAnother(inimg->ndim(),
+					outsize.data(), inimg->type()));
 	else
-		dPtrCast<MRImage>(inimg->createAnother(FLOAT32));
+		outimg = dPtrCast<MRImage>(defimg->createAnother(inimg->ndim(),
+					outsize.data(), FLOAT32));
 
 	double pt[3];
-	for(Vector3DIter<double> dit(defimg), oit(out); !oit.eof(); ++oit, ++dit) {
-		oit.index(3, pt);
-		out->indexToPoint(3, pt, pt);
-		for(size_t dd=0; dd < 3; dd++)
-			pt[dd] += dit[dd];
-		out->pointToIndex(3, pt, pt);
+	for(Vector3DIter<double> dit(defimg), oit(outimg); !oit.eof(); ++oit, ++dit) {
+
+		if(a_indexmap.isSet()) {
+			// Just look at point in input
+			for(size_t dd=0; dd < 3; dd++)
+				pt[dd] = dit[dd] - a_onebased.isSet();
+		} else {
+			// convert index to point add offset, then convert point to in
+			// input image index
+			oit.index(3, pt);
+			outimg->indexToPoint(3, pt, pt);
+			for(size_t dd=0; dd < 3; dd++)
+				pt[dd] += dit[dd];
+			inimg->pointToIndex(3, pt, pt);
+		}
 
 		for(size_t tt=0; tt<inimg->tlen(); tt++)
 			oit.set(tt, interp->get(pt[0], pt[1], pt[2], tt));
-
 	}
 
-	out->write(a_out.getValue());
+	outimg->write(a_out.getValue());
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
