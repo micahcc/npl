@@ -833,14 +833,14 @@ template <typename T>
 void resampleNN_help(ptr<const MRImage> in, ptr<MRImage> target)
 {
 	NDIter<T> it(target);
-	NNInterpNDView<T> vw(target);
+	NNInterpNDView<T> vw(in);
 	vw.m_ras = true;
 
 	vector<int64_t> ind(in->ndim(), 0);
 	vector<double> pt(in->ndim(), 0);
 	for(it.goBegin(); !it.eof(); ++it) {
 		it.index(ind.size(), ind.data());
-		in->indexToPoint(ind.size(), ind.data(), pt.data());
+		target->indexToPoint(ind.size(), ind.data(), pt.data());
 		it.set(vw.get(pt.size(), pt.data()));
 	}
 }
@@ -849,13 +849,105 @@ void resampleNN_help(ptr<const MRImage> in, ptr<MRImage> target)
  * @brief Performs nearest neighbor resasmpling of input to atlas
  *
  * @param in Input image
+ * @param newspace new spacing
+ * @param type pixel type of output (defaults to input)
+ *
+ * @return Input image resampled into atlas space
+ */
+ptr<MRImage> resampleNN(ptr<const MRImage> in, double* newspace,
+		PixelT type)
+{
+	// Get the new image size (use ceil so we don't lose anything)
+	vector<size_t> newsize(in->ndim());
+	for(size_t ii=0; ii<in->ndim(); ii++)
+		newsize[ii] = ceil(in->dim(ii)*in->spacing(ii)/newspace[ii]);
+
+	// Set the Default Type to input
+	if(type == UNKNOWN_TYPE)
+		type = in->type();
+
+	// Create Output Image, Zero
+	auto out = createMRImage(in->ndim(), newsize.data(), type);
+	for(FlatIter<int> it(out); !it.eof(); ++it) it.set(0);
+
+	// Set Orient
+	VectorXd spacing(in->ndim());
+	for(size_t ii=0; ii<in->ndim(); ii++)
+		spacing[ii] = newspace[ii];
+	out->setOrient(in->getOrigin(), spacing, in->getDirection());
+
+	switch(type) {
+		case UINT8:
+			resampleNN_help<uint8_t>(in, out);
+			break;
+		case INT16:
+			resampleNN_help<int16_t>(in, out);
+			break;
+		case INT32:
+			resampleNN_help<int32_t>(in, out);
+			break;
+		case FLOAT32:
+			resampleNN_help<float>(in, out);
+			break;
+		case CFLOAT:
+			resampleNN_help<cfloat_t>(in, out);
+			break;
+		case FLOAT64:
+			resampleNN_help<double>(in, out);
+			break;
+		case RGB24:
+			resampleNN_help<rgb_t>(in, out);
+			break;
+		case INT8:
+			resampleNN_help<int8_t>(in, out);
+			break;
+		case UINT16:
+			resampleNN_help<uint16_t>(in, out);
+			break;
+		case UINT32:
+			resampleNN_help<uint32_t>(in, out);
+			break;
+		case INT64:
+			resampleNN_help<int64_t>(in, out);
+			break;
+		case UINT64:
+			resampleNN_help<uint64_t>(in, out);
+			break;
+		case FLOAT128:
+			resampleNN_help<long double>(in, out);
+			break;
+		case CDOUBLE:
+			resampleNN_help<cdouble_t>(in, out);
+			break;
+		case CQUAD:
+			resampleNN_help<cquad_t>(in, out);
+			break;
+		case RGBA32:
+			resampleNN_help<rgba_t>(in, out);
+			break;
+		default:
+			throw INVALID_ARGUMENT("Unknown type set!");
+	}
+
+	return out;
+}
+
+/**
+ * @brief Performs nearest neighbor resasmpling of input to atlas
+ *
+ * @param in Input image
  * @param atlas
+ * @param type pixel type of output (defaults to input)
  *
  * @return Input image resampled into atlas space
  */
 ptr<MRImage> resampleNN(ptr<const MRImage> in, ptr<const MRImage> atlas,
 		PixelT type)
 {
+	// Set the Default Type to input
+	if(type == UNKNOWN_TYPE)
+		type = in->type();
+
 	auto out = dPtrCast<MRImage>(atlas->createAnother(type));
 
 	switch(type) {
@@ -927,7 +1019,7 @@ ptr<MRImage> resampleNN(ptr<const MRImage> in, ptr<const MRImage> atlas,
  *
  * @return Output MRImage
  */
-ptr<MRImage> randImage(PixelT type, double mean, double sd, 
+ptr<MRImage> randImage(PixelT type, double mean, double sd,
 		size_t x, size_t y, size_t z, size_t t)
 {
 	std::random_device rd;

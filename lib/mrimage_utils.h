@@ -220,11 +220,25 @@ double overlapRatio(ptr<const MRImage> a, ptr<const MRImage> b);
  *
  * @param in Input image
  * @param atlas
+ * @param type of output pixel (defaults to input type)
  *
  * @return Input image resampled into atlas space
  */
 ptr<MRImage> resampleNN(ptr<const MRImage> in, ptr<const MRImage> atlas,
-		PixelT type);
+		PixelT type = UNKNOWN_TYPE);
+
+
+/**
+ * @brief Performs nearest neighbor resasmpling of input to atlas
+ *
+ * @param in Input image
+ * @param newspace new spacing
+ * @param type pixel type of output (defaults to input)
+ *
+ * @return Input image resampled into atlas space
+ */
+ptr<MRImage> resampleNN(ptr<const MRImage> in, double* newspace,
+		PixelT type = UNKNOWN_TYPE);
 
 /**
  * @brief Create random image, with gaussian distribution
@@ -239,7 +253,7 @@ ptr<MRImage> resampleNN(ptr<const MRImage> in, ptr<const MRImage> atlas,
  *
  * @return Output MRImage
  */
-ptr<MRImage> randImage(PixelT type, double mean, double sd, 
+ptr<MRImage> randImage(PixelT type, double mean, double sd,
 		size_t x, size_t y, size_t z, size_t t);
 
 /** @}  MRImageUtilities */
