@@ -154,7 +154,7 @@ class TruncatedLanczosSVD
         m_totalvar = C.trace();
 
         // This is a bit hackish, really the user should set this
-        int initrank = std::max(10, std::min<int>(A.rows(), A.cols())/10);
+        int initrank = 10;
         if(m_initbasis > 0)
             initrank = m_initbasis;
 

@@ -1073,22 +1073,25 @@ void GICAfmri::compute()
 	size_t curcol = 0;
 	size_t catcols = 0; // Number of Columns when concatinating horizontally
 	size_t maxrank = 0;
+	size_t rank = 0;
 
 	for(size_t ii=0; ii<reorg.ntall(); ii++) {
 		MatMap talldata(reorg.tallMatName(ii));
 
-		cerr<<"Chunk SVD:"<<talldata.mat.rows()<<"x"<<talldata.mat.cols()<<endl;
-		Eigen::JacobiSVD<MatrixXd> svd;
-		svd.compute(talldata.mat, Eigen::ComputeThinU | Eigen::ComputeThinV);
-		svd.setThreshold(0.01);
+		cerr<<"Chunk SVD (Lanczos):"<<talldata.mat.rows()<<"x"<<talldata.mat.cols()<<endl;
+
+		Eigen::BDCSVD<MatrixXd> svd(talldata.mat, Eigen::ComputeThinU | Eigen::ComputeThinV);
+		svd.setThreshold(0.1);
+		rank = svd.rank();
+		cerr << "Spectrum:" << svd.singularValues().transpose()<<endl;
 //		Eigen::TruncatedLanczosSVD<MatrixXd> svd;
+//		svd.setVarThreshold(varthresh);
 //		svd.setVarThreshold(varthresh);
 //		svd.compute(talldata.mat, Eigen::ComputeThinU | Eigen::ComputeThinV);
 //		if(svd.info() == Eigen::NoConvergence)
 //			throw RUNTIME_ERROR("Error computing Tall SVD, might want to "
 //					"increase # of lanczos vectors");
 
-		int rank = svd.rank();
 		cerr << "SVD Rank: " << rank << endl;
 		maxrank = std::max<size_t>(maxrank, rank);
 
@@ -1126,14 +1129,14 @@ void GICAfmri::compute()
 	MatrixXd U, V;
 	VectorXd E;
 	{
-		Eigen::JacobiSVD<MatrixXd> svd;
-		svd.compute(mergedUE, Eigen::ComputeThinU | Eigen::ComputeThinV);
-		svd.setThreshold(0.01);
+		Eigen::BDCSVD<MatrixXd> svd(mergedUE, Eigen::ComputeThinU | Eigen::ComputeThinV);
+		svd.setThreshold(0.1);
+		rank = svd.rank();
+		cerr << "Spectrum:" << svd.singularValues().transpose()<<endl;
 //		Eigen::TruncatedLanczosSVD<MatrixXd> svd;
 //		svd.setVarThreshold(varthresh);
 //		svd.compute(mergedUE, Eigen::ComputeThinU | Eigen::ComputeThinV);
 
-		int rank = svd.rank();
 		cerr << "SVD Rank: " << rank << endl;
 		U = svd.matrixU();
 		E = svd.singularValues();
@@ -1341,7 +1344,6 @@ void GICAfmri::computeSpatialMaps()
 
 		// Create 4D Image matching mask
 		size_t odim[4] = {0,0,0, ics.cols};
-		int64_t index[4] = {0,0,0,0};
 
 		int ii; // iterate through tall matrices
 		int cc = 0; // iterate through columns of tall matrix

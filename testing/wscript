@@ -2,6 +2,13 @@
 def build(bld):
     npl = 'npl'+bld.env.LIBPOST+' '
 
+    # Graph Tests
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='graph_rw1',
+            source='graph_rw1.cpp',
+            use = npl)
+
+    # Misc Test
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='regex_test',
             source='regex_test.cpp')
