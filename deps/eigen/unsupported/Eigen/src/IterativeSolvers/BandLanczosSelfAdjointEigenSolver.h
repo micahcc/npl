@@ -153,7 +153,7 @@ public:
      * from, this should be roughly the number of clustered large eigenvalues.
      * If results are not sufficiently good, it may be worth increasing this
      */
-    BandLanczosSelfAdjointEigenSolver(const Ref<const MatrixType>& A, size_t randbasis)
+    BandLanczosSelfAdjointEigenSolver(const Ref<const MatrixType> A, size_t randbasis)
     {
         init();
         compute(A, randbasis);
@@ -167,8 +167,8 @@ public:
      * @param V initial projection, to build Krylove basis from. If you have a
      * guess of large eigenvectors that would be good.
      */
-    BandLanczosSelfAdjointEigenSolver(const Ref<const MatrixType>& A,
-            const Ref<const MatrixType>& V)
+    BandLanczosSelfAdjointEigenSolver(const Ref<const MatrixType> A,
+            const Ref<const MatrixType> V)
     {
         init();
         eigen_assert(A.rows() == V.rows() && "A is not Square.");
@@ -188,7 +188,7 @@ public:
      * from, this should be roughly the number of clustered large eigenvalues.
      * If results are not sufficiently good, it may be worth increasing this
      */
-    void compute(const Ref<const MatrixType>& A, size_t randbasis)
+    void compute(const Ref<const MatrixType> A, size_t randbasis)
     {
         eigen_assert(randbasis > 1 && "Rand Basis Must be > 1");
         if(randbasis <= 1) {
@@ -210,7 +210,7 @@ public:
      *
      * @param A matrix to compute the eigensystem of
      */
-    void compute(const Ref<const MatrixType>& A, const Ref<const MatrixType>& V)
+    void compute(const Ref<const MatrixType> A, const Ref<const MatrixType> V)
     {
         m_proj = V;
         _compute(A);
@@ -606,7 +606,7 @@ void BandLanczosSelfAdjointEigenSolver<_MatrixType>::_compute(
          * Fill Off Diagonals with reflection T(k,j) =
          *******************************************************/
         // set k_0 = max{1,j-pc} for k = k_0,k_0+1, ... j-1 set
-        for(int kk = std::max(0, jj-pc); kk < jj; kk++) {
+        for(int kk = (jj-pc < 0 ? 0 : jj-pc); kk < jj; kk++) {
 
             // t_kj = conj(t_jk)
             Scalar t_kj = approx(jj, kk);
@@ -651,12 +651,12 @@ void BandLanczosSelfAdjointEigenSolver<_MatrixType>::_compute(
             m_proj = V.leftCols(jj+1)*m_evecs.rightCols(m_proj.cols());
             V.leftCols(m_proj.cols()) = m_proj;
 
-			// Reset State
-			jj = 0; pc = 0;
-			Vnorms.clear(); nonzero.clear();
-			for(int ii=0; ii<m_proj.cols(); ii++)
-				Vnorms.push_back(V.col(ii).norm());
-			approx.fill(0);
+            // Reset State
+            jj = 0; pc = 0;
+            Vnorms.clear(); nonzero.clear();
+            for(int ii=0; ii<m_proj.cols(); ii++)
+                Vnorms.push_back(V.col(ii).norm());
+            approx.fill(0);
 
             continue;
         } else if(nvec > 0) {
@@ -718,8 +718,8 @@ void BandLanczosSelfAdjointEigenSolver<_MatrixType>::_compute(
  * @param ev_sumsq_t Threshold for stopping based on sum of sequared
  * eigenvalues, absolute value, ignored if this values is NAN or INF
  *
- * @return Number of valid eigenvalues, or 0 if not all the convergeance
- * criteria have been met
+ * @return Number of valid eigenvalues, < 0 if not all the convergeance
+ * criteria have been met and 0 if the error is large and a restart is needed
  */
 template <typename _MatrixType>
 int BandLanczosSelfAdjointEigenSolver<_MatrixType>::checkSolution(
@@ -770,9 +770,6 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::checkSolution(
      * Comput. 1979 May 1;33(146):683. Available from:
      * http://www.ams.org/jourcgi/jour-getitem?pii=S0025-5718-1979-0521282-9
      */
-    double sum = 0;
-    double sumsq = 0;
-    VectorXd ev;
     for(int vv=0; vv<N; vv++) {
         double esterr = (m_Tpred.topLeftCorner(bandrad, bandrad)*
                 eig.eigenvectors().col(N-1-vv).tail(bandrad)).norm();
@@ -780,18 +777,9 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::checkSolution(
             break;
 
         nvalid++;
-
-        sum += eig.eigenvalues()[N-1-vv];
-        sumsq += eig.eigenvalues()[N-1-vv]*eig.eigenvalues()[N-1-vv];
     }
 
-    if((outvecs <= 1 || nvalid >= outvecs) &&
-            (std::isnan(ev_sumsq_t) || std::isinf(ev_sumsq_t)
-             || sumsq>ev_sumsq_t) && (std::isnan(ev_sum_t) ||
-                 std::isinf(ev_sum_t) || sum>ev_sum_t)) {
-        return nvalid;
-    }
-    return 0;
+    return nvalid;
 }
 
 } // end namespace Eigen

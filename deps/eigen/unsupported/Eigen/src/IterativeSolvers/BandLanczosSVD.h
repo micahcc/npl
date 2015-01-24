@@ -7,8 +7,8 @@
 // Public License v. 2.0. If a copy of the MPL was not distributed
 // with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef EIGEN_TRUNCATED_LANCZOS_SVD_H
-#define EIGEN_TRUNCATED_LANCZOS_SVD_H
+#ifndef EIGEN_BAND_LANCZOS_SVD_H
+#define EIGEN_BAND_LANCZOS_SVD_H
 
 #include <Eigen/Eigenvalues>
 #include <limits>
@@ -31,7 +31,7 @@ namespace Eigen {
  * TODO: Test complex Scalars
  */
 template <typename _MatrixType>
-class TruncatedLanczosSVD
+class BandLanczosSVD
 {
   public:
 
@@ -98,7 +98,7 @@ class TruncatedLanczosSVD
     /**
      * @brief Default constructor
      */
-    TruncatedLanczosSVD()
+    BandLanczosSVD()
     {
         init();
     }
@@ -112,7 +112,7 @@ class TruncatedLanczosSVD
      * since the size of U is determined by the convergence specification. The
      * same goes for ComputeThinV/ComputeFullV
      */
-    TruncatedLanczosSVD(const Ref<const MatrixType>& A,
+    BandLanczosSVD(const Ref<const MatrixType> A,
             unsigned int computationOptions, bool hardlimits = false)
     {
         init();
@@ -132,7 +132,8 @@ class TruncatedLanczosSVD
      * return 0 if successful, -1 if there is a failure (may need to have more
      * basis vectors)
      */
-    void compute(const Ref<const MatrixType>& A, unsigned int computationOptions,
+    void compute(const Ref<const MatrixType> A,
+            unsigned int computationOptions = 0,
             bool hardlimits = false)
     {
         if(computationOptions & (ComputeThinV|ComputeFullV))
@@ -226,7 +227,7 @@ class TruncatedLanczosSVD
      * @return Vector of singular values
      */
     inline
-    const SingularValuesType& singularValues()
+    const SingularValuesType& singularValues() const
     {
         eigen_assert(m_status == 1 && "SVD Not Complete.");
         return m_singvals;
@@ -238,7 +239,7 @@ class TruncatedLanczosSVD
      * @return matrix U
      */
     inline
-    const MatrixUType& matrixU()
+    const MatrixUType& matrixU() const
     {
         eigen_assert(computeU() && "ComputeThinU not set.");
         eigen_assert(m_status == 1 && "SVD Not Complete.");
@@ -251,7 +252,7 @@ class TruncatedLanczosSVD
      * @return matrix V
      */
     inline
-    const MatrixVType& matrixV()
+    const MatrixVType& matrixV() const
     {
         eigen_assert(computeV() && "ComputeThinV not set.");
         eigen_assert(m_status == 1 && "SVD Not Complete.");
@@ -310,7 +311,7 @@ class TruncatedLanczosSVD
      * @return Solution
      */
     template <typename Rhs>
-    SolveReturnType solve(const Ref<const Rhs>& b) const
+    SolveReturnType solve(const Ref<const Rhs> b) const
     {
         eigen_assert(m_status == 1 && "SVD is not initialized.");
         eigen_assert(computeU() && computeV() && "SVD::solve() requires both "
@@ -469,7 +470,7 @@ class TruncatedLanczosSVD
     {
         eigen_assert(m_status == 1 && "SVD Not Complete.");
 
-        int desrank = m_nvec > 0 ? m_nvec : std::numeric_limits<int>::max();
+        int desrank = m_nvec > 0 ? m_nvec : INT_MAX;
         int varrank = 0;
         int threshrank = 0;
         RealScalar sum = 0;
@@ -486,7 +487,10 @@ class TruncatedLanczosSVD
             sum += m_singvals[cc]*m_singvals[cc];
         }
 
-        return std::min(std::min(varrank, threshrank), desrank);
+        int rank = varrank;
+        rank = rank < threshrank ?  rank : threshrank;
+        rank = rank < desrank ?  rank : desrank;
+        return rank;
     };
 
     /**
@@ -631,5 +635,5 @@ private:
 
 } // Eigen
 
-#endif //EIGEN_TRUNCATED_LANCZOS_SVD_H
+#endif //EIGEN_BAND_LANCZOS_SVD_H
 

@@ -133,11 +133,11 @@ int main(int argc, char** argv)
     Matrix<double,Dynamic,Dynamic> A = createRandomSVD<double>(
             matrows, matcols, rank, true_U, true_S, true_V);
 
-    Eigen::TruncatedLanczosSVD<MatrixXd> lsvd;
+    Eigen::BandLanczosSVD<MatrixXd> lsvd;
     lsvd.setLanczosBasis(nbasis);
     lsvd.setVarThreshold(0.95);
 //    lsvd.setDeflationTol(0.01);
-    cerr << "Computing with TruncatedLanczosSVD";
+    cerr << "Computing with BandLanczosSVD";
     lsvd.compute(A, ComputeThinV|ComputeThinU);
     cerr << "Done\n";
 

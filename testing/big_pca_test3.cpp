@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  * @file big_pca_test3.cpp Similar to pca_test1 and test2, but larger and using
- * TruncatedSVD
+ * BandLanczosSVD
  *
  *****************************************************************************/
 
@@ -38,7 +38,7 @@ using Eigen::Success;
 using Eigen::ComputeThinV;
 using Eigen::ComputeThinU;
 using Eigen::JacobiSVD;
-using Eigen::TruncatedLanczosSVD;
+using Eigen::BandLanczosSVD;
 
 int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 {
@@ -71,7 +71,7 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		MatMap diskmat(prefix+to_string(rr));
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
 
-		TruncatedLanczosSVD<MatrixXd> svd;
+		BandLanczosSVD<MatrixXd> svd;
 		svd.setVarThreshold(svt);
 		svd.compute(diskmat.mat, ComputeThinU | ComputeThinV);
 		if(svd.info() != Success) {
@@ -97,7 +97,7 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	}
 
 	cerr<<"Merge SVD:"<<mergedEVt.rows()<<"x"<<mergedEVt.cols()<<endl;
-	TruncatedLanczosSVD<MatrixXd> mergesvd;
+	BandLanczosSVD<MatrixXd> mergesvd;
 	mergesvd.setVarThreshold(svt);
 	mergesvd.compute(mergedEVt, ComputeThinU | ComputeThinV);
 	if(mergesvd.info() != Success) {
@@ -165,7 +165,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	for(size_t ii=0; ii<reorg.ntall(); ii++) {
 		MatMap diskmat(prefix+to_string(ii));
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
-		TruncatedLanczosSVD<MatrixXd> svd;
+		BandLanczosSVD<MatrixXd> svd;
 		svd.setVarThreshold(svt);
 		svd.compute(diskmat.mat, ComputeThinU | ComputeThinV);
 		if(svd.info() != Success) {
@@ -192,7 +192,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 	cerr<<mergedUE<<endl;
 	cerr<<"Merge SVD:"<<mergedUE.rows()<<"x"<<mergedUE.cols()<<endl;
-	TruncatedLanczosSVD<MatrixXd> mergesvd;
+	BandLanczosSVD<MatrixXd> mergesvd;
     mergesvd.setVarThreshold(svt);
     mergesvd.compute(mergedUE, ComputeThinU | ComputeThinV);
 	if(mergesvd.info() != Success) {

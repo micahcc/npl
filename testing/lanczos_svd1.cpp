@@ -147,9 +147,9 @@ int main(int argc, char** argv)
     cerr << "U:" << endl << jU << endl << endl;
     cerr << "V:" << endl << jV << endl << endl;
 
-    Eigen::TruncatedLanczosSVD<MatrixXd> lsvd;
+    Eigen::BandLanczosSVD<MatrixXd> lsvd;
     lsvd.setLanczosBasis(nbasis);
-    cerr << "Computing with TruncatedLanczosSVD";
+    cerr << "Computing with BandLanczosSVD";
     t = clock();
     lsvd.compute(A, ComputeThinV|ComputeThinU);
     t = clock()-t;

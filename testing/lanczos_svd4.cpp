@@ -101,11 +101,11 @@ int test(size_t rows, size_t cols, size_t rank, size_t nbasis)
     const VectorXd& jvals = jacsvd.singularValues();
     const MatrixXd& jU = jacsvd.matrixU();
     const MatrixXd& jV = jacsvd.matrixV();
-    cerr << "\nDone ("<<t<<")"<<endl;
+    cerr << "Done ("<<t<<")"<<endl;
 
-    Eigen::TruncatedLanczosSVD<MatrixXd> lsvd;
+    Eigen::BandLanczosSVD<MatrixXd> lsvd;
     lsvd.setLanczosBasis(nbasis);
-    cerr << "Computing with TruncatedLanczosSVD";
+    cerr << "Computing with BandLanczosSVD";
     t = clock();
     lsvd.compute(A, ComputeThinV|ComputeThinU);
     t = clock()-t;
@@ -118,7 +118,7 @@ int test(size_t rows, size_t cols, size_t rank, size_t nbasis)
     const VectorXd& lvals = lsvd.singularValues();
     const MatrixXd& lU = lsvd.matrixU();
     const MatrixXd& lV = lsvd.matrixV();
-    cerr << "\nDone ("<<t<<")"<<endl;
+    cerr << "Done ("<<t<<")"<<endl;
 
     int64_t srows = min(lvals.rows(), jvals.rows());
 

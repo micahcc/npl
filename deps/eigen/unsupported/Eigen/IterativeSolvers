@@ -37,7 +37,7 @@
 //#include "src/IterativeSolvers/SSORPreconditioner.h"
 #include "src/IterativeSolvers/MINRES.h"
 #include "src/IterativeSolvers/BandLanczosSelfAdjointEigenSolver.h"
-#include "src/IterativeSolvers/TruncatedLanczosSVD.h"
+#include "src/IterativeSolvers/BandLanczosSVD.h"
 
 //@}
 

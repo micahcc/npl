@@ -112,9 +112,9 @@ int test(size_t rows, size_t cols, size_t rank, size_t nbasis)
     cerr << "U:" << endl << jU << endl << endl;
     cerr << "V:" << endl << jV << endl << endl;
 
-    Eigen::TruncatedLanczosSVD<MatrixXd> lsvd;
+    Eigen::BandLanczosSVD<MatrixXd> lsvd;
     lsvd.setLanczosBasis(nbasis);
-    cerr << "Computing with TruncatedLanczosSVD";
+    cerr << "Computing with BandLanczosSVD";
     t = clock();
     lsvd.compute(A, ComputeThinV|ComputeThinU);
     t = clock()-t;
