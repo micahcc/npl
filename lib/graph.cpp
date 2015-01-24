@@ -18,9 +18,13 @@
 
 #include <complex>
 #include <iostream>
+#include <vector>
 #include "graph.h"
 #include "zlib.h"
 #include "macros.h"
+#include "npltypes.h"
+
+using std::vector;
 
 namespace npl
 {
@@ -73,7 +77,7 @@ Graph<T>::Graph(size_t nodes)
 {
 	m_size = nodes;
 	m_data = new T[nodes*nodes];
-	m_freefunc = [](void* ptr) { delete[] (T*)ptr; };
+	m_freefunc = [](T* ptr) { delete[] ptr; };
 	m_names.resize(nodes);
 }
 
@@ -93,7 +97,7 @@ Graph<T>::Graph(Graph<T>&& other)
 	m_data = other.m_data;
 	m_size = other.m_size;
 	m_freefunc = std::move(other.m_freefunc);
-	m_names = std::move(other.m_names);
+	m_names= std::move(other.m_names);
 
 	other.m_data = NULL;
 	other.m_freefunc = [](void*){ };
@@ -106,7 +110,7 @@ Graph<T>::Graph(const Graph<T>& other)
 	m_data = new T[m_size*m_size];
 	m_names = other.m_names;
 	std::copy(other.m_data, other.m_data+sizeof(T)*m_size*m_size, m_data);
-	m_freefunc = [](void* ptr) { delete[] (T*)ptr; };
+	m_freefunc = [](T* ptr) { delete[] ptr; };
 }
 
 template <typename T>
@@ -410,19 +414,222 @@ void Graph<T>::load(std::string filename, bool)
 	gzclose(gz);
 }
 
-template class Graph<double>;
-template class Graph<long double>;
-template class Graph<cdouble_t>;
-template class Graph<cquad_t>;
-template class Graph<float>;
-template class Graph<cfloat_t>;
-template class Graph<int64_t>;
-template class Graph<uint64_t>;
-template class Graph<int32_t>;
-template class Graph<uint32_t>;
-template class Graph<int16_t>;
-template class Graph<uint16_t>;
-template class Graph<int8_t>;
-template class Graph<uint8_t>;
+template <typename T>
+void Graph<T>::Coxeter()
+{
+	static const T DATA[28*28] =
+	{
+		0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0,
+		0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0,
+		0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+		0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+		0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1,
+		0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0
+	};
+
+	if(m_size != 28) {
+		m_freefunc(m_data);
+		m_data = new T[28*28];
+		m_freefunc = [](T* ptr){delete[] ptr;};
+	}
+	m_size = 28;
+	std::copy(DATA, DATA+28*28, m_data);
+	m_names.resize(28);
+}
+
+/*
+ * Computes assortativity for a directed or undirected graph.  In
+ * an undirected graph istrength = ostrength , and in an unweighted
+ * graph strength = degree
+ */
+template<typename T>
+double assortativity(const Graph<T>& CIJ)
+{
+	std::vector<T> idegree;
+	vector<T> odegree;
+	degrees(CIJ, idegree, odegree);
+	return assortativity(CIJ, idegree, odegree);
+}
+
+template<typename T>
+double Graph<T>::assortativity_wei() const
+{
+	vector<T> idegree;
+	vector<T> odegree;
+	this->strengths(idegree, odegree);
+	return assortativity(idegree, odegree);
+}
+
+template<typename T>
+double Graph<T>::assortativity(const vector<T>& idegree,
+		const vector<T>& odegree) const
+{
+	const Graph<T>& CIJ = *this;
+	size_t ecount = 0;
+	double num1 = 0;
+	double num2 = 0;
+	double den1 = 0;
+	for(size_t ii = 0 ; ii < CIJ.nodes() ; ii++) {
+		for(size_t jj = 0 ; jj < CIJ.nodes() ; jj++) {
+			if(CIJ(ii, jj) != (T)0) {
+				ecount++;
+
+				num1 += std::abs(idegree[ii]*odegree[jj]);
+				num2 += std::abs(idegree[ii]+odegree[jj]);
+				den1 += std::abs(std::pow(idegree[ii], 2) + std::pow(odegree[jj] , 2));
+			}
+		}
+	}
+
+	num1 /= ecount;
+	den1 /= 2*ecount;
+	num2 = std::pow(num2 / (2*ecount), 2);
+
+	return (num1 - num2) / (den1 - num2);
+}
+
+/*
+ * Computes degrees, in-degrees, and out-degrees (and the average of the 2)
+ */
+template <typename T>
+vector<size_t> Graph<T>::degrees(vector<size_t>& is,
+		vector<size_t>& os) const
+{
+	const Graph<T>& CIJ = *this;
+	is.resize(nodes()); // in degree
+	os.resize(nodes()); // out degree
+	vector<size_t> out(nodes(), 0); // total degree
+	std::fill(is.begin(), is.end(), 0);
+	std::fill(os.begin(), os.end(), 0);
+	for(size_t ii = 0 ; ii < nodes() ; ii++) {
+		for(size_t jj = 0 ; jj < nodes() ; jj++) {
+			is[ii] += (std::abs(CIJ(ii, jj))!=0);
+			os[jj] += (std::abs(CIJ(ii, jj))!=0);
+			out[ii] += (std::abs(CIJ(ii, jj))!=0);
+			out[jj] += (std::abs(CIJ(ii, jj))!=0);
+		}
+	}
+	return out;
+}
+
+template <typename T>
+vector<size_t> Graph<T>::degrees() const
+{
+	const Graph<T>& CIJ = *this;
+	vector<size_t> out(nodes(), 0); // total degree
+	for(size_t ii = 0 ; ii < nodes() ; ii++) {
+		for(size_t jj = 0 ; jj < nodes() ; jj++) {
+			out[ii] += (std::abs(CIJ(ii, jj))!=0);
+			out[jj] += (std::abs(CIJ(ii, jj))!=0);
+		}
+	}
+	return out;
+}
+
+template <typename T>
+size_t Graph<T>::degree() const
+{
+	size_t total = 0;
+	const Graph<T>& CIJ = *this;
+	//this works out so that an undirected graph double counts cycles, and single
+	//counts undirected paths. Simultaneously in a directed graph, self connections
+	//will be double counted, but this number has little meaning in a directed graph
+	for(size_t ii = 0 ; ii < nodes() ; ii++) {
+		for(size_t jj = 0 ; jj < nodes() ; jj++) {
+			total += (std::abs(CIJ(ii, jj))!=0);
+		}
+	}
+
+	return total;
+}
+
+/*
+ * Computes strength, in-strength, and out-strength (and the average of the 2)
+ */
+template <typename T>
+T Graph<T>::strengths(vector<T>& is, vector<T>& os) const
+{
+	const Graph<T>& CIJ = *this;
+	T total = 0;
+	is.resize(nodes());
+	os.resize(nodes());
+	std::fill(is.begin(), is.end(), (T)0);
+	std::fill(os.begin(), os.end(), (T)0);
+
+	for(size_t ii = 0 ; ii < nodes() ; ii++) {
+		for(size_t jj = 0 ; jj < nodes() ; jj++) {
+			is[ii] += CIJ(ii, jj);
+			os[jj] += CIJ(ii, jj);
+			total += CIJ(ii, jj);
+		}
+	}
+
+	return 0;
+}
+
+template <typename T>
+vector<T> Graph<T>::strengths() const
+{
+	const Graph<T>& CIJ = *this;
+	vector<T> out(nodes(), (T)0);
+	for(size_t ii = 0 ; ii < nodes() ; ii++) {
+		for(size_t jj = 0 ; jj < nodes() ; jj++) {
+			out[jj] += CIJ(ii, jj);
+			out[ii] += CIJ(ii, jj);
+		}
+	}
+	return out;
+}
+
+template <typename T>
+T Graph<T>::strength() const
+{
+	const Graph<T>& CIJ = *this;
+	T out = 0;
+	for(size_t ii = 0 ; ii < CIJ.nodes() ; ii++) {
+		for(size_t jj = 0 ; jj < CIJ.nodes() ; jj++)
+			out += CIJ(ii, jj);
+	}
+
+	return out;
+}
+
+/*
+ * Normalize all weights by the total weight
+ */
+template<typename T>
+void Graph<T>::normalize()
+{
+	Graph<T>& CIJ = *this;
+	double scale = strength();
+	Graph<T> out = CIJ;
+
+	for(size_t ii = 0 ; ii < nodes() ; ii++) {
+		for(size_t jj = 0 ; jj < nodes() ; jj++)
+			CIJ(ii,jj) /= scale;
+	}
+}
 
 }

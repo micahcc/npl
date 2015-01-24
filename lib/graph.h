@@ -72,7 +72,8 @@ public:
 	Graph(size_t nodes);
 	Graph(Graph&& other);
 	Graph(const Graph& other);
-	Graph(size_t nodes, void* data, std::function<void(void*)> deleter);
+	Graph(size_t nodes, void* data,
+			std::function<void(void*)> deleter=[](void*){});
 	~Graph() { m_freefunc(m_data); };
 
 	T& operator()(size_t from, size_t to)
@@ -96,10 +97,29 @@ public:
 	static GraphDataT type() { return getType<T>(); };
 	static std::string typestr() { return typeid(T).name(); };
 
+	void normalize();
+
+	/* Famouse Graphs */
+	void Coxeter();
+
+	/* Statistics */
+	double assortativity() const;
+	double assortativity_wei() const;
+	double assortativity(const std::vector<T>& idegree,
+			const std::vector<T>& odegree) const;
+
+	T strength() const;
+	std::vector<T> strengths() const;
+	T strengths(std::vector<T>& is, std::vector<T>& os) const;
+
+	size_t degree() const;
+	std::vector<size_t> degrees() const;
+	std::vector<size_t> degrees(std::vector<size_t>& is,
+			std::vector<size_t>& os) const;
 private:
 	size_t m_size;
 	T* m_data;
-    std::function<void(void*)> m_freefunc;
+    std::function<void(T*)> m_freefunc;
 	std::vector<std::string> m_names;
 };
 
