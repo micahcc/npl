@@ -487,7 +487,7 @@ template <typename _MatrixType>
 void BandLanczosSelfAdjointEigenSolver<_MatrixType>::_compute(
         const Ref<const MatrixType> A)
 {
-    EigenVectorType& V = m_proj;
+    EigenVectorType V = m_proj;
 
     // Deflate Based on Change in magnitude from original mag
     std::list<double> Vnorms;
@@ -506,7 +506,6 @@ void BandLanczosSelfAdjointEigenSolver<_MatrixType>::_compute(
     approx.fill(0);
 
     // V is the list of candidates
-    VectorType band(pc); // store values in the band T[jj,jj-pc] to T[jj, jj-1]
     int jj=0;
 
     // Estimate of Matrix A's Induced Norm
@@ -573,9 +572,7 @@ void BandLanczosSelfAdjointEigenSolver<_MatrixType>::_compute(
         }
 
         // set t_{j,j-pc} = ||V_j||
-        band[0] = Vjnorm;
-        if(jj-pc >= 0)
-            approx(jj, jj-pc) = Vjnorm;
+        if(jj-pc >= 0) approx(jj, jj-pc) = Vjnorm;
 
         // normalize vj = vj/t{j,j-pc}
         V.col(jj) /= Vjnorm;
@@ -589,7 +586,6 @@ void BandLanczosSelfAdjointEigenSolver<_MatrixType>::_compute(
         for(int kk=jj+1; kk<jj+pc; kk++) {
             // set t_{j,k-pc} = v^T_j v_k
             Scalar vj_vk = V.col(jj).dot(V.col(kk));
-            band[kk-pc-(jj-pc)] = vj_vk;
 
             if(kk-pc >= 0)
                 approx(jj,kk-pc) = vj_vk;
@@ -613,9 +609,8 @@ void BandLanczosSelfAdjointEigenSolver<_MatrixType>::_compute(
         for(int kk = std::max(0, jj-pc); kk < jj; kk++) {
 
             // t_kj = conj(t_jk)
-            Scalar t_kj;
-            t_kj = numext::conj(band[kk-(jj-pc)]);
-            approx(kk, jj) = t_kj;
+            Scalar t_kj = approx(jj, kk);
+            approx(kk, jj) = numext::conj(t_kj);
 
             // v_{j+pc} = v_{j+pc} - v_k t_{k,j}
             V.col(jj+pc) -= V.col(kk)*t_kj;
@@ -631,6 +626,7 @@ void BandLanczosSelfAdjointEigenSolver<_MatrixType>::_compute(
             // t_{k,j} = v_k v_{j+pc}
             Scalar vk_vjpc = V.col(*kk).dot(V.col(jj+pc));
             approx(*kk, jj) = vk_vjpc;
+            approx(jj, *kk) = numext::conj(vk_vjpc);
 
             // v_{j+pc} = v_{j+pc} - v_k t_{k,j}
             V.col(jj+pc) -= V.col(*kk)*vk_vjpc;
@@ -645,16 +641,28 @@ void BandLanczosSelfAdjointEigenSolver<_MatrixType>::_compute(
             V.col(jj+pc) -= V.col(jj)*vk_vjpc;
         }
 
-        // for k in I, set s_{j,k} = conj(t_{k,j})
-        for(std::list<int>::iterator kk = nonzero.begin();
-                kk != nonzero.end(); ++kk) {
-            approx(jj, *kk) = numext::conj(approx(*kk, jj));
-        }
-
-        if(checkSolution(approx.topLeftCorner(jj+1,jj+1),
+        int nvec = checkSolution(approx.topLeftCorner(jj+1,jj+1),
                     V.leftCols(jj+1+pc), pc, m_outvecs,
-                    tr_thresh, trsq_thresh) > 0)
+                    tr_thresh, trsq_thresh);
+        if(nvec == 0) {
+            // All the stopping conditions were met, but the solutions were
+            // not accurate enough. Restart with the initial vectors set to
+            // the best approximate eigenvectors
+            m_proj = V.leftCols(jj+1)*m_evecs.rightCols(m_proj.cols());
+            V.leftCols(m_proj.cols()) = m_proj;
+
+			// Reset State
+			jj = 0; pc = 0;
+			Vnorms.clear(); nonzero.clear();
+			for(int ii=0; ii<m_proj.cols(); ii++)
+				Vnorms.push_back(V.col(ii).norm());
+			approx.fill(0);
+
+            continue;
+        } else if(nvec > 0) {
+            // Criteria Met, Break
             break;
+        }
         jj++;
     }
 
@@ -726,16 +734,17 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::checkSolution(
 
     int N = T.rows(); // Finished Rows/Columns of T
     if(N < bandrad)
-        return 0;
+        return -4;
 
     if(outvecs > 1 && N < outvecs)
-        return 0;
+        return -3;
 
     if(!isinf(ev_sum_t) && !isnan(ev_sum_t) && T.trace()<ev_sum_t)
-        return 0;
+        return -2;
 
     if(!isinf(ev_sumsq_t) && !isnan(ev_sumsq_t) && (T*T).trace()<ev_sumsq_t)
-        return 0;
+        return -1;
+
 
     SelfAdjointEigenSolver<MatrixType> eig(T);
     m_evals = eig.eigenvalues();
@@ -763,6 +772,7 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::checkSolution(
      */
     double sum = 0;
     double sumsq = 0;
+    VectorXd ev;
     for(int vv=0; vv<N; vv++) {
         double esterr = (m_Tpred.topLeftCorner(bandrad, bandrad)*
                 eig.eigenvectors().col(N-1-vv).tail(bandrad)).norm();

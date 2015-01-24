@@ -42,22 +42,25 @@ int main(int argc, char** argv)
 			"spacing is chosen (-I) then the output image will have isotropic "
 			"spacing in the spatial domain. Otherwise individual dimsions "
 			"can set with -x,-y,-z-t. Warning upsampling is currently broken, "
+			"for lanczos resampling but not for nearest neighbor. "
 			"Also the windowing might need to be improved.", ' ', __version__ );
 
 	TCLAP::ValueArg<string> a_in("i", "input", "Input image.",
 		true, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_out("o", "output", "Output image.",
 		true, "", "*.nii.gz", cmd);
-	TCLAP::ValueArg<double> a_isospacing("I", "iso-spacing", 
+	TCLAP::ValueArg<double> a_isospacing("I", "iso-spacing",
 			"Make isotropic spacing.", false, 1, "mm", cmd);
-	TCLAP::ValueArg<double> a_xspacing("x", "x-space", 
+	TCLAP::ValueArg<double> a_xspacing("x", "x-space",
 			"New x-spacing. " , false, 1, "mm", cmd);
-	TCLAP::ValueArg<double> a_yspacing("y", "y-space", 
+	TCLAP::ValueArg<double> a_yspacing("y", "y-space",
 			"New y-spacing. " , false, 1, "mm", cmd);
-	TCLAP::ValueArg<double> a_zspacing("z", "z-space", 
+	TCLAP::ValueArg<double> a_zspacing("z", "z-space",
 			"New z-spacing. " , false, 1, "mm", cmd);
-	TCLAP::ValueArg<double> a_tspacing("t", "t-space", 
+	TCLAP::ValueArg<double> a_tspacing("t", "t-space",
 			"New t-spacing. " , false, 1, "mm", cmd);
+	TCLAP::SwitchArg a_nn("n", "nearest-neighbor",
+			"Perform Nearest Neighbor Interpolation. ", cmd);
 
 	vector<string> knownWin({"rect", "hann", "hamming", "sinc", "lanczos",
 			"welch"});
@@ -95,18 +98,20 @@ int main(int argc, char** argv)
 		cerr << "New Spacing: " << newspace[dd] << endl;
 
 	ptr<MRImage> out;
-	if(a_window.getValue() == "rect")
+	if(a_nn.isSet())
+		out = resampleNN(fullres, newspace.data());
+	else if(a_window.getValue() == "rect")
 		out = resample(fullres, newspace.data(), rectWindow);
-	if(a_window.getValue() == "hann")
+	else if(a_window.getValue() == "hann")
 		out = resample(fullres, newspace.data(), hannWindow);
-	if(a_window.getValue() == "hamming")
+	else if(a_window.getValue() == "hamming")
 		out = resample(fullres, newspace.data(), hammingWindow);
-	if(a_window.getValue() == "sinc" || a_window.getValue() == "lanczos")
+	else if(a_window.getValue() == "sinc" || a_window.getValue() == "lanczos")
 		out = resample(fullres, newspace.data(), sincWindow);
-	if(a_window.getValue() == "welch")
+	else if(a_window.getValue() == "welch")
 		out = resample(fullres, newspace.data(), welchWindow);
 
-	if(a_out.isSet()) 
+	if(a_out.isSet())
 		out->write(a_out.getValue());
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions

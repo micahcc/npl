@@ -31,6 +31,7 @@ using namespace npl;
 using std::shared_ptr;
 using std::endl;
 using std::cerr;
+using std::cin;
 
 int main(int argc, char** argv)
 {
@@ -49,22 +50,44 @@ int main(int argc, char** argv)
 			" but with orientation matching '-f' image.", true, "",
 			"*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_from("f", "from", "Image to copy orientation from",
-			true, "", "*.nii.gz", cmd);
+			false, "", "*.nii.gz");
+	TCLAP::SwitchArg a_stdin("s", "stdin", "Read orientation from stdin");
+	cmd.xorAdd(a_from, a_stdin);
 
 	cmd.parse(argc, argv);
 
 	/**********
 	 * Input
 	 *********/
-	ptr<MRImage> from(readMRImage(a_from.getValue()));
 	ptr<MRImage> to(readMRImage(a_to.getValue()));
-
-	cerr << "From: " << endl << *from << endl;
-	cerr << "To: " << endl << *to<< endl;
-
 	auto out = to->cloneImage();
-	out->setOrient(from->getOrigin(), from->getSpacing(),
-			from->getDirection(), false, from->m_coordinate);
+	if(a_from.isSet()) {
+		ptr<MRImage> from(readMRImage(a_from.getValue()));
+
+		cerr << "From: " << endl << *from << endl;
+		cerr << "To: " << endl << *to<< endl;
+
+		out->setOrient(from->getOrigin(), from->getSpacing(),
+				from->getDirection(), false, from->m_coordinate);
+	} else {
+		MatrixXd direction(to->ndim(), to->ndim());
+		VectorXd spacing(to->ndim());
+		VectorXd origin(to->ndim());
+		cerr << "Origin? " << endl;
+		for(size_t ii=0; ii<origin.rows(); ii++)
+			cin >> origin[ii];
+		cerr << "Spacing? " << endl;
+		for(size_t ii=0; ii<spacing.rows(); ii++)
+			cin >> spacing[ii];
+		cerr << "Direction (Row-Major)? " << endl;
+		for(size_t ii=0; ii<spacing.rows(); ii++) {
+			for(size_t jj=0; jj<spacing.rows(); jj++) {
+				cin >> direction(ii,jj);
+			}
+		}
+
+		out->setOrient(origin, spacing, direction);
+	}
 
 	cerr << "Out: " << endl << *out << endl;
 	out->write(a_out.getValue());
