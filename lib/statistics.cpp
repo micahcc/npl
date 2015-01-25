@@ -1536,7 +1536,7 @@ VectorXd activeShootingRegr(const Ref<const MatrixXd> X, const Ref<const VectorX
 		dbeta1 = 0;
 
 		// Determine Active Set
-		for(size_t jj=0; jj<X.rows(); jj++) {
+		for(size_t jj=0; jj<X.cols(); jj++) {
 			if(beta[jj] != 0)
 				active[jj] = true;
 		}
