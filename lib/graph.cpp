@@ -25,6 +25,8 @@
 #include "npltypes.h"
 
 using std::vector;
+using std::cerr;
+using std::endl;
 
 namespace npl
 {
@@ -66,6 +68,7 @@ GraphDataT getType()
 template <typename T>
 Graph<T>::Graph(std::string filename, bool typefail)
 {
+	cerr<<"Load Constructor"<<endl;
 	m_size = 0;
 	m_data = NULL;
 	m_freefunc = [](void*) {};
@@ -73,27 +76,42 @@ Graph<T>::Graph(std::string filename, bool typefail)
 }
 
 template <typename T>
+Graph<T>::Graph()
+{
+	cerr<<"Default Constructor"<<endl;
+	m_size = 0;
+	m_data = NULL;
+	m_freefunc = [](T*) { };
+	m_names.clear();
+}
+
+template <typename T>
 Graph<T>::Graph(size_t nodes)
 {
-	m_size = nodes;
-	m_data = new T[nodes*nodes];
-	m_freefunc = [](T* ptr) { delete[] ptr; };
-	m_names.resize(nodes);
+	cerr<<"Basic Constructor"<<endl;
+	m_size = 0;
+	m_data = NULL;
+	m_freefunc = [](T*) { };
+	m_names.clear();
+	init(nodes);
 }
 
 template <typename T>
 Graph<T>::Graph(size_t nodes, void* data,
         std::function<void(void*)> deleter)
 {
-	m_size = nodes;
-	m_data = (T*)data;
-	m_freefunc = deleter;
-	m_names.resize(nodes);
+	cerr<<"Graph Constructor"<<endl;
+	m_size = 0;
+	m_data = NULL;
+	m_freefunc = [](T*) { };
+	m_names.clear();
+	init(nodes, data, deleter);
 }
 
 template <typename T>
 Graph<T>::Graph(Graph<T>&& other)
 {
+	cerr<<"Move Constructor"<<endl;
 	m_data = other.m_data;
 	m_size = other.m_size;
 	m_freefunc = std::move(other.m_freefunc);
@@ -104,13 +122,55 @@ Graph<T>::Graph(Graph<T>&& other)
 }
 
 template <typename T>
+Graph<T>& Graph<T>::operator=(Graph<T>&& other)
+{
+	cerr<<"Move Assignment"<<endl;
+	// Free Any Data
+	m_freefunc(m_data);
+
+	// Take Data from other
+	m_data = other.m_data;
+	m_size = other.m_size;
+	m_freefunc = std::move(other.m_freefunc);
+	m_names= std::move(other.m_names);
+
+	other.m_data = NULL;
+	other.m_freefunc = [](void*){ };
+
+	return *this;
+}
+
+template <typename T>
 Graph<T>::Graph(const Graph<T>& other)
 {
+	cerr<<"Copy Constructor"<<endl;
 	m_size = other.m_size;
 	m_data = new T[m_size*m_size];
 	m_names = other.m_names;
 	std::copy(other.m_data, other.m_data+sizeof(T)*m_size*m_size, m_data);
 	m_freefunc = [](T* ptr) { delete[] ptr; };
+}
+
+template <typename T>
+void Graph<T>::init(size_t nodes)
+{
+	if(nodes != m_size) {
+		m_size = nodes;
+		m_data = new T[nodes*nodes];
+		m_freefunc = [](T* ptr) { delete[] ptr; };
+		m_names.resize(nodes);
+	}
+}
+
+template <typename T>
+void Graph<T>::init(size_t nodes, void* data,
+			std::function<void(void*)> deleter)
+{
+	deleter(m_data);
+	m_size = nodes;
+	m_data = (T*)data;
+	m_freefunc = deleter;
+	m_names.resize(nodes);
 }
 
 template <typename T>
@@ -415,7 +475,7 @@ void Graph<T>::load(std::string filename, bool)
 }
 
 template <typename T>
-void Graph<T>::Coxeter()
+Graph<T> Graph<T>::Coxeter()
 {
 	static const T DATA[28*28] =
 	{
@@ -449,14 +509,9 @@ void Graph<T>::Coxeter()
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0
 	};
 
-	if(m_size != 28) {
-		m_freefunc(m_data);
-		m_data = new T[28*28];
-		m_freefunc = [](T* ptr){delete[] ptr;};
-	}
-	m_size = 28;
-	std::copy(DATA, DATA+28*28, m_data);
-	m_names.resize(28);
+	Graph<T> out(28);
+	std::copy(DATA, DATA+28*28, out.m_data);
+	return out;
 }
 
 /*
@@ -465,62 +520,103 @@ void Graph<T>::Coxeter()
  * graph strength = degree
  */
 template<typename T>
-double assortativity(const Graph<T>& CIJ)
+double Graph<T>::assortativity() const
 {
-	std::vector<T> idegree;
-	vector<T> odegree;
-	degrees(CIJ, idegree, odegree);
-	return assortativity(CIJ, idegree, odegree);
+	const Graph<T>& CIJ = *this;
+	const double thresh = std::numeric_limits<double>::epsilon();
+	vector<T> is(nodes(), 0);
+	vector<T> os(nodes(), 0);
+	T total = 0;
+
+	// Compute Input Strengths and Output Strengths
+	for(size_t ii = 0 ; ii < nodes() ; ii++) {
+		for(size_t jj = 0 ; jj < nodes() ; jj++) {
+			is[ii] += (std::abs(CIJ(ii, jj)) > thresh);
+			os[jj] += (std::abs(CIJ(ii, jj)) > thresh);
+			total  += (std::abs(CIJ(ii, jj)) > thresh);
+		}
+	}
+
+	// Correlate Strengths Among Connected Nodes
+	size_t ecount = 0;
+	T num1 = 0;
+	T num2 = 0;
+	T den1 = 0;
+	for(size_t ii = 0 ; ii < nodes() ; ii++) {
+		for(size_t jj = 0 ; jj < nodes() ; jj++) {
+			if(std::abs(CIJ(ii, jj)) > thresh) {
+				ecount++;
+
+				num1 += is[ii]*os[jj];
+				num2 += is[ii]+os[jj];
+				den1 += is[ii]*is[ii] + os[ii]*os[ii];
+			}
+		}
+	}
+
+	num1 /= (T)ecount;
+	den1 /= (T)2*(T)ecount;
+	num2 = std::pow(num2/((T)2*(T)ecount), 2);
+
+	if((num1-num2) == (den1-num2))
+		return 1;
+	else
+		return (double)std::abs((num1-num2)/(den1-num2));
 }
 
 template<typename T>
 double Graph<T>::assortativity_wei() const
 {
-	vector<T> idegree;
-	vector<T> odegree;
-	this->strengths(idegree, odegree);
-	return assortativity(idegree, odegree);
-}
-
-template<typename T>
-double Graph<T>::assortativity(const vector<T>& idegree,
-		const vector<T>& odegree) const
-{
 	const Graph<T>& CIJ = *this;
+	const double thresh = std::numeric_limits<double>::epsilon();
+	vector<T> is(nodes(), 0);
+	vector<T> os(nodes(), 0);
+	T total = 0;
+
+	// Compute Input Strengths and Output Strengths
+	for(size_t ii = 0 ; ii < nodes() ; ii++) {
+		for(size_t jj = 0 ; jj < nodes() ; jj++) {
+			is[ii] += CIJ(ii, jj);
+			os[jj] += CIJ(ii, jj);
+			total += CIJ(ii, jj);
+		}
+	}
+
+	// Correlate Strengths Among Connected Nodes
 	size_t ecount = 0;
-	double num1 = 0;
-	double num2 = 0;
-	double den1 = 0;
-	for(size_t ii = 0 ; ii < CIJ.nodes() ; ii++) {
-		for(size_t jj = 0 ; jj < CIJ.nodes() ; jj++) {
-			if(CIJ(ii, jj) != (T)0) {
+	T num1 = 0;
+	T num2 = 0;
+	T den1 = 0;
+	for(size_t ii = 0 ; ii < nodes() ; ii++) {
+		for(size_t jj = 0 ; jj < nodes() ; jj++) {
+			if(std::abs(CIJ(ii, jj)) > thresh) {
 				ecount++;
 
-				num1 += std::abs(idegree[ii]*odegree[jj]);
-				num2 += std::abs(idegree[ii]+odegree[jj]);
-				den1 += std::abs(std::pow(idegree[ii], 2) + std::pow(odegree[jj] , 2));
+				num1 += is[ii]*os[jj];
+				num2 += is[ii]+os[jj];
+				den1 += is[ii]*is[ii] + os[ii]*os[ii];
 			}
 		}
 	}
 
-	num1 /= ecount;
-	den1 /= 2*ecount;
-	num2 = std::pow(num2 / (2*ecount), 2);
+	num1 /= (T)ecount;
+	den1 /= (T)2*(T)ecount;
+	num2 = std::pow(num2/((T)2*(T)ecount), 2.);
 
-	return (num1 - num2) / (den1 - num2);
+	return (double)std::abs((num1-num2)/(den1-num2));
 }
 
 /*
  * Computes degrees, in-degrees, and out-degrees (and the average of the 2)
  */
 template <typename T>
-vector<size_t> Graph<T>::degrees(vector<size_t>& is,
-		vector<size_t>& os) const
+vector<int> Graph<T>::degrees(vector<int>& is,
+		vector<int>& os) const
 {
 	const Graph<T>& CIJ = *this;
 	is.resize(nodes()); // in degree
 	os.resize(nodes()); // out degree
-	vector<size_t> out(nodes(), 0); // total degree
+	vector<int> out(nodes(), 0); // total degree
 	std::fill(is.begin(), is.end(), 0);
 	std::fill(os.begin(), os.end(), 0);
 	for(size_t ii = 0 ; ii < nodes() ; ii++) {
@@ -535,10 +631,10 @@ vector<size_t> Graph<T>::degrees(vector<size_t>& is,
 }
 
 template <typename T>
-vector<size_t> Graph<T>::degrees() const
+vector<int> Graph<T>::degrees() const
 {
 	const Graph<T>& CIJ = *this;
-	vector<size_t> out(nodes(), 0); // total degree
+	vector<int> out(nodes(), 0); // total degree
 	for(size_t ii = 0 ; ii < nodes() ; ii++) {
 		for(size_t jj = 0 ; jj < nodes() ; jj++) {
 			out[ii] += (std::abs(CIJ(ii, jj))!=0);
@@ -549,9 +645,9 @@ vector<size_t> Graph<T>::degrees() const
 }
 
 template <typename T>
-size_t Graph<T>::degree() const
+int Graph<T>::degree() const
 {
-	size_t total = 0;
+	int total = 0;
 	const Graph<T>& CIJ = *this;
 	//this works out so that an undirected graph double counts cycles, and single
 	//counts undirected paths. Simultaneously in a directed graph, self connections
@@ -569,10 +665,10 @@ size_t Graph<T>::degree() const
  * Computes strength, in-strength, and out-strength (and the average of the 2)
  */
 template <typename T>
-T Graph<T>::strengths(vector<T>& is, vector<T>& os) const
+vector<T> Graph<T>::strengths(vector<T>& is, vector<T>& os) const
 {
 	const Graph<T>& CIJ = *this;
-	T total = 0;
+	vector<T> total(nodes(), 0);
 	is.resize(nodes());
 	os.resize(nodes());
 	std::fill(is.begin(), is.end(), (T)0);
@@ -582,11 +678,12 @@ T Graph<T>::strengths(vector<T>& is, vector<T>& os) const
 		for(size_t jj = 0 ; jj < nodes() ; jj++) {
 			is[ii] += CIJ(ii, jj);
 			os[jj] += CIJ(ii, jj);
-			total += CIJ(ii, jj);
+			total[ii] += CIJ(ii, jj);
+			total[jj] += CIJ(ii, jj);
 		}
 	}
 
-	return 0;
+	return total;
 }
 
 template <typename T>
@@ -616,6 +713,157 @@ T Graph<T>::strength() const
 	return out;
 }
 
+/**
+* @brief Calculates betweenness centrality given a distance matrix.
+*
+* This first calculates the shortest path/next matrices so it is
+* slower than the next methods if run repeatedly.
+*
+* @return	betweennes centrality of each vertex, the number of shortest
+*			paths that pass through the vertex.
+*/
+template <typename T>
+vector<int> Graph<T>::betweenness_centrality() const
+{
+	assert(nodes() < INT_MAX);
+	Graph<int> nextmat;
+	Graph<T> shortmat;
+	shortest(nextmat, shortmat);
+	return nextmat.betweenness_centrality_next();
+}
+
+/*
+ * Computes node betweenness for a graph given the next matrix
+ * provided by distance(). this should be a next matrix
+ */
+template <typename T>
+vector<int> Graph<T>::betweenness_centrality_next() const
+{
+	if(type() != G_DT_SLONG) {
+		throw RUNTIME_ERROR("Error calling betweenness_centrality_next on a "
+				"matrix this is not an integer, so it can't be a matrix of "
+				"next values. Consider the between_centrality function "
+				"instead");
+	}
+	const Graph<int>& next = *(Graph<int>*)this;
+	vector<int> out(nodes(), 0);
+
+	//traverse all pairs of starting and ending points
+	for(int ss = 0 ; ss < nodes(); ss++) {
+		for(int tt = 0 ; tt < nodes(); tt++) {
+			//no path (next(ss,tt) == ss) or direct path
+			// (next(ss,tt) == tt) are skipped
+			cerr << " next("<<ss<<","<<tt<<") = " << next(ss,tt)<<endl;
+			if(ss != tt && next(ss,tt) != tt && next(ss,tt) != ss) {
+				int pos = ss;
+				//follow path between ss and tt, and increment every vertex visited
+				while((pos = next(pos, tt)) != tt)
+					out[pos]++;
+			}
+		}
+	}
+
+	return out;
+}
+
+/**
+ * @brief Compute shortest paths between all nodes without saving the next
+ * graph for each node.
+ *
+ * @tparam T
+ * @param sdist
+ */
+template <typename T>
+void Graph<T>::shortest(Graph<T>& sdist) const
+{
+	// Realloc sdist if necessary
+	if(sdist.nodes() != nodes()) {
+		sdist.m_freefunc(sdist.m_data);
+		sdist.m_data = new T[nodes()*nodes()];
+		sdist.m_size = nodes();
+		sdist.m_names.resize(nodes());
+	}
+
+	// Initialize distances to the direct distances, non existent connections
+	// should already have been set to max or infinity
+	for(size_t ii = 0 ; ii < nodes(); ii++) {
+		for(size_t jj = 0 ; jj < nodes(); jj++) {
+			if(ii == jj)
+				sdist(ii,jj) = (T)0;
+			else
+				sdist(ii,jj) = (*this)(ii,jj);
+		}
+	}
+
+	// If going through ii->kk->jj is shorter than ii->jj make next
+	// and replace old shortest distance (ii->jj) with ii->kk->jj
+	for(size_t kk = 0; kk < nodes(); kk++) {
+		for(size_t ii = 0 ; ii < nodes(); ii++) {
+			for(size_t jj = 0 ; jj < nodes(); jj++) {
+				if(std::abs(sdist(ii,kk)) + std::abs(sdist(kk, jj))
+							< std::abs(sdist(ii, jj))) {
+					sdist(ii,jj) = sdist(ii,kk) + sdist(kk,jj);
+				}
+			}
+		}
+	}
+}
+
+/**
+ * @brief Compute shortest paths between all nodes. The next Graph provides the
+ * next node that is the fastest way to target. So G(i,j) = k means that
+ * fastest way to get from i to j is to go through k. Then G(k,j) = l is the
+ * next step and so on. G(i,j) = i is naturally invalid, so that is used to
+ * indicate that no path exists. G(i,j) = j means that there is a direct link.
+ *
+ * @tparam T
+ * @param next
+ * @param sdist
+ */
+template <typename T>
+void Graph<T>::shortest(Graph<int>& next, Graph<T>& sdist) const
+{
+	// Realloc sdist if necessary
+	if(sdist.nodes() != nodes())
+		sdist.init(nodes());
+
+	// Realloc next if necessary
+	if(next.nodes() != nodes())
+		next.init(nodes());
+
+	// Initialize distances to the direct distances, non existent connections
+	// should already have been set to max or infinity
+	for(size_t ii = 0 ; ii < nodes(); ii++) {
+		for(size_t jj = 0 ; jj < nodes(); jj++) {
+			if(ii == jj)
+				sdist(ii,jj) = (T)0;
+			else
+				sdist(ii,jj) = (*this)(ii,jj);
+		}
+	}
+
+	// Default to unconnected for all nodes (points back to source)
+	for(size_t ii = 0; ii < nodes(); ii++) {
+		for(size_t jj = 0; jj < nodes(); jj++) {
+			next(ii,jj) = jj;
+		}
+	}
+
+	// If going through ii->kk->jj is shorter than ii->jj make next
+	// and replace old shortest distance (ii->jj) with ii->kk->jj
+	for(size_t kk = 0; kk < nodes(); kk++) {
+		for(size_t ii = 0 ; ii < nodes(); ii++) {
+			for(size_t jj = 0 ; jj < nodes(); jj++) {
+				if(std::abs(sdist(ii,kk)) + std::abs(sdist(kk, jj))
+							< std::abs(sdist(ii, jj))) {
+					sdist(ii,jj) = sdist(ii,kk) + sdist(kk,jj);
+					next(ii,jj) = kk;
+				}
+			}
+		}
+	}
+}
+
 /*
  * Normalize all weights by the total weight
  */
@@ -631,5 +879,20 @@ void Graph<T>::normalize()
 			CIJ(ii,jj) /= scale;
 	}
 }
+
+template class Graph<double>;
+template class Graph<long double>;
+template class Graph<cdouble_t>;
+template class Graph<cquad_t>;
+template class Graph<float>;
+template class Graph<cfloat_t>;
+template class Graph<int64_t>;
+template class Graph<uint64_t>;
+template class Graph<int32_t>;
+template class Graph<uint32_t>;
+template class Graph<int16_t>;
+template class Graph<uint16_t>;
+template class Graph<int8_t>;
+template class Graph<uint8_t>;
 
 }
