@@ -111,6 +111,7 @@ public:
 
 	/* Famouse Graphs */
 	static Graph<T> Coxeter();
+	static Graph<T> PreRandom();
 
 	/* Statistics */
 	double assortativity() const;
