@@ -19,9 +19,14 @@
 
 #include <vector>
 #include <string>
+#include <fstream>
 
+#include "tracks.h"
 #include "byteswap.h"
 #include "trackfile_headers.h"
+#include "nplio.h"
+#include "mrimage.h"
+#include "macros.h"
 
 using namespace std;
 
@@ -47,12 +52,11 @@ TrackSet readDFT(std::string tfile, std::string ref)
 	uint8_t minversion[] = {1,0,0,3};
 	int32_t npoints;
 	float coord[3];
+	double dcoord[3];
 	TrackSet out;
 
 	// read reference image, get spacing
 	auto refimg = readMRImage(ref);
-	float ind[3];
-	float pt[3];
 
 	// read in the header
 	ifstream infile(tfile.c_str(),  std::ifstream::in |  std::ifstream::binary);
@@ -82,7 +86,7 @@ TrackSet readDFT(std::string tfile, std::string ref)
 
 	infile.read((char*)head.version, 4*sizeof(uint8_t));
 	for(size_t ii=0; ii<4; ii++) {
-		if(version[ii] < min[ii])
+		if(head.version[ii] < minversion[ii])
 			throw RUNTIME_ERROR("DFT File Version too old!");
 	}
 
@@ -115,18 +119,19 @@ TrackSet readDFT(std::string tfile, std::string ref)
 		//for each point in the track
 		for(int jj = 0 ; jj < npoints; jj++) {
 
-			// read coordinate, as index (remove spacing)
+			// read coordinate, as index (remove spacing) and store the result
+			// as a double (so that it can be converted to RAS)
 			for(size_t kk = 0; kk<3; kk++) {
 				infile.read((char*)&coord[kk], sizeof(float));
 				if(byteswap) swap(&coord[kk]);
-				coord[kk] /= refimg->spacing(kk);
+				dcoord[kk] = (double)coord[kk]/refimg->spacing(kk);
 			}
 
 			// convert index to physical point in image
-			refimg->indexToPoint(3, coord, coord);
+			refimg->indexToPoint(3, dcoord, dcoord);
 
 			for(size_t kk=0; kk<3; kk++)
-				out[ii][jj][kk] = coord[kk];
+				out[ii][jj][kk] = dcoord[kk];
 		}
 	}
 
@@ -165,20 +170,23 @@ float* trkPoint(TrkLine* cur, TrkHead* head, int index)
  *
  * @return
  */
-TrackSet readTrk(string filename, string ref)
+TrackSet readTrk(string tfile, string ref)
 {
-	fin.open(filename, std::fstream::in | std::fstream::binary);
-	if(!fin.is_open())
+	ifstream infile(tfile, std::fstream::in | std::fstream::binary);
+	if(!infile.is_open())
 		throw RUNTIME_ERROR("Error opening "+tfile+" for reading");
 
 	TrkHead head;
 	bool byteswap = false;
+	bool flip_x = false;
+	bool flip_y = false;
+	bool flip_z = false;
 
 	// Read Magic
 	infile.read((char*)&head.id_string, sizeof(head.id_string));
 	if(strncmp(head.id_string, "TRACK", 5) != 0)
 		throw INVALID_ARGUMENT("Error incorrect magic for trackvis file"+
-				filename);
+				tfile);
 
 	// Read Header
 	infile.read((char*)&head.dim, sizeof(head.dim));
@@ -191,10 +199,10 @@ TrackSet readTrk(string filename, string ref)
 	infile.read((char*)&head.vox_to_ras, sizeof(head.vox_to_ras));
 	infile.read((char*)&head.reserved, sizeof(head.reserved));
 	infile.read((char*)&head.voxel_order, sizeof(head.voxel_order));
-	infile.read((char*)&head.pad, sizeof(head.pad));
+	infile.read((char*)&head.padA4, sizeof(head.padA4));
 	infile.read((char*)&head.image_orientation_patient,
 			sizeof(head.image_orientation_patient));
-	infile.read((char*)&head.pad, sizeof(head.pad));
+	infile.read((char*)&head.padB2, sizeof(head.padB2));
 	infile.read((char*)&head.invert_x, sizeof(head.invert_x));
 	infile.read((char*)&head.invert_y, sizeof(head.invert_y));
 	infile.read((char*)&head.invert_z, sizeof(head.invert_z));
@@ -209,42 +217,48 @@ TrackSet readTrk(string filename, string ref)
 	if(head.hdr_size != 1000) {
 		swap(&head.hdr_size);
 		if(head.hdr_size != 1000)
-			throw RUNTIME_ERROR("Error Invalid Header size in "+filename);
+			throw RUNTIME_ERROR("Error Invalid Header size in "+tfile);
 		else
 			byteswap = true;
 	}
 
+	if(byteswap) {
+		// Read Header
+		throw RUNTIME_ERROR("ERROR BYTE SWAPPING NOT YET IMPLEMENTED");
+	}
+
+
 #ifdef DEBUG
-	cerr << head->id_string << endl;;
+	cerr << head.id_string << endl;;
 	cerr << "Dimensions" << endl;
 	for(int i = 0 ; i < 3 ; i++)
-		cerr << head->dim[i] << " ";
+		cerr << head.dim[i] << " ";
 	cerr << endl;
 	cerr << "Voxel Sizes" << endl;
 	for(int i = 0 ; i < 3 ; i++)
-		cerr << head->voxel_size[i] << " ";
+		cerr << head.voxel_size[i] << " ";
 	cerr << endl;
 #endif //DEBUG
 
 	bool local = true;
 	for(int i = 0 ; i < 3 ; i++) {
-		if(head->origin[i] != 0)
+		if(head.origin[i] != 0)
 			local = false;
 	}
 
 #ifdef DEBUG
 	cerr << "Local: " << local << endl;
-	cerr << "Number of Scalars: " << head->n_scalars << endl;
-	for(int i = 0 ; i < head->n_scalars ; i++)
-		cerr << "\t" << head->scalar_name[i] << endl;
-	cerr << "Number of Properties: " << head->n_properties<< endl;
-	for(int i = 0 ; i < head->n_properties; i++)
-		cerr << "\t" << head->property_name[i] << endl;
+	cerr << "Number of Scalars: " << head.n_scalars << endl;
+	for(int i = 0 ; i < head.n_scalars ; i++)
+		cerr << "\t" << head.scalar_name[i] << endl;
+	cerr << "Number of Properties: " << head.n_properties<< endl;
+	for(int i = 0 ; i < head.n_properties; i++)
+		cerr << "\t" << head.property_name[i] << endl;
 	cerr << "Orient" << endl;
 #endif //DEBUG
 
 	bool orient_valid = false;
-	if(head->vox_to_ras[3][3] != 0)
+	if(head.vox_to_ras[3][3] != 0)
 		orient_valid = true;
 
 #ifdef DEBUG
@@ -252,12 +266,12 @@ TrackSet readTrk(string filename, string ref)
 		cerr << "Orient Invalid" << endl;
 	cerr << "Origin" << endl;
 	for(int i = 0 ; i < 3 ; i++) {
-		cerr << head->origin[i] << " ";
+		cerr << head.origin[i] << " ";
 	}
 	cerr << endl;
 	cerr << "Image Orientation (Patient): " << endl;
 	for(int i = 0 ; i < 6 ; i++)
-		cerr << head->image_orientation_patient[i] << "\t";
+		cerr << head.image_orientation_patient[i] << "\t";
 	cerr << endl;
 
 	if(flip_x)
@@ -269,29 +283,29 @@ TrackSet readTrk(string filename, string ref)
 	if(flip_z)
 		cerr << "Final coordinate transform flipping z" << std::endl;
 
-	if(head->swap_xy)
+	if(head.swap_xy)
 		cerr << "Swap XY (Not Implemented)" << endl;
-	if(head->swap_yz)
+	if(head.swap_yz)
 		cerr << "Swap YZ (Not Implemented)" << endl;
-	if(head->swap_zx)
+	if(head.swap_zx)
 		cerr << "Swap ZX (Not Implemented)" << endl;
 
-	cerr << "Count: " << head->n_count << endl;
-	cerr << "Version: " << head->version << endl;
-	cerr << "Header Size: " << head->hdr_size << endl; //shouldbe 1000
+	cerr << "Count: " << head.n_count << endl;
+	cerr << "Version: " << head.version << endl;
+	cerr << "Header Size: " << head.hdr_size << endl; //shouldbe 1000
 #endif //DEBUG
 
-	MatrixXf reorient(4,4) = MatrxiXd::Identity(4);
+	Eigen::Matrix4f reorient = Eigen::Matrix4f::Identity();
 	if(orient_valid) {
 		for(size_t ii=0; ii<4; ii++) {
 			for(size_t jj=0; jj<4; jj++) {
-				reorient(ii,jj) = head->vox_to_ras[ii][jj];
+				reorient(ii,jj) = head.vox_to_ras[ii][jj];
 			}
 		}
 	} else if(!ref.empty()) {
 		auto tmp = readMRImage(ref);
 		if(tmp->ndim() < 3)
-			throw RUNTIME_ERROR("Error input image "+reffile+"does not "
+			throw RUNTIME_ERROR("Error input image "+ref+"does not "
 					"have sufficient dimensions!");
 		// set origin
 		for(size_t ii=0; ii<3; ii++)
@@ -308,53 +322,48 @@ TrackSet readTrk(string filename, string ref)
 	cerr<<"Effective Index to RAS Matrix:\n"<<reorient<<endl;
 #endif //DEBUG
 
-	if(head->n_count == 0)
+	if(head.n_count == 0)
 		return TrackSet();
 
 	/* Actually Load Data */
-	TrkLine* track = (TrkLine*)head->data;
-	TrackSet out(head->n_count);
+	int trkpoints;
+	TrackSet out(head.n_count);
 
 	//for each track
-	for(int ii = 0; ii < head->n_count; ii++) {
+	for(int ii = 0; ii < head.n_count; ii++) {
+		// read tracklength
+		infile.read((char*)&trkpoints, sizeof(trkpoints));
+
 		//for each point in the track
-		out[ii].resize(track->m);
-		for(int jj = 0 ; jj < track->m; jj++) {
+		out[ii].resize(trkpoints);
+		for(int jj = 0 ; jj < trkpoints; jj++) {
+			float xyz;
 			for(size_t kk=0; kk<3; kk++) {
 				// convert space only to index
-				out[ii][jj][kk] = trkPoint(track, head, jj)[kk]/
-					head->voxel_size[kk];
+				infile.read((char*)&xyz, sizeof(float));
+				out[ii][jj][kk] = (double)xyz/head.voxel_size[kk];
 			}
+
+			// Skip Scalars
+			infile.seekg(head.n_scalars*sizeof(float), ios_base::cur);
 		}
 
-		track = trkInc(track, head);
+		// Skip Properties
+		infile.seekg(head.n_properties*sizeof(float), ios_base::cur);
 	}
 
 #ifdef DEBUG
-	cerr << "Voxel Order: " << head->voxel_order << endl;
+	cerr << "Voxel Order: " << head.voxel_order << endl;
 #endif //DEBUG
-	if(strncmp(head->voxel_order, coord, 3)) {
-		head->voxel_order[0] = 'R';
-		head->voxel_order[1] = 'A';
-		head->voxel_order[2] = 'S';
-#ifdef DEBUG
-		cerr << "Converting " << head->voxel_order << " to " << coord << std::endl;
-#endif //DEBUG
-		if(head->voxel_order[0] != coord[0])
-			flip_x = !flip_x;
-		if(head->voxel_order[1] != coord[1])
-			flip_y = !flip_y;
-		if(head->voxel_order[2] != coord[2])
-			flip_z = !flip_z;
-	}
-
+	if(strncmp(head.voxel_order, "RAS", 3))
+		throw INVALID_ARGUMENT("Error non-RAS coordinates not yet implemented");
 
 	// Transform All Points
-	Vector3f y;
+	Eigen::Vector3f y;
 	for(size_t tt=0; tt<out.size(); tt++) {
 		for(size_t pp=0; pp<out.size(); pp++) {
-			Eigen::Map<Vector3f> x(out[tt][pp]);
-			y = reorient*x;
+			Eigen::Map<Eigen::Vector3f> x(out[tt][pp].data());
+			y = reorient.topLeftCorner<3,3>()*x + reorient.topRightCorner<3,1>();
 			out[tt][pp][0] = flip_x ? -y[0] : y[0];
 			out[tt][pp][1] = flip_y ? -y[1] : y[1];
 			out[tt][pp][2] = flip_z ? -y[2] : y[2];

@@ -1,3 +1,7 @@
+
+#ifndef TRACKFILE_HEADERS_H
+#define TRACKFILE_HEADERS_H
+
 //id_string[6]    char 6       ID string for track file. The first 5
 //                             characters must be "TRACK".
 //dim[3]          short int    Dimension of the image volume.
@@ -71,9 +75,9 @@ typedef struct
 	char reserved[444];
 
 	char voxel_order[4];
-	char pad2[4];
+	char padA4[4];
 	float image_orientation_patient[6];
-	char pad1[2];
+	char padB2[2];
 
 	unsigned char invert_x;
 	unsigned char invert_y;
@@ -120,3 +124,5 @@ typedef struct
 	char padding[24];
 } DftHead;
 
+#endif //TRACKFILE_HEADERS_H
+#define TRACKS_H

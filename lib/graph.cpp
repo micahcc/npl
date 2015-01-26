@@ -24,6 +24,8 @@
 #include "macros.h"
 #include "npltypes.h"
 
+using namespace std;
+
 namespace npl
 {
 

@@ -15,14 +15,17 @@
  *
  * tracks.h Define track class
  *****************************************************************************/
+#ifndef TRACKS_H
+#define TRACKS_H
 
 #include <iostream>
 #include <vector>
 #include <string>
+#include <array>
 
 namespace npl {
 
-typename std::vector<std::vector<float[3]>> TrackSet;
+typedef std::vector<std::vector<std::array<float,3>>> TrackSet;
 
 /**
  * @brief Reads tracks into a vector of tracks, where each track is a vector of
@@ -35,7 +38,7 @@ typename std::vector<std::vector<float[3]>> TrackSet;
  *
  * @return vector<vector<float[3]>> aka TrackSet
  */
-TrackSet readTracks(std::string filename, std::string ref)
+TrackSet readTracks(std::string filename, std::string ref);
 
 /**
  * @brief Reads a BrainSuite DFT file. Throws INVALID_ARGUMENT if the magic is
@@ -57,8 +60,8 @@ TrackSet readDFT(std::string tfile, std::string ref);
  *
  * @return
  */
-TrackSet readTrk(string filename, string ref = "");
+TrackSet readTrk(std::string filename, std::string ref = "");
 
 }
 
-#endif //USE_VTK
+#endif //TRACKS_H
