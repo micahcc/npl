@@ -32,6 +32,7 @@ union Bytes
 	unsigned char bytes[sizeof(T)];
 } __attribute__((packed));
 
+inline
 bool little_endian()
 {
 	Bytes<int32_t> tmp;
@@ -43,6 +44,7 @@ bool little_endian()
 		return false;
 }
 
+inline
 bool big_endian()
 {
 	Bytes<int32_t> tmp;

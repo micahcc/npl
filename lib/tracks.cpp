@@ -33,6 +33,12 @@ using namespace std;
 namespace npl
 {
 
+class magic_error : public std::logic_error {
+public:
+	magic_error(const std::string& w) : std::logic_error(w) {};
+	magic_error(const char* w) : std::logic_error(w) {} ;
+};
+
 /*********************************************************
  * DFT File Reader Functions
  ********************************************************/
@@ -54,9 +60,6 @@ TrackSet readDFT(std::string tfile, std::string ref)
 	float coord[3];
 	double dcoord[3];
 	TrackSet out;
-
-	// read reference image, get spacing
-	auto refimg = readMRImage(ref);
 
 	// read in the header
 	ifstream infile(tfile.c_str(),  std::ifstream::in |  std::ifstream::binary);
@@ -81,7 +84,7 @@ TrackSet readDFT(std::string tfile, std::string ref)
 		else
 			throw RUNTIME_ERROR("Broken Endianness");
 	} else {
-		throw INVALID_ARGUMENT("Wrong Magic for DFT");
+		throw magic_error("Wrong Magic for DFT");
 	}
 
 	infile.read((char*)head.version, 4*sizeof(uint8_t));
@@ -89,6 +92,9 @@ TrackSet readDFT(std::string tfile, std::string ref)
 		if(head.version[ii] < minversion[ii])
 			throw RUNTIME_ERROR("DFT File Version too old!");
 	}
+
+	// read reference image, get spacing
+	auto refimg = readMRImage(ref);
 
 	infile.read((char*)&head.header_size, sizeof(int32_t));
 	infile.read((char*)&head.data_start, sizeof(int32_t));
@@ -178,15 +184,11 @@ TrackSet readTrk(string tfile, string ref)
 
 	TrkHead head;
 	bool byteswap = false;
-	bool flip_x = false;
-	bool flip_y = false;
-	bool flip_z = false;
 
 	// Read Magic
 	infile.read((char*)&head.id_string, sizeof(head.id_string));
 	if(strncmp(head.id_string, "TRACK", 5) != 0)
-		throw INVALID_ARGUMENT("Error incorrect magic for trackvis file"+
-				tfile);
+		throw magic_error("Incorrect Magic for TrackVis");
 
 	// Read Header
 	infile.read((char*)&head.dim, sizeof(head.dim));
@@ -238,23 +240,12 @@ TrackSet readTrk(string tfile, string ref)
 	for(int i = 0 ; i < 3 ; i++)
 		cerr << head.voxel_size[i] << " ";
 	cerr << endl;
-#endif //DEBUG
-
-	bool local = true;
-	for(int i = 0 ; i < 3 ; i++) {
-		if(head.origin[i] != 0)
-			local = false;
-	}
-
-#ifdef DEBUG
-	cerr << "Local: " << local << endl;
 	cerr << "Number of Scalars: " << head.n_scalars << endl;
 	for(int i = 0 ; i < head.n_scalars ; i++)
 		cerr << "\t" << head.scalar_name[i] << endl;
 	cerr << "Number of Properties: " << head.n_properties<< endl;
 	for(int i = 0 ; i < head.n_properties; i++)
 		cerr << "\t" << head.property_name[i] << endl;
-	cerr << "Orient" << endl;
 #endif //DEBUG
 
 	bool orient_valid = false;
@@ -273,22 +264,6 @@ TrackSet readTrk(string tfile, string ref)
 	for(int i = 0 ; i < 6 ; i++)
 		cerr << head.image_orientation_patient[i] << "\t";
 	cerr << endl;
-
-	if(flip_x)
-		cerr << "Final coordinate transform flipping x" << std::endl;
-
-	if(flip_y)
-		cerr << "Final coordinate transform flipping y" << std::endl;
-
-	if(flip_z)
-		cerr << "Final coordinate transform flipping z" << std::endl;
-
-	if(head.swap_xy)
-		cerr << "Swap XY (Not Implemented)" << endl;
-	if(head.swap_yz)
-		cerr << "Swap YZ (Not Implemented)" << endl;
-	if(head.swap_zx)
-		cerr << "Swap ZX (Not Implemented)" << endl;
 
 	cerr << "Count: " << head.n_count << endl;
 	cerr << "Version: " << head.version << endl;
@@ -352,21 +327,14 @@ TrackSet readTrk(string tfile, string ref)
 		infile.seekg(head.n_properties*sizeof(float), ios_base::cur);
 	}
 
-#ifdef DEBUG
-	cerr << "Voxel Order: " << head.voxel_order << endl;
-#endif //DEBUG
-	if(strncmp(head.voxel_order, "RAS", 3))
-		throw INVALID_ARGUMENT("Error non-RAS coordinates not yet implemented");
-
 	// Transform All Points
 	Eigen::Vector3f y;
 	for(size_t tt=0; tt<out.size(); tt++) {
-		for(size_t pp=0; pp<out.size(); pp++) {
+		for(size_t pp=0; pp<out[tt].size(); pp++) {
 			Eigen::Map<Eigen::Vector3f> x(out[tt][pp].data());
 			y = reorient.topLeftCorner<3,3>()*x + reorient.topRightCorner<3,1>();
-			out[tt][pp][0] = flip_x ? -y[0] : y[0];
-			out[tt][pp][1] = flip_y ? -y[1] : y[1];
-			out[tt][pp][2] = flip_z ? -y[2] : y[2];
+			for(size_t kk=0; kk<3; kk++)
+				out[tt][pp][kk] =  y[kk];
 		}
 	}
 
@@ -388,11 +356,11 @@ TrackSet readTracks(std::string filename, std::string ref)
 {
 	try{
 		return readDFT(filename, ref);
-	} catch(std::runtime_error r) { }
+	} catch(magic_error r) { }
 
 	try {
 		return readTrk(filename, ref);
-	} catch(std::runtime_error r) { }
+	} catch(magic_error r) { }
 
 	throw INVALID_ARGUMENT("Error could not load "+filename+" unknown format");
 	return TrackSet();

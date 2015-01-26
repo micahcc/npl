@@ -39,6 +39,8 @@
 //hdr_size    int 4            Size of the header. Used to determine byte swap.
 //                             Should be 1000.
 //<---------------------BODY-------------------------->
+//From Experience these coordinates are index*spacing
+//
 //Track #1    int 4            Number of points in this track, as m.
 //        float (3+n_s)*4      Track Point #1. Contains 3 plus n_s float
 //                             numbers. First 3 float numbers are the

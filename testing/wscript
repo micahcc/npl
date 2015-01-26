@@ -13,6 +13,12 @@ def build(bld):
             source='graph_stats.cpp',
             use = npl)
 
+    # Tractography Tests
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='trackvis_format_test',
+            source='trackvis_format_test.cpp',
+            use = npl)
+
     # Misc Test
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='regex_test',

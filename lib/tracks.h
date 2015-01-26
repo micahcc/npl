@@ -38,7 +38,7 @@ typedef std::vector<std::vector<std::array<float,3>>> TrackSet;
  *
  * @return vector<vector<float[3]>> aka TrackSet
  */
-TrackSet readTracks(std::string filename, std::string ref);
+TrackSet readTracks(std::string filename, std::string ref = "");
 
 /**
  * @brief Reads a BrainSuite DFT file. Throws INVALID_ARGUMENT if the magic is
@@ -49,7 +49,7 @@ TrackSet readTracks(std::string filename, std::string ref);
  *
  * @return vector of vector of points
  */
-TrackSet readDFT(std::string tfile, std::string ref);
+TrackSet readDFT(std::string tfile, std::string ref = "");
 
 /**
  * @brief Reads a trackvis trk file. Throws INVALID_ARGUMENT if the magic is
