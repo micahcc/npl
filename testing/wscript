@@ -8,6 +8,11 @@ def build(bld):
             source='graph_rw1.cpp',
             use = npl)
 
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='graph_stats',
+            source='graph_stats.cpp',
+            use = npl)
+
     # Misc Test
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='regex_test',

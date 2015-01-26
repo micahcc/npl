@@ -40,13 +40,13 @@ class KDTreeNode
 				m_point[ii] = pt[ii];
 			for(; ii<K; ii++)
 				m_point[ii] = 0;
-			
+
 			for(ii=0; ii<E && ii<data.size(); ii++)
 				m_data[ii] = data[ii];
 			for(; ii<E; ii++)
 				m_data[ii] = 0;
 		};
-		
+
 		KDTreeNode(size_t plen, const T* pt, size_t dlen, const D* data) :
 			left(NULL), right(NULL)
 		{
@@ -55,7 +55,7 @@ class KDTreeNode
 				m_point[ii] = pt[ii];
 			for(; ii<K; ii++)
 				m_point[ii] = 0;
-			
+
 			for(ii=0; ii<E && ii<dlen; ii++)
 				m_data[ii] = data[ii];
 			for(; ii<E; ii++)
@@ -75,7 +75,7 @@ class KDTreeNode
 			(void)(other);
 			throw -1;
 		}
-		
+
 		KDTreeNode(KDTreeNode&& other)
 		{
 			(void)(other);
@@ -93,6 +93,17 @@ public:
 	 */
 	KDTree() : m_built(false),m_treehead(NULL)  { };
 
+	KDTree(KDTree&& other)  {
+		m_allnodes = std::move(other.m_allnodes);
+		m_built = other.m_built;
+		m_treehead = other.m_treehead;
+		other.m_allnodes.clear();
+	};
+
+	KDTree(const KDTree& other)  {
+		throw "Copy Constructor Not Yet Implemented";
+	};
+
 	~KDTree()  {
 		while(!m_allnodes.empty()) {
 			delete m_allnodes.back() ;
@@ -101,7 +112,7 @@ public:
 	};
 
 	/**
-	 * @brief Insert a node (not that this is not dynamic, new nodes won't be
+	 * @brief Insert a node (note that this is not dynamic, new nodes won't be
 	 * found by search until build() is called)
 	 *
 	 * @param pt	Point
@@ -110,7 +121,7 @@ public:
 	void insert(const std::vector<T>& pt, const std::vector<D>& data);
 
 	/**
-	 * @brief Insert a node (not that this is not dynamic, new nodes won't be
+	 * @brief Insert a node (note that this is not dynamic, new nodes won't be
 	 * found by search until build() is called)
 	 *
 	 * @param plen	Length of point array
@@ -136,16 +147,21 @@ public:
 
 	std::list<const KDTreeNode<K,E,T,D>*> withindist(const std::vector<T>& pt, double dist);
 	std::list<const KDTreeNode<K,E,T,D>*> withindist(size_t len, const T* pt, double dist);
-	
+
 private:
-	
+
+	/**********
+	 * Data
+	 **********/
 	// whether we have constructed the tree yet
 	bool m_built;
 
 	KDTreeNode<K,E,T,D>* m_treehead;
 	std::vector<KDTreeNode<K,E,T,D>*> m_allnodes;
 
-	// helper functions
+	/********************
+	 * Helper Functions
+	 ********************/
 	KDTreeNode<K,E,T,D>* nearest_help(size_t depth, KDTreeNode<K,E,T,D>* pos,
 		const T* pt, double& distsq);
 

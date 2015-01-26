@@ -32,6 +32,28 @@ union Bytes
 	unsigned char bytes[sizeof(T)];
 } __attribute__((packed));
 
+bool little_endian()
+{
+	Bytes<int32_t> tmp;
+	tmp.iv = 1;
+
+	if(tmp.bytes[0] == 1)
+		return true;
+	else
+		return false;
+}
+
+bool big_endian()
+{
+	Bytes<int32_t> tmp;
+	tmp.iv = 1;
+
+	if(tmp.bytes[3] == 1)
+		return true;
+	else
+		return false;
+}
+
 template <typename T>
 void swap(T* val)
 {
@@ -74,7 +96,7 @@ void swap<cquad_t>(cquad_t* val)
 
 	real.iv = val->real();
 	imag.iv = val->imag();
-	
+
 	for(size_t ii=0; ii<sizeof(long double)/2; ii++) {
 		std::swap(real.bytes[sizeof(long double)-ii-1], real.bytes[ii]);
 		std::swap(imag.bytes[sizeof(long double)-ii-1], imag.bytes[ii]);
@@ -94,7 +116,7 @@ void swap<cdouble_t>(cdouble_t* val)
 
 	real.iv = val->real();
 	imag.iv = val->imag();
-	
+
 	for(size_t ii=0; ii<sizeof(double)/2; ii++) {
 		std::swap(real.bytes[sizeof(double)-ii-1], real.bytes[ii]);
 		std::swap(imag.bytes[sizeof(double)-ii-1], imag.bytes[ii]);
@@ -114,7 +136,7 @@ void swap<cfloat_t>(cfloat_t* val)
 
 	real.iv = val->real();
 	imag.iv = val->imag();
-	
+
 	for(size_t ii=0; ii<sizeof(float)/2; ii++) {
 		std::swap(real.bytes[sizeof(float)-ii-1], real.bytes[ii]);
 		std::swap(imag.bytes[sizeof(float)-ii-1], imag.bytes[ii]);
