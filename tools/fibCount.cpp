@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <stdexcept>
 
+#include "tracts.h"
 #include "nplio.h"
 #include "mrimage.h"
 #include "mrimage_utils.h"
@@ -31,8 +32,6 @@
 
 using namespace npl;
 using namespace std;
-
-typename vector<vector<float[3]>> TractSet;
 
 /**
  * @brief Reads a Mesh File and produces a KD-Tree of points, with integer
@@ -722,5 +721,48 @@ int createGraphs(vtkSmartPointer<vtkPolyData> tractData,
 		delete counts[ii];
 
 	return 0;
+}
+
+/**
+ * @brief Reads a Mesh File and produces a KD-Tree of points, with integer
+ * labels at each point
+ *
+ * @param filename
+ *
+ * @return
+ */
+KDTree<3, 1, float, int> readLabelMesh(string filename)
+{
+
+};
+
+/**
+ * @brief Reads a label file and produces a KD-Tree of points with an integer
+ * label at each point
+ *
+ * @param filename
+ *
+ * @return
+ */
+KDTree<3, 1, float, int> readLabelMap(string filename)
+{
+	auto labelmap = readMRImage(filename);
+
+	KDTree<3, 1, float, int> tree;
+	double pt[3];
+	vector<float> fpt(3);
+	vector<int> label(1);
+	for(NDIter<int> it(labelmap); !it.eof(); ++it) {
+		if(*it != 0) {
+			it.index(3, pt);
+			it.indexToPoint(3, pt, pt);
+			for(size_t ii=0; ii<3; ii++)
+				fpt[ii] = pt[ii];
+			label[0] = *it;
+			tree.insert(fpt, label);
+		}
+	}
+	tree.build();
+	return tree;
 }
 
