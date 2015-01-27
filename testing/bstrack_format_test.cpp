@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * trackvis_format_test.cpp test trk reader
+ * bstrack_format_test.cpp test dft format reader
  *
  *****************************************************************************/
 
@@ -33,7 +33,7 @@ using namespace npl;
 
 int main(int argc, char** argv)
 {
-	string filename = "../../testing/trackvis_format_test.trk";
+	string filename = "../../testing/bstrack_format_test.dft";
 	if(argc > 1) {
 		filename = argv[1];
 	}
@@ -41,7 +41,7 @@ int main(int argc, char** argv)
 
 	auto tracks = readTracks(filename);
 
-	cerr << "Check coordinates with ../../testing/trackvis_format_test.nii.gz "
+	cerr << "Check coordinates with ../../testing/bstrack_format_test.nii.gz "
 		"tracks should be predominantly right side"<<endl;
 	for(size_t tt=0; tt<tracks.size(); tt++) {
 		cerr<<"Track "<<tt<<endl;
@@ -53,3 +53,4 @@ int main(int argc, char** argv)
 
 	return 0;
 }
+

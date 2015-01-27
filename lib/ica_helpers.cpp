@@ -1080,17 +1080,9 @@ void GICAfmri::compute()
 
 		cerr<<"Chunk SVD (Lanczos):"<<talldata.mat.rows()<<"x"<<talldata.mat.cols()<<endl;
 
-		Eigen::BDCSVD<MatrixXd> svd(talldata.mat, Eigen::ComputeThinU | Eigen::ComputeThinV);
-		svd.setThreshold(0.1);
-		rank = svd.rank();
-		cerr << "Spectrum:" << svd.singularValues().transpose()<<endl;
-//		Eigen::TruncatedLanczosSVD<MatrixXd> svd;
-//		svd.setVarThreshold(varthresh);
-//		svd.setVarThreshold(varthresh);
-//		svd.compute(talldata.mat, Eigen::ComputeThinU | Eigen::ComputeThinV);
-//		if(svd.info() == Eigen::NoConvergence)
-//			throw RUNTIME_ERROR("Error computing Tall SVD, might want to "
-//					"increase # of lanczos vectors");
+		Eigen::BandLanczosSVD<MatrixXd> svd;
+		svd.setVarThreshold(varthresh);
+		svd.compute(talldata.mat, Eigen::ComputeThinU | Eigen::ComputeThinV);
 
 		cerr << "SVD Rank: " << rank << endl;
 		maxrank = std::max<size_t>(maxrank, rank);
@@ -1129,13 +1121,9 @@ void GICAfmri::compute()
 	MatrixXd U, V;
 	VectorXd E;
 	{
-		Eigen::BDCSVD<MatrixXd> svd(mergedUE, Eigen::ComputeThinU | Eigen::ComputeThinV);
-		svd.setThreshold(0.1);
-		rank = svd.rank();
-		cerr << "Spectrum:" << svd.singularValues().transpose()<<endl;
-//		Eigen::TruncatedLanczosSVD<MatrixXd> svd;
-//		svd.setVarThreshold(varthresh);
-//		svd.compute(mergedUE, Eigen::ComputeThinU | Eigen::ComputeThinV);
+		Eigen::BandLanczosSVD<MatrixXd> svd;
+		svd.setVarThreshold(varthresh);
+		svd.compute(mergedUE, Eigen::ComputeThinU | Eigen::ComputeThinV);
 
 		cerr << "SVD Rank: " << rank << endl;
 		U = svd.matrixU();
@@ -1143,7 +1131,7 @@ void GICAfmri::compute()
 		V = svd.matrixV();
 	}
 
-#ifndef NDEBUG
+//#ifndef NDEBUG
 	{
 		cerr << "Testing PCA, Computing Full V...";
 		MatrixXd mergeV(reorg.cols(), V.cols());
@@ -1178,7 +1166,7 @@ void GICAfmri::compute()
 		}
 		cerr << "Relative Error: " << err/totalv << endl;
 	}
-#endif //NDEBUG
+//#endif //NDEBUG
 
 	/*
 	 * Recall:
