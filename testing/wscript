@@ -18,6 +18,10 @@ def build(bld):
             target='trackvis_format_test',
             source='trackvis_format_test.cpp',
             use = npl)
+    bld.program(install_path='${PREFIX}/tests', features='test',
+            target='bstrack_format_test',
+            source='bstrack_format_test.cpp',
+            use = npl)
 
     # Misc Test
     bld.program(install_path='${PREFIX}/tests', features='test',

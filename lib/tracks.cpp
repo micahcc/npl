@@ -94,6 +94,8 @@ TrackSet readDFT(std::string tfile, std::string ref)
 	}
 
 	// read reference image, get spacing
+	if(ref.empty())
+		throw INVALID_ARGUMENT("No reference image provided to readDFT");
 	auto refimg = readMRImage(ref);
 
 	infile.read((char*)&head.header_size, sizeof(int32_t));
