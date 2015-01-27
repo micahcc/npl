@@ -14,9 +14,11 @@
 #include <limits>
 #include <cmath>
 
+#ifdef BAND_LANCZOS_DEBUG
 #include <iostream>
 using std::cerr;
 using std::endl;
+#endif //ifdef BAND_LANCZOS_DEBUG
 
 namespace Eigen {
 
@@ -553,6 +555,11 @@ void BandLanczosSelfAdjointEigenSolver<_MatrixType>::_compute(
          * on the previous vectors
          ******************************************************************/
         // decide if vj should be deflated
+#ifdef BAND_LANCZOS_DEBUG
+        cerr<<"|Vj| = "<<Vjnorm<<endl;
+        cerr<<"|dtol| = "<<Vjnorm_init*m_deflation_tol<<endl;
+        cerr<<"pc, jj = "<<pc<<", "<<jj<<endl;
+#endif
         if(!(Vjnorm > Vjnorm_init*m_deflation_tol)) {
             // if j-pc > 0 (switch to 0 based indexing), I = I U {j-pc}
             if(jj-pc>= 0)
