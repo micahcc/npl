@@ -386,6 +386,9 @@ private:
 	std::string m_pref;
 
 	int m_status;
+
+	size_t svd_help(std::string inname, std::string usname,
+			std::string vname);
 };
 
 }

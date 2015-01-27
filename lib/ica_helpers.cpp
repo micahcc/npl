@@ -1039,6 +1039,54 @@ GICAfmri::GICAfmri(std::string pref)
 	spatial = false; // spatial maps
 }
 
+size_t GICAfmri::svd_help(string inname, string usname, string vname)
+{
+	MatMap talldata(inname);
+
+	cerr<<"Chunk SVD (Lanczos):"<<talldata.mat.rows()<<"x"
+		<<talldata.mat.cols()<<endl;
+
+	Eigen::BandLanczosSVD<MatrixXd> svd;
+	svd.setVarThreshold(varthresh);
+	svd.compute(talldata.mat,
+			Eigen::ComputeThinU | Eigen::ComputeThinV);
+//	Eigen::JacobiSVD<MatrixXd> svd(talldata.mat,
+//			Eigen::ComputeThinU | Eigen::ComputeThinV);
+//
+	size_t rank = svd.rank();
+//	double var = 0;
+//	double totalvar = svd.singularValues();
+//	for(rank=0; rank<svd.singularValues().size(); rank++) {
+//		if(var > totalvar*varthresh)
+//			break;
+//		var += var + svd.singularValues()[ii];
+//	}
+
+	cerr << "SVD Rank: " << rank << endl;
+	if(rank == 0) {
+		throw INVALID_ARGUMENT("Error arguments have been set in such a "
+				"way that no components will be selected. Try increasing "
+				"your variance threshold or number of components");
+	}
+
+	// write
+
+	MatMap tmpmat;
+
+	// Create UE
+	cerr<<"Creating UE ("<<talldata.mat.rows()<<"x"<<rank<<")"<<endl;
+	tmpmat.create(usname, svd.matrixU().rows(), rank);
+	cerr << "Writing UE" << endl;
+	tmpmat.mat = svd.matrixU().leftCols(rank)*svd.singularValues().head(rank).asDiagonal();
+
+	cerr<<"Creating V ("<<talldata.mat.cols()<<"x"<<rank<<")"<<endl;
+	tmpmat.create(vname, talldata.mat.cols(), rank);
+	cerr << "Writing V" << endl;
+	tmpmat.mat = svd.matrixV().leftCols(rank);
+
+	return rank;
+}
+
 /**
  * @brief Compute ICA for the given group, using existing tall/wide matices
  *
@@ -1076,34 +1124,9 @@ void GICAfmri::compute()
 	size_t rank = 0;
 
 	for(size_t ii=0; ii<reorg.ntall(); ii++) {
-		MatMap talldata(reorg.tallMatName(ii));
-
-		cerr<<"Chunk SVD (Lanczos):"<<talldata.mat.rows()<<"x"<<talldata.mat.cols()<<endl;
-
-		Eigen::BandLanczosSVD<MatrixXd> svd;
-		svd.setVarThreshold(varthresh);
-		svd.compute(talldata.mat, Eigen::ComputeThinU | Eigen::ComputeThinV);
-
-		cerr << "SVD Rank: " << rank << endl;
+		rank = svd_help(reorg.tallMatName(ii), m_pref+"_US_"+to_string(ii),
+				m_pref+"_V_"+to_string(ii));
 		maxrank = std::max<size_t>(maxrank, rank);
-
-		// write
-		string usname = m_pref+"_US_"+to_string(ii);
-		string vname = m_pref+"_V_"+to_string(ii);
-
-		MatMap tmpmat;
-
-		// Create UE
-		cerr<<"Creating UE ("<<talldata.mat.rows()<<"x"<<rank<<")"<<endl;
-		tmpmat.create(usname, svd.matrixU().rows(), rank);
-		cerr << "Writing UE" << endl;
-		tmpmat.mat = svd.matrixU().leftCols(rank)*svd.singularValues().head(rank).asDiagonal();
-
-		cerr<<"Creating V ("<<talldata.mat.cols()<<"x"<<rank<<")"<<endl;
-		tmpmat.create(vname, talldata.mat.cols(), rank);
-		cerr << "Writing V" << endl;
-		tmpmat.mat = svd.matrixV().leftCols(rank);
-
 		catcols += rank;
 	}
 
@@ -1126,6 +1149,11 @@ void GICAfmri::compute()
 		svd.compute(mergedUE, Eigen::ComputeThinU | Eigen::ComputeThinV);
 
 		cerr << "SVD Rank: " << rank << endl;
+		if(rank == 0) {
+			throw INVALID_ARGUMENT("Error arguments have been set in such a "
+					"way that no components will be selected. Try increasing "
+					"your variance threshold or number of components");
+		}
 		U = svd.matrixU();
 		E = svd.singularValues();
 		V = svd.matrixV();

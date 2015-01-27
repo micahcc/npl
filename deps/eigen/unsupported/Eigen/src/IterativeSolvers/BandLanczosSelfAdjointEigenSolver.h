@@ -14,6 +14,10 @@
 #include <limits>
 #include <cmath>
 
+#include <iostream>
+using std::cerr;
+using std::endl;
+
 namespace Eigen {
 
 
@@ -647,14 +651,24 @@ void BandLanczosSelfAdjointEigenSolver<_MatrixType>::_compute(
         if(nvec == 0) {
             // All the stopping conditions were met, but the solutions were
             // not accurate enough. Restart with the initial vectors set to
-            // the best approximate eigenvectors
+            // the best approximate eigenvectors, along with pc new random
+            // vectors (so starting pc is doubled)
+            pc = 2*m_proj.cols();
+
+            // Reassign first V cols to eigenvectors,
+            // save to m_proj (to prevent aliasing)
             m_proj = V.leftCols(jj+1)*m_evecs.rightCols(m_proj.cols());
             V.leftCols(m_proj.cols()) = m_proj;
 
-            // Reset State
-            jj = 0; pc = 0;
-            Vnorms.clear(); nonzero.clear();
-            for(int ii=0; ii<m_proj.cols(); ii++)
+            // Ransomize next set
+            for(size_t ii=m_proj.cols(); ii<V.cols() && ii<pc; ii++)
+                V.col(ii).setRandom();
+
+            // Reset State: jj, vnorms, similar matrix (T)
+            jj = 0;
+            nonzero.clear();
+            Vnorms.clear();
+            for(int ii=0; ii<V.cols() && ii<pc; ii++)
                 Vnorms.push_back(V.col(ii).norm());
             approx.fill(0);
 
@@ -770,6 +784,8 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::checkSolution(
      * Comput. 1979 May 1;33(146):683. Available from:
      * http://www.ams.org/jourcgi/jour-getitem?pii=S0025-5718-1979-0521282-9
      */
+    double sum = 0;
+    double sumsq = 0;
     for(int vv=0; vv<N; vv++) {
         double esterr = (m_Tpred.topLeftCorner(bandrad, bandrad)*
                 eig.eigenvectors().col(N-1-vv).tail(bandrad)).norm();
@@ -777,7 +793,19 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::checkSolution(
             break;
 
         nvalid++;
+
+        sum += eig.eigenvalues()[N-1-vv];
+        sumsq += eig.eigenvalues()[N-1-vv]*eig.eigenvalues()[N-1-vv];
     }
+
+    if(outvecs > 1 && nvalid < outvecs)
+        return 0;
+
+    if(!isinf(ev_sum_t) && !isnan(ev_sum_t) && sum<ev_sum_t)
+        return 0;
+
+    if(!isinf(ev_sumsq_t) && !isnan(ev_sumsq_t) && sumsq<ev_sumsq_t)
+        return 0;
 
     return nvalid;
 }
