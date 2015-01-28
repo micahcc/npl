@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  * @file big_pca_test3.cpp Similar to pca_test1 and test2, but larger and using
- * BandLanczosSVD
+ * BDCSVD
  *
  *****************************************************************************/
 
@@ -38,7 +38,18 @@ using Eigen::Success;
 using Eigen::ComputeThinV;
 using Eigen::ComputeThinU;
 using Eigen::JacobiSVD;
-using Eigen::BandLanczosSVD;
+using Eigen::BDCSVD;
+
+size_t approxrank(const Ref<const VectorXd> singvals, double thresh)
+{
+	double var = 0;
+	double totalvar = singvals.sum();
+	size_t rank = 0;
+	for(rank = 0; var*thresh < totalvar && singvals.rows(); rank++)
+		var += singvals[rank];
+
+	return rank;
+}
 
 int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 {
@@ -61,6 +72,8 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	// Perform Full SVD
 	cerr<<"Full SVD:"<<full.rows()<<"x"<<full.cols()<<endl;
 	JacobiSVD<MatrixXd> fullsvd(full, ComputeThinU | ComputeThinV);
+	const auto& fullS = fullsvd.singularValues();
+	const auto& fullV = fullsvd.matrixV();
 
 	// Maximum number of columns/rows in sigma
 	size_t outrows = 0;
@@ -71,18 +84,14 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		MatMap diskmat(prefix+to_string(rr));
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
 
-		BandLanczosSVD<MatrixXd> svd;
-		svd.setVarThreshold(svt);
+		BDCSVD<MatrixXd> svd;
 		svd.compute(diskmat.mat, ComputeThinU | ComputeThinV);
-		if(svd.info() != Success) {
-			cerr << "Error Computing Chunk SVD" << endl;
-			return -1;
-		}
+		size_t rank = approxrank(svd.singularValues(), svt);
 
-		cerr << "SVD Rank: " << svd.rank() << endl;
-		Umats[rr] = svd.matrixU().leftCols(svd.rank());
-		Vmats[rr] = svd.matrixV().leftCols(svd.rank());
-		Smats[rr] = svd.singularValues().head(svd.rank());
+		cerr << "SVD Rank: " << rank << endl;
+		Umats[rr] = svd.matrixU().leftCols(rank);
+		Vmats[rr] = svd.matrixV().leftCols(rank);
+		Smats[rr] = svd.singularValues().head(rank);
 
 		outrows += Smats[rr].rows();
 	}
@@ -97,19 +106,15 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	}
 
 	cerr<<"Merge SVD:"<<mergedEVt.rows()<<"x"<<mergedEVt.cols()<<endl;
-	BandLanczosSVD<MatrixXd> mergesvd;
-	mergesvd.setVarThreshold(svt);
+	BDCSVD<MatrixXd> mergesvd;
 	mergesvd.compute(mergedEVt, ComputeThinU | ComputeThinV);
-	if(mergesvd.info() != Success) {
-		cerr << "Error Computing Full SVD" << endl;
-		return -1;
-	}
-	mergesvd.hardenLimits();
-	cerr << "SVD Rank: " << mergesvd.rank() << endl;
+	const auto& mergeS = mergesvd.singularValues();
+	const auto& mergeV = mergesvd.matrixV();
+
+	size_t rank = approxrank(mergesvd.singularValues(), svt);
+	cerr << "SVD Rank: " << rank << endl;
 
 	cerr<<"Comparing Full S with Merge S"<<endl;
-	const auto& fullS = fullsvd.singularValues();
-	const auto& mergeS = mergesvd.singularValues();
 	cerr << fullS.transpose() << endl;
 	cerr << mergeS.transpose() << endl;
 	for(size_t ii=0; ii<min(fullS.rows(), mergeS.rows()); ++ii) {
@@ -122,8 +127,6 @@ int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	}
 
 	cerr<<"Comparing Full V with Merge V"<<endl;
-	const auto& fullV = fullsvd.matrixV();
-	const auto& mergeV = mergesvd.matrixV();
 	for(size_t ii=0; ii<min(fullV.cols(), mergeV.cols());  ++ii) {
 		cerr<<"Dot "<<ii<<": "<<(mergeV.col(ii).dot(fullV.col(ii)))<<endl;
 		if(1-fabs(mergeV.col(ii).dot(fullV.col(ii))) > thresh) {
@@ -157,6 +160,8 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	// Perform Full SVD
 	cerr<<"Full SVD:"<<full.rows()<<"x"<<full.cols()<<endl;
 	JacobiSVD<MatrixXd> fullsvd(full, ComputeThinU | ComputeThinV);
+	const auto& fullS = fullsvd.singularValues();
+	const auto& fullU = fullsvd.matrixU();
 
 	size_t outcols = 0;
 	vector<MatrixXd> Umats(reorg.ntall());
@@ -165,18 +170,13 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	for(size_t ii=0; ii<reorg.ntall(); ii++) {
 		MatMap diskmat(prefix+to_string(ii));
 		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
-		BandLanczosSVD<MatrixXd> svd;
-		svd.setVarThreshold(svt);
+		BDCSVD<MatrixXd> svd;
 		svd.compute(diskmat.mat, ComputeThinU | ComputeThinV);
-		if(svd.info() != Success) {
-			cerr << "Error Computing Chunk SVD" << endl;
-			return -1;
-		}
 
-		cerr << "SVD Rank: " << svd.rank() << endl;
-		Umats[ii] = svd.matrixU().leftCols(svd.rank());
-		Vmats[ii] = svd.matrixV().leftCols(svd.rank());
-		Smats[ii] = svd.singularValues().head(svd.rank());
+		size_t rank = approxrank(svd.singularValues(), svt);
+		Umats[ii] = svd.matrixU().leftCols(rank);
+		Vmats[ii] = svd.matrixV().leftCols(rank);
+		Smats[ii] = svd.singularValues().head(rank);
 
 		outcols += Smats[ii].rows();
 	}
@@ -192,21 +192,15 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 	cerr<<mergedUE<<endl;
 	cerr<<"Merge SVD:"<<mergedUE.rows()<<"x"<<mergedUE.cols()<<endl;
-	BandLanczosSVD<MatrixXd> mergesvd;
-    mergesvd.setVarThreshold(svt);
+	BDCSVD<MatrixXd> mergesvd;
     mergesvd.compute(mergedUE, ComputeThinU | ComputeThinV);
-	if(mergesvd.info() != Success) {
-		cerr << "Error Computing Merge SVD" << endl;
-		return -1;
-	}
-	mergesvd.hardenLimits();
-	cerr << "SVD Rank: " << mergesvd.rank() << endl;
+	const auto& mergeS = mergesvd.singularValues();
+	const auto& mergeU = mergesvd.matrixU();
+
+	size_t rank = approxrank(mergeS, svt);;
+	cerr << "SVD Rank: " << rank << endl;
 
 	cerr<<"Comparing Full S with Merge S"<<endl;
-	const auto& fullS = fullsvd.singularValues();
-	const auto& mergeS = mergesvd.singularValues();
-	const auto& fullU = fullsvd.matrixU();
-	const auto& mergeU = mergesvd.matrixU();
 	cerr<<"Full S\n"<<fullS.transpose()<<endl;
 	cerr<<"Full U\n"<<fullU.transpose()<<endl;
 	cerr<<"Merge S\n"<<mergeS.transpose()<<endl;

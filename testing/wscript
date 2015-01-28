@@ -543,39 +543,39 @@ def build(bld):
             source='svd_test.cpp',
             use=npl+'tclap')
 
-    bld.program(install_path='${PREFIX}/tests',  features='test',
-            target='lanczos1',
-            source='lanczos1.cpp',
-            use=npl)
-    bld.program(install_path='${PREFIX}/tests',  features='test',
-            target='lanczos2',
-            source='lanczos2.cpp',
-            use=npl)
-    bld.program(install_path='${PREFIX}/tests',  features='test',
-            target='lanczos3',
-            source='lanczos3.cpp',
-            use=npl)
-    bld.program(install_path='${PREFIX}/tests',  features='test',
-            target='lanczos4',
-            source='lanczos4.cpp',
-            use=npl)
-    bld.program(install_path='${PREFIX}/tests',  features='test',
-            target='lanczos_svd1',
-            source='lanczos_svd1.cpp',
-            use=npl)
-    bld.program(install_path='${PREFIX}/tests',  features='test',
-            target='lanczos_svd2',
-            source='lanczos_svd2.cpp',
-            use=npl)
-    bld.program(install_path='${PREFIX}/tests',  features='test',
-            target='lanczos_svd3',
-            source='lanczos_svd3.cpp',
-            use=npl)
-    bld.program(install_path='${PREFIX}/tests',  features='test',
-            target='lanczos_svd4',
-            source='lanczos_svd4.cpp',
-            use=npl)
-
+#    bld.program(install_path='${PREFIX}/tests',  features='test',
+#            target='lanczos1',
+#            source='lanczos1.cpp',
+#            use=npl)
+#    bld.program(install_path='${PREFIX}/tests',  features='test',
+#            target='lanczos2',
+#            source='lanczos2.cpp',
+#            use=npl)
+#    bld.program(install_path='${PREFIX}/tests',  features='test',
+#            target='lanczos3',
+#            source='lanczos3.cpp',
+#            use=npl)
+#    bld.program(install_path='${PREFIX}/tests',  features='test',
+#            target='lanczos4',
+#            source='lanczos4.cpp',
+#            use=npl)
+#    bld.program(install_path='${PREFIX}/tests',  features='test',
+#            target='lanczos_svd1',
+#            source='lanczos_svd1.cpp',
+#            use=npl)
+#    bld.program(install_path='${PREFIX}/tests',  features='test',
+#            target='lanczos_svd2',
+#            source='lanczos_svd2.cpp',
+#            use=npl)
+#    bld.program(install_path='${PREFIX}/tests',  features='test',
+#            target='lanczos_svd3',
+#            source='lanczos_svd3.cpp',
+#            use=npl)
+#    bld.program(install_path='${PREFIX}/tests',  features='test',
+#            target='lanczos_svd4',
+#            source='lanczos_svd4.cpp',
+#            use=npl)
+#
 
 #   Some day I may want to turn this into a real test
 #    bld(install_path='${PREFIX}/tests',  features='test',

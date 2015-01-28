@@ -180,11 +180,14 @@ int spcat_orthog(std::string prefix, double svthresh,
 		int initbasis, int maxiters, bool rowdims, const std::vector<int>& ncols,
 		const MatrixXd& XXT, MatrixXd& Xorth)
 {
+	(void)initbasis;
+	(void)maxiters;
 	// Compute EigenVectors (U)
-	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
-	eig.setDeflationTol(std::numeric_limits<double>::epsilon());
-	eig.setDesiredRank(maxiters);
-	eig.compute(XXT, initbasis);
+	Eigen::SelfAdjointEigenSolver<MatrixXd> eig(XXT);
+//	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
+//	eig.setDeflationTol(std::numeric_limits<double>::epsilon());
+//	eig.setDesiredRank(maxiters);
+//	eig.compute(XXT, initbasis);
 
 	if(eig.info() == Eigen::NoConvergence)
 		throw RUNTIME_ERROR("Non Convergence of BandLanczosSelfAdjointEigen"
@@ -268,6 +271,10 @@ MatrixXd tcat_ica(const vector<string>& imgnames,
 		string& maskname, string prefix, double svthresh, double deftol,
 		int initbasis, int maxiters, bool spatial)
 {
+	(void)deftol;
+	(void)initbasis;
+	(void)maxiters;
+
 	/**********
 	 * Input
 	 *********/
@@ -308,10 +315,11 @@ MatrixXd tcat_ica(const vector<string>& imgnames,
 	}
 
 	// Compute EigenVectors (U)
-	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
-	eig.setDesiredRank(maxiters);
-	eig.setDeflationTol(deftol);
-	eig.compute(XXt, initbasis);
+	Eigen::SelfAdjointEigenSolver<MatrixXd> eig(XXt);
+//	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
+//	eig.setDesiredRank(maxiters);
+//	eig.setDeflationTol(deftol);
+//	eig.compute(XXt, initbasis);
 
 	if(eig.info() == Eigen::NoConvergence)
 		throw RUNTIME_ERROR("Non Convergence of BandLanczosSelfAdjointEigen"
@@ -392,6 +400,10 @@ MatrixXd spcat_ica(bool psd, const vector<string>& imgnames,
 		const vector<string>& masknames, string prefix, double deftol,
 		double svthresh, int initbasis, int maxiters, bool spatial)
 {
+	(void)deftol;
+	(void)initbasis;
+	(void)maxiters;
+
 	/**********
 	 * Input
 	 *********/
@@ -478,10 +490,11 @@ MatrixXd spcat_ica(bool psd, const vector<string>& imgnames,
 	}
 
 	// Compute EigenVectors (U)
-	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
-	eig.setDesiredRank(maxiters);
-	eig.setDeflationTol(deftol);
-	eig.compute(XXt, initbasis);
+	Eigen::SelfAdjointEigenSolver<MatrixXd> eig(XXt);
+//	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
+//	eig.setDesiredRank(maxiters);
+//	eig.setDeflationTol(deftol);
+//	eig.compute(XXt, initbasis);
 
 	if(eig.info() == Eigen::NoConvergence)
 		throw RUNTIME_ERROR("Non Convergence of BandLanczosSelfAdjointEigen"
@@ -1045,22 +1058,22 @@ size_t GICAfmri::svd_help(string inname, string usname, string vname)
 
 	cerr<<"Chunk SVD (Lanczos):"<<talldata.mat.rows()<<"x"
 		<<talldata.mat.cols()<<endl;
+	size_t rank = 0;
 
-	Eigen::BandLanczosSVD<MatrixXd> svd;
-	svd.setVarThreshold(varthresh);
-	svd.compute(talldata.mat,
-			Eigen::ComputeThinU | Eigen::ComputeThinV);
-//	Eigen::JacobiSVD<MatrixXd> svd(talldata.mat,
+//	Eigen::BandLanczosSVD<MatrixXd> svd;
+//	svd.setVarThreshold(varthresh);
+//	svd.compute(talldata.mat,
 //			Eigen::ComputeThinU | Eigen::ComputeThinV);
-//
-	size_t rank = svd.rank();
-//	double var = 0;
-//	double totalvar = svd.singularValues();
-//	for(rank=0; rank<svd.singularValues().size(); rank++) {
-//		if(var > totalvar*varthresh)
-//			break;
-//		var += var + svd.singularValues()[ii];
-//	}
+//	rank = svd.rank();
+	Eigen::JacobiSVD<MatrixXd> svd(talldata.mat,
+			Eigen::ComputeThinU | Eigen::ComputeThinV);
+	double var = 0;
+	double totalvar = svd.singularValues().sum();
+	for(rank=0; rank<svd.singularValues().size(); rank++) {
+		if(var > totalvar*varthresh)
+			break;
+		var += var + svd.singularValues()[rank];
+	}
 
 	cerr << "SVD Rank: " << rank << endl;
 	if(rank == 0) {
@@ -1144,9 +1157,19 @@ void GICAfmri::compute()
 	MatrixXd U, V;
 	VectorXd E;
 	{
-		Eigen::BandLanczosSVD<MatrixXd> svd;
-		svd.setVarThreshold(varthresh);
-		svd.compute(mergedUE, Eigen::ComputeThinU | Eigen::ComputeThinV);
+		Eigen::JacobiSVD<MatrixXd> svd(mergedUE,
+					Eigen::ComputeThinU | Eigen::ComputeThinV);
+//		Eigen::BandLanczosSVD<MatrixXd> svd;
+//		svd.setVarThreshold(varthresh);
+//		svd.compute(mergedUE, Eigen::ComputeThinU | Eigen::ComputeThinV);
+//		rank = svd.rank();
+		double totalvar = svd.singularValues().sum();
+		double var = 0;
+		for(rank=0; rank<svd.singularValues().size(); rank++) {
+			if(var > totalvar*varthresh)
+				break;
+			var += var + svd.singularValues()[rank];
+		}
 
 		cerr << "SVD Rank: " << rank << endl;
 		if(rank == 0) {
