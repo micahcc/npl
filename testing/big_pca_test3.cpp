@@ -45,7 +45,7 @@ size_t approxrank(const Ref<const VectorXd> singvals, double thresh)
 	double var = 0;
 	double totalvar = singvals.sum();
 	size_t rank = 0;
-	for(rank = 0; var*thresh < totalvar && singvals.rows(); rank++)
+	for(rank = 0; var < totalvar*thresh && rank < singvals.rows(); rank++)
 		var += singvals[rank];
 
 	return rank;
@@ -174,6 +174,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 		svd.compute(diskmat.mat, ComputeThinU | ComputeThinV);
 
 		size_t rank = approxrank(svd.singularValues(), svt);
+		cerr << "Rank: " << rank << endl;
 		Umats[ii] = svd.matrixU().leftCols(rank);
 		Vmats[ii] = svd.matrixV().leftCols(rank);
 		Smats[ii] = svd.singularValues().head(rank);
@@ -205,7 +206,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	cerr<<"Full U\n"<<fullU.transpose()<<endl;
 	cerr<<"Merge S\n"<<mergeS.transpose()<<endl;
 	cerr<<"Merge U\n"<<mergeU.transpose()<<endl;
-	for(size_t ii=0; ii<min(fullS.rows(), mergeS.rows()); ++ii) {
+	for(size_t ii=0; ii<rank; ++ii) {
 		cerr << fullS[ii] << " vs " << mergeS[ii] << endl;
 		if(2*fabs(mergeS[ii] - fullS[ii])/fabs(mergeS[ii]+fullS[ii]) > thresh) {
 			cerr<<"Difference in Singular Value "<<ii<<": "<<mergeS[ii]<<" vs "
@@ -217,7 +218,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	cerr<<"Comparing Full U with Merge U"<<endl;
 	cerr<<fullS.rows()<<endl;
 	cerr<<mergeS.rows()<<endl;
-	for(size_t ii=0; ii<min(fullU.cols(), mergeU.cols());  ++ii) {
+	for(size_t ii=0; ii<rank;  ++ii) {
 		cerr<<"Dot "<<ii<<":"<<(mergeU.col(ii).dot(fullU.col(ii)))<<endl;
 		if(1-fabs(mergeU.col(ii).dot(fullU.col(ii))) > thresh) {
 			cerr<<"Difference in U col "<<ii<<": "<<mergeU.col(ii)<<" vs "
@@ -231,10 +232,10 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 int main(int argc, char** argv)
 {
-	double evthresh = 0.999;
+	double vthresh = 0.9;
 
 	if(argc == 2)
-		evthresh = atof(argv[1]);
+		vthresh = atof(argv[1]);
 
 	std::random_device rd;
 	unsigned int seed = rd();
@@ -293,11 +294,11 @@ int main(int argc, char** argv)
 	if(reorg.createMats(nrows, ncols, fn_masks, fn_inputs) != 0)
 		return -1;
 
-	if(testTallPCAJoin(reorg, pref+"_tall_", evthresh) != 0)
+	if(testTallPCAJoin(reorg, pref+"_tall_", vthresh) != 0)
 		return -1;
 
-//	if(testWidePCAJoin(reorg, pref+"_wide_", evthresh) != 0)
-//		return -1;
+	if(testWidePCAJoin(reorg, pref+"_wide_", vthresh) != 0)
+		return -1;
 
 }
 

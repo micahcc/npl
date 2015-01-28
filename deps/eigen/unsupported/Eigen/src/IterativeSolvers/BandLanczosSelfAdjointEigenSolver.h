@@ -14,6 +14,8 @@
 #include <limits>
 #include <cmath>
 
+#define BAND_LANCZOS_DEBUG
+
 #ifdef BAND_LANCZOS_DEBUG
 #include <iostream>
 using std::cerr;
@@ -495,6 +497,9 @@ void BandLanczosSelfAdjointEigenSolver<_MatrixType>::_compute(
 {
     EigenVectorType V = m_proj;
 
+//	Scalar rescale = _A.colwise().sum().maxCoeff();
+//	MatrixType A = _A/rescale;
+
     // Deflate Based on Change in magnitude from original mag
     std::list<double> Vnorms;
     for(int ii=0; ii<V.cols(); ii++)
@@ -656,20 +661,15 @@ void BandLanczosSelfAdjointEigenSolver<_MatrixType>::_compute(
                     V.leftCols(jj+1+pc), pc, m_outvecs,
                     tr_thresh, trsq_thresh);
         if(nvec == 0) {
+#ifdef BAND_LANCZOS_DEBUG
+			cerr<<"Restarting, EVs: "<<m_evals.transpose()<<endl;
+#endif
             // All the stopping conditions were met, but the solutions were
             // not accurate enough. Restart with the initial vectors set to
-            // the best approximate eigenvectors, along with pc new random
-            // vectors (so starting pc is doubled)
-            pc = 2*m_proj.cols();
-
-            // Reassign first V cols to eigenvectors,
-            // save to m_proj (to prevent aliasing)
-            m_proj = V.leftCols(jj+1)*m_evecs.rightCols(m_proj.cols());
-            V.leftCols(m_proj.cols()) = m_proj;
-
-            // Ransomize next set
-            for(size_t ii=m_proj.cols(); ii<V.cols() && ii<pc; ii++)
-                V.col(ii).setRandom();
+            // the found eigenvectors
+            m_proj = V.leftCols(jj+1)*m_evecs.rightCols(jj+1);
+            pc = m_proj.cols();
+			V.leftCols(m_proj.cols()) = m_proj;
 
             // Reset State: jj, vnorms, similar matrix (T)
             jj = 0;
@@ -804,6 +804,9 @@ int BandLanczosSelfAdjointEigenSolver<_MatrixType>::checkSolution(
         sum += eig.eigenvalues()[N-1-vv];
         sumsq += eig.eigenvalues()[N-1-vv]*eig.eigenvalues()[N-1-vv];
     }
+#ifdef BAND_LANCZOS_DEBUG
+        cerr<<"Good EVs: "<<nvalid<<endl;
+#endif
 
     if(outvecs > 1 && nvalid < outvecs)
         return 0;
