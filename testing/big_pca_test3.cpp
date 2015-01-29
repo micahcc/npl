@@ -232,7 +232,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 int main(int argc, char** argv)
 {
-	double vthresh = 0.9;
+	double vthresh = 0.95;
 
 	if(argc == 2)
 		vthresh = atof(argv[1]);

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file applyDeform.cpp Tool to apply a deformation field to another image. 
+ * @file applyDeform.cpp Tool to apply a deformation field to another image.
  * Not yet functional
  *
  *****************************************************************************/
@@ -94,14 +94,14 @@ int main(int argc, char** argv)
                 type = FLOAT32;
             }
         } else if(argv[ii][0] == '-') {
-            if(!isalpha(argv[ii][1]) || ii+1 >= argc) 
+            if(!isalpha(argv[ii][1]) || ii+1 >= argc)
                 usage(-1);
 
             // set image for variable
             args[argv[ii][1]] = argv[ii+1];
 
             // set reference image
-            if(!refimg) 
+            if(!refimg)
                 refimg = argv[ii][1];
 
             ii++;
@@ -128,22 +128,17 @@ int main(int argc, char** argv)
     ptr<MRImage> out;
 	{
 	auto ptr = dPtrCast<MRImage>(readMRImage(args[refimg]));
-	if(type == UNKNOWN_TYPE) {
-		cerr << "Defaulting to double type" << endl;
-		out = dPtrCast<MRImage>(ptr->createAnother(FLOAT64));
-	} else {
-		out = dPtrCast<MRImage>(ptr->createAnother(type));
-	}
+	out = dPtrCast<MRImage>(ptr->createAnother(FLOAT64));
 	}
 
 	// TODO only resample lowest matching dimensions, then
-	// iterate over the highest dimensions slowest so that 
+	// iterate over the highest dimensions slowest so that
 	// we can deal with 4D+ images.
 	// load all images and create interpolated version
 	map<char, NDConstView<double>> imgargs;
 	for(auto fit = args.begin(); fit != args.end(); ++fit) {
 		auto img = readMRImage(fit->second);
-		
+
 		if(img->matchingOrient(out, false, true)) {
 			imgargs[fit->first] = NDConstView<double>(img);
 		} else {
@@ -203,7 +198,8 @@ int main(int argc, char** argv)
 	}
 
     // write out image
-    if(!outname.empty())
-		out->write(outname);
+    if(!outname.empty()) {
+		out->copyCast(type)->write(outname);
+	}
 }
 

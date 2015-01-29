@@ -322,6 +322,14 @@ int main(int argc, char** argv)
 		gaussianSmooth1D(prob, dd, sd);
 	cerr << "Done\n";
 
+	cerr << "Merging Probability Map with GM Probability"<<endl;
+	NDIter<double> git(gmprob);
+	for(pit.goBegin(); !pit.eof(); ++pit,++git){
+		// Weight Sum of each regions value
+		for(size_t rr=0; rr<nreg; rr++)
+			pit.set(rr, pit[rr]*(*git));
+	}
+
 	if(a_probmap.isSet())
 		prob->write(a_probmap.getValue());
 
@@ -334,9 +342,8 @@ int main(int argc, char** argv)
 				tmpsize.data(), FLOAT32));
 
 	cerr << "Merging activation maps...";
-	NDIter<double> git(gmprob);
 	Vector3DIter<double> oit(out);
-	for(pit.goBegin(); !pit.eof(); ++pit,++oit,++git){
+	for(pit.goBegin(); !pit.eof(); ++pit,++oit){
 		for(size_t tt=0; tt<tlen; tt++) {
 			// Weight Sum of each regions value
 			double v = 0;
@@ -344,7 +351,7 @@ int main(int argc, char** argv)
 				v += design[rr][tt]*pit[rr];
 
 			// Weigtht by GM Prob
-			oit.set(tt, v*(*git));
+			oit.set(tt, v);
 		}
 	}
 	cerr << "Done\n";
