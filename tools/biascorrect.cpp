@@ -55,8 +55,8 @@ using namespace std;
  * @param downmask Output: Downsampled version of mask (with 0 values changed
  * outside_weight)
  */
-void preprocInputs(ptr<const MRImage> input, 
-		ptr<const MRImage> mask, double spacing, 
+void preprocInputs(ptr<const MRImage> input,
+		ptr<const MRImage> mask, double spacing,
 		ptr<MRImage>& downimg, ptr<MRImage>& downmask);
 
 /**
@@ -79,9 +79,9 @@ ptr<MRImage> createBiasField(ptr<const MRImage> in, double bspace);
  * @param spacing Spacing of bias field image
  * @param lambda Regularization weight
  *
- * @return 
+ * @return
  */
-ptr<MRImage> estBiasParams(ptr<const MRImage> in, ptr<const MRImage> mask, 
+ptr<MRImage> estBiasParams(ptr<const MRImage> in, ptr<const MRImage> mask,
 		double spacing, double lambda);
 
 /**
@@ -91,7 +91,7 @@ ptr<MRImage> estBiasParams(ptr<const MRImage> in, ptr<const MRImage> mask,
  * @param biasparams Parameters of bias field
  * @param input Input spacing image
  *
- * @return Bias field sampled on the input grid 
+ * @return Bias field sampled on the input grid
  */
 ptr<MRImage> reconstructBiasField(ptr<const MRImage> biasparams,
 		ptr<const MRImage> input);
@@ -102,7 +102,7 @@ ptr<MRImage> reconstructBiasField(ptr<const MRImage> biasparams,
  * @param argc
  * @param argv
  *
- * @return 
+ * @return
  */
 int main(int argc, char** argv)
 {
@@ -146,7 +146,7 @@ try {
 	 * Read a Single 3D Volume from Input Image
 	 ****************************************************/
 	ptr<MRImage> fullres = readMRImage(a_in.getValue());
-	fullres = dPtrCast<MRImage>(fullres->copyCast(min(fullres->ndim(),3UL), 
+	fullres = dPtrCast<MRImage>(fullres->copyCast(min(fullres->ndim(),3UL),
 				fullres->dim(), FLOAT64));
 
 	/****************************************************
@@ -180,7 +180,7 @@ try {
 	cout << "Done...";
 #if defined VERYDEBUG || DEBUG
 	fullmask->write("fullmask.nii.gz");
-#endif 
+#endif
 
 	/****************************************************
 	 * Create Downsampled, logged Versions if Inputs
@@ -191,15 +191,15 @@ try {
 	preprocInputs(fullres, fullmask, a_downspace.getValue(), dinput, dmask);
 	fullmask.reset();
 	cout << "Done" << endl;
-	
+
 	/********************************************************************
-	 * Estimate Bias Field Parameters from Pixels and Weights 
+	 * Estimate Bias Field Parameters from Pixels and Weights
 	 ********************************************************************/
 	cout << "Estimating Bias Field...";
 	auto biasparams = estBiasParams(dinput, dmask, a_spacing.getValue(),
 			a_lambda.getValue());
 	cout << "Done...";
-	if(a_biasparams.isSet()) 
+	if(a_biasparams.isSet())
 		biasparams->write(a_biasparams.getValue());
 
 	/*************************************************************************
@@ -209,7 +209,7 @@ try {
 	fullres = reconstructBiasField(biasparams, fullres);
 #if defined VERYDEBUG || DEBUG
 	fullres->write("logbias.nii.gz");
-#endif 
+#endif
 	for(FlatIter<double> it(fullres); !it.eof(); ++it) {
 		double v = exp(*it);
 		if(std::isinf(*it) || std::isnan(*it)) {
@@ -246,24 +246,24 @@ try {
 
 /**
  * @brief Given an input image and mask, this estimates the bias-field
- * parameters. 
+ * parameters.
  *
  * @param in Input scalar image, should already be log-transformed
- * @param weight Input weight image  
+ * @param weight Input weight image
  * @param spacing
  * @param lambda
  *
- * @return 
+ * @return
  */
-ptr<MRImage> estBiasParams(ptr<const MRImage> in, ptr<const MRImage> weight, 
+ptr<MRImage> estBiasParams(ptr<const MRImage> in, ptr<const MRImage> weight,
 		double spacing, double lambda)
 {
 	// Create Double Bias Field
-	cout << "Creating Bias Field estimate with with " << spacing 
+	cout << "Creating Bias Field estimate with with " << spacing
 		<< "mm spacing...";
 	auto biasparams = createBiasField(in, spacing);
 	cout << "Done\n";
-	
+
 	size_t ndim = in->ndim();
 	size_t nparams = 1; // number of Cubic-BSpline Parameters
 	size_t npixels = 1; // Number of pixels we are comparing
@@ -273,11 +273,11 @@ ptr<MRImage> estBiasParams(ptr<const MRImage> in, ptr<const MRImage> weight,
 	}
 	vector<Eigen::Triplet<double>> pixB;
 	pixB.reserve(nparams*6);
-	
+
 	// add in augmented parameters for regularization, hence the npixels+pp
 	for(size_t pp=0; pp<nparams; pp++)
 		pixB.push_back(Eigen::Triplet<double>(npixels+pp, pp, lambda));
-	
+
 	/********************************************************************
 	 * Create Pixel, Parameter and Weight Vectors
 	 ********************************************************************/
@@ -292,7 +292,7 @@ ptr<MRImage> estBiasParams(ptr<const MRImage> in, ptr<const MRImage> weight,
 		pixels[ii] = *iit;
 		weights[ii] = *mit;
 	}
-	
+
 	// gamma (regularization part)
 	for(size_t ii=npixels; ii<npixels+nparams; ii++) {
 		pixels[ii] = 0;
@@ -319,9 +319,9 @@ ptr<MRImage> estBiasParams(ptr<const MRImage> in, ptr<const MRImage> weight,
 
 		in->indexToPoint(ind.size(), ind.data(), pt.data());
 		biasparams->pointToIndex(pt.size(), pt.data(), cind.data());
-		for(size_t dd=0; dd<ndim; dd++) 
+		for(size_t dd=0; dd<ndim; dd++)
 			ind[dd] = round(cind[dd]);
-		
+
 		// create ROI from nearest index to continuous one
 		for(size_t dd=0; dd<ndim; dd++) {
 			roi[dd].first = ind[dd]-2;
@@ -341,7 +341,7 @@ ptr<MRImage> estBiasParams(ptr<const MRImage> in, ptr<const MRImage> weight,
 
 			assert(linparam < nparams);
 			assert(linpix < npixels);
-			pixB.push_back(Eigen::Triplet<double>(linpix, linparam, w)); 
+			pixB.push_back(Eigen::Triplet<double>(linpix, linparam, w));
 		}
 	}
 
@@ -384,7 +384,7 @@ ptr<MRImage> reconstructBiasField(ptr<const MRImage> biasparams,
 	}
 
 	auto out = dPtrCast<MRImage>(input->createAnother());
-	
+
 	// for each kernel, iterate over the points in the neighborhood
 	size_t ndim = input->ndim();
 	vector<pair<int64_t,int64_t>> roi(ndim);
@@ -406,7 +406,7 @@ ptr<MRImage> reconstructBiasField(ptr<const MRImage> biasparams,
 	// parameter at each pixel within the range (2 indexes in parameter
 	// space, 2*S_B/S_I indexs in pixel space)
 	for(NDConstIter<double> bit(biasparams); !bit.eof(); ++bit) {
-		
+
 		// get continuous index of pixel
 		bit.index(ind.size(), ind.data());
 		biasparams->indexToPoint(ind.size(), ind.data(), pt.data());
@@ -453,22 +453,22 @@ ptr<MRImage> createBiasField(ptr<const MRImage> in, double bspace)
 	auto biasparams = createMRImage(osize.size(), osize.data(), FLOAT64);
 	biasparams->setDirection(in->getDirection(), false);
 	biasparams->setSpacing(spacing, false);
-	
+
 	// compute center of input
 	VectorXd indc(ndim); // center index
-	for(size_t dd=0; dd<ndim; dd++) 
+	for(size_t dd=0; dd<ndim; dd++)
 		indc[dd] = (in->dim(dd)-1.)/2.;
 	VectorXd ptc(ndim); // point center
 	in->indexToPoint(ndim, indc.array().data(), ptc.array().data());
 
-	// compute origin from center index (x_c) and center of input (c): 
+	// compute origin from center index (x_c) and center of input (c):
 	// o = c-R(sx_c)
-	for(size_t dd=0; dd<ndim; dd++) 
+	for(size_t dd=0; dd<ndim; dd++)
 		indc[dd] = (osize[dd]-1.)/2.;
 	origin = ptc - in->getDirection()*(spacing.asDiagonal()*indc);
 	biasparams->setOrigin(origin, false);
 
-	for(FlatIter<double> it(biasparams); !it.eof(); ++it) 
+	for(FlatIter<double> it(biasparams); !it.eof(); ++it)
 		it.set(0);
 
 	return biasparams;
@@ -478,7 +478,7 @@ double mode(ptr<const MRImage> input, ptr<const MRImage> mask)
 {
 	LinInterpNDView<double> m_interp(mask);
 	m_interp.m_ras = true;
-	
+
 	vector<double> bins(sqrt(input->elements()));
 	vector<double> pt(input->ndim());
 	vector<int64_t> ind(input->ndim());
@@ -491,7 +491,7 @@ double mode(ptr<const MRImage> input, ptr<const MRImage> mask)
 		if(m > 0.5) {
 			minv = std::min(minv, *fit);
 			maxv = std::max(maxv, *fit);
-		} 
+		}
 	}
 	double bwidth = 0.99999999*bins.size()/(maxv-minv);
 	for(NDConstIter<double> fit(input); !fit.eof(); ++fit) {
@@ -529,23 +529,23 @@ double mode(ptr<const MRImage> input, ptr<const MRImage> mask)
  * @param downmask Output: Downsampled version of mask (with 0 values changed
  * outside_weight)
  */
-void preprocInputs(ptr<const MRImage> input, 
-		ptr<const MRImage> mask, double spacing, 
+void preprocInputs(ptr<const MRImage> input,
+		ptr<const MRImage> mask, double spacing,
 		ptr<MRImage>& downimg, ptr<MRImage>& downmask)
 {
 	auto normed = dPtrCast<MRImage>(input->copy());
-	
+
 	vector<double> pt(normed->ndim());
 	vector<int64_t> ind(normed->ndim());
 	LinInterpNDView<double> m_interp(mask);
 	m_interp.m_ras = true;
-	
+
 	/************************************************************************
 	 * first normalize, dividing by the mode
 	 ************************************************************************/
 	double modev = mode(normed, mask);
 	cout  << " (Mode for normalizing: " << modev << " ) "; ;
-	
+
 	for(NDIter<double> iit(normed); !iit.eof(); ++iit) {
 		iit.index(ind);
 		normed->indexToPoint(ind.size(), ind.data(), pt.data());
