@@ -36,7 +36,6 @@ int testPreRandom()
 	vector<int> id(g1.nodes());
 	vector<int> od(g1.nodes());
 	vector<int> td = g1.degrees(id, od);
-	double degree = g1.degree();
 
 	if(assort != 1) {
 		cerr<<"PreRandom assortivity should be 1 (found "<<assort<<")"<<endl;

@@ -79,10 +79,10 @@ Rigid3DTrans corReg3D(shared_ptr<const MRImage> fixed,
 		throw INVALID_ARGUMENT("Input images have mismatching pixels in");
 
 	// create value and gradient functions from RigiCorrComputer
-	RigidCorrComputer comp(true);
-	auto vfunc = bind(&RigidCorrComputer::value, &comp, _1, _2);
-	auto vgfunc = bind(&RigidCorrComputer::valueGrad, &comp, _1, _2, _3);
-	auto gfunc = bind(&RigidCorrComputer::grad, &comp, _1, _2);
+	RigidCorrComp comp(true);
+	auto vfunc = bind(&RigidCorrComp::value, &comp, _1, _2);
+	auto vgfunc = bind(&RigidCorrComp::valueGrad, &comp, _1, _2, _3);
+	auto gfunc = bind(&RigidCorrComp::grad, &comp, _1, _2);
 
 	Rigid3DTrans rigid;
 	for(size_t ii=0; ii<sigmas.size(); ii++) {
@@ -166,7 +166,7 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
 		DEBUGWRITE(sm_fixed->write("smooth_fixed_"+to_string(ii)+".nii.gz"));
 		DEBUGWRITE(sm_moving->write("smooth_moving_"+to_string(ii)+".nii.gz"));
 
-		RigidInformationComputer comp(true);
+		RigidInfoComp comp(true);
 		comp.setBins(nbins, binradius);
 		comp.setFixed(sm_fixed);
 		comp.setMoving(sm_moving);
@@ -180,9 +180,9 @@ Rigid3DTrans informationReg3D(shared_ptr<const MRImage> fixed,
 		}
 
 		// create value and gradient functions
-		auto vfunc = bind(&RigidInformationComputer::value, &comp, _1, _2);
-		auto vgfunc = bind(&RigidInformationComputer::valueGrad, &comp, _1, _2, _3);
-		auto gfunc = bind(&RigidInformationComputer::grad, &comp, _1, _2);
+		auto vfunc = bind(&RigidInfoComp::value, &comp, _1, _2);
+		auto vgfunc = bind(&RigidInfoComp::valueGrad, &comp, _1, _2, _3);
+		auto gfunc = bind(&RigidInfoComp::grad, &comp, _1, _2);
 
 		// initialize optimizer
 		LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
@@ -276,7 +276,7 @@ ptr<MRImage> infoDistCor(ptr<const MRImage> infixed, ptr<const MRImage> inmoving
 		throw INVALID_ARGUMENT("Input images have mismatching pixels in");
 
 	// Create Distortion Correction Computer
-	DistortionCorrectionInformationComputer comp(true);
+	DistCorrInfoComp comp(true);
 	comp.setBins(nbins, binradius);
 
 	if(metric == "MI")
@@ -312,9 +312,9 @@ ptr<MRImage> infoDistCor(ptr<const MRImage> infixed, ptr<const MRImage> inmoving
 	comp.initializeKnots(bspace);
 
 	// create value and gradient functions
-	auto vfunc = bind(&DistortionCorrectionInformationComputer::value, &comp, _1, _2);
-	auto vgfunc = bind(&DistortionCorrectionInformationComputer::valueGrad, &comp, _1, _2, _3);
-	auto gfunc = bind(&DistortionCorrectionInformationComputer::grad, &comp, _1, _2);
+	auto vfunc = bind(&DistCorrInfoComp::value, &comp, _1, _2);
+	auto vgfunc = bind(&DistCorrInfoComp::valueGrad, &comp, _1, _2, _3);
+	auto gfunc = bind(&DistCorrInfoComp::grad, &comp, _1, _2);
 
 	for(size_t ii=0; ii<sigmas.size(); ii++) {
 		// smooth and downsample input images
@@ -389,12 +389,12 @@ int cor3DDerivTest(double step, double tol,
 		shared_ptr<const MRImage> in1, shared_ptr<const MRImage> in2)
 {
 	using namespace std::placeholders;
-	RigidCorrComputer comp(false);
+	RigidCorrComp comp(false);
 	comp.setFixed(in1);
 	comp.setMoving(in2);
 
-	auto vfunc = std::bind(&RigidCorrComputer::value, &comp, _1, _2);
-	auto vgfunc = std::bind(&RigidCorrComputer::valueGrad, &comp, _1, _2, _3);
+	auto vfunc = std::bind(&RigidCorrComp::value, &comp, _1, _2);
+	auto vgfunc = std::bind(&RigidCorrComp::valueGrad, &comp, _1, _2, _3);
 
 	double error = 0;
 	VectorXd x = VectorXd::Ones(6);
@@ -420,14 +420,14 @@ int information3DDerivTest(double step, double tol,
 		shared_ptr<const MRImage> in1, shared_ptr<const MRImage> in2)
 {
 	using namespace std::placeholders;
-	RigidInformationComputer comp(false);
+	RigidInfoComp comp(false);
 	comp.setBins(128,4);
 	comp.m_metric = METRIC_MI;
 	comp.setFixed(in1);
 	comp.setMoving(in2);
 
-	auto vfunc = std::bind(&RigidInformationComputer::value, &comp, _1, _2);
-	auto vgfunc = std::bind(&RigidInformationComputer::valueGrad, &comp, _1, _2, _3);
+	auto vfunc = std::bind(&RigidInfoComp::value, &comp, _1, _2);
+	auto vgfunc = std::bind(&RigidInfoComp::valueGrad, &comp, _1, _2, _3);
 
 	double error = 0;
 	VectorXd x = VectorXd::Ones(6);
@@ -456,7 +456,7 @@ int distcorDerivTest(double step, double tol,
 		double regj, double regt)
 {
 	using namespace std::placeholders;
-	DCInforComp comp(false);
+	DistCorrInfoComp comp(false);
 	comp.setBins(256,8);
 	comp.m_metric = METRIC_MI;
 	comp.setFixed(in1);
@@ -465,8 +465,8 @@ int distcorDerivTest(double step, double tol,
 	comp.m_jac_reg = regj;
 	comp.m_tps_reg = regt;
 
-	auto vfunc = std::bind(&DCInforComp::value, &comp, _1, _2);
-	auto vgfunc = std::bind(&DCInforComp::valueGrad, &comp, _1, _2, _3);
+	auto vfunc = std::bind(&DistCorrInfoComp::value, &comp, _1, _2);
+	auto vgfunc = std::bind(&DistCorrInfoComp::valueGrad, &comp, _1, _2, _3);
 
 	double error = 0;
 	VectorXd x(comp.nparam());
@@ -498,7 +498,7 @@ int distcorDerivTest(double step, double tol,
  * @param moving Moving image. A copy of this will be made.
  * @param compdiff Negate correlation to compute a difference measure
  */
-RigidCorrComputer::RigidCorrComputer(bool compdiff) : m_compdiff(compdiff)
+RigidCorrComp::RigidCorrComp(bool compdiff) : m_compdiff(compdiff)
 {
 }
 
@@ -519,7 +519,7 @@ RigidCorrComputer::RigidCorrComputer(bool compdiff) : m_compdiff(compdiff)
  *
  * @return 0 if successful
  */
-int RigidCorrComputer::valueGrad(const VectorXd& params,
+int RigidCorrComp::valueGrad(const VectorXd& params,
 		double& val, VectorXd& grad)
 {
 	if(!m_fixed) throw INVALID_ARGUMENT("ERROR must set fixed image before "
@@ -676,7 +676,7 @@ int RigidCorrComputer::valueGrad(const VectorXd& params,
  *
  * @return 0 if successful
  */
-int RigidCorrComputer::grad(const VectorXd& params, VectorXd& grad)
+int RigidCorrComp::grad(const VectorXd& params, VectorXd& grad)
 {
 	double v = 0;
 	return valueGrad(params, v, grad);
@@ -690,7 +690,7 @@ int RigidCorrComputer::grad(const VectorXd& params, VectorXd& grad)
  *
  * @return 0 if successful
  */
-int RigidCorrComputer::value(const VectorXd& params, double& val)
+int RigidCorrComp::value(const VectorXd& params, double& val)
 {
 	if(!m_fixed) throw INVALID_ARGUMENT("ERROR must set fixed image before "
 				"computing value.");
@@ -777,7 +777,7 @@ int RigidCorrComputer::value(const VectorXd& params, double& val)
  *
  * @param fixed Input fixed image (not modified)
  */
-void RigidCorrComputer::setFixed(ptr<const MRImage> newfix)
+void RigidCorrComp::setFixed(ptr<const MRImage> newfix)
 {
 	if(newfix->ndim() != 3)
 		throw INVALID_ARGUMENT("Fixed image is not 3D!");
@@ -797,7 +797,7 @@ void RigidCorrComputer::setFixed(ptr<const MRImage> newfix)
  *
  * @param moving Input moving image (not modified)
  */
-void RigidCorrComputer::setMoving(ptr<const MRImage> newmove)
+void RigidCorrComp::setMoving(ptr<const MRImage> newmove)
 {
 	if(newmove->ndim() != 3)
 		throw INVALID_ARGUMENT("Moving image is not 3D!");
@@ -825,7 +825,7 @@ void RigidCorrComputer::setMoving(ptr<const MRImage> newmove)
  * @param moving Moving image. A copy of this will be made.
  * @param compdiff negate MI and NMI to create an effective distance
  */
-RigidInformationComputer::RigidInformationComputer(bool compdiff) :
+RigidInfoComp::RigidInfoComp(bool compdiff) :
 	m_compdiff(compdiff), m_metric(METRIC_MI), m_gradHjoint(6), m_gradHmove(6)
 {
 	setBins(128, 4);
@@ -838,7 +838,7 @@ RigidInformationComputer::RigidInformationComputer(bool compdiff) :
  * @param nbins Number of bins for marginal estimation
  * @param krad Number of bins in kernel radius
  */
-void RigidInformationComputer::setBins(size_t nbins, size_t krad)
+void RigidInfoComp::setBins(size_t nbins, size_t krad)
 {
 	// set number of bins
 	m_bins = nbins;
@@ -863,7 +863,7 @@ void RigidInformationComputer::setBins(size_t nbins, size_t krad)
  *
  * @param newmove New moving image
  */
-void RigidInformationComputer::setMoving(ptr<const MRImage> newmove)
+void RigidInfoComp::setMoving(ptr<const MRImage> newmove)
 {
 	if(newmove->ndim() != 3)
 		throw INVALID_ARGUMENT("Moving image is not 3D!");
@@ -897,7 +897,7 @@ void RigidInformationComputer::setMoving(ptr<const MRImage> newmove)
  *
  * @param newfixed New fixed image
  */
-void RigidInformationComputer::setFixed(ptr<const MRImage> newfixed)
+void RigidInfoComp::setFixed(ptr<const MRImage> newfixed)
 {
 	if(newfixed->ndim() != 3)
 		throw INVALID_ARGUMENT("Fixed image is not 3D!");
@@ -930,7 +930,7 @@ void RigidInformationComputer::setFixed(ptr<const MRImage> newfixed)
  *
  * @return 0 if successful
  */
-int RigidInformationComputer::valueGrad(const VectorXd& params,
+int RigidInfoComp::valueGrad(const VectorXd& params,
 		double& val, VectorXd& grad)
 {
 	if(!m_fixed) throw INVALID_ARGUMENT("ERROR must set fixed image before "
@@ -1206,7 +1206,7 @@ int RigidInformationComputer::valueGrad(const VectorXd& params,
  *
  * @return 0 if successful
  */
-int RigidInformationComputer::grad(const VectorXd& params, VectorXd& grad)
+int RigidInfoComp::grad(const VectorXd& params, VectorXd& grad)
 {
 	double v = 0;
 	return valueGrad(params, v, grad);
@@ -1220,7 +1220,7 @@ int RigidInformationComputer::grad(const VectorXd& params, VectorXd& grad)
  *
  * @return 0 if successful
  */
-int RigidInformationComputer::value(const VectorXd& params, double& val)
+int RigidInfoComp::value(const VectorXd& params, double& val)
 {
 	if(!m_fixed)
 		throw INVALID_ARGUMENT("ERROR must set fixed image before "
@@ -1383,8 +1383,8 @@ int RigidInformationComputer::value(const VectorXd& params, double& val)
  * @param moving Moving image. A copy of this will be made.
  * @param compdiff negate MI and NMI to create an effective distance
  */
-DistortionCorrectionInformationComputer::
-			DistortionCorrectionInformationComputer(bool compdiff) :
+DistCorrInfoComp::
+			DistCorrInfoComp(bool compdiff) :
 			m_compdiff(compdiff), m_metric(METRIC_MI)
 {
 	m_knotspace = 10;
@@ -1400,7 +1400,7 @@ DistortionCorrectionInformationComputer::
  *
  * @param space Spacing between knots, in physical coordinates
  */
-void DistortionCorrectionInformationComputer::initializeKnots(double space)
+void DistCorrInfoComp::initializeKnots(double space)
 {
 	m_knotspace = space;
 	if(!m_fixed) {
@@ -1469,7 +1469,7 @@ void DistortionCorrectionInformationComputer::initializeKnots(double space)
  * @param nbins Number of bins for marginal estimation
  * @param krad Number of bins in kernel radius
  */
-void DistortionCorrectionInformationComputer::setBins(size_t nbins, size_t krad)
+void DistCorrInfoComp::setBins(size_t nbins, size_t krad)
 {
 	if(nbins <= krad*2)
 		throw INVALID_ARGUMENT("m_bins must be > m_krad*2");
@@ -1495,7 +1495,7 @@ void DistortionCorrectionInformationComputer::setBins(size_t nbins, size_t krad)
  *
  * @param newmove New moving image
  */
-void DistortionCorrectionInformationComputer::setMoving(
+void DistCorrInfoComp::setMoving(
 		ptr<const MRImage> newmove, int dir)
 {
 	if(newmove->ndim() != 3)
@@ -1537,7 +1537,7 @@ void DistortionCorrectionInformationComputer::setMoving(
  *
  * @param newfixed New fixed image
  */
-void DistortionCorrectionInformationComputer::setFixed(ptr<const MRImage> newfixed)
+void DistCorrInfoComp::setFixed(ptr<const MRImage> newfixed)
 {
 	if(newfixed->ndim() != 3)
 		throw INVALID_ARGUMENT("Fixed image is not 3D!");
@@ -1554,7 +1554,7 @@ void DistortionCorrectionInformationComputer::setFixed(ptr<const MRImage> newfix
 }
 
 
-void DistortionCorrectionInformationComputer::updateCaches()
+void DistCorrInfoComp::updateCaches()
 {
 	m_rangemove[0] = 0;
 	m_rangemove[1] = 0;
@@ -1619,7 +1619,7 @@ void DistortionCorrectionInformationComputer::updateCaches()
  * @param grad Output Gradient, in index coordinates (change of variables
  * handled outside this function)
  */
-int DistortionCorrectionInformationComputer::metric(
+int DistCorrInfoComp::metric(
 		double& val, VectorXd& grad)
 {
 	CLOCK(clock_t c = clock());
@@ -1887,13 +1887,145 @@ int DistortionCorrectionInformationComputer::metric(
 	return 0;
 }
 
+/**
+ * @brief Computes the metric value, when the moving image is a probability map
+ *
+ * @param val Output Value
+ */
+int DistCorrInfoComp::metricProbmap(double& val)
+{
+	// Views
+	BSplineView<double> bsp_vw(m_deform);
+	bsp_vw.m_boundmethod = ZEROFLUX;
+	bsp_vw.m_ras = true;
+
+	//Zero Inputs
+	m_pdfmove.zero();
+	m_pdffix.zero();
+	m_pdfjoint.zero();
+	m_dpdfmove.zero();
+	m_dpdfjoint.zero();
+
+	// for computing distorted indices
+	double cbinmove, cbinfix; //continuous
+	int binmove, binfix; // nearest int
+	double fcind[3]; // Continuous index in fixed image
+	double Fc;   /** Intensity Corrected Moving Value */
+	double Ff;   /** Fixed Value Value */
+
+	// Compute Updated Version of Distortion-Corrected Image
+	CLOCK(auto c = clock());
+	updateCaches();
+	CLOCK(c = clock() - c);
+	CLOCK(cerr << "Apply() Time: " << c << endl);
+	CLOCK(c = clock());
+
+	// Create Iterators/ Viewers
+	NDConstIter<double> cit(m_corr_cache);
+	NDConstIter<double> mit(m_move_cache);
+	NDConstIter<double> dmit(m_dmove_cache);
+	NDConstIter<double> fit(m_fixed);
+
+	// compute updated moving width
+	m_wmove = (m_rangemove[1]-m_rangemove[0])/(m_bins-2*m_krad-1);
+	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-2*m_krad-1);
+
+	// Compute Probabilities
+	for(cit.goBegin(), dmit.goBegin(), mit.goBegin(), fit.goBegin();
+			!fit.eof(); ++cit, ++mit, ++fit, ++dmit) {
+
+		// Compute Continuous Index of Point in Deform Image
+		fit.index(3, fcind);
+
+		// get actual values
+		Fc = cit.get();
+		Ff = fit.get();
+
+		// compute bins
+		cbinfix = (Ff-m_rangefix[0])/m_wfix + m_krad;
+		binfix = round(cbinfix);
+		cbinmove = (Fc-m_rangemove[0])/m_wmove + m_krad;
+		binmove = round(cbinmove);
+
+		/**************************************************************
+		 * Compute Joint PDF
+		 **************************************************************/
+		// Sum up Bins for Value Comp
+		for(int ii = binfix-m_krad; ii <= binfix+m_krad; ii++) {
+			for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++) {
+				m_pdfjoint[{ii,jj}] += B3kern(jj-cbinmove, m_krad)*
+					B3kern(ii-cbinfix, m_krad);
+			}
+		}
+	}
+
+	///////////////////////
+	// Update Entropies
+	///////////////////////
+
+	// Scale
+	size_t tbins = m_bins*m_bins;
+	double scale = 0;
+	for(size_t ii=0; ii<tbins; ii++)
+		scale += m_pdfjoint[ii];
+	scale = 1./scale;
+	for(size_t ii=0; ii<tbins; ii++)
+		m_pdfjoint[ii] *= scale;
+
+	// marginals
+	for(int64_t ii=0, bb=0; ii<m_bins; ii++) {
+		for(int64_t jj=0; jj<m_bins; jj++, bb++) {
+			m_pdffix[ii] += m_pdfjoint[bb];
+			m_pdfmove[jj] += m_pdfjoint[bb];
+		}
+	}
+
+	// Scale Joint
+	CLOCK(c = clock() - c);
+	CLOCK(cerr << "PDF() Time: " << c << endl);
+	CLOCK(c = clock());
+
+	// Compute Marginal Entropy
+	m_Hmove = 0;
+	m_Hfix = 0;
+	for(int ii=0; ii<m_bins; ii++) {
+		m_Hmove -= m_pdfmove[ii] > 0 ? m_pdfmove[ii]*log(m_pdfmove[ii]) : 0;
+		m_Hfix -= m_pdffix[ii] > 0 ? m_pdffix[ii]*log(m_pdffix[ii]) : 0;
+	}
+
+	// Compute Joint Entropy
+	m_Hjoint = 0;
+	size_t elem = m_pdfjoint.elements();
+	for(int ii=0; ii<elem; ii++)
+		m_Hjoint -= m_pdfjoint[ii] > 0 ? m_pdfjoint[ii]*log(m_pdfjoint[ii]) : 0;
+
+	// update value and grad
+	if(m_metric == METRIC_MI) {
+		val = m_Hfix+m_Hmove-m_Hjoint;
+	} else if(m_metric == METRIC_VI) {
+		val = 2*m_Hjoint-m_Hfix-m_Hmove;
+	} else if(m_metric == METRIC_NMI) {
+		val =  (m_Hfix+m_Hmove)/m_Hjoint;
+	}
+
+	CLOCK(c = clock() - c);
+	CLOCK(cerr << "H() Time: " << c << endl);
+	CLOCK(c = clock());
+
+	// negate if we are using a similarity measure
+	if(m_compdiff && (m_metric == METRIC_NMI || m_metric == METRIC_MI))
+		val = -val;
+
+	return 0;
+}
+
 
 /**
  * @brief Computes the metric value
  *
  * @param val Output Value
  */
-int DistortionCorrectionInformationComputer::metric(double& val)
+int DistCorrInfoComp::metric(double& val)
 {
 	// Views
 	BSplineView<double> bsp_vw(m_deform);
@@ -2030,7 +2162,7 @@ int DistortionCorrectionInformationComputer::metric(double& val)
  *
  * @return 0 if successful
  */
-int DistortionCorrectionInformationComputer::valueGrad(const VectorXd& params,
+int DistCorrInfoComp::valueGrad(const VectorXd& params,
 		double& val, VectorXd& grad)
 {
 	/*
@@ -2113,7 +2245,7 @@ int DistortionCorrectionInformationComputer::valueGrad(const VectorXd& params,
  *
  * @return 0 if successful
  */
-int DistortionCorrectionInformationComputer::grad(const VectorXd& params,
+int DistCorrInfoComp::grad(const VectorXd& params,
 		VectorXd& grad)
 {
 	double v = 0;
@@ -2128,7 +2260,7 @@ int DistortionCorrectionInformationComputer::grad(const VectorXd& params,
  *
  * @return 0 if successful
  */
-int DistortionCorrectionInformationComputer::value(const VectorXd& params,
+int DistCorrInfoComp::value(const VectorXd& params,
 		double& val)
 {
 	/*************************************************************************

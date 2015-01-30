@@ -34,7 +34,7 @@ namespace npl {
  * Registration functions are implemented with classes linked to optimization
  * functions. All registration algorithms ultimately may be performed with
  * a simple function call, but the Computer classes (of which there is
- * currently just RigidCorrComputer) are exposed in case you want to use them
+ * currently just RigidCorrComp) are exposed in case you want to use them
  * for your own registration algorithms.
  *
  * A computer is needed for every pair of Metric and Transform type.
@@ -56,7 +56,7 @@ namespace npl {
  * the negative of mutual information will be computed. Eventually this
  * functional will be somewhat generalized for all information-based metrics.
  */
-class RigidInformationComputer
+class RigidInfoComp
 {
 public:
 
@@ -75,7 +75,7 @@ public:
 	 * @param mindiff Whether to use negative correlation (for instance to
 	 * register images)
 	 */
-	RigidInformationComputer(bool mindiff);
+	RigidInfoComp(bool mindiff);
 
 	/**
 	 * @brief Computes the gradient and value of the correlation.
@@ -224,7 +224,7 @@ private:
  * Note that if you want to use this for registration, you should set m_mindiff
  * to get the negative of correlation.
  */
-class RigidCorrComputer
+class RigidCorrComp
 {
 public:
 
@@ -239,7 +239,7 @@ public:
 	 * @param mindiff Whether to use negative correlation (for instance to
 	 * minimize negative correlation using a gradient descent).
 	 */
-	RigidCorrComputer(bool mindiff);
+	RigidCorrComp(bool mindiff);
 
 	/**
 	 * @brief Computes the gradient and value of the correlation.
@@ -340,7 +340,7 @@ private:
  * the negative of mutual information will be computed. Eventually this
  * functional will be somewhat generalized for all information-based metrics.
  */
-class DistortionCorrectionInformationComputer
+class DistCorrInfoComp
 {
 public:
 
@@ -350,7 +350,7 @@ public:
 	 * @param mindiff Minimize difference? Set to true if you are using
 	 * this for registration
 	 */
-	DistortionCorrectionInformationComputer(bool mindiff);
+	DistCorrInfoComp(bool mindiff);
 
 	/**
 	 * @brief Computes the gradient and value of the correlation.
@@ -875,11 +875,6 @@ std::ostream& operator<< (std::ostream& stream, const Rigid3DTrans& rigid)
 
 	return stream;
 }
-
-//// Standard Typedefs, because some the names are long /////
-typedef RigidInformationComputer RigidInforComp;
-typedef RigidCorrComputer RigidCorrComp;
-typedef DistortionCorrectionInformationComputer DCInforComp;
 
 /** @} */
 

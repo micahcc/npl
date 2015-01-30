@@ -82,7 +82,7 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 
 	// Registration Tools, create with placeholder images
 	auto vol = dPtrCast<MRImage>(fmri->createAnother(3, vsize.data(), FLOAT32));
-	RigidCorrComputer comp(true);
+	RigidCorrComp comp(true);
 
 	// Pre-Compute Fixed Smoothing
 	vector<ptr<MRImage>> fixed;
@@ -103,9 +103,9 @@ vector<vector<double>> computeMotion(ptr<const MRImage> fmri, int reftime,
 	}
 
 	// create value and gradient functions
-	auto vfunc = bind(&RigidCorrComputer::value, &comp, _1, _2);
-	auto vgfunc = bind(&RigidCorrComputer::valueGrad, &comp, _1, _2, _3);
-	auto gfunc = bind(&RigidCorrComputer::grad, &comp, _1, _2);
+	auto vfunc = bind(&RigidCorrComp::value, &comp, _1, _2);
+	auto vgfunc = bind(&RigidCorrComp::valueGrad, &comp, _1, _2, _3);
+	auto gfunc = bind(&RigidCorrComp::grad, &comp, _1, _2);
 
 	// initialize optimizer
 	LBFGSOpt opt(6, vfunc, gfunc, vgfunc);
