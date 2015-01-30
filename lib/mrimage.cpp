@@ -75,7 +75,7 @@ ptr<MRImage> createMRImageHelp(size_t len, const size_t* dim)
 //		case 8:
 //			return make_shared<MRImageStore<8, T>>(len, dim);
 		default:
-			std::cerr << "Unsupported len, dimension: " << len << std::endl;
+			throw RUNTIME_ERROR("Unsupported len, dimension: "+to_string(len));
 			return NULL;
 	}
 
@@ -144,6 +144,7 @@ ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type)
 			return createMRImageHelp<rgba_t>(ndim, size);
 		break;
 		 default:
+			throw RUNTIME_ERROR("Unsupported pixel type: "+to_string(type));
 		return NULL;
 	}
 	return NULL;
@@ -197,7 +198,7 @@ ptr<MRImage> createMRImageHelp(size_t len, const size_t* dim,
 //		case 8:
 //			return make_shared<MRImageStore<8, T>>(len, dim, (T*)ptr, deleter);
 		default:
-			std::cerr << "Unsupported len, dimension: " << len << std::endl;
+			throw RUNTIME_ERROR("Unsupported dimensionality: "+to_string(len));
 			return NULL;
 	}
 
@@ -269,6 +270,7 @@ ptr<MRImage> createMRImage(size_t ndim, const size_t* size, PixelT type,
 			return createMRImageHelp<rgba_t>(ndim, size, ptr, deleter);
 		break;
 		 default:
+			throw RUNTIME_ERROR("Unsupported pixel type: "+to_string(type));
 		return NULL;
 	}
 	return NULL;
@@ -635,6 +637,7 @@ ptr<MRImage> _copyCast(ptr<const MRImage> in, size_t newdims,
 			_copyCast_help<rgba_t>(in, out);
 			break;
 		default:
+			throw RUNTIME_ERROR("Unsupported pixel type: "+to_string(newtype));
 			return NULL;
 	}
 	return out;

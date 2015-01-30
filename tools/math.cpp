@@ -129,6 +129,7 @@ int main(int argc, char** argv)
 	{
 	auto ptr = dPtrCast<MRImage>(readMRImage(args[refimg]));
 	out = dPtrCast<MRImage>(ptr->createAnother(FLOAT64));
+	type = ptr->type();
 	}
 
 	// TODO only resample lowest matching dimensions, then
