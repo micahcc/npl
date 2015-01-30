@@ -34,12 +34,10 @@
 #include "kdtree.h"
 #include "iterators.h"
 #include "accessors.h"
+#include "macros.h"
 
 using namespace npl;
 using namespace std;
-
-#define VERYDEBUG
-#include "macros.h"
 
 /**
  * @brief This function does a couple things (which I know violates the rule of
@@ -152,7 +150,7 @@ try {
 	/****************************************************
 	 * Read or Create Mask
 	 ****************************************************/
-	cout << "Loading/Creating Mask...";
+	cout << "Loading/Creating Mask"<<endl;
 	ptr<MRImage> fullmask;
 	if(a_mask.isSet()) {
 		fullmask = readMRImage(a_mask.getValue());
@@ -171,13 +169,12 @@ try {
 		double thresh = otsuThresh(fullres);
 
 		// binarize/threshold
-		cout << " (Threshold: " << thresh << ") ";
+		cout << " (Threshold: " << thresh << ") " << endl;
 		for(FlatIter<double> fit(fullmask); !fit.eof(); ++fit) {
 			fit.set(*fit > thresh);
 		}
 		fullmask = dPtrCast<MRImage>(erode(fullmask, 1));
 	}
-	cout << "Done...";
 #if defined VERYDEBUG || DEBUG
 	fullmask->write("fullmask.nii.gz");
 #endif
@@ -185,20 +182,18 @@ try {
 	/****************************************************
 	 * Create Downsampled, logged Versions if Inputs
 	 ****************************************************/
-	cout << "Downsampling/Normalizing...";
+	cout << "Downsampling/Normalizing" << endl;
 	ptr<MRImage> dinput;
 	ptr<MRImage> dmask;
 	preprocInputs(fullres, fullmask, a_downspace.getValue(), dinput, dmask);
 	fullmask.reset();
-	cout << "Done" << endl;
 
 	/********************************************************************
 	 * Estimate Bias Field Parameters from Pixels and Weights
 	 ********************************************************************/
-	cout << "Estimating Bias Field...";
+	cout << "Estimating Bias Field" << endl;
 	auto biasparams = estBiasParams(dinput, dmask, a_spacing.getValue(),
 			a_lambda.getValue());
-	cout << "Done...";
 	if(a_biasparams.isSet())
 		biasparams->write(a_biasparams.getValue());
 
@@ -225,7 +220,7 @@ try {
 	/*************************************************************************
 	 * Finally Write the Output
 	 ************************************************************************/
-	cout << "Done\nWriting..." << endl;
+	cout << "Writing output" << endl;
 	if(a_corimage.isSet()) {
 		// Re-Read Input (even if it is 4D)
 		auto input = readMRImage(a_in.getValue());
@@ -238,7 +233,6 @@ try {
 		}
 		input->write(a_corimage.getValue());
 	}
-	cout << "Done" << endl;
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
@@ -258,11 +252,12 @@ try {
 ptr<MRImage> estBiasParams(ptr<const MRImage> in, ptr<const MRImage> weight,
 		double spacing, double lambda)
 {
+	const double ABSLIMIT = 5;
+
 	// Create Double Bias Field
 	cout << "Creating Bias Field estimate with with " << spacing
-		<< "mm spacing...";
+		<< "mm spacing" << endl;
 	auto biasparams = createBiasField(in, spacing);
-	cout << "Done\n";
 
 	size_t ndim = in->ndim();
 	size_t nparams = 1; // number of Cubic-BSpline Parameters
@@ -339,31 +334,35 @@ ptr<MRImage> estBiasParams(ptr<const MRImage> in, ptr<const MRImage> weight,
 			for(size_t dd=0; dd<ndim; dd++)
 				w *= B3kern(ind[dd]-cind[dd]);
 
-			assert(linparam < nparams);
-			assert(linpix < npixels);
-			pixB.push_back(Eigen::Triplet<double>(linpix, linparam, w));
+			// Apply Weighting By Row, since we want to multiply the diagonal
+			// weighting matrix by the B matrix from the left
+			assert(linparam >= 0 && linparam < nparams);
+			assert(linpix >= 0 && linpix < npixels+nparams);
+			pixB.push_back(Eigen::Triplet<double>(linpix, linparam,
+						w*weights[linpix]));
 		}
 	}
 
 	/*****************************************************************
 	 * Least Squares Fit
 	 ****************************************************************/
-	cout << "Done\nBuilding Sparse Matrix...";
 	Eigen::SparseMatrix<double,Eigen::ColMajor> Bmat(npixels+nparams,nparams);
 	Bmat.setFromTriplets(pixB.begin(), pixB.end());
+
 	Bmat.makeCompressed();
 	Eigen::SparseQR<Eigen::SparseMatrix<double,Eigen::ColMajor>,
 			Eigen::COLAMDOrdering<int>> solver;
+	solver.compute(Bmat);
 
 	// adjust with relative weighs from weight
-	pixels = weights.asDiagonal()*pixels;
-	
-	cout << "Done\nComputing...";
-	solver.compute(weights.asDiagonal()*Bmat);
-	cout << "Done\nSolving...";
-	params = solver.solve(pixels);
-	cout << "Done" << endl;
+	cout << "Solving Params"<<endl;
+	params = solver.solve(weights.asDiagonal()*pixels);
 
+	// Find Values that are < 1/5 or more thant 5x
+	for(size_t cc=0; cc<params.rows(); cc++) {
+		if(params[cc] > log(ABSLIMIT) || params[cc] < log(1./ABSLIMIT))
+			params[cc] = 0;
+	}
 	return biasparams;
 }
 
@@ -402,7 +401,7 @@ ptr<MRImage> reconstructBiasField(ptr<const MRImage> biasparams,
 		karray[dd].resize(winsize[dd]);
 	}
 
-	// We go through each parameter, and compute the weight of the B-spline
+	// we go through each parameter, and compute the weight of the B-spline
 	// parameter at each pixel within the range (2 indexes in parameter
 	// space, 2*S_B/S_I indexs in pixel space)
 	for(NDConstIter<double> bit(biasparams); !bit.eof(); ++bit) {
@@ -446,7 +445,7 @@ ptr<MRImage> createBiasField(ptr<const MRImage> in, double bspace)
 
 	// get spacing and size
 	for(size_t dd=0; dd<osize.size(); ++dd) {
-		osize[dd] = 4+ceil(in->dim(dd)*in->spacing(dd)/bspace);
+		osize[dd] = ceil(in->dim(dd)*in->spacing(dd)/bspace);
 		spacing[dd] = bspace;
 	}
 
@@ -472,6 +471,28 @@ ptr<MRImage> createBiasField(ptr<const MRImage> in, double bspace)
 		it.set(0);
 
 	return biasparams;
+}
+
+double avg(ptr<const MRImage> input, ptr<const MRImage> mask)
+{
+	LinInterpNDView<double> m_interp(mask);
+	m_interp.m_ras = true;
+	vector<double> pt(input->ndim());
+	vector<int64_t> ind(input->ndim());
+
+	size_t count = 0;
+	double sum = 0;
+	for(NDConstIter<double> fit(input); !fit.eof(); ++fit) {
+		fit.index(ind);
+		input->indexToPoint(ind.size(), ind.data(), pt.data());
+		double m = m_interp(pt);
+		if(m > 0.5) {
+			sum += *fit;
+			count++;
+		}
+	}
+
+	return sum/count;
 }
 
 double mode(ptr<const MRImage> input, ptr<const MRImage> mask)
@@ -527,7 +548,7 @@ double mode(ptr<const MRImage> input, ptr<const MRImage> mask)
  * @param outside_weight Value of masked points OUTSIDE original mask
  * @param downimg Output: Downsampled and normalized version of input
  * @param downmask Output: Downsampled version of mask (with 0 values changed
- * outside_weight)
+ * to outside_weight)
  */
 void preprocInputs(ptr<const MRImage> input,
 		ptr<const MRImage> mask, double spacing,
@@ -543,15 +564,17 @@ void preprocInputs(ptr<const MRImage> input,
 	/************************************************************************
 	 * first normalize, dividing by the mode
 	 ************************************************************************/
-	double modev = mode(normed, mask);
-	cout  << " (Mode for normalizing: " << modev << " ) "; ;
+//	double normval = normval(normed, mask);
+//	cout  << " (Mode for normalizing: " << normval << " ) "; ;
+	double normval = avg(normed, mask);
+	cout  << " (Average for normalizing: " << normval << " ) "; ;
 
 	for(NDIter<double> iit(normed); !iit.eof(); ++iit) {
 		iit.index(ind);
 		normed->indexToPoint(ind.size(), ind.data(), pt.data());
 		double m = m_interp(pt);
 		if(m > 0.5) {
-			iit.set(*iit/modev);
+			iit.set(*iit/normval);
 		} else {
 			iit.set(1);
 		}
@@ -599,7 +622,7 @@ void preprocInputs(ptr<const MRImage> input,
 		if(m > 0.5) {
 			mit.set(1);
 		} else {
-			mit.set(0.000000001);
+			mit.set(0);
 		}
 	}
 }

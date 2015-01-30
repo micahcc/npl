@@ -110,7 +110,7 @@ public:
     MatrixType operatorInverseSqrt() const
     {
         eigen_assert(m_status == 1 && "Eigenvectors not yet computed.");
-        return eigenvectors()*eigenvalues.cwiseInverse().cwiseSqrt()*
+        return eigenvectors()*eigenvalues().cwiseInverse().cwiseSqrt()*
                     eigenvectors().transpose();
     };
 
@@ -128,7 +128,7 @@ public:
     MatrixType operatorSqrt() const
     {
         eigen_assert(m_status == 1 && "Eigenvectors not yet computed.");
-        return eigenvectors()*eigenvalues.cwiseSqrt()*eigenvectors().transpose();
+        return eigenvectors()*eigenvalues().cwiseSqrt()*eigenvectors().transpose();
     };
 
     /**
