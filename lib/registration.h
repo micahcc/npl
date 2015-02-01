@@ -334,6 +334,269 @@ private:
 /**
  * @brief The distortion correction MI Computer is used to compute the mutual
  * information and gradient of mutual information between two images using
+ * nonrigid, unidirectional, B-spline transform. In this variant the moving
+ * image should be a probability map.
+ *
+ * Note, if you want to register you should set the m_mindiff variable, so that
+ * the negative of mutual information will be computed. Eventually this
+ * functional will be somewhat generalized for all information-based metrics.
+ */
+class ProbDistCorrInfoComp
+{
+public:
+
+	/**
+	 * @brief Constructor for the distortion correction class.
+	 *
+	 * @param mindiff Minimize difference? Set to true if you are using
+	 * this for registration
+	 */
+	ProbDistCorrInfoComp(bool mindiff);
+
+	/**
+	 * @brief Computes the gradient and value of the correlation.
+	 *
+	 * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
+	 * @param val Value at the given rotation
+	 * @param grad Gradient at the given rotation
+	 *
+	 * @return 0 if successful
+	 */
+	int valueGrad(const Eigen::VectorXd& params, double& val,
+			Eigen::VectorXd& grad);
+
+	/**
+	 * @brief Computes the gradient of the correlation. Note that this
+	 * function just calls valueGrad because computing the
+	 * additional values are trivial
+	 *
+	 * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
+	 * @param grad Gradient at the given rotation
+	 *
+	 * @return 0 if successful
+	 */
+	int grad(const Eigen::VectorXd& params, Eigen::VectorXd& grad);
+
+	/**
+	 * @brief Computes the correlation.
+	 *
+	 * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
+	 * @param val Value at the given rotation
+	 *
+	 * @return 0 if successful
+	 */
+	int value(const Eigen::VectorXd& params, double& val);
+
+	/**
+	 * @brief Phase encode (distortion) dimensions
+	 */
+	int m_dir;
+
+	/**
+	 * @brief Compute the difference of images (negate MI and NMI)
+	 */
+	bool m_compdiff;
+
+	/**
+	 * @brief Thin-plate spline regularization weight
+	 */
+	double m_tps_reg;
+
+	/**
+	 * @brief Jacobian regularization weight
+	 */
+	double m_jac_reg;
+
+	/**
+	 * @brief Metric to use
+	 */
+	Metric m_metric;
+
+	/**
+	 * @brief Returns the number of parameters (knots)
+	 *
+	 * @return Number of parameters that are being estimated;
+	 */
+	size_t nparam() { return m_deform ? m_deform->elements() : 0; };
+
+	/**
+	 * @brief Reallocates histograms and if m_fixed has been set, regenerates
+	 * histogram estimate of fixed pdf
+	 *
+	 * @param nbins Number of bins for marginal estimation
+	 * @param krad Number of bins in kernel radius
+	 */
+	void setBins(size_t nbins, size_t krad);
+
+	/**
+	 * @brief Initializes knot spacing and if m_fixed has been set, then
+	 * initializes the m_deform image.
+	 *
+	 * @param space Spacing between knots, in physical coordinates
+	 */
+	void initializeKnots(double space);
+
+	/**
+	 * @brief Set the fixed image for registration/comparison
+	 *
+	 * @param fixed Input fixed image (not modified)
+	 */
+	void setFixed(ptr<const MRImage> fixed);
+
+	/**
+	 * @brief Return the current fixed image.
+	 *
+	 */
+	ptr<const MRImage> getFixed() { return m_fixed; };
+
+	/**
+	 * @brief Set the moving image for comparison, note that setting this
+	 * triggers a derivative computation and so is slower than setFixed. The
+	 * input image should be a probability map, where each component is a
+	 * volume. Thus the input should be 4D.
+	 *
+	 * Note that modification of the moving image outside this class without
+	 * re-calling setMoving is undefined and will result in an out-of-date
+	 * moving image derivative. THIS WILL BREAK GRADIENT CALCULATIONS.
+	 *
+	 * @param moving Input moving image (not modified)
+	 * @param dir Direction of distortion (the dimension, must be >= 0)
+	 */
+	void setMoving(ptr<const MRImage> moving, int dir = -1);
+
+	/**
+	 * @brief Return the current moving image.
+	 *
+	 * Note that modification of the moving image outside this class without
+	 * re-calling setMoving is undefined and will result in an out-of-date
+	 * moving image derivative. THIS WILL BREAK GRADIENT CALCULATIONS.
+	 */
+	ptr<const MRImage> getMoving() { return m_moving; };
+
+	/**
+	 * @brief Returns the current deformation
+	 *
+	 * @return
+	 */
+	ptr<MRImage> getDeform() { return m_deform; };
+
+private:
+	/**
+	 * @brief Computes the metric value and gradient
+	 *
+	 * @param val Output Value
+	 * @param grad Output Gradient
+	 */
+	int metric(double& val, VectorXd& grad);
+
+	/**
+	 * @brief Computes the metric value
+	 *
+	 * @param val Output Value
+	 */
+	int metric(double& val);
+
+	/* Variables:
+	 *
+	 * m_bins, m_krad
+	 *
+	 */
+
+	ptr<const MRImage> m_fixed;
+	ptr<const MRImage> m_moving;
+	ptr<MRImage> m_dmoving;
+	ptr<MRImage> m_deform;
+
+	ptr<MRImage> m_fixed_cache;
+
+	/**
+	 * @brief Updates m_move_cache, m_dmove_cache, m_corr_cache and m_rangemove
+	 */
+	void updateCaches();
+
+	/**
+	 * @brief Number of bins in marginal
+	 */
+	int m_bins;
+
+	/**
+	 * @brief Parzen Window (kernel) radius
+	 */
+	int m_krad;
+
+	/**
+	 * @brief Spacing between knots in mm
+	 */
+	double m_knotspace;
+
+	// for interpolating moving image, and iterating fixed
+	VectorXd gradbuff;
+
+	/**
+	 * @brief Histogram of fixed image, (initialized by setBins)
+	 */
+	NDArrayStore<1, double> m_pdffix;
+
+	/**
+	 * @brief X - fixed PDF, Y - moving PDF (initialized by setBins)
+	 */
+	NDArrayStore<2, double> m_pdfjoint;
+
+	/**
+	 * @brief First 3 Dimensions match dimensions in m_field, last two match
+	 * the dimensios of m_pdfjoint, (initialized by initializeKnots/setFixed)
+	 */
+	MRImageStore<5, double> m_dpdfjoint;
+
+	/**
+	 * @brief First 3 Dimensions match dimensions in m_field, last matches
+	 * m_pdfmove, (initialized by initializeKnots/setFixed)
+	 */
+	MRImageStore<4, double> m_dpdfmove;
+
+	/**
+	 * @brief Gradient of joint entropy at each knot.
+	 * (initialized by initializeKnots/setFixed)
+	 */
+	MRImageStore<3, double> m_gradHjoint;
+
+	/**
+	 * @brief Gradient of marginal entropy at each knot
+	 * (initialized by initializeKnots/setFixed)
+	 */
+	MRImageStore<3, double> m_gradHmove;
+
+	/**
+	 * @brief Entropy of fixed image (initialized by setFixed)
+	 */
+	double m_Hfix;
+
+	/**
+	 * @brief Entropy of moving image (updated by metric())
+	 */
+	double m_Hmove;
+
+	/**
+	 * @brief Entropy of joint image (updated by metric())
+	 */
+	double m_Hjoint;
+
+	/**
+	 * @brief min-max values in fixed image (initialized in setFixed)
+	 */
+	double m_rangefix[2];
+
+	/**
+	 * @brief Width of bins in the marginal distribution for the fixed image
+	 * (initialized in setFixed)
+	 */
+	double m_wfix;
+};
+
+
+/**
+ * @brief The distortion correction MI Computer is used to compute the mutual
+ * information and gradient of mutual information between two images using
  * nonrigid, unidirectional, B-spline transform.
  *
  * Note, if you want to register you should set the m_mindiff variable, so that

@@ -451,6 +451,46 @@ int information3DDerivTest(double step, double tol,
  *
  * @return 0 if success, -1 if failure
  */
+int distcorProbDerivTest(double step, double tol,
+		shared_ptr<const MRImage> in1, shared_ptr<const MRImage> in2,
+		double regj, double regt)
+{
+	using namespace std::placeholders;
+	ProbDistCorrInfoComp comp(false);
+	comp.initialize(in1, int2, 8, 256, 20, 1);
+	comp.m_metric = METRIC_MI;
+	comp.m_jac_reg = regj;
+	comp.m_tps_reg = regt;
+
+	auto vfunc = std::bind(&ProbDistCorrInfoComp::value, &comp, _1, _2);
+	auto vgfunc = std::bind(&ProbDistCorrInfoComp::valueGrad, &comp, _1, _2, _3);
+
+	double error = 0;
+	VectorXd x(comp.nparam());
+	for(size_t ii=0; ii<x.rows(); ii++)
+		x[ii] = 10*(rand()/(double)RAND_MAX-0.5);
+
+	if(testgrad(error, x, step, tol, vfunc, vgfunc) != 0) {
+		return -1;
+	}
+
+	return 0;
+}
+
+
+/**
+ * @brief This function checks the validity of the derivative functions used
+ * to optimize between-image corrlation.
+ *
+ * @param step Test step size
+ * @param tol Tolerance in error between analytical and Numeric gratient
+ * @param in1 Image 1
+ * @param in2 Image 2
+ * @param regj Jackobian weight
+ * @param regt Thin-plate-spline weight
+ *
+ * @return 0 if success, -1 if failure
+ */
 int distcorDerivTest(double step, double tol,
 		shared_ptr<const MRImage> in1, shared_ptr<const MRImage> in2,
 		double regj, double regt)
@@ -1367,6 +1407,679 @@ int RigidInfoComp::value(const VectorXd& params, double& val)
 	return 0;
 };
 
+/****************************************************************************
+ * Mutual Information/Normalize Mutual Information/Variation of Information
+ * Distortion Correction Based on a Probability Map
+ ****************************************************************************/
+
+/**
+ * @brief Constructor for the rigid correlation class. Note that
+ * rigid rotation is assumed to be about the center of the fixed
+ * image space. If necessary the input moving image will be resampled.
+ * To the same space as the fixed image.
+ *
+ * @param fixed Fixed image. A copy of this will be made.
+ * @param moving Moving image. A copy of this will be made.
+ * @param compdiff negate MI and NMI to create an effective distance
+ */
+ProbDistCorrInfoComp::ProbDistCorrInfoComp(bool compdiff) :
+			m_compdiff(compdiff), m_metric(METRIC_MI)
+{
+	setBins(128, 4);
+	m_dir = 1;
+	m_tps_reg = 0;
+	m_jac_reg = 0;
+}
+
+/**
+ * @brief Initializes knot spacing and if m_fixed has been set, then
+ * initializes the m_deform image.
+ *
+ * Note that modification of the moving image outside this class without
+ * re-calling setMoving is undefined and will result in an out-of-date
+ * moving image derivative. THIS WILL BREAK GRADIENT CALCULATIONS.
+ *
+ * @param newfixed New fixed image
+ * @param moving Input moving image, should be 4D with each volume containing
+ * a probability map (not modified)
+ * @param dir Direction of distortion (the dimension, must be >= 0)
+ * @param space Spacing between knots, in physical coordinates
+ */
+void ProbDistCorrInfoComp::initialize(ptr<const MRImage> fixed,
+		ptr<const MRImage> moving, size_t m_krad, size_t nbins, double space,
+		int dir)
+{
+	if(moving->ndim() != 4)
+		throw INVALID_ARGUMENT("Moving image is not 4D!");
+	if(fixed->ndim() != 3)
+		throw INVALID_ARGUMENT("Fixed image is not 3D!");
+	if(m_dir >= 3)
+		throw INVALID_ARGUMENT("Error direction should in [0,3)");
+	if(nbins <= krad*2)
+		throw INVALID_ARGUMENT("m_bins must be > m_krad*2");
+
+	// Set Direction
+	if(dir >= 0)
+		m_dir = dir;
+	else if(m_moving->m_phasedim >= 0)
+		m_dir = m_moving->m_phasedim;
+	else
+		m_dir = 1;
+
+	m_fixed = newfixed;
+	m_moving = newmove;
+	m_dmoving = dPtrCast<MRImage>(derivative(m_moving, m_dir));
+	m_bins = nbins;
+	m_krad = krad;
+
+	// allocate PDFs
+	m_pdffix.resize({nbins});
+	m_pdfjoint.resize({m_moving->tlen(), nbins});
+	m_pdfmove.resize(m_moving->tlen());
+
+	/************************
+	 * Create Deform
+	 ************************/
+	VectorXd spacing(3);
+	VectorXd origin(3);
+	vector<size_t> osize(5, 0);
+
+	// get spacing and size
+	for(size_t dd=0; dd<3; ++dd) {
+		osize[dd] = 4+ceil(m_fixed->dim(dd)*m_fixed->spacing(dd)/space);
+		spacing[dd] = space;
+	}
+	osize[3] = m_moving->tlen();
+	osize[4] = m_bins;
+
+	m_deform = createMRImage(3, osize.data(), FLOAT64);
+	m_deform->setDirection(m_fixed->getDirection(), false);
+	m_deform->setSpacing(spacing, false);
+
+	// compute center of input
+	VectorXd indc(3);
+	for(size_t dd=0; dd<3; dd++)
+		indc[dd] = (m_fixed->dim(dd)-1.)/2.;
+	VectorXd ptc(3); // point center
+	m_fixed->indexToPoint(3, indc.array().data(), ptc.array().data());
+
+	// compute origin from center index (x_c) and center of input (c):
+	// o = c-R(sx_c)
+	for(size_t dd=0; dd<3; dd++)
+		indc[dd] = (osize[dd]-1.)/2.;
+	origin = ptc - m_fixed->getDirection()*(spacing.asDiagonal()*indc);
+	m_deform->setOrigin(origin, false);
+
+	for(FlatIter<double> it(m_deform); !it.eof(); ++it)
+		it.set(0);
+
+	m_deform->m_phasedim = m_dir;
+
+	/*************************************
+	 * Create buffers for gradient
+	 *************************************/
+	gradbuff.resize(m_deform->elements());
+	m_gradHjoint.resize(osize.data()); //3D
+	m_gradHmove.resize(osize.data()); //3D
+
+	// Create Derivates of Individual Bins
+	m_dpdfmove.resize(osize.data()); // 4D
+	m_dpdfjoint.resize(osize.data()); // 5D
+}
+
+/**
+ * @brief Updates m_move_cache, m_dmove_cache, m_corr_cache and m_rangemove
+ */
+void ProbDistCorrInfoComp::updateCaches()
+{
+	NDConstView<double> fixed_vw(m_fixed);
+	BSplineView<double> bsp_vw(m_deform);
+	bsp_vw.m_boundmethod = ZEROFLUX;
+	bsp_vw.m_ras = true;
+
+	// Compute Probabilities
+	size_t dirlen = m_fixed_cache->dim(m_dir);
+	double dcind[3]; // index in distortion image
+	int64_t mind[3] ;
+	double pt[3]; // point
+	double Fm = 0;
+	for(NDIter<double> mit(m_fixed_cache); !mit.eof(); ++mit) {
+
+		// Compute Continuous Index of Point in Deform Image
+		mit.index(3, mind);
+		m_fixed_cache->indexToPoint(3, mind, pt);
+		m_deform->pointToIndex(3, pt, dcind);
+
+		// Sample B-Spline Value and Derivative at Current Position
+		double def = 0, ddef = 0;
+		bsp_vw.get(3, pt, m_dir, def, ddef);
+
+		// get linear index
+		double cind = mind[m_dir] + def/m_fixed->spacing(m_dir);
+		int64_t below = (int64_t)floor(cind);
+		int64_t above = below + 1;
+		Fm = 0;
+
+		// get values
+		if(below >= 0 && below < dirlen) {
+			mind[m_dir] = below;
+			Fm += fixed_vw.get(3, mind)*linKern(below-cind);
+		}
+		if(above >= 0 && above < dirlen) {
+			mind[m_dir] = above;
+			Fm += fixed_vw.get(3, mind)*linKern(above-cind);
+		}
+
+		mit.set(Fm);
+		m_rangefixed[0] = std::min(m_rangefixed[0], Fm);
+		m_rangefixed[1] = std::max(m_rangefixed[1], Fm);
+	}
+}
+
+/**
+ * @brief Computes the metric value and gradient
+ *
+ * @param val Output Value
+ * @param grad Output Gradient, in index coordinates (change of variables
+ * handled outside this function)
+ */
+int ProbDistCorrInfoComp::metric(double& val, VectorXd& grad)
+{
+	CLOCK(clock_t c = clock());
+
+	//Zero Inputs
+	m_pdfmove.zero();
+	m_pdffix.zero();
+	m_pdfjoint.zero();
+	m_dpdfmove.zero();
+	m_dpdfjoint.zero();
+
+	// for computing distorted indices
+	double cbinmove, cbinfix; //continuous
+	int binmove, binfix; // nearest int
+	double fcind[3]; // Continuous index in fixed image
+	double dcind[3]; // Continuous index in deformation
+	int64_t dnind[3]; // Nearest knot to dcind
+	int64_t dind[5]; // last two dimensions are for bins
+	double pt[3];
+	double Fm;   /** Moving Value */
+	double dFm;  /** Derivative Moving Value */
+	double Fc;   /** Intensity Corrected Moving Value */
+	double Ff;   /** Fixed Value Value */
+
+	// probweight cached derivative of p wrt to the center parameter
+	vector<double> fixweight(2*m_krad+1);
+	vector<double> invspace(m_deform->ndim());
+	for(size_t dd=0; dd<m_deform->ndim(); dd++)
+		invspace[dd] = 1./m_deform->spacing(dd);
+
+	Counter<> neighbors(3);
+	for(size_t dd=0; dd<3; dd++) neighbors.sz[dd] = 5;
+
+	// Compute Updated Version of Distortion-Corrected Image
+	CLOCK(c = clock());
+	updateCaches();
+	CLOCK(c = clock() - c);
+	CLOCK(cerr << "Apply() Time:" << c << endl);
+	CLOCK(c = clock());
+
+	// Create Iterators/ Viewers
+	Vector3DConstIter<double> mit(m_move);
+	Vector3DConstIter<double> dmit(m_dmove);
+	NDConstIter<double> fit(m_fixed_cache);
+
+	BSplineView<double> bsp_vw(m_deform);
+	bsp_vw.m_boundmethod = ZEROFLUX;
+	bsp_vw.m_ras = true;
+
+	// compute updated moving width
+	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-1);
+	size_t movbins = m_moving->tlen();
+
+	// Compute Probabilities
+	for(; !fit.eof(); ++mit, ++fit, ++dmit) {
+
+		// Compute Continuous Index of Point in Deform Image
+		fit.index(3, fcind);
+		m_fixed_cache->indexToPoint(3, fcind, pt);
+		m_deform->pointToIndex(3, pt, dcind);
+
+		// compute bins
+		binfix = round((fit.get()-m_rangefix[0])/m_wfix);
+
+		/**************************************************************
+		 * Compute Marginal and Joint PDF's
+		 **************************************************************/
+		// Sum up Bins for Value Comp
+		for(int ii = 0; ii < movbins; ii++) {
+			m_pdfjoint[{ii,binfix}] += mit[ii];
+		}
+
+		/**************************************************************
+		 * Compute Derivative of Marginal and Joint PDFs
+		 **************************************************************/
+
+		// Find center
+		for(size_t dd=0; dd<3; dd++)
+			dnind[dd] = round(dcind[dd]);
+
+		/********************************************************
+		 * Add to Derivatives of Bins Within Reach of the Point
+		 *******************************************************/
+		for(dind[0] = max<int64_t>(0,dnind[0]-2); dind[0] <
+				min<int64_t>(m_deform->dim(0),dnind[0]+2); dind[0]++) {
+		for(dind[1] = max<int64_t>(0,dnind[1]-2); dind[1] <
+				min<int64_t>(m_deform->dim(1),dnind[1]+2); dind[1]++) {
+		for(dind[2] = max<int64_t>(0,dnind[2]-2); dind[2] <
+				min<int64_t>(m_deform->dim(2),dnind[2]+2); dind[2]++) {
+
+			double dPHI_dphi = 1;
+			for(int ii = 0; ii < 3; ii++)
+				dPHI_dphi *= B3kern(dind[ii]-dcind[ii]);
+
+			double dPHI_dydphi = 1;
+			for(int ii = 0; ii < 3; ii++) {
+				if(ii == m_dir)
+					dPHI_dydphi *= -invspace[ii]*dB3kern(dind[ii]-dcind[ii]);
+				else
+					dPHI_dydphi *= B3kern(dind[ii]-dcind[ii]);
+			}
+
+			double dg_dphi;
+			if(Fm <= 0) // 0/0 => 1
+				dg_dphi = dFm*dPHI_dphi;
+			else
+				dg_dphi = dFm*dPHI_dphi + Fm*dPHI_dydphi;
+
+			assert(dg_dphi == dg_dphi);
+			for(int ii = 0; ii < movbins; ii++) {
+				dind[3] = ii;
+				dind[4] = binfix;
+				m_dpdfjoint[dind] += dg_dphi*dmit[ii];
+			}
+		}
+		}
+		}
+	}
+
+	///////////////////////
+	// Update Entropies
+	///////////////////////
+
+	// scale
+	size_t tbins = movbins*m_bins;
+	double scale = 0;
+	for(size_t ii=0; ii<tbins; ii++)
+		scale += m_pdfjoint[ii];
+	scale = 1./scale;
+	for(size_t ii=0; ii<tbins; ii++)
+		m_pdfjoint[ii] *= scale;
+
+	// marginals
+	for(int64_t ii=0, bb=0; ii<m_bins; ii++) {
+		for(int64_t jj=0; jj<m_bins; jj++, bb++) {
+			m_pdffix[ii] += m_pdfjoint[bb];
+			m_pdfmove[jj] += m_pdfjoint[bb];
+		}
+	}
+
+	//////////////////////////////
+	// Update Gradient Entropies
+	//////////////////////////////
+
+	size_t dpjsz = m_dpdfjoint.elements();
+	for(size_t ii=0; ii<dpjsz; ii++)
+		m_dpdfjoint[ii] *= -scale;
+	size_t dpmsz = m_dpdfmove.elements();
+	for(size_t ii=0; ii<dpmsz; ii++)
+		m_dpdfmove[ii] *= -scale;
+
+	size_t nparams = m_gradHmove.elements();
+
+	CLOCK(c = clock() - c);
+	CLOCK(cerr << "dPDF() Time: " << c << endl);
+	CLOCK(c = clock());
+
+	// update m_Hmove
+	m_Hmove = 0;
+	m_Hfix = 0;
+	for(int ii=0; ii<m_bins; ii++) {
+		m_Hmove -= m_pdfmove[ii] > 0 ? m_pdfmove[ii]*log(m_pdfmove[ii]) : 0;
+		m_Hfix -= m_pdffix[ii] > 0 ? m_pdffix[ii]*log(m_pdffix[ii]) : 0;
+	}
+
+	// update m_Hjoint
+	m_Hjoint = 0;
+	for(int ii=0; ii<tbins; ii++)
+		m_Hjoint -= m_pdfjoint[ii] > 0 ? m_pdfjoint[ii]*log(m_pdfjoint[ii]) : 0;
+
+
+	// Compute Gradient Marginal Entropy
+	m_gradHmove.zero();
+	for(int64_t ii=0; ii<m_bins; ii++) {
+		double p = m_pdfmove[ii];
+		if(p <= 0)
+			continue;
+		double lp = (log(p)+1);
+		for(int64_t pp=0; pp<nparams; pp++)
+			m_gradHmove[pp] -= lp*m_dpdfmove[pp*m_bins + ii];
+	}
+
+	// Compute Gradient Joint Entropy
+	m_gradHjoint.zero();
+	for(size_t ii=0; ii<tbins; ii++) {
+		double p = m_pdfjoint[ii];
+		if(p <= 0)
+			continue;
+		double lp = (log(p)+1);
+		for(size_t pp=0; pp<nparams; pp++)
+			m_gradHjoint[pp] -= lp*m_dpdfjoint[pp*tbins + ii];
+	}
+
+	CLOCK(c = clock() - c);
+	CLOCK(cerr << "dH() Time: " << c << endl);
+	CLOCK(c = clock());
+
+	// update value and grad
+	if(m_metric == METRIC_MI) {
+		size_t elements = m_deform->elements();
+		val = m_Hfix+m_Hmove-m_Hjoint;
+		// Fill Gradient From GradH Images
+		for(size_t ii=0; ii<elements; ii++)
+			grad[ii] = (m_gradHmove[ii]-m_gradHjoint[ii])*
+				m_moving->spacing(m_dir);
+
+	} else if(m_metric == METRIC_VI) {
+		size_t elements = m_deform->elements();
+		val = 2*m_Hjoint-m_Hfix-m_Hmove;
+		for(size_t ii=0; ii<elements; ii++)
+			grad[ii] = (2*m_gradHjoint[ii] - m_gradHmove[ii])*
+				m_moving->spacing(m_dir);
+
+	} else if(m_metric == METRIC_NMI) {
+		size_t elements = m_deform->elements();
+		val =  (m_Hfix+m_Hmove)/m_Hjoint;
+		for(size_t ii=0; ii<elements; ii++)
+			grad[ii] = m_moving->spacing(m_dir)*(m_gradHmove[ii]/m_Hjoint -
+				m_gradHjoint[ii]*(m_Hfix+m_Hmove)/(m_Hjoint*m_Hjoint));
+	}
+
+	// negate if we are using a similarity measure
+	if(m_compdiff && (m_metric == METRIC_NMI || m_metric == METRIC_MI)) {
+		grad = -grad;
+		val = -val;
+	}
+
+	return 0;
+}
+
+/**
+ * @brief Computes the metric value
+ *
+ * @param val Output Value
+ */
+int ProbDistCorrInfoComp::metric(double& val)
+{
+	// Views
+	BSplineView<double> bsp_vw(m_deform);
+	bsp_vw.m_boundmethod = ZEROFLUX;
+	bsp_vw.m_ras = true;
+
+	//Zero Inputs
+	m_pdfmove.zero();
+	m_pdffix.zero();
+	m_pdfjoint.zero();
+
+	// for computing distorted indices
+	double cbinfix; //continuous
+	int binfix; // nearest int
+
+	// Compute Updated Version of Distortion-Corrected Image
+	CLOCK(auto c = clock());
+	updateCaches();
+	CLOCK(c = clock() - c);
+	CLOCK(cerr << "Apply() Time: " << c << endl);
+	CLOCK(c = clock());
+	size_t movbins = m_moving->tlen();
+
+	// Create Iterators/ Viewers
+	Vector3DConstIter<double> mit(m_move);
+	NDConstIter<double> fit(m_fixed_cache);
+
+	// compute updated moving width
+	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-1);
+
+	// Compute Probabilities
+	for(; !fit.eof(); ++mit, ++fit) {
+		// compute bins
+		binfix = round((fit.get()-m_rangefix[0])/m_wfix);
+
+		/**************************************************************
+		 * Compute Joint PDF
+		 **************************************************************/
+		// Sum up Bins for Value Comp
+		for(int ii = 0; ii < movbins; ii++)
+			m_pdfjoint[{ii,binfix}] += mit[ii];
+	}
+
+	///////////////////////
+	// Update Entropies
+	///////////////////////
+
+	// Scale
+	size_t tbins = m_bins*m_bins;
+	double scale = 0;
+	for(size_t ii=0; ii<tbins; ii++)
+		scale += m_pdfjoint[ii];
+	scale = 1./scale;
+	for(size_t ii=0; ii<tbins; ii++)
+		m_pdfjoint[ii] *= scale;
+
+	// marginals
+	for(int64_t ii=0, bb=0; ii<m_bins; ii++) {
+		for(int64_t jj=0; jj<m_bins; jj++, bb++) {
+			m_pdffix[ii] += m_pdfjoint[bb];
+			m_pdfmove[jj] += m_pdfjoint[bb];
+		}
+	}
+
+	// Scale Joint
+	CLOCK(c = clock() - c);
+	CLOCK(cerr << "PDF() Time: " << c << endl);
+	CLOCK(c = clock());
+
+	// Compute Marginal Entropy
+	m_Hmove = 0;
+	m_Hfix = 0;
+	for(int ii=0; ii<m_bins; ii++) {
+		m_Hmove -= m_pdfmove[ii] > 0 ? m_pdfmove[ii]*log(m_pdfmove[ii]) : 0;
+		m_Hfix -= m_pdffix[ii] > 0 ? m_pdffix[ii]*log(m_pdffix[ii]) : 0;
+	}
+
+	// Compute Joint Entropy
+	m_Hjoint = 0;
+	size_t elem = m_pdfjoint.elements();
+	for(int ii=0; ii<elem; ii++)
+		m_Hjoint -= m_pdfjoint[ii] > 0 ? m_pdfjoint[ii]*log(m_pdfjoint[ii]) : 0;
+
+	// update value and grad
+	if(m_metric == METRIC_MI) {
+		val = m_Hfix+m_Hmove-m_Hjoint;
+	} else if(m_metric == METRIC_VI) {
+		val = 2*m_Hjoint-m_Hfix-m_Hmove;
+	} else if(m_metric == METRIC_NMI) {
+		val =  (m_Hfix+m_Hmove)/m_Hjoint;
+	}
+
+	CLOCK(c = clock() - c);
+	CLOCK(cerr << "H() Time: " << c << endl);
+	CLOCK(c = clock());
+
+	// negate if we are using a similarity measure
+	if(m_compdiff && (m_metric == METRIC_NMI || m_metric == METRIC_MI))
+		val = -val;
+
+	return 0;
+}
+
+/**
+ * @brief Computes the gradient and value of the correlation.
+ *
+ * @param x Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
+ * @param v Value at the given rotation
+ * @param g Gradient at the given rotation
+ *
+ * @return 0 if successful
+ */
+int ProbDistCorrInfoComp::valueGrad(const VectorXd& params, double& val,
+		VectorXd& grad)
+{
+	/*
+	 * Check That Everything Is Properly Initialized
+	 */
+	if(!m_fixed) throw INVALID_ARGUMENT("ERROR must set fixed image before "
+				"computing value.");
+	if(!m_moving) throw INVALID_ARGUMENT("ERROR must set moving image before "
+				"computing value.");
+	if(!m_moving->matchingOrient(m_fixed, true, true))
+		throw INVALID_ARGUMENT("ERROR input images must be in same index "
+				"space");
+
+	assert(m_bins > m_krad*2);
+
+	assert(m_pdfmove.dim(0) == m_bins);
+	assert(m_pdfjoint.dim(0) == m_bins); // Moving
+	assert(m_pdfjoint.dim(1) == m_bins); // Fixed
+
+	assert(m_dpdfjoint.dim(0) == m_deform->dim(0));
+	assert(m_dpdfjoint.dim(1) == m_deform->dim(1));
+	assert(m_dpdfjoint.dim(2) == m_deform->dim(2));
+	assert(m_dpdfjoint.dim(3) == m_bins); // Moving PDF
+	assert(m_dpdfjoint.dim(4) == m_bins); // Fixed PDF
+
+	assert(m_dpdfmove.dim(0) == m_deform->dim(0));
+	assert(m_dpdfmove.dim(1) == m_deform->dim(1));
+	assert(m_dpdfmove.dim(2) == m_deform->dim(2));
+	assert(m_dpdfmove.dim(3) == m_bins); // Moving
+
+	assert(m_deform->elements() == gradbuff.rows());
+
+	// Fill Deform Image from params
+	FlatIter<double> dit(m_deform);
+	for(size_t ii=0; !dit.eof(); ++dit, ++ii)
+		dit.set(params[ii]);
+
+	/*
+	 * Compute the Gradient and Value
+	 */
+	val  = 0;
+	size_t nparam = m_deform->elements();
+	grad.setZero();
+	BSplineView<double> b_vw(m_deform);
+	b_vw.m_boundmethod = ZEROFLUX;
+
+	// Compute and add Thin Plate Spline
+	if(m_tps_reg > 0) {
+		val += m_tps_reg*b_vw.thinPlateEnergy(nparam,gradbuff.array().data());
+		grad += m_tps_reg*gradbuff;
+	}
+
+	// Compute and add Jacobian
+	if(m_jac_reg > 0) {
+		val += m_jac_reg*b_vw.jacobianDet(m_dir,nparam,gradbuff.array().data());
+		grad += m_jac_reg*gradbuff;
+	}
+
+	// Compute and add Metric
+	double tmp = 0;
+	if(metric(tmp, gradbuff) != 0) return -1;
+	val += tmp;
+	grad += gradbuff;
+
+//#if defined DEBUG || defined VERYDEBUG
+	cerr << "ValueGrad() = " << val << " / " << grad.norm() << endl;
+//#endif
+
+	return 0;
+}
+
+
+/**
+ * @brief Computes the gradient of the correlation. Note that this
+ * function just calls valueGrad because computing the
+ * additional values are trivial
+ *
+ * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
+ * @param grad Gradient at the given rotation
+ *
+ * @return 0 if successful
+ */
+int ProbDistCorrInfoComp::grad(const VectorXd& params, VectorXd& grad)
+{
+	double v = 0;
+	return valueGrad(params, v, grad);
+}
+
+/**
+ * @brief Computes the correlation.
+ *
+ * @param params Paramters (Rx, Ry, Rz, Sx, Sy, Sz).
+ * @param val Value at the given rotation
+ *
+ * @return 0 if successful
+ */
+int ProbDistCorrInfoComp::value(const VectorXd& params, double& val)
+{
+	/*************************************************************************
+	 * Check State
+	 ************************************************************************/
+	if(!m_fixed) throw INVALID_ARGUMENT("ERROR must set fixed image before "
+				"computing value.");
+	if(!m_moving) throw INVALID_ARGUMENT("ERROR must set moving image before "
+				"computing value.");
+	if(!m_moving->matchingOrient(m_fixed, true, true))
+		throw INVALID_ARGUMENT("ERROR input images must be in same index "
+				"space");
+
+	assert(m_bins > m_krad*2);
+
+	assert(m_pdfmove.dim(0) == m_bins);
+	assert(m_pdfjoint.dim(0) == m_bins); // Moving
+	assert(m_pdfjoint.dim(1) == m_bins); // Fixed
+
+	// Fill Parameter Image
+	FlatIter<double> dit(m_deform);
+	for(size_t ii=0; !dit.eof(); ++dit, ++ii)
+		dit.set(params[ii]);
+
+	/*
+	 * Compute Value
+	 */
+	val = 0;
+	BSplineView<double> b_vw(m_deform);
+	b_vw.m_boundmethod = ZEROFLUX;
+
+	// Compute and add Thin Plate Spline
+	if(m_tps_reg > 0) {
+		val += b_vw.thinPlateEnergy()*m_tps_reg;
+	}
+
+	// Compute and add Jacobian
+	if(m_jac_reg > 0) {
+		val += b_vw.jacobianDet(m_dir)*m_jac_reg;
+	}
+
+	// Compute and add Metric
+	double tmp = 0;
+	if(metric(tmp) != 0) return -1;
+	val += tmp;
+
+//#if defined DEBUG || defined VERYDEBUG
+	cerr << "Value() = " << val << endl;
+//#endif
+
+	return 0;
+};
 
 /****************************************************************************
  * Mutual Information/Normalize Mutual Information/Variation of Information
@@ -1383,9 +2096,8 @@ int RigidInfoComp::value(const VectorXd& params, double& val)
  * @param moving Moving image. A copy of this will be made.
  * @param compdiff negate MI and NMI to create an effective distance
  */
-DistCorrInfoComp::
-			DistCorrInfoComp(bool compdiff) :
-			m_compdiff(compdiff), m_metric(METRIC_MI)
+DistCorrInfoComp::DistCorrInfoComp(bool compdiff) :
+	m_compdiff(compdiff), m_metric(METRIC_MI)
 {
 	m_knotspace = 10;
 	setBins(128, 4);
@@ -1495,8 +2207,7 @@ void DistCorrInfoComp::setBins(size_t nbins, size_t krad)
  *
  * @param newmove New moving image
  */
-void DistCorrInfoComp::setMoving(
-		ptr<const MRImage> newmove, int dir)
+void DistCorrInfoComp::setMoving(ptr<const MRImage> newmove, int dir)
 {
 	if(newmove->ndim() != 3)
 		throw INVALID_ARGUMENT("Moving image is not 3D!");
@@ -1553,7 +2264,9 @@ void DistCorrInfoComp::setFixed(ptr<const MRImage> newfixed)
 	}
 }
 
-
+/**
+ * @brief Updates m_move_cache, m_dmove_cache, m_corr_cache and m_rangemove
+ */
 void DistCorrInfoComp::updateCaches()
 {
 	m_rangemove[0] = 0;
@@ -1619,8 +2332,7 @@ void DistCorrInfoComp::updateCaches()
  * @param grad Output Gradient, in index coordinates (change of variables
  * handled outside this function)
  */
-int DistCorrInfoComp::metric(
-		double& val, VectorXd& grad)
+int DistCorrInfoComp::metric(double& val, VectorXd& grad)
 {
 	CLOCK(clock_t c = clock());
 	//Zero Inputs
@@ -1888,139 +2600,6 @@ int DistCorrInfoComp::metric(
 }
 
 /**
- * @brief Computes the metric value, when the moving image is a probability map
- *
- * @param val Output Value
- */
-int DistCorrInfoComp::metricProbmap(double& val)
-{
-	// Views
-	BSplineView<double> bsp_vw(m_deform);
-	bsp_vw.m_boundmethod = ZEROFLUX;
-	bsp_vw.m_ras = true;
-
-	//Zero Inputs
-	m_pdfmove.zero();
-	m_pdffix.zero();
-	m_pdfjoint.zero();
-	m_dpdfmove.zero();
-	m_dpdfjoint.zero();
-
-	// for computing distorted indices
-	double cbinmove, cbinfix; //continuous
-	int binmove, binfix; // nearest int
-	double fcind[3]; // Continuous index in fixed image
-	double Fc;   /** Intensity Corrected Moving Value */
-	double Ff;   /** Fixed Value Value */
-
-	// Compute Updated Version of Distortion-Corrected Image
-	CLOCK(auto c = clock());
-	updateCaches();
-	CLOCK(c = clock() - c);
-	CLOCK(cerr << "Apply() Time: " << c << endl);
-	CLOCK(c = clock());
-
-	// Create Iterators/ Viewers
-	NDConstIter<double> cit(m_corr_cache);
-	NDConstIter<double> mit(m_move_cache);
-	NDConstIter<double> dmit(m_dmove_cache);
-	NDConstIter<double> fit(m_fixed);
-
-	// compute updated moving width
-	m_wmove = (m_rangemove[1]-m_rangemove[0])/(m_bins-2*m_krad-1);
-	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-2*m_krad-1);
-
-	// Compute Probabilities
-	for(cit.goBegin(), dmit.goBegin(), mit.goBegin(), fit.goBegin();
-			!fit.eof(); ++cit, ++mit, ++fit, ++dmit) {
-
-		// Compute Continuous Index of Point in Deform Image
-		fit.index(3, fcind);
-
-		// get actual values
-		Fc = cit.get();
-		Ff = fit.get();
-
-		// compute bins
-		cbinfix = (Ff-m_rangefix[0])/m_wfix + m_krad;
-		binfix = round(cbinfix);
-		cbinmove = (Fc-m_rangemove[0])/m_wmove + m_krad;
-		binmove = round(cbinmove);
-
-		/**************************************************************
-		 * Compute Joint PDF
-		 **************************************************************/
-		// Sum up Bins for Value Comp
-		for(int ii = binfix-m_krad; ii <= binfix+m_krad; ii++) {
-			for(int jj = binmove-m_krad; jj <= binmove+m_krad; jj++) {
-				m_pdfjoint[{ii,jj}] += B3kern(jj-cbinmove, m_krad)*
-					B3kern(ii-cbinfix, m_krad);
-			}
-		}
-	}
-
-	///////////////////////
-	// Update Entropies
-	///////////////////////
-
-	// Scale
-	size_t tbins = m_bins*m_bins;
-	double scale = 0;
-	for(size_t ii=0; ii<tbins; ii++)
-		scale += m_pdfjoint[ii];
-	scale = 1./scale;
-	for(size_t ii=0; ii<tbins; ii++)
-		m_pdfjoint[ii] *= scale;
-
-	// marginals
-	for(int64_t ii=0, bb=0; ii<m_bins; ii++) {
-		for(int64_t jj=0; jj<m_bins; jj++, bb++) {
-			m_pdffix[ii] += m_pdfjoint[bb];
-			m_pdfmove[jj] += m_pdfjoint[bb];
-		}
-	}
-
-	// Scale Joint
-	CLOCK(c = clock() - c);
-	CLOCK(cerr << "PDF() Time: " << c << endl);
-	CLOCK(c = clock());
-
-	// Compute Marginal Entropy
-	m_Hmove = 0;
-	m_Hfix = 0;
-	for(int ii=0; ii<m_bins; ii++) {
-		m_Hmove -= m_pdfmove[ii] > 0 ? m_pdfmove[ii]*log(m_pdfmove[ii]) : 0;
-		m_Hfix -= m_pdffix[ii] > 0 ? m_pdffix[ii]*log(m_pdffix[ii]) : 0;
-	}
-
-	// Compute Joint Entropy
-	m_Hjoint = 0;
-	size_t elem = m_pdfjoint.elements();
-	for(int ii=0; ii<elem; ii++)
-		m_Hjoint -= m_pdfjoint[ii] > 0 ? m_pdfjoint[ii]*log(m_pdfjoint[ii]) : 0;
-
-	// update value and grad
-	if(m_metric == METRIC_MI) {
-		val = m_Hfix+m_Hmove-m_Hjoint;
-	} else if(m_metric == METRIC_VI) {
-		val = 2*m_Hjoint-m_Hfix-m_Hmove;
-	} else if(m_metric == METRIC_NMI) {
-		val =  (m_Hfix+m_Hmove)/m_Hjoint;
-	}
-
-	CLOCK(c = clock() - c);
-	CLOCK(cerr << "H() Time: " << c << endl);
-	CLOCK(c = clock());
-
-	// negate if we are using a similarity measure
-	if(m_compdiff && (m_metric == METRIC_NMI || m_metric == METRIC_MI))
-		val = -val;
-
-	return 0;
-}
-
-
-/**
  * @brief Computes the metric value
  *
  * @param val Output Value
@@ -2036,13 +2615,10 @@ int DistCorrInfoComp::metric(double& val)
 	m_pdfmove.zero();
 	m_pdffix.zero();
 	m_pdfjoint.zero();
-	m_dpdfmove.zero();
-	m_dpdfjoint.zero();
 
 	// for computing distorted indices
 	double cbinmove, cbinfix; //continuous
 	int binmove, binfix; // nearest int
-	double fcind[3]; // Continuous index in fixed image
 	double Fc;   /** Intensity Corrected Moving Value */
 	double Ff;   /** Fixed Value Value */
 
@@ -2056,7 +2632,6 @@ int DistCorrInfoComp::metric(double& val)
 	// Create Iterators/ Viewers
 	NDConstIter<double> cit(m_corr_cache);
 	NDConstIter<double> mit(m_move_cache);
-	NDConstIter<double> dmit(m_dmove_cache);
 	NDConstIter<double> fit(m_fixed);
 
 	// compute updated moving width
@@ -2064,12 +2639,8 @@ int DistCorrInfoComp::metric(double& val)
 	m_wfix = (m_rangefix[1]-m_rangefix[0])/(m_bins-2*m_krad-1);
 
 	// Compute Probabilities
-	for(cit.goBegin(), dmit.goBegin(), mit.goBegin(), fit.goBegin();
-			!fit.eof(); ++cit, ++mit, ++fit, ++dmit) {
-
-		// Compute Continuous Index of Point in Deform Image
-		fit.index(3, fcind);
-
+	for(cit.goBegin(), mit.goBegin(), fit.goBegin();
+			!fit.eof(); ++cit, ++mit, ++fit) {
 		// get actual values
 		Fc = cit.get();
 		Ff = fit.get();
