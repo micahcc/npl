@@ -457,7 +457,7 @@ int distcorProbDerivTest(double step, double tol,
 {
 	using namespace std::placeholders;
 	ProbDistCorrInfoComp comp(false);
-	comp.initialize(in1, int2, 8, 256, 20, 1);
+	comp.initialize(in1, in2, 8, 256, 20, 1);
 	comp.m_metric = METRIC_MI;
 	comp.m_jac_reg = regj;
 	comp.m_tps_reg = regt;
@@ -1425,7 +1425,8 @@ int RigidInfoComp::value(const VectorXd& params, double& val)
 ProbDistCorrInfoComp::ProbDistCorrInfoComp(bool compdiff) :
 			m_compdiff(compdiff), m_metric(METRIC_MI)
 {
-	setBins(128, 4);
+	m_bins = 128;
+	m_krad = 4;
 	m_dir = 1;
 	m_tps_reg = 0;
 	m_jac_reg = 0;
@@ -1446,7 +1447,7 @@ ProbDistCorrInfoComp::ProbDistCorrInfoComp(bool compdiff) :
  * @param space Spacing between knots, in physical coordinates
  */
 void ProbDistCorrInfoComp::initialize(ptr<const MRImage> fixed,
-		ptr<const MRImage> moving, size_t m_krad, size_t nbins, double space,
+		ptr<const MRImage> moving, size_t krad, size_t nbins, double space,
 		int dir)
 {
 	if(moving->ndim() != 4)
@@ -1466,16 +1467,17 @@ void ProbDistCorrInfoComp::initialize(ptr<const MRImage> fixed,
 	else
 		m_dir = 1;
 
-	m_fixed = newfixed;
-	m_moving = newmove;
+	m_fixed = fixed;
+	m_moving = moving;
 	m_dmoving = dPtrCast<MRImage>(derivative(m_moving, m_dir));
 	m_bins = nbins;
 	m_krad = krad;
 
+	size_t movbins = m_moving->tlen();
 	// allocate PDFs
 	m_pdffix.resize({nbins});
-	m_pdfjoint.resize({m_moving->tlen(), nbins});
-	m_pdfmove.resize(m_moving->tlen());
+	m_pdfmove.resize({movbins});
+	m_pdfjoint.resize({movbins, nbins});
 
 	/************************
 	 * Create Deform
@@ -1489,7 +1491,7 @@ void ProbDistCorrInfoComp::initialize(ptr<const MRImage> fixed,
 		osize[dd] = 4+ceil(m_fixed->dim(dd)*m_fixed->spacing(dd)/space);
 		spacing[dd] = space;
 	}
-	osize[3] = m_moving->tlen();
+	osize[3] = movbins;
 	osize[4] = m_bins;
 
 	m_deform = createMRImage(3, osize.data(), FLOAT64);
@@ -1571,8 +1573,8 @@ void ProbDistCorrInfoComp::updateCaches()
 		}
 
 		mit.set(Fm);
-		m_rangefixed[0] = std::min(m_rangefixed[0], Fm);
-		m_rangefixed[1] = std::max(m_rangefixed[1], Fm);
+		m_rangefix[0] = std::min(m_rangefix[0], Fm);
+		m_rangefix[1] = std::max(m_rangefix[1], Fm);
 	}
 }
 
@@ -1595,17 +1597,12 @@ int ProbDistCorrInfoComp::metric(double& val, VectorXd& grad)
 	m_dpdfjoint.zero();
 
 	// for computing distorted indices
-	double cbinmove, cbinfix; //continuous
-	int binmove, binfix; // nearest int
+	int binfix; // nearest int
 	double fcind[3]; // Continuous index in fixed image
 	double dcind[3]; // Continuous index in deformation
 	int64_t dnind[3]; // Nearest knot to dcind
 	int64_t dind[5]; // last two dimensions are for bins
 	double pt[3];
-	double Fm;   /** Moving Value */
-	double dFm;  /** Derivative Moving Value */
-	double Fc;   /** Intensity Corrected Moving Value */
-	double Ff;   /** Fixed Value Value */
 
 	// probweight cached derivative of p wrt to the center parameter
 	vector<double> fixweight(2*m_krad+1);
@@ -1624,8 +1621,8 @@ int ProbDistCorrInfoComp::metric(double& val, VectorXd& grad)
 	CLOCK(c = clock());
 
 	// Create Iterators/ Viewers
-	Vector3DConstIter<double> mit(m_move);
-	Vector3DConstIter<double> dmit(m_dmove);
+	Vector3DConstIter<double> mit(m_moving);
+	Vector3DConstIter<double> dmit(m_dmoving);
 	NDConstIter<double> fit(m_fixed_cache);
 
 	BSplineView<double> bsp_vw(m_deform);
@@ -1685,17 +1682,10 @@ int ProbDistCorrInfoComp::metric(double& val, VectorXd& grad)
 					dPHI_dydphi *= B3kern(dind[ii]-dcind[ii]);
 			}
 
-			double dg_dphi;
-			if(Fm <= 0) // 0/0 => 1
-				dg_dphi = dFm*dPHI_dphi;
-			else
-				dg_dphi = dFm*dPHI_dphi + Fm*dPHI_dydphi;
-
-			assert(dg_dphi == dg_dphi);
 			for(int ii = 0; ii < movbins; ii++) {
 				dind[3] = ii;
 				dind[4] = binfix;
-				m_dpdfjoint[dind] += dg_dphi*dmit[ii];
+				m_dpdfjoint[dind] += dmit[ii]*dPHI_dydphi;
 			}
 		}
 		}
@@ -1831,7 +1821,6 @@ int ProbDistCorrInfoComp::metric(double& val)
 	m_pdfjoint.zero();
 
 	// for computing distorted indices
-	double cbinfix; //continuous
 	int binfix; // nearest int
 
 	// Compute Updated Version of Distortion-Corrected Image
@@ -1843,7 +1832,7 @@ int ProbDistCorrInfoComp::metric(double& val)
 	size_t movbins = m_moving->tlen();
 
 	// Create Iterators/ Viewers
-	Vector3DConstIter<double> mit(m_move);
+	Vector3DConstIter<double> mit(m_moving);
 	NDConstIter<double> fit(m_fixed_cache);
 
 	// compute updated moving width

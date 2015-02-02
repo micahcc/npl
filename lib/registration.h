@@ -388,11 +388,6 @@ public:
 	int value(const Eigen::VectorXd& params, double& val);
 
 	/**
-	 * @brief Phase encode (distortion) dimensions
-	 */
-	int m_dir;
-
-	/**
 	 * @brief Compute the difference of images (negate MI and NMI)
 	 */
 	bool m_compdiff;
@@ -420,49 +415,28 @@ public:
 	size_t nparam() { return m_deform ? m_deform->elements() : 0; };
 
 	/**
-	 * @brief Reallocates histograms and if m_fixed has been set, regenerates
-	 * histogram estimate of fixed pdf
+	 * @brief Initializes the computer. This is much simipler to keep track of
+	 * properly than several initialize functions that could be called in any
+	 * order (eventually I'll probably move all the Comp classes to this model).
 	 *
-	 * @param nbins Number of bins for marginal estimation
-	 * @param krad Number of bins in kernel radius
-	 */
-	void setBins(size_t nbins, size_t krad);
-
-	/**
-	 * @brief Initializes knot spacing and if m_fixed has been set, then
-	 * initializes the m_deform image.
+	 * Note that modification of the moving image outside this class without
+	 * re-calling setMoving is undefined and will result in an out-of-date
+	 * moving image derivative. THIS WILL BREAK GRADIENT CALCULATIONS.
 	 *
+	 * @param newfixed New fixed image
+	 * @param moving Input moving image, should be 4D with each volume containing
+	 * a probability map (not modified)
+	 * @param dir Direction of distortion (the dimension, must be >= 0)
 	 * @param space Spacing between knots, in physical coordinates
 	 */
-	void initializeKnots(double space);
-
-	/**
-	 * @brief Set the fixed image for registration/comparison
-	 *
-	 * @param fixed Input fixed image (not modified)
-	 */
-	void setFixed(ptr<const MRImage> fixed);
+	void initialize(ptr<const MRImage> fixed, ptr<const MRImage> moving,
+			size_t m_krad, size_t nbins, double space, int dir);
 
 	/**
 	 * @brief Return the current fixed image.
 	 *
 	 */
 	ptr<const MRImage> getFixed() { return m_fixed; };
-
-	/**
-	 * @brief Set the moving image for comparison, note that setting this
-	 * triggers a derivative computation and so is slower than setFixed. The
-	 * input image should be a probability map, where each component is a
-	 * volume. Thus the input should be 4D.
-	 *
-	 * Note that modification of the moving image outside this class without
-	 * re-calling setMoving is undefined and will result in an out-of-date
-	 * moving image derivative. THIS WILL BREAK GRADIENT CALCULATIONS.
-	 *
-	 * @param moving Input moving image (not modified)
-	 * @param dir Direction of distortion (the dimension, must be >= 0)
-	 */
-	void setMoving(ptr<const MRImage> moving, int dir = -1);
 
 	/**
 	 * @brief Return the current moving image.
@@ -502,6 +476,11 @@ private:
 	 *
 	 */
 
+	/**
+	 * @brief Phase encode (distortion) dimensions
+	 */
+	int m_dir;
+
 	ptr<const MRImage> m_fixed;
 	ptr<const MRImage> m_moving;
 	ptr<MRImage> m_dmoving;
@@ -533,12 +512,17 @@ private:
 	VectorXd gradbuff;
 
 	/**
-	 * @brief Histogram of fixed image, (initialized by setBins)
+	 * @brief Histogram of fixed image
 	 */
 	NDArrayStore<1, double> m_pdffix;
 
 	/**
-	 * @brief X - fixed PDF, Y - moving PDF (initialized by setBins)
+	 * @brief Histogram of moving image
+	 */
+	NDArrayStore<1, double> m_pdfmove;
+
+	/**
+	 * @brief X - fixed PDF, Y - moving PDF
 	 */
 	NDArrayStore<2, double> m_pdfjoint;
 
