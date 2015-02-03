@@ -267,7 +267,7 @@ private:
  *
  * @return Struct with Regression Results.
  */
-RegrResult regress(RegrResult& out,
+void regress(RegrResult& out,
 		const Ref<const VectorXd> y,
 		const Ref<const MatrixXd> X,
 		const Ref<const MatrixXd> covInv,
