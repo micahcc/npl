@@ -41,14 +41,14 @@ MatrixXd reduce(shared_ptr<const MRImage> in)
 {
     if(in->ndim() != 4)
         throw INVALID_ARGUMENT(": Input mmust be 4D!");
-    
+
     // fill Matrix with values from input
     size_t T = in->tlen();
     size_t N = in->elements()/T;
 
     // fill, zero mean the timeseries
     MatrixXd data(T, N);
-    ChunkConstIter<double> it(in); 
+    ChunkConstIter<double> it(in);
     it.setLineChunk(3);
     for(size_t xx=0; !it.eof(); it.nextChunk(), ++xx) {
         double tmp = 0;
@@ -57,7 +57,7 @@ MatrixXd reduce(shared_ptr<const MRImage> in)
             tmp += *it;
         }
         tmp = 1./tmp;
-        for(size_t tt=0; !it.eoc(); ++it) 
+        for(size_t tt=0; !it.eoc(); ++it)
             data(tt,xx) = data(tt,xx)*tmp;
     }
 
@@ -65,10 +65,10 @@ MatrixXd reduce(shared_ptr<const MRImage> in)
 	std::cerr << "PCA...";
 	MatrixXd X_pc = pca(data, 0.01);
 	std::cerr << "Done " << endl;
-	
+
     // perform ICA
 	std::cerr << "ICA...";
-	MatrixXd X_ic = ica(X_pc, 0.01);
+	MatrixXd X_ic = ica(X_pc);
 	std::cerr << "Done" << endl;
 
     return X_ic;
@@ -109,7 +109,7 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-    // 
+    //
 	MatrixXd regressors = reduce(inimg);
     for(size_t cc = 0; cc < regressors.cols(); cc++) {
         // perform regression
