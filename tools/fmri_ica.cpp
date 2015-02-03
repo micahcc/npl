@@ -28,6 +28,7 @@
 #include "nplio.h"
 #include "iterators.h"
 #include "statistics.h"
+#include "basic_functions.h"
 #include "macros.h"
 
 using std::string;
@@ -40,26 +41,31 @@ using namespace npl;
 MatrixXd reduce(shared_ptr<const MRImage> in)
 {
     if(in->ndim() != 4)
-        throw INVALID_ARGUMENT(": Input mmust be 4D!");
+        throw INVALID_ARGUMENT("Input mmust be 4D!");
 
     // fill Matrix with values from input
     size_t T = in->tlen();
     size_t N = in->elements()/T;
 
     // fill, zero mean the timeseries
-    MatrixXd data(T, N);
-    ChunkConstIter<double> it(in);
-    it.setLineChunk(3);
-    for(size_t xx=0; !it.eof(); it.nextChunk(), ++xx) {
-        double tmp = 0;
-        for(size_t tt=0; !it.eoc(); ++it) {
-            data(tt,xx) = *it;
-            tmp += *it;
-        }
-        tmp = 1./tmp;
-        for(size_t tt=0; !it.eoc(); ++it)
-            data(tt,xx) = data(tt,xx)*tmp;
-    }
+	cerr << "Filling "<<T<<"x"<<N<<" matrix"<<endl;
+	MatrixXd data(T, N);
+	size_t cc = 0;
+	for(Vector3DConstIter<double> it(in); !it.eof(); ++it, ++cc) {
+		for(size_t rr=0; rr<T; rr++)
+			data(rr, cc) = it[rr];
+	}
+	cerr << "Done"<<endl<<"Standardizing"<<endl;
+	for(size_t cc=0; cc<data.cols(); cc++) {
+		double ssq = data.col(cc).squaredNorm();
+		double sum = data.col(cc).sum();
+		ssq = sqrt(sample_var(data.rows(), sum, ssq)); // stddev
+		sum /= data.rows(); // mean
+
+		for(size_t rr=0; rr<data.rows(); rr++)
+			data(rr,cc) = (data(rr,cc)-sum)/ssq;
+	}
+	cerr << "Done"<<endl;
 
     // perform PCA
 	std::cerr << "PCA...";
@@ -87,12 +93,12 @@ int main(int argc, char** argv)
 
 	TCLAP::ValueArg<string> a_in("i", "input", "Input fMRI image.",
 			true, "", "*.nii.gz", cmd);
-    TCLAP::ValueArg<string> a_components("o", "out-components", "Output "
-            "Independent Components as a 1x1xCxT image.",
-			true, "", "*.nii.gz", cmd);
+//    TCLAP::ValueArg<string> a_components("o", "out-components", "Output "
+//            "Independent Components as a 1x1xCxT image.",
+//			true, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_pmap("p", "pmap", "Output probability map, "
 			"result of regressing each IC", false, "", "*.nii.gz", cmd);
-	TCLAP::ValueArg<string> a_tmap("p", "tmap", "Output t-score map, "
+	TCLAP::ValueArg<string> a_tmap("t", "tmap", "Output t-score map, "
 			"result of regressing each IC", false, "", "*.nii.gz", cmd);
 
 	cmd.parse(argc, argv);
@@ -107,7 +113,7 @@ int main(int argc, char** argv)
 	}
 
 	MatrixXd X = reduce(inimg);
-	VectorXd y(regressors.rows());
+	VectorXd y(X.rows());
 	size_t nics = X.cols();
 
 	// Add Intercept
@@ -122,15 +128,15 @@ int main(int argc, char** argv)
 	StudentsT distrib(X.rows()-1, STEP_T, MAX_T);
 
 	// Create Output Images
-	vector<size_t> osize(4, inimg->dim());
-	osize[3] = nics;
+	vector<size_t> osize(inimg->dim(), inimg->dim()+3);
+	osize.push_back(nics);
 
-	auto timg = createMRImage(4, osize.data(), FLOAT32)
-	auto pimg = createMRImage(4, osize.data(), FLOAT32)
+	auto timg = createMRImage(4, osize.data(), FLOAT32);
+	auto pimg = createMRImage(4, osize.data(), FLOAT32);
 
 	// Load Image as Matrix
-	for(Vector3DIter<double> it(inimg), tit(timg), pit(pimg), rit(rimg);
-				!it.eof(); ++it, ++tit, ++pit, ++rit) {
+	for(Vector3DIter<double> it(inimg), tit(timg), pit(pimg);
+				!it.eof(); ++it, ++tit, ++pit) {
 		// Fill Y
 		for(size_t rr=0; rr<y.rows(); rr++)
 			y[rr] = it[rr];
@@ -141,8 +147,8 @@ int main(int argc, char** argv)
 
 		// Save to T,P,R images
 		for(size_t cc=0; cc<nics; cc++) {
-			tit[cc] = reg.t[cc];
-			pit[cc] = reg.p[cc];
+			tit.set(cc, reg.t[cc]);
+			pit.set(cc, reg.p[cc]);
 		}
 	}
 
