@@ -1699,6 +1699,118 @@ MatrixXd pcacov(const Ref<const MatrixXd> cov, double varth)
 }
 
 /**
+ * @brief
+ *
+ * @param A M x N
+ * @param subsize Columns in projection matrix,
+ * @param poweriters Number of power iterations to perform
+ * @param U Output Left Singular Vectors
+ * @param E OUtput Singular Values
+ * @param V Output Right Singular Vectors
+ */
+void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
+		double tol, size_t poweriters, MatrixXd& U, VectorXd& E, MatrixXd& V)
+{
+	MatrixXd omega(A.cols(), subsize);
+	MatrixXd Y(A.rows(), subsize);
+	MatrixXd Yhat(A.rows(), subsize);
+
+	std::random_device rd;
+	std::default_random_engine rng(rd());
+	std::normal_distribution<double> rdist(0,1);
+	size_t rank = log(std::min(A.rows(), A.cols()))+1;
+
+	// Draw n x l gaussian random matrix (omega)
+	for(size_t cc=0; cc<omega.cols(); cc++) {
+		for(size_t rr=0; rr<omega.rows(); rr++) {
+			omega(rr, cc) = rdist(rng);
+		}
+	}
+
+	Y = A*omega;
+	Eigen::HouseholderQR<MatrixXd> qr(Y);
+	for(size_t ii=0; ii<poweriters; ii++) {
+		Yhat = A.transpose()*qr.householderQ();
+		qr.compute(Yhat);
+		Y = A*qr.householderQ();
+		qr.compute(Y);
+	}
+
+	// Form B = Q* x A
+	MatrixXd B = qr.householderQ().transpose()*A;
+	Eigen::JacobiSVD<MatrixXd> smallsvd(B, Eigen::ComputeThinU);
+	U = qr.householderQ()*smallsvd.matrixU();
+	E = smallsvd.singularValues();
+
+	VectorXd Einv(E.rows());
+	for(size_t ii=0; ii<E.rows(); ii++) {
+		if(E[ii] > std::numeric_limits<double>::epsilon())
+			Einv[ii] = 1./E[ii];
+		else
+			Einv[ii] = 0;
+	}
+
+	// A = U E V*, A* = V E U*, A*U = VE, V = A*UE^-1
+	V = A.transpose()*U*Einv.asDiagonal();
+}
+
+/**
+ * @brief
+ *
+ * @param A M x N
+ * @param subsize Columns in projection matrix,
+ * @param poweriters Number of power iterations to perform
+ * @param U Output Left Singular Vectors
+ * @param E OUtput Singular Values
+ * @param V Output Right Singular Vectors
+ */
+void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
+		size_t subsize, size_t poweriters, MatrixXd& U, VectorXd& E, MatrixXd& V)
+{
+	MatrixXd omega(A.cols(), subsize);
+	MatrixXd Y(A.rows(), subsize);
+	MatrixXd Yhat(A.rows(), subsize);
+
+	std::random_device rd;
+	std::default_random_engine rng(rd());
+	std::normal_distribution<double> rdist(0,1);
+
+	// Draw n x l gaussian random matrix (omega)
+	for(size_t cc=0; cc<omega.cols(); cc++) {
+		for(size_t rr=0; rr<omega.rows(); rr++) {
+			omega(rr, cc) = rdist(rng);
+		}
+	}
+
+	Y = A*omega;
+	Eigen::HouseholderQR<MatrixXd> qr(Y);
+	for(size_t ii=0; ii<poweriters; ii++) {
+		Yhat = A.transpose()*qr.householderQ();
+		qr.compute(Yhat);
+		Y = A*qr.householderQ();
+		qr.compute(Y);
+	}
+
+	// Form B = Q* x A
+	MatrixXd B = qr.householderQ().transpose()*A;
+	Eigen::JacobiSVD<MatrixXd> smallsvd(B, Eigen::ComputeThinU);
+	U = qr.householderQ()*smallsvd.matrixU();
+	E = smallsvd.singularValues();
+
+	VectorXd Einv(E.rows());
+	for(size_t ii=0; ii<E.rows(); ii++) {
+		if(E[ii] > std::numeric_limits<double>::epsilon())
+			Einv[ii] = 1./E[ii];
+		else
+			Einv[ii] = 0;
+	}
+
+	// A = U E V*, A* = V E U*, A*U = VE, V = A*UE^-1
+	V = A.transpose()*U*Einv.asDiagonal();
+}
+
+
+/**
  * @brief Computes the Principal Components of input matrix X
  *
  * Outputs reduced dimension (fewer cols) in output. Note that prior to this,
@@ -1720,41 +1832,41 @@ MatrixXd pcacov(const Ref<const MatrixXd> cov, double varth)
  */
 MatrixXd pca(const Ref<const MatrixXd> X, double varth, int odim)
 {
-	varth=1-varth;
-
 	double totalv = 0; // total variance
 	int outdim = 0;
 
-#ifndef NDEBUG
+//#ifndef NDEBUG
 	std::cout << "Computing SVD" << std::endl;
-#endif //DEBUG
+//#endif //DEBUG
 	Eigen::JacobiSVD<MatrixXd> svd(X, Eigen::ComputeThinU);
-#ifndef NDEBUG
+//#ifndef NDEBUG
 	std::cout << "Done" << std::endl;
-#endif //DEBUG
+//#endif //DEBUG
 
 	const VectorXd& W = svd.singularValues();
 	const MatrixXd& U = svd.matrixU();
 	//only keep dimensions with variance passing the threshold
-	for(size_t ii=0; ii<W.rows(); ii++)
-		totalv += W[ii]*W[ii];
+	totalv = W.squaredNorm();
 
 	double sum = 0;
 	for(outdim = 0; outdim < W.rows() && sum < totalv*varth; outdim++)
 		sum += W[outdim]*W[outdim];
-#ifndef NDEBUG
+	std::cout << totalv << endl;
+	std::cout << varth*totalv << endl;
+	std::cout<<W.transpose()<<endl;
+//#ifndef NDEBUG
 	std::cout << "Output Dimensions: " << outdim
 		<< "\nCreating Reduced MatrixXd..." << std::endl;
-#endif //DEBUG
+//#endif //DEBUG
 
 	// Merge the two dimension estimation results
 	outdim = std::max(odim, outdim);
 
 	// Return whitened signal
 	MatrixXd Xr = U.leftCols(outdim)*W.head(outdim).asDiagonal();
-#ifndef NDEBUG
+//#ifndef NDEBUG
 	std::cout  << "  Done" << std::endl;
-#endif
+//#endif
 
 	return Xr;
 }

@@ -33,6 +33,20 @@ namespace npl {
  */
 
 /**
+ * @brief
+ *
+ * @param A M x N
+ * @param subsize Columns in projection matrix,
+ * @param poweriters Number of power iterations to perform
+ * @param U Output Left Singular Vectors
+ * @param E OUtput Singular Values
+ * @param V Output Right Singular Vectors
+ */
+void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
+		size_t subsize, size_t poweriters, MatrixXd& U, VectorXd& E,
+		MatrixXd& V);
+
+/**
  * @brief Computes the Principal Components of input matrix X
  *
  * Outputs reduced dimension (fewer cols) in output. Note that prior to this,

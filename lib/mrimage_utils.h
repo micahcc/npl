@@ -65,7 +65,7 @@ std::ostream& operator<<(std::ostream &out, const MRImage& img);
  * @param dim Direction to smooth in
  * @param stddev in real space, for example millimeters.
  */
-//void gaussianSmooth1D(ptr<MRImage> inout, size_t dim, double stddev);
+void gaussianSmooth1D(ptr<MRImage> inout, size_t dim, double stddev);
 
 
 /******************************************************

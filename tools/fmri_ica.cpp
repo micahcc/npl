@@ -38,7 +38,7 @@ using std::to_string;
 using namespace Eigen;
 using namespace npl;
 
-MatrixXd reduce(shared_ptr<const MRImage> in)
+MatrixXd reduce(shared_ptr<const MRImage> in, double expvar)
 {
     if(in->ndim() != 4)
         throw INVALID_ARGUMENT("Input mmust be 4D!");
@@ -62,19 +62,25 @@ MatrixXd reduce(shared_ptr<const MRImage> in)
 		ssq = sqrt(sample_var(data.rows(), sum, ssq)); // stddev
 		sum /= data.rows(); // mean
 
-		for(size_t rr=0; rr<data.rows(); rr++)
-			data(rr,cc) = (data(rr,cc)-sum)/ssq;
+		for(size_t rr=0; rr<data.rows(); rr++) {
+			if(!std::isnormal(ssq) || std::isinf(sum) || std::isnan(sum))
+				data(rr,cc) = 0;
+			else
+				data(rr,cc) = (data(rr,cc)-sum)/ssq;
+		}
 	}
 	cerr << "Done"<<endl;
 
     // perform PCA
 	std::cerr << "PCA...";
-	MatrixXd X_pc = pca(data, 0.01);
+	MatrixXd X_pc = pca(data, expvar);
+	cerr << X_pc.col(0).transpose() << endl;
 	std::cerr << "Done " << endl;
 
     // perform ICA
 	std::cerr << "ICA...";
 	MatrixXd X_ic = ica(X_pc);
+	cerr << X_pc.col(0).transpose() << endl;
 	std::cerr << "Done" << endl;
 
     return X_ic;
@@ -96,6 +102,8 @@ int main(int argc, char** argv)
 //    TCLAP::ValueArg<string> a_components("o", "out-components", "Output "
 //            "Independent Components as a 1x1xCxT image.",
 //			true, "", "*.nii.gz", cmd);
+	TCLAP::ValueArg<double> a_varthresh("v", "var", "Variance (percentage) to "
+			"keep during PCA", false, 0.99, "pct", cmd);
 	TCLAP::ValueArg<string> a_pmap("p", "pmap", "Output probability map, "
 			"result of regressing each IC", false, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_tmap("t", "tmap", "Output t-score map, "
@@ -112,7 +120,7 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	MatrixXd X = reduce(inimg);
+	MatrixXd X = reduce(inimg, a_varthresh.getValue());
 	VectorXd y(X.rows());
 	size_t nics = X.cols();
 
@@ -123,6 +131,8 @@ int main(int argc, char** argv)
 	// Cache Constants Across All Regressions
 	auto Xinv = pseudoInverse(X);
 	auto covInv = pseudoInverse(X.transpose()*X);
+	cerr << Xinv.col(0).transpose() << endl;
+	cerr << covInv.col(0).transpose() << endl;
 	const double MAX_T = 1000;
 	const double STEP_T = 0.1;
 	StudentsT distrib(X.rows()-1, STEP_T, MAX_T);
