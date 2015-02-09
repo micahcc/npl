@@ -542,6 +542,7 @@ def build(bld):
             target='svd_test',
             source='svd_test.cpp',
             use=npl+'tclap')
+
     bld.program(install_path='${PREFIX}/tests',  features='test',
             target='prob_svd_test',
             source='prob_svd_test.cpp',

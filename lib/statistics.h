@@ -46,6 +46,10 @@ void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
 		size_t subsize, size_t poweriters, MatrixXd& U, VectorXd& E,
 		MatrixXd& V);
 
+void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
+		double tol, size_t startrank, size_t maxrank, size_t poweriters,
+		MatrixXd& U, VectorXd& E, MatrixXd& V);
+
 /**
  * @brief Computes the Principal Components of input matrix X
  *

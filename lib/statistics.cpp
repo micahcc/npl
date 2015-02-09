@@ -1698,6 +1698,20 @@ MatrixXd pcacov(const Ref<const MatrixXd> cov, double varth)
 	return out;
 }
 
+template <typename T>
+void fillGaussian(Ref<T> m)
+{
+	static std::random_device rd;
+	static std::default_random_engine rng(rd());
+	std::normal_distribution<double> rdist(0,1);
+
+	for(size_t cc=0; cc<m.cols(); cc++) {
+		for(size_t rr=0; rr<m.rows(); rr++) {
+			m(rr, cc) = rdist(rng);
+		}
+	}
+}
+
 /**
  * @brief
  *
@@ -1709,37 +1723,53 @@ MatrixXd pcacov(const Ref<const MatrixXd> cov, double varth)
  * @param V Output Right Singular Vectors
  */
 void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
-		double tol, size_t poweriters, MatrixXd& U, VectorXd& E, MatrixXd& V)
+		double tol, size_t startrank, size_t maxrank, size_t poweriters,
+		MatrixXd& U, VectorXd& E, MatrixXd& V)
 {
-	MatrixXd omega(A.cols(), subsize);
-	MatrixXd Y(A.rows(), subsize);
-	MatrixXd Yhat(A.rows(), subsize);
+	// Algorithm 4.4
+	MatrixXd Yc;
+	MatrixXd Yhc;
+	MatrixXd Qc;
+	MatrixXd Q;
+	MatrixXd Omega;
+	VectorXd norms;
 
-	std::random_device rd;
-	std::default_random_engine rng(rd());
-	std::normal_distribution<double> rdist(0,1);
-	size_t rank = log(std::min(A.rows(), A.cols()))+1;
+	size_t curank = startrank;
+	do {
+		Omega.resize(A.cols(), curank);
+		fillGaussian<MatrixXd>(Omega);
+		Yc = A*Omega;
 
-	// Draw n x l gaussian random matrix (omega)
-	for(size_t cc=0; cc<omega.cols(); cc++) {
-		for(size_t rr=0; rr<omega.rows(); rr++) {
-			omega(rr, cc) = rdist(rng);
+		Eigen::HouseholderQR<MatrixXd> qr(Yc);
+		Eigen::HouseholderQR<MatrixXd> qrh;
+		for(size_t ii=0; ii<poweriters; ii++) {
+			Yhc = A.transpose()*qr.householderQ();
+			qrh.compute(Yhc);
+			Yc = A*qr.householderQ();
+			qr.compute(Yc);
 		}
-	}
 
-	Y = A*omega;
-	Eigen::HouseholderQR<MatrixXd> qr(Y);
-	for(size_t ii=0; ii<poweriters; ii++) {
-		Yhat = A.transpose()*qr.householderQ();
-		qr.compute(Yhat);
-		Y = A*qr.householderQ();
-		qr.compute(Y);
-	}
+		// Append Y to full Y
+		Qc = (MatrixXd::Identity(Q.rows(), Q.rows()) - Q*Q.transpose())*Yc;
+
+		// Check Error Here
+		norms = Qc.colwise().norm();
+		if(norms.maxCoeff() < tol)
+			break;
+
+		// Create next curank of Y
+		for(size_t cc=0; cc<Qc.cols(); cc++)
+			Qc.col(cc) /= norms[cc];
+
+		// Check curank columns of Y
+		Q.conservativeResize(A.rows(), Qc.cols());
+		Q.rightCols(Qc.cols()) = Qc;
+	} while(Q.cols() < maxrank);
 
 	// Form B = Q* x A
-	MatrixXd B = qr.householderQ().transpose()*A;
+	MatrixXd B = Q*A;
 	Eigen::JacobiSVD<MatrixXd> smallsvd(B, Eigen::ComputeThinU);
-	U = qr.householderQ()*smallsvd.matrixU();
+	U = Q*smallsvd.matrixU();
 	E = smallsvd.singularValues();
 
 	VectorXd Einv(E.rows());

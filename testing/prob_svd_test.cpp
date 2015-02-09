@@ -34,6 +34,165 @@
 using namespace std;
 using namespace npl;
 
+TCLAP::SwitchArg a_verbose("v", "verbose", "Write more output");
+
+template <typename T>
+int testConstErr(size_t rows, size_t cols, size_t rank, double esterr)
+{
+	double thresh = 0.01;
+
+	MatrixXd A(rows, cols);
+	MatrixXd U(rows, rank);
+	MatrixXd V(cols, rank);
+	VectorXd E(rank);
+
+	// Create Sorted (Decreasing) Singular Values
+	cerr<<"Creating Sorted E"<<endl;
+	E.setRandom();
+	E = E.cwiseAbs();
+	std::sort(E.data(), E.data()+E.rows(),
+			[](double l, double r){return r < l;});
+
+	// Create Orthonormal U
+	cerr<<"Creating U"<<endl;
+	U.setRandom();
+	for(size_t cc=0; cc<U.cols(); cc++){
+		// Modified Gram-Schmidt
+		for(size_t c1 = 0; c1 < cc; c1++)
+			U.col(cc) -= U.col(cc).dot(U.col(c1))*U.col(c1);
+		U.col(cc).normalize();
+	}
+
+	// Create Orthonormal V
+	cerr<<"Creating V"<<endl;
+	V.setRandom();
+	for(size_t cc=0; cc<V.cols(); cc++){
+		// Modified Gram-Schmidt
+		for(size_t c1 = 0; c1 < cc; c1++)
+			V.col(cc) -= V.col(cc).dot(V.col(c1))*V.col(c1);
+		V.col(cc).normalize();
+	}
+
+	cerr<<"Creating A"<<endl;
+	if(a_verbose.isSet()) {
+		cerr<<"U:\n"<<U<<endl;
+		cerr<<"E:\n"<<E.transpose()<<endl;
+		cerr<<"V:\n"<<V<<endl;
+		cerr<<"A:\n"<<A<<endl;
+	}
+	A = U*E.asDiagonal()*V.transpose();
+
+	MatrixXd estU, estV;
+	VectorXd estE;
+	randomizePowerIterationSVD(A, esterr,  (size_t)log(min(A.rows(), A.cols())),
+			std::max(A.rows(), A.cols()), 2, estU, estE, estV);
+	cerr << E.transpose() << endl;
+	cerr << estE.transpose() << endl;
+
+	// Comare
+	double err;
+	err = 0;
+	for(size_t ii=0; ii<min<int>(U.cols(), estU.cols()); ii++)
+		err += std::abs(U.col(ii).dot(estU.col(ii)))-1;
+	cerr<<"U Error: "<<err<<endl;
+	if(err > thresh)
+		return -1;
+
+	err = 0;
+	for(size_t ii=0; ii<min<int>(V.cols(), estV.cols()); ii++)
+		err += std::abs(V.col(ii).dot(estV.col(ii)))-1;
+	cerr<<"V Error: "<<err<<endl;
+	if(err > thresh)
+		return -1;
+
+	err = 0;
+	for(size_t ii=0; ii<min<int>(V.cols(), estV.cols()); ii++)
+		err += std::abs(estE[ii]-E[ii]);
+	cerr<<"S Error: "<<err<<endl;
+	if(err > thresh)
+		return -1;
+
+	return 0;
+}
+
+template <typename T>
+int testConstRank(size_t rows, size_t cols, size_t rank, size_t estrank)
+{
+	double thresh = 0.01;
+
+	MatrixXd A(rows, cols);
+	MatrixXd U(rows, rank);
+	MatrixXd V(cols, rank);
+	VectorXd E(rank);
+
+	// Create Sorted (Decreasing) Singular Values
+	cerr<<"Creating Sorted E"<<endl;
+	E.setRandom();
+	E = E.cwiseAbs();
+	std::sort(E.data(), E.data()+E.rows(),
+			[](double l, double r){return r < l;});
+
+	// Create Orthonormal U
+	cerr<<"Creating U"<<endl;
+	U.setRandom();
+	for(size_t cc=0; cc<U.cols(); cc++){
+		// Modified Gram-Schmidt
+		for(size_t c1 = 0; c1 < cc; c1++)
+			U.col(cc) -= U.col(cc).dot(U.col(c1))*U.col(c1);
+		U.col(cc).normalize();
+	}
+
+	// Create Orthonormal V
+	cerr<<"Creating V"<<endl;
+	V.setRandom();
+	for(size_t cc=0; cc<V.cols(); cc++){
+		// Modified Gram-Schmidt
+		for(size_t c1 = 0; c1 < cc; c1++)
+			V.col(cc) -= V.col(cc).dot(V.col(c1))*V.col(c1);
+		V.col(cc).normalize();
+	}
+
+	cerr<<"Creating A"<<endl;
+	if(a_verbose.isSet()) {
+		cerr<<"U:\n"<<U<<endl;
+		cerr<<"E:\n"<<E.transpose()<<endl;
+		cerr<<"V:\n"<<V<<endl;
+		cerr<<"A:\n"<<A<<endl;
+	}
+	A = U*E.asDiagonal()*V.transpose();
+
+	MatrixXd estU, estV;
+	VectorXd estE;
+	randomizePowerIterationSVD(A, estrank, 2, estU, estE, estV);
+	cerr << E.transpose() << endl;
+	cerr << estE.transpose() << endl;
+
+	// Comare
+	double err;
+	err = 0;
+	for(size_t ii=0; ii<min<int>(U.cols(), estU.cols()); ii++)
+		err += std::abs(U.col(ii).dot(estU.col(ii)))-1;
+	cerr<<"U Error: "<<err<<endl;
+	if(err > thresh)
+		return -1;
+
+	err = 0;
+	for(size_t ii=0; ii<min<int>(V.cols(), estV.cols()); ii++)
+		err += std::abs(V.col(ii).dot(estV.col(ii)))-1;
+	cerr<<"V Error: "<<err<<endl;
+	if(err > thresh)
+		return -1;
+
+	err = 0;
+	for(size_t ii=0; ii<min<int>(V.cols(), estV.cols()); ii++)
+		err += std::abs(estE[ii]-E[ii]);
+	cerr<<"S Error: "<<err<<endl;
+	if(err > thresh)
+		return -1;
+
+	return 0;
+}
+
 int main(int argc, char** argv)
 {
 	cerr << "Version: " << __version__ << endl;
@@ -51,7 +210,6 @@ int main(int argc, char** argv)
 			"size_t size_t double double ...., where the first two size_t's "
 			"are the number rows and columns and then the matrix data "
 			"immediately follow.", false, "", "mat.bin", cmd);
-	TCLAP::SwitchArg a_verbose("v", "verbose", "Print matrices", cmd);
 
 	TCLAP::ValueArg<size_t> a_rows("r", "rows", "Rows in random matrix (only "
 		"applied if no input matrix given.", false, 10, "rows", cmd);
@@ -59,119 +217,24 @@ int main(int argc, char** argv)
 		"applied if no input matrix given.", false, 10, "cols", cmd);
 	TCLAP::ValueArg<size_t> a_rank("k", "rank", "Rank of random matrix (only "
 		"applied if no input matrix given.", false, 10, "rank", cmd);
-
-	TCLAP::ValueArg<double> a_svthresh("", "sv-thresh", "During dimension "
-			"reduction, A singular value will be considered nonzero if its "
-			"value is strictly greater than "
-			"|singular value| < threshold x |max singular value|. "
-			"By default this is 0.01.",
-			false, 0.01, "ratio", cmd);
-	TCLAP::ValueArg<double> a_deftol("", "dtol", "Deflation tolerance in "
-			"eigenvalue computation. Larger values will result in fewer "
-			"singular values. ", false, 1e-8, "tol", cmd);
+	TCLAP::ValueArg<size_t> a_estrank("K", "estrank", "Estimate rank for "
+			"matrix decomposition.", false, 12, "rank", cmd);
+	TCLAP::ValueArg<double> a_esterr("E", "esterr", "Error threshold for "
+			"decomposition.", false, 0.001, "mval", cmd);
 
 	TCLAP::ValueArg<string> a_out("R", "randmat", "Output generated (random) "
 			"matrix.", false, "", "mat.bin", cmd);
 
+	cmd.add(a_verbose);
 	cmd.parse(argc, argv);
 
-	MatrixXd A;
-	MatrixXd U;
-	MatrixXd V;
-	VectorXd E;
-	if(a_in.isSet()) {
-		MatMap mat(a_in.getValue());
-		A = mat.mat;
-	} else {
-		U.resize(a_rows.getValue(), a_rank.getValue());
-		V.resize(a_cols.getValue(), a_rank.getValue());
-		E.resize(a_rank.getValue());
+	if(testConstRank<MatrixXd>(a_rows.getValue(), a_cols.getValue(),
+			a_rank.getValue(), a_estrank.getValue()) != 0)
+		return -1;
 
-		// Create Sorted (Decreasing) Singular Values
-		cerr<<"Creating Sorted E"<<endl;
-		E.setRandom();
-		E = E.cwiseAbs();
-		std::sort(E.data(), E.data()+E.rows(),
-				[](double l, double r){return r < l;});
-
-		// Create Orthogonal U
-		cerr<<"Creating U"<<endl;
-		U.setRandom();
-		for(size_t cc=0; cc<U.cols(); cc++){
-
-			// Modified Gram-Schmidt
-			for(size_t c1 = 0; c1 < cc; c1++)
-				U.col(cc) -= U.col(cc).dot(U.col(c1))*U.col(c1);
-			U.col(cc).normalize();
-		}
-
-		// Create Orthogonal V
-		cerr<<"Creating V"<<endl;
-		V.setRandom();
-		for(size_t cc=0; cc<V.cols(); cc++){
-
-			// Modified Gram-Schmidt
-			for(size_t c1 = 0; c1 < cc; c1++)
-				V.col(cc) -= V.col(cc).dot(V.col(c1))*V.col(c1);
-			V.col(cc).normalize();
-		}
-
-		cerr<<"Creating A"<<endl;
-		if(a_verbose.isSet()) {
-			cerr<<"U:\n"<<U<<endl;
-			cerr<<"E:\n"<<E.transpose()<<endl;
-			cerr<<"V:\n"<<V<<endl;
-			cerr<<"A:\n"<<A<<endl;
-		}
-		A = U*E.asDiagonal()*V.transpose();
-
-	}
-
-	MatrixXd estU, estV;
-	VectorXd estE;
-	randomizePowerIterationSVD(A, a_rank.getValue()+2, 2, estU, estE, estV);
-//
-//	cerr<<"Performing SVD ("<<A.rows()<<"x"<<A.cols()<<")"<<endl;
-//	Eigen::BDCSVD<MatrixXd> svd(A, Eigen::ComputeThinV|Eigen::ComputeThinU);
-////	Eigen::JacobiSVD<MatrixXd> svd(A, Eigen::ComputeThinV|Eigen::ComputeThinU);
-////	Eigen::TruncatedLanczosSVD<MatrixXd> svd;
-////	svd.setThreshold(a_svthresh.getValue());
-////	svd.setDeflationTol(a_deftol.getValue());
-////	svd.setLanczosBasis(a_startvecs.getValue());
-////	svd.setMaxIters(a_iters.getValue());
-////	svd.compute(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-//	cerr<<"Done"<<endl;
-//
-//	cerr<<"Rank: "<<svd.rank()<<endl;
-//	if(a_verbose.isSet()) {
-//		cerr<<"Estimate"<<endl;
-//		cerr<<"U:\n"<<svd.matrixU()<<endl;
-//		cerr<<"E:\n"<<svd.singularValues().transpose()<<endl;
-//		cerr<<"V:\n"<<svd.matrixV()<<endl;
-//	}
-//
-	cerr << E.transpose() << endl;
-	cerr << estE.transpose() << endl;
-	if(a_in.isSet()) {
-		// Talk about results
-	} else {
-		// Comare
-		double err;
-		err = 0;
-		for(size_t ii=0; ii<min<int>(U.cols(), estU.cols()); ii++)
-			err += std::abs(U.col(ii).dot(estU.col(ii)))-1;
-		cerr<<"U Error: "<<err<<endl;
-
-		err = 0;
-		for(size_t ii=0; ii<min<int>(V.cols(), estV.cols()); ii++)
-			err += std::abs(V.col(ii).dot(estV.col(ii)))-1;
-		cerr<<"V Error: "<<err<<endl;
-
-		err = 0;
-		for(size_t ii=0; ii<min<int>(V.cols(), estV.cols()); ii++)
-			err += std::abs(estE[ii]-E[ii]);
-		cerr<<"S Error: "<<err<<endl;
-	}
+	if(testConstErr<MatrixXd>(a_rows.getValue(), a_cols.getValue(),
+			a_rank.getValue(), a_esterr.getValue()) != 0)
+		return -1;
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr<<"error: "<<e.error()<<" for arg "<<e.argId()<<std::endl;}
