@@ -1739,7 +1739,6 @@ void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
 	size_t curank = startrank;
 	do {
 		size_t nextsize = min(curank, A.rows()-curank);
-		cerr << "Next Size: " << nextsize << endl;
 		Omega.resize(A.cols(), nextsize);
 		fillGaussian<MatrixXd>(Omega);
 		Yc = A*Omega;
