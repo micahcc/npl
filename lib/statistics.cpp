@@ -1729,45 +1729,78 @@ void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
 	// Algorithm 4.4
 	MatrixXd Yc;
 	MatrixXd Yhc;
-	MatrixXd Qc;
+	MatrixXd Qtmp;
+	MatrixXd Qhat;
 	MatrixXd Q;
+	MatrixXd Qc;
 	MatrixXd Omega;
 	VectorXd norms;
 
 	size_t curank = startrank;
 	do {
-		Omega.resize(A.cols(), curank);
+		size_t nextsize = min(curank, A.rows()-curank);
+		cerr << "Next Size: " << nextsize << endl;
+		Omega.resize(A.cols(), nextsize);
 		fillGaussian<MatrixXd>(Omega);
 		Yc = A*Omega;
 
 		Eigen::HouseholderQR<MatrixXd> qr(Yc);
+		Qtmp = qr.householderQ()*MatrixXd::Identity(A.rows(), nextsize);
 		Eigen::HouseholderQR<MatrixXd> qrh;
 		for(size_t ii=0; ii<poweriters; ii++) {
-			Yhc = A.transpose()*qr.householderQ();
+			Yhc = A.transpose()*Qtmp;
 			qrh.compute(Yhc);
-			Yc = A*qr.householderQ();
+			Qhat = qrh.householderQ()*MatrixXd::Identity(A.cols(), nextsize);
+			Yc = A*Qhat;
 			qr.compute(Yc);
+			Qtmp = qr.householderQ()*MatrixXd::Identity(A.rows(), nextsize);
 		}
 
-		// Append Y to full Y
-		Qc = (MatrixXd::Identity(Q.rows(), Q.rows()) - Q*Q.transpose())*Yc;
+		/*
+		 * Orthogonalize new basis with the current basis (Q) and then append
+		 */
+		if(Q.rows() > 0) {
+			// Orthogonalize the additional Q vectors Q with respect to the
+			// current Q vectors
+			Qc = (MatrixXd::Identity(Q.rows(), Q.rows()) - Q*Q.transpose())*Qtmp;
 
-		// Check Error Here
-		norms = Qc.colwise().norm();
-		if(norms.maxCoeff() < tol)
-			break;
+			// After orthogonalizing wrt to Q, reorthogonalize wrt each other
+			norms.resize(Qc.cols());
+			for(size_t cc=0; cc<Qc.cols(); cc++) {
+				for(size_t jj=0; jj<cc; jj++)
+					Qc.col(cc) -= Qc.col(jj).dot(Qc.col(cc))*Qc.col(jj)/(norms[jj]*norms[jj]);
+				norms[cc] = Qc.col(cc).norm();
+			}
 
-		// Create next curank of Y
-		for(size_t cc=0; cc<Qc.cols(); cc++)
-			Qc.col(cc) /= norms[cc];
+			// If the matrix is essentially covered by existing space, quit
+			size_t keep = 0;
+			for(size_t cc=0; cc<Qc.cols(); cc++) {
+				if(norms[cc] > tol) {
+					Qc.col(cc) /= norms[cc];
+					keep++;
+				}
+			}
+			if(keep == 0)
+				break;
 
-		// Check curank columns of Y
-		Q.conservativeResize(A.rows(), Qc.cols());
-		Q.rightCols(Qc.cols()) = Qc;
-	} while(Q.cols() < maxrank);
+			// Append Orthogonalized Basis
+			Q.conservativeResize(Qc.rows(), Q.cols()+keep);
+			keep = 0;
+			for(size_t cc=0; cc<Qc.cols(); cc++) {
+				if(norms[cc] > tol) {
+					Q.col(keep+curank) = Qc.col(cc);
+					keep++;
+				}
+			}
+		} else {
+			Q = Qtmp;
+		}
+
+		curank = Q.cols();
+	} while(curank < maxrank && curank < A.cols());
 
 	// Form B = Q* x A
-	MatrixXd B = Q*A;
+	MatrixXd B = Q.transpose()*A;
 	Eigen::JacobiSVD<MatrixXd> smallsvd(B, Eigen::ComputeThinU);
 	U = Q*smallsvd.matrixU();
 	E = smallsvd.singularValues();
@@ -1797,6 +1830,7 @@ void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
 void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
 		size_t subsize, size_t poweriters, MatrixXd& U, VectorXd& E, MatrixXd& V)
 {
+	subsize = std::min(subsize, (size_t)A.rows());
 	MatrixXd omega(A.cols(), subsize);
 	MatrixXd Y(A.rows(), subsize);
 	MatrixXd Yhat(A.rows(), subsize);
@@ -1814,17 +1848,18 @@ void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
 
 	Y = A*omega;
 	Eigen::HouseholderQR<MatrixXd> qr(Y);
+	Eigen::HouseholderQR<MatrixXd> qrh;
 	for(size_t ii=0; ii<poweriters; ii++) {
-		Yhat = A.transpose()*qr.householderQ();
-		qr.compute(Yhat);
-		Y = A*qr.householderQ();
+		Yhat = A.transpose()*qr.householderQ()*MatrixXd::Identity(A.rows(), subsize);
+		qrh.compute(Yhat);
+		Y = A*qrh.householderQ()*MatrixXd::Identity(A.cols(), subsize);
 		qr.compute(Y);
 	}
-
 	// Form B = Q* x A
-	MatrixXd B = qr.householderQ().transpose()*A;
+	MatrixXd Q = qr.householderQ()*MatrixXd::Identity(A.rows(), subsize);
+	MatrixXd B = Q.transpose()*A;
 	Eigen::JacobiSVD<MatrixXd> smallsvd(B, Eigen::ComputeThinU);
-	U = qr.householderQ()*smallsvd.matrixU();
+	U = Q*smallsvd.matrixU();
 	E = smallsvd.singularValues();
 
 	VectorXd Einv(E.rows());

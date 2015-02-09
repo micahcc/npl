@@ -37,7 +37,7 @@ using namespace npl;
 TCLAP::SwitchArg a_verbose("v", "verbose", "Write more output");
 
 template <typename T>
-int testConstErr(size_t rows, size_t cols, size_t rank, double esterr)
+int testConstErr(size_t rows, size_t cols, size_t rank, size_t startrank, double esterr)
 {
 	double thresh = 0.01;
 
@@ -74,17 +74,17 @@ int testConstErr(size_t rows, size_t cols, size_t rank, double esterr)
 	}
 
 	cerr<<"Creating A"<<endl;
+	A = U*E.asDiagonal()*V.transpose();
 	if(a_verbose.isSet()) {
 		cerr<<"U:\n"<<U<<endl;
 		cerr<<"E:\n"<<E.transpose()<<endl;
 		cerr<<"V:\n"<<V<<endl;
 		cerr<<"A:\n"<<A<<endl;
 	}
-	A = U*E.asDiagonal()*V.transpose();
 
 	MatrixXd estU, estV;
 	VectorXd estE;
-	randomizePowerIterationSVD(A, esterr,  (size_t)log(min(A.rows(), A.cols())),
+	randomizePowerIterationSVD(A, esterr, startrank,
 			std::max(A.rows(), A.cols()), 2, estU, estE, estV);
 	cerr << E.transpose() << endl;
 	cerr << estE.transpose() << endl;
@@ -153,13 +153,13 @@ int testConstRank(size_t rows, size_t cols, size_t rank, size_t estrank)
 	}
 
 	cerr<<"Creating A"<<endl;
+	A = U*E.asDiagonal()*V.transpose();
 	if(a_verbose.isSet()) {
 		cerr<<"U:\n"<<U<<endl;
 		cerr<<"E:\n"<<E.transpose()<<endl;
 		cerr<<"V:\n"<<V<<endl;
 		cerr<<"A:\n"<<A<<endl;
 	}
-	A = U*E.asDiagonal()*V.transpose();
 
 	MatrixXd estU, estV;
 	VectorXd estE;
@@ -212,15 +212,16 @@ int main(int argc, char** argv)
 			"immediately follow.", false, "", "mat.bin", cmd);
 
 	TCLAP::ValueArg<size_t> a_rows("r", "rows", "Rows in random matrix (only "
-		"applied if no input matrix given.", false, 10, "rows", cmd);
+		"applied if no input matrix given.", false, 15, "rows", cmd);
 	TCLAP::ValueArg<size_t> a_cols("c", "cols", "Cols in random matrix (only "
 		"applied if no input matrix given.", false, 10, "cols", cmd);
 	TCLAP::ValueArg<size_t> a_rank("k", "rank", "Rank of random matrix (only "
-		"applied if no input matrix given.", false, 10, "rank", cmd);
+		"applied if no input matrix given.", false, 5, "rank", cmd);
 	TCLAP::ValueArg<size_t> a_estrank("K", "estrank", "Estimate rank for "
 			"matrix decomposition.", false, 12, "rank", cmd);
 	TCLAP::ValueArg<double> a_esterr("E", "esterr", "Error threshold for "
 			"decomposition.", false, 0.001, "mval", cmd);
+
 
 	TCLAP::ValueArg<string> a_out("R", "randmat", "Output generated (random) "
 			"matrix.", false, "", "mat.bin", cmd);
@@ -233,7 +234,7 @@ int main(int argc, char** argv)
 		return -1;
 
 	if(testConstErr<MatrixXd>(a_rows.getValue(), a_cols.getValue(),
-			a_rank.getValue(), a_esterr.getValue()) != 0)
+			a_rank.getValue(), 2, a_esterr.getValue()) != 0)
 		return -1;
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
