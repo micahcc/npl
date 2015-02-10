@@ -36,8 +36,7 @@
 #include "src/IterativeSolvers/IncompleteCholesky.h"
 //#include "src/IterativeSolvers/SSORPreconditioner.h"
 #include "src/IterativeSolvers/MINRES.h"
-#include "src/IterativeSolvers/BandLanczosSelfAdjointEigenSolver.h"
-#include "src/IterativeSolvers/BandLanczosSVD.h"
+#include "src/IterativeSolvers/RandomizedRangeFinder.h"
 
 //@}
 

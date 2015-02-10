@@ -37,6 +37,89 @@ using namespace npl;
 TCLAP::SwitchArg a_verbose("v", "verbose", "Write more output");
 
 template <typename T>
+int testRRFClassConstErr(size_t rows, size_t cols, size_t rank,
+		size_t startrank, double esterr)
+{
+	double thresh = 0.01;
+
+	MatrixXd A(rows, cols);
+	MatrixXd U(rows, rank);
+	MatrixXd V(cols, rank);
+	VectorXd E(rank);
+
+	// Create Sorted (Decreasing) Singular Values
+	cerr<<"Creating Sorted E"<<endl;
+	E.setRandom();
+	E = E.cwiseAbs();
+	std::sort(E.data(), E.data()+E.rows(),
+			[](double l, double r){return r < l;});
+
+	// Create Orthonormal U
+	cerr<<"Creating U"<<endl;
+	U.setRandom();
+	for(size_t cc=0; cc<U.cols(); cc++){
+		// Modified Gram-Schmidt
+		for(size_t c1 = 0; c1 < cc; c1++)
+			U.col(cc) -= U.col(cc).dot(U.col(c1))*U.col(c1);
+		U.col(cc).normalize();
+	}
+
+	// Create Orthonormal V
+	cerr<<"Creating V"<<endl;
+	V.setRandom();
+	for(size_t cc=0; cc<V.cols(); cc++){
+		// Modified Gram-Schmidt
+		for(size_t c1 = 0; c1 < cc; c1++)
+			V.col(cc) -= V.col(cc).dot(V.col(c1))*V.col(c1);
+		V.col(cc).normalize();
+	}
+
+	cerr<<"Creating A"<<endl;
+	A = U*E.asDiagonal()*V.transpose();
+	if(a_verbose.isSet()) {
+		cerr<<"U:\n"<<U<<endl;
+		cerr<<"E:\n"<<E.transpose()<<endl;
+		cerr<<"V:\n"<<V<<endl;
+		cerr<<"A:\n"<<A<<endl;
+	}
+
+	MatrixXd estU, estV;
+	VectorXd estE;
+	Eigen::RandomRangeSVD<MatrixXd> svd(A, 2, esterr,  startrank,
+			-1, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	estU = svd.matrixU();
+	estV = svd.matrixV();
+	estE = svd.singularValues();
+	cerr << E.transpose() << endl;
+	cerr << estE.transpose() << endl;
+
+	// Comare
+	double err;
+	err = 0;
+	for(size_t ii=0; ii<min<int>(U.cols(), estU.cols()); ii++)
+		err += std::abs(U.col(ii).dot(estU.col(ii)))-1;
+	cerr<<"U Error: "<<err<<endl;
+	if(err > thresh)
+		return -1;
+
+	err = 0;
+	for(size_t ii=0; ii<min<int>(V.cols(), estV.cols()); ii++)
+		err += std::abs(V.col(ii).dot(estV.col(ii)))-1;
+	cerr<<"V Error: "<<err<<endl;
+	if(err > thresh)
+		return -1;
+
+	err = 0;
+	for(size_t ii=0; ii<min<int>(V.cols(), estV.cols()); ii++)
+		err += std::abs(estE[ii]-E[ii]);
+	cerr<<"S Error: "<<err<<endl;
+	if(err > thresh)
+		return -1;
+
+	return 0;
+}
+
+template <typename T>
 int testConstErr(size_t rows, size_t cols, size_t rank, size_t startrank, double esterr)
 {
 	double thresh = 0.01;

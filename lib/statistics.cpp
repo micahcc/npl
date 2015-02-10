@@ -1740,7 +1740,7 @@ void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
 	do {
 		size_t nextsize = min(curank, A.rows()-curank);
 		Omega.resize(A.cols(), nextsize);
-		fillGaussian<MatrixXd>(Omega);
+		npl::fillGaussian<MatrixXd>(Omega);
 		Yc = A*Omega;
 
 		Eigen::HouseholderQR<MatrixXd> qr(Yc);
@@ -1800,7 +1800,7 @@ void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
 
 	// Form B = Q* x A
 	MatrixXd B = Q.transpose()*A;
-	Eigen::JacobiSVD<MatrixXd> smallsvd(B, Eigen::ComputeThinU);
+	Eigen::JacobiSVD<MatrixXd> smallsvd(B, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	U = Q*smallsvd.matrixU();
 	E = smallsvd.singularValues();
 
@@ -1812,8 +1812,7 @@ void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
 			Einv[ii] = 0;
 	}
 
-	// A = U E V*, A* = V E U*, A*U = VE, V = A*UE^-1
-	V = A.transpose()*U*Einv.asDiagonal();
+	V = smallsvd.matrixV();
 }
 
 /**
@@ -1831,7 +1830,7 @@ void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
 {
 	subsize = std::min(subsize, (size_t)A.rows());
 	MatrixXd omega(A.cols(), subsize);
-	fillGaussian<MatrixXd>(omega);
+	npl::fillGaussian<MatrixXd>(omega);
 	MatrixXd Y(A.rows(), subsize);
 	MatrixXd Yhat(A.rows(), subsize);
 	MatrixXd Q, Qhat;
@@ -1851,7 +1850,7 @@ void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
 
 	// Form B = Q* x A
 	MatrixXd B = Q.transpose()*A;
-	Eigen::JacobiSVD<MatrixXd> smallsvd(B, Eigen::ComputeThinU);
+	Eigen::JacobiSVD<MatrixXd> smallsvd(B, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	U = Q*smallsvd.matrixU();
 	E = smallsvd.singularValues();
 
@@ -1864,7 +1863,7 @@ void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
 	}
 
 	// A = U E V*, A* = V E U*, A*U = VE, V = A*UE^-1
-	V = A.transpose()*U*Einv.asDiagonal();
+	V = smallsvd.matrixV();
 }
 
 
