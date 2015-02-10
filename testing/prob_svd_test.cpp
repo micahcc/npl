@@ -35,11 +35,14 @@ using namespace std;
 using namespace npl;
 
 TCLAP::SwitchArg a_verbose("v", "verbose", "Write more output");
+TCLAP::ValueArg<size_t> a_seed("S", "seed", "Seed number generation with "
+		"the given constant", false, 0, "seed");
 
 template <typename T>
 int testRRFClassConstErr(size_t rows, size_t cols, size_t rank,
 		size_t startrank, double esterr)
 {
+	if(a_seed.isSet()) srand(a_seed.getValue());
 	double thresh = 0.01;
 
 	MatrixXd A(rows, cols);
@@ -85,13 +88,13 @@ int testRRFClassConstErr(size_t rows, size_t cols, size_t rank,
 
 	MatrixXd estU, estV;
 	VectorXd estE;
-	Eigen::RandomRangeSVD<MatrixXd> svd(A, 2, esterr,  startrank,
+	Eigen::RandomRangeSVD<MatrixXd> svd(A, 2, esterr/10,  startrank,
 			-1, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	estU = svd.matrixU();
 	estV = svd.matrixV();
 	estE = svd.singularValues();
-	cerr << E.transpose() << endl;
-	cerr << estE.transpose() << endl;
+	cerr << "True: "<<E.transpose() << endl;
+	cerr << "Est: "<<estE.transpose() << endl;
 
 	// Comare
 	double err;
@@ -122,6 +125,7 @@ int testRRFClassConstErr(size_t rows, size_t cols, size_t rank,
 template <typename T>
 int testConstErr(size_t rows, size_t cols, size_t rank, size_t startrank, double esterr)
 {
+	if(a_seed.isSet()) srand(a_seed.getValue());
 	double thresh = 0.01;
 
 	MatrixXd A(rows, cols);
@@ -169,8 +173,8 @@ int testConstErr(size_t rows, size_t cols, size_t rank, size_t startrank, double
 	VectorXd estE;
 	randomizePowerIterationSVD(A, esterr, startrank,
 			std::max(A.rows(), A.cols()), 2, estU, estE, estV);
-	cerr << E.transpose() << endl;
-	cerr << estE.transpose() << endl;
+	cerr << "True: "<<E.transpose() << endl;
+	cerr << "Est: "<<estE.transpose() << endl;
 
 	// Comare
 	double err;
@@ -201,6 +205,7 @@ int testConstErr(size_t rows, size_t cols, size_t rank, size_t startrank, double
 template <typename T>
 int testConstRank(size_t rows, size_t cols, size_t rank, size_t estrank)
 {
+	if(a_seed.isSet()) srand(a_seed.getValue());
 	double thresh = 0.01;
 
 	MatrixXd A(rows, cols);
@@ -280,6 +285,7 @@ int testConstRank(size_t rows, size_t cols, size_t rank, size_t estrank)
 template <typename T>
 int testJacobi(size_t rows, size_t cols, size_t rank)
 {
+	if(a_seed.isSet()) srand(a_seed.getValue());
 	double thresh = 0.01;
 
 	MatrixXd A(rows, cols);
@@ -385,11 +391,11 @@ int main(int argc, char** argv)
 	TCLAP::ValueArg<double> a_esterr("E", "esterr", "Error threshold for "
 			"decomposition.", false, 0.001, "mval", cmd);
 
-
 	TCLAP::ValueArg<string> a_out("R", "randmat", "Output generated (random) "
 			"matrix.", false, "", "mat.bin", cmd);
 
 	cmd.add(a_verbose);
+	cmd.add(a_seed);
 	cmd.parse(argc, argv);
 
 	clock_t c = clock();
@@ -405,6 +411,13 @@ int main(int argc, char** argv)
 		return -1;
 	c = clock()-c;
 	cerr << "Const Err\n" << c <<endl;
+
+	c = clock();
+	if(testRRFClassConstErr<MatrixXd>(a_rows.getValue(), a_cols.getValue(),
+			a_rank.getValue(), 2, a_esterr.getValue()) != 0)
+		return -1;
+	c = clock()-c;
+	cerr << "Const Err Class\n" << c <<endl;
 
 	c = clock();
 	if(testJacobi<MatrixXd>(a_rows.getValue(), a_cols.getValue(),

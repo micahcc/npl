@@ -209,7 +209,6 @@ void RandomizedRangeFinder<T>::_compute(const Ref<const MatrixType> A)
 	MatrixType Yhc;
 	MatrixType Qtmp;
 	MatrixType Qhat;
-	MatrixType m_Q;
 	MatrixType Qc;
 	MatrixType Omega;
 	VectorType norms;
@@ -229,7 +228,7 @@ void RandomizedRangeFinder<T>::_compute(const Ref<const MatrixType> A)
 		maxrank = m_maxrank;
 
 	do {
-		size_t nextsize = min(curank, A.rows()-curank);
+		size_t nextsize = std::min(curank, A.rows()-curank);
 		Omega.resize(A.cols(), nextsize);
 		internal::fillGaussian<MatrixType>(Omega);
 		Yc = A*Omega;
@@ -396,14 +395,18 @@ public:
     void _compute(const Ref<const MatrixType> A)
 	{
 		if(this->m_transpose) {
+			// computed B = Q*A* = UEV*, A = VEU*Q*, U_A=V, U_E=E, V_A=QU
+			// U*Q = V_A*
 			MatrixType B = this->m_Q.transpose()*A.transpose();
-			JacobiSVD<MatrixType> svd(B);
+			JacobiSVD<MatrixType> svd(B, ComputeThinV | ComputeThinU);
 			m_V = this->m_Q*svd.matrixU();
 			m_U = svd.matrixV();
 			m_E = svd.singularValues();
 		} else {
+			// computed B = Q*A = UEV*, A = QUEV*, U_A=QU, U_E=E, V_A=V
+			// U*Q = V_A*
 			MatrixType B = this->m_Q.transpose()*A;
-			JacobiSVD<MatrixType> svd(B);
+			JacobiSVD<MatrixType> svd(B, ComputeThinU | ComputeThinV);
 			m_U = this->m_Q*svd.matrixU();
 			m_V = svd.matrixV();
 			m_E = svd.singularValues();
