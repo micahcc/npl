@@ -193,6 +193,86 @@ int testConstRank(size_t rows, size_t cols, size_t rank, size_t estrank)
 	return 0;
 }
 
+
+template <typename T>
+int testJacobi(size_t rows, size_t cols, size_t rank)
+{
+	double thresh = 0.01;
+
+	MatrixXd A(rows, cols);
+	MatrixXd U(rows, rank);
+	MatrixXd V(cols, rank);
+	VectorXd E(rank);
+
+	// Create Sorted (Decreasing) Singular Values
+	cerr<<"Creating Sorted E"<<endl;
+	E.setRandom();
+	E = E.cwiseAbs();
+	std::sort(E.data(), E.data()+E.rows(),
+			[](double l, double r){return r < l;});
+
+	// Create Orthonormal U
+	cerr<<"Creating U"<<endl;
+	U.setRandom();
+	for(size_t cc=0; cc<U.cols(); cc++){
+		// Modified Gram-Schmidt
+		for(size_t c1 = 0; c1 < cc; c1++)
+			U.col(cc) -= U.col(cc).dot(U.col(c1))*U.col(c1);
+		U.col(cc).normalize();
+	}
+
+	// Create Orthonormal V
+	cerr<<"Creating V"<<endl;
+	V.setRandom();
+	for(size_t cc=0; cc<V.cols(); cc++){
+		// Modified Gram-Schmidt
+		for(size_t c1 = 0; c1 < cc; c1++)
+			V.col(cc) -= V.col(cc).dot(V.col(c1))*V.col(c1);
+		V.col(cc).normalize();
+	}
+
+	cerr<<"Creating A"<<endl;
+	A = U*E.asDiagonal()*V.transpose();
+	if(a_verbose.isSet()) {
+		cerr<<"U:\n"<<U<<endl;
+		cerr<<"E:\n"<<E.transpose()<<endl;
+		cerr<<"V:\n"<<V<<endl;
+		cerr<<"A:\n"<<A<<endl;
+	}
+
+	Eigen::JacobiSVD<MatrixXd> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	MatrixXd estU = svd.matrixU();
+	MatrixXd estV = svd.matrixV();
+	VectorXd estE = svd.singularValues();
+	cerr << E.transpose() << endl;
+	cerr << estE.transpose() << endl;
+
+	// Comare
+	double err;
+	err = 0;
+	for(size_t ii=0; ii<min<int>(U.cols(), estU.cols()); ii++)
+		err += std::abs(U.col(ii).dot(estU.col(ii)))-1;
+	cerr<<"U Error: "<<err<<endl;
+	if(err > thresh)
+		return -1;
+
+	err = 0;
+	for(size_t ii=0; ii<min<int>(V.cols(), estV.cols()); ii++)
+		err += std::abs(V.col(ii).dot(estV.col(ii)))-1;
+	cerr<<"V Error: "<<err<<endl;
+	if(err > thresh)
+		return -1;
+
+	err = 0;
+	for(size_t ii=0; ii<min<int>(V.cols(), estV.cols()); ii++)
+		err += std::abs(estE[ii]-E[ii]);
+	cerr<<"S Error: "<<err<<endl;
+	if(err > thresh)
+		return -1;
+
+	return 0;
+}
+
 int main(int argc, char** argv)
 {
 	cerr << "Version: " << __version__ << endl;
@@ -229,13 +309,26 @@ int main(int argc, char** argv)
 	cmd.add(a_verbose);
 	cmd.parse(argc, argv);
 
+	clock_t c = clock();
 	if(testConstRank<MatrixXd>(a_rows.getValue(), a_cols.getValue(),
 			a_rank.getValue(), a_estrank.getValue()) != 0)
 		return -1;
+	c = clock()-c;
 
+	cerr << "Const Rank\n" << c <<endl;
+	c = clock();
 	if(testConstErr<MatrixXd>(a_rows.getValue(), a_cols.getValue(),
 			a_rank.getValue(), 2, a_esterr.getValue()) != 0)
 		return -1;
+	c = clock()-c;
+	cerr << "Const Err\n" << c <<endl;
+
+	c = clock();
+	if(testJacobi<MatrixXd>(a_rows.getValue(), a_cols.getValue(),
+			a_rank.getValue()) != 0)
+		return -1;
+	c = clock()-c;
+	cerr << "Jacobi\n" << c <<endl;
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr<<"error: "<<e.error()<<" for arg "<<e.argId()<<std::endl;}

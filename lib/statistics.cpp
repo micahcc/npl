@@ -1831,31 +1831,25 @@ void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
 {
 	subsize = std::min(subsize, (size_t)A.rows());
 	MatrixXd omega(A.cols(), subsize);
+	fillGaussian<MatrixXd>(omega);
 	MatrixXd Y(A.rows(), subsize);
 	MatrixXd Yhat(A.rows(), subsize);
-
-	std::random_device rd;
-	std::default_random_engine rng(rd());
-	std::normal_distribution<double> rdist(0,1);
-
-	// Draw n x l gaussian random matrix (omega)
-	for(size_t cc=0; cc<omega.cols(); cc++) {
-		for(size_t rr=0; rr<omega.rows(); rr++) {
-			omega(rr, cc) = rdist(rng);
-		}
-	}
+	MatrixXd Q, Qhat;
 
 	Y = A*omega;
 	Eigen::HouseholderQR<MatrixXd> qr(Y);
+	Q = qr.householderQ()*MatrixXd::Identity(A.rows(), subsize);
 	Eigen::HouseholderQR<MatrixXd> qrh;
 	for(size_t ii=0; ii<poweriters; ii++) {
-		Yhat = A.transpose()*qr.householderQ()*MatrixXd::Identity(A.rows(), subsize);
+		Yhat = A.transpose()*Q;
 		qrh.compute(Yhat);
-		Y = A*qrh.householderQ()*MatrixXd::Identity(A.cols(), subsize);
+		Qhat = qrh.householderQ()*MatrixXd::Identity(A.cols(), subsize);
+		Y = A*Qhat;
 		qr.compute(Y);
+		Q = qr.householderQ()*MatrixXd::Identity(A.rows(), subsize);
 	}
+
 	// Form B = Q* x A
-	MatrixXd Q = qr.householderQ()*MatrixXd::Identity(A.rows(), subsize);
 	MatrixXd B = Q.transpose()*A;
 	Eigen::JacobiSVD<MatrixXd> smallsvd(B, Eigen::ComputeThinU);
 	U = Q*smallsvd.matrixU();
