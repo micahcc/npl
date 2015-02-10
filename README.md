@@ -1,18 +1,23 @@
 NPL: Neuro Programs and Libraries
 =======
 
-Need to:
-Clean up accessors interface. Decide on parsimonius set that is also general
-enough to get the job done. Allow Interpolates to take constant input (since
-they don't have a set function anyway)
+Tools
+=======
 
-Next Features:
-Improve interface for iterators/slicers? I don't realy like some of the
-function names and argument orderings.
-Paired iterators? Wraping iterator?
+Motion Correction
 
-Add basic fMRI inference
+Linear Regression of Entire fMRI vs. Input Matrix
 
-motion correction
+fMRI Distortion Correction
 
-Fourier Transform? 
+Tools (WIP)
+==========
+fMRI ICA
+
+fMRI Group ICA
+
+Need to
+========
+Create Website with doxygen output
+
+Add some simple examples
