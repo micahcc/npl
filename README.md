@@ -16,6 +16,7 @@ fMRI ICA
 
 fMRI Group ICA
 
-Need to:
+Need to
+========
 Create Website with doxygen output
 Add some simple examples
