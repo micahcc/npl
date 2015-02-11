@@ -112,14 +112,14 @@ public:
      * @param rank rank of matrix approximation
      */
     void compute(const Ref<const MatrixType> A, size_t poweriters,
-			int rank)
+			int rank, bool transpose=false)
     {
         init();
 		m_poweriters = poweriters;
 		m_minrank = rank;
 		m_maxrank = rank;
 
-		if(A.rows() > A.cols()) {
+		if(transpose) {
 			m_transpose = true;
 			_compute(A.transpose());
 		} else {
@@ -136,7 +136,7 @@ public:
      * @param rank rank of matrix approximation
      */
     void compute(const Ref<const MatrixType> A, size_t poweriters,
-			double tol, int minrank, int maxrank)
+			double tol, int minrank, int maxrank, bool transpose=false)
     {
         init();
 		m_poweriters = poweriters;
@@ -144,7 +144,7 @@ public:
 		m_minrank = minrank;
 		m_maxrank = maxrank;
 
-		if(A.rows() > A.cols()) {
+		if(transpose) {
 			m_transpose = true;
 			_compute(A.transpose());
 		} else {

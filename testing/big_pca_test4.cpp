@@ -182,7 +182,7 @@ int main(int argc, char** argv)
 	std::default_random_engine rng(seed);
 	std::uniform_real_distribution<double> dist(-1,1);
 
-	std::string pref = "pca3";
+	std::string pref = "pca4";
 	MatrixXd hidden(timepoints*nrows, numhidden);
 	for(size_t cc=0; cc<hidden.cols(); cc++) {
 		for(size_t rr=0; rr<hidden.rows(); rr++) {
