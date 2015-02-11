@@ -539,6 +539,11 @@ def build(bld):
             use=npl)
 
     bld.program(install_path='${PREFIX}/tests',  features='test',
+            target='big_pca_test4',
+            source='big_pca_test4.cpp',
+            use=npl+'tclap')
+
+    bld.program(install_path='${PREFIX}/tests',  features='test',
             target='svd_test',
             source='svd_test.cpp',
             use=npl+'tclap')

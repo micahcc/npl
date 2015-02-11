@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file big_pca_test3.cpp Similar to pca_test1 and test2, but larger and using
- * BDCSVD
+ * @file big_pca_test4.cpp This tests the Randomized Subspace Iteration method
+ * of computing the SVD.
  *
  *****************************************************************************/
 
@@ -26,10 +26,13 @@
 #include "iterators.h"
 #include "utility.h"
 #include "nplio.h"
+#include "version.h"
 
 #include <Eigen/SVD>
 #include <Eigen/Dense>
 #include <Eigen/IterativeSolvers>
+
+#include <tclap/CmdLine.h>
 
 using namespace npl;
 using namespace std;
@@ -51,95 +54,8 @@ size_t approxrank(const Ref<const VectorXd> singvals, double thresh)
 	return rank;
 }
 
-//int testWidePCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
-//{
-//	cerr<<"Wide PCA"<<endl;
-//	double thresh = 0.1;
-//
-//	size_t totrows = reorg.rows();
-//	size_t totcols = reorg.cols();
-//	size_t currow = 0;
-//
-//	// Create Full Matrix to Compare Against
-//	MatrixXd full(totrows, totcols);
-//	for(size_t ii=0; ii<reorg.nwide(); ++ii) {
-//		MatMap mat(prefix+to_string(ii));
-//
-//		full.middleRows(currow, reorg.wideMatRows()[ii]) = mat.mat;
-//		currow += reorg.wideMatRows()[ii];
-//	}
-//
-//	// Perform Full SVD
-//	cerr<<"Full SVD:"<<full.rows()<<"x"<<full.cols()<<endl;
-//	JacobiSVD<MatrixXd> fullsvd(full, ComputeThinU | ComputeThinV);
-//	const auto& fullS = fullsvd.singularValues();
-//	const auto& fullV = fullsvd.matrixV();
-//
-//	// Maximum number of columns/rows in sigma
-//	size_t outrows = 0;
-//	vector<MatrixXd> Umats(reorg.nwide());
-//	vector<MatrixXd> Vmats(reorg.nwide());
-//	vector<VectorXd> Smats(reorg.nwide());
-//	for(size_t rr=0; rr<reorg.nwide(); rr++) {
-//		MatMap diskmat(prefix+to_string(rr));
-//		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
-//
-//		BDCSVD<MatrixXd> svd;
-//		svd.compute(diskmat.mat, ComputeThinU | ComputeThinV);
-//		size_t rank = approxrank(svd.singularValues(), svt);
-//
-//		cerr << "SVD Rank: " << rank << endl;
-//		Umats[rr] = svd.matrixU().leftCols(rank);
-//		Vmats[rr] = svd.matrixV().leftCols(rank);
-//		Smats[rr] = svd.singularValues().head(rank);
-//
-//		outrows += Smats[rr].rows();
-//	}
-//
-//	// Merge / Construct Column(EV^T, EV^T, ... )
-//	MatrixXd mergedEVt(outrows, totcols);
-//	currow = 0;
-//	for(size_t rr=0; rr<reorg.nwide(); rr++) {
-//		mergedEVt.middleRows(currow, Smats[rr].rows()) =
-//			Smats[rr].asDiagonal()*Vmats[rr].transpose();
-//		currow += Smats[rr].rows();
-//	}
-//
-//	cerr<<"Merge SVD:"<<mergedEVt.rows()<<"x"<<mergedEVt.cols()<<endl;
-//	BDCSVD<MatrixXd> mergesvd;
-//	mergesvd.compute(mergedEVt, ComputeThinU | ComputeThinV);
-//	const auto& mergeS = mergesvd.singularValues();
-//	const auto& mergeV = mergesvd.matrixV();
-//
-//	size_t rank = approxrank(mergesvd.singularValues(), svt);
-//	cerr << "SVD Rank: " << rank << endl;
-//
-//	cerr<<"Comparing Full S with Merge S"<<endl;
-//	cerr << fullS.transpose() << endl;
-//	cerr << mergeS.transpose() << endl;
-//	for(size_t ii=0; ii<min(fullS.rows(), mergeS.rows()); ++ii) {
-//		cerr << fullS[ii] << " vs " << mergeS[ii] << endl;
-//		if(2*fabs(mergeS[ii] - fullS[ii])/fabs(mergeS[ii]+fullS[ii]) > thresh) {
-//			cerr<<"Difference in Singular Value "<<ii<<": "<<mergeS[ii]<<" vs "
-//				<<fullS[ii]<<endl;
-//			return -1;
-//		}
-//	}
-//
-//	cerr<<"Comparing Full V with Merge V"<<endl;
-//	for(size_t ii=0; ii<min(fullV.cols(), mergeV.cols());  ++ii) {
-//		cerr<<"Dot "<<ii<<": "<<(mergeV.col(ii).dot(fullV.col(ii)))<<endl;
-//		if(1-fabs(mergeV.col(ii).dot(fullV.col(ii))) > thresh) {
-//			cerr<<"Difference in V col "<<ii<<": "<<mergeV.col(ii)<<" vs "
-//				<<fullV.col(ii)<<endl;
-//			return -1;
-//		}
-//	}
-//
-//	return 0;
-//}
-
-int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
+int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt,
+		double tol, int startrank, int maxrank, size_t poweriters)
 {
 	cerr<<"Tall PCA"<<endl;
 	double thresh = 0.1;
@@ -163,42 +79,12 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 	const auto& fullS = fullsvd.singularValues();
 	const auto& fullU = fullsvd.matrixU();
 
-	size_t outcols = 0;
-	vector<MatrixXd> Umats(reorg.ntall());
-	vector<MatrixXd> Vmats(reorg.ntall());
-	vector<VectorXd> Smats(reorg.ntall());
-	for(size_t ii=0; ii<reorg.ntall(); ii++) {
-		MatMap diskmat(prefix+to_string(ii));
-		cerr<<"Chunk SVD:"<<diskmat.mat.rows()<<"x"<<diskmat.mat.cols()<<endl;
-		BDCSVD<MatrixXd> svd;
-		svd.compute(diskmat.mat, ComputeThinU | ComputeThinV);
+	VectorXd mergeS;
+	MatrixXd mergeU, mergeV;
+	onDiskSVD(reorg, tol, startrank, maxrank, poweriters,
+			mergeU, mergeS, mergeV);
 
-		size_t rank = approxrank(svd.singularValues(), svt);
-		cerr << "Rank: " << rank << endl;
-		Umats[ii] = svd.matrixU().leftCols(rank);
-		Vmats[ii] = svd.matrixV().leftCols(rank);
-		Smats[ii] = svd.singularValues().head(rank);
-
-		outcols += Smats[ii].rows();
-	}
-
-	// Merge / Construct Column(EV^T, EV^T, ... )
-	MatrixXd mergedUE(totrows, outcols);
-	curcol = 0;
-	for(size_t ii=0; ii<reorg.ntall(); ii++) {
-		mergedUE.middleCols(curcol, Smats[ii].rows()) =
-			Umats[ii]*Smats[ii].asDiagonal();
-		curcol += Smats[ii].rows();
-	}
-
-	cerr<<mergedUE<<endl;
-	cerr<<"Merge SVD:"<<mergedUE.rows()<<"x"<<mergedUE.cols()<<endl;
-	BDCSVD<MatrixXd> mergesvd;
-    mergesvd.compute(mergedUE, ComputeThinU | ComputeThinV);
-	const auto& mergeS = mergesvd.singularValues();
-	const auto& mergeU = mergesvd.matrixU();
-
-	size_t rank = approxrank(mergeS, svt);;
+	size_t rank = approxrank(mergeS, svt);
 	cerr << "SVD Rank: " << rank << endl;
 
 	cerr<<"Comparing Full S with Merge S"<<endl;
@@ -232,6 +118,54 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt)
 
 int main(int argc, char** argv)
 {
+	cerr << "Version: " << __version__ << endl;
+	try {
+	/*
+	 * Command Line
+	 */
+
+	TCLAP::CmdLine cmd("Performs an SVD. If an input matrix is given then it "
+			"performs the SVD on that matrix, otherwise it creates a random "
+			"SVD-able matrix and compares the true SVD with the estimated. ",
+			' ', __version__ );
+
+	TCLAP::ValueArg<string> a_in("i", "input", "Input Matrix. Format: "
+			"size_t size_t double double ...., where the first two size_t's "
+			"are the number rows and columns and then the matrix data "
+			"immediately follow.", false, "", "mat.bin", cmd);
+	TCLAP::SwitchArg a_verbose("v", "verbose", "Print matrices", cmd);
+
+	TCLAP::ValueArg<size_t> a_rows("r", "rows", "Rows in random matrix (only "
+		"applied if no input matrix given.", false, 3, "rows", cmd);
+	TCLAP::ValueArg<size_t> a_cols("c", "cols", "Cols in random matrix (only "
+		"applied if no input matrix given.", false, 2, "cols", cmd);
+	TCLAP::ValueArg<size_t> a_timepoints("t", "times", "Number of timepoints ",
+			false, 10, "rank", cmd);
+	TCLAP::ValueArg<size_t> a_hidden("s", "signals", "Number of hidden "
+			"variables which are the acual signals",
+			false, 10, "truesigs", cmd);
+
+	TCLAP::ValueArg<double> a_svthresh("", "sv-thresh", "During dimension "
+			"reduction, A singular value will be considered nonzero if its "
+			"value is strictly greater than "
+			"|singular value| < threshold x |max singular value|. "
+			"By default this is 0.01.",
+			false, 0.01, "ratio", cmd);
+	TCLAP::ValueArg<double> a_tol("", "tol", "Tolerance for error during "
+			"lower rank matrix approximation ", false, 1e-2, "tol", cmd);
+	TCLAP::ValueArg<int> a_minrank("", "minrank", "Minimum Rank to "
+			"approximate with", false, -1, "rank", cmd);
+	TCLAP::ValueArg<int> a_maxrank("", "maxrank", "Maximum Rank to "
+			"approximate with", false, -1, "rank", cmd);
+	TCLAP::ValueArg<int> a_powerit("", "poweriter", "Number of power iterations, "
+			"this enhaces accuracy at the cost of more passes over the input",
+			false, 0, "iters", cmd);
+
+	TCLAP::ValueArg<string> a_out("R", "randmat", "Output generated (random) "
+			"matrix.", false, "", "mat.bin", cmd);
+
+	cmd.parse(argc, argv);
+
 	double vthresh = 0.95;
 
 	if(argc == 2)
@@ -239,6 +173,10 @@ int main(int argc, char** argv)
 
 	std::random_device rd;
 	unsigned int seed = rd();
+	size_t timepoints = a_timepoints.getValue();
+	size_t numhidden = a_hidden.getValue();
+	size_t nrows = a_rows.getValue();
+	size_t ncols = a_cols.getValue();
 //	seed = 3888816431;
 
 	cerr<<"Seed: "<<seed<<endl;
@@ -246,11 +184,6 @@ int main(int argc, char** argv)
 	std::uniform_real_distribution<double> dist(-1,1);
 
 	std::string pref = "pca3";
-	size_t timepoints = 50;
-	size_t ncols = 3;
-	size_t nrows = 4;
-
-	size_t numhidden = 10;
 	MatrixXd hidden(timepoints*nrows, numhidden);
 	for(size_t cc=0; cc<hidden.cols(); cc++) {
 		for(size_t rr=0; rr<hidden.rows(); rr++) {
@@ -294,12 +227,15 @@ int main(int argc, char** argv)
 	if(reorg.createMats(nrows, ncols, fn_masks, fn_inputs) != 0)
 		return -1;
 
-	if(testTallPCAJoin(reorg, pref+"_tall_", vthresh) != 0)
+	if(testTallPCAJoin(reorg, pref+"_tall_", vthresh, a_tol.getValue(),
+				a_minrank.getValue(), a_maxrank.getValue(),
+				a_powerit.getValue()) != 0)
 		return -1;
 
-//	if(testWidePCAJoin(reorg, pref+"_wide_", vthresh) != 0)
-//		return -1;
+	} catch (TCLAP::ArgException &e)  // catch any exceptions
+	{ std::cerr<<"error: "<<e.error()<<" for arg "<<e.argId()<<std::endl;}
 
 }
+
 
 

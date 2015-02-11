@@ -27,25 +27,6 @@ using std::endl;
 
 namespace Eigen {
 
-namespace internal {
-
-template <typename T>
-inline
-void fillGaussian(Ref<T> m)
-{
-	std::random_device rd;
-	std::default_random_engine rng(rd());
-	std::normal_distribution<double> rdist(0,1);
-
-	for(size_t cc=0; cc<m.cols(); cc++) {
-		for(size_t rr=0; rr<m.rows(); rr++) {
-			m(rr, cc) = rdist(rng);
-		}
-	}
-}
-
-}
-
 /**
  * @brief Produces a matrix, Q, whose range approximates that of A (the input)
  * From Q
@@ -229,10 +210,20 @@ void RandomizedRangeFinder<T>::_compute(const Ref<const MatrixType> A)
 
 	do {
 		size_t nextsize = std::min(curank, A.rows()-curank);
+
+		// Fill With Gaussian Random Numbes
 		Omega.resize(A.cols(), nextsize);
-		internal::fillGaussian<MatrixType>(Omega);
+		std::random_device rd;
+		std::default_random_engine rng(rd());
+		std::normal_distribution<double> rdist(0,1);
+		for(size_t cc=0; cc<Omega.cols(); cc++) {
+			for(size_t rr=0; rr<Omega.rows(); rr++) {
+				Omega(rr, cc) = rdist(rng);
+			}
+		}
 		Yc = A*Omega;
 
+		// Perform Power Iteration set number of times
 		qr.compute(Yc);
 		Qtmp = qr.householderQ()*MatrixType::Identity(A.rows(), nextsize);
 		for(size_t ii=0; ii<m_poweriters; ii++) {

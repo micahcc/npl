@@ -32,6 +32,20 @@ namespace npl {
  * @{
  */
 
+template <typename T>
+void fillGaussian(Ref<T> m)
+{
+	static std::random_device rd;
+	static std::default_random_engine rng(rd());
+	std::normal_distribution<double> rdist(0,1);
+
+	for(size_t cc=0; cc<m.cols(); cc++) {
+		for(size_t rr=0; rr<m.rows(); rr++) {
+			m(rr, cc) = rdist(rng);
+		}
+	}
+}
+
 /**
  * @brief
  *

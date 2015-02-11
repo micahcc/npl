@@ -16,6 +16,8 @@
  * @file nplio.cpp Readers and Writers for npl::MRImage and npl::NDarray
  *
  *****************************************************************************/
+#ifndef NPLIO_H
+#define NPLIO_H
 
 #include "mrimage.h"
 
@@ -86,3 +88,6 @@ ptr<MRImage> readMRImage(std::string filename, bool verbose = false,
 /** @} */
 
 } // npl
+
+#endif //NPLIO_H
+

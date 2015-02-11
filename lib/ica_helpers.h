@@ -32,6 +32,31 @@
 
 namespace npl {
 
+class MatrixReorg;
+
+/**
+ * @brief Uses randomized subspace approximation to reduce the input matrix
+ * (made up of blocks stored on disk with a given prefix). This assumes that
+ * the matrix is a wide matrix (which is generally a good assumption in
+ * fMRI) and that it therefore is better to reduce the number of columns.
+ *
+ * To achieve this, we transpose the algorithm of 4.4 from
+ * Halko N, Martinsson P-G, Tropp J A. Finding structure with randomness:
+ * Probabilistic algorithms for constructing approximate matrix decompositions.
+ * 2009;1–74. Available from: http://arxiv.org/abs/0909.4061
+ *
+ * @param prefix File prefix
+ * @param tol
+ * @param startrank
+ * @param maxrank
+ * @param poweriters
+ * @param U
+ * @param E
+ * @param V
+ */
+void onDiskSVD(const MatrixReorg& A, double tol, int startrank,
+		int maxrank, size_t poweriters, MatrixXd& U, VectorXd& E, MatrixXd& V);
+
 /**
  * @brief Computes the the ICA of spatially concatinated images. Optionally
  * the data may be converted from time-series to a power spectral density,
@@ -96,10 +121,70 @@ void fillMat(double* rawdata, size_t nrows, size_t ncols,
 void fillMatPSD(double* rawdata, size_t nrows, size_t ncols,
 		ptr<const MRImage> img, ptr<const MRImage> mask);
 
+class MatMap
+{
+public:
+	MatMap() : mat(NULL, 0, 0)
+	{
+	};
+
+	MatMap(std::string filename) : mat(NULL, 0, 0)
+	{
+		open(filename);
+	};
+
+	void open(std::string filename)
+	{
+		if(datamap.openExisting(filename) < 0)
+			throw RUNTIME_ERROR("Error opening"+filename);
+
+		size_t* nrowsptr = (size_t*)datamap.data();
+		size_t* ncolsptr = nrowsptr+1;
+		double* dataptr = (double*)((size_t*)datamap.data()+2);
+
+		rows = *nrowsptr;
+		cols = *ncolsptr;
+		new (&this->mat) Eigen::Map<MatrixXd>(dataptr, rows, cols);
+	};
+
+	void create(std::string filename, size_t newrows, size_t newcols)
+	{
+		rows = newrows;
+		cols = newcols;
+		if(datamap.openNew(filename, 2*sizeof(size_t)+
+					rows*cols*sizeof(double)) < 0)
+			throw RUNTIME_ERROR("Error creating "+filename);
+
+		size_t* nrowsptr = (size_t*)datamap.data();
+		size_t* ncolsptr = nrowsptr+1;
+		double* dataptr = (double*)((size_t*)datamap.data()+2);
+
+		*nrowsptr = rows;
+		*ncolsptr = cols;
+		new (&this->mat) Eigen::Map<MatrixXd>(dataptr, rows, cols);
+	};
+
+	void close()
+	{
+		datamap.close();
+	};
+
+	bool isopen()
+	{
+		return datamap.isopen();
+	};
+
+	Eigen::Map<MatrixXd> mat;
+	size_t rows;
+	size_t cols;
+private:
+	MemMap datamap;
+};
 /**
  * @brief Reorganizes input images into tall and wide matrices (matrices that
  * span the total rows and cols, respectively).
  *
+ * Only use tall mats, I think I might drop wide mats eventually
  * TODO allow for JUST tall or JUST wide construction
  */
 class MatrixReorg
@@ -160,7 +245,7 @@ public:
 	 */
 	int loadMats();
 
-	inline int nwide() const { return m_outrows.size(); };
+//	inline int nwide() const { return m_outrows.size(); };
 	inline int ntall() const { return m_outcols.size(); };
 
 	inline const vector<int>& tallMatCols() const
@@ -173,29 +258,105 @@ public:
 		return m_totalrows;
 	};
 
-	inline const vector<int>& wideMatRows() const
-	{
-		return m_outrows;
-	};
-
-	inline int wideMatCols() const
-	{
-		return m_totalcols;
-	};
-
+//	inline const vector<int>& wideMatRows() const
+//	{
+//		return m_outrows;
+//	};
+//
+//	inline int wideMatCols() const
+//	{
+//		return m_totalcols;
+//	};
+//
 	inline std::string tallMatName(size_t ii) const
 	{
 		return m_prefix+"_tall_"+std::to_string(ii);
 	};
 
-	inline std::string wideMatName(size_t ii) const
-	{
-		return m_prefix+"_wide_"+std::to_string(ii);
-	};
-
+//	inline std::string wideMatName(size_t ii) const
+//	{
+//		return m_prefix+"_wide_"+std::to_string(ii);
+//	};
+//
 	inline std::string inColMaskName(size_t ii) const
 	{
 		return m_prefix+"_mask_"+std::to_string(ii)+".nii.gz";
+	};
+
+	void preMult(Eigen::Ref<MatrixXd> out, const Eigen::Ref<const MatrixXd> in,
+			bool transpose = false) const
+	{
+		if(!transpose) {
+
+			// Q = BA, Q = [BA_0 BA_1 ... ]
+			if(out.rows() != in.rows() || out.cols() != cols() || rows() != in.cols()) {
+				throw INVALID_ARGUMENT("Input arguments are non-conformant for "
+						"matrix multiplication");
+			}
+			out.setZero();
+			for(size_t cc=0, bb=0; cc<cols(); bb++) {
+				// Load Block
+				MatMap block(tallMatName(bb));
+
+				// Multiply By Input
+				out.middleCols(cc, m_outcols[bb]) = in*block.mat;
+				cc += m_outcols[bb];
+			}
+		} else {
+			// Q = BA^T, Q = [BA^T_1 ... ]
+			if(out.rows() != in.rows() || out.cols() != rows() || cols() != in.cols()) {
+				throw INVALID_ARGUMENT("Input arguments are non-conformant for "
+						"matrix multiplication");
+			}
+			out.resize(in.rows(), rows());
+			out.setZero();
+			for(size_t cc=0, bb=0; cc<cols(); bb++) {
+				// Load Block
+				MatMap block(tallMatName(bb));
+
+				// Multiply By Input
+				out += in.middleCols(cc, m_outcols[bb])*block.mat.transpose();
+				cc += m_outcols[bb];
+			}
+		}
+	};
+
+	void postMult(Eigen::Ref<MatrixXd> out, const Eigen::Ref<const MatrixXd> in,
+			bool transpose = false) const
+	{
+		if(!transpose) {
+			if(out.rows() != rows() || out.cols() != in.cols() || cols() != in.rows()) {
+				throw INVALID_ARGUMENT("Input arguments are non-conformant for "
+						"matrix multiplication");
+			}
+
+			// Q = AB, Q = SUM(A_1B_1 A_2B_2 ... )
+			out.setZero();
+			for(size_t cc=0, bb=0; cc<cols(); bb++) {
+				// Load Block
+				MatMap block(tallMatName(bb));
+
+				// Multiply By Input
+				out += block.mat*in.middleRows(cc, m_outcols[bb]);
+				cc += m_outcols[bb];
+			}
+		} else {
+			if(out.rows() != cols() || out.cols() != in.cols() || rows() != in.rows()) {
+				throw INVALID_ARGUMENT("Input arguments are non-conformant for "
+						"matrix multiplication");
+			}
+
+			// Q = A^TB, Q = [A^T_1B ... ]
+			out.setZero();
+			for(size_t cc=0, bb=0; cc<cols(); bb++) {
+				// Load Block
+				MatMap block(tallMatName(bb));
+
+				// Multiply By Input
+				out.middleRows(cc, m_outcols[bb]) = block.mat.transpose()*in;
+				cc += m_outcols[bb];
+			}
+		}
 	};
 
 	inline int rows() const { return m_totalrows; };
@@ -206,69 +367,9 @@ public:
 	int m_totalcols;
 	std::string m_prefix;
 	bool m_verbose;
-	vector<int> m_outrows;
+//	vector<int> m_outrows;
 	vector<int> m_outcols;
 	size_t m_maxdoubles;
-};
-
-class MatMap
-{
-public:
-	MatMap() : mat(NULL, 0, 0)
-	{
-	};
-
-	MatMap(std::string filename) : mat(NULL, 0, 0)
-	{
-		open(filename);
-	};
-
-	void open(std::string filename)
-	{
-		if(datamap.openExisting(filename) < 0)
-			throw RUNTIME_ERROR("Error opening"+filename);
-
-		size_t* nrowsptr = (size_t*)datamap.data();
-		size_t* ncolsptr = nrowsptr+1;
-		double* dataptr = (double*)((size_t*)datamap.data()+2);
-
-		rows = *nrowsptr;
-		cols = *ncolsptr;
-		new (&this->mat) Eigen::Map<MatrixXd>(dataptr, rows, cols);
-	};
-
-	void create(std::string filename, size_t newrows, size_t newcols)
-	{
-		rows = newrows;
-		cols = newcols;
-		if(datamap.openNew(filename, 2*sizeof(size_t)+
-					rows*cols*sizeof(double)) < 0)
-			throw RUNTIME_ERROR("Error creating "+filename);
-
-		size_t* nrowsptr = (size_t*)datamap.data();
-		size_t* ncolsptr = nrowsptr+1;
-		double* dataptr = (double*)((size_t*)datamap.data()+2);
-
-		*nrowsptr = rows;
-		*ncolsptr = cols;
-		new (&this->mat) Eigen::Map<MatrixXd>(dataptr, rows, cols);
-	};
-
-	void close()
-	{
-		datamap.close();
-	};
-
-	bool isopen()
-	{
-		return datamap.isopen();
-	};
-
-	Eigen::Map<MatrixXd> mat;
-	size_t rows;
-	size_t cols;
-private:
-	MemMap datamap;
 };
 
 /**

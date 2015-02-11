@@ -245,6 +245,128 @@ int spcat_orthog(std::string prefix, double svthresh,
 }
 
 /**
+ * @brief Uses randomized subspace approximation to reduce the input matrix
+ * (made up of blocks stored on disk with a given prefix). This assumes that
+ * the matrix is a wide matrix (which is generally a good assumption in
+ * fMRI) and that it therefore is better to reduce the number of columns.
+ *
+ * To achieve this, we transpose the algorithm of 4.4 from
+ * Halko N, Martinsson P-G, Tropp J A. Finding structure with randomness:
+ * Probabilistic algorithms for constructing approximate matrix decompositions.
+ * 2009;1–74. Available from: http://arxiv.org/abs/0909.4061
+ *
+ * @param prefix File prefix
+ * @param tol
+ * @param startrank
+ * @param maxrank
+ * @param poweriters
+ * @param U
+ * @param E
+ * @param V
+ */
+void onDiskSVD(const MatrixReorg& A, double tol, int startrank,
+		int maxrank, size_t poweriters, MatrixXd& U, VectorXd& E, MatrixXd& V)
+{
+	if(startrank <= 1)
+		startrank = std::ceil(std::log2(std::min(A.rows(), A.cols())));
+	if(maxrank <= 1)
+		maxrank = std::min(A.rows(), A.cols());
+
+	// Algorithm 4.4
+	MatrixXd Yc;
+	MatrixXd Yhc;
+	MatrixXd Qtmp;
+	MatrixXd Qhat;
+	MatrixXd Q;
+	MatrixXd Qc;
+	MatrixXd Omega;
+	VectorXd norms;
+
+	// From the Original Algorithm A -> At everywhere
+	size_t curank = startrank;
+	do {
+		size_t nextsize = min(curank, A.cols()-curank);
+		Yc.resize(A.cols(), nextsize);
+		Yhc.resize(A.rows(), nextsize);
+		Omega.resize(A.rows(), nextsize);
+
+		fillGaussian<MatrixXd>(Omega);
+		A.postMult(Yc, Omega, true);
+
+		Eigen::HouseholderQR<MatrixXd> qr(Yc);
+		Qtmp = qr.householderQ()*MatrixXd::Identity(A.cols(), nextsize);
+		Eigen::HouseholderQR<MatrixXd> qrh;
+		for(size_t ii=0; ii<poweriters; ii++) {
+			A.postMult(Yhc, Qtmp);
+			qrh.compute(Yhc);
+			Qhat = qrh.householderQ()*MatrixXd::Identity(A.rows(), nextsize);
+			A.postMult(Yc, Qhat, true);
+			qr.compute(Yc);
+			Qtmp = qr.householderQ()*MatrixXd::Identity(A.cols(), nextsize);
+		}
+
+		/*
+		 * Orthogonalize new basis with the current basis (Q) and then append
+		 */
+		if(Q.rows() > 0) {
+			// Orthogonalize the additional Q vectors Q with respect to the
+			// current Q vectors
+			Qc = (MatrixXd::Identity(Q.rows(), Q.rows()) - Q*Q.transpose())*Qtmp;
+
+			// After orthogonalizing wrt to Q, reorthogonalize wrt each other
+			norms.resize(Qc.cols());
+			for(size_t cc=0; cc<Qc.cols(); cc++) {
+				for(size_t jj=0; jj<cc; jj++)
+					Qc.col(cc) -= Qc.col(jj).dot(Qc.col(cc))*Qc.col(jj)/(norms[jj]*norms[jj]);
+				norms[cc] = Qc.col(cc).norm();
+			}
+
+			// If the matrix is essentially covered by existing space, quit
+			size_t keep = 0;
+			for(size_t cc=0; cc<Qc.cols(); cc++) {
+				if(norms[cc] > tol) {
+					Qc.col(cc) /= norms[cc];
+					keep++;
+				}
+			}
+			if(keep == 0)
+				break;
+
+			// Append Orthogonalized Basis
+			Q.conservativeResize(Qc.rows(), Q.cols()+keep);
+			keep = 0;
+			for(size_t cc=0; cc<Qc.cols(); cc++) {
+				if(norms[cc] > tol) {
+					Q.col(keep+curank) = Qc.col(cc);
+					keep++;
+				}
+			}
+		} else {
+			Q = Qtmp;
+		}
+
+		curank = Q.cols();
+	} while(curank < maxrank && curank < A.cols());
+
+	// Form B = Q* x A
+	MatrixXd B(Q.cols(), A.rows());;
+	A.preMult(B, Q.transpose(), true);
+	Eigen::JacobiSVD<MatrixXd> smallsvd(B, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	V = Q*smallsvd.matrixU();
+	E = smallsvd.singularValues();
+
+	VectorXd Einv(E.rows());
+	for(size_t ii=0; ii<E.rows(); ii++) {
+		if(E[ii] > std::numeric_limits<double>::epsilon())
+			Einv[ii] = 1./E[ii];
+		else
+			Einv[ii] = 0;
+	}
+
+	U = smallsvd.matrixV();
+}
+
+/**
  * @brief Computes the the ICA of temporally concatinated images.
  *
  * @param imgnames List of images to load. Data is concatinated from left to
@@ -271,9 +393,6 @@ MatrixXd tcat_ica(const vector<string>& imgnames,
 		string& maskname, string prefix, double svthresh, double deftol,
 		int initbasis, int maxiters, bool spatial)
 {
-	(void)deftol;
-	(void)initbasis;
-	(void)maxiters;
 
 	/**********
 	 * Input
@@ -282,11 +401,11 @@ MatrixXd tcat_ica(const vector<string>& imgnames,
 		throw INVALID_ARGUMENT("Need to provide at least 1 input image!");
 
 	const double MINSV = sqrt(std::numeric_limits<double>::epsilon());
-	MatrixXd XXt;
 
 	int rank = 0; // Rank of Singular Value Decomp
-	VectorXd singvals; // E in X = UEV*
-	MatrixXd matrixU; // U in X = UEV*
+	VectorXd singvals;
+	MatrixXd matrixU;
+	MatrixXd matrixV;
 	ptr<MRImage> mask;
 
 	// Matrix Reorg Creates Tall Matrices and Wide Matrices, we need the tall
@@ -298,73 +417,11 @@ MatrixXd tcat_ica(const vector<string>& imgnames,
 	/*
 	 * Compute SVD of input
 	 */
-	try{
-		XXt.resize(reorg.rows(), reorg.rows());
-	}catch(...) {
-		throw RUNTIME_ERROR("Not enough memory for matrix sized "+
-				to_string(reorg.rows())+"^2");
-	}
-	XXt.setZero();
-
-	// Sum XXt_i for i in 1...tall matrices
-	for(int ii=0; ii<reorg.tallMatCols().size(); ii++) {
-		MatMap xmem(reorg.tallMatName(ii));
-
-		// Sum up XXt from each chunk
-		XXt += xmem.mat*xmem.mat.transpose();
-	}
-
-	// Compute EigenVectors (U)
-	Eigen::SelfAdjointEigenSolver<MatrixXd> eig(XXt);
-//	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
-//	eig.setDesiredRank(maxiters);
-//	eig.setDeflationTol(deftol);
-//	eig.compute(XXt, initbasis);
-
-	if(eig.info() == Eigen::NoConvergence)
-		throw RUNTIME_ERROR("Non Convergence of BandLanczosSelfAdjointEigen"
-				"Solver, try increasing lanczos basis or maxiters");
-
-	double tmp = 0;
-	double maxev = eig.eigenvalues().maxCoeff();
-	int eigrows = eig.eigenvalues().rows();
-	tmp = 0;
-	singvals.resize(eigrows);
-	for(int cc=0; cc<eigrows; cc++) {
-		double v = eig.eigenvalues()[eigrows-1-cc];
-		if(v > MINSV && (svthresh<0 || svthresh>1 || v > maxev*svthresh)) {
-			singvals[cc] = std::sqrt(eig.eigenvalues()[eigrows-1-cc]);
-			rank++;
-		}
-		tmp += v;
-	}
-	singvals.conservativeResize(rank);
-
-	// Computed left singular values (U), reverse order
-	// A = USV*, A^T = VSU*, V = A^T U S^-1
-	matrixU.resize(reorg.rows(), rank);
-	for(int cc=0; cc<rank; cc++)
-		matrixU.col(cc) = eig.eigenvectors().col(eigrows-1-cc);
 
 	if(!spatial) {
 		// U is what we need, since each COLUMN represents a dim
 		return ica(matrixU);
 	} else {
-		MatrixXd matrixV(reorg.cols(), rank);
-		// Need V since each ROW represents a DIM, in V each COLUMN will be a
-		// DIM, which will correspond to a ROW of X
-		// Compute V = X^T U S^-1
-		// rows of V correspond to cols of X
-		int orow = 0; // Current row in input (col in V)
-		for(int ii=0; ii<reorg.ntall(); ii++) {
-			MatMap xmem(reorg.tallMatName(ii));
-
-			size_t ncols = reorg.tallMatCols()[ii];
-			matrixV.middleRows(orow, ncols) = xmem.mat.transpose()*
-						matrixU*singvals.cwiseInverse().asDiagonal();
-
-			orow += ncols;
-		}
 		return ica(matrixV);
 	}
 }
@@ -563,15 +620,15 @@ MatrixReorg::MatrixReorg(std::string prefix, size_t maxdoubles, bool verbose)
  */
 int MatrixReorg::loadMats()
 {
-	m_outrows.clear();
+//	m_outrows.clear();
 	m_outcols.clear();
 	std::string tallpr = m_prefix + "_tall_";
-	std::string widepr = m_prefix + "_wide_";
+//	std::string widepr = m_prefix + "_wide_";
 	std::string maskpr = m_prefix + "_mask_";
 
 	if(m_verbose) {
 		cerr << "Tall Matrix Prefix: " << tallpr << endl;
-		cerr << "Wide Matrix Prefix: " << widepr << endl;
+//		cerr << "Wide Matrix Prefix: " << widepr << endl;
 		cerr << "Mask Prefix:        " << maskpr << endl;
 	}
 
@@ -580,7 +637,7 @@ int MatrixReorg::loadMats()
 	map.open(tallpr+"0");
 	m_totalrows = map.rows;
 
-	map.open(widepr+"0");
+//	map.open(widepr+"0");
 	m_totalcols = map.cols;
 
 	if(m_verbose) {
@@ -588,16 +645,16 @@ int MatrixReorg::loadMats()
 		cerr << "Total Cols/Voxels:     " << m_totalcols << endl;
 	}
 
-	int rows = 0;
-	for(int ii=0; rows!=m_totalrows; ii++) {
-		map.open(widepr+to_string(ii));
-		m_outrows.push_back(map.rows);
-		rows += map.rows;
-
-		// should exactly match up
-		if(rows > m_totalrows)
-			return -1;
-	}
+//	int rows = 0;
+//	for(int ii=0; rows!=m_totalrows; ii++) {
+//		map.open(widepr+to_string(ii));
+//		m_outrows.push_back(map.rows);
+//		rows += map.rows;
+//
+//		// should exactly match up
+//		if(rows > m_totalrows)
+//			return -1;
+//	}
 
 	int cols = 0;
 	for(int ii=0; cols!=m_totalcols; ii++) {
@@ -671,12 +728,12 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	vector<int> inrows;
 	vector<int> incols;
 	std::string tallpr = m_prefix + "_tall_";
-	std::string widepr = m_prefix + "_wide_";
+//	std::string widepr = m_prefix + "_wide_";
 	std::string maskpr = m_prefix + "_mask_";
 
 	if(m_verbose) {
 		cerr << "Tall Matrix Prefix: " << tallpr << endl;
-		cerr << "Wide Matrix Prefix: " << widepr << endl;
+//		cerr << "Wide Matrix Prefix: " << widepr << endl;
 		cerr << "Mask Prefix:        " << maskpr << endl;
 	}
 
@@ -736,7 +793,7 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	 * cross lines between images (this will make loading the matrices easier)
 	 */
 	// for wide matrices
-	m_outrows.resize(1); m_outrows[0] = 0; // number of rows per block
+//	m_outrows.resize(1); m_outrows[0] = 0; // number of rows per block
 
 	// for tall matrices
 	m_outcols.resize(1); m_outcols[0] = 0; // number of cols per block
@@ -752,46 +809,46 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	}
 	blockind = 0;
 	blocknum = 0;
-	for(int rr=0; rr<m_totalrows; rr++) {
-		if(blockind == inrows[blocknum]) {
-			// open file, create with proper size
-			MemMap wfile(widepr+to_string(m_outrows.size()-1), 2*sizeof(size_t)+
-					m_outrows.back()*m_totalcols*sizeof(double), true);
-			((size_t*)wfile.data())[0] = m_outrows.back(); // nrows
-			((size_t*)wfile.data())[1] = m_totalcols; // nrows
-
-			// if the index in the block would put us in a different image, then
-			// start a new out block
-			blockind = 0;
-			blocknum++;
-			m_outrows.push_back(0);
-		} else if((m_outrows.back()+1)*m_totalcols > m_maxdoubles) {
-			// open file, create with proper size
-			MemMap wfile(widepr+to_string(m_outrows.size()-1), 2*sizeof(size_t)+
-					m_outrows.back()*m_totalcols*sizeof(double), true);
-			((size_t*)wfile.data())[0] = m_outrows.back(); // nrows
-			((size_t*)wfile.data())[1] = m_totalcols; // ncols
-
-			// If this row won't fit in the current block of rows, start a new one,
-			m_outrows.push_back(0);
-		}
-		blockind++;
-		m_outrows.back()++;
-	}
-	{ // Create Last File
-	MemMap wfile(widepr+to_string(m_outrows.size()-1), 2*sizeof(size_t)+
-			m_outrows.back()*m_totalcols*sizeof(double), true);
-	((size_t*)wfile.data())[0] = m_outrows.back(); // nrows
-	((size_t*)wfile.data())[1] = m_totalcols; // nrows
-	}
-
-	// tall matrices, create files
-	// break up output blocks of cols into chunks that 1) don't cross images
-	// and 2) with have fewer elements than m_maxdoubles
-	if(m_totalrows > m_maxdoubles) {
-		throw INVALID_ARGUMENT("maxdoubles is not large enough to hold a "
-				"single full column!");
-	}
+//	for(int rr=0; rr<m_totalrows; rr++) {
+//		if(blockind == inrows[blocknum]) {
+//			// open file, create with proper size
+//			MemMap wfile(widepr+to_string(m_outrows.size()-1), 2*sizeof(size_t)+
+//					m_outrows.back()*m_totalcols*sizeof(double), true);
+//			((size_t*)wfile.data())[0] = m_outrows.back(); // nrows
+//			((size_t*)wfile.data())[1] = m_totalcols; // nrows
+//
+//			// if the index in the block would put us in a different image, then
+//			// start a new out block
+//			blockind = 0;
+//			blocknum++;
+//			m_outrows.push_back(0);
+//		} else if((m_outrows.back()+1)*m_totalcols > m_maxdoubles) {
+//			// open file, create with proper size
+//			MemMap wfile(widepr+to_string(m_outrows.size()-1), 2*sizeof(size_t)+
+//					m_outrows.back()*m_totalcols*sizeof(double), true);
+//			((size_t*)wfile.data())[0] = m_outrows.back(); // nrows
+//			((size_t*)wfile.data())[1] = m_totalcols; // ncols
+//
+//			// If this row won't fit in the current block of rows, start a new one,
+//			m_outrows.push_back(0);
+//		}
+//		blockind++;
+//		m_outrows.back()++;
+//	}
+//	{ // Create Last File
+//	MemMap wfile(widepr+to_string(m_outrows.size()-1), 2*sizeof(size_t)+
+//			m_outrows.back()*m_totalcols*sizeof(double), true);
+//	((size_t*)wfile.data())[0] = m_outrows.back(); // nrows
+//	((size_t*)wfile.data())[1] = m_totalcols; // nrows
+//	}
+//
+//	// tall matrices, create files
+//	// break up output blocks of cols into chunks that 1) don't cross images
+//	// and 2) with have fewer elements than m_maxdoubles
+//	if(m_totalrows > m_maxdoubles) {
+//		throw INVALID_ARGUMENT("maxdoubles is not large enough to hold a "
+//				"single full column!");
+//	}
 	blockind = 0;
 	blocknum = 0;
 	for(int cc=0; cc<m_totalcols; cc++) {
@@ -830,14 +887,14 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	// block cols specified in m_outcols and m_outrows.
 	int img_glob_row = 0;
 	int img_glob_col = 0;
-	int img_oblock_row = 0;
+//	int img_oblock_row = 0;
 	int img_oblock_col = 0;
 	MatMap datamap;
 	for(size_t sb = 0; sb<spaceblocks; sb++) {
 		auto mask = readMRImage(maskpr+to_string(sb)+".nii.gz");
 
 		img_glob_row = 0;
-		img_oblock_row = 0;
+//		img_oblock_row = 0;
 		for(size_t tb = 0; tb<timeblocks; tb++) {
 			auto img = dPtrCast<MRImage>(readMRImage(filenames[sb*timeblocks+tb])
 					->copyCast(FLOAT64));
@@ -852,7 +909,8 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 			if(normts)
 				normalizeTS(img);
 
-			int rr, cc, colbl, rowbl, tt;
+//			int rr, cc, colbl, rowbl, tt;
+			int cc, colbl;
 			int tlen = img->tlen();
 			Vector3DIter<double> it(img);
 			NDIter<double> mit(mask);
@@ -885,39 +943,39 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 			assert(cc == m_outcols[colbl]);
 			datamap.close();
 
-			// Wide Matrix, fill mat[0:brows,img_glob_col:img_glob_col+nvox],
-			// Start with invalid and load new columns as needed
-			// rr iterates over the rows in the block
-			// rowbl is the index of the block in the set of output blocks
-			// tt is the index row position in the image
-			for(rr=-1, rowbl=img_oblock_row-1, tt=0; tt < tlen; rr++, tt++){
-				if(rr < 0 || rr >= m_outrows[rowbl]) {
-					rr = 0;
-					rowbl++;
-					datamap.open(widepr+to_string(rowbl));
-					if(datamap.rows != m_outrows[rowbl] || datamap.cols !=
-							m_totalcols) {
-						throw INVALID_ARGUMENT("Unexpected size in input "
-								+ tallpr+to_string(rowbl));
-					}
-				}
-
-				it.goBegin(), mit.goBegin();
-				for(int cc=img_glob_col; !it.eof(); ++it, ++mit) {
-					if(*mit != 0)
-						datamap.mat(rr, cc++) = it[tt];
-				}
-			}
-
-			assert(rr == m_outrows[rowbl]);
-			datamap.close();
+//			// Wide Matrix, fill mat[0:brows,img_glob_col:img_glob_col+nvox],
+//			// Start with invalid and load new columns as needed
+//			// rr iterates over the rows in the block
+//			// rowbl is the index of the block in the set of output blocks
+//			// tt is the index row position in the image
+//			for(rr=-1, rowbl=img_oblock_row-1, tt=0; tt < tlen; rr++, tt++){
+//				if(rr < 0 || rr >= m_outrows[rowbl]) {
+//					rr = 0;
+//					rowbl++;
+//					datamap.open(widepr+to_string(rowbl));
+//					if(datamap.rows != m_outrows[rowbl] || datamap.cols !=
+//							m_totalcols) {
+//						throw INVALID_ARGUMENT("Unexpected size in input "
+//								+ tallpr+to_string(rowbl));
+//					}
+//				}
+//
+//				it.goBegin(), mit.goBegin();
+//				for(int cc=img_glob_col; !it.eof(); ++it, ++mit) {
+//					if(*mit != 0)
+//						datamap.mat(rr, cc++) = it[tt];
+//				}
+//			}
+//
+//			assert(rr == m_outrows[rowbl]);
+//			datamap.close();
 
 			// Increment Global Row by Input Block Size (same as image rows)
 			img_glob_row += inrows[tb];
 
-			// Increment Output block row to correspond to the next image
-			for(int ii=0; ii != inrows[tb]; )
-				ii += m_outrows[img_oblock_row++];
+//			// Increment Output block row to correspond to the next image
+//			for(int ii=0; ii != inrows[tb]; )
+//				ii += m_outrows[img_oblock_row++];
 		}
 
 		// Increment Global Col by Input Block Size (same as image cols)

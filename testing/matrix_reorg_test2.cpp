@@ -20,6 +20,7 @@
 
 #include <string>
 
+#include "matrix_reorg_test.h"
 #include "ica_helpers.h"
 #include "mrimage_utils.h"
 #include "mrimage.h"
@@ -30,111 +31,6 @@
 using namespace npl;
 using namespace std;
 
-int testWideMats(size_t nrows, size_t ncols,
-	const MatrixReorg& reorg, const vector<ptr<MRImage>>& masks,
-		const vector<ptr<MRImage>>& inputs, std::string prefix)
-{
-	MatrixXd full(reorg.rows(), reorg.cols());
-
-	size_t currow = 0;
-	for(size_t ii=0; ii<reorg.nwide(); ++ii) {
-		MatMap mat(prefix+to_string(ii));
-		
-		full.middleRows(currow, reorg.wideMatRows()[ii]) = mat.mat;
-		currow += reorg.wideMatRows()[ii];
-	}
-
-	size_t globcol = 0;
-	size_t globrow = 0;
-	for(size_t cc=0; cc<ncols; cc++) {
-		auto mask = masks[cc];
-		NDIter<int> mit(mask);
-		globrow = 0;
-		size_t localcols = 0;
-		for(size_t rr=0; rr<nrows; rr++) {
-			localcols = 0;
-			auto img = inputs[cc*nrows + rr];
-			size_t tlen = img->tlen();
-			Vector3DIter<double> it(img);
-			mit.goBegin();
-
-			for(size_t t=0; t<tlen; t++) {
-				for(size_t s=0; !it.eof(); ++it, ++mit) {
-					if(*mit != 0) {
-						if(full(globrow+t, globcol+s) != it[t]) {
-							cerr << "Mismatch in wide mats!" << endl;
-							cerr << "Outer Column: " << cc << endl;
-							cerr << "Outer Row: " << rr << endl;
-							cerr << "Inner Column: " << s << endl;
-							cerr << "Inner Row: " << t << endl;
-							cerr << full(globrow+t, globcol+s) << " vs " << it[t] << endl;
-							cerr << "Full Matrix:\n\n" << full << endl;
-							return -1;
-						}
-						s++;
-						localcols++;
-					}
-				}
-			}
-			globrow += tlen;
-		}
-		globcol += localcols;
-	}
-	return 0;
-}
-
-int testTallMats(size_t nrows, size_t ncols,
-		const MatrixReorg& reorg, const vector<ptr<MRImage>>& masks,
-		const vector<ptr<MRImage>>& inputs, std::string prefix)
-{
-	MatrixXd full(reorg.rows(), reorg.cols());
-
-	size_t curcol = 0;
-	for(size_t ii=0; ii<reorg.ntall(); ++ii) {
-		MatMap mat(prefix+to_string(ii));
-		
-		full.middleCols(curcol, reorg.tallMatCols()[ii]) = mat.mat;
-		curcol += reorg.tallMatCols()[ii];
-	}
-
-	size_t globcol = 0;
-	size_t globrow = 0;
-	for(size_t cc=0; cc<ncols; cc++) {
-		auto mask = masks[cc];
-		NDIter<int> mit(mask);
-		globrow = 0;
-		size_t localcols = 0;
-		for(size_t rr=0; rr<nrows; rr++) {
-			localcols = 0;
-			auto img = inputs[cc*nrows+ rr];
-			size_t tlen = img->tlen();
-			Vector3DIter<double> it(img);
-			mit.goBegin();
-
-			for(size_t t=0; t<tlen; t++) {
-				for(size_t s=0; !it.eof(); ++it, ++mit) {
-					if(*mit != 0) {
-						if(full(globrow+t, globcol+s) != it[t]) {
-							cerr << "Mismatch in tall mats!" << endl;
-							cerr << "Outer Column: " << cc << endl;
-							cerr << "Outer Row: " << rr << endl;
-							cerr << "Inner Column: " << s << endl;
-							cerr << "Inner Row: " << t << endl;
-							cerr << full(globrow+t, globcol+s) << " vs " << it[t] << endl;
-							cerr << "Full Matrix:\n\n" << full << endl;
-							return -1;
-						}
-						s++;
-						localcols++;
-					}
-				}
-			}
-			globrow += tlen;
-		}
-		globcol += localcols;
-	}
-	return 0;
-}
 
 int main()
 {
@@ -156,22 +52,24 @@ int main()
 
 		for(size_t rr = 0; rr<nrows; rr++) {
 			inputs[rr+cc*nrows] = randImage(FLOAT64, 0, 1, 11, 12, 13, timepoints);
-			
+
 			fn_inputs[rr+cc*nrows] = pref+to_string(cc)+"_"+
 						to_string(rr)+".nii.gz";
 			inputs[rr+cc*nrows]->write(fn_inputs[rr+cc*nrows]);
 		}
 	}
-	
+
 	MatrixReorg reorg(pref, 15000, true);
-	if(reorg.createMats(nrows, ncols, fn_masks, fn_inputs, false) != 0) 
+	if(reorg.createMats(nrows, ncols, fn_masks, fn_inputs, false) != 0)
 		return -1;
-	
+
 	// use Matrix
 	if(testTallMats(nrows, ncols, reorg, masks, inputs, pref+"_tall_") != 0)
 		return -1;
-	
-	if(testWideMats(nrows, ncols, reorg, masks, inputs, pref+"_wide_") != 0)
-		return -1;
 
+//	if(testWideMats(nrows, ncols, reorg, masks, inputs, pref+"_wide_") != 0)
+//		return -1;
+
+	if(testProducts(nrows, ncols, reorg, masks, inputs) != 0)
+		return -1;
 }
