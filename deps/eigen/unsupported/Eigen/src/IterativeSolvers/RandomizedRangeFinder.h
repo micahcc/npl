@@ -241,8 +241,7 @@ void RandomizedRangeFinder<T>::_compute(const Ref<const MatrixType> A)
 		if(m_Q.rows() > 0) {
 			// Orthogonalize the additional Q vectors Q with respect to the
 			// current Q vectors
-			Qc = (MatrixType::Identity(m_Q.rows(), m_Q.rows()) -
-					m_Q*m_Q.transpose())*Qtmp;
+			Qc = Qtmp - m_Q*(m_Q.transpose()*Qtmp).eval();
 
 			// After orthogonalizing wrt to Q, reorthogonalize wrt each other
 			norms.resize(Qc.cols());

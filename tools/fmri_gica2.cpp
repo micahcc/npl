@@ -82,26 +82,22 @@ int main(int argc, char** argv)
 
 	TCLAP::ValueArg<double> a_varthresh("", "var-thresh", "Cut off after this "
 			"ratio of the variance has been accounted for.", false, 0.99, "ratio", cmd);
-	TCLAP::ValueArg<double> a_svthresh("", "sv-thresh", "Cut off after this "
-			"ratio of maximum singular value. Everything smaller is considered 0",
-			false, NAN, "ratio", cmd);
-	TCLAP::ValueArg<double> a_deftol("", "dtol", "Deflation tolerance in "
-			"eigenvalue computation. Larger values will result in fewer "
-			"singular values. ", false,
-			std::sqrt(std::numeric_limits<double>::epsilon()), "tol", cmd);
+	TCLAP::ValueArg<double> a_tol("", "tol", "Tolerance for low rank "
+			"approximation to true matrix (all timeseries). ", false,
+			1e-5, "tol", cmd);
+	TCLAP::ValueArg<size_t> a_poweriters("", "power-iters", "Power iteration "
+			"can increase accuracy of eigenvalues when they are clustered. "
+			"Setting this to 2 or 3 could improve the results, but will cost "
+			"2*i more computation time", false, 0, "iters", cmd);
+	TCLAP::ValueArg<int> a_initrank("", "initrank", "Initial rank estimate. "
+			"estimate will go up by powers of 2 until maxrank is reached. "
+			"Default is to decide automatically",
+			false, -1, "rank", cmd);
+	TCLAP::ValueArg<int> a_maxrank("", "maxrank", "Maximum rank estimate. "
+			"estimate will go up by powers of 2 until maxrank is reached. "
+			"Default is to decide automatically",
+			false, -1, "rank", cmd);
 
-	TCLAP::ValueArg<int> a_simultaneous("V", "simul-vectors", "Simultaneous "
-			"vectors to estimate eigenvectors for in lambda. Bump this up "
-			"if you have convergence issues. This is part of the "
-			"Band Lanczos Eigenvalue Decomposition of the covariance matrix. "
-			"By default the covariance size is used, which is conservative. "
-			"Values less than 1 will default back to that", false, -1,
-			"#vecs", cmd);
-	TCLAP::ValueArg<int> a_iters("", "max-iters", "Maximum iterations "
-			"in PCA. This sets are hard limit on the number of estimated "
-			"eigenvectors in the Band Lanczos Solver (and thus the maximum "
-			"number of singular values in the SVD. Be wary of making it "
-			"too small). -1 removes limit", false, -1, "iters", cmd);
 	TCLAP::ValueArg<double> a_gbram("M", "memory-max", "Maximum number of GB "
 			"of RAM to use for chunks. This is needed to decide how to divide "
 			"up data into spatial chunks. ", false, -1, "#GB", cmd);
@@ -133,6 +129,10 @@ int main(int argc, char** argv)
 	gica.spatial = a_spatial_ica.isSet();
 	gica.normts = !a_no_norm_ts.isSet();
 	gica.verbose = a_verbose.isSet();
+	gica.tolerance = a_tol.getValue();
+	gica.initrank = a_initrank.getValue();
+	gica.maxrank = a_maxrank.getValue();
+	gica.poweriters = a_poweriters.getValue();
 
 	gica.compute(a_time_append.getValue(), a_space_append.getValue(),
 			a_masks.getValue(), a_in.getValue());

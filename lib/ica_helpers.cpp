@@ -313,7 +313,8 @@ VectorXd onDiskSVD(const MatrixReorg& A, double tol, int startrank,
 		if(Q.rows() > 0) {
 			// Orthogonalize the additional Q vectors Q with respect to the
 			// current Q vectors
-			Qc = (MatrixXd::Identity(Q.rows(), Q.rows()) - Q*Q.transpose())*Qtmp;
+
+			Qc = Qtmp - Q*(Q.transpose()*Qtmp).eval();
 
 			// After orthogonalizing wrt to Q, reorthogonalize wrt each other
 			norms.resize(Qc.cols());
