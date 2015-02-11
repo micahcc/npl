@@ -44,107 +44,6 @@ namespace npl {
  * High Level Functions for Performing Large Scale ICA Analysis
  ****************************************************************************/
 
-///**
-// * @brief Helper function for large-scale ICA analysis. This takes
-// * a working directory, which should already have 'mat_#' files with data
-// * (one per element of nrows) and orthogonalizes the data to produce a
-// * set of variables which are orthogonal.
-// *
-// * This assumes that the input is a set of matrices which will be concat'd in
-// * the row (time) direction. By default it is assumed that the columns
-// * represent dimensions and the rows samples. This means that the output
-// * of Xorth will normally have one row for every row of the concatinated
-// * matrices and far fewer columns. If rowdims is true then Xorth will have one
-// * row for each of the column (which is the same for all images), and fewer
-// * columns than the original matrices had rows.
-// *
-// * @param prefix Directory which should have mat_0, mat_1, ... up to
-// * nrows.size()-1
-// * @param evthresh Threshold for percent of variance to account for in the
-// * original data when reducing dimensions to produce Xorth. This is determines
-// * the number of dimensions to keep.
-// * @param initbasis Number of starting basis vectors to initialize the
-// * BandLanczos algorithm with. If this is <= 1, one dimension of of XXT will be
-// * used.
-// * @param maxrank Maximum number of dimensions to keep in Xorth
-// * @param rowdims Perform reduction on the original inputs rows. Note that the
-// * output will still be in column format, where each columns is a dimension,
-// * but the input will be treated such that each row is dimension. This makes it
-// * easier to perform ICA.
-// * @param nrows Number of rows in each block of rows
-// * @param XXT Covariance (X*X.transpose())
-// * @param Xorth Output orthogonal version of X
-// *
-// * @return
-// */
-//int timecat_orthog(std::string prefix, double evthresh,
-//		int initbasis, int maxiters, bool rowdims, const std::vector<int>& ncols,
-//		const MatrixXd& XXT, MatrixXd& Xorth)
-//{
-//	// Compute EigenVectors (U)
-//	Eigen::BandLanczosSelfAdjointEigenSolver<MatrixXd> eig;
-//	eig.setDeflationTol(deftol);
-//	eig.compute(XXT, initbasis);
-//
-//	if(eig.info() == Eigen::NoConvergence) {
-//		cerr << "Non Convergence of BandLanczosSelfAdjointEigenSolver" << endl;
-//		return -1;
-//	}
-//
-//	double sum = 0;
-//	double totalev = eig.eigenvalues().sum();
-//	int eigrows = eig.eigenvalues().rows();
-//	int rank = 0;
-//	VectorXd S(eigrows);
-//	for(int cc=0; cc<eigrows; cc++) {
-//		double v = eig.eigenvalues()[eigrows-1-cc];
-//		if(v < std::numeric_limits<double>::epsilon() ||
-//				(evthresh >= 0 && evthresh <= 1 && (sum > totalev*evthresh)))
-//			S[cc] = 0;
-//		else {
-//			S[cc] = std::sqrt(eig.eigenvalues()[eigrows-1-cc]);
-//			rank++;
-//		}
-//		sum += v;
-//	}
-//	S.conservativeResize(rank);
-//
-//	// Computed left singular values (U)
-//	// A = USV*, A^T = VSU*, V = A^T U S^-1
-//	MatrixXd U(eig.eigenvectors().rows(), rank);
-//	for(int cc=0; cc<rank; cc++)
-//		U.col(cc) = eig.eigenvectors().col(eigrows-1-cc);
-//
-//	if(!rowdims) {
-//		// U is what we need, since each COLUMN represents a dim
-//		Xorth = U;
-//	} else {
-//		// Need V since each ROW represents a DIM, in V each COLUMN will be a
-//		// DIM, which will correspond to a ROW of X
-//		// Compute V = X^T U S^-1
-//		// rows of V correspond to cols of X
-//		size_t totalcols = 0;
-//		for(auto C : ncols) totalcols += C;
-//		Xorth.resize(totalcols, S.rows());
-//
-//		int curr_row = 0;
-//		for(int ii=0; ii<ncols.size(); ii++) {
-//			string fn = prefix+"_mat_"+to_string(ii);
-//			MemMap mmap(fn, ncols[ii]*U.rows()*sizeof(double), false);
-//			if(mmap.size() < 0)
-//				return -1;
-//
-//			Eigen::Map<MatrixXd> X((double*)mmap.data(), U.rows(), ncols[ii]);
-//			Xorth.middleRows(curr_row, ncols[ii]) = X.transpose()*U*
-//						S.cwiseInverse().asDiagonal();
-//
-//			curr_row += ncols[ii];
-//		}
-//	}
-//	return 0;
-//}
-//
-
 /**
  * @brief Helper function for large-scale ICA analysis. This takes
  * a working directory, which should already have 'mat_#' files with data
@@ -298,7 +197,9 @@ VectorXd onDiskSVD(const MatrixReorg& A, double tol, int startrank,
 		Eigen::HouseholderQR<MatrixXd> qr(Yc);
 		Qtmp = qr.householderQ()*MatrixXd::Identity(A.cols(), nextsize);
 		Eigen::HouseholderQR<MatrixXd> qrh;
+		cerr << "Power Iteration: ";
 		for(size_t ii=0; ii<poweriters; ii++) {
+			cerr<<ii<<" ";
 			A.postMult(Yhc, Qtmp);
 			qrh.compute(Yhc);
 			Qhat = qrh.householderQ()*MatrixXd::Identity(A.rows(), nextsize);
@@ -306,6 +207,7 @@ VectorXd onDiskSVD(const MatrixReorg& A, double tol, int startrank,
 			qr.compute(Yc);
 			Qtmp = qr.householderQ()*MatrixXd::Identity(A.cols(), nextsize);
 		}
+		cerr << "Done" << endl;
 
 		/*
 		 * Orthogonalize new basis with the current basis (Q) and then append
@@ -314,6 +216,7 @@ VectorXd onDiskSVD(const MatrixReorg& A, double tol, int startrank,
 			// Orthogonalize the additional Q vectors Q with respect to the
 			// current Q vectors
 
+			cerr<<"Orthogonalizing with Previous Q"<<endl;
 			Qc = Qtmp - Q*(Q.transpose()*Qtmp).eval();
 
 			// After orthogonalizing wrt to Q, reorthogonalize wrt each other
@@ -332,6 +235,7 @@ VectorXd onDiskSVD(const MatrixReorg& A, double tol, int startrank,
 					keep++;
 				}
 			}
+			cerr<<"Keeping "<<keep<<" new ranks"<<endl;
 			if(keep == 0)
 				break;
 
@@ -345,17 +249,21 @@ VectorXd onDiskSVD(const MatrixReorg& A, double tol, int startrank,
 				}
 			}
 		} else {
+			cerr<<"First Pass, Setting Q"<<endl;
 			Q = Qtmp;
 		}
+		cerr<<"Rank Set to "<<Q.cols()<<endl;
 
 		curank = Q.cols();
 	} while(curank < maxrank && curank < A.cols());
 
 	// Form B = Q* x A
+	cerr<<"Making Low Rank Approximation ("<<Q.cols()<<"x"<<A.rows()<<endl;
 	MatrixXd B(Q.cols(), A.rows());;
 	A.preMult(B, Q.transpose(), true);
 	Eigen::JacobiSVD<MatrixXd> smallsvd(B, Eigen::ComputeThinU | Eigen::ComputeThinV);
 
+	cerr<<"Done with SVD Estimation"<<endl;
 	// These are swapped because we did A^T
 	if(V)
 		*V = Q*smallsvd.matrixU();
