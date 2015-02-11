@@ -127,17 +127,8 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-//	MatrixXd ics = fmri_gica(a_time_append.getValue(),
-//			a_space_append.getValue(), a_prefix.getValue(), a_masks.getValue(),
-//			a_in.getValue(), a_evthresh.getValue(), a_varthresh.getValue(),
-//			a_simultaneous.getValue(), a_iters.getValue(), a_gbram.getValue(),
-//			a_spatial_ica.isSet());
 	GICAfmri gica(a_prefix.getValue());
 	gica.varthresh = a_varthresh.getValue();
-	gica.svthresh = a_svthresh.getValue();
-	gica.deftol = a_deftol.getValue();
-	gica.initbasis = a_simultaneous.getValue();
-	gica.maxiters = a_iters.getValue();
 	gica.maxmem = a_gbram.getValue();
 	gica.spatial = a_spatial_ica.isSet();
 	gica.normts = !a_no_norm_ts.isSet();

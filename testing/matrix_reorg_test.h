@@ -59,7 +59,6 @@ int testProducts(size_t nrows, size_t ncols,
 	MatrixXd full(reorg.rows(), reorg.cols());
 
 	double err;
-	double scale = 0;
 	size_t globcol = 0;
 	size_t globrow = 0;
 	for(size_t cc=0; cc<ncols; cc++) {
@@ -93,11 +92,10 @@ int testProducts(size_t nrows, size_t ncols,
 	MatrixXd a, b;
 
 	b = full*m;
- 	scale = approxNorm(b);
 	a.resize(b.rows(), b.cols());
 	reorg.postMult(a, m);
-	err = (b - a).cwiseAbs().sum()/scale;
-	if(err > 0.00001)  {
+	err = (b - a).cwiseAbs().sum()/(a.rows()*a.cols());
+	if(err > 0.1)  {
 		cerr << "Mismatch of product "<<endl;
 		return -1;
 	}
@@ -105,11 +103,10 @@ int testProducts(size_t nrows, size_t ncols,
 	m.resize(reorg.rows(), reorg.cols()/2+1);
 	m.setRandom();
 	b = full.transpose()*m;
-	scale = approxNorm(b);
 	a.resize(b.rows(), b.cols());
 	reorg.postMult(a, m, true);
-	err = (b - a).cwiseAbs().sum()/scale;
-	if(err >  0.00001)  {
+	err = (b - a).cwiseAbs().sum()/(a.rows()*a.cols());
+	if(err >  0.1)  {
 		cerr << "Mismatch of product (transpose)"<<endl;
 		return -1;
 	}
@@ -117,11 +114,10 @@ int testProducts(size_t nrows, size_t ncols,
 	m.resize(reorg.cols()/2+1, reorg.rows());
 	m.setRandom();
 	b = m*full;
-	scale = approxNorm(b);
 	a.resize(b.rows(), b.cols());
 	reorg.preMult(a, m);
-	err = (b - a).cwiseAbs().sum()/scale;
-	if(err > 0.00001)  {
+	err = (b - a).cwiseAbs().sum()/(a.rows()*a.cols());
+	if(err > 0.1)  {
 		cerr << "Mismatch of pre-preoduct "<<endl;
 		return -1;
 	}
@@ -129,10 +125,10 @@ int testProducts(size_t nrows, size_t ncols,
 	m.resize(reorg.cols()/2+1, reorg.cols());
 	m.setRandom();
 	b = m*full.transpose();
-	scale = approxNorm(b);
 	a.resize(b.rows(), b.cols());
 	reorg.preMult(a, m, true);
-	if(err > 0.00001)  {
+	err = (b - a).cwiseAbs().sum()/(a.rows()*a.cols());
+	if(err > 0.1)  {
 		cerr << "Mismatch of pre-product (transpose)"<<endl;
 		return -1;
 	}

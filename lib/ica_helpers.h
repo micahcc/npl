@@ -46,16 +46,18 @@ class MatrixReorg;
  * 2009;1–74. Available from: http://arxiv.org/abs/0909.4061
  *
  * @param prefix File prefix
- * @param tol
- * @param startrank
- * @param maxrank
+ * @param tol Tolerance for stopping
+ * @param startrank Initial rank (est rank double each time, -1 to start at
+ * log(min(rows,cols)))
+ * @param maxrank Maximum rank (or -1 to select the min(rows,cols))
  * @param poweriters
- * @param U
- * @param E
- * @param V
+ * @param U Output U matrix, if null then ignored
+ * @param V Output V matrix, if null then ignored
+ *
+ * @return Vector of singular values
  */
-void onDiskSVD(const MatrixReorg& A, double tol, int startrank,
-		int maxrank, size_t poweriters, MatrixXd& U, VectorXd& E, MatrixXd& V);
+VectorXd onDiskSVD(const MatrixReorg& A, double tol, int startrank,
+		int maxrank, size_t poweriters, MatrixXd* U=NULL, MatrixXd* V=NULL);
 
 /**
  * @brief Computes the the ICA of spatially concatinated images. Optionally
@@ -381,32 +383,14 @@ public:
 	GICAfmri(std::string pref) ;
 
 	/**
-	 * @brief Cutoff threshold for singular values (ratio of maximum),
-	 * everything below this will be ignored (treated as 0)
-	 */
-	double svthresh;
-
-	/**
 	 * @brief Cutoff for explained variance in PCA
 	 */
 	double varthresh;
 
-	/**
-	 * @brief Deflation tolerance in BandLanczos.
-	 */
-	double deftol;
-
-	/**
-	 * @brief lancvec Number of lanczos vectors to initialize SVD/BandLanczos Eigen
-	 * Solver with, a good starting point is 2* the number of expected PC's, if
-	 * convergence fails, use more
-	 */
-	int initbasis;
-
-	/**
-	 * @brief Maximum number of iterations in BandLanczos Eigen Solve
-	 */
-	int maxiters;
+	double tolerance;
+	int initrank;
+	int maxrank;
+	size_t poweriters;
 
 	/**
 	 * @brief Maximum number of gigabytes of memory to use

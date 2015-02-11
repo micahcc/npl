@@ -79,10 +79,9 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt,
 	const auto& fullS = fullsvd.singularValues();
 	const auto& fullU = fullsvd.matrixU();
 
-	VectorXd mergeS;
 	MatrixXd mergeU, mergeV;
-	onDiskSVD(reorg, tol, startrank, maxrank, poweriters,
-			mergeU, mergeS, mergeV);
+	VectorXd mergeS = onDiskSVD(reorg, tol, startrank, maxrank, poweriters,
+			&mergeU, &mergeV);
 
 	size_t rank = approxrank(mergeS, svt);
 	cerr << "SVD Rank: " << rank << endl;

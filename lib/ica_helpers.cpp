@@ -256,16 +256,18 @@ int spcat_orthog(std::string prefix, double svthresh,
  * 2009;1–74. Available from: http://arxiv.org/abs/0909.4061
  *
  * @param prefix File prefix
- * @param tol
- * @param startrank
- * @param maxrank
+ * @param tol Tolerance for stopping
+ * @param startrank Initial rank (est rank double each time, -1 to start at
+ * log(min(rows,cols)))
+ * @param maxrank Maximum rank (or -1 to select the min(rows,cols))
  * @param poweriters
- * @param U
- * @param E
- * @param V
+ * @param U Output U matrix, if null then ignored
+ * @param V Output V matrix, if null then ignored
+ *
+ * @return Vector of singular values
  */
-void onDiskSVD(const MatrixReorg& A, double tol, int startrank,
-		int maxrank, size_t poweriters, MatrixXd& U, VectorXd& E, MatrixXd& V)
+VectorXd onDiskSVD(const MatrixReorg& A, double tol, int startrank,
+		int maxrank, size_t poweriters, MatrixXd* U, MatrixXd* V)
 {
 	if(startrank <= 1)
 		startrank = std::ceil(std::log2(std::min(A.rows(), A.cols())));
@@ -352,80 +354,76 @@ void onDiskSVD(const MatrixReorg& A, double tol, int startrank,
 	MatrixXd B(Q.cols(), A.rows());;
 	A.preMult(B, Q.transpose(), true);
 	Eigen::JacobiSVD<MatrixXd> smallsvd(B, Eigen::ComputeThinU | Eigen::ComputeThinV);
-	V = Q*smallsvd.matrixU();
-	E = smallsvd.singularValues();
 
-	VectorXd Einv(E.rows());
-	for(size_t ii=0; ii<E.rows(); ii++) {
-		if(E[ii] > std::numeric_limits<double>::epsilon())
-			Einv[ii] = 1./E[ii];
-		else
-			Einv[ii] = 0;
-	}
+	// These are swapped because we did A^T
+	if(V)
+		*V = Q*smallsvd.matrixU();
+	if(U)
+		*U = smallsvd.matrixV();
 
-	U = smallsvd.matrixV();
+	return smallsvd.singularValues();
 }
-
-/**
- * @brief Computes the the ICA of temporally concatinated images.
- *
- * @param imgnames List of images to load. Data is concatinated from left to
- * right.
- * @param maskname Common mask for the all the input images. If empty, then
- * non-zero variance areas will be used.
- * @param prefix Directory to create mat_* files and mask_* files in
- * @param svthresh Threshold for singular values (drop values this ratio of the
- * max)
- * @param deftol Threshold for eigenvalues of XXT and singular values. Scale
- * is a ratio from 0 to 1 relative to the total sum of eigenvalues/variance.
- * Infinity will the BandLanczos Algorithm to run to completion and only
- * singular values > sqrt(epsilon) to be kept
- * @param initbasis Basis size of BandLanczos Algorithm. This is used as the
- * seed for the Krylov Subspace.
- * @param maxiters Maximum number of iterations for PCA
- * @param spatial Whether to do spatial ICA. Warning this is much more memory
- * and CPU intensive than PSD/Time ICA.
- *
- * @return Matrix with independent components in columns
- *
- */
-MatrixXd tcat_ica(const vector<string>& imgnames,
-		string& maskname, string prefix, double svthresh, double deftol,
-		int initbasis, int maxiters, bool spatial)
-{
-
-	/**********
-	 * Input
-	 *********/
-	if(imgnames.empty())
-		throw INVALID_ARGUMENT("Need to provide at least 1 input image!");
-
-	const double MINSV = sqrt(std::numeric_limits<double>::epsilon());
-
-	int rank = 0; // Rank of Singular Value Decomp
-	VectorXd singvals;
-	MatrixXd matrixU;
-	MatrixXd matrixV;
-	ptr<MRImage> mask;
-
-	// Matrix Reorg Creates Tall Matrices and Wide Matrices, we need the tall
-	size_t maxd = (1<<30); // roughly 8GB
-	vector<string> masks(1, maskname);
-	MatrixReorg reorg(prefix, maxd, false);
-	reorg.createMats(imgnames.size(), 1, masks, imgnames, true);
-
-	/*
-	 * Compute SVD of input
-	 */
-
-	if(!spatial) {
-		// U is what we need, since each COLUMN represents a dim
-		return ica(matrixU);
-	} else {
-		return ica(matrixV);
-	}
-}
-
+//
+///**
+// * @brief Computes the the ICA of temporally concatinated images.
+// *
+// * @param imgnames List of images to load. Data is concatinated from left to
+// * right.
+// * @param maskname Common mask for the all the input images. If empty, then
+// * non-zero variance areas will be used.
+// * @param prefix Directory to create mat_* files and mask_* files in
+// * @param svthresh Threshold for singular values (drop values this ratio of the
+// * max)
+// * @param deftol Threshold for eigenvalues of XXT and singular values. Scale
+// * is a ratio from 0 to 1 relative to the total sum of eigenvalues/variance.
+// * Infinity will the BandLanczos Algorithm to run to completion and only
+// * singular values > sqrt(epsilon) to be kept
+// * @param initbasis Basis size of BandLanczos Algorithm. This is used as the
+// * seed for the Krylov Subspace.
+// * @param maxiters Maximum number of iterations for PCA
+// * @param spatial Whether to do spatial ICA. Warning this is much more memory
+// * and CPU intensive than PSD/Time ICA.
+// *
+// * @return Matrix with independent components in columns
+// *
+// */
+//MatrixXd tcat_ica(const vector<string>& imgnames,
+//		string& maskname, string prefix, double svthresh, double deftol,
+//		int initbasis, int maxiters, bool spatial)
+//{
+//
+//	/**********
+//	 * Input
+//	 *********/
+//	if(imgnames.empty())
+//		throw INVALID_ARGUMENT("Need to provide at least 1 input image!");
+//
+//	const double MINSV = sqrt(std::numeric_limits<double>::epsilon());
+//
+//	int rank = 0; // Rank of Singular Value Decomp
+//	VectorXd singvals;
+//	MatrixXd matrixU;
+//	MatrixXd matrixV;
+//	ptr<MRImage> mask;
+//
+//	// Matrix Reorg Creates Tall Matrices and Wide Matrices, we need the tall
+//	size_t maxd = (1<<30); // roughly 8GB
+//	vector<string> masks(1, maskname);
+//	MatrixReorg reorg(prefix, maxd, false);
+//	reorg.createMats(imgnames.size(), 1, masks, imgnames, true);
+//
+//	/*
+//	 * Compute SVD of input
+//	 */
+//
+//	if(!spatial) {
+//		// U is what we need, since each COLUMN represents a dim
+//		return ica(matrixU);
+//	} else {
+//		return ica(matrixV);
+//	}
+//}
+//
 /**
  * @brief Computes the the ICA of spatially concatinated images. Optionally
  * the data may be converted from time-series to a power spectral density,
@@ -1100,66 +1098,19 @@ void fillMatPSD(double* rawdata, size_t nrows, size_t ncols,
 GICAfmri::GICAfmri(std::string pref)
 {
 	m_pref = pref;
-	svthresh = 0.99;
-	deftol = sqrt(std::numeric_limits<double>::epsilon());
-	initbasis = 400;
-	maxiters = -1;
 	maxmem = 4; //gigs
 	verbose = 0;
 	m_status = 0; //unitialized
 	spatial = false; // spatial maps
-}
-
-size_t GICAfmri::svd_help(string inname, string usname, string vname)
-{
-	MatMap talldata(inname);
-
-	cerr<<"Chunk SVD (Lanczos):"<<talldata.mat.rows()<<"x"
-		<<talldata.mat.cols()<<endl;
-	size_t rank = 0;
-
-//	Eigen::BandLanczosSVD<MatrixXd> svd;
-//	svd.setVarThreshold(varthresh);
-//	svd.compute(talldata.mat,
-//			Eigen::ComputeThinU | Eigen::ComputeThinV);
-//	rank = svd.rank();
-	Eigen::JacobiSVD<MatrixXd> svd(talldata.mat,
-			Eigen::ComputeThinU | Eigen::ComputeThinV);
-	double var = 0;
-	double totalvar = svd.singularValues().sum();
-	for(rank=0; rank<svd.singularValues().size(); rank++) {
-		if(var > totalvar*varthresh)
-			break;
-		var += var + svd.singularValues()[rank];
-	}
-
-	cerr << "SVD Rank: " << rank << endl;
-	if(rank == 0) {
-		throw INVALID_ARGUMENT("Error arguments have been set in such a "
-				"way that no components will be selected. Try increasing "
-				"your variance threshold or number of components");
-	}
-
-	// write
-
-	MatMap tmpmat;
-
-	// Create UE
-	cerr<<"Creating UE ("<<talldata.mat.rows()<<"x"<<rank<<")"<<endl;
-	tmpmat.create(usname, svd.matrixU().rows(), rank);
-	cerr << "Writing UE" << endl;
-	tmpmat.mat = svd.matrixU().leftCols(rank)*svd.singularValues().head(rank).asDiagonal();
-
-	cerr<<"Creating V ("<<talldata.mat.cols()<<"x"<<rank<<")"<<endl;
-	tmpmat.create(vname, talldata.mat.cols(), rank);
-	cerr << "Writing V" << endl;
-	tmpmat.mat = svd.matrixV().leftCols(rank);
-
-	return rank;
+	tolerance = 0.01;
+	initrank = 100;
+	maxrank = -1;
+	poweriters = 1;
 }
 
 /**
- * @brief Compute ICA for the given group, using existing tall/wide matices
+ * @brief Compute ICA for the given group, defined by tcat x scat images
+ * laid out in column major ordering.
  *
  * The basic idea is to split the rows into digesteable chunks, then
  * perform the SVD on each of them.
@@ -1176,6 +1127,11 @@ size_t GICAfmri::svd_help(string inname, string usname, string vname)
  *
  * Even if L = T / 2 then this is a 1/4 savings in the SVD computation
  *
+ * @param tcat Number of fMRI images to append in time direction
+ * @param scat Number of fMRI images to append in space direction
+ * @param masks Masks, one per spaceblock (columns of matching space)
+ * @param inputs Files in time-major order, [s0t0 s0t1 s0t2 s1t0 s1t1 s1t2]
+ * where s0 means 0th space-appended image, and t0 means the same for time
  */
 void GICAfmri::compute()
 {
@@ -1188,133 +1144,44 @@ void GICAfmri::compute()
 		throw RUNTIME_ERROR("Error while loading existing 2D Matrices");
 	cerr<<"Done\n";
 
-	size_t totrows = reorg.rows();
-	size_t curcol = 0;
-	size_t catcols = 0; // Number of Columns when concatinating horizontally
 	size_t maxrank = 0;
 	size_t rank = 0;
 
-	for(size_t ii=0; ii<reorg.ntall(); ii++) {
-		rank = svd_help(reorg.tallMatName(ii), m_pref+"_US_"+to_string(ii),
-				m_pref+"_V_"+to_string(ii));
-		maxrank = std::max<size_t>(maxrank, rank);
-		catcols += rank;
-	}
-
-	// Merge / Construct Column(EV^T, EV^T, ... )
-	MatrixXd mergedUE(totrows, catcols);
-	curcol = 0;
-	for(size_t ii=0; ii<reorg.ntall(); ii++) {
-		MatMap tmpmat(m_pref+"_US_"+to_string(ii));
-
-		mergedUE.middleCols(curcol, tmpmat.cols) = tmpmat.mat;
-		curcol += tmpmat.cols;
-	}
-
-	cerr<<"Merge SVD:"<<mergedUE.rows()<<"x"<<mergedUE.cols()<<endl;
 	MatrixXd U, V;
-	VectorXd E;
-	{
-		Eigen::JacobiSVD<MatrixXd> svd(mergedUE,
-					Eigen::ComputeThinU | Eigen::ComputeThinV);
-//		Eigen::BandLanczosSVD<MatrixXd> svd;
-//		svd.setVarThreshold(varthresh);
-//		svd.compute(mergedUE, Eigen::ComputeThinU | Eigen::ComputeThinV);
-//		rank = svd.rank();
-		double totalvar = svd.singularValues().sum();
-		double var = 0;
-		for(rank=0; rank<svd.singularValues().size(); rank++) {
-			if(var > totalvar*varthresh)
-				break;
-			var += var + svd.singularValues()[rank];
-		}
+	MatrixXd* Up = NULL;
+	MatrixXd* Vp = NULL;
 
-		cerr << "SVD Rank: " << rank << endl;
-		if(rank == 0) {
-			throw INVALID_ARGUMENT("Error arguments have been set in such a "
-					"way that no components will be selected. Try increasing "
-					"your variance threshold or number of components");
-		}
-		U = svd.matrixU();
-		E = svd.singularValues();
-		V = svd.matrixV();
+	if(spatial)
+		Vp = &V;
+	else
+		Up = &U;
+
+	VectorXd E = onDiskSVD(reorg, tolerance, initrank,
+			maxrank, poweriters, Up, Vp);
+
+	double totalvar = E.sum();
+	double var = 0;
+	for(rank=0; rank<E.size(); rank++) {
+		if(var > totalvar*varthresh)
+			break;
+		var += var + E[rank];
 	}
 
-//#ifndef NDEBUG
-	{
-		cerr << "Testing PCA, Computing Full V...";
-		MatrixXd mergeV(reorg.cols(), V.cols());
-
-		size_t currow = 0;
-		size_t curcol = 0;
-		for(size_t ii=0; ii<reorg.ntall(); ii++) {
-			string vname = m_pref+"_V_"+to_string(ii);
-			MatMap C(vname);
-
-			mergeV.middleRows(currow, C.mat.rows()) =
-				C.mat*V.middleRows(curcol, C.mat.cols());
-			currow += C.mat.rows();
-			curcol += C.mat.cols();
-		}
-		cerr << "Done\n" << endl;
-
-		cerr << "Multiplying Out (note this may use lots of memory)...";
-		cerr << "U*E*Vt = "<<U.rows()<<"x"<<U.cols()<<" . "<<E.rows()<<"x"<<E.cols()
-			<<" . "<<mergeV.cols()<<"x"<<mergeV.rows()<<endl;
-		MatrixXd fullMat = U*E.asDiagonal()*mergeV.transpose();
-		int cc = 0;
-		double err = 0;
-		double totalv = 0;
-		for(size_t ii=0; ii<reorg.ntall(); ii++) {
-			MatMap talldata(reorg.tallMatName(ii));
-			for(size_t jj=0; jj<talldata.mat.cols(); jj++) {
-				err += (talldata.mat.col(jj) - fullMat.col(cc)).squaredNorm();
-				totalv += talldata.mat.col(jj).squaredNorm();
-				cc++;
-			}
-		}
-		cerr << "Relative Error: " << err/totalv << endl;
+	cerr << "SVD Rank: " << rank << endl;
+	if(rank == 0) {
+		throw INVALID_ARGUMENT("Error arguments have been set in such a "
+				"way that no components will be selected. Try increasing "
+				"your variance threshold or number of components");
 	}
-//#endif //NDEBUG
 
-	/*
-	 * Recall:
-	 *
-	 * Assume A1 = T1 S1 C1, etc
-	 * (note C is actually C^T and V is actually V^T)
-	 *
-	 * A = [TS1 TS2 TS3 ...] diag([C1, C2, C3...])
-	 *
-	 * Given [TS1 ... ] = UEV
-	 * A = UEV diag([C1, C2, C3...])
-	 * U_A = U
-	 * E_A = E
-	 * V_A^T = V^T diag([C1^T, C2^T, C3^T...])
-	 * V_A = diag([C1 C2 C3...]) V
-	 *
-	 *
-	 * */
-	if(!spatial) {
-		cerr << "Performing ICA...";
+	if(spatial) {
+		cerr << "Performing Spatial ICA...";
 		MatMap tmpmat;
-		tmpmat.create(m_pref+"_TICA", U.rows(), U.cols());
-		tmpmat.mat = ica(U);
+		tmpmat.create(m_pref+"_SICA", V.rows(), V.cols());
+		tmpmat.mat = ica(V);
 		cerr << "Done" << endl;
 	} else {
-		cerr << "Constructing Full V...";
-		// store fullV in U, since unneeded
-		U.resize(reorg.rows(), V.cols());
-
-		size_t currow = 0;
-		for(size_t ii=0; ii<reorg.ntall(); ii++) {
-			string vname = m_pref+"_V_"+to_string(ii);
-			MatMap C(vname);
-
-			U.middleRows(currow, C.mat.rows()) = C.mat*V;
-			currow += C.mat.rows();
-		}
-		cerr << "Done\nPerforming ICA" << endl;
-
+		cerr << "Performing Temporal ICA" << endl;
 		MatMap tmpmat;
 		tmpmat.create(m_pref+"_SICA", U.rows(), U.cols());
 		tmpmat.mat = ica(U);

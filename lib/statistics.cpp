@@ -1889,11 +1889,11 @@ MatrixXd pca(const Ref<const MatrixXd> X, double varth, int odim)
 	const VectorXd& W = svd.singularValues();
 	const MatrixXd& U = svd.matrixU();
 	//only keep dimensions with variance passing the threshold
-	totalv = W.squaredNorm();
+	totalv = W.sum();
 
 	double sum = 0;
 	for(outdim = 0; outdim < W.rows() && sum < totalv*varth; outdim++)
-		sum += W[outdim]*W[outdim];
+		sum += W[outdim];
 	std::cout << totalv << endl;
 	std::cout << varth*totalv << endl;
 	std::cout<<W.transpose()<<endl;

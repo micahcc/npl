@@ -82,7 +82,7 @@ int main()
     std::uniform_real_distribution<double> unifdist(-1,1);
     std::normal_distribution<> gaussdist(0,1);
 
-    /* 
+    /*
      * Create the Test Data
      */
 
@@ -99,28 +99,28 @@ int main()
         tdata(ii,0) = high;
     }
     // create sin wave
-    for(size_t ii=0; ii<ntimes; ii++) 
+    for(size_t ii=0; ii<ntimes; ii++)
         tdata(ii,1) = sin(ii/10.);
 
-    // create gaussian 
-    for(size_t ii=0; ii<ntimes; ii++) 
+    // create gaussian
+    for(size_t ii=0; ii<ntimes; ii++)
         tdata(ii,2) = gaussdist(rng);
 
     plotMat("before_mix.svg", tdata);
 
-    /* 
+    /*
      * Mix The Data
      */
 
     // create random mixing matrix
     for(size_t ii=0; ii<ndims; ii++) {
-        for(size_t jj=0; jj<ndims; jj++) 
+        for(size_t jj=0; jj<ndims; jj++)
             mix(ii,jj) = unifdist(rng);
     }
 
     MatrixXd data = tdata*mix;
     plotMat("after_mix.svg", data);
-    
+
     // remove mean/variance
     for(size_t cc=0; cc<data.cols(); cc++)  {
         double sum = 0;
@@ -132,33 +132,33 @@ int main()
         double sigma = sqrt(sample_var(data.rows(), sum, sumsq));
         double mean = sum/data.rows();
 
-        for(size_t rr=0; rr<data.rows(); rr++)  
+        for(size_t rr=0; rr<data.rows(); rr++)
             data(rr,cc) = (data(rr,cc)-mean)/sigma;
     }
 
 	std::cerr << "PCA...";
-    auto pdata = pca(data, 0.0001);
+    auto pdata = pca(data, .98);
 	std::cerr << "Done" << std::endl;
     plotMat("after_pca.svg", pdata);
-    
+
 	std::cerr << "ICA...";
     auto idata = ica(pdata);
 	std::cerr << "Done" << std::endl;
     plotMat("after_ica.svg", idata);
 
-    /* 
+    /*
      * compare signals
      */
 
     // compare square wave
     if(corrCompare(tdata.col(0), idata) != 0)
         return -1;
-    
+
     // compare sin wave
     if(corrCompare(tdata.col(1), idata) != 0)
         return -1;
-    
-    // compare random 
+
+    // compare random
     if(corrCompare(tdata.col(2), idata) != 0)
         return -1;
 
