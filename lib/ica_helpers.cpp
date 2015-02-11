@@ -940,6 +940,82 @@ void fillMat(double* rawdata, size_t nrows, size_t ncols,
 	if(cc != nrows)
 		throw INVALID_ARGUMENT("masked pixels != ncols");
 }
+void MatrixReorg::preMult(Eigen::Ref<MatrixXd> out,
+		const Eigen::Ref<const MatrixXd> in, bool transpose) const
+{
+	if(!transpose) {
+
+		// Q = BA, Q = [BA_0 BA_1 ... ]
+		if(out.rows() != in.rows() || out.cols() != cols() || rows() != in.cols()) {
+			throw INVALID_ARGUMENT("Input arguments are non-conformant for "
+					"matrix multiplication");
+		}
+		out.setZero();
+		for(size_t cc=0, bb=0; cc<cols(); bb++) {
+			// Load Block
+			MatMap block(tallMatName(bb));
+
+			// Multiply By Input
+			out.middleCols(cc, m_outcols[bb]) = in*block.mat;
+			cc += m_outcols[bb];
+		}
+	} else {
+		// Q = BA^T, Q = [BA^T_1 ... ]
+		if(out.rows() != in.rows() || out.cols() != rows() || cols() != in.cols()) {
+			throw INVALID_ARGUMENT("Input arguments are non-conformant for "
+					"matrix multiplication");
+		}
+		out.resize(in.rows(), rows());
+		out.setZero();
+		for(size_t cc=0, bb=0; cc<cols(); bb++) {
+			// Load Block
+			MatMap block(tallMatName(bb));
+
+			// Multiply By Input
+			out += in.middleCols(cc, m_outcols[bb])*block.mat.transpose();
+			cc += m_outcols[bb];
+		}
+	}
+};
+
+void MatrixReorg::postMult(Eigen::Ref<MatrixXd> out,
+		const Eigen::Ref<const MatrixXd> in, bool transpose) const
+{
+	if(!transpose) {
+		if(out.rows() != rows() || out.cols() != in.cols() || cols() != in.rows()) {
+			throw INVALID_ARGUMENT("Input arguments are non-conformant for "
+					"matrix multiplication");
+		}
+
+		// Q = AB, Q = SUM(A_1B_1 A_2B_2 ... )
+		out.setZero();
+		for(size_t cc=0, bb=0; cc<cols(); bb++) {
+			// Load Block
+			MatMap block(tallMatName(bb));
+
+			// Multiply By Input
+			out += block.mat*in.middleRows(cc, m_outcols[bb]);
+			cc += m_outcols[bb];
+		}
+	} else {
+		if(out.rows() != cols() || out.cols() != in.cols() || rows() != in.rows()) {
+			throw INVALID_ARGUMENT("Input arguments are non-conformant for "
+					"matrix multiplication");
+		}
+
+		// Q = A^TB, Q = [A^T_1B ... ]
+		out.setZero();
+		for(size_t cc=0, bb=0; cc<cols(); bb++) {
+			// Load Block
+			MatMap block(tallMatName(bb));
+
+			// Multiply By Input
+			out.middleRows(cc, m_outcols[bb]) = block.mat.transpose()*in;
+			cc += m_outcols[bb];
+		}
+	}
+};
+
 
 /**
  * @brief Fill a matrix, pointed to by rawdata with the Power-Spectral-Density

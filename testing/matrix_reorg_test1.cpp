@@ -53,7 +53,7 @@ int main()
 			int count = 0;
 			for(Vector3DIter<double> it(inputs[rr+cc*nrows]); !it.eof(); ++it) {
 				for(size_t tt=0; tt<timepoints; tt++) {
-					it.set(tt, cc*1e6+rr*1e4+count*1e2+tt);
+					it.set(tt, (double)rand()/RAND_MAX);
 				}
 				count++;
 			}

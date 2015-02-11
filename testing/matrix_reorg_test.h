@@ -73,13 +73,13 @@ int testProducts(size_t nrows, size_t ncols,
 			Vector3DIter<double> it(img);
 			mit.goBegin();
 
-			for(size_t t=0; t<tlen; t++) {
-				for(size_t s=0; !it.eof(); ++it, ++mit) {
-					if(*mit != 0) {
+			for(size_t s=0; !it.eof(); ++it, ++mit) {
+				if(*mit != 0) {
+					for(size_t t=0; t<tlen; t++) {
 						full(globrow+t, globcol+s) = it[t];
-						s++;
-						localcols++;
 					}
+					s++;
+					localcols++;
 				}
 			}
 			globrow += tlen;
@@ -90,13 +90,21 @@ int testProducts(size_t nrows, size_t ncols,
 	MatrixXd m(reorg.cols(), reorg.cols()/2+1);
 	m.setRandom();
 	MatrixXd a, b;
-
+#ifdef VERBOSE
+	cerr<<"A=\n"<<full<<endl;
+	cerr<<"B=\n"<<m<<endl;
+	cerr<<"Q=\n"<<b<<endl;
+#endif //VERBOSE
 	b = full*m;
 	a.resize(b.rows(), b.cols());
 	reorg.postMult(a, m);
+#ifdef VERBOSE
+	cerr << "B:\n" << b << "\nA:\n:"<<a<<"\nB-A:\n"<<(b-a)<<endl;
+#endif //VERBOSE
 	err = (b - a).cwiseAbs().sum()/(a.rows()*a.cols());
-	if(err > 0.1)  {
+	if(err > 0.00000001)  {
 		cerr << "Mismatch of product "<<endl;
+		cerr<<"Err: " << err << endl;
 		return -1;
 	}
 
@@ -106,8 +114,9 @@ int testProducts(size_t nrows, size_t ncols,
 	a.resize(b.rows(), b.cols());
 	reorg.postMult(a, m, true);
 	err = (b - a).cwiseAbs().sum()/(a.rows()*a.cols());
-	if(err >  0.1)  {
+	if(err >  0.00000001)  {
 		cerr << "Mismatch of product (transpose)"<<endl;
+		cerr<<"Err: " << err << endl;
 		return -1;
 	}
 
@@ -117,8 +126,9 @@ int testProducts(size_t nrows, size_t ncols,
 	a.resize(b.rows(), b.cols());
 	reorg.preMult(a, m);
 	err = (b - a).cwiseAbs().sum()/(a.rows()*a.cols());
-	if(err > 0.1)  {
+	if(err > 0.00000001)  {
 		cerr << "Mismatch of pre-preoduct "<<endl;
+		cerr<<"Err: " << err << endl;
 		return -1;
 	}
 
@@ -128,8 +138,9 @@ int testProducts(size_t nrows, size_t ncols,
 	a.resize(b.rows(), b.cols());
 	reorg.preMult(a, m, true);
 	err = (b - a).cwiseAbs().sum()/(a.rows()*a.cols());
-	if(err > 0.1)  {
+	if(err > 0.00000001)  {
 		cerr << "Mismatch of pre-product (transpose)"<<endl;
+		cerr<<"Err: " << err << endl;
 		return -1;
 	}
 
@@ -202,6 +213,9 @@ int testTallMats(size_t nrows, size_t ncols,
 		full.middleCols(curcol, reorg.tallMatCols()[ii]) = mat.mat;
 		curcol += reorg.tallMatCols()[ii];
 	}
+#ifdef VERBOSE
+	cerr << "Full Matrix:\n"<<full<<endl;
+#endif
 
 	size_t globcol = 0;
 	size_t globrow = 0;
@@ -217,9 +231,9 @@ int testTallMats(size_t nrows, size_t ncols,
 			Vector3DIter<double> it(img);
 			mit.goBegin();
 
-			for(size_t t=0; t<tlen; t++) {
-				for(size_t s=0; !it.eof(); ++it, ++mit) {
-					if(*mit != 0) {
+			for(size_t s=0; !it.eof(); ++it, ++mit) {
+				if(*mit != 0) {
+					for(size_t t=0; t<tlen; t++) {
 						if(full(globrow+t, globcol+s) != it[t]) {
 							cerr << "Mismatch in tall mats!" << endl;
 							cerr << "Outer Column: " << cc << endl;
@@ -230,9 +244,9 @@ int testTallMats(size_t nrows, size_t ncols,
 							cerr << "Full Matrix:\n\n" << full << endl;
 							return -1;
 						}
-						s++;
-						localcols++;
 					}
+					s++;
+					localcols++;
 				}
 			}
 			globrow += tlen;
