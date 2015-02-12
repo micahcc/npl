@@ -88,8 +88,8 @@ int testRRFClassConstErr(size_t rows, size_t cols, size_t rank,
 
 	MatrixXd estU, estV;
 	VectorXd estE;
-	Eigen::RandomRangeSVD<MatrixXd> svd(A, 2, esterr/10,  startrank,
-			-1, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	Eigen::RandomRangeSVD<MatrixXd> svd(A, 2, esterr,  startrank,
+			100, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	estU = svd.matrixU();
 	estV = svd.matrixV();
 	estE = svd.singularValues();

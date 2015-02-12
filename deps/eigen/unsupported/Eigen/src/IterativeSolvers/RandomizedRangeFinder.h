@@ -17,7 +17,7 @@
 #include <cmath>
 #include <random>
 
-#define RANDOMIZED_RANGE_FINDER_DEBUG
+//#define RANDOMIZED_RANGE_FINDER_DEBUG
 
 #ifdef RANDOMIZED_RANGE_FINDER_DEBUG
 #include <iostream>
@@ -199,7 +199,7 @@ void RandomizedRangeFinder<T>::_compute(const Ref<const MatrixType> A)
 
 	size_t curank, maxrank;
 	if(m_minrank <= 1)
-		curank = ceil(std::min(A.cols(), A.rows()));
+		curank = std::ceil(std::log2(std::min(A.cols(), A.rows())));
 	else
 		curank = m_minrank;
 
@@ -207,15 +207,16 @@ void RandomizedRangeFinder<T>::_compute(const Ref<const MatrixType> A)
 		maxrank = std::min(A.cols(), A.rows());
 	else
 		maxrank = m_maxrank;
+	maxrank = std::min<size_t>(maxrank, std::min<size_t>(A.cols(), A.rows()));
 
+	std::random_device rd;
+	std::default_random_engine rng(rd());
+	std::normal_distribution<double> rdist(0,1);
 	do {
-		size_t nextsize = std::min(curank, A.rows()-curank);
+		size_t nextsize = std::min(curank, maxrank-curank);
 
 		// Fill With Gaussian Random Numbes
 		Omega.resize(A.cols(), nextsize);
-		std::random_device rd;
-		std::default_random_engine rng(rd());
-		std::normal_distribution<double> rdist(0,1);
 		for(size_t cc=0; cc<Omega.cols(); cc++) {
 			for(size_t rr=0; rr<Omega.rows(); rr++) {
 				Omega(rr, cc) = rdist(rng);
@@ -241,44 +242,69 @@ void RandomizedRangeFinder<T>::_compute(const Ref<const MatrixType> A)
 		if(m_Q.rows() > 0) {
 			// Orthogonalize the additional Q vectors Q with respect to the
 			// current Q vectors
-			Qc = Qtmp - m_Q*(m_Q.transpose()*Qtmp);
+			Qc = Qtmp - m_Q*(m_Q.transpose()*Qtmp).eval();
 
 			// After orthogonalizing wrt to Q, reorthogonalize wrt each other
-			norms.resize(Qc.cols());
 			std::list<int> keep;
-			size_t consec = 0;
-			bool zerrun = true;
+			size_t bestcstart = 0;
+			size_t bestcsize = 0;
+			size_t cstart = 0;
+			size_t csize = 0;
+			bool smallrun = true;
 			for(size_t cc=0; cc<Qc.cols(); cc++) {
-				for(size_t jj=0; jj<cc; jj++)
-					Qc.col(cc) -= Qc.col(jj).dot(Qc.col(cc))*Qc.col(jj);
+				for(std::list<int>::iterator it=keep.begin(); it!=keep.end(); ++it)
+					Qc.col(cc) -= Qc.col(*it).dot(Qc.col(cc))*Qc.col(*it);
 				double norm = Qc.col(cc).norm();
 				if(norm > m_tol) {
-					Qc.col(cc) /= norms[cc];
 					keep.push_back(cc);
-					zerrun = false;
-				} else if(zerrun)
-					consec++;
+					Qc.col(cc) /= norm;
+					if(csize > bestcsize) {
+						bestcsize = csize;
+						bestcstart = cstart;
+					}
+					cstart = cc+1;
+					csize = 0;
+				} else {
+					csize++;
+				}
+			}
+			if(csize > bestcsize) {
+				bestcsize = csize;
+				bestcstart = cstart;
 			}
 
-			if(keep.empty())
+#ifdef RANDOMIZED_RANGE_FINDER_DEBUG
+			cerr << "Consecutive small values: " << csize << ", best:" << bestcsize << endl;
+#endif //RANDOMIZED_RANGE_FINDER_DEBUG
+			if(keep.empty()) {
+#ifdef RANDOMIZED_RANGE_FINDER_DEBUG
+				cerr << "Keep Empty, Breaking"<<endl;
+#endif //RANDOMIZED_RANGE_FINDER_DEBUG
 				break;
+			}
 
-			// Append Orthogonalized Basis
+			// Append Orthogonalized Basis, might want to remove the Q vectors
+			// that are past the threshold for stopping (ie 0...bestcstart-1)
+#ifdef RANDOMIZED_RANGE_FINDER_DEBUG
+			cerr<<"Keeping "<<keep.size()<<endl;
+#endif //RANDOMIZED_RANGE_FINDER_DEBUG
 			m_Q.conservativeResize(Qc.rows(), m_Q.cols()+keep.size());
 			size_t ii=curank;
 			for(std::list<int>::iterator it = keep.begin(); it != keep.end(); ++it)
-				m_Q.col(ii) = Qc.col(*it);
+				m_Q.col(ii++) = Qc.col(*it);
 
 			// Break Because the probability is really low that there is now
 			// information
-			if(consec > 10)
+			if(bestcsize > 10)
 				break;
 		} else {
 			m_Q = Qtmp;
 		}
 
 		curank = m_Q.cols();
-	} while(curank < maxrank && curank < A.cols());
+		cerr << "Currank: " << curank <<endl;
+	} while(curank < maxrank);
+	cerr << "Q: " << endl << m_Q << endl;
 }
 
 /**
