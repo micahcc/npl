@@ -82,21 +82,14 @@ int main(int argc, char** argv)
 
 	TCLAP::ValueArg<double> a_varthresh("", "var-thresh", "Cut off after this "
 			"ratio of the variance has been accounted for.", false, 0.99, "ratio", cmd);
-	TCLAP::ValueArg<double> a_tol("", "tol", "Tolerance for low rank "
-			"approximation to true matrix (all timeseries). ", false,
-			1e-5, "tol", cmd);
 	TCLAP::ValueArg<size_t> a_poweriters("", "power-iters", "Power iteration "
 			"can increase accuracy of eigenvalues when they are clustered. "
 			"Setting this to 2 or 3 could improve the results, but will cost "
 			"2*i more computation time", false, 0, "iters", cmd);
-	TCLAP::ValueArg<int> a_initrank("", "initrank", "Initial rank estimate. "
-			"estimate will go up by powers of 2 until maxrank is reached. "
-			"Default is to decide automatically",
-			false, -1, "rank", cmd);
-	TCLAP::ValueArg<int> a_maxrank("", "maxrank", "Maximum rank estimate. "
-			"estimate will go up by powers of 2 until maxrank is reached. "
-			"Default is to decide automatically",
-			false, -1, "rank", cmd);
+	TCLAP::ValueArg<int> a_rank("", "rank", "Initial rank estimate. "
+			"You usually want to high ball this a bit so that var thresh "
+			"can be used to reduce the rank automatically. ",
+			false, 100, "rank", cmd);
 
 	TCLAP::ValueArg<double> a_gbram("M", "memory-max", "Maximum number of GB "
 			"of RAM to use for chunks. This is needed to decide how to divide "
@@ -129,9 +122,7 @@ int main(int argc, char** argv)
 	gica.spatial = a_spatial_ica.isSet();
 	gica.normts = !a_no_norm_ts.isSet();
 	gica.verbose = a_verbose.isSet();
-	gica.tolerance = a_tol.getValue();
-	gica.initrank = a_initrank.getValue();
-	gica.maxrank = a_maxrank.getValue();
+	gica.rank = a_rank.getValue();
 	gica.poweriters = a_poweriters.getValue();
 
 	gica.compute(a_time_append.getValue(), a_space_append.getValue(),

@@ -55,7 +55,7 @@ size_t approxrank(const Ref<const VectorXd> singvals, double thresh)
 }
 
 int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt,
-		double tol, int startrank, int maxrank, size_t poweriters)
+		int estrank, size_t poweriters)
 {
 	cerr<<"Tall PCA"<<endl;
 	double thresh = 0.1;
@@ -80,7 +80,7 @@ int testTallPCAJoin(const MatrixReorg& reorg, std::string prefix, double svt,
 	const auto& fullU = fullsvd.matrixU();
 
 	MatrixXd mergeU, mergeV;
-	VectorXd mergeS = onDiskSVD(reorg, tol, startrank, maxrank, poweriters,
+	VectorXd mergeS = onDiskSVD(reorg, estrank, poweriters,
 			&mergeU, &mergeV);
 
 	size_t rank = approxrank(mergeS, svt);
@@ -150,12 +150,8 @@ int main(int argc, char** argv)
 			"|singular value| < threshold x |max singular value|. "
 			"By default this is 0.01.",
 			false, 0.01, "ratio", cmd);
-	TCLAP::ValueArg<double> a_tol("", "tol", "Tolerance for error during "
-			"lower rank matrix approximation ", false, 1e-2, "tol", cmd);
-	TCLAP::ValueArg<int> a_minrank("", "minrank", "Minimum Rank to "
-			"approximate with", false, -1, "rank", cmd);
-	TCLAP::ValueArg<int> a_maxrank("", "maxrank", "Maximum Rank to "
-			"approximate with", false, -1, "rank", cmd);
+	TCLAP::ValueArg<int> a_rank("", "rank", "Minimum Rank to "
+			"approximate with", false, 100, "rank", cmd);
 	TCLAP::ValueArg<int> a_powerit("", "poweriter", "Number of power iterations, "
 			"this enhaces accuracy at the cost of more passes over the input",
 			false, 0, "iters", cmd);
@@ -226,8 +222,7 @@ int main(int argc, char** argv)
 	if(reorg.createMats(nrows, ncols, fn_masks, fn_inputs) != 0)
 		return -1;
 
-	if(testTallPCAJoin(reorg, pref+"_tall_", vthresh, a_tol.getValue(),
-				a_minrank.getValue(), a_maxrank.getValue(),
+	if(testTallPCAJoin(reorg, pref+"_tall_", vthresh, a_rank.getValue(),
 				a_powerit.getValue()) != 0)
 		return -1;
 

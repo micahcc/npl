@@ -46,18 +46,15 @@ class MatrixReorg;
  * 2009;1–74. Available from: http://arxiv.org/abs/0909.4061
  *
  * @param prefix File prefix
- * @param tol Tolerance for stopping
- * @param startrank Initial rank (est rank double each time, -1 to start at
- * log(min(rows,cols)))
- * @param maxrank Maximum rank (or -1 to select the min(rows,cols))
+ * @param rank
  * @param poweriters
  * @param U Output U matrix, if null then ignored
  * @param V Output V matrix, if null then ignored
  *
  * @return Vector of singular values
  */
-VectorXd onDiskSVD(const MatrixReorg& A, double tol, int startrank,
-		int maxrank, size_t poweriters, MatrixXd* U=NULL, MatrixXd* V=NULL);
+VectorXd onDiskSVD(const MatrixReorg& A,
+		int rank, size_t poweriters, MatrixXd* U=NULL, MatrixXd* V=NULL);
 
 /**
  * @brief Computes the the ICA of spatially concatinated images. Optionally
@@ -135,10 +132,10 @@ public:
 		open(filename);
 	};
 
-	void open(std::string filename)
+	int open(std::string filename)
 	{
 		if(datamap.openExisting(filename) < 0)
-			throw RUNTIME_ERROR("Error opening"+filename);
+			return -1;
 
 		size_t* nrowsptr = (size_t*)datamap.data();
 		size_t* ncolsptr = nrowsptr+1;
@@ -147,15 +144,16 @@ public:
 		rows = *nrowsptr;
 		cols = *ncolsptr;
 		new (&this->mat) Eigen::Map<MatrixXd>(dataptr, rows, cols);
+		return 0;
 	};
 
-	void create(std::string filename, size_t newrows, size_t newcols)
+	int create(std::string filename, size_t newrows, size_t newcols)
 	{
 		rows = newrows;
 		cols = newcols;
 		if(datamap.openNew(filename, 2*sizeof(size_t)+
 					rows*cols*sizeof(double)) < 0)
-			throw RUNTIME_ERROR("Error creating "+filename);
+			return -1;
 
 		size_t* nrowsptr = (size_t*)datamap.data();
 		size_t* ncolsptr = nrowsptr+1;
@@ -164,6 +162,7 @@ public:
 		*nrowsptr = rows;
 		*ncolsptr = cols;
 		new (&this->mat) Eigen::Map<MatrixXd>(dataptr, rows, cols);
+		return 0;
 	};
 
 	void close()
@@ -245,7 +244,7 @@ public:
 	 *
 	 * @return 0 if succesful, -1 if read failure, -2 if write failure
 	 */
-	int loadMats();
+	int checkMats();
 
 //	inline int nwide() const { return m_outrows.size(); };
 	inline int ntall() const { return m_outcols.size(); };
@@ -317,9 +316,7 @@ public:
 	 */
 	double varthresh;
 
-	double tolerance;
-	int initrank;
-	int maxrank;
+	int rank;
 	size_t poweriters;
 
 	/**

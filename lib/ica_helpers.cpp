@@ -165,13 +165,9 @@ int spcat_orthog(std::string prefix, double svthresh,
  *
  * @return Vector of singular values
  */
-VectorXd onDiskSVD(const MatrixReorg& A, double tol, int startrank,
-		int maxrank, size_t poweriters, MatrixXd* U, MatrixXd* V)
+VectorXd onDiskSVD(const MatrixReorg& A,
+		int rank, size_t poweriters, MatrixXd* U, MatrixXd* V)
 {
-	if(startrank <= 1)
-		startrank = std::ceil(std::log2(std::min(A.rows(), A.cols())));
-	if(maxrank <= 1)
-		maxrank = std::min(A.rows(), A.cols());
 
 	// Algorithm 4.4
 	MatrixXd Yc;
@@ -184,89 +180,38 @@ VectorXd onDiskSVD(const MatrixReorg& A, double tol, int startrank,
 	VectorXd norms;
 
 	// From the Original Algorithm A -> At everywhere
-	size_t curank = startrank;
-	do {
-		size_t nextsize = min(curank, A.cols()-curank);
-		Yc.resize(A.cols(), nextsize);
-		Yhc.resize(A.rows(), nextsize);
-		Omega.resize(A.rows(), nextsize);
+	Yc.resize(A.cols(), rank);
+	Yhc.resize(A.rows(), rank);
+	Omega.resize(A.rows(), rank);
 
-		fillGaussian<MatrixXd>(Omega);
-		A.postMult(Yc, Omega, true);
+	fillGaussian<MatrixXd>(Omega);
+	A.postMult(Yc, Omega, true);
 
-		Eigen::HouseholderQR<MatrixXd> qr(Yc);
-		Qtmp = qr.householderQ()*MatrixXd::Identity(A.cols(), nextsize);
-		Eigen::HouseholderQR<MatrixXd> qrh;
-		cerr << "Power Iteration: ";
-		for(size_t ii=0; ii<poweriters; ii++) {
-			cerr<<ii<<" ";
-			A.postMult(Yhc, Qtmp);
-			qrh.compute(Yhc);
-			Qhat = qrh.householderQ()*MatrixXd::Identity(A.rows(), nextsize);
-			A.postMult(Yc, Qhat, true);
-			qr.compute(Yc);
-			Qtmp = qr.householderQ()*MatrixXd::Identity(A.cols(), nextsize);
-		}
-		cerr << "Done" << endl;
-
-		/*
-		 * Orthogonalize new basis with the current basis (Q) and then append
-		 */
-		if(Q.rows() > 0) {
-			// Orthogonalize the additional Q vectors Q with respect to the
-			// current Q vectors
-
-			cerr<<"Orthogonalizing with Previous Q"<<endl;
-			Qc = Qtmp - Q*(Q.transpose()*Qtmp).eval();
-
-			// After orthogonalizing wrt to Q, reorthogonalize wrt each other
-			norms.resize(Qc.cols());
-			for(size_t cc=0; cc<Qc.cols(); cc++) {
-				for(size_t jj=0; jj<cc; jj++)
-					Qc.col(cc) -= Qc.col(jj).dot(Qc.col(cc))*Qc.col(jj)/(norms[jj]*norms[jj]);
-				norms[cc] = Qc.col(cc).norm();
-			}
-
-			// If the matrix is essentially covered by existing space, quit
-			size_t keep = 0;
-			for(size_t cc=0; cc<Qc.cols(); cc++) {
-				if(norms[cc] > tol) {
-					Qc.col(cc) /= norms[cc];
-					keep++;
-				}
-			}
-			cerr<<"Keeping "<<keep<<" new ranks"<<endl;
-			if(keep == 0)
-				break;
-
-			// Append Orthogonalized Basis
-			Q.conservativeResize(Qc.rows(), Q.cols()+keep);
-			keep = 0;
-			for(size_t cc=0; cc<Qc.cols(); cc++) {
-				if(norms[cc] > tol) {
-					Q.col(keep+curank) = Qc.col(cc);
-					keep++;
-				}
-			}
-		} else {
-			cerr<<"First Pass, Setting Q"<<endl;
-			Q = Qtmp;
-		}
-		cerr<<"Rank Set to "<<Q.cols()<<endl;
-
-		curank = Q.cols();
-	} while(curank < maxrank && curank < A.cols());
+	Eigen::HouseholderQR<MatrixXd> qr(Yc);
+	Qtmp = qr.householderQ()*MatrixXd::Identity(A.cols(), rank);
+	Eigen::HouseholderQR<MatrixXd> qrh;
+	cerr << "Power Iteration: ";
+	for(size_t ii=0; ii<poweriters; ii++) {
+		cerr<<ii<<" ";
+		A.postMult(Yhc, Qtmp);
+		qrh.compute(Yhc);
+		Qhat = qrh.householderQ()*MatrixXd::Identity(A.rows(), rank);
+		A.postMult(Yc, Qhat, true);
+		qr.compute(Yc);
+		Qtmp = qr.householderQ()*MatrixXd::Identity(A.cols(), rank);
+	}
+	cerr << "Done" << endl;
 
 	// Form B = Q* x A
-	cerr<<"Making Low Rank Approximation ("<<Q.cols()<<"x"<<A.rows()<<endl;
-	MatrixXd B(Q.cols(), A.rows());;
-	A.preMult(B, Q.transpose(), true);
+	cerr<<"Making Low Rank Approximation ("<<Q.cols()<<"x"<<A.rows()<<")"<<endl;
+	MatrixXd B(Qtmp.cols(), A.rows());;
+	A.preMult(B, Qtmp.transpose(), true);
 	Eigen::JacobiSVD<MatrixXd> smallsvd(B, Eigen::ComputeThinU | Eigen::ComputeThinV);
 
 	cerr<<"Done with SVD Estimation"<<endl;
 	// These are swapped because we did A^T
 	if(V)
-		*V = Q*smallsvd.matrixU();
+		*V = Qtmp*smallsvd.matrixU();
 	if(U)
 		*U = smallsvd.matrixV();
 
@@ -525,53 +470,34 @@ MatrixReorg::MatrixReorg(std::string prefix, size_t maxdoubles, bool verbose)
  *
  * @return 0 if succesful, -1 if read failure, -2 if write failure
  */
-int MatrixReorg::loadMats()
+int MatrixReorg::checkMats()
 {
-//	m_outrows.clear();
 	m_outcols.clear();
 	std::string tallpr = m_prefix + "_tall_";
-//	std::string widepr = m_prefix + "_wide_";
 	std::string maskpr = m_prefix + "_mask_";
 
 	if(m_verbose) {
 		cerr << "Tall Matrix Prefix: " << tallpr << endl;
-//		cerr << "Wide Matrix Prefix: " << widepr << endl;
 		cerr << "Mask Prefix:        " << maskpr << endl;
 	}
 
 	/* Read First Tall and Wide to get totalrows and totalcols */
 	MatMap map;
-	map.open(tallpr+"0");
-	m_totalrows = map.rows;
-
-//	map.open(widepr+"0");
-	m_totalcols = map.cols;
+	int cols = 0;
+	m_totalcols = 0;
+	m_totalrows = 0;
+	for(size_t bb=0; map.open(tallpr+to_string(bb)) == 0; bb++) {
+		if(m_totalrows == 0)
+			m_totalrows = map.rows;
+		else if(m_totalrows != map.rows)
+			break; // break if the rows mismatch
+		m_outcols.push_back(map.cols);
+		m_totalcols += map.cols;
+	}
 
 	if(m_verbose) {
 		cerr << "Total Rows/Timepoints: " << m_totalrows<< endl;
 		cerr << "Total Cols/Voxels:     " << m_totalcols << endl;
-	}
-
-//	int rows = 0;
-//	for(int ii=0; rows!=m_totalrows; ii++) {
-//		map.open(widepr+to_string(ii));
-//		m_outrows.push_back(map.rows);
-//		rows += map.rows;
-//
-//		// should exactly match up
-//		if(rows > m_totalrows)
-//			return -1;
-//	}
-
-	int cols = 0;
-	for(int ii=0; cols!=m_totalcols; ii++) {
-		map.open(tallpr+to_string(ii));
-		m_outcols.push_back(map.cols);
-		cols += map.cols;
-
-		// should exactly match up
-		if(cols > m_totalcols)
-			return -1;
 	}
 
 	// check masks
@@ -1087,9 +1013,7 @@ GICAfmri::GICAfmri(std::string pref)
 	verbose = 0;
 	m_status = 0; //unitialized
 	spatial = false; // spatial maps
-	tolerance = 0.01;
-	initrank = 100;
-	maxrank = -1;
+	rank = 100;
 	poweriters = 1;
 }
 
@@ -1124,12 +1048,11 @@ void GICAfmri::compute()
 
 	MatrixReorg reorg(m_pref, (size_t)0.5*maxmem*(1<<27), verbose);
 	cerr<<"Chcking matrices at prefix \""<<m_pref<<"\"...";
-	int status = reorg.loadMats();
+	int status = reorg.checkMats();
 	if(status != 0)
 		throw RUNTIME_ERROR("Error while loading existing 2D Matrices");
 	cerr<<"Done\n";
 
-	size_t maxrank = 0;
 	size_t rank = 0;
 
 	MatrixXd U, V;
@@ -1141,8 +1064,7 @@ void GICAfmri::compute()
 	else
 		Up = &U;
 
-	VectorXd E = onDiskSVD(reorg, tolerance, initrank,
-			maxrank, poweriters, Up, Vp);
+	VectorXd E = onDiskSVD(reorg, rank, poweriters, Up, Vp);
 
 	double totalvar = E.sum();
 	double var = 0;
@@ -1160,16 +1082,16 @@ void GICAfmri::compute()
 	}
 
 	if(spatial) {
-		cerr << "Performing Spatial ICA...";
+		cerr<<"Performing Spatial ICA ("<<V.rows()<<"x"<<rank<<")"<<endl;
 		MatMap tmpmat;
-		tmpmat.create(m_pref+"_SICA", V.rows(), V.cols());
-		tmpmat.mat = ica(V);
+		tmpmat.create(m_pref+"_SICA", V.rows(), rank);
+		tmpmat.mat = ica(V.leftCols(rank));
 		cerr << "Done" << endl;
 	} else {
-		cerr << "Performing Temporal ICA" << endl;
+		cerr<<"Performing Temporal ICA ("<<U.rows()<<"x"<<rank<<")"<<endl;
 		MatMap tmpmat;
-		tmpmat.create(m_pref+"_SICA", U.rows(), U.cols());
-		tmpmat.mat = ica(U);
+		tmpmat.create(m_pref+"_TICA", U.rows(), rank);
+		tmpmat.mat = ica(U.leftCols(rank));
 	}
 
 	m_status = 1;
@@ -1266,24 +1188,18 @@ void GICAfmri::computeSpatialMaps()
 	} else {
 		cerr << "Regressing Temporal Components" << endl;
 		// Regress each column with each input timeseries
-		MatMap ics(m_pref+"_TICA");
+		MatMap ics;
+		if(ics.open(m_pref+"_TICA") != 0)
+			throw RUNTIME_ERROR(m_pref+"_TICA missing!");
 
 		// need to compute the CDF for students_t_cdf
 		const double MAX_T = 2000;
 		const double STEP_T = 0.1;
 		StudentsT distrib(ics.rows-1, STEP_T, MAX_T);
-		cerr << "Computing Inverse of ICs"<<endl;
+		cerr << "Computing Inverse of ICs ("<<ics.mat.rows()<<"x"
+			<<ics.mat.cols()<<")"<<endl;
 		MatrixXd Xinv = pseudoInverse(ics.mat);
-		cerr << "Computing Inverse of Covariance of ICs"<<endl;
-		MatrixXd Cinv = pseudoInverse(ics.mat.transpose()*ics.mat);
-		cerr << "Done" << endl;
-
-		// Get Total Columns from first wide image
-		size_t totalcols = 0;
-		{
-			MatMap tmp(m_pref+"_wide_0");
-			totalcols = tmp.cols;
-		}
+		MatrixXd Cinv = MatrixXd::Identity(ics.cols, ics.cols)*ics.rows;
 
 		// Iterate through mask as we iterate through the columns of the ICs
 		ptr<MRImage> mask;
@@ -1297,18 +1213,16 @@ void GICAfmri::computeSpatialMaps()
 		int ii; // iterate through tall matrices
 		int cc = 0; // iterate through columns of tall matrix
 		int mm = -1; // iterate through masks
-		int ff = 0; // iterate through all columns of all tall matrices
 		RegrResult result;
 		/*
 		 * Convert statistics of each column of each tall matrix back to
 		 * spatial position
 		 */
-		//
-		for(ii=0; ff < totalcols; ii++, ff += cc) {
-			MatMap tall(m_pref+"_tall_"+to_string(ii));
+		MatMap tall;
+		for(ii=0; tall.open(m_pref+"_tall_"+to_string(ii)) == 0; ii++) {
 
 			// Iterate through columns of tall matrix
-			for(cc=0; cc<tall.cols; cc++, ++mit, ++oit) {
+			for(cc=0; cc<tall.cols; ) {
 				// Match iterations of tall columns with mask iteration
 				if(!mask || mit.eof()) {
 					cerr << "Loading Mask" << endl;
@@ -1321,11 +1235,12 @@ void GICAfmri::computeSpatialMaps()
 					// If there is currently an open output image, write
 					if(out)
 						out->write(m_pref+"_tmap_m"+to_string(mm)+".nii.gz");
+					mm++;
 
 					// Read Next Mask
-					cerr<<"Reading mask ("<<(1+mm)<<") = "<<m_pref<<"_mask_"
-							<<(1+mm)<<".nii.gz"<<endl;
-					mask = readMRImage(m_pref+"_mask_"+to_string(++mm)+".nii.gz");
+					cerr<<"Reading mask ("<<mm<<") = "<<m_pref<<"_mask_"
+							<<mm<<".nii.gz"<<endl;
+					mask = readMRImage(m_pref+"_mask_"+to_string(mm)+".nii.gz");
 					if(mask->ndim() != 3)
 						throw RUNTIME_ERROR("Error input mask is not 3D!");
 					for(size_t dd=0; dd<3; dd++)
@@ -1340,16 +1255,21 @@ void GICAfmri::computeSpatialMaps()
 					oit.goBegin();
 				}
 
-				// regress each component with current column of tall
-				regress(result, tall.mat.col(cc), ics.mat, Cinv, Xinv, distrib);
-				for(size_t comp=0; comp<ics.cols; comp++)
-					oit.set(comp, result.t[comp]);
+				if(*mit) {
+					// regress each component with current column of tall
+					regress(result, tall.mat.col(cc), ics.mat,
+							Cinv, Xinv, distrib);
+					for(size_t comp=0; comp<ics.cols; comp++)
+						oit.set(comp, result.t[comp]);
+					cc++;
+				} else {
+					for(size_t comp=0; comp<ics.cols; comp++)
+						oit.set(comp, 0);
+				}
+
+				++mit;
+				++oit;
 			}
-		}
-		// Sanity check size
-		if(ff > totalcols) {
-			throw RUNTIME_ERROR("Error, Tall Matrix Columns mismatched "
-					"expected number of columns");
 		}
 
 		// If there is currently an open output image, write as multiple, last

@@ -230,8 +230,10 @@ void regress(RegrResult& out,
 {
 	if(y.rows() != X.rows())
 		throw INVALID_ARGUMENT("y and X matrices row mismatch");
-	if(X.rows() != Xinv.cols())
+	if(X.rows() != Xinv.cols() || X.cols() != Xinv.rows())
 		throw INVALID_ARGUMENT("X and pseudo inverse of X row mismatch");
+	if(covInv.rows() != covInv.cols() || covInv.cols() != X.cols())
+		throw INVALID_ARGUMENT("Cov Invers and X mismatch");
 
 	out.bhat = Xinv*y;
 	out.yhat = X*out.bhat;
@@ -245,7 +247,9 @@ void regress(RegrResult& out,
 	out.rsqr = 1-out.ssres/out.sstot;
 	out.adj_rsqr = out.rsqr - (1-out.rsqr)*X.cols()/(X.cols()-X.rows()-1);
 
+	// estimate the standard deviation of the error term
 	double sigmahat = out.ssres/(X.rows()-X.cols()+2);
+
 	out.std_err.resize(X.cols());
 	out.t.resize(X.cols());
 	out.p.resize(X.cols());
@@ -253,16 +257,17 @@ void regress(RegrResult& out,
 
 	for(size_t ii=0; ii<X.cols(); ii++) {
 		out.std_err[ii] = sqrt(sigmahat*covInv(ii,ii)/X.cols());
+
 		double t = out.bhat[ii]/out.std_err[ii];
 		out.t[ii] = t;
-		out.p[ii] = distrib.cumulative(t);
+		out.p[ii] = distrib.cdf(t);
 	}
 }
 
 /**
  * @brief Computes the Ordinary Least Square predictors, beta for
  *
- * \f$ y = \hat \beta X \f$
+ * \f$ y = X \hat \beta \f$
  *
  * Returning beta. This is the same as the other regress function, but allows
  * for cacheing of pseudoinverse of X
@@ -316,11 +321,10 @@ void regress(RegrResult& out,
 	}
 }
 
-
 /**
  * @brief Computes the pseudoinverse of the input matrix
  *
- * \f$ P = UE^-1V^* \f$
+ * \f$ P = VE^-1U^* \f$
  *
  * @return Psueodinverse
  */
@@ -330,14 +334,17 @@ MatrixXd pseudoInverse(const Ref<const MatrixXd> X)
 	JacobiSVD<MatrixXd> svd(X, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	VectorXd singular_values = svd.singularValues();
 
+	size_t rank = 0;
 	for(size_t ii=0; ii<svd.singularValues().rows(); ii++) {
-		if(singular_values[ii] > THRESH)
+		if(singular_values[ii] > THRESH) {
 			singular_values[ii] = 1./singular_values[ii];
-		else
+			rank++;
+		} else
 			singular_values[ii] = 0;
 	}
-	return svd.matrixV()*singular_values.asDiagonal()*
-		svd.matrixU().transpose();
+	return svd.matrixV().leftCols(rank)*
+		singular_values.head(rank).asDiagonal()*
+		svd.matrixU().leftCols(rank).transpose();
 }
 
 /******************************************************
@@ -1747,7 +1754,7 @@ void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
 		if(Q.rows() > 0) {
 			// Orthogonalize the additional Q vectors Q with respect to the
 			// current Q vectors
-			Qc = Qtmp - Q*(Q.transpose()*Qtmp).eval();
+			Qc = Qtmp - Q*(Q.transpose()*Qtmp);
 
 			// After orthogonalizing wrt to Q, reorthogonalize wrt each other
 			norms.resize(Qc.cols());

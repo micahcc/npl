@@ -241,36 +241,38 @@ void RandomizedRangeFinder<T>::_compute(const Ref<const MatrixType> A)
 		if(m_Q.rows() > 0) {
 			// Orthogonalize the additional Q vectors Q with respect to the
 			// current Q vectors
-			Qc = Qtmp - m_Q*(m_Q.transpose()*Qtmp).eval();
+			Qc = Qtmp - m_Q*(m_Q.transpose()*Qtmp);
 
 			// After orthogonalizing wrt to Q, reorthogonalize wrt each other
 			norms.resize(Qc.cols());
+			std::list<int> keep;
+			size_t consec = 0;
+			bool zerrun = true;
 			for(size_t cc=0; cc<Qc.cols(); cc++) {
 				for(size_t jj=0; jj<cc; jj++)
-					Qc.col(cc) -= Qc.col(jj).dot(Qc.col(cc))*Qc.col(jj)/(norms[jj]*norms[jj]);
-				norms[cc] = Qc.col(cc).norm();
+					Qc.col(cc) -= Qc.col(jj).dot(Qc.col(cc))*Qc.col(jj);
+				double norm = Qc.col(cc).norm();
+				if(norm > m_tol) {
+					Qc.col(cc) /= norms[cc];
+					keep.push_back(cc);
+					zerrun = false;
+				} else if(zerrun)
+					consec++;
 			}
 
-			// If the matrix is essentially covered by existing space, quit
-			size_t keep = 0;
-			for(size_t cc=0; cc<Qc.cols(); cc++) {
-				if(norms[cc] > m_tol) {
-					Qc.col(cc) /= norms[cc];
-					keep++;
-				}
-			}
-			if(keep == 0)
+			if(keep.empty())
 				break;
 
 			// Append Orthogonalized Basis
-			m_Q.conservativeResize(Qc.rows(), m_Q.cols()+keep);
-			keep = 0;
-			for(size_t cc=0; cc<Qc.cols(); cc++) {
-				if(norms[cc] > m_tol) {
-					m_Q.col(keep+curank) = Qc.col(cc);
-					keep++;
-				}
-			}
+			m_Q.conservativeResize(Qc.rows(), m_Q.cols()+keep.size());
+			size_t ii=curank;
+			for(std::list<int>::iterator it = keep.begin(); it != keep.end(); ++it)
+				m_Q.col(ii) = Qc.col(*it);
+
+			// Break Because the probability is really low that there is now
+			// information
+			if(consec > 10)
+				break;
 		} else {
 			m_Q = Qtmp;
 		}
