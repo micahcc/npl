@@ -302,9 +302,13 @@ void RandomizedRangeFinder<T>::_compute(const Ref<const MatrixType> A)
 		}
 
 		curank = m_Q.cols();
+#ifdef RANDOMIZED_RANGE_FINDER_DEBUG
 		cerr << "Currank: " << curank <<endl;
+#endif //RANDOMIZED_RANGE_FINDER_DEBUG
 	} while(curank < maxrank);
+#ifdef RANDOMIZED_RANGE_FINDER_DEBUG
 	cerr << "Q: " << endl << m_Q << endl;
+#endif //RANDOMIZED_RANGE_FINDER_DEBUG
 }
 
 /**
