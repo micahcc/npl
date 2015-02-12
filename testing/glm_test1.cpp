@@ -59,7 +59,7 @@ int main()
 	StudentsT stud_dist(X.rows()-1, STEP_T, MAX_T);
 
 	RegrResult ret;
-	regress(ret, y, X, covInv, Xinv, stud_dist);
+	regress(&ret, y, X, covInv, Xinv, stud_dist);
 
 	Plotter plt;
 	plt.addArray(y.rows(), y.data());

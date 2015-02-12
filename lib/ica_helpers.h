@@ -316,7 +316,7 @@ public:
 	 */
 	double varthresh;
 
-	int rank;
+	int estrank;
 	size_t poweriters;
 
 	/**

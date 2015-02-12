@@ -133,9 +133,9 @@ struct RegrResult
 	double ssres;
 
 	/**
-	 * @brief Total sum of square of y values
+	 * @brief sigma hat - estimate standard deviation of noise
 	 */
-	double sstot;
+	double sigmahat;
 
 	/**
 	 * @brief Coefficient of determination (Rsqr)
@@ -299,10 +299,10 @@ private:
  *
  * @return Struct with Regression Results.
  */
-void regress(RegrResult& out,
+void regress(RegrResult* out,
 		const Ref<const VectorXd> y,
 		const Ref<const MatrixXd> X,
-		const Ref<const MatrixXd> covInv,
+		const Ref<const VectorXd> covInv,
 		const Ref<const MatrixXd> Xinv,
 		const StudentsT& distrib);
 
@@ -319,7 +319,7 @@ void regress(RegrResult& out,
  * @param X independent variables
  *
  */
-void regress(RegrResult& out,
+void regress(RegrResult* out,
 		const Ref<const VectorXd> y,
 		const Ref<const MatrixXd> X);
 

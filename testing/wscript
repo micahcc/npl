@@ -372,6 +372,11 @@ def build(bld):
     # Statistics testing tests
     #########################################
     bld.program(install_path='${PREFIX}/tests', features='test',
+            target='regression_test',
+            source='regression_test.cpp',
+            use=npl+'tclap')
+
+    bld.program(install_path='${PREFIX}/tests', features='test',
             target='ica_test',
             source='ica_test.cpp',
             use=npl)

@@ -122,7 +122,7 @@ int main(int argc, char** argv)
 	gica.spatial = a_spatial_ica.isSet();
 	gica.normts = !a_no_norm_ts.isSet();
 	gica.verbose = a_verbose.isSet();
-	gica.rank = a_rank.getValue();
+	gica.estrank = a_rank.getValue();
 	gica.poweriters = a_poweriters.getValue();
 
 	gica.compute(a_time_append.getValue(), a_space_append.getValue(),

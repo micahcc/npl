@@ -174,10 +174,7 @@ VectorXd onDiskSVD(const MatrixReorg& A,
 	MatrixXd Yhc;
 	MatrixXd Qtmp;
 	MatrixXd Qhat;
-	MatrixXd Q;
-	MatrixXd Qc;
 	MatrixXd Omega;
-	VectorXd norms;
 
 	// From the Original Algorithm A -> At everywhere
 	Yc.resize(A.cols(), rank);
@@ -203,7 +200,7 @@ VectorXd onDiskSVD(const MatrixReorg& A,
 	cerr << "Done" << endl;
 
 	// Form B = Q* x A
-	cerr<<"Making Low Rank Approximation ("<<Q.cols()<<"x"<<A.rows()<<")"<<endl;
+	cerr<<"Making Low Rank Approximation ("<<Qtmp.cols()<<"x"<<A.rows()<<")"<<endl;
 	MatrixXd B(Qtmp.cols(), A.rows());;
 	A.preMult(B, Qtmp.transpose(), true);
 	Eigen::JacobiSVD<MatrixXd> smallsvd(B, Eigen::ComputeThinU | Eigen::ComputeThinV);
@@ -1013,7 +1010,7 @@ GICAfmri::GICAfmri(std::string pref)
 	verbose = 0;
 	m_status = 0; //unitialized
 	spatial = false; // spatial maps
-	rank = 100;
+	estrank = 100;
 	poweriters = 1;
 }
 
@@ -1053,7 +1050,6 @@ void GICAfmri::compute()
 		throw RUNTIME_ERROR("Error while loading existing 2D Matrices");
 	cerr<<"Done\n";
 
-	size_t rank = 0;
 
 	MatrixXd U, V;
 	MatrixXd* Up = NULL;
@@ -1064,8 +1060,9 @@ void GICAfmri::compute()
 	else
 		Up = &U;
 
-	VectorXd E = onDiskSVD(reorg, rank, poweriters, Up, Vp);
+	VectorXd E = onDiskSVD(reorg, estrank, poweriters, Up, Vp);
 
+	size_t rank = 0;
 	double totalvar = E.sum();
 	double var = 0;
 	for(rank=0; rank<E.size(); rank++) {
@@ -1257,7 +1254,7 @@ void GICAfmri::computeSpatialMaps()
 
 				if(*mit) {
 					// regress each component with current column of tall
-					regress(result, tall.mat.col(cc), ics.mat,
+					regress(&result, tall.mat.col(cc), ics.mat,
 							Cinv, Xinv, distrib);
 					for(size_t comp=0; comp<ics.cols; comp++)
 						oit.set(comp, result.t[comp]);

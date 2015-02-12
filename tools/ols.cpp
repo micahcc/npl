@@ -71,11 +71,11 @@ int main(int argc, char* argv[])
 
 	// for regressing-out
 	TCLAP::ValueArg<std::string> a_tscore("t","tscore","Output 4D Image, "
-			"containing t-statistics. One volume per input regressor", false, 
+			"containing t-statistics. One volume per input regressor", false,
 			"", "4D Image", cmd);
 
 	TCLAP::ValueArg<std::string> a_beta("b","bimg","Output 4D Image, "
-			"containing beta (slope). One volume per input regressor", false, 
+			"containing beta (slope). One volume per input regressor", false,
 			"", "4D Image", cmd);
 
 	TCLAP::ValueArg<std::string> a_regressors("r","regressor",
@@ -140,17 +140,17 @@ int main(int argc, char* argv[])
 		for(size_t tt=0; tt<tlen; tt++)
 			y[tt] = iit[tt];
 
-		regress(result, y, X, covInv, Xinv, distrib);
+		regress(&result, y, X, covInv, Xinv, distrib);
 		for(size_t cc=0; cc<nregr; cc++) {
 			tit.set(cc, result.t[cc]);
 			bit.set(cc, result.bhat[cc]);
 		}
 	}
 
-	if(a_beta.isSet()) 
+	if(a_beta.isSet())
 		betaimg->write(a_beta.getValue());
 
-	if(a_tscore.isSet()) 
+	if(a_tscore.isSet())
 		timg->write(a_tscore.getValue());
 
 	// done, catch all argument errors

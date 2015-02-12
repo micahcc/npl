@@ -140,7 +140,7 @@ int main()
 		for(size_t tt=0; tt<tlen; tt++)
 			signal[tt] = fit[tt];
 
-		regress(ret, signal, X, covInv, Xinv, stud_dist);
+		regress(&ret, signal, X, covInv, Xinv, stud_dist);
 
 		if(count == 10) {
 			vector<int64_t> index(4);

@@ -89,7 +89,7 @@ double StudentsT::cumulative(double t) const
 #ifndef NDEBUG
 		cerr << "Warning, effectively 0 p-value returned!" << endl;
 #endif
-		return 0;
+		return 1-m_cdf[m_cdf.size()-1];
 	}
 	assert(it != m_tvals.begin());
 
@@ -101,10 +101,7 @@ double StudentsT::cumulative(double t) const
 	double next = m_cdf[ii];
 	out = prev*(tn-t)/(tn-tp) + next*(t-tp)/(tn-tp);
 
-	if(negative)
-		return 1-out;
-	else
-		return out;
+	return 2*(1-out);
 };
 
 double StudentsT::density(double t) const
@@ -122,7 +119,7 @@ double StudentsT::density(double t) const
 #ifndef NDEBUG
 		cerr << "Warning, effectively 0 p-value returned!" << endl;
 #endif
-		return 0;
+		return 1-m_pdf[m_pdf.size()-1];
 	}
 	assert(it != m_tvals.begin());
 
@@ -155,7 +152,7 @@ double StudentsT::icdf(double p) const
 #ifndef NDEBUG
 		cerr << "Warning, effectively infinite t-value returned!" << endl;
 #endif
-		return 0;
+		return m_tvals[m_tvals.size()-1]*(negative ? -1 : 1);
 	}
 	assert(it != m_cdf.begin());
 
@@ -180,7 +177,8 @@ void StudentsT::init()
 	m_tvals.resize(m_tmax/m_dt);
 
 	double dof = m_dof;
-	double coeff = tgamma((dof+1)/2)/(sqrt(dof*M_PI)*tgamma(dof/2));
+	double logcoeff = lgamma((dof+1)/2)-0.5*(log(dof)+log(M_PI))-lgamma(dof/2);
+	double coeff = exp(logcoeff);
 
 	// Evaluate PDF
 	for(size_t ii=0; ii < m_pdf.size(); ii++) {
@@ -221,46 +219,51 @@ void StudentsT::init()
  *
  * @return Struct with Regression Results.
  */
-void regress(RegrResult& out,
+void regress(RegrResult* out,
 		const Ref<const VectorXd> y,
 		const Ref<const MatrixXd> X,
-		const Ref<const MatrixXd> covInv,
+		const Ref<const VectorXd> covInv,
 		const Ref<const MatrixXd> Xinv,
 		const StudentsT& distrib)
 {
+	if(!out)
+		throw INVALID_ARGUMENT("Regression Result Pointer invalidmismatch");
 	if(y.rows() != X.rows())
 		throw INVALID_ARGUMENT("y and X matrices row mismatch");
 	if(X.rows() != Xinv.cols() || X.cols() != Xinv.rows())
 		throw INVALID_ARGUMENT("X and pseudo inverse of X row mismatch");
-	if(covInv.rows() != covInv.cols() || covInv.cols() != X.cols())
+	if(covInv.rows() != X.cols())
 		throw INVALID_ARGUMENT("Cov Invers and X mismatch");
 
-	out.bhat = Xinv*y;
-	out.yhat = X*out.bhat;
-	out.ssres = (out.yhat - y).squaredNorm();
+	if(y.rows() != X.rows())
+		throw INVALID_ARGUMENT("y and X matrices row mismatch");
+
+	out->bhat = Xinv*y;
+	out->yhat = X*out->bhat;
+	double ssres = (out->yhat - y).squaredNorm();
 
 	// compute total sum of squares
 	double mean = y.mean();
-	out.sstot = 0;
-	for(size_t rr=0; rr<y.rows(); rr++)
-		out.sstot += (y[rr]-mean)*(y[rr]-mean);
-	out.rsqr = 1-out.ssres/out.sstot;
-	out.adj_rsqr = out.rsqr - (1-out.rsqr)*X.cols()/(X.cols()-X.rows()-1);
+	double sstot = (y-VectorXd::Constant(y.rows(), mean)).squaredNorm();
 
 	// estimate the standard deviation of the error term
-	double sigmahat = out.ssres/(X.rows()-X.cols()+2);
+	out->sigmahat = ssres/(X.rows()-X.cols());
 
-	out.std_err.resize(X.cols());
-	out.t.resize(X.cols());
-	out.p.resize(X.cols());
-	out.dof = X.rows()-1;
+	// Compute the R-Squared and adjusted R squared
+	out->rsqr = 1-ssres/sstot;
+	out->adj_rsqr = out->rsqr - (1-out->rsqr)*(X.cols()-1)/(X.rows()-X.cols()-1);
+
+	out->std_err.resize(X.cols());
+	out->t.resize(X.cols());
+	out->p.resize(X.cols());
+	out->dof = X.rows()-1;
 
 	for(size_t ii=0; ii<X.cols(); ii++) {
-		out.std_err[ii] = sqrt(sigmahat*covInv(ii,ii)/X.cols());
+		out->std_err[ii] = sqrt(out->sigmahat*covInv[ii]);
 
-		double t = out.bhat[ii]/out.std_err[ii];
-		out.t[ii] = t;
-		out.p[ii] = distrib.cdf(t);
+		double t = out->bhat[ii]/out->std_err[ii];
+		out->t[ii] = t;
+		out->p[ii] = distrib.cdf(t);
 	}
 }
 
@@ -277,48 +280,20 @@ void regress(RegrResult& out,
  * @param X independent variables
  *
  */
-void regress(RegrResult& out,
+void regress(RegrResult* out,
 		const Ref<const VectorXd> y,
 		const Ref<const MatrixXd> X)
 {
 	if(y.rows() != X.rows())
 		throw INVALID_ARGUMENT("y and X matrices row mismatch");
 
-	auto Xinv = pseudoInverse(X);
-	auto covInv = pseudoInverse(X.transpose()*X);
-
-	out.bhat = Xinv*y;
-	out.yhat = X*out.bhat;
-	out.ssres = (out.yhat - y).squaredNorm();
-
-	// compute total sum of squares
-	double mean = y.mean();
-	out.sstot = 0;
-	for(size_t rr=0; rr<y.rows(); rr++)
-		out.sstot += (y[rr]-mean)*(y[rr]-mean);
-	out.rsqr = 1-out.ssres/out.sstot;
-	out.adj_rsqr = out.rsqr - (1-out.rsqr)*X.cols()/(X.cols()-X.rows()-1);
-
-	// estimate the standard deviation of the error term
-	double sigmahat = out.ssres/(X.rows()-X.cols()+2);
-
-	out.std_err.resize(X.cols());
-	out.t.resize(X.cols());
-	out.p.resize(X.cols());
-	out.dof = X.rows()-1;
-
 	// need to compute the CDF for students_t_cdf
 	const double MAX_T = 100;
 	const double STEP_T = 0.1;
-	StudentsT distrib(out.dof, STEP_T, MAX_T);
+	StudentsT distrib(out->dof, STEP_T, MAX_T);
 
-	for(size_t ii=0; ii<X.cols(); ii++) {
-		out.std_err[ii] = sqrt(sigmahat*covInv(ii,ii)/X.cols());
-
-		double t = out.bhat[ii]/out.std_err[ii];
-		out.t[ii] = t;
-		out.p[ii] = distrib.cdf(t);
-	}
+	MatrixXd Xinv = pseudoInverse(X);
+	VectorXd covInv = pseudoInverse(X.transpose()*X).diagonal();
 }
 
 /**

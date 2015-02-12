@@ -153,7 +153,7 @@ int main(int argc, char** argv)
 
 		// Perform Regression
 		RegrResult reg;
-		regress(reg, y, X, covInv, Xinv, distrib);
+		regress(&reg, y, X, covInv, Xinv, distrib);
 
 		// Save to T,P,R images
 		for(size_t cc=0; cc<nics; cc++) {
