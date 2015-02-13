@@ -89,7 +89,10 @@ double StudentsT::cumulative(double t) const
 #ifndef NDEBUG
 		cerr << "Warning, effectively 0 p-value returned!" << endl;
 #endif
-		return 1-m_cdf[m_cdf.size()-1];
+		if(negative)
+			return 1-m_cdf[m_cdf.size()-1];
+		else
+			return m_cdf[m_cdf.size()-1];
 	}
 	assert(it != m_tvals.begin());
 
@@ -101,7 +104,10 @@ double StudentsT::cumulative(double t) const
 	double next = m_cdf[ii];
 	out = prev*(tn-t)/(tn-tp) + next*(t-tp)/(tn-tp);
 
-	return 2*(1-out);
+	if(negative)
+		return 1-out;
+	else
+		return out;
 };
 
 double StudentsT::density(double t) const
@@ -263,7 +269,9 @@ void regress(RegrResult* out,
 
 		double t = out->bhat[ii]/out->std_err[ii];
 		out->t[ii] = t;
-		out->p[ii] = distrib.cdf(t);
+		double p = distrib.cdf(t);
+		if(t > 0) p = 1-p;
+		out->p[ii] = 2*p;
 	}
 }
 

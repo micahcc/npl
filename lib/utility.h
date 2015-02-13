@@ -345,7 +345,7 @@ public:
 	 *
 	 * @param fn Open the specified file for reading and writing.
 	 */
-	int openExisting(std::string fn);
+	int openExisting(std::string fn, bool quiet = true);
 
 	/**
 	 * @brief Return true if a file is currently open

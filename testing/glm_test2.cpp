@@ -118,8 +118,8 @@ int main()
 	vector<int64_t> ind(3);
 
 	// Cache Reused Vectors
-	auto Xinv = pseudoInverse(X);
-	auto covInv = pseudoInverse(X.transpose()*X);
+	MatrixXd Xinv = pseudoInverse(X);
+	VectorXd covInv = pseudoInverse(X.transpose()*X).diagonal();
 
 	const double MAX_T = 20;
 	const double STEP_T = 0.01;

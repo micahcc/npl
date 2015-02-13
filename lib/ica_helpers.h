@@ -134,7 +134,7 @@ public:
 
 	int open(std::string filename)
 	{
-		if(datamap.openExisting(filename) < 0)
+		if(datamap.openExisting(filename, true) < 0)
 			return -1;
 
 		size_t* nrowsptr = (size_t*)datamap.data();

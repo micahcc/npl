@@ -741,21 +741,23 @@ int MemMap::openNew(string fn, size_t bsize)
 	return m_size;
 };
 
-int MemMap::openExisting(string fn)
+int MemMap::openExisting(string fn, bool quiet)
 {
 	close();
 
 	// Check that the file size matches expectations
 	struct stat st;
 	if(stat(fn.c_str(), &st) != 0) {
-		cerr<<"State error on input file: "<<fn<<endl;
+		if(!quiet)
+			cerr<<"Stat error on input file: "<<fn<<endl;
 		return -1;
 	}
 
 	m_size = st.st_size;;
 	m_fd = ::open(fn.c_str(), O_LARGEFILE|O_RDWR);
 	if(m_fd < 0) {
-		cerr<<"Error opening existing file: "<<fn<<endl;
+		if(!quiet)
+			cerr<<"Error opening existing file: "<<fn<<endl;
 		return -1;
 	}
 

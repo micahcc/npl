@@ -1196,7 +1196,7 @@ void GICAfmri::computeSpatialMaps()
 		cerr << "Computing Inverse of ICs ("<<ics.mat.rows()<<"x"
 			<<ics.mat.cols()<<")"<<endl;
 		MatrixXd Xinv = pseudoInverse(ics.mat);
-		MatrixXd Cinv = MatrixXd::Identity(ics.cols, ics.cols)*ics.rows;
+		VectorXd Cinv = pseudoInverse(ics.mat.transpose()*ics.mat).diagonal();
 
 		// Iterate through mask as we iterate through the columns of the ICs
 		ptr<MRImage> mask;
