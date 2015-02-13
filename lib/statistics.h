@@ -46,74 +46,73 @@ void fillGaussian(Ref<T> m)
 	}
 }
 
-/**
- * @brief
- *
- * @param A M x N
- * @param subsize Columns in projection matrix,
- * @param poweriters Number of power iterations to perform
- * @param U Output Left Singular Vectors
- * @param E OUtput Singular Values
- * @param V Output Right Singular Vectors
- */
-void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
-		size_t subsize, size_t poweriters, MatrixXd& U, VectorXd& E,
-		MatrixXd& V);
 
-void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
-		double tol, size_t startrank, size_t maxrank, size_t poweriters,
-		MatrixXd& U, VectorXd& E, MatrixXd& V);
+/******************************************
+ * \defgroup Basic Stats Functions
+ * @{
+ *****************************************/
 
 /**
- * @brief Computes the Principal Components of input matrix X
+ * @brief Computes mutual information between signal a and signal b which
+ * are of length len. Marginal bins used is mbin
  *
- * Outputs reduced dimension (fewer cols) in output. Note that prior to this,
- * the columns of X should be 0 mean otherwise the first component will
- * be the mean
+ * @param len Length of signal and and b
+ * @param a Signal a
+ * @param b Signal b
+ * @param mbin Bins to use in marginal distribution (mbin*mbin) used in joint
  *
- * @param X 	RxC matrix where each column row is a sample, each column a
- * dimension (or feature). The number of columns in the output
- * will be fewer because there will be fewer features
- * @param varth Variance threshold. This is the ratio (0-1) of variance to
- * include in the output. This is used to determine the dimensionality of the
- * output. If this is 1 then all variance will be included. If this < 1 and
- * odim > 0 then whichever gives a larger output dimension will be selected.
- * @param odim Threshold for output dimensions. If this is <= 0 then it is
- * ignored, if it is > 0 then max(dim(varth), odim) is used as the output
- * dimension.
- *
- * @return 		RxP matrix, where P is the number of principal components
+ * @return
  */
-MatrixXd pca(const Ref<const MatrixXd> X, double varth = 1, int odim = -1);
+double mutualInformation(size_t len, double* a, double* b, size_t mbin);
 
 /**
- * @brief Computes the Independent Components of input matrix X. Note that
- * you should run PCA on X before running ICA.
+ * @brief Computes correlation between signal a and signal b which
+ * are of length len.
  *
- * Outputs reduced dimension (fewer cols) in output
+ * @param len Length of signal and and b
+ * @param a Signal a
+ * @param b Signal b
  *
- * Note that this whole problem is the transpose of the version listed on
- * wikipedia.
- *
- * In: I number of components
- * In: X RxC matrix with rows representing C-D samples
- * for p in 1 to I:
- *   wp = random weight
- *   while wp changes:
- *     wp = g(X wp)X/R - wp SUM(g'(X wp))/R
- *     wp = wp - SUM wp^T wj wj
- *     normalize(wp)
- *
- * Output: W = [w0 w1 w2 ... ]
- * Output: S = XW, where each column is a dimension, each row a sample
- *
- * @param X 	RxC matrix where each column row is a sample, each column a
- * dimension (or feature). The number of columns in the output
- * will be fewer because there will be fewer features
- *
- * @return 		RxP matrix, where P is the number of independent components
+ * @return
  */
-MatrixXd ica(const Ref<const MatrixXd> X);
+double correlation(size_t len, double* a, double* b);
+
+/**
+ * @brief Takes a count, sum and sumsqr and returns the sample variance.
+ * This is slightly different than the variance definition and I can
+ * never remember the exact formulation.
+ *
+ * @param count Number of samples
+ * @param sum sum of samples
+ * @param sumsqr sum of square of the samples
+ *
+ * @return sample variance
+ */
+inline
+double sample_var(int count, double sum, double sumsqr)
+{
+	return (sumsqr-sum*sum/count)/(count-1);
+}
+
+/**
+ * @brief Computes the sample correlation.
+ *
+ * @param count 	Number of samples
+ * @param sum1 		Sum of group 1
+ * @param sum2		Sum of group 2
+ * @param sumsq1	Sum of the sqaure of the elements of group1
+ * @param sumsq2	Sum of the sqaure of the elements of group2
+ * @param s1s2		Elements of group1*elements of group 2
+ *
+ * @return Sample Correlation
+ */
+inline
+double sample_corr(int count, double sum1, double sum2,
+		double sumsq1, double sumsq2, double s1s2)
+{
+	return (count*s1s2-sum1*sum2)/
+			sqrt((count*sumsq1-sum1*sum1)*(count*sumsq2-sum2*sum2));
+}
 
 struct RegrResult
 {
@@ -253,7 +252,7 @@ public:
 	 * @brief Get the T-score that corresponds to a particular p-value.
 	 * Alias for tthresh
 	 *
-	 * @param p probability value is less than this
+	 * @param t t value to get the inverse CDF (area under the curve) for
 	 *
 	 * @return T value that matches p.
 	 */
@@ -294,7 +293,7 @@ private:
  * @param X independent variables
  * @param covInv Inverse of covariance matrix, to compute us pseudoinverse(X^TX)
  * @param Xinv Pseudo inverse of X. Compute with pseudoInverse(X)
- * @param student_cdf Pre-computed students' T distribution. Example:
+ * @param distrib Pre-computed students' T distribution. Example:
  * auto v = students_t_cdf(X.rows()-1, .1, 1000);
  *
  * @return Struct with Regression Results.
@@ -322,6 +321,81 @@ void regress(RegrResult* out,
 void regress(RegrResult* out,
 		const Ref<const VectorXd> y,
 		const Ref<const MatrixXd> X);
+
+/******************************************
+ * @}
+ * \defgroup Matrix Decompositions
+ * @{
+ *****************************************/
+
+/**
+ * @brief
+ *
+ * @param A M x N
+ * @param subsize Columns in projection matrix,
+ * @param poweriters Number of power iterations to perform
+ * @param U Output Left Singular Vectors
+ * @param E OUtput Singular Values
+ * @param V Output Right Singular Vectors
+ */
+void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
+		size_t subsize, size_t poweriters, MatrixXd& U, VectorXd& E,
+		MatrixXd& V);
+
+void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
+		double tol, size_t startrank, size_t maxrank, size_t poweriters,
+		MatrixXd& U, VectorXd& E, MatrixXd& V);
+
+/**
+ * @brief Computes the Principal Components of input matrix X
+ *
+ * Outputs reduced dimension (fewer cols) in output. Note that prior to this,
+ * the columns of X should be 0 mean otherwise the first component will
+ * be the mean
+ *
+ * @param X 	RxC matrix where each column row is a sample, each column a
+ * dimension (or feature). The number of columns in the output
+ * will be fewer because there will be fewer features
+ * @param varth Variance threshold. This is the ratio (0-1) of variance to
+ * include in the output. This is used to determine the dimensionality of the
+ * output. If this is 1 then all variance will be included. If this < 1 and
+ * odim > 0 then whichever gives a larger output dimension will be selected.
+ * @param odim Threshold for output dimensions. If this is <= 0 then it is
+ * ignored, if it is > 0 then max(dim(varth), odim) is used as the output
+ * dimension.
+ *
+ * @return 		RxP matrix, where P is the number of principal components
+ */
+MatrixXd pca(const Ref<const MatrixXd> X, double varth = 1, int odim = -1);
+
+/**
+ * @brief Computes the Independent Components of input matrix X. Note that
+ * you should run PCA on X before running ICA.
+ *
+ * Outputs reduced dimension (fewer cols) in output
+ *
+ * Note that this whole problem is the transpose of the version listed on
+ * wikipedia.
+ *
+ * In: I number of components
+ * In: X RxC matrix with rows representing C-D samples
+ * for p in 1 to I:
+ *   wp = random weight
+ *   while wp changes:
+ *     wp = g(X wp)X/R - wp SUM(g'(X wp))/R
+ *     wp = wp - SUM wp^T wj wj
+ *     normalize(wp)
+ *
+ * Output: W = [w0 w1 w2 ... ]
+ * Output: S = XW, where each column is a dimension, each row a sample
+ *
+ * @param X 	RxC matrix where each column row is a sample, each column a
+ * dimension (or feature). The number of columns in the output
+ * will be fewer because there will be fewer features
+ *
+ * @return 		RxP matrix, where P is the number of independent components
+ */
+MatrixXd ica(const Ref<const MatrixXd> X);
 
 /**
  * @brief Computes the pseudoinverse of the input matrix
@@ -387,41 +461,11 @@ VectorXd activeShootingRegr(const Ref<const MatrixXd> X,
  * @param varth Variance threshold. Don't include dimensions after this percent
  * of the variance has been explained.
  *
- * @return 		RxP matrix, where P is the number of principal components
+ * @return 	RxP matrix, where P is the number of principal components
  */
 MatrixXd pcacov(const Ref<const MatrixXd> cov, double varth);
 
-/**
- * @brief Computes the Independent Components of input matrix X. Note that
- * you should run PCA on X before running ICA.
- *
- * Outputs reduced dimension (fewer cols) in output
- *
- * Note that this whole problem is the transpose of the version listed on
- * wikipedia.
- *
- * In: I number of components
- * In: X RxC matrix with rows representing C-D samples
- * for p in 1 to I:
- *   wp = random weight
- *   while wp changes:
- *     wp = g(X wp)X/R - wp SUM(g'(X wp))/R
- *     wp = wp - SUM wp^T wj wj
- *     normalize(wp)
- *
- * Output: W = [w0 w1 w2 ... ]
- * Output: S = XW, where each column is a dimension, each row a sample
- *
- * @param Xin 	RxC matrix where each row is a sample, each column a
- * dimension (or feature). The number of columns in the output
- * will be fewer because there will be fewer features.
- * Columns should be zero-mean and uncorrelated with one another.
- *
- * @return 		RxP matrix, where P is the number of independent components
- */
-MatrixXd ica(const Ref<const MatrixXd> Xin);
-
-/*
+/* @}
  * \defgroup Clustering algorithms
  * @{
  */

@@ -44,7 +44,7 @@ TrackSet readTracks(std::string filename, std::string ref = "");
  * @brief Reads a BrainSuite DFT file. Throws INVALID_ARGUMENT if the magic is
  * wrong.
  *
- * @param filename trk file
+ * @param tfile trk file
  * @param ref Reference image
  *
  * @return vector of vector of points

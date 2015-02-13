@@ -257,8 +257,7 @@ public:
 	 * from this image.
 	 *
 	 */
-	void setOrigin(const VectorXd& neworigin, bool reinit,
-			CoordinateT coord = QFORM);
+	void setOrigin(const VectorXd& neworigin, bool reinit);
 
 	/**
 	 * @brief Returns reference to a value in the spacing vector. This is the
@@ -441,6 +440,9 @@ public:
 	 * false then the first min(D1,D2) dimensions will be checked, if this is true
 	 * then mismatched dimensionality will cause this to return a false
 	 * @param checksize Whether to enforce identical size as well as orientation
+	 * @param tol tolerance for differences in orientation. Because the
+	 * orientation matrix must undergo floating operationt to convert from
+	 * Quaternions there are likely to be (small) errors.
 	 *
 	 * @return True if the two images have matching orientation information.
 	 */

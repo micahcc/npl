@@ -464,9 +464,6 @@ public:
 	 * @brief Constructor with initializer list. Orientation will be default
 	 * (direction = identity, spacing = 1, origin = 0).
 	 *
-	 * @param dim dimensions of input, the length of this initializer list
-	 * may not be fully used if a_args is longer than D. If it is shorter
-	 * then D then additional dimensions are left as size 1.
 	 */
 	NDArrayStore();
 

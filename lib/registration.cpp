@@ -19,6 +19,7 @@
 
 #include "registration.h"
 #include "lbfgs.h"
+#include "statistics.h"
 #include "mrimage_utils.h"
 #include "ndarray_utils.h"
 #include "macros.h"

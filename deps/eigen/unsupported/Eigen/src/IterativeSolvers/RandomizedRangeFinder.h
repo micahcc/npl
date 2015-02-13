@@ -186,6 +186,7 @@ protected:
 template <typename T>
 void RandomizedRangeFinder<T>::_compute(const Ref<const MatrixType> A)
 {
+	size_t MINCSIZE = 5;
 	MatrixType Yc;
 	MatrixType Yhc;
 	MatrixType Qtmp;
@@ -202,6 +203,7 @@ void RandomizedRangeFinder<T>::_compute(const Ref<const MatrixType> A)
 		curank = std::ceil(std::log2(std::min(A.cols(), A.rows())));
 	else
 		curank = m_minrank;
+	curank = std::min((size_t)std::min(A.rows(), A.cols()), std::max(MINCSIZE, curank));
 
 	if(m_maxrank <= 1)
 		maxrank = std::min(A.cols(), A.rows());
@@ -246,11 +248,7 @@ void RandomizedRangeFinder<T>::_compute(const Ref<const MatrixType> A)
 
 			// After orthogonalizing wrt to Q, reorthogonalize wrt each other
 			std::list<int> keep;
-			size_t bestcstart = 0;
-			size_t bestcsize = 0;
-			size_t cstart = 0;
 			size_t csize = 0;
-			bool smallrun = true;
 			for(size_t cc=0; cc<Qc.cols(); cc++) {
 				for(std::list<int>::iterator it=keep.begin(); it!=keep.end(); ++it)
 					Qc.col(cc) -= Qc.col(*it).dot(Qc.col(cc))*Qc.col(*it);
@@ -258,24 +256,15 @@ void RandomizedRangeFinder<T>::_compute(const Ref<const MatrixType> A)
 				if(norm > m_tol) {
 					keep.push_back(cc);
 					Qc.col(cc) /= norm;
-					if(csize > bestcsize) {
-						bestcsize = csize;
-						bestcstart = cstart;
-					}
-					cstart = cc+1;
 					csize = 0;
-				} else {
+				} else
 					csize++;
-				}
-			}
-			if(csize > bestcsize) {
-				bestcsize = csize;
-				bestcstart = cstart;
+				// Check if we have reached the threshold to stop based on run
+				// of small values
+				if(csize >= MINCSIZE)
+					break;
 			}
 
-#ifdef RANDOMIZED_RANGE_FINDER_DEBUG
-			cerr << "Consecutive small values: " << csize << ", best:" << bestcsize << endl;
-#endif //RANDOMIZED_RANGE_FINDER_DEBUG
 			if(keep.empty()) {
 #ifdef RANDOMIZED_RANGE_FINDER_DEBUG
 				cerr << "Keep Empty, Breaking"<<endl;
@@ -295,7 +284,7 @@ void RandomizedRangeFinder<T>::_compute(const Ref<const MatrixType> A)
 
 			// Break Because the probability is really low that there is now
 			// information
-			if(bestcsize > 10)
+			if(csize >= MINCSIZE )
 				break;
 		} else {
 			m_Q = Qtmp;

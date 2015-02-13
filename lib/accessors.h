@@ -2566,8 +2566,9 @@ public:
 	 * (uConv, duConv, dduConv). See equations 54-59 in
 	 * docs/bspline/fmri_dist_correct_2013-12-06.pdf
 	 *
-	 * @param output gradient of each parameter with respect to the deform
-	 * 			regularization
+	 * @param dir Direction of distortion/deformation
+	 * @param len Length of grad vector
+	 * @param grad Vector of values, one for each parameter in the B-spline
 	 */
 	double jacobianDet(int dir, size_t len, double* grad)
 	{

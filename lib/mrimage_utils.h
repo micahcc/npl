@@ -162,6 +162,7 @@ ptr<MRImage> fft_backward(ptr<const MRImage> in,
  * @param rx Rotation about x axis
  * @param ry Rotation about y axis
  * @param rz Rotation about z axis
+ * @param kern Kernel to use for interplation
  */
 int rotateImageShearKern(ptr<MRImage> inout, double rx, double ry, double rz,
 		double(*kern)(double,double) = npl::lanczosKern);
@@ -184,7 +185,7 @@ int rotateImageShearFFT(ptr<MRImage> inout, double rx, double ry, double rz,
 /**
  * @brief Rigid Transforms an image
  *
- * @param inout Input/output image
+ * @param in Input/output image
  * @param rx Rotation about x axis
  * @param ry Rotation about y axis
  * @param rz Rotation about z axis
@@ -199,7 +200,8 @@ ptr<MRImage> rigidTransform(ptr<MRImage> in, double rx, double ry, double rz,
  * @brief Computes difference of gaussians.
  *
  * @param in Gaussian smooths an image twice and subtracts
- * @param sd Standard deviation in each dimension
+ * @param sd1 Standard deviation of first image
+ * @param sd2 Standard deviation of second image
  *
  * @return Difference of two different gaussians
  */

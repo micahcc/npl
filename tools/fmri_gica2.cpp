@@ -127,7 +127,6 @@ int main(int argc, char** argv)
 
 	gica.compute(a_time_append.getValue(), a_space_append.getValue(),
 			a_masks.getValue(), a_in.getValue());
-	gica.computeSpatialMaps();
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }

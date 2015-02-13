@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  * @file treduce.cpp Reduce 4D image to 3D image using one of the supplied
- * methods. 
+ * methods.
  *
  *****************************************************************************/
 
@@ -39,6 +39,7 @@
 #include "iterators.h"
 #include "utility.h"
 #include "basic_functions.h"
+#include "statistics.h"
 
 using namespace npl;
 using namespace std;
@@ -47,8 +48,8 @@ int main(int argc, char* argv[])
 {
 	cerr << "Version: " << __version__ << endl;
 	try {
-	/* 
-	 * Command Line 
+	/*
+	 * Command Line
 	 */
 	TCLAP::CmdLine cmd("This program takes an 4D volume, and outputs 3D"
 			"volumes with the specified statistics.", ' ', __version__ );
@@ -72,7 +73,7 @@ int main(int argc, char* argv[])
 
 	// parse arguments
 	cmd.parse(argc, argv);
-	
+
 	auto input = readMRImage(a_input.getValue());
 	vector<size_t> osize(min(3UL, input->ndim()));
 	for(size_t dd=0; dd<osize.size(); dd++) {
@@ -91,7 +92,7 @@ int main(int argc, char* argv[])
 					osize.size(), osize.data(), FLOAT32));
 		auto medianimg = dPtrCast<MRImage>(input->createAnother(
 					osize.size(), osize.data(), FLOAT32));
-		
+
 		Vector3DIter<double> iit(input);
 		NDIter<double> ait(avgimg);
 		NDIter<double> vit(varimg);
@@ -112,7 +113,7 @@ int main(int argc, char* argv[])
 			sit.set(sum);
 			vit.set(sample_var(input->tlen(), sum, ssq));
 			ait.set(sum/input->tlen());
-			
+
 			std::sort(sorted.begin(), sorted.end());
 			medit.set(sorted[input->tlen()/2]);
 			maxit.set(sorted[input->tlen()-1]);
@@ -139,11 +140,11 @@ int main(int argc, char* argv[])
 		if(a_median.isSet())
 			medianimg->write(a_median.getValue());
 	}
-	
+
 	// done, catch all argument errors
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
-	
+
 	return 0;
 }
 

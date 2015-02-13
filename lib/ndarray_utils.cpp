@@ -30,6 +30,7 @@
 #include "utility.h"
 #include "iterators.h"
 #include "basic_functions.h"
+#include "statistics.h"
 #include "chirpz.h"
 
 #include <Eigen/Geometry>
@@ -2272,7 +2273,7 @@ void standardizeIP(ptr<NDArray> img)
 		count++;
 	}
 
-	var = sqrt(sample_var(count, mu, var));
+	var = std::sqrt(sample_var(count, mu, var));
 	mu /= count;
 
 	for(FlatIter<double> it(img); !it.eof(); ++it) {
@@ -3106,7 +3107,7 @@ void normalizeTS(ptr<NDArray> inout)
 	if(inout->tlen() <= 1) {
 		throw INVALID_ARGUMENT("Input image is not 4D");
 	}
-			
+
 	Vector3DIter<double> it(inout);
 	size_t tlen = inout->tlen();
 	double mu = 0;
@@ -3122,7 +3123,7 @@ void normalizeTS(ptr<NDArray> inout)
 
 		sd = sqrt(sample_var(tlen, mu, sd));
 		mu /= tlen;
-		
+
 		for(size_t tt=0; tt<tlen; tt++) {
 			if(sd <= std::numeric_limits<double>::epsilon())
 				it.set(tt, 0);

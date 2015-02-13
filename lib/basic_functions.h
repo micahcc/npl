@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  * @file basic_functions.h These are simple in-lineable functions for various
- * purposes, including bounding indexes, and window functions 
+ * purposes, including bounding indexes, and window functions
  *
  *****************************************************************************/
 
@@ -70,47 +70,6 @@ inline T wrap(T inf, T sup, T v)
 	T vtmp = v-inf;
 	T out = vtmp < 0 ? sup-((-vtmp-1)%len) : inf+(vtmp%len);
 	return out;
-}
-
-/**********************************************************
- * Basic Statistical Functions
- **********************************************************/
-
-/**
- * @brief Takes a count, sum and sumsqr and returns the sample variance.
- * This is slightly different than the variance definition and I can
- * never remember the exact formulation.
- *
- * @param count Number of samples
- * @param sum sum of samples
- * @param sumsqr sum of square of the samples
- *
- * @return sample variance
- */
-inline
-double sample_var(int count, double sum, double sumsqr)
-{
-	return (sumsqr-sum*sum/count)/(count-1);
-}
-
-/**
- * @brief Computes the sample correlation.
- *
- * @param count 	Number of samples
- * @param sum1 		Sum of group 1
- * @param sum2		Sum of group 2
- * @param sumsq1	Sum of the sqaure of the elements of group1
- * @param sumsq2	Sum of the sqaure of the elements of group2
- * @param s1s2		Elements of group1*elements of group 2
- *
- * @return Sample Correlation
- */
-inline
-double sample_corr(int count, double sum1, double sum2, 
-		double sumsq1, double sumsq2, double s1s2)
-{
-	return (count*s1s2-sum1*sum2)/
-			sqrt((count*sumsq1-sum1*sum1)*(count*sumsq2-sum2*sum2));
 }
 
 /**********************************************************
@@ -282,10 +241,10 @@ double dLinKern(double x, double a)
 	if(x < 0)
 		return 1/a;
 	else
-		return -1/a; 
+		return -1/a;
 }
 
-/****************************************************** 
+/******************************************************
  * Third Order BSpline kernel. X is distance from 0
  ****************************************************/
 
@@ -467,7 +426,7 @@ double radToDeg(double rad)
  *
  * @param num Input, output will be this with the highest order bit set
  *
- * @return 
+ * @return
  */
 inline
 int hob(int num)
@@ -566,10 +525,10 @@ int64_t round357(int64_t in)
  * c.ndim = ndim;
  * for(size_t ii=0; ii<ndim; ii++)
  *   c.sz[ii] = width;
- * 
+ *
  * do {
  *   double weight = 1;
- *   for(int dd = 0; dd < ndim; dd++) 
+ *   for(int dd = 0; dd < ndim; dd++)
  *     weight *= c.pos[dd];
  * } while(c.advance());
  *
@@ -583,7 +542,7 @@ struct Counter
 	T sz[MAXDIM];
 	T pos[MAXDIM];
 	size_t ndim;
-	
+
 	/**
 	 * @brief Default constructor. Just sizes pos to 0. dim is the number of
 	 * dimensions to use/iterate over.
@@ -591,12 +550,12 @@ struct Counter
 	 * @param dim
 	 */
 	Counter(size_t dim)
-	{ 
+	{
 		if(dim > MAXDIM)
 			throw INVALID_ARGUMENT("Dimension "+std::to_string(dim)+">="+
 					std::to_string(MAXDIM));
 		ndim = dim;
-		for(size_t dd=0; dd<ndim; dd++) 
+		for(size_t dd=0; dd<ndim; dd++)
 			pos[dd] = 0;
 	};
 
@@ -625,7 +584,7 @@ struct Counter
 	 *
 	 * @param rorder Whether to reverse the order and do low dimension fastest
 	 *
-	 * @return 
+	 * @return
 	 */
 	bool advance(bool rorder = false) {
 		if(rorder) {
@@ -633,7 +592,7 @@ struct Counter
 				pos[dd]++;
 				if(pos[dd] == sz[dd])
 					pos[dd] = 0;
-				else  
+				else
 					return true;
 			}
 		} else {
@@ -641,11 +600,11 @@ struct Counter
 				pos[dd]++;
 				if(pos[dd] == sz[dd])
 					pos[dd] = 0;
-				else  
+				else
 					return true;
 			}
 		}
-		
+
 		return false;
 	};
 };

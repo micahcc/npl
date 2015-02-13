@@ -344,6 +344,7 @@ public:
 	 * permissions allow it).
 	 *
 	 * @param fn Open the specified file for reading and writing.
+	 * @param quiet Whether to print errors when we can't open a file
 	 */
 	int openExisting(std::string fn, bool quiet = true);
 

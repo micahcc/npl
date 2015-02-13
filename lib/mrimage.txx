@@ -275,7 +275,7 @@ const VectorXd& MRImage::getOrigin() const
  * include more advanced options (scanner,anat etc). For now it is just
  * QFORM or SFORM
  */
-void MRImage::setOrigin(const VectorXd& neworigin, bool reinit, CoordinateT coord)
+void MRImage::setOrigin(const VectorXd& neworigin, bool reinit)
 {
 	if(reinit) {
 		for(size_t ii=0; ii<m_origin.rows(); ii++)
@@ -284,8 +284,6 @@ void MRImage::setOrigin(const VectorXd& neworigin, bool reinit, CoordinateT coor
 
 	for(size_t jj=0; jj<neworigin.rows() && jj< m_origin.rows(); jj++)
 		origin(jj) = neworigin[jj];
-
-	m_coordinate = (CoordinateT)(((int)coord)|((int)m_coordinate));
 }
 
 /**

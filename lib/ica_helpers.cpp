@@ -547,23 +547,13 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 		const std::vector<std::string>& masknames,
 		const std::vector<std::string>& filenames, bool normts)
 {
-	// size_t m_totalrows;
-	// size_t m_totalcols;
-	// std::string m_prefix;
-	// size_t m_maxdoubles;
-	// bool m_verbose;
-	// vector<int> m_outrows;
-	// vector<int> m_outcols;
-
 	vector<int> inrows;
 	vector<int> incols;
 	std::string tallpr = m_prefix + "_tall_";
-//	std::string widepr = m_prefix + "_wide_";
 	std::string maskpr = m_prefix + "_mask_";
 
 	if(m_verbose) {
 		cerr << "Tall Matrix Prefix: " << tallpr << endl;
-//		cerr << "Wide Matrix Prefix: " << widepr << endl;
 		cerr << "Mask Prefix:        " << maskpr << endl;
 	}
 
@@ -578,11 +568,9 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	std::fill(inrows.begin(), inrows.end(), 0);
 	std::fill(incols.begin(), incols.end(), 0);
 
-	m_totalrows = 0;
-	m_totalcols = 0;
-
 	// Figure out the number of cols in each block, and create masks
 	ptr<MRImage> mask;
+	m_totalcols = 0;
 	for(size_t sb = 0; sb<spaceblocks; sb++) {
 		if(sb < masknames.size()) {
 			mask = readMRImage(masknames[sb]);
@@ -604,9 +592,9 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	}
 
 	// Figure out number of rows in each block
+	m_totalrows = 0;
 	for(size_t tb = 0; tb<timeblocks; tb++) {
 		auto img = readMRImage(filenames[0*timeblocks+tb]);
-
 		inrows[tb] += img->tlen();
 		m_totalrows += inrows[tb];
 	}
@@ -621,66 +609,16 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	/*
 	 * Break rows and columns into digestable sizes, and don't allow chunks to
 	 * cross lines between images (this will make loading the matrices easier)
+	 * break up output blocks of cols into chunks that 1) don't cross images
+	 * and 2) with have fewer elements than m_maxdoubles
 	 */
-	// for wide matrices
-//	m_outrows.resize(1); m_outrows[0] = 0; // number of rows per block
-
-	// for tall matrices
-	m_outcols.resize(1); m_outcols[0] = 0; // number of cols per block
+	m_outcols.resize(1, 0); // number of cols per block
 	int blockind = 0;
 	int blocknum = 0;
-
-	// wide matrices, create files
-	// break up output blocks of rows into chunks that 1) don't cross images
-	// and 2) with have fewer elements than m_maxdoubles
-	if(m_totalcols > m_maxdoubles) {
+	if(m_totalrows > m_maxdoubles) {
 		throw INVALID_ARGUMENT("maxdoubles is not large enough to hold a "
 				"single full row!");
 	}
-	blockind = 0;
-	blocknum = 0;
-//	for(int rr=0; rr<m_totalrows; rr++) {
-//		if(blockind == inrows[blocknum]) {
-//			// open file, create with proper size
-//			MemMap wfile(widepr+to_string(m_outrows.size()-1), 2*sizeof(size_t)+
-//					m_outrows.back()*m_totalcols*sizeof(double), true);
-//			((size_t*)wfile.data())[0] = m_outrows.back(); // nrows
-//			((size_t*)wfile.data())[1] = m_totalcols; // nrows
-//
-//			// if the index in the block would put us in a different image, then
-//			// start a new out block
-//			blockind = 0;
-//			blocknum++;
-//			m_outrows.push_back(0);
-//		} else if((m_outrows.back()+1)*m_totalcols > m_maxdoubles) {
-//			// open file, create with proper size
-//			MemMap wfile(widepr+to_string(m_outrows.size()-1), 2*sizeof(size_t)+
-//					m_outrows.back()*m_totalcols*sizeof(double), true);
-//			((size_t*)wfile.data())[0] = m_outrows.back(); // nrows
-//			((size_t*)wfile.data())[1] = m_totalcols; // ncols
-//
-//			// If this row won't fit in the current block of rows, start a new one,
-//			m_outrows.push_back(0);
-//		}
-//		blockind++;
-//		m_outrows.back()++;
-//	}
-//	{ // Create Last File
-//	MemMap wfile(widepr+to_string(m_outrows.size()-1), 2*sizeof(size_t)+
-//			m_outrows.back()*m_totalcols*sizeof(double), true);
-//	((size_t*)wfile.data())[0] = m_outrows.back(); // nrows
-//	((size_t*)wfile.data())[1] = m_totalcols; // nrows
-//	}
-//
-//	// tall matrices, create files
-//	// break up output blocks of cols into chunks that 1) don't cross images
-//	// and 2) with have fewer elements than m_maxdoubles
-//	if(m_totalrows > m_maxdoubles) {
-//		throw INVALID_ARGUMENT("maxdoubles is not large enough to hold a "
-//				"single full column!");
-//	}
-	blockind = 0;
-	blocknum = 0;
 	for(int cc=0; cc<m_totalcols; cc++) {
 		if(blockind == incols[blocknum]) {
 			// open file, create with proper size
@@ -713,21 +651,20 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	((size_t*)tfile.data())[1] = m_outcols.back(); // ncols
 	}
 
-	// Fill Tall and Wide Matrices by breaking up images along block rows and
-	// block cols specified in m_outcols and m_outrows.
+	/*
+	 * Fill tall matrices by breaking images along block cols specified
+	 * in m_outcols
+	 */
 	int img_glob_row = 0;
 	int img_glob_col = 0;
-//	int img_oblock_row = 0;
 	int img_oblock_col = 0;
 	MatMap datamap;
 	for(size_t sb = 0; sb<spaceblocks; sb++) {
 		auto mask = readMRImage(maskpr+to_string(sb)+".nii.gz");
 
 		img_glob_row = 0;
-//		img_oblock_row = 0;
 		for(size_t tb = 0; tb<timeblocks; tb++) {
-			auto img = dPtrCast<MRImage>(readMRImage(filenames[sb*timeblocks+tb])
-					->copyCast(FLOAT64));
+			auto img = readMRImage(filenames[sb*timeblocks+tb]);
 
 			if(!img->matchingOrient(mask, false, true))
 				throw INVALID_ARGUMENT("Mismatch in mask/image size in col:"+
@@ -736,19 +673,19 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 				throw INVALID_ARGUMENT("Mismatch in time-length in col:"+
 						to_string(sb)+", row:"+to_string(tb));
 
-			if(normts)
-				normalizeTS(img);
-
-//			int rr, cc, colbl, rowbl, tt;
+			double mean = 0, sd = 0;
 			int cc, colbl;
 			int tlen = img->tlen();
 			Vector3DIter<double> it(img);
 			NDIter<double> mit(mask);
 
-			// Tall Matrix, fill mat[img_glob_row:img_glob_row+tlen,0:bcols],
-			// Start with invalid and load new columns as needed
-			// cc iterates over the columns in the block, colbl indicates the
-			// index of the block in the overall scheme
+			/*
+			 * fill mat[img_glob_row:img_glob_row+tlen,0:bcols],
+			 * Start with invalid and load new columns as needed
+			 * cc iterates over the columns in the block, colbl indicates the
+			 * index of the block in the overall scheme
+			 * rows are global, cols are local to block
+			 */
 			for(cc=-1, colbl=img_oblock_col-1; !it.eof(); ++it, ++mit) {
 				if(*mit != 0) {
 					// If cc is invalid, open
@@ -762,9 +699,21 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 						}
 					}
 
-					// rows are global, cols are local to block
+					// Fill, Calculate Mean/SD and normalize
+					mean = 0;
+					sd = 0;
 					for(size_t tt=0; tt<tlen; tt++) {
 						datamap.mat(tt+img_glob_row, cc) = it[tt];
+						mean += it[tt];
+						sd += it[tt]*it[tt];
+					}
+					sd = sample_var(tlen, mean, sd);
+					mean /= tlen;
+					if(normts) {
+						if(sd > 0)
+							datamap.mat = (datamap.mat.array()-mean)/sd;
+						else
+							datamap.mat.setZero();
 					}
 					cc++;
 				}
@@ -773,39 +722,8 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 			assert(cc == m_outcols[colbl]);
 			datamap.close();
 
-//			// Wide Matrix, fill mat[0:brows,img_glob_col:img_glob_col+nvox],
-//			// Start with invalid and load new columns as needed
-//			// rr iterates over the rows in the block
-//			// rowbl is the index of the block in the set of output blocks
-//			// tt is the index row position in the image
-//			for(rr=-1, rowbl=img_oblock_row-1, tt=0; tt < tlen; rr++, tt++){
-//				if(rr < 0 || rr >= m_outrows[rowbl]) {
-//					rr = 0;
-//					rowbl++;
-//					datamap.open(widepr+to_string(rowbl));
-//					if(datamap.rows != m_outrows[rowbl] || datamap.cols !=
-//							m_totalcols) {
-//						throw INVALID_ARGUMENT("Unexpected size in input "
-//								+ tallpr+to_string(rowbl));
-//					}
-//				}
-//
-//				it.goBegin(), mit.goBegin();
-//				for(int cc=img_glob_col; !it.eof(); ++it, ++mit) {
-//					if(*mit != 0)
-//						datamap.mat(rr, cc++) = it[tt];
-//				}
-//			}
-//
-//			assert(rr == m_outrows[rowbl]);
-//			datamap.close();
-
 			// Increment Global Row by Input Block Size (same as image rows)
 			img_glob_row += inrows[tb];
-
-//			// Increment Output block row to correspond to the next image
-//			for(int ii=0; ii != inrows[tb]; )
-//				ii += m_outrows[img_oblock_row++];
 		}
 
 		// Increment Global Col by Input Block Size (same as image cols)
@@ -1039,7 +957,7 @@ GICAfmri::GICAfmri(std::string pref)
  * @param inputs Files in time-major order, [s0t0 s0t1 s0t2 s1t0 s1t1 s1t2]
  * where s0 means 0th space-appended image, and t0 means the same for time
  */
-void GICAfmri::compute()
+void GICAfmri::computeICA()
 {
 	m_status = -1;
 
@@ -1049,7 +967,6 @@ void GICAfmri::compute()
 	if(status != 0)
 		throw RUNTIME_ERROR("Error while loading existing 2D Matrices");
 	cerr<<"Done\n";
-
 
 	MatrixXd U, V;
 	MatrixXd* Up = NULL;
@@ -1118,6 +1035,7 @@ void GICAfmri::compute()
  * @param masks Masks, one per spaceblock (columns of matching space)
  * @param inputs Files in time-major order, [s0t0 s0t1 s0t2 s1t0 s1t1 s1t2]
  * where s0 means 0th space-appended image, and t0 means the same for time
+ * @param normts normalize
  */
 void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 		vector<string> inputs)
@@ -1133,7 +1051,8 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 		throw RUNTIME_ERROR("Error while reorganizing data into 2D Matrices");
 	cerr<<"Done"<<endl;
 
-	compute();
+	computeICA();
+	computeSpatialMaps();
 }
 
 void GICAfmri::computeSpatialMaps()

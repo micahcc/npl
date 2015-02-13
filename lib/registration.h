@@ -66,12 +66,6 @@ public:
 	 * image space.  * If changes are made to the moving image, then call
 	 * reinit() to reinitialize the image derivative.
 	 *
-	 * @param fixed Fixed image. A copy of this will be made.
-	 * @param moving Moving image. A copy of this will be made.
-	 * minimize negative correlation using a gradient descent).
-	 * @param bins Number of bins during marginal density estimation (joint
-	 *                  with have nbins*nbins)
-	 * @param kernrad During parzen window, the radius of the smoothing kernel
 	 * @param mindiff Whether to use negative correlation (for instance to
 	 * register images)
 	 */
@@ -423,7 +417,7 @@ public:
 	 * re-calling setMoving is undefined and will result in an out-of-date
 	 * moving image derivative. THIS WILL BREAK GRADIENT CALCULATIONS.
 	 *
-	 * @param newfixed New fixed image
+	 * @param fixed New fixed image
 	 * @param moving Input moving image, should be 4D with each volume containing
 	 * a probability map (not modified)
 	 * @param dir Direction of distortion (the dimension, must be >= 0)

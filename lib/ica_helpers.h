@@ -45,9 +45,11 @@ class MatrixReorg;
  * Probabilistic algorithms for constructing approximate matrix decompositions.
  * 2009;1–74. Available from: http://arxiv.org/abs/0909.4061
  *
- * @param prefix File prefix
- * @param rank
- * @param poweriters
+ * @param A MatrixReorg object that can be used to load images on disk
+ * @param rank Number of output columns (output rank)
+ * @param poweriters Number of power iterations to perform. 2 passes over A are
+ * required for each iteration, but iteration drives error to 0 at an
+ * exponential rate
  * @param U Output U matrix, if null then ignored
  * @param V Output V matrix, if null then ignored
  *
@@ -229,7 +231,7 @@ public:
 	 * indicate voxels to include
 	 * @param filenames Files to read in, images are stored in column (time)-major
 	 * order
-	 * @param normts Normalize each column before writing
+	 * @param normts whether to normalize the timeseries
 	 *
 	 * @return 0 if succesful, -1 if read failure, -2 if write failure
 	 */
@@ -337,34 +339,6 @@ public:
 	bool normts;
 
 	/**
-	 * @brief Compute ICA for the given group, using existing tall/wide mats
-	 *
-	 * The basic idea is to split the rows into digesteable chunks, then
-	 * perform the SVD on each of them.
-	 *
-	 * A = [A1 A2 A3 ... ]
-	 * A = [UEV1 UEV2 .... ]
-	 * A = [UE1 UE2 UE3 ...] diag([V1, V2, V3...])
-	 *
-	 * UE1 should have far fewer columns than rows so that where A is RxC,
-	 * with R < C, [UE1 ... ] should have be R x LN with LN < R
-	 *
-	 * Say we are concatinating S subjects each with T timepoints, then
-	 * A is STxC, assuming a rank of L then [UE1 ... ] will be ST x SL
-	 *
-	 * Even if L = T / 2 then this is a 1/4 savings in the SVD computation
-	 *
-	 * @param tcat Number of fMRI images to append in time direction
-	 * @param scat Number of fMRI images to append in space direction
-	 * @param masks Masks, one per spaceblock (columns of matching space)
-	 * @param inputs Files in time-major order, [s0t0 s0t1 s0t2 s1t0 s1t1 s1t2]
-	 * where s0 means 0th space-appended image, and t0 means the same for time
-	 * @param spatial Perform Spatial ICA, if not a temporal ICA is done
-	 * @param use existing tall/wide matrices
-	 */
-	void compute();
-
-	/**
 	 * @brief Compute ICA for the given group, defined by tcat x scat images
 	 * laid out in column major ordering.
 	 *
@@ -392,8 +366,6 @@ public:
 	void compute(size_t tcat, size_t scat, std::vector<std::string> masks,
 			vector<std::string> inputs);
 
-	void computeSpatialMaps();
-
 private:
 	std::string m_pref;
 
@@ -401,6 +373,9 @@ private:
 
 	size_t svd_help(std::string inname, std::string usname,
 			std::string vname);
+
+	void computeICA();
+	void computeSpatialMaps();
 };
 
 }
