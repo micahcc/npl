@@ -24,6 +24,7 @@
 #include <Eigen/IterativeSolvers>
 
 #include <iostream>
+#include <fstream>
 #include <string>
 
 #include "fftw3.h"
@@ -470,32 +471,38 @@ MatrixReorg::MatrixReorg(std::string prefix, size_t maxdoubles, bool verbose)
 int MatrixReorg::checkMats()
 {
 	m_outcols.clear();
+	std::string info = m_prefix + ".txt";
 	std::string tallpr = m_prefix + "_tall_";
 	std::string maskpr = m_prefix + "_mask_";
 
+	ifstream ifs(info);
+	ifs >> m_totalrows >> m_totalcols;
 	if(m_verbose) {
+		cerr << "Information File: " << info << endl;
 		cerr << "Tall Matrix Prefix: " << tallpr << endl;
 		cerr << "Mask Prefix:        " << maskpr << endl;
+		cerr << "Total Rows/Timepoints: " << m_totalrows<< endl;
+		cerr << "Total Cols/Voxels:     " << m_totalcols << endl;
 	}
+	if(m_totalcols == 0 || m_totalrows == 0)
+		throw RUNTIME_ERROR("Error zero size input from "+info);
 
 	/* Read First Tall and Wide to get totalrows and totalcols */
 	MatMap map;
 	int cols = 0;
-	m_totalcols = 0;
-	m_totalrows = 0;
-	for(size_t bb=0; map.open(tallpr+to_string(bb)) == 0; bb++) {
-		if(m_totalrows == 0)
-			m_totalrows = map.rows;
-		else if(m_totalrows != map.rows)
-			break; // break if the rows mismatch
+	for(size_t bb=0; cols < m_totalcols; bb++) {
+		if(map.open(tallpr+to_string(bb)))
+			throw RUNTIME_ERROR("Error opening "+tallpr+to_string(bb));
+		if(m_totalrows != map.rows)
+			throw RUNTIME_ERROR("Error, mismatch in file size ("+
+					to_string(map.rows)+"x"+to_string(map.cols)+" vs "+
+					to_string(m_totalrows)+"x"+to_string(m_totalcols)+")");
 		m_outcols.push_back(map.cols);
-		m_totalcols += map.cols;
+		cols += map.cols;
 	}
-
-	if(m_verbose) {
-		cerr << "Total Rows/Timepoints: " << m_totalrows<< endl;
-		cerr << "Total Cols/Voxels:     " << m_totalcols << endl;
-	}
+	if(m_totalcols != cols)
+		throw RUNTIME_ERROR("Error, mismatch in number of cols from input "
+				"files (prefix "+tallpr+")");
 
 	// check masks
 	cols = 0;
@@ -508,7 +515,8 @@ int MatrixReorg::checkMats()
 
 		// should exactly match up
 		if(cols > m_totalcols)
-			return -1;
+			throw RUNTIME_ERROR("Error, mismatch in number of cols from input "
+					"masks (prefix "+maskpr+")");
 	}
 	return 0;
 }
@@ -549,10 +557,12 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 {
 	vector<int> inrows;
 	vector<int> incols;
+	std::string info = m_prefix + ".txt";
 	std::string tallpr = m_prefix + "_tall_";
 	std::string maskpr = m_prefix + "_mask_";
 
 	if(m_verbose) {
+		cerr << "Information File: " << info << endl;
 		cerr << "Tall Matrix Prefix: " << tallpr << endl;
 		cerr << "Mask Prefix:        " << maskpr << endl;
 	}
@@ -605,6 +615,9 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 		cerr << "Total Rows/Timepoints: " << m_totalrows<< endl;
 		cerr << "Total Cols/Voxels:     " << m_totalcols << endl;
 	}
+	ofstream ofs(info);
+	ofs << m_totalrows << " " << m_totalcols << endl;
+	ofs.close();
 
 	/*
 	 * Break rows and columns into digestable sizes, and don't allow chunks to
@@ -619,6 +632,8 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 		throw INVALID_ARGUMENT("maxdoubles is not large enough to hold a "
 				"single full row!");
 	}
+
+	if(m_verbose) cerr << "Creating Matrices"<<endl;
 	for(int cc=0; cc<m_totalcols; cc++) {
 		if(blockind == incols[blocknum]) {
 			// open file, create with proper size
@@ -655,16 +670,20 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	 * Fill tall matrices by breaking images along block cols specified
 	 * in m_outcols
 	 */
+	if(m_verbose) cerr << "Filling Matrices"<<endl;
+	if(normts) cerr<<"Normalizing Timeseries"<<endl;
 	int img_glob_row = 0;
 	int img_glob_col = 0;
 	int img_oblock_col = 0;
 	MatMap datamap;
 	for(size_t sb = 0; sb<spaceblocks; sb++) {
+		if(m_verbose) cerr<<"Mask Group: "<<maskpr+to_string(sb)+".nii.gz"<<endl;
 		auto mask = readMRImage(maskpr+to_string(sb)+".nii.gz");
 
 		img_glob_row = 0;
 		for(size_t tb = 0; tb<timeblocks; tb++) {
 			auto img = readMRImage(filenames[sb*timeblocks+tb]);
+			if(m_verbose) cerr<<"Image: "<<filenames[sb*timeblocks+tb]<<endl;
 
 			if(!img->matchingOrient(mask, false, true))
 				throw INVALID_ARGUMENT("Mismatch in mask/image size in col:"+
@@ -693,6 +712,7 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 						cc = 0;
 						colbl++;
 						datamap.open(tallpr+to_string(colbl));
+						if(m_verbose) cerr<<"Writing: "<<tallpr+to_string(colbl)<<endl;
 						if(datamap.rows != m_totalrows || datamap.cols != m_outcols[colbl]) {
 							throw INVALID_ARGUMENT("Unexpected size in input "
 									+ tallpr+to_string(colbl));
@@ -707,13 +727,13 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 						mean += it[tt];
 						sd += it[tt]*it[tt];
 					}
-					sd = sample_var(tlen, mean, sd);
+					sd = sqrt(sample_var(tlen, mean, sd));
 					mean /= tlen;
 					if(normts) {
 						if(sd > 0)
-							datamap.mat = (datamap.mat.array()-mean)/sd;
+							datamap.mat.col(cc) = (datamap.mat.col(cc).array()-mean)/sd;
 						else
-							datamap.mat.setZero();
+							datamap.mat.col(cc).setZero();
 					}
 					cc++;
 				}
@@ -721,6 +741,7 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 
 			assert(cc == m_outcols[colbl]);
 			datamap.close();
+			if(m_verbose) cerr<<"Image Done: "<<filenames[sb*timeblocks+tb]<<endl;
 
 			// Increment Global Row by Input Block Size (same as image rows)
 			img_glob_row += inrows[tb];
@@ -732,6 +753,7 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 		// Increment Output block col to correspond to the next image
 		for(int ii=0; ii != incols[sb]; )
 			ii += m_outcols[img_oblock_col++];
+		if(m_verbose) cerr<<"Mask Done: "<<maskpr+to_string(sb)+".nii.gz"<<endl;
 	}
 
 	return 0;
@@ -1045,7 +1067,7 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 	size_t ndoubles = (size_t)(0.5*maxmem*(1<<27));
 	MatrixReorg reorg(m_pref, ndoubles, verbose);
 	// Don't use more than half of memory on each block of rows
-	cerr << "Reorganizing data into matrices...";
+	cerr << "Reorganizing data into matrices..."<<endl;
 	int status = reorg.createMats(tcat, scat, masks, inputs, normts);
 	if(status != 0)
 		throw RUNTIME_ERROR("Error while reorganizing data into 2D Matrices");
