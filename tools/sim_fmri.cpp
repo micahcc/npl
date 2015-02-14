@@ -119,11 +119,12 @@ int main(int argc, char** argv)
 
 	TCLAP::ValueArg<string> a_regions("r", "region-map", "Labelmap where label 1 "
 			"gets the signal from the first column of activation table, label "
-			"2 from the second and so on. ", false, "", "*.nii.gz");
+			"2 from the second and so on. Note that if both -R and -r are set "
+			"then this becomes an OUTPUT file to write the new regions to",
+			false, "", "*.nii.gz", cmd);
 	TCLAP::SwitchArg a_randregions("R", "region-rand", "Randomize regions "
 			"by smoothing a gaussian random field, then arbitrarily assigning "
-			"to fit the needed number of regions");
-	cmd.xorAdd(a_regions, a_randregions);
+			"to fit the needed number of regions", cmd);
 
 	TCLAP::ValueArg<string> a_actfile("a", "act-file", "Activation spike "
 			"train for each label. Lines (1-... ) correspond to labels. "
@@ -223,14 +224,22 @@ int main(int argc, char** argv)
 	}
 
 	ptr<MRImage> labelmap;
-	if(a_regions.isSet()) {
-		cerr << "Reading Region Map...";
-		labelmap = readMRImage(a_regions.getValue());
-		cerr << "Done\n";
-	} else if(a_randregions.isSet()) {
+	if(a_randregions.isSet()) {
 		cerr << "Simulating Region Map...";
 		labelmap = dPtrCast<MRImage>(createRandLabels(gmprob, activate.size(), 5));
 		cerr << "Done\n";
+		if(a_regions.isSet()) {
+			cerr << "Provided both rand regions (-R) and region file (-r), "
+				"so writing to "<<a_regions.getValue()<<"(from -r)"<<endl;
+			labelmap->write(a_regions.getValue());
+		}
+	} else if(a_regions.isSet()) {
+		cerr << "Reading Region Map...";
+		labelmap = readMRImage(a_regions.getValue());
+		cerr << "Done\n";
+	} else {
+		cerr << "Must either randomize regions (-R) or set regions (-r)!\n";
+		return -1;
 	}
 
 	/* Check Images for Matching Orientation */

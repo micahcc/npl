@@ -712,7 +712,8 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 						cc = 0;
 						colbl++;
 						datamap.open(tallpr+to_string(colbl));
-						if(m_verbose) cerr<<"Writing: "<<tallpr+to_string(colbl)<<endl;
+						if(m_verbose) cerr<<"Writing to: "<<tallpr+to_string(colbl)
+								<<" at row "<<to_string(img_glob_row)<<endl;
 						if(datamap.rows != m_totalrows || datamap.cols != m_outcols[colbl]) {
 							throw INVALID_ARGUMENT("Unexpected size in input "
 									+ tallpr+to_string(colbl));
@@ -731,9 +732,10 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 					mean /= tlen;
 					if(normts) {
 						if(sd > 0)
-							datamap.mat.col(cc) = (datamap.mat.col(cc).array()-mean)/sd;
+							datamap.mat.block(img_glob_row, cc, tlen, 1) =
+								(datamap.mat.block(img_glob_row, cc, tlen, 1).array()-mean)/sd;
 						else
-							datamap.mat.col(cc).setZero();
+							datamap.mat.block(img_glob_row, cc, tlen, 1).setZero();
 					}
 					cc++;
 				}

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file fmri_gica.cpp Tool for performing ICA on multiple fMRI images, 
+ * @file fmri_gica.cpp Tool for performing ICA on multiple fMRI images,
  * note that this assumes either X^T X or XX^T can be stored in memory
  *
  *****************************************************************************/
@@ -64,7 +64,7 @@ public:
 	{
 		std::string fn = m_fnames[bcol*m_chunks[0]+brow];
 		auto img = readMRImage(fn);
-		if(!img || img->tlen() != m_bsz[0] || 
+		if(!img || img->tlen() != m_bsz[0] ||
 				img->elements()/m_bsz[0]!= m_bsz[1]) {
 			throw std::string("Error reading ")+fn+
 				std::string(" or Image sizes differ!");
@@ -87,7 +87,7 @@ public:
 };
 
 MatrixXd whiten(bool whiterows, int initrank, double varthresh, int maxrank,
-		double svthresh, int trows, int tcols, int rchunks, int cchunks, 
+		double svthresh, int trows, int tcols, int rchunks, int cchunks,
 		MatrixLoader& loader)
 {
 	MatrixXd whitened;
@@ -112,7 +112,7 @@ MatrixXd whiten(bool whiterows, int initrank, double varthresh, int maxrank,
 
 	} else {
 		// Computed left singular values (U)
-		C.resize(trows, trows); 
+		C.resize(trows, trows);
 		C.setZero();
 
 		// we need to load entire cols (all rows) at a time
@@ -275,7 +275,7 @@ int main(int argc, char** argv)
 			"if you have convergence issues. This is part of the "
 			"Band Lanczos Eigenvalue Decomposition of the covariance matrix. "
 			"By default the covariance size is used, which is conservative. "
-			"Values less than 1 will default back to that", false, -1, 
+			"Values less than 1 will default back to that", false, -1,
 			"#vecs", cmd);
 	TCLAP::ValueArg<int> a_maxrank("R", "max-rank", "Maximum rank of output "
 			"in PCA. This sets are hard limit on the number of estimated "
@@ -313,7 +313,7 @@ int main(int argc, char** argv)
 		cerr << "Total Time Size: " << tlen << endl;
 		cerr << "Toal Space Size: " << slen << endl;
 	}
-	
+
 	MatrixXd cov;
 
 	/*
@@ -333,7 +333,7 @@ int main(int argc, char** argv)
 				if(cc) cout << ",";
 				else cout << "[";
 				cout << white(rr,cc);
-			} 
+			}
 		}
 		cout << "]]\n";
 	}
@@ -344,7 +344,7 @@ int main(int argc, char** argv)
 	MatrixXd X_ic = ica(white);
 	std::cerr << "Done" << endl;
 
-//    // 
+//    //
 //	MatrixXd regressors = reduce(inimg);
 //    for(size_t cc = 0; cc < regressors.cols(); cc++) {
 //        // perform regression

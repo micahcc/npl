@@ -60,7 +60,7 @@ int main(int argc, char** argv)
             ".", "dir", cmd);
 
 	cmd.parse(argc, argv);
-	
+
 	// read fMRI image
 	shared_ptr<MRImage> fmri = readMRImage(a_fmri.getValue());
 	if(fmri->ndim() != 4) {
@@ -83,7 +83,7 @@ int main(int argc, char** argv)
 		writePlot(a_odir.getValue()+"/ev1.svg", v);
 
 		// copy to output
-		for(size_t ii=0; ii<tlen; ii++) 
+		for(size_t ii=0; ii<tlen; ii++)
 			X(ii, regnum) = v[ii];
 	}
 
@@ -117,7 +117,7 @@ int main(int argc, char** argv)
 
         // copy to signal
         it.goChunkBegin();
-        for(size_t tt=0; !it.eoc(); ++tt, ++it) 
+        for(size_t tt=0; !it.eoc(); ++tt, ++it)
             signal[tt] = *it;
 
         RegrResult ret = regress(signal, X, covInv, Xinv, student_cdf);

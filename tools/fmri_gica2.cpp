@@ -125,8 +125,17 @@ int main(int argc, char** argv)
 	gica.estrank = a_rank.getValue();
 	gica.poweriters = a_poweriters.getValue();
 
-	gica.compute(a_time_append.getValue(), a_space_append.getValue(),
-			a_masks.getValue(), a_in.getValue());
+	size_t tb = 0;
+	size_t sb = 0;
+	if(!a_time_append.isSet() && !a_space_append.isSet()) {
+		tb = a_in.getValue().size();
+		sb = 1;
+	} else {
+		tb = a_time_append.getValue();
+		sb = a_space_append.isSet();
+	}
+
+	gica.compute(tb, sb, a_masks.getValue(), a_in.getValue());
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
