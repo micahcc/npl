@@ -712,6 +712,7 @@ void GICAfmri::computeTemporaICA()
 	/*
 	 * Initialize Regression Variables
 	 */
+	cerr<<"Setting up Regression"<<endl;
 	const double MAX_T = 2000;
 	const double STEP_T = 0.1;
 	StudentsT distrib(ics.rows()-1, STEP_T, MAX_T);
@@ -725,11 +726,13 @@ void GICAfmri::computeTemporaICA()
 	 * Iterate through mask as we iterate through the columns of the ICs
 	 * Create 4D Image matching mask
 	 */
-	size_t tc = 0; // tall column
 	size_t matn = 0; // matrix number (tall matrices)
 	size_t maskn = 0; // Mask number
 	MatMap tall(m_A.tallMatName(matn));
-	for(size_t cc=0; cc < m_A.cols(); maskn++) {
+	cerr<<"Regressing full dataset"<<endl;
+	for(size_t cc=0, tc=0; cc < m_A.cols(); maskn++) {
+		cerr<<"Subject Column: "<<maskn<< " Full Column: "<<cc
+			<<" TallMat Column: "<<tc<<endl;
 		auto mask = readMRImage(m_pref+"_mask_"+to_string(maskn)+".nii.gz");
 		for(size_t ii=0; ii<3; ii++)
 			odim[ii] = mask->dim(ii);
@@ -746,24 +749,26 @@ void GICAfmri::computeTemporaICA()
 			if(*mit == 0) {
 				for(size_t comp=0; comp<ics.cols(); comp++) {
 					tit.set(comp, 0);
+					bit.set(comp, 0);
 					pit.set(comp, 0.5);
 				}
-			}
-			// Load the next block of columns as necessary
-			if(tc >= tall.cols()) {
-				tall.open(m_A.tallMatName(++matn));
-				tc = 0;
-			}
+			} else {
+				// Load the next block of columns as necessary
+				if(tc >= tall.cols()) {
+					tall.open(m_A.tallMatName(++matn));
+					tc = 0;
+				}
 
-			// Perform regression
-			regress(&result, tall.mat.col(tc), ics, Cinv, Xinv, distrib);
-			for(size_t comp=0; comp<ics.cols(); comp++) {
-				tit.set(comp, result.t[comp]);
-				pit.set(comp, result.p[comp]);
-				bit.set(comp, result.bhat[comp]);
+				// Perform regression
+				regress(&result, tall.mat.col(tc), ics, Cinv, Xinv, distrib);
+				for(size_t comp=0; comp<ics.cols(); comp++) {
+					tit.set(comp, result.t[comp]);
+					pit.set(comp, result.p[comp]);
+					bit.set(comp, result.bhat[comp]);
+				}
+				tc++;
+				cc++;
 			}
-			cc++;
-			tc++;
 		}
 		// write output matching mask
 		tmap->write(m_pref+"_tmap_m"+to_string(maskn)+".nii.gz");
@@ -808,21 +813,23 @@ void GICAfmri::computeSpatialICA()
 			if(*mit == 0) {
 				for(size_t comp=0; comp<ics.cols(); comp++) {
 					tit.set(comp, 0);
+					bit.set(comp, 0);
 					pit.set(comp, 0.5);
 				}
+			} else {
+				// Iterate through Components
+				for(size_t comp=0; comp<ics.cols(); comp++) {
+					double b = ics(rr, comp);
+					double t = sigma[rr] == 0 ? 0 : b/sigma[rr];
+					double p = distrib.cdf(t);
+					if(p > 0.5) p = 1-p;
+					p *= 2;
+					tit.set(comp, t);
+					pit.set(comp, p);
+					bit.set(comp, b);
+				}
+				rr++;
 			}
-			// Iterate through Components
-			for(size_t comp=0; comp<ics.cols(); comp++) {
-				double b = ics(rr, comp);
-				double t = sigma[rr] == 0 ? 0 : b/sigma[rr];
-				double p = distrib.cdf(t);
-				if(p > 0.5) p = 1-p;
-				p *= 2;
-				tit.set(comp, t);
-				pit.set(comp, p);
-				bit.set(comp, b);
-			}
-			rr++;
 		}
 		// write output matching mask
 		tmap->write(m_pref+"_tmap_m"+to_string(maskn)+".nii.gz");
