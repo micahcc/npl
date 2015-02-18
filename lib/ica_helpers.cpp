@@ -648,7 +648,7 @@ void GICAfmri::createMatrices(size_t tcat, size_t scat, vector<string> masks,
 	int status = m_A.createMats(tcat, scat, masks, inputs, normts);
 	if(status != 0)
 		throw RUNTIME_ERROR("Error while reorganizing data into 2D Matrices");
-	cerr<<"Done"<<endl;
+	cerr<<"Done Reorganizing"<<endl;
 }
 
 /**
@@ -682,15 +682,21 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 {
 	createMatrices(tcat, scat, masks, inputs);
 
-	if(fullsvd)
+	if(fullsvd) {
+		cerr<<"Running XXt SVD"<<endl;
 		m_E = covSVD(m_A, varthresh, &m_U, &m_V);
-	 else
+	} else {
+		cerr<<"Running Probabilistic SVD"<<endl;
 		m_E = onDiskSVD(m_A, minrank, poweriters, varthresh, &m_U, &m_V);
+	}
 
-	if(spatial)
-		 computeSpatialICA();
-	else
-		 computeTemporaICA();
+	if(spatial){
+		cerr<<"Performing Spatial ICA"<<endl;
+		computeSpatialICA();
+	} else {
+		cerr<<"Performing Temporal ICA"<<endl;
+		computeTemporaICA();
+	}
 }
 
 void GICAfmri::computeTemporaICA()
