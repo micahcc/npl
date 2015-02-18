@@ -217,6 +217,33 @@ VectorXd onDiskSVD(const MatrixReorg& A,
 }
 
 /**
+ * @brief Estimates noise in columns of A by computing the difference between
+ * the columns of A and the predicted columns from UEVt.
+ *
+ * @param A Matrix with noisy full data
+ * @param U U matrix in SVD
+ * @param E E diagonal matrix in SVD
+ * @param V V right singular vectors in SVD
+ *
+ * @return Vector of errors, one for each column in A
+ */
+VectorXd estnoise(const MatrixReorg& A,
+		Ref<MatrixXd> U, Ref<VectorXd> E, Ref<MatrixXd> V)
+{
+	VectorXd out(A.cols());
+	size_t oc = 0;
+	for(size_t cg = 0; cg < A.tallMatCols().size(); cg++) {
+		MatMap m(A.tallMatName(cg));
+		if(A.tallMatCols()[cg] != m.cols())
+			throw INVALID_ARGUMENT("Columns mismatch between read data and "
+					"previously written data");
+		for(size_t cc=0; cc<m.cols(); cc++)
+			out[oc] = (m.mat.col(cc)-U*E.asDiagonal()*V.row(oc).transpose()).norm();
+	}
+	return out;
+}
+
+/**
  * @brief Computes the the ICA of temporally concatinated images. This is mostly
  * for comparison purposes with the more optimzes image processing methods.
  *
@@ -225,14 +252,14 @@ VectorXd onDiskSVD(const MatrixReorg& A,
  * @param maskname Common mask for the all the input images. If empty, then
  * non-zero variance areas will be used.
  * @param prefix Directory to create mat_* files and mask_* files in
- * @param varthresh Threshold for percentage of variance to account for. 
+ * @param varthresh Threshold for percentage of variance to account for.
  * @param spatial Whether to do spatial ICA. Warning this is much more memory
  * and CPU intensive than PSD/Time ICA.
  *
  * @return Matrix with independent components in columns
  *
  */
-void tcat_ica(const vector<string>& imgnames, string maskname, 
+void tcat_ica(const vector<string>& imgnames, string maskname,
 		string prefix, double varthresh, bool spatial)
 {
 	/**********
@@ -240,8 +267,6 @@ void tcat_ica(const vector<string>& imgnames, string maskname,
 	 *********/
 	if(imgnames.empty())
 		throw INVALID_ARGUMENT("Need to provide at least 1 input image!");
-	vector<std::string> masks;
-	masks.push_back(maskname);
 
 	if(varthresh < 0 || varthresh > 1)
 		varthresh = 0.9;
@@ -258,24 +283,24 @@ void tcat_ica(const vector<string>& imgnames, string maskname,
 	reorg.createMats(imgnames.size(), 1, masks, imgnames, true);
 
 	// Create AA* matrix
-	MatrixXd AAt(reorg.rows, reorg.rows);
+	MatrixXd AAt(reorg.rows(), reorg.rows());
 	for(size_t cc = 0; cc < reorg.ntall(); cc++) {
 		MatMap m(reorg.tallMatName(cc));
 		AAt += m.mat*m.mat.transpose();
 	}
-	
+
 	/*
 	 * Perform SVD
 	 */
-	SelfAdjointEigenSolver<MatrixXd> eig(AAt);
-	const auto& evec = eig.eigenvectors();
+	Eigen::SelfAdjointEigenSolver<MatrixXd> eig(AAt);
+	const auto& evecs = eig.eigenvectors();
 	const auto& evals = eig.eigenvalues();
-	
+
 	// Compute Rank
 	double totalvar = 0;
 	double sum = 0;
 	for(size_t ii=0; ii<AAt.rows(); ii++) {
-		if(evals[AAt.rows()-ii-1] > std::numeric_limits<double>::epsilon()) 
+		if(evals[AAt.rows()-ii-1] > std::numeric_limits<double>::epsilon())
 			totalvar += sqrt(eig.eigenvalues()[AAt.rows()-ii-1]);
 	}
 
@@ -284,176 +309,157 @@ void tcat_ica(const vector<string>& imgnames, string maskname,
 			sum += sqrt(evals[AAt.rows()-ii-1]);
 			if(sum < totalvar*varthresh)
 				rank++;
-			else 
+			else
 				break;
 		}
 	}
-	
-	matrixU.resize(reorg.rows, rank);
-	matrixV.resize(reorg.cols, rank);
+
+	matrixU.resize(reorg.rows(), rank);
+	matrixV.resize(reorg.cols(), rank);
 	singvals.resize(rank);
 	for(size_t ii=0; ii<rank; ii++) {
 		singvals[ii] = sqrt(evals[AAt.rows()-ii-1]);
-		matruxU.col(ii) = evecs.col(AAt.rows()-ii-1);
+		matrixU.col(ii) = evecs.col(AAt.rows()-ii-1);
 	}
-	
+
 	// V = A^TUE^-1
 	reorg.postMult(matrixV, matrixU, true);
 	for(size_t cc=0; cc<rank; cc++)
 		matrixV.col(cc) /= singvals[cc];
 
 #ifdef DEBUG
-	MatrixXd inv = V*(singvals.cwiseInverse()).asDiagonal()*U.transpose();
-	MatrixXd tmp(reorg.rows, reorg.rows);
+	MatrixXd inv = matrixV*(singvals.cwiseInverse()).asDiagonal()*matrixU.transpose();
+	MatrixXd tmp(reorg.rows(), reorg.rows());
 	reorg.postMult(tmp, inv, false);
 	cerr << "Error in tcat_ica inverse with SVD: " << tmp.cwiseAbs().sum() << endl;
 #endif //DEBUG
 
-	/* 
-	 * Compute ICA and spatial maps 
+	/*
+	 * Compute ICA and spatial maps
 	 */
+	size_t odim[4];
 	if(!spatial) {
-		cerr << "Temporal ICA" << endl;
+		cerr<<"Performing Temporal ICA ("<<matrixU.rows()<<"x"<<rank<<")"<<endl;
 		MatrixXd ics = ica(matrixU);
 
 		cerr << "Regressing Temporal Components" << endl;
-		// need to compute the CDF for students_t_cdf
+		/*
+		 * Initialize Regression Variables
+		 */
 		const double MAX_T = 2000;
 		const double STEP_T = 0.1;
 		StudentsT distrib(ics.rows()-1, STEP_T, MAX_T);
-		cerr << "Computing Inverse of ICs ("<<ics.rows()<<"x"
-			<<ics.cols()<<")"<<endl;
 		MatrixXd Xinv = pseudoInverse(ics);
 		VectorXd Cinv = pseudoInverse(ics.transpose()*ics).diagonal();
-
-		// Iterate through mask as we iterate through the columns of the ICs
-		ptr<MRImage> mask;
-		ptr<MRImage> out;
-		FlatIter<int> mit;
-		Vector3DIter<double> oit;
-
-		// Create 4D Image matching mask
-		size_t odim[4] = {0,0,0, ics.cols()};
-
-		int ii; // iterate through tall matrices
-		int cc = 0; // iterate through columns of tall matrix
-		int mm = -1; // iterate through masks
 		RegrResult result;
+
 		/*
 		 * Convert statistics of each column of each tall matrix back to
 		 * spatial position
+		 * Iterate through mask as we iterate through the columns of the ICs
+		 * Create 4D Image matching mask
 		 */
-		MatMap tall;
-		for(ii=0; tall.open(reorg.tallMatName(ii)) == 0; ii++) {
+		size_t tc = 0; // tall column
+		size_t matn = 0; // matrix number (tall matrices)
+		size_t maskn = 0; // Mask number
+		MatMap tall(reorg.tallMatName(matn));
+		for(size_t cc=0; cc < reorg.cols(); ) {
+			auto mask = readMRImage(prefix+"_mask_"+to_string(maskn)+".nii.gz");
+			for(size_t ii=0; ii<3; ii++)
+				odim[ii] = mask->dim(ii);
+			odim[3] = ics.cols();
 
-			// Iterate through columns of tall matrix
-			for(cc=0; cc<tall.cols; ) {
-				// Match iterations of tall columns with mask iteration
-				if(!mask || mit.eof()) {
-					cerr << "Loading Mask" << endl;
-					if(cc != 0) {
-						throw RUNTIME_ERROR("Error Tall Matrix:\n"+m_pref+
-								"_tall_"+to_string(ii)+"\nMismatches mask:"+
-								m_pref+"_mask_"+to_string(mm));
+			auto tmap = mask->copyCast(4, odim, FLOAT32);
+			auto pmap = mask->copyCast(4, odim, FLOAT32);
+			NDIter<int> mit(mask);
+			Vector3DIter<double> tit(tmap);
+			Vector3DIter<double> pit(pmap);
+
+			// Iterate Through pixels of mask
+			for(; !mit.eof(); ++mit, ++pit, ++tit) {
+				if(*mit == 0) {
+					for(size_t comp=0; comp<ics.cols(); comp++) {
+						pit.set(comp, 0.5);
+						tit.set(comp, 0);
 					}
-
-					// If there is currently an open output image, write
-					if(out)
-						out->write(m_pref+"_tmap_m"+to_string(mm)+".nii.gz");
-					mm++;
-
-					// Read Next Mask
-					cerr<<"Reading mask ("<<mm<<") = "<<m_pref<<"_mask_"
-							<<mm<<".nii.gz"<<endl;
-					mask = readMRImage(m_pref+"_mask_"+to_string(mm)+".nii.gz");
-					if(mask->ndim() != 3)
-						throw RUNTIME_ERROR("Error input mask is not 3D!");
-					for(size_t dd=0; dd<3; dd++)
-						odim[dd] = mask->dim(dd);
-					odim[3] = ics.cols();
-
-					out = dPtrCast<MRImage>(mask->createAnother(4,
-								odim, FLOAT32));
-					mit.setArray(mask);
-					oit.setArray(out);
-					mit.goBegin();
-					oit.goBegin();
+				}
+				// Load the next block of columns as necessary
+				if(tc >= tall.cols()) {
+					tall.open(reorg.tallMatName(++matn));
+					tc = 0;
 				}
 
-				if(*mit) {
-					// regress each component with current column of tall
-					regress(&result, tall.mat.col(cc), ics,
-							Cinv, Xinv, distrib);
-					for(size_t comp=0; comp<ics.cols(); comp++)
-						oit.set(comp, result.t[comp]);
-					cc++;
-				} else {
-					for(size_t comp=0; comp<ics.cols(); comp++)
-						oit.set(comp, 0);
+				// Perform regression
+				regress(&result, tall.mat.col(tc), ics, Cinv, Xinv, distrib);
+				for(size_t comp=0; comp<ics.cols(); comp++) {
+					pit.set(comp, result.p[comp]);
+					tit.set(comp, result.t[comp]);
 				}
-
-				++mit;
-				++oit;
+				cc++;
+				tc++;
 			}
+			// write output matching mask
+			tmap->write(prefix+"_tmap_m"+to_string(maskn)+".nii.gz");
+			pmap->write(prefix+"_pmap_m"+to_string(maskn)+".nii.gz");
 		}
 
-		// If there is currently an open output image, write as multiple, last
-		if(out)
-			out->write(m_pref+"_tmap_m"+to_string(mm)+".nii.gz");
 		cerr << "Done with Regression" << endl;
 	} else {
-		cerr << "Spatial ICA" << endl;
+		cerr<<"Performing Spatial ICA ("<<matrixV.rows()<<"x"<<rank<<")"<<endl;
 		MatrixXd ics = ica(matrixV);
+		cerr << "Done" << endl;
 
 		// Convert each signal matrix into a t-score
-		VectorXd tmp(ics.rows());
-		for(size_t cc = 0; cc < ics.cols; cc++) {
-			mixtureModel(tmp, ics.col(cc));
-			ics.col(cc) = tmp;
+		cerr<<"Estimating Noise"<<endl;
+		VectorXd sigma = estnoise(reorg, matrixU, singvals, matrixV);
+		for(size_t rr=0; rr<ics.rows(); rr++) {
+			for(size_t cc=0; cc<ics.cols(); cc++) {
+				if(sigma[rr] > 0)
+					ics(rr,cc) /= sigma[rr];
+				else
+					ics(rr,cc) = 0;
+			}
 		}
+		const double MAX_T = 2000;
+		const double STEP_T = 0.1;
+		StudentsT distrib(ics.rows()-1, STEP_T, MAX_T);
 
 		// Re-associate each column with a spatial signal (map)
 		// Columns of ics correspond to rows of the wide matrices/voxels
-		int npt = 0; // number of points in the current image
-		int nptii = 0; // iterate through total points in all images
-		int mm = 0; // current map
-		int comp = 0; // current Independent Component
-		int rr=0; // Current Row/Sample of IC
-		for(size_t fullrows=0; fullrows != ics.rows(); fullrows += npt) {
-			for(mm=0; nptii<ics.rows(); nptii+=npt, ++mm) {
-				auto mask = readMRImage(m_pref+"_mask_"+to_string(mm)+".nii.gz");
-				auto out = mask->copyCast(FLOAT32);
-				FlatIter<int> mit(mask);
-				FlatIter<double> oit(out);
+		cerr<<"Computing T-Maps"<<endl;
+		for(size_t rr=0, mm=0; rr < ics.rows(); ) {
+			auto mask = readMRImage(prefix+"_mask_"+to_string(mm)+".nii.gz");
+			for(size_t ii=0; ii<3; ii++)
+				odim[ii] = mask->dim(ii);
+			odim[3] = ics.cols();
 
-				// count cols
-				npt = 0;
-				for(mit.goBegin(); !mit.eof(); ++mit) {
-					if(*mit != 0)
-						npt++;
-				}
+			auto tmap = mask->copyCast(4, odim, FLOAT32);
+			auto pmap = mask->copyCast(4, odim, FLOAT32);
+			NDIter<int> mit(mask);
+			Vector3DIter<double> pit(pmap);
+			Vector3DIter<double> tit(tmap);
 
-				// Iterate through Components
-				for(comp=0; comp<ics.cols(); comp++) {
-					for(rr=0, mit.goBegin(),oit.goBegin(); !mit.eof(); ++mit, ++oit) {
-						if(*mit != 0) {
-							oit.set(ics().mat(rr, comp));
-							rr++;
-						}
+			// Iterate Through pixels of mask
+			for(; !mit.eof(); ++mit, ++pit, ++tit) {
+				if(*mit == 0) {
+					for(size_t comp=0; comp<ics.cols(); comp++) {
+						tit.set(comp, 0);
+						pit.set(comp, 0.5);
 					}
-					out->write(m_pref+"_map_m"+to_string(mm)+"_c"+to_string(comp)+
-							".nii.gz");
 				}
+				// Iterate through Components
+				for(size_t comp=0; comp<ics.cols(); comp++) {
+					double p = distrib.cdf(ics(rr, comp));
+					if(p > 0.5) p = 1-p;
+					p *= 2;
+					tit.set(comp, ics(rr, comp));
+					pit.set(comp, p);
+				}
+				rr++;
 			}
-			if(nptii > ics.rows()) {
-				throw RUNTIME_ERROR("Error:\n"+m_pref+"_SICA\nSize does not match "
-						"input masks");
-			}
-
 		}
-
+		cerr<<"Done with Spatial ICA!"<<endl;
 	}
-
 }
 
 /**
@@ -673,12 +679,12 @@ int MatrixReorg::checkMats()
 	for(size_t bb=0; cols < m_totalcols; bb++) {
 		if(map.open(tallpr+to_string(bb)))
 			throw RUNTIME_ERROR("Error opening "+tallpr+to_string(bb));
-		if(m_totalrows != map.rows)
+		if(m_totalrows != map.rows())
 			throw RUNTIME_ERROR("Error, mismatch in file size ("+
-					to_string(map.rows)+"x"+to_string(map.cols)+" vs "+
+					to_string(map.rows())+"x"+to_string(map.cols())+" vs "+
 					to_string(m_totalrows)+"x"+to_string(m_totalcols)+")");
-		m_outcols.push_back(map.cols);
-		cols += map.cols;
+		m_outcols.push_back(map.cols());
+		cols += map.cols();
 	}
 	if(m_totalcols != cols)
 		throw RUNTIME_ERROR("Error, mismatch in number of cols from input "
@@ -814,37 +820,29 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	}
 
 	if(m_verbose) cerr << "Creating Matrices"<<endl;
+	MatMap datamap;
 	for(int cc=0; cc<m_totalcols; cc++) {
 		if(blockind == incols[blocknum]) {
 			// open file, create with proper size
-			MemMap tfile(tallpr+to_string(m_outcols.size()-1), 2*sizeof(size_t)+
-					m_outcols.back()*m_totalrows*sizeof(double), true);
-			((size_t*)tfile.data())[0] = m_totalrows; // nrows
-			((size_t*)tfile.data())[1] = m_outcols.back(); // ncols
-
+			datamap.create(tallMatName(m_outcols.size()-1), m_totalrows,
+					m_outcols.back());
 			// if the index in the block would put us in a different image, then
 			// start a new out block, and new in block
 			blockind = 0;
 			blocknum++;
 			m_outcols.push_back(0);
 		} else if((m_outcols.back()+1)*m_totalrows > m_maxdoubles) {
-			MemMap tfile(tallpr+to_string(m_outcols.size()-1), 2*sizeof(size_t)+
-					m_outcols.back()*m_totalrows*sizeof(double), true);
-			((size_t*)tfile.data())[0] = m_totalrows; // nrows
-			((size_t*)tfile.data())[1] = m_outcols.back(); // ncols
-
+			datamap.create(tallMatName(m_outcols.size()-1), m_totalrows,
+					m_outcols.back());
 			// If this col won't fit in the current block of cols, start a new one,
 			m_outcols.push_back(0);
 		}
 		blockind++;
 		m_outcols.back()++;
 	}
-	{ // Create Last File
-	MemMap tfile(tallpr+to_string(m_outcols.size()-1), 2*sizeof(size_t)+
-			m_outcols.back()*m_totalrows*sizeof(double), true);
-	((size_t*)tfile.data())[0] = m_totalrows; // nrows
-	((size_t*)tfile.data())[1] = m_outcols.back(); // ncols
-	}
+	// Final File
+	datamap.create(tallMatName(m_outcols.size()-1), m_totalrows,
+			m_outcols.back());
 
 	/*
 	 * Fill tall matrices by breaking images along block cols specified
@@ -855,7 +853,6 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	int img_glob_row = 0;
 	int img_glob_col = 0;
 	int img_oblock_col = 0;
-	MatMap datamap;
 	for(size_t sb = 0; sb<spaceblocks; sb++) {
 		if(m_verbose) cerr<<"Mask Group: "<<maskpr+to_string(sb)+".nii.gz"<<endl;
 		auto mask = readMRImage(maskpr+to_string(sb)+".nii.gz");
@@ -894,9 +891,14 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 						datamap.open(tallpr+to_string(colbl));
 						if(m_verbose) cerr<<"Writing to: "<<tallpr+to_string(colbl)
 								<<" at row "<<to_string(img_glob_row)<<endl;
-						if(datamap.rows != m_totalrows || datamap.cols != m_outcols[colbl]) {
+						if(datamap.rows() != m_totalrows ||
+								datamap.cols() != m_outcols[colbl]) {
 							throw INVALID_ARGUMENT("Unexpected size in input "
-									+ tallpr+to_string(colbl));
+									+ tallpr+to_string(colbl)+" expected "+
+									to_string(m_totalrows)+"x"+
+									to_string(m_outcols[colbl])+", found "+
+									to_string(datamap.rows())+"x"+
+									to_string(datamap.cols()));
 						}
 					}
 
@@ -1160,28 +1162,24 @@ GICAfmri::GICAfmri(std::string pref)
  * @param masks Masks, one per spaceblock (columns of matching space)
  * @param inputs Files in time-major order, [s0t0 s0t1 s0t2 s1t0 s1t1 s1t2]
  * where s0 means 0th space-appended image, and t0 means the same for time
+ * @param normts normalize
  */
-void GICAfmri::computeICA()
+void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
+		vector<string> inputs)
 {
 	m_status = -1;
 
-	MatrixReorg reorg(m_pref, (size_t)0.5*maxmem*(1<<27), verbose);
-	cerr<<"Chcking matrices at prefix \""<<m_pref<<"\"...";
-	int status = reorg.checkMats();
+	cerr << "Reorganizing data into matrices..."<<endl;
+	size_t ndoubles = (size_t)(0.5*maxmem*(1<<27));
+	MatrixReorg reorg(m_pref, ndoubles, verbose);
+	int status = reorg.createMats(tcat, scat, masks, inputs, normts);
 	if(status != 0)
-		throw RUNTIME_ERROR("Error while loading existing 2D Matrices");
-	cerr<<"Done\n";
+		throw RUNTIME_ERROR("Error while reorganizing data into 2D Matrices");
+	cerr<<"Done"<<endl;
 
+	cerr<<"Computing SVD"<<endl;
 	MatrixXd U, V;
-	MatrixXd* Up = NULL;
-	MatrixXd* Vp = NULL;
-
-	if(spatial)
-		Vp = &V;
-	else
-		Up = &U;
-
-	VectorXd E = onDiskSVD(reorg, estrank, poweriters, Up, Vp);
+	VectorXd E = onDiskSVD(reorg, estrank, poweriters, &U, &V);
 
 	size_t rank = 0;
 	double totalvar = E.sum();
@@ -1189,7 +1187,7 @@ void GICAfmri::computeICA()
 	for(rank=0; rank<E.size(); rank++) {
 		if(var > totalvar*varthresh)
 			break;
-		var += var + E[rank];
+		var += E[rank];
 	}
 
 	cerr << "SVD Rank: " << rank << endl;
@@ -1199,206 +1197,138 @@ void GICAfmri::computeICA()
 				"your variance threshold or number of components");
 	}
 
-	if(spatial) {
-		cerr<<"Performing Spatial ICA ("<<V.rows()<<"x"<<rank<<")"<<endl;
-		MatMap tmpmat;
-		tmpmat.create(m_pref+"_SICA", V.rows(), rank);
-		tmpmat.mat = ica(V.leftCols(rank));
-		cerr << "Done" << endl;
-	} else {
+	cerr<<"Adjusting SVD to rank "<<rank<<endl;
+	U.conservativeResize(Eigen::NoChange, rank);
+	V.conservativeResize(Eigen::NoChange, rank);
+	E.conservativeResize(rank);
+
+	/*
+	 * Compute ICA and spatial maps
+	 */
+	size_t odim[4];
+	if(!spatial) {
 		cerr<<"Performing Temporal ICA ("<<U.rows()<<"x"<<rank<<")"<<endl;
-		MatMap tmpmat;
-		tmpmat.create(m_pref+"_TICA", U.rows(), rank);
-		tmpmat.mat = ica(U.leftCols(rank));
-	}
+		MatrixXd ics = ica(U);
 
-	m_status = 1;
-}
-
-/**
- * @brief Compute ICA for the given group, defined by tcat x scat images
- * laid out in column major ordering.
- *
- * The basic idea is to split the rows into digesteable chunks, then
- * perform the SVD on each of them.
- *
- * A = [A1 A2 A3 ... ]
- * A = [UEV1 UEV2 .... ]
- * A = [UE1 UE2 UE3 ...] diag([V1, V2, V3...])
- *
- * UE1 should have far fewer columns than rows so that where A is RxC,
- * with R < C, [UE1 ... ] should have be R x LN with LN < R
- *
- * Say we are concatinating S subjects each with T timepoints, then
- * A is STxC, assuming a rank of L then [UE1 ... ] will be ST x SL
- *
- * Even if L = T / 2 then this is a 1/4 savings in the SVD computation
- *
- * @param tcat Number of fMRI images to append in time direction
- * @param scat Number of fMRI images to append in space direction
- * @param masks Masks, one per spaceblock (columns of matching space)
- * @param inputs Files in time-major order, [s0t0 s0t1 s0t2 s1t0 s1t1 s1t2]
- * where s0 means 0th space-appended image, and t0 means the same for time
- * @param normts normalize
- */
-void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
-		vector<string> inputs)
-{
-	m_status = -1;
-
-	size_t ndoubles = (size_t)(0.5*maxmem*(1<<27));
-	MatrixReorg reorg(m_pref, ndoubles, verbose);
-	// Don't use more than half of memory on each block of rows
-	cerr << "Reorganizing data into matrices..."<<endl;
-	int status = reorg.createMats(tcat, scat, masks, inputs, normts);
-	if(status != 0)
-		throw RUNTIME_ERROR("Error while reorganizing data into 2D Matrices");
-	cerr<<"Done"<<endl;
-
-	computeICA();
-	computeSpatialMaps();
-}
-
-void GICAfmri::computeSpatialMaps()
-{
-	if(spatial) {
-		cerr << "Spatial ICA" << endl;
-		MatMap ics(m_pref+"_SICA");
-		// Re-associate each column with a spatial signal (map)
-		// Columns of ics correspond to rows of the wide matrices/voxels
-		int npt = 0; // number of points in the current image
-		int nptii = 0; // iterate through total points in all images
-		int mm = 0; // current map
-		int comp = 0; // current Independent Component
-		int rr=0; // Current Row/Sample of IC
-		for(size_t fullrows=0; fullrows != ics.rows; fullrows += npt) {
-			for(mm=0; nptii<ics.rows; nptii+=npt, ++mm) {
-				auto mask = readMRImage(m_pref+"_mask_"+to_string(mm)+".nii.gz");
-				auto out = mask->copyCast(FLOAT32);
-				FlatIter<int> mit(mask);
-				FlatIter<double> oit(out);
-
-				// count cols
-				npt = 0;
-				for(mit.goBegin(); !mit.eof(); ++mit) {
-					if(*mit != 0)
-						npt++;
-				}
-
-				// Iterate through Components
-				for(comp=0; comp<ics.cols; comp++) {
-					for(rr=0, mit.goBegin(),oit.goBegin(); !mit.eof(); ++mit, ++oit) {
-						if(*mit != 0) {
-							oit.set(ics.mat(rr, comp));
-							rr++;
-						}
-					}
-					out->write(m_pref+"_map_m"+to_string(mm)+"_c"+to_string(comp)+
-							".nii.gz");
-				}
-			}
-			if(nptii > ics.rows) {
-				throw RUNTIME_ERROR("Error:\n"+m_pref+"_SICA\nSize does not match "
-						"input masks");
-			}
-
-		}
-
-		// TODO Mixture Model for T-Score
-	} else {
 		cerr << "Regressing Temporal Components" << endl;
-		// Regress each column with each input timeseries
-		MatMap ics;
-		if(ics.open(m_pref+"_TICA") != 0)
-			throw RUNTIME_ERROR(m_pref+"_TICA missing!");
-
-		// need to compute the CDF for students_t_cdf
+		/*
+		 * Initialize Regression Variables
+		 */
 		const double MAX_T = 2000;
 		const double STEP_T = 0.1;
-		StudentsT distrib(ics.rows-1, STEP_T, MAX_T);
-		cerr << "Computing Inverse of ICs ("<<ics.mat.rows()<<"x"
-			<<ics.mat.cols()<<")"<<endl;
-		MatrixXd Xinv = pseudoInverse(ics.mat);
-		VectorXd Cinv = pseudoInverse(ics.mat.transpose()*ics.mat).diagonal();
-
-		// Iterate through mask as we iterate through the columns of the ICs
-		ptr<MRImage> mask;
-		ptr<MRImage> out;
-		FlatIter<int> mit;
-		Vector3DIter<double> oit;
-
-		// Create 4D Image matching mask
-		size_t odim[4] = {0,0,0, ics.cols};
-
-		int ii; // iterate through tall matrices
-		int cc = 0; // iterate through columns of tall matrix
-		int mm = -1; // iterate through masks
+		StudentsT distrib(ics.rows()-1, STEP_T, MAX_T);
+		MatrixXd Xinv = pseudoInverse(ics);
+		VectorXd Cinv = pseudoInverse(ics.transpose()*ics).diagonal();
 		RegrResult result;
+
 		/*
 		 * Convert statistics of each column of each tall matrix back to
 		 * spatial position
+		 * Iterate through mask as we iterate through the columns of the ICs
+		 * Create 4D Image matching mask
 		 */
-		MatMap tall;
-		for(ii=0; tall.open(m_pref+"_tall_"+to_string(ii)) == 0; ii++) {
+		size_t tc = 0; // tall column
+		size_t matn = 0; // matrix number (tall matrices)
+		size_t maskn = 0; // Mask number
+		MatMap tall(reorg.tallMatName(matn));
+		for(size_t cc=0; cc < reorg.cols(); ) {
+			auto mask = readMRImage(m_pref+"_mask_"+to_string(maskn)+".nii.gz");
+			for(size_t ii=0; ii<3; ii++)
+				odim[ii] = mask->dim(ii);
+			odim[3] = ics.cols();
 
-			// Iterate through columns of tall matrix
-			for(cc=0; cc<tall.cols; ) {
-				// Match iterations of tall columns with mask iteration
-				if(!mask || mit.eof()) {
-					cerr << "Loading Mask" << endl;
-					if(cc != 0) {
-						throw RUNTIME_ERROR("Error Tall Matrix:\n"+m_pref+
-								"_tall_"+to_string(ii)+"\nMismatches mask:"+
-								m_pref+"_mask_"+to_string(mm));
+			auto tmap = mask->copyCast(4, odim, FLOAT32);
+			auto pmap = mask->copyCast(4, odim, FLOAT32);
+			NDIter<int> mit(mask);
+			Vector3DIter<double> tit(tmap);
+			Vector3DIter<double> pit(pmap);
+
+			// Iterate Through pixels of mask
+			for(; !mit.eof(); ++mit, ++pit, ++tit) {
+				if(*mit == 0) {
+					for(size_t comp=0; comp<ics.cols(); comp++) {
+						tit.set(comp, 0);
+						pit.set(comp, 0.5);
 					}
-
-					// If there is currently an open output image, write
-					if(out)
-						out->write(m_pref+"_tmap_m"+to_string(mm)+".nii.gz");
-					mm++;
-
-					// Read Next Mask
-					cerr<<"Reading mask ("<<mm<<") = "<<m_pref<<"_mask_"
-							<<mm<<".nii.gz"<<endl;
-					mask = readMRImage(m_pref+"_mask_"+to_string(mm)+".nii.gz");
-					if(mask->ndim() != 3)
-						throw RUNTIME_ERROR("Error input mask is not 3D!");
-					for(size_t dd=0; dd<3; dd++)
-						odim[dd] = mask->dim(dd);
-					odim[3] = ics.cols;
-
-					out = dPtrCast<MRImage>(mask->createAnother(4,
-								odim, FLOAT32));
-					mit.setArray(mask);
-					oit.setArray(out);
-					mit.goBegin();
-					oit.goBegin();
+				}
+				// Load the next block of columns as necessary
+				if(tc >= tall.cols()) {
+					tall.open(reorg.tallMatName(++matn));
+					tc = 0;
 				}
 
-				if(*mit) {
-					// regress each component with current column of tall
-					regress(&result, tall.mat.col(cc), ics.mat,
-							Cinv, Xinv, distrib);
-					for(size_t comp=0; comp<ics.cols; comp++)
-						oit.set(comp, result.t[comp]);
-					cc++;
-				} else {
-					for(size_t comp=0; comp<ics.cols; comp++)
-						oit.set(comp, 0);
+				// Perform regression
+				regress(&result, tall.mat.col(tc), ics, Cinv, Xinv, distrib);
+				for(size_t comp=0; comp<ics.cols(); comp++) {
+					tit.set(comp, result.t[comp]);
+					pit.set(comp, result.p[comp]);
 				}
-
-				++mit;
-				++oit;
+				cc++;
+				tc++;
 			}
+			// write output matching mask
+			tmap->write(m_pref+"_tmap_m"+to_string(maskn)+".nii.gz");
+			pmap->write(m_pref+"_pmap_m"+to_string(maskn)+".nii.gz");
 		}
 
-		// If there is currently an open output image, write as multiple, last
-		if(out)
-			out->write(m_pref+"_tmap_m"+to_string(mm)+".nii.gz");
 		cerr << "Done with Regression" << endl;
+	} else {
+		cerr<<"Performing Spatial ICA ("<<V.rows()<<"x"<<rank<<")"<<endl;
+		MatrixXd ics = ica(V);
+		cerr << "Done" << endl;
+
+		// Convert each signal matrix into a t-score
+		cerr<<"Estimating Noise"<<endl;
+		VectorXd sigma = estnoise(reorg, U, E, V);
+		for(size_t rr=0; rr<ics.rows(); rr++) {
+			for(size_t cc=0; cc<ics.cols(); cc++) {
+				if(sigma[rr] > 0)
+					ics(rr,cc) /= sigma[rr];
+				else
+					ics(rr,cc) = 0;
+			}
+		}
+		const double MAX_T = 2000;
+		const double STEP_T = 0.1;
+		StudentsT distrib(ics.rows()-1, STEP_T, MAX_T);
+
+		// Re-associate each column with a spatial signal (map)
+		// Columns of ics correspond to rows of the wide matrices/voxels
+		cerr<<"Computing T-Maps"<<endl;
+		for(size_t rr=0, mm=0; rr < ics.rows(); ) {
+			auto mask = readMRImage(m_pref+"_mask_"+to_string(mm)+".nii.gz");
+			for(size_t ii=0; ii<3; ii++)
+				odim[ii] = mask->dim(ii);
+			odim[3] = ics.cols();
+
+			auto tmap = mask->copyCast(4, odim, FLOAT32);
+			auto pmap = mask->copyCast(4, odim, FLOAT32);
+			NDIter<int> mit(mask);
+			Vector3DIter<double> pit(pmap);
+			Vector3DIter<double> tit(tmap);
+
+			// Iterate Through pixels of mask
+			for(; !mit.eof(); ++mit, ++pit, ++tit) {
+				if(*mit == 0) {
+					for(size_t comp=0; comp<ics.cols(); comp++) {
+						tit.set(comp, 0);
+						pit.set(comp, 0.5);
+					}
+				}
+				// Iterate through Components
+				for(size_t comp=0; comp<ics.cols(); comp++) {
+					double p = distrib.cdf(ics(rr, comp));
+					if(p > 0.5) p = 1-p;
+					p *= 2;
+					tit.set(comp, ics(rr, comp));
+					pit.set(comp, p);
+				}
+				rr++;
+			}
+		}
+		cerr<<"Done with Spatial ICA!"<<endl;
 	}
 }
-
 
 } // NPL
 
