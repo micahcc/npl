@@ -363,7 +363,7 @@ void tcat_ica(const vector<string>& imgnames, string maskname,
 		size_t matn = 0; // matrix number (tall matrices)
 		size_t maskn = 0; // Mask number
 		MatMap tall(reorg.tallMatName(matn));
-		for(size_t cc=0; cc < reorg.cols(); ) {
+		for(size_t cc=0; cc < reorg.cols(); maskn++) {
 			auto mask = readMRImage(prefix+"_mask_"+to_string(maskn)+".nii.gz");
 			for(size_t ii=0; ii<3; ii++)
 				odim[ii] = mask->dim(ii);
@@ -427,8 +427,9 @@ void tcat_ica(const vector<string>& imgnames, string maskname,
 		// Re-associate each column with a spatial signal (map)
 		// Columns of ics correspond to rows of the wide matrices/voxels
 		cerr<<"Computing T-Maps"<<endl;
-		for(size_t rr=0, mm=0; rr < ics.rows(); ) {
-			auto mask = readMRImage(prefix+"_mask_"+to_string(mm)+".nii.gz");
+		size_t maskn = 0;
+		for(size_t rr=0; rr < ics.rows(); maskn++) {
+			auto mask = readMRImage(prefix+"_mask_"+to_string(maskn)+".nii.gz");
 			for(size_t ii=0; ii<3; ii++)
 				odim[ii] = mask->dim(ii);
 			odim[3] = ics.cols();
@@ -457,6 +458,9 @@ void tcat_ica(const vector<string>& imgnames, string maskname,
 				}
 				rr++;
 			}
+			// write output matching mask
+			tmap->write(prefix+"_tmap_m"+to_string(maskn)+".nii.gz");
+			pmap->write(prefix+"_pmap_m"+to_string(maskn)+".nii.gz");
 		}
 		cerr<<"Done with Spatial ICA!"<<endl;
 	}
@@ -1231,7 +1235,7 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 		size_t matn = 0; // matrix number (tall matrices)
 		size_t maskn = 0; // Mask number
 		MatMap tall(reorg.tallMatName(matn));
-		for(size_t cc=0; cc < reorg.cols(); ) {
+		for(size_t cc=0; cc < reorg.cols(); maskn++) {
 			auto mask = readMRImage(m_pref+"_mask_"+to_string(maskn)+".nii.gz");
 			for(size_t ii=0; ii<3; ii++)
 				odim[ii] = mask->dim(ii);
@@ -1295,8 +1299,8 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 		// Re-associate each column with a spatial signal (map)
 		// Columns of ics correspond to rows of the wide matrices/voxels
 		cerr<<"Computing T-Maps"<<endl;
-		for(size_t rr=0, mm=0; rr < ics.rows(); ) {
-			auto mask = readMRImage(m_pref+"_mask_"+to_string(mm)+".nii.gz");
+		for(size_t rr=0, maskn = 0; rr < ics.rows(); maskn++) {
+			auto mask = readMRImage(m_pref+"_mask_"+to_string(maskn)+".nii.gz");
 			for(size_t ii=0; ii<3; ii++)
 				odim[ii] = mask->dim(ii);
 			odim[3] = ics.cols();
@@ -1325,6 +1329,9 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 				}
 				rr++;
 			}
+			// write output matching mask
+			tmap->write(m_pref+"_tmap_m"+to_string(maskn)+".nii.gz");
+			pmap->write(m_pref+"_pmap_m"+to_string(maskn)+".nii.gz");
 		}
 		cerr<<"Done with Spatial ICA!"<<endl;
 	}

@@ -47,7 +47,7 @@ int main()
 	cerr << "Version: " << __version__ << endl;
 
 	// creates gica_test_prob.nii,gz and gica_test_fmri.nii.gz
-	simulate(32, 32, 32, 1200, 5, 5);
+	simulate(20, 20, 20, 500, 3, 5);
 
 	{
 	GICAfmri gica("gica_test_space");
@@ -61,7 +61,7 @@ int main()
 
 	gica.compute("", "gica_test_fmri.nii.gz");
 	auto pmap_real = readMRImage("gica_test_prob.nii.gz");
-	auto pmap_est  = readMRImage("gica_test_out_pmap_m0.nii.gz");
+	auto pmap_est  = readMRImage("gica_test_space_pmap_m0.nii.gz");
 	if(coratleast(0.3, pmap_real, pmap_est) != 0)
 		return -1;
 	}
@@ -78,7 +78,7 @@ int main()
 
 	gica.compute("", "gica_test_fmri.nii.gz");
 	auto pmap_real = readMRImage("gica_test_prob.nii.gz");
-	auto pmap_est  = readMRImage("gica_test_out_pmap_m0.nii.gz");
+	auto pmap_est  = readMRImage("gica_test_time_pmap_m0.nii.gz");
 	if(coratleast(0.3, pmap_real, pmap_est) != 0)
 		return -1;
 	}
@@ -312,7 +312,7 @@ int coratleast(double thresh, ptr<const MRImage> img1, ptr<const MRImage> img2)
 				corrval += it1[t1]*it2[t2];
 				count++;
 			}
-			double cval = sample_corr(count, mu1, mu2, sd1, sd2, corrval);
+			double cval = -sample_corr(count, mu1, mu2, sd1, sd2, corrval);
 			cerr << t1 << " " << t2 << " = " << cval << endl;
 			if(cval > maxcor)
 				maxcor = cval;
