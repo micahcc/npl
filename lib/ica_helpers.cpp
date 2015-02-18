@@ -363,8 +363,12 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	m_totalcols = 0;
 	for(size_t sb = 0; sb<spaceblocks; sb++) {
 		if(sb < masknames.size()) {
+			cerr<<"Reading mask in column "<<sb<< " from "
+				<<masknames[sb]<<endl;
 			mask = readMRImage(masknames[sb]);
 		} else {
+			cerr<<"Creating mask in column "<<sb<< " from "
+				<<filenames[sb*timeblocks+0]<<endl;
 			auto img = readMRImage(filenames[sb*timeblocks+0]);
 			mask = dPtrCast<MRImage>(binarize(varianceT(img), 0));
 		}
@@ -384,12 +388,15 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	// Figure out number of rows in each block
 	m_totalrows = 0;
 	for(size_t tb = 0; tb<timeblocks; tb++) {
-		auto img = readMRImage(filenames[0*timeblocks+tb]);
+		auto img = readMRImage(filenames[0*timeblocks+tb], false, true);
 		inrows[tb] += img->tlen();
 		m_totalrows += inrows[tb];
+		if(m_verbose)
+			cerr << "rows += "<<inrows[tb]<<" = " <<m_totalrows<<endl;
 	}
 
 	if(m_verbose) {
+		cerr << endl;
 		cerr << "Row/Time  Blocks: " << timeblocks << endl;
 		cerr << "Col/Space Blocks: " << spaceblocks << endl;
 		cerr << "Total Rows/Timepoints: " << m_totalrows<< endl;
@@ -413,7 +420,7 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 				"single full row!");
 	}
 
-	if(m_verbose) cerr << "Creating Matrices"<<endl;
+	if(m_verbose) cerr << "Creating Blank Matrices"<<endl;
 	MatMap datamap;
 	for(int cc=0; cc<m_totalcols; cc++) {
 		if(blockind == incols[blocknum]) {
@@ -442,8 +449,10 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	 * Fill tall matrices by breaking images along block cols specified
 	 * in m_outcols
 	 */
-	if(m_verbose) cerr << "Filling Matrices"<<endl;
-	if(normts) cerr<<"Normalizing Timeseries"<<endl;
+	if(m_verbose) {
+		cerr << "Filling Matrices"<<endl;
+		if(normts) cerr<<"Normalizing Individual Timeseries"<<endl;
+	}
 	int img_glob_row = 0;
 	int img_glob_col = 0;
 	int img_oblock_col = 0;
