@@ -95,11 +95,11 @@ def build(bld):
             source = 'fmri_gica2.cpp',
             use = [npl, 'tclap'])
 
-    bld.program(target = 'nplGICAsc',
-            install_path='${PREFIX}/tools_incomplete',
-            source = 'fmri_space_cat_ica.cpp',
-            use = [npl, 'tclap'])
-
+#    bld.program(target = 'nplGICAsc',
+#            install_path='${PREFIX}/tools_incomplete',
+#            source = 'fmri_space_cat_ica.cpp',
+#            use = [npl, 'tclap'])
+#
     bld.program(target = 'nplhd',
             source = 'niiHeader.cpp',
             use = [npl, 'tclap'])

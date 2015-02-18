@@ -56,71 +56,19 @@ class MatrixReorg;
  * @return Vector of singular values
  */
 VectorXd onDiskSVD(const MatrixReorg& A,
-		int rank, size_t poweriters, MatrixXd* U=NULL, MatrixXd* V=NULL);
+		int rank, size_t poweriters, double varthresh,
+		MatrixXd* U=NULL, MatrixXd* V=NULL);
 
 /**
- * @brief Computes the the ICA of spatially concatinated images. Optionally
- * the data may be converted from time-series to a power spectral density,
- * making this function applicable to resting state data.
+ * @brief Computes the SVD from XXt using the JacobiSVD
  *
- * @param psd Compute the power spectral density prior to PCA/ICA
- * @param imgnames List of images to load. Data is concatinated from left to
- * right.
- * @param masknames List of masks fo each of the in input image. May be empty
- * or have missing masks at the end (in which case zero-variance timeseries are
- * assumed to be outside the mask)
- * @param prefix Directory to create mat_* files and mask_* files in
- * @param svthresh Threshold for singular values (drop values this ratio of the
- * max)
- * @param deftol Threshold for eigenvalues of XXT and singular values. Scale
- * is a ratio from 0 to 1 relative to the total sum of eigenvalues/variance.
- * Infinity will the BandLanczos Algorithm to run to completion and only
- * singular values > sqrt(epsilon) to be kept
- * @param initbasis Basis size of BandLanczos Algorithm. This is used as the
- * seed for the Krylov Subspace.
- * @param maxiters Maximum number of iterations for PCA
- * @param spatial Whether to do spatial ICA. Warning this is much more memory
- * and CPU intensive than PSD/Time ICA.
+ * @param A MatrixReorg object that can be used to load images on disk
+ * @param U Output U matrix, if null then ignored
+ * @param V Output V matrix, if null then ignored
  *
- * @return Matrix with independent components in columns
- *
+ * @return Vector of singular values
  */
-MatrixXd spcat_ica(bool psd, const std::vector<std::string>& imgnames,
-		const std::vector<std::string>& masknames, std::string prefix,
-		double deftol, double svthresh, int initbasis, int maxiters,
-		bool spatial);
-
-/**
- * @brief Fill a matrix (nrows x ncols) at the memory location provided by
- * rawdata. Each nonzero pixel in the mask corresponds to a column in rawdata,
- * and each timepoint corresponds to a row.
- *
- * @param rawdata Data, which should already be allocated, size nrows*ncols
- * @param nrows Number of rows in rawdata
- * @param ncols Number of cols in rawdata
- * @param img Image to read
- * @param mask Mask to use
- *
- * @return 0 if successful
- */
-void fillMat(double* rawdata, size_t nrows, size_t ncols,
-		ptr<const MRImage> img, ptr<const MRImage> mask);
-
-/**
- * @brief Fill a matrix, pointed to by rawdata with the Power-Spectral-Density
- * of each timeseries in img. Each column corresponds to an masked spatial
- * location in mask/img.
- *
- * @param rawdata Matrix to fill, should be allocated size nrows*ncols
- * @param nrows Number of rows in output data, must be >= img->tlen()
- * @param ncols Number of cols in output data, must be = # nonzer points in mask
- * @param img Input image, to fill data from
- * @param mask Mask determining whether points should be included in the matrix
- *
- * @return 0 if successful
- */
-void fillMatPSD(double* rawdata, size_t nrows, size_t ncols,
-		ptr<const MRImage> img, ptr<const MRImage> mask);
+VectorXd covSVD(const MatrixReorg& A, double varthresh, MatrixXd* U, MatrixXd* V);
 
 class MatMap
 {
@@ -186,6 +134,7 @@ private:
 	size_t m_rows;
 	size_t m_cols;
 };
+
 /**
  * @brief Reorganizes input images into tall and wide matrices (matrices that
  * span the total rows and cols, respectively).
@@ -321,7 +270,14 @@ public:
 	 */
 	double varthresh;
 
-	int estrank;
+	/**
+	 * @brief Minimum rank to estimate the full matrix with
+	 */
+	int minrank;
+
+	/**
+	 * @brief Number of power iterations, usually 2-3 are sufficient
+	 */
 	size_t poweriters;
 
 	/**
@@ -339,7 +295,29 @@ public:
 	 */
 	bool spatial;
 
+	/**
+	 * @brief Do not use the randomized method of matrix reduction and
+	 * instead compute the full svd, then find the non-zero singular values
+	 * from that. This is much slower but is useful for testing
+	 */
+	bool fullsvd;
+
+	/**
+	 * @brief Normalize individual subjects' time-series
+	 */
 	bool normts;
+
+	/**
+	 * @brief Minimum frequency to keep in single fMRI, subject timeseries will
+	 * be bandpass filtered with this cuton frequency
+	 */
+	double minfreq;
+
+	/**
+	 * @brief Maximum frequency to keep in single fMRI, subject timeseries will
+	 * be bandpass filtered with this cuton frequency
+	 */
+	double maxfreq;
 
 	/**
 	 * @brief Compute ICA for the given group, defined by tcat x scat images
@@ -406,10 +384,19 @@ public:
 private:
 	std::string m_pref;
 
-	int m_status;
+	MatrixXd m_U, m_V;
+	VectorXd m_E;
+
+	MatrixReorg m_A;
 
 	size_t svd_help(std::string inname, std::string usname,
 			std::string vname);
+
+	void computeSpatialICA();
+	void computeTemporaICA();
+	void createMatrices(size_t tcat, size_t scat, vector<std::string> masks,
+			vector<std::string> inputs);
+
 };
 
 }

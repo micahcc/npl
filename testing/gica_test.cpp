@@ -47,7 +47,7 @@ int main()
 	cerr << "Version: " << __version__ << endl;
 
 	// creates gica_test_prob.nii,gz and gica_test_fmri.nii.gz
-	simulate(20, 20, 20, 500, 3, 5);
+	simulate(20, 20, 20, 500, 2, 5);
 
 	{
 	GICAfmri gica("gica_test_space");
@@ -56,13 +56,13 @@ int main()
 	gica.spatial = true;
 	gica.normts = true;
 	gica.verbose = true;
-	gica.estrank = 10;
+	gica.minrank = 10;
 	gica.poweriters = 3;
 
 	gica.compute("", "gica_test_fmri.nii.gz");
 	auto pmap_real = readMRImage("gica_test_prob.nii.gz");
-	auto pmap_est  = readMRImage("gica_test_space_pmap_m0.nii.gz");
-	if(coratleast(0.3, pmap_real, pmap_est) != 0)
+	auto bmap_est  = readMRImage("gica_test_space_bmap_m0.nii.gz");
+	if(coratleast(0.5, pmap_real, bmap_est) != 0)
 		return -1;
 	}
 
@@ -73,13 +73,13 @@ int main()
 	gica.spatial = false;
 	gica.normts = true;
 	gica.verbose = true;
-	gica.estrank = 10;
+	gica.minrank = 10;
 	gica.poweriters = 3;
 
 	gica.compute("", "gica_test_fmri.nii.gz");
 	auto pmap_real = readMRImage("gica_test_prob.nii.gz");
-	auto pmap_est  = readMRImage("gica_test_time_pmap_m0.nii.gz");
-	if(coratleast(0.3, pmap_real, pmap_est) != 0)
+	auto bmap_est  = readMRImage("gica_test_time_bmap_m0.nii.gz");
+	if(coratleast(0.5, pmap_real, bmap_est) != 0)
 		return -1;
 	}
 
@@ -186,6 +186,7 @@ void simulate(size_t xsz, size_t ysz, size_t zsz, size_t tsz, double sd,
 		cerr << "lambda "<<lambda<<", ";
 		activate.push_back(createRandAct(lambda, -15, tsz*tr));
 	}
+	cerr << "Done\n";
 
 	size_t outsz[3] = {xsz, ysz, zsz};
 	ptr<MRImage> gmprob = createMRImage(3, outsz, FLOAT32);
@@ -193,8 +194,8 @@ void simulate(size_t xsz, size_t ysz, size_t zsz, size_t tsz, double sd,
 		it.set(1);
 
 	ptr<MRImage> labelmap;
-	cerr << "Simulating Region Map...";
-	labelmap = dPtrCast<MRImage>(createRandLabels(gmprob, activate.size(), 5));
+	cerr << "Simulating Region Map with "<<activate.size()<<"non-zero labels...";
+	labelmap = dPtrCast<MRImage>(createRandLabels(gmprob, activate.size(), 2));
 	cerr << "Done\n";
 	labelmap->write("gica_test_labels.nii.gz");
 
@@ -294,6 +295,7 @@ void simulate(size_t xsz, size_t ysz, size_t zsz, size_t tsz, double sd,
 
 int coratleast(double thresh, ptr<const MRImage> img1, ptr<const MRImage> img2)
 {
+	int ret = 0;
 	cerr << "Corelation" << endl;
 	for(size_t t1 = 0; t1 < img1->tlen(); t1++) {
 		double maxcor = 0;
@@ -312,7 +314,7 @@ int coratleast(double thresh, ptr<const MRImage> img1, ptr<const MRImage> img2)
 				corrval += it1[t1]*it2[t2];
 				count++;
 			}
-			double cval = -sample_corr(count, mu1, mu2, sd1, sd2, corrval);
+			double cval = fabs(sample_corr(count, mu1, mu2, sd1, sd2, corrval));
 			cerr << t1 << " " << t2 << " = " << cval << endl;
 			if(cval > maxcor)
 				maxcor = cval;
@@ -320,8 +322,9 @@ int coratleast(double thresh, ptr<const MRImage> img1, ptr<const MRImage> img2)
 		if(maxcor < thresh) {
 			cerr << "Maximum correlation of component " << t1 << " is only " <<
 				maxcor << endl;
+			ret = -1;
 		}
 	}
 
-	return 0;
+	return ret;
 }
