@@ -335,8 +335,9 @@ public:
 	 * @param fn Open the specified file for reading and writing.
 	 * @param bsize Make the file size this number of bytes. If createNew is
 	 * false then this must match the current file size
+	 * @return size of memory map
 	 */
-	int openNew(std::string fn, size_t bsize);
+	int64_t openNew(std::string fn, size_t bsize);
 
 	/**
 	 * @brief Open the specified file with the specified size. If createNew is
@@ -345,8 +346,9 @@ public:
 	 *
 	 * @param fn Open the specified file for reading and writing.
 	 * @param quiet Whether to print errors when we can't open a file
+	 * @return size of memory map
 	 */
-	int openExisting(std::string fn, bool quiet = true);
+	int64_t openExisting(std::string fn, bool quiet = true);
 
 	/**
 	 * @brief Return true if a file is currently open

@@ -474,7 +474,7 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 
 			double mean = 0, sd = 0;
 			int cc, colbl;
-			int tlen = img->tlen();
+			int64_t tlen = img->tlen();
 			Vector3DIter<double> it(img);
 			NDIter<double> mit(mask);
 
@@ -491,7 +491,9 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 					if(cc < 0 || cc >= m_outcols[colbl]) {
 						cc = 0;
 						colbl++;
-						datamap.open(tallpr+to_string(colbl));
+						if(datamap.open(tallpr+to_string(colbl)) != 0)
+							throw RUNTIME_ERROR("Error opening "+
+									tallpr+to_string(colbl));
 						if(m_verbose) cerr<<"Writing to: "<<tallpr+to_string(colbl)
 								<<" at row "<<to_string(img_glob_row)<<endl;
 						if(datamap.rows() != m_totalrows ||
