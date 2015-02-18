@@ -225,14 +225,14 @@ VectorXd onDiskSVD(const MatrixReorg& A,
  * @param maskname Common mask for the all the input images. If empty, then
  * non-zero variance areas will be used.
  * @param prefix Directory to create mat_* files and mask_* files in
- * @param varthresh Threshold for percentage of variance to account for. 
+ * @param varthresh Threshold for percentage of variance to account for.
  * @param spatial Whether to do spatial ICA. Warning this is much more memory
  * and CPU intensive than PSD/Time ICA.
  *
  * @return Matrix with independent components in columns
  *
  */
-void tcat_ica(const vector<string>& imgnames, string maskname, 
+void tcat_ica(const vector<string>& imgnames, string maskname,
 		string prefix, double varthresh, bool spatial)
 {
 	/**********
@@ -263,19 +263,19 @@ void tcat_ica(const vector<string>& imgnames, string maskname,
 		MatMap m(reorg.tallMatName(cc));
 		AAt += m.mat*m.mat.transpose();
 	}
-	
+
 	/*
 	 * Perform SVD
 	 */
 	SelfAdjointEigenSolver<MatrixXd> eig(AAt);
 	const auto& evec = eig.eigenvectors();
 	const auto& evals = eig.eigenvalues();
-	
+
 	// Compute Rank
 	double totalvar = 0;
 	double sum = 0;
 	for(size_t ii=0; ii<AAt.rows(); ii++) {
-		if(evals[AAt.rows()-ii-1] > std::numeric_limits<double>::epsilon()) 
+		if(evals[AAt.rows()-ii-1] > std::numeric_limits<double>::epsilon())
 			totalvar += sqrt(eig.eigenvalues()[AAt.rows()-ii-1]);
 	}
 
@@ -284,11 +284,11 @@ void tcat_ica(const vector<string>& imgnames, string maskname,
 			sum += sqrt(evals[AAt.rows()-ii-1]);
 			if(sum < totalvar*varthresh)
 				rank++;
-			else 
+			else
 				break;
 		}
 	}
-	
+
 	matrixU.resize(reorg.rows, rank);
 	matrixV.resize(reorg.cols, rank);
 	singvals.resize(rank);
@@ -296,7 +296,7 @@ void tcat_ica(const vector<string>& imgnames, string maskname,
 		singvals[ii] = sqrt(evals[AAt.rows()-ii-1]);
 		matruxU.col(ii) = evecs.col(AAt.rows()-ii-1);
 	}
-	
+
 	// V = A^TUE^-1
 	reorg.postMult(matrixV, matrixU, true);
 	for(size_t cc=0; cc<rank; cc++)
@@ -309,8 +309,8 @@ void tcat_ica(const vector<string>& imgnames, string maskname,
 	cerr << "Error in tcat_ica inverse with SVD: " << tmp.cwiseAbs().sum() << endl;
 #endif //DEBUG
 
-	/* 
-	 * Compute ICA and spatial maps 
+	/*
+	 * Compute ICA and spatial maps
 	 */
 	if(!spatial) {
 		cerr << "Temporal ICA" << endl;
@@ -404,6 +404,9 @@ void tcat_ica(const vector<string>& imgnames, string maskname,
 	} else {
 		cerr << "Spatial ICA" << endl;
 		MatrixXd ics = ica(matrixV);
+
+		// Estimate Error with A - UEV*, for each row / Column in A compute
+		// variance then divide ic/sigma^2
 
 		// Convert each signal matrix into a t-score
 		VectorXd tmp(ics.rows());
