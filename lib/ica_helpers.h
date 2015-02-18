@@ -143,27 +143,27 @@ public:
 		size_t* ncolsptr = nrowsptr+1;
 		double* dataptr = (double*)((size_t*)datamap.data()+2);
 
-		rows = *nrowsptr;
-		cols = *ncolsptr;
-		new (&this->mat) Eigen::Map<MatrixXd>(dataptr, rows, cols);
+		m_rows = *nrowsptr;
+		m_cols = *ncolsptr;
+		new (&this->mat) Eigen::Map<MatrixXd>(dataptr, m_rows, m_cols);
 		return 0;
 	};
 
 	int create(std::string filename, size_t newrows, size_t newcols)
 	{
-		rows = newrows;
-		cols = newcols;
+		m_rows = newrows;
+		m_cols = newcols;
 		if(datamap.openNew(filename, 2*sizeof(size_t)+
-					rows*cols*sizeof(double)) < 0)
+					m_rows*m_cols*sizeof(double)) < 0)
 			return -1;
 
 		size_t* nrowsptr = (size_t*)datamap.data();
 		size_t* ncolsptr = nrowsptr+1;
 		double* dataptr = (double*)((size_t*)datamap.data()+2);
 
-		*nrowsptr = rows;
-		*ncolsptr = cols;
-		new (&this->mat) Eigen::Map<MatrixXd>(dataptr, rows, cols);
+		*nrowsptr = m_rows;
+		*ncolsptr = m_cols;
+		new (&this->mat) Eigen::Map<MatrixXd>(dataptr, m_rows, m_cols);
 		return 0;
 	};
 
@@ -177,11 +177,14 @@ public:
 		return datamap.isopen();
 	};
 
+	const size_t& rows() const { return m_rows; };
+	const size_t& cols() const { return m_cols; };
+
 	Eigen::Map<MatrixXd> mat;
-	size_t rows;
-	size_t cols;
 private:
 	MemMap datamap;
+	size_t m_rows;
+	size_t m_cols;
 };
 /**
  * @brief Reorganizes input images into tall and wide matrices (matrices that
@@ -203,7 +206,7 @@ public:
 	 * should be sized to fit into memory
 	 * @param verbose Print information
 	 */
-	MatrixReorg(std::string prefix, size_t maxd=(1<<30), bool verbose=true);
+	MatrixReorg(std::string prefix="", size_t maxd=(1<<30), bool verbose=true);
 
 	/**
 	 * @brief Creates two sets of matrices from a set of input images. The matrices
@@ -366,6 +369,40 @@ public:
 	void compute(size_t tcat, size_t scat, std::vector<std::string> masks,
 			vector<std::string> inputs);
 
+	/**
+	 * @brief Compute ICA for the given group, defined by tcat x scat images
+	 * laid out in column major ordering.
+	 *
+	 * The basic idea is to split the rows into digesteable chunks, then
+	 * perform the SVD on each of them.
+	 *
+	 * A = [A1 A2 A3 ... ]
+	 * A = [UEV1 UEV2 .... ]
+	 * A = [UE1 UE2 UE3 ...] diag([V1, V2, V3...])
+	 *
+	 * UE1 should have far fewer columns than rows so that where A is RxC,
+	 * with R < C, [UE1 ... ] should have be R x LN with LN < R
+	 *
+	 * Say we are concatinating S subjects each with T timepoints, then
+	 * A is STxC, assuming a rank of L then [UE1 ... ] will be ST x SL
+	 *
+	 * Even if L = T / 2 then this is a 1/4 savings in the SVD computation
+	 *
+	 * @param tcat Number of fMRI images to append in time direction
+	 * @param scat Number of fMRI images to append in space direction
+	 * @param masks Masks, one per spaceblock (columns of matching space)
+	 * @param inputs Files in time-major order, [s0t0 s0t1 s0t2 s1t0 s1t1 s1t2]
+	 * where s0 means 0th space-appended image, and t0 means the same for time
+	 */
+	void compute(std::string mask, std::string input)
+	{
+		std::vector<std::string> tmask;
+		if(!mask.empty())
+			tmask.push_back(mask);
+		std::vector<std::string> tinput(1, input);
+		compute(1, 1, tmask, tinput);
+	}
+
 private:
 	std::string m_pref;
 
@@ -373,9 +410,6 @@ private:
 
 	size_t svd_help(std::string inname, std::string usname,
 			std::string vname);
-
-	void computeICA();
-	void computeSpatialMaps();
 };
 
 }
