@@ -362,15 +362,39 @@ void regress(RegrResult* out,
 	}
 }
 
-double gaussian1D(double mean, double sd, double x)
+/**
+ * @brief 1D Gaussian distribution function
+ *
+ * @param mean Mean of gaussian distribution
+ * @param sd Standard deviation
+ * @param x Position to get probability of
+ *
+ * @return Probability Density at Point
+ */
+double gaussianPDF(double mean, double sd, double x)
 {
-	return exp(-(x-mean)*(x-mean)/(2*sd*sd))/(sd*sqrt(2*M_PI))
+	return exp(-(x-mean)*(x-mean)/(2*sd*sd))/(sd*sqrt(2*M_PI));
 }
 
 
 /**
+ * @brief 1D Gaussian cumulative distribution function
+ *
+ * @param mean Mean of gaussian distribution
+ * @param sd Standard deviation
+ * @param x Position to get probability of
+ *
+ * @return Probability of value falling below x
+ */
+double gaussianCDF(double mean, double sd, double x)
+{
+	return 0.5*(1+erf((x-mean)/(sd*sqrt(2))));
+}
+
+/**
  * @brief PDF for the gamma distribution, if mean is negative then it is
- * assumed that x should be negated as well.
+ * assumed that x should be negated as well. Unlike gammaPDF, this takes
+ * the mean and standard deviation (_MS)
  *
  * mean = k theta
  * var = k theta theta
@@ -381,15 +405,16 @@ double gaussian1D(double mean, double sd, double x)
  * prob(mu, sd, x) = x^{k-1}exp(-x/theta)/(gamma(k) theta^k)
  * log prob(mu, sd, x) = (k-1)log(x)-x/theta-log(gamma(k)) - k*log(theta)
  *
- * @param mean
- * @param sd
- * @param x
+ * @param mean Mean to compute density of
+ * @param sd Standard deviation of distribution
+ * @param x X position to compute density of (<0 produces 0 probability unless
+ * mu is negative
  *
- * @return
+ * @return Probability Density
  */
-double gamma(double mean, double sd, double x)
+double gammaPDF_MS(double mean, double sd, double x)
 {
-	if(mean < 0)
+	if(mean < 0) {
 		mean = -mean;
 		x = -x;
 	}
@@ -399,7 +424,22 @@ double gamma(double mean, double sd, double x)
 	return exp(lp);
 }
 
-void mixtureModel(const Ref<const VectorXd> data,
+/**
+ * @brief Computes the mean and standard deviation of multiple distributions
+ * based on 1D data. The probability distribution functions should be passed
+ * in through a vector of function objects (pdfs) taking mu/sd/x
+ *
+ * @param data Data points to fit
+ * @param pdfs Probability distribution functions of the form pdf(mu, sd, x)
+ * and returning the probability density at x
+ * @param mean Output mean of each distribution, value when called will be used
+ * for initialization so it should be pre-set and pre-allocated
+ * @param sd Output standard deviation of each distribution, value when called
+ * will be used for initialization so it should be pre-set and pre-allocated
+ * @param prior Output prior probability of each distribution, initial value is
+ * not used but it should be pre-allocated
+ */
+void expMax1D(const Ref<const VectorXd> data,
 		vector<std::function<double(double,double,double)>> pdfs,
 		Ref<VectorXd> mean, Ref<VectorXd> sd, Ref<VectorXd> prior)
 {
@@ -408,10 +448,7 @@ void mixtureModel(const Ref<const VectorXd> data,
 				"initialized and have the same size as pdfs");
 
 	double THRESH = 0.0001;
-	mean = 0;
-	sd = 1;
-	size_t ndist = loglikelihood.size();
-	double total = 0;
+	size_t ndist = pdfs.size();
 	double change = THRESH;
 	for(size_t ii=0; ii<ndist; ii++)
 		prior[ii] = 1./ndist;
@@ -2147,7 +2184,7 @@ double fastICA_dg2(double u)
  *
  * @return 		RxP matrix, where P is the number of independent components
  */
-MatrixXd ica(const Ref<const MatrixXd> Xin)
+MatrixXd ica(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 {
 
 	// remove mean/variance
@@ -2249,9 +2286,8 @@ MatrixXd ica(const Ref<const MatrixXd> Xin)
 #endif// NDEBUG
 	}
 
-	// TODO sort by variance
+	if(unmix) *unmix = W;
 	return X*W;
-
 }
 
 }

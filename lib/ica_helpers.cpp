@@ -701,11 +701,30 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 void GICAfmri::computeTemporaICA()
 {
 	/*
-	 * Compute ICA and spatial maps
+	 * Compute ICA and explained variance
 	 */
 	size_t odim[4];
 	cerr<<"Performing Temporal ICA ("<<m_U.rows()<<"x"<<m_U.cols()<<")"<<endl;
-	MatrixXd ics = ica(m_U);
+	MatrixXd W(m_U.cols(), m_U.cols());
+	MatrixXd ics = ica(m_U, &W);
+
+	// A = UEVt // UW = X // U = XWt // A = XWtEVt
+	// Explained variance for component i: X_iWtE
+	VectorXd expvar(ics.cols());
+	for(size_t cc=0; cc<ics.cols(); cc++) {
+		expvar[cc] = (W.col(cc).transpose()*m_E.asDiagonal()).squaredNorm();
+	}
+	expvar /= expvar.sum();
+
+	// Create Sorted Lookup for explained variance
+	vector<int> sorted(expvar.rows());
+	for(size_t ii=0; ii<sorted.size(); ii++) sorted[ii] = ii;
+	std::sort(sorted.begin(), sorted.end(),
+			[&expvar](int i, int j) { return expvar[i] > expvar[j]; });
+
+	cerr << "Explained Variance:"<<endl;
+	for(size_t cc=0; cc<ics.cols(); cc++)
+		cerr<<sorted[cc]<<" "<<expvar[sorted[cc]]<<endl;
 
 	cerr << "Regressing Temporal Components" << endl;
 	/*
@@ -744,12 +763,11 @@ void GICAfmri::computeTemporaICA()
 		Vector3DIter<double> tit(tmap), bit(bmap);
 
 		// Iterate Through pixels of mask
-		for(; !mit.eof(); ++mit, ++pit, ++tit, ++bit) {
+		for(; !mit.eof(); ++mit, ++tit, ++bit) {
 			if(*mit == 0) {
 				for(size_t comp=0; comp<ics.cols(); comp++) {
 					tit.set(comp, 0);
 					bit.set(comp, 0);
-					pit.set(comp, 0.5);
 				}
 			} else {
 				// Load the next block of columns as necessary
@@ -763,7 +781,7 @@ void GICAfmri::computeTemporaICA()
 				for(size_t comp=0; comp<ics.cols(); comp++) {
 					tit.set(comp, result.t[comp]);
 					bit.set(comp, result.bhat[comp]);
-					values(cc, comp) = result.t[comp];
+					tvalues(cc, comp) = result.t[comp];
 				}
 				tc++;
 				cc++;
@@ -774,24 +792,101 @@ void GICAfmri::computeTemporaICA()
 		bmap->write(m_pref+"_bmap_m"+to_string(maskn)+".nii.gz");
 	}
 
-	computeProb();
+	computeProb(ics.cols(), tvalues);
 }
 
-void GICAfmri::computeProb(size_t ncomp, MatrixXd tvalues)
+void GICAfmri::computeSpatialICA()
+{
+	/*
+	 * Compute ICA and explained variance
+	 */
+	cerr<<"Performing Spatial ICA ("<<m_V.rows()<<"x"<<m_V.cols()<<")"<<endl;
+	MatrixXd W(m_V.cols(), m_V.cols());
+	MatrixXd ics = ica(m_V, &W);
+	cerr << "Done" << endl;
+
+	// Convert each signal matrix into a t-score
+	// A = UEVt, VW = X, WXt = Vt, A = UEWXt, A = UEWB
+	cerr<<"Estimating Noise"<<endl;
+	VectorXd sigma = estnoise(m_A, m_U, m_E, m_V);
+
+	// explained variance for component var UEWB_i (ith row), EWB_i
+	VectorXd expvar(ics.cols());
+	for(size_t cc=0; cc<ics.cols(); cc++)
+		expvar[cc] = (m_E.asDiagonal()*W*ics.col(cc)).squaredNorm();
+	expvar /= expvar.sum();
+
+	// Create Sorted Lookup for explained variance
+	vector<int> sorted(ics.cols());
+	for(size_t ii=0; ii<sorted.size(); ii++) sorted[ii] = ii;
+	std::sort(sorted.begin(), sorted.end(),
+			[&expvar](int i, int j) { return expvar[i] > expvar[j]; });
+
+	cerr << "Explained Variance:"<<endl;
+	for(size_t cc=0; cc<ics.cols(); cc++)
+		cerr<<sorted[cc]<<" "<<expvar[sorted[cc]]<<endl;
+
+	/*
+	 * Re-associate each column with a spatial signal (map)
+	 * Columns of ics correspond to rows of the wide matrices/voxels
+	 */
+	cerr<<"Computing T-Maps"<<endl;
+	size_t odim[4];
+	MatrixXd tvalues(m_A.cols(), ics.cols());
+	for(size_t rr=0, maskn = 0; rr < ics.rows(); maskn++) {
+		auto mask = readMRImage(m_pref+"_mask_"+to_string(maskn)+".nii.gz");
+		for(size_t ii=0; ii<3; ii++)
+			odim[ii] = mask->dim(ii);
+		odim[3] = ics.cols();
+
+		auto tmap = mask->copyCast(4, odim, FLOAT32);
+		auto bmap = mask->copyCast(4, odim, FLOAT32);
+		NDIter<int> mit(mask);
+		Vector3DIter<double> tit(tmap), bit(bmap);
+
+		// Iterate Through pixels of mask
+		for(; !mit.eof(); ++mit, ++tit, ++bit) {
+			if(*mit == 0) {
+				for(size_t comp=0; comp<ics.cols(); comp++) {
+					tit.set(comp, 0);
+					bit.set(comp, 0);
+				}
+			} else {
+				// Iterate through Components
+				for(size_t comp=0; comp<ics.cols(); comp++) {
+					double b = ics(rr, comp);
+					double t = sigma[rr] == 0 ? 0 : b/sigma[rr];
+					tit.set(comp, t);
+					bit.set(comp, b);
+					tvalues(rr, comp) = t;
+				}
+				rr++;
+			}
+		}
+		// write output matching mask
+		tmap->write(m_pref+"_tmap_m"+to_string(maskn)+".nii.gz");
+		bmap->write(m_pref+"_bmap_m"+to_string(maskn)+".nii.gz");
+	}
+
+	computeProb(ics.cols(), tvalues);
+	cerr<<"Done with Spatial ICA!"<<endl;
+}
+
+void GICAfmri::computeProb(size_t ncomp, const MatrixXd& tvalues)
 {
 	cerr<<"Fitting T-maps"<<endl;
 	MatrixXd mu(3, ncomp);
 	MatrixXd sd(3, ncomp);
 	VectorXd prior(3);
 	vector<std::function<double(double,double,double)>> pdfs;
-	pdfs.push_back(gamma);
-	pdfs.push_back(gaussian1d); // middle is the gaussian that we care about
-	pdfs.push_back(gamma);
+	pdfs.push_back(gammaPDF_MS);
+	pdfs.push_back(gaussianPDF); // middle is the gaussian that we care about
+	pdfs.push_back(gammaPDF_MS);
 
 	for(size_t comp=0; comp<ncomp; comp++) {
 		mu << -1,0,1;
 		sd << 1,1,1;
-		mixtureModel(tvalues.col(comp), pdfs, mu.col(comp), sd.col(comp), prior);
+		expMax1D(tvalues.col(comp), pdfs, mu.col(comp), sd.col(comp), prior);
 	}
 
 	// now convert the t-scores to p-scores
@@ -804,7 +899,7 @@ void GICAfmri::computeProb(size_t ncomp, MatrixXd tvalues)
 			if(mit[0] == 0)
 				continue;
 			for(size_t comp=0; comp<ncomp; comp++) {
-				double p = gaussianCDF(mu(1, comp), sd(1, comp), tit[comp]);
+				double p = 0.5*gaussianCDF(mu(1, comp), sd(1, comp), tit[comp]);
 				if(p > 0.5) p = 1-p;
 				p /= 2;
 				p = 1-p;
@@ -816,65 +911,6 @@ void GICAfmri::computeProb(size_t ncomp, MatrixXd tvalues)
 	cerr << "Done with Regression" << endl;
 }
 
-void GICAfmri::computeSpatialICA()
-{
-	cerr<<"Performing Spatial ICA ("<<m_V.rows()<<"x"<<m_V.cols()<<")"<<endl;
-	MatrixXd ics = ica(m_V);
-	cerr << "Done" << endl;
-
-	// Convert each signal matrix into a t-score
-	cerr<<"Estimating Noise"<<endl;
-	VectorXd sigma = estnoise(m_A, m_U, m_E, m_V);
-	const double MAX_T = 2000;
-	const double STEP_T = 0.1;
-	StudentsT distrib(ics.rows()-1, STEP_T, MAX_T);
-
-	// Re-associate each column with a spatial signal (map)
-	// Columns of ics correspond to rows of the wide matrices/voxels
-	cerr<<"Computing T-Maps"<<endl;
-	size_t odim[4];
-	for(size_t rr=0, maskn = 0; rr < ics.rows(); maskn++) {
-		auto mask = readMRImage(m_pref+"_mask_"+to_string(maskn)+".nii.gz");
-		for(size_t ii=0; ii<3; ii++)
-			odim[ii] = mask->dim(ii);
-		odim[3] = ics.cols();
-
-		auto tmap = mask->copyCast(4, odim, FLOAT32);
-		auto pmap = mask->copyCast(4, odim, FLOAT32);
-		auto bmap = mask->copyCast(4, odim, FLOAT32);
-		NDIter<int> mit(mask);
-		Vector3DIter<double> pit(pmap), tit(tmap), bit(bmap);
-
-		// Iterate Through pixels of mask
-		for(; !mit.eof(); ++mit, ++pit, ++tit, ++bit) {
-			if(*mit == 0) {
-				for(size_t comp=0; comp<ics.cols(); comp++) {
-					tit.set(comp, 0);
-					bit.set(comp, 0);
-					pit.set(comp, 0.5);
-				}
-			} else {
-				// Iterate through Components
-				for(size_t comp=0; comp<ics.cols(); comp++) {
-					double b = ics(rr, comp);
-					double t = sigma[rr] == 0 ? 0 : b/sigma[rr];
-					double p = distrib.cdf(t);
-					if(p > 0.5) p = 1-p;
-					p *= 2;
-					tit.set(comp, t);
-					pit.set(comp, p);
-					bit.set(comp, b);
-				}
-				rr++;
-			}
-		}
-		// write output matching mask
-		tmap->write(m_pref+"_tmap_m"+to_string(maskn)+".nii.gz");
-		pmap->write(m_pref+"_pmap_m"+to_string(maskn)+".nii.gz");
-		bmap->write(m_pref+"_bmap_m"+to_string(maskn)+".nii.gz");
-	}
-	cerr<<"Done with Spatial ICA!"<<endl;
-}
 
 } // NPL
 
