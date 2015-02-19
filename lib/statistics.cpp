@@ -362,6 +362,104 @@ void regress(RegrResult* out,
 	}
 }
 
+double gaussian1D(double mean, double sd, double x)
+{
+	return exp(-(x-mean)*(x-mean)/(2*sd*sd))/(sd*sqrt(2*M_PI))
+}
+
+
+/**
+ * @brief PDF for the gamma distribution, if mean is negative then it is
+ * assumed that x should be negated as well.
+ *
+ * mean = k theta
+ * var = k theta theta
+ *
+ * theta = var / mean
+ * k = mean / theta
+ *
+ * prob(mu, sd, x) = x^{k-1}exp(-x/theta)/(gamma(k) theta^k)
+ * log prob(mu, sd, x) = (k-1)log(x)-x/theta-log(gamma(k)) - k*log(theta)
+ *
+ * @param mean
+ * @param sd
+ * @param x
+ *
+ * @return
+ */
+double gamma(double mean, double sd, double x)
+{
+	if(mean < 0)
+		mean = -mean;
+		x = -x;
+	}
+	double theta = sd*sd/mean;
+	double k = mean / theta;
+	double lp = (k-1)*log(x) - x/theta - lgamma(k) - k*log(theta);
+	return exp(lp);
+}
+
+void mixtureModel(const Ref<const VectorXd> data,
+		vector<std::function<double(double,double,double)>> pdfs,
+		Ref<VectorXd> mean, Ref<VectorXd> sd, Ref<VectorXd> prior)
+{
+	if(mean.rows() != sd.rows() || mean.rows() != pdfs.size())
+		throw INVALID_ARGUMENT("Input mean and standard deviation must be "
+				"initialized and have the same size as pdfs");
+
+	double THRESH = 0.0001;
+	mean = 0;
+	sd = 1;
+	size_t ndist = loglikelihood.size();
+	double total = 0;
+	double change = THRESH;
+	for(size_t ii=0; ii<ndist; ii++)
+		prior[ii] = 1./ndist;
+
+	MatrixXd prob(data.rows(), ndist);
+	while(change > THRESH) {
+		/*
+		 * estimate probabilities
+		 */
+		prob.setZero();
+		for(size_t rr=0; rr<prob.rows(); rr++) {
+			double total = 0;
+			for(size_t cc=0; cc<prob.cols(); cc++) {
+				prob(rr, cc) = prior[cc]*pdfs[cc](mean[cc], sd[cc], data[rr]);
+				total += prob(rr,cc);
+			}
+			for(size_t cc=0; cc<prob.cols(); cc++)
+				prob(rr,cc) /= total;
+		}
+
+		/*
+		 * update means/stddevs
+		 */
+		change = 0;
+		for(size_t tt=0; tt<prior.rows(); tt++) {
+			double pmean = mean[tt];
+			mean[tt] = 0;
+			sd[tt] = 0;
+			prior[tt] = 0;
+			for(size_t rr=0; rr<data.rows(); rr++) {
+				mean[tt] += prob(rr,tt)*data[rr];
+				sd[tt] += prob(rr,tt)*data[rr]*data[rr];
+				prior[tt] += prob(rr,tt);
+			}
+			mean[tt] /= prior[tt];
+			sd[tt] = (sd[tt] - mean[tt]*mean[tt])/prior[tt];
+
+			if(fabs(pmean - mean[tt]) > change)
+				change = fabs(pmean - mean[tt]);
+		}
+
+		// Prior was the total probability for each, so then sum the 3 and
+		// divide to get the relative proportions
+		prior /= prior.sum();
+	}
+
+}
+
 /**
  * @brief Computes the Ordinary Least Square predictors, beta for
  *

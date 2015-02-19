@@ -712,6 +712,7 @@ void GICAfmri::computeTemporaICA()
 	size_t matn = 0; // matrix number (tall matrices)
 	size_t maskn = 0; // Mask number
 	MatMap tall(m_A.tallMatName(matn));
+	m_tvalues.resize(m_A.cols(), ics.cols());
 	for(size_t cc=0; cc < m_A.cols(); maskn++) {
 		auto mask = readMRImage(m_pref+"_mask_"+to_string(maskn)+".nii.gz");
 		for(size_t ii=0; ii<3; ii++)
@@ -719,10 +720,9 @@ void GICAfmri::computeTemporaICA()
 		odim[3] = ics.cols();
 
 		auto tmap = mask->copyCast(4, odim, FLOAT32);
-		auto pmap = mask->copyCast(4, odim, FLOAT32);
 		auto bmap = mask->copyCast(4, odim, FLOAT32);
 		NDIter<int> mit(mask);
-		Vector3DIter<double> pit(pmap), tit(tmap), bit(bmap);
+		Vector3DIter<double> tit(tmap), bit(bmap);
 
 		// Iterate Through pixels of mask
 		for(; !mit.eof(); ++mit, ++pit, ++tit, ++bit) {
@@ -742,18 +742,56 @@ void GICAfmri::computeTemporaICA()
 			regress(&result, tall.mat.col(tc), ics, Cinv, Xinv, distrib);
 			for(size_t comp=0; comp<ics.cols(); comp++) {
 				tit.set(comp, result.t[comp]);
-				pit.set(comp, result.p[comp]);
 				bit.set(comp, result.bhat[comp]);
+				m_values(cc, comp) = result.t[comp];
 			}
 			cc++;
 			tc++;
 		}
 		// write output matching mask
 		tmap->write(m_pref+"_tmap_m"+to_string(maskn)+".nii.gz");
-		pmap->write(m_pref+"_pmap_m"+to_string(maskn)+".nii.gz");
 		bmap->write(m_pref+"_bmap_m"+to_string(maskn)+".nii.gz");
 	}
 
+	computeProb();
+}
+
+void GICAfmri::computeProb(size_t ncomp, MatrixXd tvalues)
+{
+	cerr<<"Fitting T-maps"<<endl;
+	MatrixXd mu(3, ncomp);
+	MatrixXd sd(3, ncomp);
+	VectorXd prior(3);
+	vector<std::function<double(double,double,double)>> pdfs;
+	pdfs.push_back(gamma);
+	pdfs.push_back(gaussian1d); // middle is the gaussian that we care about
+	pdfs.push_back(gamma);
+
+	for(size_t comp=0; comp<ncomp; comp++) {
+		mu << -1,0,1;
+		sd << 1,1,1;
+		mixtureModel(tvalues.col(comp), pdfs, mu.col(comp), sd.col(comp), prior);
+	}
+
+	// now convert the t-scores to p-scores
+	for(size_t cc=0, maskn=0; cc<m_A.cols(); cc++, maskn++) {
+		auto tmap = readMRImage(m_pref+"_tmap_m"+to_string(maskn)+".nii.gz");
+		auto mask = readMRImage(m_pref+"_mask_"+to_string(maskn)+".nii.gz");
+		auto pmap = tmap->copy();
+		for(Vector3DIter<double> tit(tmap), pit(pmap), mit(mask); !tit.eof();
+					++mit, ++tit, ++pit) {
+			if(mit[0] == 0)
+				continue;
+			for(size_t comp=0; comp<ncomp; comp++) {
+				double p = gaussianCDF(mu(1, comp), sd(1, comp), tit[comp]);
+				if(p > 0.5) p = 1-p;
+				p /= 2;
+				p = 1-p;
+				pit.set(comp, p);
+			}
+			cc++;
+		}
+	}
 	cerr << "Done with Regression" << endl;
 }
 
