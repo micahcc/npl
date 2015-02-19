@@ -422,6 +422,11 @@ def build(bld):
             use=npl)
 
     bld.program(install_path='${PREFIX}/tests', features='test',
+            target='expmax1d_test',
+            source='expmax1d_test.cpp',
+            use=npl)
+
+    bld.program(install_path='${PREFIX}/tests', features='test',
             target='expmax_test1',
             source='expmax_test1.cpp',
             use=npl)

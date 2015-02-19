@@ -530,10 +530,12 @@ MatrixXd pcacov(const Ref<const MatrixXd> cov, double varth);
  * will be used for initialization so it should be pre-set and pre-allocated
  * @param prior Output prior probability of each distribution, initial value is
  * not used but it should be pre-allocated
+ * @param plotfile file to plot histogram in (svg)
  */
 void expMax1D(const Ref<const VectorXd> data,
 		vector<std::function<double(double,double,double)>> pdfs,
-		Ref<VectorXd> mean, Ref<VectorXd> sd, Ref<VectorXd> prior);
+		Ref<VectorXd> mean, Ref<VectorXd> sd, Ref<VectorXd> prior,
+		std::string plotfile = "");
 
 /**
  * @brief Approximates k-means using the algorithm of:

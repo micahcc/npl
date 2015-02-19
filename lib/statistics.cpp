@@ -28,6 +28,7 @@
 #include "basic_functions.h"
 #include "macros.h"
 
+#include <fstream>
 #include <algorithm>
 #include <random>
 #include <cmath>
@@ -373,7 +374,8 @@ void regress(RegrResult* out,
  */
 double gaussianPDF(double mean, double sd, double x)
 {
-	return exp(-(x-mean)*(x-mean)/(2*sd*sd))/(sd*sqrt(2*M_PI));
+	double p = exp(-(x-mean)*(x-mean)/(2*sd*sd))/(sd*sqrt(2*M_PI));
+	return p;
 }
 
 
@@ -418,10 +420,13 @@ double gammaPDF_MS(double mean, double sd, double x)
 		mean = -mean;
 		x = -x;
 	}
+	if(x < 0)
+		return 0;
+
 	double theta = sd*sd/mean;
 	double k = mean / theta;
-	double lp = (k-1)*log(x) - x/theta - lgamma(k) - k*log(theta);
-	return exp(lp);
+	double p = exp((k-1)*log(x) - x/theta - lgamma(k) - k*log(theta));
+	return p;
 }
 
 /**
@@ -438,23 +443,26 @@ double gammaPDF_MS(double mean, double sd, double x)
  * will be used for initialization so it should be pre-set and pre-allocated
  * @param prior Output prior probability of each distribution, initial value is
  * not used but it should be pre-allocated
+ * @param plotfile file to plot histogram in (svg)
  */
 void expMax1D(const Ref<const VectorXd> data,
 		vector<std::function<double(double,double,double)>> pdfs,
-		Ref<VectorXd> mean, Ref<VectorXd> sd, Ref<VectorXd> prior)
+		Ref<VectorXd> mean, Ref<VectorXd> sd, Ref<VectorXd> prior,
+		std::string plotfile)
 {
 	if(mean.rows() != sd.rows() || mean.rows() != pdfs.size())
 		throw INVALID_ARGUMENT("Input mean and standard deviation must be "
 				"initialized and have the same size as pdfs");
 
-	double THRESH = 0.0001;
+	size_t MAXITERS = 1000;
+	double THRESH = 0.00001;
 	size_t ndist = pdfs.size();
 	double change = THRESH;
 	for(size_t ii=0; ii<ndist; ii++)
 		prior[ii] = 1./ndist;
 
 	MatrixXd prob(data.rows(), ndist);
-	while(change > THRESH) {
+	for(size_t iters=0; iters < MAXITERS && change >= THRESH; iters++) {
 		/*
 		 * estimate probabilities
 		 */
@@ -462,12 +470,13 @@ void expMax1D(const Ref<const VectorXd> data,
 		for(size_t rr=0; rr<prob.rows(); rr++) {
 			double total = 0;
 			for(size_t cc=0; cc<prob.cols(); cc++) {
-				prob(rr, cc) = prior[cc]*pdfs[cc](mean[cc], sd[cc], data[rr]);
+				double p = prior[cc]*pdfs[cc](mean[cc], sd[cc], data[rr]);
+				prob(rr, cc) = p;
 				total += prob(rr,cc);
 			}
-			for(size_t cc=0; cc<prob.cols(); cc++)
-				prob(rr,cc) /= total;
+			prob.row(rr) /= total;
 		}
+		prob /= prob.sum();
 
 		/*
 		 * update means/stddevs
@@ -484,17 +493,71 @@ void expMax1D(const Ref<const VectorXd> data,
 				prior[tt] += prob(rr,tt);
 			}
 			mean[tt] /= prior[tt];
-			sd[tt] = (sd[tt] - mean[tt]*mean[tt])/prior[tt];
+			sd[tt] = sqrt(sd[tt]/prior[tt]-mean[tt]*mean[tt]);
 
 			if(fabs(pmean - mean[tt]) > change)
 				change = fabs(pmean - mean[tt]);
 		}
-
-		// Prior was the total probability for each, so then sum the 3 and
-		// divide to get the relative proportions
 		prior /= prior.sum();
 	}
 
+	if(!plotfile.empty()) {
+		size_t totalwidth = 1024;
+		size_t totalheight = 1024;
+		double dx = 0.1;
+
+		size_t nbins = sqrt(data.rows());
+		double low = data.minCoeff();
+		double high = data.maxCoeff();
+		double width = (high-low)/(nbins-1);
+		VectorXd scale(nbins);
+		for(size_t ii=0; ii<data.rows(); ii++) {
+			size_t b = (data[ii]-low)/width;
+			scale[b]++;
+		}
+		scale = scale/(width*scale.sum());
+
+		double ymax = totalheight/(1.25*scale.maxCoeff());
+		double step = totalwidth/(double)nbins;
+		ofstream ofs(plotfile.c_str());
+		ofs<<"<svg viewBox=\"0 0 "<<totalwidth << " " << totalheight
+			<<"\" xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\"> "<<endl
+			<< "<descr>Hello world</descr>" << endl;
+		for(size_t bb=0; bb<nbins; bb++){
+			double height = ymax*scale[bb];
+			ofs<<"<rect width=\""<<step<<"\" height=\""<<height
+				<<"\" x=\""<<step*bb<<"\" y=\""<<(totalheight-height)<<"\" "
+				<<"fill=\"gainsboro\" stroke=\"white\"></rect>"<<endl;
+		}
+
+		ofs<<"<polyline fill=\"none\" stroke=\"blue\" stroke-width=\"2\""
+			<<" points=\""<<endl;
+		for(double x=low; x <= 0; x+=dx) {
+			double truex = totalwidth*(x-low)/(high-low);
+			double truey = (totalheight-ymax*prior[0]*gammaPDF_MS(mean[0], sd[0], x));
+			ofs<<truex<<","<<truey<<endl;
+		}
+		ofs<<"\"/>"<<endl<<endl;
+
+		ofs<<"<polyline fill=\"none\" stroke=\"coral\" stroke-width=\"2\""
+			<<" points=\""<<endl;
+		for(double x=low; x <= high; x+=dx) {
+			double truex = totalwidth*(x-low)/(high-low);
+			double truey = (totalheight-ymax*prior[1]*gaussianPDF(mean[1], sd[1], x));
+			ofs<<truex<<","<<truey<<endl;
+		}
+		ofs<<"\"/>"<<endl<<endl;
+
+		ofs<<"<polyline fill=\"none\" stroke=\"red\" stroke-width=\"2\""
+			<<" points=\""<<endl;
+		for(double x=0; x <= high; x+=dx) {
+			double truex = totalwidth*(x-low)/(high-low);
+			double truey = (totalheight-ymax*prior[2]*gammaPDF_MS(mean[2], sd[2], x));
+			ofs<<truex<<","<<truey<<endl;
+		}
+		ofs<<"\"/>"<<endl<<endl;
+		ofs<<"</svg>"<<endl;
+	}
 }
 
 /**

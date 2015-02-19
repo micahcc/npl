@@ -886,8 +886,8 @@ void GICAfmri::computeProb(size_t ncomp, const MatrixXd& tvalues)
 	pdfs.push_back(gammaPDF_MS);
 
 	for(size_t comp=0; comp<ncomp; comp++) {
-		mu << -1,0,1;
-		sd << 1,1,1;
+		mu.col(comp) << -1,0,1;
+		sd.col(comp) << 1,1,1;
 		expMax1D(tvalues.col(comp), pdfs, mu.col(comp), sd.col(comp), prior);
 	}
 
