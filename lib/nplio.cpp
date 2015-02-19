@@ -59,8 +59,7 @@ void readPixels(ptr<NDArray> arr, gzFile file, size_t vox_offset,
 		size_t pixsize, bool doswap)
 {
 	int bytesread = 0;
-	const int buffsize = 1024*sizeof(T);
-	T tmp[buffsize];
+	vector<T> buffer(1<<20);
 
 	if(pixsize != sizeof(T)) {
 		throw INVALID_ARGUMENT("Pixel size in file ("+to_string(pixsize)
@@ -75,7 +74,7 @@ void readPixels(ptr<NDArray> arr, gzFile file, size_t vox_offset,
 	it.setOrder({}, true);
 	it.goBegin();
 
-	bytesread = gzread(file, tmp, buffsize);
+	bytesread = gzread(file, buffer.data(), buffer.size()*sizeof(T));
 	while(bytesread > 0) {
 
 		// Read Whole T Values, so bytesread%T == 0
@@ -84,11 +83,11 @@ void readPixels(ptr<NDArray> arr, gzFile file, size_t vox_offset,
 		int varsread = bytesread/sizeof(T);
 
 		for(int ii=0; ii < varsread && !it.eof(); ++it, ii++) {
-			if(doswap) swap<T>(&tmp[ii]);
-			it.set(tmp[ii]);
+			if(doswap) swap<T>(&buffer[ii]);
+			it.set(buffer[ii]);
 		}
 
-		bytesread = gzread(file, tmp, buffsize);
+		bytesread = gzread(file, buffer.data(), buffer.size()*sizeof(T));
 	}
 }
 
@@ -1003,7 +1002,7 @@ ptr<NDArray> readTxtImage(gzFile file, bool makearray = false,
 	for(size_t ii=0; ii<raw.size(); ii++) {
 		for(size_t jj=0; jj<raw[ii].size(); jj++) {
 			string str = raw[ii][jj];
-			
+
 			// Test Signed
 			tmp_i = strtoll(str.c_str(), &endptr, 0);
 			if(errno == EINVAL || endptr-str.c_str() != str.size()) {
@@ -1017,7 +1016,7 @@ ptr<NDArray> readTxtImage(gzFile file, bool makearray = false,
 			if(errno == EINVAL || endptr-str.c_str() != str.size())
 				ftype = false;
 
-//			cerr << str << ": " << unsigned_dec << ", " << signed_dec 
+//			cerr << str << ": " << unsigned_dec << ", " << signed_dec
 //				<< ", " << ftype << endl;
 		}
 	}

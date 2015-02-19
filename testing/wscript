@@ -447,20 +447,20 @@ def build(bld):
             source='rigid_reg_test1.cpp',
             use=npl)
 
-    bld.program(install_path='${PREFIX}/tests', features='test',
-            target='rigid_reg_test2',
-            source='rigid_reg_test2.cpp',
-            use=npl)
+#    bld.program(install_path='${PREFIX}/tests', features='test',
+#            target='rigid_reg_test2',
+#            source='rigid_reg_test2.cpp',
+#            use=npl)
 
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='rigid_reg_test3',
             source='rigid_reg_test3.cpp',
             use=npl)
 
-    bld.program(install_path='${PREFIX}/tests', features='test',
-            target='rigid_reg_test4',
-            source='rigid_reg_test4.cpp',
-            use=npl)
+#    bld.program(install_path='${PREFIX}/tests', features='test',
+#            target='rigid_reg_test4',
+#            source='rigid_reg_test4.cpp',
+#            use=npl)
 
     bld.program(install_path='${PREFIX}/tests', features='test',
             target='dc_reg_test1',
@@ -472,10 +472,10 @@ def build(bld):
             source='dc_reg_test2.cpp',
             use=npl)
 
-    bld.program(install_path='${PREFIX}/tests', features='test',
-            target='dc_reg_test3',
-            source='dc_reg_test3.cpp',
-            use=npl)
+#    bld.program(install_path='${PREFIX}/tests', features='test',
+#            target='dc_reg_test3',
+#            source='dc_reg_test3.cpp',
+#            use=npl)
 
     # Test Basic Image Processing Functions
     bld.program(install_path='${PREFIX}/tests', features='test',

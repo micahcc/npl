@@ -363,8 +363,12 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	m_totalcols = 0;
 	for(size_t sb = 0; sb<spaceblocks; sb++) {
 		if(sb < masknames.size()) {
+			cerr<<"Reading mask in column "<<sb<< " from "
+				<<masknames[sb]<<endl;
 			mask = readMRImage(masknames[sb]);
 		} else {
+			cerr<<"Creating mask in column "<<sb<< " from "
+				<<filenames[sb*timeblocks+0]<<endl;
 			auto img = readMRImage(filenames[sb*timeblocks+0]);
 			mask = dPtrCast<MRImage>(binarize(varianceT(img), 0));
 		}
@@ -384,9 +388,11 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	// Figure out number of rows in each block
 	m_totalrows = 0;
 	for(size_t tb = 0; tb<timeblocks; tb++) {
-		auto img = readMRImage(filenames[0*timeblocks+tb]);
+		auto img = readMRImage(filenames[0*timeblocks+tb], false, true);
 		inrows[tb] += img->tlen();
 		m_totalrows += inrows[tb];
+		if(m_verbose)
+			cerr << "rows += "<<inrows[tb]<<" = " <<m_totalrows<<endl;
 	}
 
 	if(m_verbose) {
@@ -413,7 +419,7 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 				"single full row!");
 	}
 
-	if(m_verbose) cerr << "Creating Matrices"<<endl;
+	if(m_verbose) cerr << "Creating Blank Matrices"<<endl;
 	MatMap datamap;
 	for(int cc=0; cc<m_totalcols; cc++) {
 		if(blockind == incols[blocknum]) {
@@ -442,8 +448,10 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	 * Fill tall matrices by breaking images along block cols specified
 	 * in m_outcols
 	 */
-	if(m_verbose) cerr << "Filling Matrices"<<endl;
-	if(normts) cerr<<"Normalizing Timeseries"<<endl;
+	if(m_verbose) {
+		cerr << "Filling Matrices"<<endl;
+		if(normts) cerr<<"Normalizing Individual Timeseries"<<endl;
+	}
 	int img_glob_row = 0;
 	int img_glob_col = 0;
 	int img_oblock_col = 0;
@@ -465,7 +473,7 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 
 			double mean = 0, sd = 0;
 			int cc, colbl;
-			int tlen = img->tlen();
+			int64_t tlen = img->tlen();
 			Vector3DIter<double> it(img);
 			NDIter<double> mit(mask);
 
@@ -482,7 +490,9 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 					if(cc < 0 || cc >= m_outcols[colbl]) {
 						cc = 0;
 						colbl++;
-						datamap.open(tallpr+to_string(colbl));
+						if(datamap.open(tallpr+to_string(colbl)) != 0)
+							throw RUNTIME_ERROR("Error opening "+
+									tallpr+to_string(colbl));
 						if(m_verbose) cerr<<"Writing to: "<<tallpr+to_string(colbl)
 								<<" at row "<<to_string(img_glob_row)<<endl;
 						if(datamap.rows() != m_totalrows ||
@@ -637,7 +647,7 @@ void GICAfmri::createMatrices(size_t tcat, size_t scat, vector<string> masks,
 	int status = m_A.createMats(tcat, scat, masks, inputs, normts);
 	if(status != 0)
 		throw RUNTIME_ERROR("Error while reorganizing data into 2D Matrices");
-	cerr<<"Done"<<endl;
+	cerr<<"Done Reorganizing"<<endl;
 }
 
 /**
@@ -671,15 +681,21 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 {
 	createMatrices(tcat, scat, masks, inputs);
 
-	if(fullsvd)
+	if(fullsvd) {
+		cerr<<"Running XXt SVD"<<endl;
 		m_E = covSVD(m_A, varthresh, &m_U, &m_V);
-	 else
+	} else {
+		cerr<<"Running Probabilistic SVD"<<endl;
 		m_E = onDiskSVD(m_A, minrank, poweriters, varthresh, &m_U, &m_V);
+	}
 
-	if(spatial)
-		 computeSpatialICA();
-	else
-		 computeTemporaICA();
+	if(spatial){
+		cerr<<"Performing Spatial ICA"<<endl;
+		computeSpatialICA();
+	} else {
+		cerr<<"Performing Temporal ICA"<<endl;
+		computeTemporaICA();
+	}
 }
 
 void GICAfmri::computeTemporaICA()
@@ -695,6 +711,7 @@ void GICAfmri::computeTemporaICA()
 	/*
 	 * Initialize Regression Variables
 	 */
+	cerr<<"Setting up Regression"<<endl;
 	const double MAX_T = 2000;
 	const double STEP_T = 0.1;
 	StudentsT distrib(ics.rows()-1, STEP_T, MAX_T);
@@ -708,12 +725,14 @@ void GICAfmri::computeTemporaICA()
 	 * Iterate through mask as we iterate through the columns of the ICs
 	 * Create 4D Image matching mask
 	 */
-	size_t tc = 0; // tall column
 	size_t matn = 0; // matrix number (tall matrices)
 	size_t maskn = 0; // Mask number
 	MatMap tall(m_A.tallMatName(matn));
-	m_tvalues.resize(m_A.cols(), ics.cols());
-	for(size_t cc=0; cc < m_A.cols(); maskn++) {
+	cerr<<"Regressing full dataset"<<endl;
+	MatrixXd tvalues(m_A.cols(), ics.cols());
+	for(size_t cc=0, tc=0; cc < m_A.cols(); maskn++) {
+		cerr<<"Subject Column: "<<maskn<< " Full Column: "<<cc
+			<<" TallMat Column: "<<tc<<endl;
 		auto mask = readMRImage(m_pref+"_mask_"+to_string(maskn)+".nii.gz");
 		for(size_t ii=0; ii<3; ii++)
 			odim[ii] = mask->dim(ii);
@@ -729,24 +748,26 @@ void GICAfmri::computeTemporaICA()
 			if(*mit == 0) {
 				for(size_t comp=0; comp<ics.cols(); comp++) {
 					tit.set(comp, 0);
+					bit.set(comp, 0);
 					pit.set(comp, 0.5);
 				}
-			}
-			// Load the next block of columns as necessary
-			if(tc >= tall.cols()) {
-				tall.open(m_A.tallMatName(++matn));
-				tc = 0;
-			}
+			} else {
+				// Load the next block of columns as necessary
+				if(tc >= tall.cols()) {
+					tall.open(m_A.tallMatName(++matn));
+					tc = 0;
+				}
 
-			// Perform regression
-			regress(&result, tall.mat.col(tc), ics, Cinv, Xinv, distrib);
-			for(size_t comp=0; comp<ics.cols(); comp++) {
-				tit.set(comp, result.t[comp]);
-				bit.set(comp, result.bhat[comp]);
-				m_values(cc, comp) = result.t[comp];
+				// Perform regression
+				regress(&result, tall.mat.col(tc), ics, Cinv, Xinv, distrib);
+				for(size_t comp=0; comp<ics.cols(); comp++) {
+					tit.set(comp, result.t[comp]);
+					bit.set(comp, result.bhat[comp]);
+					values(cc, comp) = result.t[comp];
+				}
+				tc++;
+				cc++;
 			}
-			cc++;
-			tc++;
 		}
 		// write output matching mask
 		tmap->write(m_pref+"_tmap_m"+to_string(maskn)+".nii.gz");
@@ -829,21 +850,23 @@ void GICAfmri::computeSpatialICA()
 			if(*mit == 0) {
 				for(size_t comp=0; comp<ics.cols(); comp++) {
 					tit.set(comp, 0);
+					bit.set(comp, 0);
 					pit.set(comp, 0.5);
 				}
+			} else {
+				// Iterate through Components
+				for(size_t comp=0; comp<ics.cols(); comp++) {
+					double b = ics(rr, comp);
+					double t = sigma[rr] == 0 ? 0 : b/sigma[rr];
+					double p = distrib.cdf(t);
+					if(p > 0.5) p = 1-p;
+					p *= 2;
+					tit.set(comp, t);
+					pit.set(comp, p);
+					bit.set(comp, b);
+				}
+				rr++;
 			}
-			// Iterate through Components
-			for(size_t comp=0; comp<ics.cols(); comp++) {
-				double b = ics(rr, comp);
-				double t = sigma[rr] == 0 ? 0 : b/sigma[rr];
-				double p = distrib.cdf(t);
-				if(p > 0.5) p = 1-p;
-				p *= 2;
-				tit.set(comp, t);
-				pit.set(comp, p);
-				bit.set(comp, b);
-			}
-			rr++;
 		}
 		// write output matching mask
 		tmap->write(m_pref+"_tmap_m"+to_string(maskn)+".nii.gz");

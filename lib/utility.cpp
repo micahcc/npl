@@ -623,7 +623,7 @@ MemMap::MemMap(std::string fn, size_t bsize, bool createNew) :
 	}
 };
 
-int MemMap::openNew(string fn, size_t bsize)
+int64_t MemMap::openNew(string fn, size_t bsize)
 {
 	close();
 
@@ -658,7 +658,7 @@ int MemMap::openNew(string fn, size_t bsize)
 	return m_size;
 };
 
-int MemMap::openExisting(string fn, bool quiet)
+int64_t MemMap::openExisting(string fn, bool quiet)
 {
 	close();
 
