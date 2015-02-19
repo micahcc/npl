@@ -779,9 +779,10 @@ void GICAfmri::computeTemporaICA()
 				// Perform regression
 				regress(&result, tall.mat.col(tc), ics, Cinv, Xinv, distrib);
 				for(size_t comp=0; comp<ics.cols(); comp++) {
-					tit.set(comp, result.t[comp]);
-					bit.set(comp, result.bhat[comp]);
-					tvalues(cc, comp) = result.t[comp];
+					size_t trcomp = sorted[comp];
+					tit.set(trcomp, result.t[comp]);
+					bit.set(trcomp, result.bhat[comp]);
+					tvalues(cc, trcomp) = result.t[comp];
 				}
 				tc++;
 				cc++;
@@ -854,11 +855,12 @@ void GICAfmri::computeSpatialICA()
 			} else {
 				// Iterate through Components
 				for(size_t comp=0; comp<ics.cols(); comp++) {
-					double b = ics(rr, comp);
+					size_t trcomp = sorted[comp];
+					double b = ics(rr, trcomp);
 					double t = sigma[rr] == 0 ? 0 : b/sigma[rr];
-					tit.set(comp, t);
-					bit.set(comp, b);
-					tvalues(rr, comp) = t;
+					tit.set(trcomp, t);
+					bit.set(trcomp, b);
+					tvalues(rr, trcomp) = t;
 				}
 				rr++;
 			}
