@@ -595,6 +595,13 @@ void gaussGammaMixtureModel(const Ref<const VectorXd> data,
 			mu[tt] /= prior[tt];
 			sd[tt] = sqrt(sd[tt]/prior[tt]-mu[tt]*mu[tt]);
 		}
+		//mu=k theta, sd = sqrt(k) theta
+		//(mu/sd)^2 = k
+		if(mu[0]/sd[0] < sqrt(2.))
+			mu[0] = sd[0]*sqrt(2.);
+		if(mu[2]/sd[2] < sqrt(2.))
+			mu[2] = sd[2]*sqrt(2.);
+
 		prior /= prior.sum();
 		change = std::max(std::max(std::abs(pmean[0]-mu[0])/sd[0],
 					fabs(pmean[1]-mu[1])/sd[1]), fabs(pmean[2]-mu[2])/sd[2]);
