@@ -800,6 +800,7 @@ void GICAfmri::computeTemporaICA()
 				for(size_t comp=0; comp<ics.cols(); comp++) {
 					tit.set(comp, 0);
 					bit.set(comp, 0);
+					pit.set(comp, 0);
 				}
 			} else {
 				// Load the next block of columns as necessary
@@ -813,7 +814,7 @@ void GICAfmri::computeTemporaICA()
 				for(size_t comp=0; comp<ics.cols(); comp++) {
 					size_t trcomp = sorted[comp];
 					tit.set(comp, result.t[trcomp]);
-					pit.set(comp, result.p[trcomp]);
+					pit.set(comp, 1-result.p[trcomp]);
 					bit.set(comp, result.bhat[trcomp]);
 				}
 				tc++;
@@ -823,6 +824,7 @@ void GICAfmri::computeTemporaICA()
 		// write output matching mask
 		tmap->write(m_pref+"_tmap_m"+to_string(maskn)+".nii.gz");
 		bmap->write(m_pref+"_bmap_m"+to_string(maskn)+".nii.gz");
+		pmap->write(m_pref+"_pmap_m"+to_string(maskn)+".nii.gz");
 	}
 }
 
