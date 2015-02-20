@@ -67,9 +67,6 @@ int main()
 	if(testTallMats(nrows, ncols, reorg, masks, inputs, pref+"_tall_") != 0)
 		return -1;
 
-//	if(testWideMats(nrows, ncols, reorg, masks, inputs, pref+"_wide_") != 0)
-//		return -1;
-
 	if(testProducts(nrows, ncols, reorg, masks, inputs) != 0)
 		return -1;
 }

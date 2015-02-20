@@ -33,7 +33,7 @@ using namespace std;
 
 int main()
 {
-	std::string pref = "reorg2";
+	std::string pref = "reorg_test1";
 	size_t timepoints = 5;
 	size_t ncols = 3;
 	size_t nrows = 4;
@@ -71,9 +71,6 @@ int main()
 	// use Matrix
 	if(testTallMats(nrows, ncols, reorg, masks, inputs, pref+"_tall_") != 0)
 		return -1;
-
-//	if(testWideMats(nrows, ncols, reorg, masks, inputs, pref+"_wide_") != 0)
-//		return -1;
 
 	if(testProducts(nrows, ncols, reorg, masks, inputs) != 0)
 		return -1;
