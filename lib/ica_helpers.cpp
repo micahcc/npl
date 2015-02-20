@@ -753,7 +753,8 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 		name = zpref+to_string(ii)+".nii.gz";
 		while(remove(name.c_str())==0){
 			cerr<<"Removed "<<name<<endl;
-			name = zpref+to_string(ii);
+			ii++;
+			name = zpref+to_string(ii)+".nii.gz";
 		}
 
 		// remove tmaps
@@ -761,7 +762,8 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 		name = tpref+to_string(ii)+".nii.gz";
 		while(remove(name.c_str())==0){
 			cerr<<"Removed "<<name<<endl;
-			name = tpref+to_string(ii);
+			ii++;
+			name = tpref+to_string(ii)+".nii.gz";
 		}
 
 		// remove pmaps
@@ -769,7 +771,8 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 		name = ppref+to_string(ii)+".nii.gz";
 		while(remove(name.c_str())==0){
 			cerr<<"Removed "<<name<<endl;
-			name = ppref+to_string(ii);
+			ii++;
+			name = ppref+to_string(ii)+".nii.gz";
 		}
 
 		// remove bmaps
@@ -777,7 +780,8 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 		name = bpref+to_string(ii)+".nii.gz";
 		while(remove(name.c_str())==0){
 			cerr<<"Removed "<<name<<endl;
-			name = bpref+to_string(ii);
+			ii++;
+			name = bpref+to_string(ii)+".nii.gz";
 		}
 
 		// remove tall matrices
@@ -785,15 +789,17 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 		name = tallpr+to_string(ii);
 		while(remove(name.c_str())==0){
 			cerr<<"Removed "<<name<<endl;
+			ii++;
 			name = tallpr+to_string(ii);
 		}
 
 		// remove masks
 		ii = 0;
-		name = maskpr+to_string(ii);
+		name = maskpr+to_string(ii)+".nii.gz";
 		while(remove(name.c_str())==0) {
 			cerr<<"Removed "<<name<<endl;
-			name = maskpr+to_string(ii);
+			ii++;
+			name = maskpr+to_string(ii)+".nii.gz";
 		}
 	}
 	createMatrices(tcat, scat, masks, inputs);
