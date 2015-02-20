@@ -460,6 +460,180 @@ double gammaPDF_MS(double mean, double sd, double x)
 
 /**
  * @brief Computes the mean and standard deviation of multiple distributions
+ * based on 1D data.
+ *
+ * This is a special version in which a negative gamma, a gaussian and a
+ * positive gamma are fit.
+ *
+ * @param data Data points to fit
+ * @param pdfs Probability distribution functions of the form pdf(mu, sd, x)
+ * and returning the probability density at x
+ * @param mean Output mean of each distribution, value when called will be used
+ * for initialization so it should be pre-set and pre-allocated
+ * @param sd Output standard deviation of each distribution, value when called
+ * will be used for initialization so it should be pre-set and pre-allocated
+ * @param prior Output prior probability of each distribution, initial value is
+ * not used but it should be pre-allocated
+ * @param plotfile file to plot histogram in (svg)
+ */
+void gaussGammaMixtureModel(const Ref<const VectorXd> data,
+		Ref<VectorXd> mean, Ref<VectorXd> sd, Ref<VectorXd> prior,
+		std::string plotfile)
+{
+	if(mean.rows() != 3 || sd.rows() != 3 || pdfs.size() != 3)
+		throw INVALID_ARGUMENT("Input mean and standard deviation must be "
+				"initialized and size of 3");
+
+	size_t MAXITERS = 1000;
+	double THRESH = 0.01;
+	size_t ndist = pdfs.size();
+	double change = THRESH;
+
+	vector<std::function<double(double,double,double)>> pdfs({
+			gammaPDF_MS, gaussianPDF, gammaPDF_MS});
+
+	// Initialize Distributions
+	double k, theta, mode;
+	VectorXd pmean(3);
+	mean.setZero();
+	sd.setZero();
+	prior.setZero();
+	for(size_t ii=0; ii<tvalues.rows(); ii++){
+		double t = tvalues(ii, comp);
+		prior[1]++;
+		mu(1,comp) += t;
+		sd(1,comp) += t*t;
+		if(t < 0) {
+			prior[0]++;
+			mu(0,comp) += t;
+			sd(0,comp) += t*t;
+		} else {
+			prior[2]++;
+			mu(2,comp) += t;
+			sd(2,comp) += t*t;
+		}
+	}
+	for(size_t ii=0; ii<3; ii++) {
+		mu(ii,comp) /= prior[ii];
+		sd(ii,comp) = sqrt(sd(ii,comp)/prior[ii]-mu(ii,comp)*mu(ii,comp));
+	}
+	prior /= prior.sum();
+
+	// Perform EM with the constrain that modes of gammas must be outside mean
+	// of gaussian
+	MatrixXd prob(data.rows(), ndist);
+	for(size_t iters=0; iters < MAXITERS && change >= THRESH; iters++) {
+		/*
+		 * estimate probabilities
+		 */
+		prob.setZero();
+		for(size_t rr=0; rr<prob.rows(); rr++) {
+			double total = 0;
+			for(size_t cc=0; cc<prob.cols(); cc++) {
+				double p = prior[cc]*pdfs[cc](mean[cc], sd[cc], data[rr]);
+				prob(rr, cc) = p;
+				total += prob(rr,cc);
+			}
+			prob.row(rr) /= total;
+		}
+		prob /= prob.sum();
+
+		/*
+		 * update means/stddevs
+		 */
+		pmean = mean;
+		change = 0;
+		for(size_t tt=0; tt<prior.rows(); tt++) {
+			mean[tt] = 0;
+			sd[tt] = 0;
+			prior[tt] = 0;
+			for(size_t rr=0; rr<data.rows(); rr++) {
+				mean[tt] += prob(rr,tt)*data[rr];
+				sd[tt] += prob(rr,tt)*data[rr]*data[rr];
+				prior[tt] += prob(rr,tt);
+			}
+			mean[tt] /= prior[tt];
+			sd[tt] = sqrt(sd[tt]/prior[tt]-mean[tt]*mean[tt]);
+
+		}
+
+		// apply k constraint
+		theta = sd[0]*sd[0]/mean[0];
+		k = mean[0]/theta;
+		if(k <= 1) {
+			k = 1.1;
+			theta = sqrt(sd[0]*sd[0]/k);
+			mean[0] = k*theta;
+		}
+
+		// apply mode constraint
+		mode = (k-1)*theta;
+		prior /= prior.sum();
+	}
+
+	if(!plotfile.empty()) {
+		size_t totalwidth = 1024;
+		size_t totalheight = 1024;
+
+		size_t nbins = sqrt(data.rows());
+		size_t steps = 5*nbins;;
+		double low = data.minCoeff();
+		double high = data.maxCoeff();
+		double dx = (high-low)/steps;
+		double width = (high-low)/(nbins-1);
+		VectorXd scale(nbins);
+		scale.setZero();
+		for(size_t ii=0; ii<data.rows(); ii++) {
+			size_t b = (data[ii]-low)/width;
+			scale[b]++;
+		}
+		scale = scale/(width*scale.sum());
+
+		double ymax = totalheight/(1.25*scale.maxCoeff());
+		double step = totalwidth/(double)nbins;
+		ofstream ofs(plotfile.c_str());
+		ofs<<"<svg viewBox=\"0 0 "<<totalwidth << " " << totalheight
+			<<"\" xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\"> "<<endl
+			<< "<descr>Hello world</descr>" << endl;
+		for(size_t bb=0; bb<nbins; bb++){
+			double height = ymax*scale[bb];
+			ofs<<"<rect width=\""<<step<<"\" height=\""<<height
+				<<"\" x=\""<<step*bb<<"\" y=\""<<(totalheight-height)<<"\" "
+				<<"fill=\"gainsboro\" stroke=\"white\"></rect>"<<endl;
+		}
+
+		ofs<<"<polyline fill=\"none\" stroke=\"blue\" stroke-width=\"2\""
+			<<" points=\""<<endl;
+		for(double x=low; x <= 0; x+=dx) {
+			double truex = totalwidth*(x-low)/(high-low);
+			double truey = (totalheight-ymax*prior[0]*gammaPDF_MS(mean[0], sd[0], x));
+			ofs<<truex<<","<<truey<<endl;
+		}
+		ofs<<"\"/>"<<endl<<endl;
+
+		ofs<<"<polyline fill=\"none\" stroke=\"coral\" stroke-width=\"2\""
+			<<" points=\""<<endl;
+		for(double x=low; x <= high; x+=dx) {
+			double truex = totalwidth*(x-low)/(high-low);
+			double truey = (totalheight-ymax*prior[1]*gaussianPDF(mean[1], sd[1], x));
+			ofs<<truex<<","<<truey<<endl;
+		}
+		ofs<<"\"/>"<<endl<<endl;
+
+		ofs<<"<polyline fill=\"none\" stroke=\"red\" stroke-width=\"2\""
+			<<" points=\""<<endl;
+		for(double x=0; x <= high; x+=dx) {
+			double truex = totalwidth*(x-low)/(high-low);
+			double truey = (totalheight-ymax*prior[2]*gammaPDF_MS(mean[2], sd[2], x));
+			ofs<<truex<<","<<truey<<endl;
+		}
+		ofs<<"\"/>"<<endl<<endl;
+		ofs<<"</svg>"<<endl;
+	}
+}
+
+/**
+ * @brief Computes the mean and standard deviation of multiple distributions
  * based on 1D data. The probability distribution functions should be passed
  * in through a vector of function objects (pdfs) taking mu/sd/x
  *

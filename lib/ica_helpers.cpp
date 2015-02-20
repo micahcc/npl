@@ -928,54 +928,6 @@ void GICAfmri::computeProb(size_t ncomp, Ref<MatrixXd> tvalues)
 	size_t nbins = log2(tvalues.rows());
 	for(size_t comp=0; comp<ncomp; comp++) {
 
-		// estimate the mode, then center on it
-		double low = tvalues.col(comp).minCoeff();
-		double high = tvalues.col(comp).maxCoeff();
-		double width = (high-low)/(nbins-1);
-		VectorXd bins(nbins);
-		bins.setZero();
-		for(size_t ii=0; ii<tvalues.rows(); ii++) {
-			size_t b = (tvalues(ii, comp)-low)/width;
-			bins[b]++;
-		}
-		bins = bins/(width*bins.sum());
-		size_t maxi=0;
-		for(size_t ii=0; ii<nbins; ii++) {
-			if(bins[ii] > bins[maxi])
-				maxi = ii;
-		}
-		cerr << "Mode: "<<maxi<<" = " << (maxi*width + low) <<endl;
-		for(size_t rr=0; rr<tvalues.rows(); rr++)
-			tvalues(rr,comp) -= (maxi*width + low);
-
-		// Initialize Distributions
-		mu.col(comp).setZero();
-		sd.col(comp).setZero();
-		prior.setZero();
-		for(size_t ii=0; ii<tvalues.rows(); ii++){
-			double t = tvalues(ii, comp);
-			prior[1]++;
-			mu(1,comp) += t;
-			sd(1,comp) += t*t;
-			if(t < 0) {
-				prior[0]++;
-				mu(0,comp) += t;
-				sd(0,comp) += t*t;
-			} else {
-				prior[2]++;
-				mu(2,comp) += t;
-				sd(2,comp) += t*t;
-			}
-		}
-		for(size_t ii=0; ii<3; ii++) {
-			mu(ii,comp) /= prior[ii];
-			sd(ii,comp) = sqrt(sd(ii,comp)/prior[ii]-mu(ii,comp)*mu(ii,comp));
-		}
-		prior /= prior.sum();
-		mu(1, comp) = 0;
-
-		cerr << "Initial Mean: "<<mu.transpose().row(comp)<<endl;
-		cerr << "Initial sd: "<<sd.transpose().row(comp)<<endl;
 		expMax1D(tvalues.col(comp), pdfs, mu.col(comp), sd.col(comp), prior,
 				m_pref+"_tplot"+to_string(comp)+".svg");
 
