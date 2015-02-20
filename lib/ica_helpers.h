@@ -444,6 +444,7 @@ private:
 	void createMatrices(size_t tcat, size_t scat, vector<std::string> masks,
 			vector<std::string> inputs);
 	void computeProb(size_t ncomp, Ref<MatrixXd> tvalues);
+	void cleanup();
 
 };
 

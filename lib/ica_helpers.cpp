@@ -695,6 +695,72 @@ void GICAfmri::createMatrices(size_t tcat, size_t scat, vector<string> masks,
 	}
 }
 
+void GICAfmri::cleanup()
+{
+	cerr<<"Removing old data in 3 seconds ctr-c to exit"<<endl;
+	sleep(3);
+	if(remove(info_name().c_str())==0)
+		cerr<<"Removed "<<info_name()<<endl;
+	if(remove(U_name().c_str())==0)
+		cerr<<"Removed "<<U_name()<<endl;
+	if(remove(V_name().c_str())==0)
+		cerr<<"Removed "<<V_name()<<endl;
+	if(remove(E_name().c_str())==0)
+		cerr<<"Removed "<<E_name()<<endl;
+	if(remove(sica_name().c_str())==0)
+		cerr<<"Removed "<<sica_name()<<endl;
+	if(remove(sw_name().c_str())==0)
+		cerr<<"Removed "<<sw_name()<<endl;
+	if(remove(tica_name().c_str())==0)
+		cerr<<"Removed "<<tica_name()<<endl;
+	if(remove(tw_name().c_str())==0)
+		cerr<<"Removed "<<tw_name()<<endl;
+	size_t ii=0;
+	std::string name;
+
+	// remove zmaps
+	ii = 0;
+	while(remove(zmap_name(ii).c_str())==0){
+		cerr<<"Removed "<<zmap_name(ii)<<endl;
+		ii++;
+	}
+
+	// remove tmaps
+	ii = 0;
+	while(remove(tmap_name(ii).c_str())==0){
+		cerr<<"Removed "<<tmap_name(ii)<<endl;
+		ii++;
+	}
+
+	// remove pmaps
+	ii = 0;
+	while(remove(pmap_name(ii).c_str())==0){
+		cerr<<"Removed "<<pmap_name(ii)<<endl;
+		ii++;
+	}
+
+	// remove bmaps
+	ii = 0;
+	while(remove(bmap_name(ii).c_str())==0){
+		cerr<<"Removed "<<bmap_name(ii)<<endl;
+		ii++;
+	}
+
+	// remove tall matrices
+	ii = 0;
+	while(remove(tall_name(ii).c_str())==0){
+		cerr<<"Removed "<<tall_name(ii)<<endl;
+		ii++;
+	}
+
+	// remove masks
+	ii = 0;
+	while(remove(mask_name(ii).c_str())==0) {
+		cerr<<"Removed "<<mask_name(ii)<<endl;
+		ii++;
+	}
+}
+
 /**
  * @brief Compute ICA for the given group, defined by tcat x scat images
  * laid out in column major ordering.
@@ -724,61 +790,9 @@ void GICAfmri::createMatrices(size_t tcat, size_t scat, vector<string> masks,
 void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 		vector<string> inputs)
 {
-
 	// remove all the existing files if not continuing
 	if(!trycontinue) {
-		if(remove(info_name().c_str())==0)
-			cerr<<"Removed "<<info_name()<<endl;
-		if(remove(U_name().c_str())==0)
-			cerr<<"Removed "<<U_name()<<endl;
-		if(remove(V_name().c_str())==0)
-			cerr<<"Removed "<<V_name()<<endl;
-		if(remove(E_name().c_str())==0)
-			cerr<<"Removed "<<E_name()<<endl;
-		size_t ii=0;
-		std::string name;
-
-		// remove zmaps
-		ii = 0;
-		while(remove(zmap_name(ii).c_str())==0){
-			cerr<<"Removed "<<zmap_name(ii)<<endl;
-			ii++;
-		}
-
-		// remove tmaps
-		ii = 0;
-		while(remove(tmap_name(ii).c_str())==0){
-			cerr<<"Removed "<<tmap_name(ii)<<endl;
-			ii++;
-		}
-
-		// remove pmaps
-		ii = 0;
-		while(remove(pmap_name(ii).c_str())==0){
-			cerr<<"Removed "<<pmap_name(ii)<<endl;
-			ii++;
-		}
-
-		// remove bmaps
-		ii = 0;
-		while(remove(bmap_name(ii).c_str())==0){
-			cerr<<"Removed "<<bmap_name(ii)<<endl;
-			ii++;
-		}
-
-		// remove tall matrices
-		ii = 0;
-		while(remove(tall_name(ii).c_str())==0){
-			cerr<<"Removed "<<tall_name(ii)<<endl;
-			ii++;
-		}
-
-		// remove masks
-		ii = 0;
-		while(remove(mask_name(ii).c_str())==0) {
-			cerr<<"Removed "<<mask_name(ii)<<endl;
-			ii++;
-		}
+		cleanup();
 	}
 	createMatrices(tcat, scat, masks, inputs);
 
