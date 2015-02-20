@@ -26,6 +26,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <cstdio>
 
 #include "fftw3.h"
 
@@ -286,6 +287,9 @@ int MatrixReorg::checkMats()
 	std::string info = m_prefix + ".txt";
 	std::string tallpr = m_prefix + "_tall_";
 	std::string maskpr = m_prefix + "_mask_";
+	std::string Uname = m_prefix + "_Umat";
+	std::string Vname = m_prefix + "_Vmat";
+	std::string Ename = m_prefix + "_Evec";
 
 	ifstream ifs(info);
 	ifs >> m_totalrows >> m_totalcols;
@@ -330,6 +334,7 @@ int MatrixReorg::checkMats()
 			throw RUNTIME_ERROR("Error, mismatch in number of cols from input "
 					"masks (prefix "+maskpr+")");
 	}
+
 	return 0;
 }
 
@@ -668,6 +673,7 @@ GICAfmri::GICAfmri(std::string pref)
 	minfreq = 0.01;
 	maxfreq = 0.5;
 	fullsvd = false;
+	trycontinue = false;
 }
 
 void GICAfmri::createMatrices(size_t tcat, size_t scat, vector<string> masks,
@@ -676,10 +682,17 @@ void GICAfmri::createMatrices(size_t tcat, size_t scat, vector<string> masks,
 	cerr << "Reorganizing data into matrices..."<<endl;
 	size_t ndoubles = (size_t)(0.5*maxmem*(1<<27));
 	new (&m_A) MatrixReorg(m_pref, ndoubles, verbose);
-	int status = m_A.createMats(tcat, scat, masks, inputs, normts);
-	if(status != 0)
-		throw RUNTIME_ERROR("Error while reorganizing data into 2D Matrices");
-	cerr<<"Done Reorganizing"<<endl;
+
+	if(trycontinue) {
+		cerr<<"Using existing matrices!"<<endl;
+		m_A.checkMats();
+		cerr<<"Success Loading Existing Mats"<<endl;
+	} else {
+		int status = m_A.createMats(tcat, scat, masks, inputs, normts);
+		if(status != 0)
+			throw RUNTIME_ERROR("Error while reorganizing data into 2D Matrices");
+		cerr<<"Done Reorganizing"<<endl;
+	}
 }
 
 /**
@@ -711,14 +724,117 @@ void GICAfmri::createMatrices(size_t tcat, size_t scat, vector<string> masks,
 void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 		vector<string> inputs)
 {
+	std::string info = m_pref + ".txt";
+	std::string tallpr = m_pref + "_tall_";
+	std::string maskpr = m_pref + "_mask_";
+	std::string Uname = m_pref + "_Umat";
+	std::string Vname = m_pref + "_Vmat";
+	std::string Ename = m_pref + "_Evec";
+	std::string ppref = m_pref + "_pmap_m";
+	std::string zpref = m_pref + "_zmap_m";
+	std::string bpref = m_pref + "_bmap_m";
+	std::string tpref = m_pref + "_tmap_m";
+
+	// remove all the existing files if not continuing
+	if(!trycontinue) {
+		if(remove(info.c_str())==0)
+			cerr<<"Removed "<<info<<endl;
+		if(remove(Uname.c_str())==0)
+			cerr<<"Removed "<<Uname<<endl;
+		if(remove(Vname.c_str())==0)
+			cerr<<"Removed "<<Vname<<endl;
+		if(remove(Ename.c_str())==0)
+			cerr<<"Removed "<<Ename<<endl;
+		size_t ii=0;
+		std::string name;
+
+		// remove zmaps
+		ii = 0;
+		name = zpref+to_string(ii)+".nii.gz";
+		while(remove(name.c_str())==0){
+			cerr<<"Removed "<<name<<endl;
+			name = zpref+to_string(ii);
+		}
+
+		// remove tmaps
+		ii = 0;
+		name = tpref+to_string(ii)+".nii.gz";
+		while(remove(name.c_str())==0){
+			cerr<<"Removed "<<name<<endl;
+			name = tpref+to_string(ii);
+		}
+
+		// remove pmaps
+		ii = 0;
+		name = ppref+to_string(ii)+".nii.gz";
+		while(remove(name.c_str())==0){
+			cerr<<"Removed "<<name<<endl;
+			name = ppref+to_string(ii);
+		}
+
+		// remove bmaps
+		ii = 0;
+		name = bpref+to_string(ii)+".nii.gz";
+		while(remove(name.c_str())==0){
+			cerr<<"Removed "<<name<<endl;
+			name = bpref+to_string(ii);
+		}
+
+		// remove tall matrices
+		ii = 0;
+		name = tallpr+to_string(ii);
+		while(remove(name.c_str())==0){
+			cerr<<"Removed "<<name<<endl;
+			name = tallpr+to_string(ii);
+		}
+
+		// remove masks
+		ii = 0;
+		name = maskpr+to_string(ii);
+		while(remove(name.c_str())==0) {
+			cerr<<"Removed "<<name<<endl;
+			name = maskpr+to_string(ii);
+		}
+	}
 	createMatrices(tcat, scat, masks, inputs);
 
-	if(fullsvd) {
-		cerr<<"Running XXt SVD"<<endl;
-		m_E = covSVD(m_A, varthresh, &m_U, &m_V);
-	} else {
-		cerr<<"Running Probabilistic SVD"<<endl;
-		m_E = onDiskSVD(m_A, minrank, poweriters, varthresh, &m_U, &m_V);
+	m_U.resize(0,0);
+	m_V.resize(0,0);
+	m_E.resize(0);
+	if(trycontinue) {
+		MatMap loader;
+		if(loader.open(Uname) == 0) {
+			cerr << "Loaded "<<Uname<<" as U Matrix"<<endl;
+			m_U = loader.mat;
+		}
+		if(loader.open(Vname) == 0) {
+			cerr << "Loaded "<<Vname<<" as V Matrix"<<endl;
+			m_V = loader.mat;
+		}
+		if(loader.open(Ename) == 0) {
+			cerr<<"Loaded "<<Ename<<" as singular values"<<endl;
+			m_E = loader.mat;
+		}
+	}
+
+	if(!trycontinue || m_E.rows() == 0 || m_V.rows() != m_A.cols() ||
+			m_V.cols() != m_E.rows() || m_U.cols() != m_E.rows() || m_U.rows()
+			!= m_A.rows()) {
+		if(fullsvd) {
+			cerr<<"Running XXt SVD"<<endl;
+			m_E = covSVD(m_A, varthresh, &m_U, &m_V);
+		} else {
+			cerr<<"Running Probabilistic SVD"<<endl;
+			m_E = onDiskSVD(m_A, minrank, poweriters, varthresh, &m_U, &m_V);
+		}
+		MatMap writer;
+
+		writer.create(Uname, m_U.rows(), m_U.cols());
+		writer.mat = m_U;
+		writer.create(Vname, m_V.rows(), m_V.cols());
+		writer.mat = m_V;
+		writer.create(Ename, m_E.rows(), m_E.cols());
+		writer.mat = m_E;
 	}
 
 	if(spatial){

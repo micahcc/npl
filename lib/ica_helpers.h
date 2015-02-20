@@ -319,6 +319,8 @@ public:
 	 */
 	double maxfreq;
 
+	bool trycontinue;
+
 	/**
 	 * @brief Compute ICA for the given group, defined by tcat x scat images
 	 * laid out in column major ordering.
