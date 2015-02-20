@@ -213,26 +213,11 @@ public:
 		return m_totalrows;
 	};
 
-//	inline const vector<int>& wideMatRows() const
-//	{
-//		return m_outrows;
-//	};
-//
-//	inline int wideMatCols() const
-//	{
-//		return m_totalcols;
-//	};
-//
 	inline std::string tallMatName(size_t ii) const
 	{
 		return m_prefix+"_tall_"+std::to_string(ii);
 	};
 
-//	inline std::string wideMatName(size_t ii) const
-//	{
-//		return m_prefix+"_wide_"+std::to_string(ii);
-//	};
-//
 	inline std::string inColMaskName(size_t ii) const
 	{
 		return m_prefix+"_mask_"+std::to_string(ii)+".nii.gz";
@@ -246,6 +231,20 @@ public:
 
 	inline int rows() const { return m_totalrows; };
 	inline int cols() const { return m_totalcols; };
+
+	std::string mask_name(size_t ii) const
+	{
+		return m_prefix+"_mask_"+std::to_string(ii)+".nii.gz";
+	};
+
+	std::string info_name() const
+	{
+		return m_prefix+".info";
+	};
+	std::string tall_name(size_t ii) const
+	{
+		return m_prefix+"_tall_"+std::to_string(ii);
+	};
 
 	private:
 	int m_totalrows;
@@ -382,6 +381,52 @@ public:
 		std::vector<std::string> tinput(1, input);
 		compute(1, 1, tmask, tinput);
 	}
+
+	std::string sica_name() const {
+		return m_pref+"_SpaceIC";
+	};
+	std::string tica_name() const {
+		return m_pref+"_TimeIC";
+	};
+	std::string sw_name() const {
+		return m_pref+"_SpaceW";
+	};
+	std::string tw_name() const {
+		return m_pref+"_TimeW";
+	};
+	std::string mask_name(size_t ii) const {
+		return m_pref+"_mask_"+ std::to_string(ii)+".nii.gz";
+	};
+	std::string tmap_name(size_t ii) const {
+		return m_pref+"_tmap_m"+std::to_string(ii)+".nii.gz";
+	};
+	std::string pmap_name(size_t ii) const {
+		return m_pref+"_pmap_m"+std::to_string(ii)+".nii.gz";
+	};
+	std::string zmap_name(size_t ii) const {
+		return m_pref+"_zmap_m"+std::to_string(ii)+".nii.gz";
+	};
+	std::string bmap_name(size_t ii) const {
+		return m_pref+"_bmap_m"+std::to_string(ii)+".nii.gz";
+	};
+	std::string tplot_name(size_t ii) const {
+		return m_pref+"_tplot_c"+std::to_string(ii)+".svg";
+	};
+	std::string info_name() {
+		return m_pref+".info";
+	};
+	std::string U_name() const {
+		return m_pref+"_Umat";
+	};
+	std::string V_name() const {
+		return m_pref+"_Vmat";
+	};
+	std::string E_name() const {
+		return m_pref+"_Evec";
+	};
+	std::string tall_name(size_t ii) const {
+		return m_pref+"_tall_"+std::to_string(ii);
+	};
 
 private:
 	std::string m_pref;

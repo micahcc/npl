@@ -284,31 +284,25 @@ MatrixReorg::MatrixReorg(std::string prefix, size_t maxdoubles, bool verbose)
 int MatrixReorg::checkMats()
 {
 	m_outcols.clear();
-	std::string info = m_prefix + ".txt";
-	std::string tallpr = m_prefix + "_tall_";
-	std::string maskpr = m_prefix + "_mask_";
-	std::string Uname = m_prefix + "_Umat";
-	std::string Vname = m_prefix + "_Vmat";
-	std::string Ename = m_prefix + "_Evec";
 
-	ifstream ifs(info);
+	ifstream ifs(info_name());
 	ifs >> m_totalrows >> m_totalcols;
 	if(m_verbose) {
-		cerr << "Information File: " << info << endl;
-		cerr << "Tall Matrix Prefix: " << tallpr << endl;
-		cerr << "Mask Prefix:        " << maskpr << endl;
+		cerr << "Information File: " << info_name() << endl;
+		cerr << "First Tall Matrix: " << tall_name(0) << endl;
+		cerr << "First Mask:        " << mask_name(0) << endl;
 		cerr << "Total Rows/Timepoints: " << m_totalrows<< endl;
 		cerr << "Total Cols/Voxels:     " << m_totalcols << endl;
 	}
 	if(m_totalcols == 0 || m_totalrows == 0)
-		throw RUNTIME_ERROR("Error zero size input from "+info);
+		throw RUNTIME_ERROR("Error zero size input from "+info_name());
 
 	/* Read First Tall and Wide to get totalrows and totalcols */
 	MatMap map;
 	int cols = 0;
 	for(size_t bb=0; cols < m_totalcols; bb++) {
-		if(map.open(tallpr+to_string(bb)))
-			throw RUNTIME_ERROR("Error opening "+tallpr+to_string(bb));
+		if(map.open(tall_name(bb)))
+			throw RUNTIME_ERROR("Error opening "+tall_name(bb));
 		if(m_totalrows != map.rows())
 			throw RUNTIME_ERROR("Error, mismatch in file size ("+
 					to_string(map.rows())+"x"+to_string(map.cols())+" vs "+
@@ -318,12 +312,12 @@ int MatrixReorg::checkMats()
 	}
 	if(m_totalcols != cols)
 		throw RUNTIME_ERROR("Error, mismatch in number of cols from input "
-				"files (prefix "+tallpr+")");
+				"files");
 
 	// check masks
 	cols = 0;
 	for(int ii=0; cols!=m_totalcols; ii++) {
-		auto mask = readMRImage(maskpr+to_string(ii)+".nii.gz");
+		auto mask = readMRImage(mask_name(ii));
 		for(FlatIter<int> mit(mask); !mit.eof(); ++mit) {
 			if(*mit != 0)
 				cols++;
@@ -332,7 +326,7 @@ int MatrixReorg::checkMats()
 		// should exactly match up
 		if(cols > m_totalcols)
 			throw RUNTIME_ERROR("Error, mismatch in number of cols from input "
-					"masks (prefix "+maskpr+")");
+					"masks");
 	}
 
 	return 0;
@@ -374,14 +368,11 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 {
 	vector<int> inrows;
 	vector<int> incols;
-	std::string info = m_prefix + ".txt";
-	std::string tallpr = m_prefix + "_tall_";
-	std::string maskpr = m_prefix + "_mask_";
 
 	if(m_verbose) {
-		cerr << "Information File: " << info << endl;
-		cerr << "Tall Matrix Prefix: " << tallpr << endl;
-		cerr << "Mask Prefix:        " << maskpr << endl;
+		cerr << "Information File: " << info_name() << endl;
+		cerr << "First Tall Matrix: " << tall_name(0) << endl;
+		cerr << "First Mask:        " << mask_name(0) << endl;
 	}
 
 	/* Determine Size:
@@ -410,7 +401,7 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 			mask = dPtrCast<MRImage>(binarize(varianceT(img), 0));
 		}
 
-		mask->write(maskpr+to_string(sb)+".nii.gz");
+		mask->write(mask_name(sb));
 		for(FlatIter<int> it(mask); !it.eof(); ++it) {
 			if(*it != 0)
 				incols[sb]++;
@@ -438,7 +429,7 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 		cerr << "Total Rows/Timepoints: " << m_totalrows<< endl;
 		cerr << "Total Cols/Voxels:     " << m_totalcols << endl;
 	}
-	ofstream ofs(info);
+	ofstream ofs(info_name());
 	ofs << m_totalrows << " " << m_totalcols << endl;
 	ofs.close();
 
@@ -493,8 +484,8 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 	int img_glob_col = 0;
 	int img_oblock_col = 0;
 	for(size_t sb = 0; sb<spaceblocks; sb++) {
-		if(m_verbose) cerr<<"Mask Group: "<<maskpr+to_string(sb)+".nii.gz"<<endl;
-		auto mask = readMRImage(maskpr+to_string(sb)+".nii.gz");
+		if(m_verbose) cerr<<"Mask Group: "<<mask_name(sb)<<endl;
+		auto mask = readMRImage(mask_name(sb));
 
 		img_glob_row = 0;
 		for(size_t tb = 0; tb<timeblocks; tb++) {
@@ -527,15 +518,14 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 					if(cc < 0 || cc >= m_outcols[colbl]) {
 						cc = 0;
 						colbl++;
-						if(datamap.open(tallpr+to_string(colbl)) != 0)
-							throw RUNTIME_ERROR("Error opening "+
-									tallpr+to_string(colbl));
-						if(m_verbose) cerr<<"Writing to: "<<tallpr+to_string(colbl)
+						if(datamap.open(tall_name(colbl)) != 0)
+							throw RUNTIME_ERROR("Error opening "+tall_name(colbl));
+						if(m_verbose) cerr<<"Writing to: "<<tall_name(colbl)
 								<<" at row "<<to_string(img_glob_row)<<endl;
 						if(datamap.rows() != m_totalrows ||
 								datamap.cols() != m_outcols[colbl]) {
 							throw INVALID_ARGUMENT("Unexpected size in input "
-									+ tallpr+to_string(colbl)+" expected "+
+									+ tall_name(colbl)+" expected "+
 									to_string(m_totalrows)+"x"+
 									to_string(m_outcols[colbl])+", found "+
 									to_string(datamap.rows())+"x"+
@@ -578,7 +568,7 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 		// Increment Output block col to correspond to the next image
 		for(int ii=0; ii != incols[sb]; )
 			ii += m_outcols[img_oblock_col++];
-		if(m_verbose) cerr<<"Mask Done: "<<maskpr+to_string(sb)+".nii.gz"<<endl;
+		if(m_verbose) cerr<<"Mask Done: "<<mask_name(sb)<<endl;
 	}
 
 	return 0;
@@ -683,11 +673,21 @@ void GICAfmri::createMatrices(size_t tcat, size_t scat, vector<string> masks,
 	size_t ndoubles = (size_t)(0.5*maxmem*(1<<27));
 	new (&m_A) MatrixReorg(m_pref, ndoubles, verbose);
 
+	bool successload = false;
 	if(trycontinue) {
 		cerr<<"Using existing matrices!"<<endl;
-		m_A.checkMats();
-		cerr<<"Success Loading Existing Mats"<<endl;
-	} else {
+		try{
+			m_A.checkMats();
+			successload = true;
+			cerr<<"Success Loading Existing Mats"<<endl;
+		} catch(...) {
+			trycontinue = false;
+			successload = false;
+			cerr<<"Failed to Load Existing Mats, Recreating"<<endl;
+		}
+	}
+
+	if(!successload) {
 		int status = m_A.createMats(tcat, scat, masks, inputs, normts);
 		if(status != 0)
 			throw RUNTIME_ERROR("Error while reorganizing data into 2D Matrices");
@@ -724,82 +724,60 @@ void GICAfmri::createMatrices(size_t tcat, size_t scat, vector<string> masks,
 void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 		vector<string> inputs)
 {
-	std::string info = m_pref + ".txt";
-	std::string tallpr = m_pref + "_tall_";
-	std::string maskpr = m_pref + "_mask_";
-	std::string Uname = m_pref + "_Umat";
-	std::string Vname = m_pref + "_Vmat";
-	std::string Ename = m_pref + "_Evec";
-	std::string ppref = m_pref + "_pmap_m";
-	std::string zpref = m_pref + "_zmap_m";
-	std::string bpref = m_pref + "_bmap_m";
-	std::string tpref = m_pref + "_tmap_m";
 
 	// remove all the existing files if not continuing
 	if(!trycontinue) {
-		if(remove(info.c_str())==0)
-			cerr<<"Removed "<<info<<endl;
-		if(remove(Uname.c_str())==0)
-			cerr<<"Removed "<<Uname<<endl;
-		if(remove(Vname.c_str())==0)
-			cerr<<"Removed "<<Vname<<endl;
-		if(remove(Ename.c_str())==0)
-			cerr<<"Removed "<<Ename<<endl;
+		if(remove(info_name().c_str())==0)
+			cerr<<"Removed "<<info_name()<<endl;
+		if(remove(U_name().c_str())==0)
+			cerr<<"Removed "<<U_name()<<endl;
+		if(remove(V_name().c_str())==0)
+			cerr<<"Removed "<<V_name()<<endl;
+		if(remove(E_name().c_str())==0)
+			cerr<<"Removed "<<E_name()<<endl;
 		size_t ii=0;
 		std::string name;
 
 		// remove zmaps
 		ii = 0;
-		name = zpref+to_string(ii)+".nii.gz";
-		while(remove(name.c_str())==0){
-			cerr<<"Removed "<<name<<endl;
+		while(remove(zmap_name(ii).c_str())==0){
+			cerr<<"Removed "<<zmap_name(ii)<<endl;
 			ii++;
-			name = zpref+to_string(ii)+".nii.gz";
 		}
 
 		// remove tmaps
 		ii = 0;
-		name = tpref+to_string(ii)+".nii.gz";
-		while(remove(name.c_str())==0){
-			cerr<<"Removed "<<name<<endl;
+		while(remove(tmap_name(ii).c_str())==0){
+			cerr<<"Removed "<<tmap_name(ii)<<endl;
 			ii++;
-			name = tpref+to_string(ii)+".nii.gz";
 		}
 
 		// remove pmaps
 		ii = 0;
-		name = ppref+to_string(ii)+".nii.gz";
-		while(remove(name.c_str())==0){
-			cerr<<"Removed "<<name<<endl;
+		while(remove(pmap_name(ii).c_str())==0){
+			cerr<<"Removed "<<pmap_name(ii)<<endl;
 			ii++;
-			name = ppref+to_string(ii)+".nii.gz";
 		}
 
 		// remove bmaps
 		ii = 0;
-		name = bpref+to_string(ii)+".nii.gz";
-		while(remove(name.c_str())==0){
-			cerr<<"Removed "<<name<<endl;
+		while(remove(bmap_name(ii).c_str())==0){
+			cerr<<"Removed "<<bmap_name(ii)<<endl;
 			ii++;
-			name = bpref+to_string(ii)+".nii.gz";
 		}
 
 		// remove tall matrices
 		ii = 0;
-		name = tallpr+to_string(ii);
-		while(remove(name.c_str())==0){
-			cerr<<"Removed "<<name<<endl;
+		while(remove(tall_name(ii).c_str())==0){
+			cerr<<"Removed "<<tall_name(ii)<<endl;
 			ii++;
-			name = tallpr+to_string(ii);
 		}
 
 		// remove masks
 		ii = 0;
-		name = maskpr+to_string(ii)+".nii.gz";
-		while(remove(name.c_str())==0) {
-			cerr<<"Removed "<<name<<endl;
+		while(remove(mask_name(ii).c_str())==0) {
+			cerr<<"Removed "<<mask_name(ii)<<endl;
 			ii++;
-			name = maskpr+to_string(ii)+".nii.gz";
 		}
 	}
 	createMatrices(tcat, scat, masks, inputs);
@@ -809,16 +787,16 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 	m_E.resize(0);
 	if(trycontinue) {
 		MatMap loader;
-		if(loader.open(Uname) == 0) {
-			cerr << "Loaded "<<Uname<<" as U Matrix"<<endl;
+		if(loader.open(U_name()) == 0) {
+			cerr << "Loaded "<<U_name()<<" as U Matrix"<<endl;
 			m_U = loader.mat;
 		}
-		if(loader.open(Vname) == 0) {
-			cerr << "Loaded "<<Vname<<" as V Matrix"<<endl;
+		if(loader.open(V_name()) == 0) {
+			cerr << "Loaded "<<V_name()<<" as V Matrix"<<endl;
 			m_V = loader.mat;
 		}
-		if(loader.open(Ename) == 0) {
-			cerr<<"Loaded "<<Ename<<" as singular values"<<endl;
+		if(loader.open(E_name()) == 0) {
+			cerr<<"Loaded "<<E_name()<<" as singular values"<<endl;
 			m_E = loader.mat;
 		}
 	}
@@ -826,6 +804,7 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 	if(!trycontinue || m_E.rows() == 0 || m_V.rows() != m_A.cols() ||
 			m_V.cols() != m_E.rows() || m_U.cols() != m_E.rows() || m_U.rows()
 			!= m_A.rows()) {
+		trycontinue = false;
 		if(fullsvd) {
 			cerr<<"Running XXt SVD"<<endl;
 			m_E = covSVD(m_A, varthresh, &m_U, &m_V);
@@ -835,11 +814,11 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 		}
 		MatMap writer;
 
-		writer.create(Uname, m_U.rows(), m_U.cols());
+		writer.create(U_name(), m_U.rows(), m_U.cols());
 		writer.mat = m_U;
-		writer.create(Vname, m_V.rows(), m_V.cols());
+		writer.create(V_name(), m_V.rows(), m_V.cols());
 		writer.mat = m_V;
-		writer.create(Ename, m_E.rows(), m_E.cols());
+		writer.create(E_name(), m_E.rows(), m_E.cols());
 		writer.mat = m_E;
 	}
 
@@ -859,8 +838,30 @@ void GICAfmri::computeTemporaICA()
 	 */
 	size_t odim[4];
 	cerr<<"Performing Temporal ICA ("<<m_U.rows()<<"x"<<m_U.cols()<<")"<<endl;
-	MatrixXd W(m_U.cols(), m_U.cols());
-	MatrixXd ics = ica(m_U, &W);
+	MatrixXd ics, W;
+
+	if(trycontinue) {
+		MatMap loader;
+		if(loader.open(tica_name()) == 0) {
+			cerr<<"Loaded "<<tica_name()<<" as Indepenent Components"<<endl;
+			ics = loader.mat;
+		}
+		if(loader.open(tw_name()) == 0) {
+			cerr<<"Loaded "<<tw_name()<<" as Unmixing Matrix"<<endl;
+			W = loader.mat;
+		}
+	}
+	if(ics.rows() != m_A.rows() || ics.cols() != m_U.cols()) {
+		trycontinue = false;
+		W.resize(m_U.cols(), m_U.cols());
+		ics = ica(m_U, &W);
+		MatMap writer;
+		writer.create(tica_name(), ics.rows(), ics.cols());
+		writer.mat = ics;
+		writer.create(tw_name(), W.rows(), W.cols());
+		writer.mat = W;
+	}
+	cerr << "Done" << endl;
 
 	// A = UEVt // UW = X // U = XWt // A = XWtEVt
 	// Explained variance for component i: X_iWtE
@@ -906,7 +907,7 @@ void GICAfmri::computeTemporaICA()
 	for(size_t cc=0, tc=0; cc < m_A.cols(); maskn++) {
 		cerr<<"Subject Column: "<<maskn<< " Full Column: "<<cc
 			<<" TallMat Column: "<<tc<<endl;
-		auto mask = readMRImage(m_pref+"_mask_"+to_string(maskn)+".nii.gz");
+		auto mask = readMRImage(mask_name(maskn));
 		for(size_t ii=0; ii<3; ii++)
 			odim[ii] = mask->dim(ii);
 		odim[3] = ics.cols();
@@ -943,8 +944,8 @@ void GICAfmri::computeTemporaICA()
 			}
 		}
 		// write output matching mask
-		tmap->write(m_pref+"_tmap_m"+to_string(maskn)+".nii.gz");
-		bmap->write(m_pref+"_bmap_m"+to_string(maskn)+".nii.gz");
+		tmap->write(tmap_name(maskn));
+		bmap->write(bmap_name(maskn));
 	}
 
 	computeProb(ics.cols(), tvalues);
@@ -956,8 +957,28 @@ void GICAfmri::computeSpatialICA()
 	 * Compute ICA and explained variance
 	 */
 	cerr<<"Performing Spatial ICA ("<<m_V.rows()<<"x"<<m_V.cols()<<")"<<endl;
-	MatrixXd W(m_V.cols(), m_V.cols());
-	MatrixXd ics = ica(m_V, &W);
+	MatrixXd ics, W;
+	if(trycontinue) {
+		MatMap loader;
+		if(loader.open(sica_name()) == 0) {
+			cerr<<"Loaded "<<sica_name()<<" as Indepenent Components"<<endl;
+			ics = loader.mat;
+		}
+		if(loader.open(sw_name()) == 0) {
+			cerr<<"Loaded "<<sw_name()<<" as Unmixing Matrix"<<endl;
+			W = loader.mat;
+		}
+	}
+	if(ics.rows() != m_A.cols() || ics.cols() != m_U.cols()) {
+		trycontinue = false;
+		W.resize(m_V.cols(), m_V.cols());
+		ics = ica(m_V, &W);
+		MatMap writer;
+		writer.create(sica_name(), ics.rows(), ics.cols());
+		writer.mat = ics;
+		writer.create(sw_name(), W.rows(), W.cols());
+		writer.mat = W;
+	}
 	cerr << "Done" << endl;
 
 	// Convert each signal matrix into a t-score
@@ -989,7 +1010,7 @@ void GICAfmri::computeSpatialICA()
 	cerr<<"Computing T-Maps"<<endl;
 	size_t odim[4];
 	for(size_t rr=0, maskn = 0; rr < ics.rows(); maskn++) {
-		auto mask = readMRImage(m_pref+"_mask_"+to_string(maskn)+".nii.gz");
+		auto mask = readMRImage(mask_name(maskn));
 		for(size_t ii=0; ii<3; ii++)
 			odim[ii] = mask->dim(ii);
 		odim[3] = ics.cols();
@@ -1019,8 +1040,8 @@ void GICAfmri::computeSpatialICA()
 			}
 		}
 		// write output matching mask
-		tmap->write(m_pref+"_tmap_m"+to_string(maskn)+".nii.gz");
-		bmap->write(m_pref+"_bmap_m"+to_string(maskn)+".nii.gz");
+		tmap->write(tmap_name(maskn));
+		bmap->write(bmap_name(maskn));
 	}
 
 	computeProb(ics.cols(), tvalues);
@@ -1045,13 +1066,13 @@ void GICAfmri::computeProb(size_t ncomp, Ref<MatrixXd> tvalues)
 
 	for(size_t comp=0; comp<ncomp; comp++) {
 		gaussGammaMixtureModel(tvalues.col(comp), mu.col(comp), sd.col(comp),
-				prior, m_pref+"_tplot"+to_string(comp)+".svg");
+				prior, tplot_name(comp));
 	}
 
 	// now convert the t-scores to p-scores
 	for(size_t cc=0, maskn=0; cc<m_A.cols(); cc++, maskn++) {
-		auto tmap = readMRImage(m_pref+"_tmap_m"+to_string(maskn)+".nii.gz");
-		auto mask = readMRImage(m_pref+"_mask_"+to_string(maskn)+".nii.gz");
+		auto tmap = readMRImage(tmap_name(maskn));
+		auto mask = readMRImage(mask_name(maskn));
 		auto pmap = tmap->copy();
 		auto zmap = tmap->copy();
 		for(Vector3DIter<double> tit(tmap), pit(pmap), zit(zmap), mit(mask);
@@ -1069,8 +1090,8 @@ void GICAfmri::computeProb(size_t ncomp, Ref<MatrixXd> tvalues)
 			}
 			cc++;
 		}
-		zmap->write(m_pref+"_zmap_m"+to_string(maskn)+".nii.gz");
-		pmap->write(m_pref+"_pmap_m"+to_string(maskn)+".nii.gz");
+		zmap->write(zmap_name(maskn));
+		pmap->write(pmap_name(maskn));
 	}
 	cerr << "Done with Regression" << endl;
 }

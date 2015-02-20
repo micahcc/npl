@@ -479,6 +479,66 @@ double mode(const Ref<const VectorXd> data, size_t nbins)
 	return ((0.5+maxi)*width+low);
 }
 
+void plotfit(const Ref<const VectorXd> data,
+		vector<std::function<double(double,double,double)>> pdfs,
+		Ref<VectorXd> mean, Ref<VectorXd> sd, Ref<VectorXd> prior,
+		std::string plotfile)
+{
+	size_t totalwidth = 1024;
+	size_t totalheight = 1024;
+
+	size_t nbins = sqrt(data.rows());
+	size_t steps = 10*nbins;
+	double low = data.minCoeff();
+	double high = data.maxCoeff();
+	double dx = (high-low)/steps;
+	double width = (high-low)/(nbins-1);
+	VectorXd scale(nbins);
+	scale.setZero();
+	for(size_t ii=0; ii<data.rows(); ii++) {
+		size_t b = (data[ii]-low)/width;
+		scale[b]++;
+	}
+	scale = scale/(width*scale.sum());
+
+	double ymax = totalheight/(1.25*scale.maxCoeff());
+	double step = totalwidth/(double)nbins;
+	ofstream ofs(plotfile.c_str());
+	ofs<<"<svg viewBox=\"0 0 "<<totalwidth << " " << totalheight
+		<<"\" xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\"> "<<endl
+		<< "<descr>Hello world</descr>" << endl;
+	for(size_t bb=0; bb<nbins; bb++){
+		double height = ymax*scale[bb];
+		ofs<<"<rect width=\""<<step<<"\" height=\""<<height
+			<<"\" x=\""<<step*bb<<"\" y=\""<<(totalheight-height)<<"\" "
+			<<"fill=\"gainsboro\" stroke=\"white\"></rect>"<<endl;
+	}
+
+	for(size_t tt=0; tt<mean.rows(); tt++) {
+		ofs<<"<polyline fill=\"none\" stroke=\"coral\" stroke-width=\"2\""
+			<<" points=\""<<endl;
+		for(double x=low; x <= high; x+=dx) {
+			double truex = totalwidth*(x-low)/(high-low);
+			double truey = (totalheight-ymax*prior[tt]*pdfs[tt](mean[tt], sd[tt], x));
+			ofs<<truex<<","<<truey<<endl;
+		}
+		ofs<<"\"/>"<<endl<<endl;
+	}
+
+	ofs<<"<polyline fill=\"none\" stroke=\"black\" stroke-width=\"4\""
+		<<" points=\""<<endl;
+	for(double x=low; x <= high; x+=dx) {
+		double truex = totalwidth*(x-low)/(high-low);
+		double y = 0;
+		for(size_t tt=0; tt<mean.rows(); tt++)
+			y += prior[tt]*pdfs[tt](mean[tt], sd[tt], x);
+		double truey = (totalheight-ymax*y);
+		ofs<<truex<<","<<truey<<endl;
+	}
+	ofs<<"\"/>"<<endl<<endl;
+	ofs<<"</svg>"<<endl;
+}
+
 /**
  * @brief Computes the mean and standard deviation of multiple distributions
  * based on 1D data. This is a special version in which a negative gamma, a
@@ -517,9 +577,9 @@ void gaussGammaMixtureModel(const Ref<const VectorXd> data,
 	mu.setZero();
 	sd.setZero();
 	prior.setZero();
-	mu[1] = mode(data, log2(data.rows()));
+	mu[1] = 0;
 	for(size_t ii=0; ii<data.rows(); ii++){
-		double relv = data[ii]-mu[1];
+		double relv = data[ii];
 		prior[1]++;
 		sd[1] += relv*relv;
 		if(relv < 0) {
@@ -544,21 +604,18 @@ void gaussGammaMixtureModel(const Ref<const VectorXd> data,
 	for(size_t iters=0; iters < MAXITERS && change >= THRESH; iters++) {
 #ifdef DEBUG
 		cerr << "Gaussian Mean/Var/Prio: " << mu[1]<<","<<sd[1]<<","<<prior[1]<<endl;
-		cerr << "Gamma Mean/True Mean/Var/Prio: " <<mu[0]<<","<<mu[0]+mu[1]<<","<<sd[0]<<","<<prior[0]<<endl;
-		cerr << "Gamma Mean/True Mean/Var/Prio: " <<mu[2]<<","<<mu[2]+mu[1]<<","<<sd[2]<<","<<prior[2]<<endl;
+		cerr << "Gamma Mean/sd/Prio: " <<mu[0]<<","<<sd[0]<<","<<prior[0]<<endl;
+		cerr << "Gamma Mean/sd/Prio: " <<mu[2]<<","<<sd[2]<<","<<prior[2]<<endl;
 #endif //DEBUG
 		/*
 		 * estimate probabilities
 		 */
 		prob.setZero();
 		for(size_t rr=0; rr<data.rows(); rr++) {
-			double p = 0;
-			p = prior[0]*gammaPDF_MS(mu[0], sd[0], data[rr]-mu[1]);
-			prob(rr, 0) = p;
-			p = prior[1]*gaussianPDF(mu[1], sd[1], data[rr]);
-			prob(rr, 1) = p;
-			p = prior[2]*gammaPDF_MS(mu[2], sd[2], data[rr]-mu[1]);
-			prob(rr, 2) = p;
+			prob(rr, 0) = prior[0]*gammaPDF_MS(mu[0], sd[0], data[rr]);
+			prob(rr, 1) = prior[1]*gaussianPDF(mu[1], sd[1], data[rr]);
+			prob(rr, 2) = prior[2]*gammaPDF_MS(mu[2], sd[2], data[rr]);
+//			cerr<<data[rr]<<"->" <<prob(rr, 0)<<", " <<prob(rr, 1)<<", " <<prob(rr, 2)<<endl;
 			prob.row(rr) /= prob.row(rr).sum();
 		}
 		prob /= prob.sum();
@@ -569,17 +626,14 @@ void gaussGammaMixtureModel(const Ref<const VectorXd> data,
 
 		// update mean of gaussian first
 		pmean = mu;
-		mu[1] = 0;
 		sd[1] = 0;
 		prior[1] = 0;
 		for(size_t rr=0; rr<data.rows(); rr++) {
 			double p = prob(rr,1);
-			mu[1] += p*data[rr];
 			sd[1] += p*data[rr]*data[rr];
 			prior[1] += p;
 		}
-		mu[1] /= prior[1];
-		sd[1] = sqrt(sd[1]/prior[1]-mu[1]*mu[1]);
+		sd[1] = sqrt(sd[1]/prior[1]);
 
 		// Update means (which are relative) of the gammas
 		for(size_t tt=0; tt<3; tt+=2) {
@@ -588,19 +642,24 @@ void gaussGammaMixtureModel(const Ref<const VectorXd> data,
 			prior[tt] = 0;
 			for(size_t rr=0; rr<data.rows(); rr++) {
 				double p = prob(rr,tt);
-				mu[tt] += p*(data[rr]-mu[1]);
-				sd[tt] += p*(data[rr]-mu[1])*(data[rr]-mu[1]);
+				mu[tt] += p*(data[rr]);
+				sd[tt] += p*(data[rr])*(data[rr]);
 				prior[tt] += p;
 			}
 			mu[tt] /= prior[tt];
 			sd[tt] = sqrt(sd[tt]/prior[tt]-mu[tt]*mu[tt]);
 		}
-		//mu=k theta, sd = sqrt(k) theta
+		//mu=k theta, var = k theta * theta
+		//sd = sqrt(k) theta
+		//theta = var / mu
+		//k = theta / mu = var / mu / mu = sd*sd/mu*mu
 		//(mu/sd)^2 = k
-		if(mu[0]/sd[0] < sqrt(2.))
-			mu[0] = sd[0]*sqrt(2.);
-		if(mu[2]/sd[2] < sqrt(2.))
-			mu[2] = sd[2]*sqrt(2.);
+		//mu = sqrt(k)*sd
+		double MINK = 3;
+		if(mu[0]*mu[0]/(sd[0]*sd[0]) < MINK)
+			mu[0] = -sd[0]*sqrt(MINK);
+		if(mu[2]*mu[2]/(sd[2]*sd[2]) < MINK)
+			mu[2] = sd[2]*sqrt(MINK);
 
 		prior /= prior.sum();
 		change = std::max(std::max(std::abs(pmean[0]-mu[0])/sd[0],
@@ -608,75 +667,7 @@ void gaussGammaMixtureModel(const Ref<const VectorXd> data,
 	}
 
 	if(!plotfile.empty()) {
-		size_t totalwidth = 1024;
-		size_t totalheight = 1024;
-
-		size_t nbins = sqrt(data.rows());
-		size_t steps = 5*nbins;;
-		double low = data.minCoeff();
-		double high = data.maxCoeff();
-		double dx = (high-low)/steps;
-		double width = (high-low)/(nbins-1);
-		VectorXd scale(nbins);
-		scale.setZero();
-		for(size_t ii=0; ii<data.rows(); ii++) {
-			size_t b = (data[ii]-low)/width;
-			scale[b]++;
-		}
-		scale = scale/(width*scale.sum());
-
-		double ymax = totalheight/(1.25*scale.maxCoeff());
-		double step = totalwidth/(double)nbins;
-		ofstream ofs(plotfile.c_str());
-		ofs<<"<svg viewBox=\"0 0 "<<totalwidth << " " << totalheight
-			<<"\" xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\"> "<<endl
-			<< "<descr>Hello world</descr>" << endl;
-		for(size_t bb=0; bb<nbins; bb++){
-			double height = ymax*scale[bb];
-			ofs<<"<rect width=\""<<step<<"\" height=\""<<height
-				<<"\" x=\""<<step*bb<<"\" y=\""<<(totalheight-height)<<"\" "
-				<<"fill=\"gainsboro\" stroke=\"white\"></rect>"<<endl;
-		}
-
-		ofs<<"<polyline fill=\"none\" stroke=\"blue\" stroke-width=\"2\""
-			<<" points=\""<<endl;
-		for(double x=low; x <= mu[1]; x+=dx) {
-			double truex = totalwidth*(x-low)/(high-low);
-			double truey = (totalheight-ymax*prior[0]*gammaPDF_MS(mu[0], sd[0], x-mu[1]));
-			ofs<<truex<<","<<truey<<endl;
-		}
-		ofs<<"\"/>"<<endl<<endl;
-
-		ofs<<"<polyline fill=\"none\" stroke=\"coral\" stroke-width=\"2\""
-			<<" points=\""<<endl;
-		for(double x=low; x <= high; x+=dx) {
-			double truex = totalwidth*(x-low)/(high-low);
-			double truey = (totalheight-ymax*prior[1]*gaussianPDF(mu[1], sd[1], x));
-			ofs<<truex<<","<<truey<<endl;
-		}
-		ofs<<"\"/>"<<endl<<endl;
-
-		ofs<<"<polyline fill=\"none\" stroke=\"red\" stroke-width=\"2\""
-			<<" points=\""<<endl;
-		for(double x=mu[1]; x <= high; x+=dx) {
-			double truex = totalwidth*(x-low)/(high-low);
-			double truey = (totalheight-ymax*prior[2]*gammaPDF_MS(mu[2], sd[2], x-mu[1]));
-			ofs<<truex<<","<<truey<<endl;
-		}
-
-		ofs<<"<polyline fill=\"none\" stroke=\"black\" stroke-width=\"4\""
-			<<" points=\""<<endl;
-		for(double x=mu[1]; x <= high; x+=dx) {
-			double truex = totalwidth*(x-low)/(high-low);
-			double truey = (totalheight-ymax*(
-						prior[0]*gammaPDF_MS(mu[0], sd[0], x-mu[1])+
-						prior[1]*gaussianPDF(mu[1], sd[1], x)+
-						prior[2]*gammaPDF_MS(mu[2], sd[2], x-mu[1])
-						));
-			ofs<<truex<<","<<truey<<endl;
-		}
-		ofs<<"\"/>"<<endl<<endl;
-		ofs<<"</svg>"<<endl;
+		plotfit(data, pdfs, mu, sd, prior, plotfile);
 	}
 }
 
@@ -758,59 +749,7 @@ void expMax1D(const Ref<const VectorXd> data,
 	}
 
 	if(!plotfile.empty()) {
-		size_t totalwidth = 1024;
-		size_t totalheight = 1024;
-
-		size_t nbins = sqrt(data.rows());
-		size_t steps = 10*nbins;
-		double low = data.minCoeff();
-		double high = data.maxCoeff();
-		double dx = (high-low)/steps;
-		double width = (high-low)/(nbins-1);
-		VectorXd scale(nbins);
-		scale.setZero();
-		for(size_t ii=0; ii<data.rows(); ii++) {
-			size_t b = (data[ii]-low)/width;
-			scale[b]++;
-		}
-		scale = scale/(width*scale.sum());
-
-		double ymax = totalheight/(1.25*scale.maxCoeff());
-		double step = totalwidth/(double)nbins;
-		ofstream ofs(plotfile.c_str());
-		ofs<<"<svg viewBox=\"0 0 "<<totalwidth << " " << totalheight
-			<<"\" xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\"> "<<endl
-			<< "<descr>Hello world</descr>" << endl;
-		for(size_t bb=0; bb<nbins; bb++){
-			double height = ymax*scale[bb];
-			ofs<<"<rect width=\""<<step<<"\" height=\""<<height
-				<<"\" x=\""<<step*bb<<"\" y=\""<<(totalheight-height)<<"\" "
-				<<"fill=\"gainsboro\" stroke=\"white\"></rect>"<<endl;
-		}
-
-		for(size_t tt=0; tt<mean.rows(); tt++) {
-			ofs<<"<polyline fill=\"none\" stroke=\"coral\" stroke-width=\"2\""
-				<<" points=\""<<endl;
-			for(double x=low; x <= high; x+=dx) {
-				double truex = totalwidth*(x-low)/(high-low);
-				double truey = (totalheight-ymax*prior[tt]*pdfs[tt](mean[tt], sd[tt], x));
-				ofs<<truex<<","<<truey<<endl;
-			}
-			ofs<<"\"/>"<<endl<<endl;
-		}
-
-		ofs<<"<polyline fill=\"none\" stroke=\"black\" stroke-width=\"4\""
-			<<" points=\""<<endl;
-		for(double x=low; x <= high; x+=dx) {
-			double truex = totalwidth*(x-low)/(high-low);
-			double y = 0;
-			for(size_t tt=0; tt<mean.rows(); tt++)
-				y += prior[tt]*pdfs[tt](mean[tt], sd[tt], x);
-			double truey = (totalheight-ymax*y);
-			ofs<<truex<<","<<truey<<endl;
-		}
-		ofs<<"\"/>"<<endl<<endl;
-		ofs<<"</svg>"<<endl;
+		plotfit(data, pdfs, mean, sd, prior, plotfile);
 	}
 }
 
