@@ -779,6 +779,7 @@ void GICAfmri::computeTemporaICA()
 	size_t matn = 0; // matrix number (tall matrices)
 	size_t maskn = 0; // Mask number
 	MatMap tall(m_A.tallMatName(matn));
+	MatrixXd tvalues(m_A.cols(), ics.cols());
 	cerr<<"Regressing full dataset"<<endl;
 	for(size_t cc=0, tc=0; cc < m_A.cols(); maskn++) {
 		cerr<<"Subject Column: "<<maskn<< " Full Column: "<<cc
@@ -789,18 +790,16 @@ void GICAfmri::computeTemporaICA()
 		odim[3] = ics.cols();
 
 		auto tmap = mask->copyCast(4, odim, FLOAT32);
-		auto pmap = mask->copyCast(4, odim, FLOAT32);
 		auto bmap = mask->copyCast(4, odim, FLOAT32);
 		NDIter<int> mit(mask);
-		Vector3DIter<double> tit(tmap), bit(bmap), pit(pmap);
+		Vector3DIter<double> tit(tmap), bit(bmap);
 
 		// Iterate Through pixels of mask
-		for(; !mit.eof(); ++mit, ++tit, ++bit, ++pit) {
+		for(; !mit.eof(); ++mit, ++tit, ++bit) {
 			if(*mit == 0) {
 				for(size_t comp=0; comp<ics.cols(); comp++) {
 					tit.set(comp, 0);
 					bit.set(comp, 0);
-					pit.set(comp, 0);
 				}
 			} else {
 				// Load the next block of columns as necessary
@@ -814,8 +813,8 @@ void GICAfmri::computeTemporaICA()
 				for(size_t comp=0; comp<ics.cols(); comp++) {
 					size_t trcomp = sorted[comp];
 					tit.set(comp, result.t[trcomp]);
-					pit.set(comp, 1-result.p[trcomp]);
 					bit.set(comp, result.bhat[trcomp]);
+					tvalues(cc, comp) = result.t[trcomp];
 				}
 				tc++;
 				cc++;
@@ -824,8 +823,9 @@ void GICAfmri::computeTemporaICA()
 		// write output matching mask
 		tmap->write(m_pref+"_tmap_m"+to_string(maskn)+".nii.gz");
 		bmap->write(m_pref+"_bmap_m"+to_string(maskn)+".nii.gz");
-		pmap->write(m_pref+"_pmap_m"+to_string(maskn)+".nii.gz");
 	}
+
+	computeProb(ics.cols(), tvalues);
 }
 
 void GICAfmri::computeSpatialICA()
@@ -920,19 +920,10 @@ void GICAfmri::computeProb(size_t ncomp, Ref<MatrixXd> tvalues)
 	MatrixXd mu(3, ncomp);
 	MatrixXd sd(3, ncomp);
 	VectorXd prior(3);
-	vector<std::function<double(double,double,double)>> pdfs;
-	pdfs.push_back(gammaPDF_MS);
-	pdfs.push_back(gaussianPDF); // middle is the gaussian that we care about
-	pdfs.push_back(gammaPDF_MS);
 
-	size_t nbins = log2(tvalues.rows());
 	for(size_t comp=0; comp<ncomp; comp++) {
-
-		expMax1D(tvalues.col(comp), pdfs, mu.col(comp), sd.col(comp), prior,
-				m_pref+"_tplot"+to_string(comp)+".svg");
-
-		// acount for the shift due to mode calculation
-		mu(1, comp) += (maxi*width+low);
+		gaussGammaMixtureModel(tvalues.col(comp), mu.col(comp), sd.col(comp),
+				prior, m_pref+"_tplot"+to_string(comp)+".svg");
 	}
 
 	// now convert the t-scores to p-scores

@@ -458,12 +458,32 @@ double gammaPDF_MS(double mean, double sd, double x)
 	return p;
 }
 
+double mode(const Ref<const VectorXd> data, size_t nbins)
+{
+	// estimate the mode, then center on it
+	double low = data.minCoeff();
+	double high = data.maxCoeff();
+	double width = (high-low)/(nbins-1);
+	VectorXd bins(nbins);
+	bins.setZero();
+	for(size_t ii=0; ii<data.rows(); ii++) {
+		size_t b = (data[ii]-low)/width;
+		bins[b]++;
+	}
+	bins = bins/(width*bins.sum());
+	size_t maxi=0;
+	for(size_t ii=0; ii<nbins; ii++) {
+		if(bins[ii] > bins[maxi])
+			maxi = ii;
+	}
+	return ((0.5+maxi)*width+low);
+}
+
 /**
  * @brief Computes the mean and standard deviation of multiple distributions
- * based on 1D data.
- *
- * This is a special version in which a negative gamma, a gaussian and a
- * positive gamma are fit.
+ * based on 1D data. This is a special version in which a negative gamma, a
+ * gaussian and positive gamma. The means of the negative and positive gamma
+ * are relative to the center of the gaussian
  *
  * @param data Data points to fit
  * @param pdfs Probability distribution functions of the form pdf(mu, sd, x)
@@ -477,98 +497,107 @@ double gammaPDF_MS(double mean, double sd, double x)
  * @param plotfile file to plot histogram in (svg)
  */
 void gaussGammaMixtureModel(const Ref<const VectorXd> data,
-		Ref<VectorXd> mean, Ref<VectorXd> sd, Ref<VectorXd> prior,
+		Ref<VectorXd> mu, Ref<VectorXd> sd, Ref<VectorXd> prior,
 		std::string plotfile)
 {
-	if(mean.rows() != 3 || sd.rows() != 3 || pdfs.size() != 3)
+	if(mu.rows() != 3 || sd.rows() != 3)
 		throw INVALID_ARGUMENT("Input mean and standard deviation must be "
 				"initialized and size of 3");
 
 	size_t MAXITERS = 1000;
 	double THRESH = 0.01;
-	size_t ndist = pdfs.size();
+	size_t ndist = 3;
 	double change = THRESH;
 
 	vector<std::function<double(double,double,double)>> pdfs({
 			gammaPDF_MS, gaussianPDF, gammaPDF_MS});
 
 	// Initialize Distributions
-	double k, theta, mode;
 	VectorXd pmean(3);
-	mean.setZero();
+	mu.setZero();
 	sd.setZero();
 	prior.setZero();
-	for(size_t ii=0; ii<tvalues.rows(); ii++){
-		double t = tvalues(ii, comp);
+	mu[1] = mode(data, log2(data.rows()));
+	for(size_t ii=0; ii<data.rows(); ii++){
+		double relv = data[ii]-mu[1];
 		prior[1]++;
-		mu(1,comp) += t;
-		sd(1,comp) += t*t;
-		if(t < 0) {
+		sd[1] += relv*relv;
+		if(relv < 0) {
 			prior[0]++;
-			mu(0,comp) += t;
-			sd(0,comp) += t*t;
+			mu[0] += relv;
+			sd[0] += relv*relv;
 		} else {
 			prior[2]++;
-			mu(2,comp) += t;
-			sd(2,comp) += t*t;
+			mu[2] += relv;
+			sd[2] += relv*relv;
 		}
 	}
-	for(size_t ii=0; ii<3; ii++) {
-		mu(ii,comp) /= prior[ii];
-		sd(ii,comp) = sqrt(sd(ii,comp)/prior[ii]-mu(ii,comp)*mu(ii,comp));
-	}
+	mu[0] /= prior[0];
+	mu[2] /= prior[2];
+	sd[0] = sqrt(sd[0]/prior[0]-mu[0]*mu[0]);
+	sd[1] = sqrt(sd[1]/prior[1]);
+	sd[2] = sqrt(sd[2]/prior[2]-mu[2]*mu[2]);
 	prior /= prior.sum();
 
-	// Perform EM with the constrain that modes of gammas must be outside mean
-	// of gaussian
+	// Perform EM with means of the gaussians relative to the mean of center
 	MatrixXd prob(data.rows(), ndist);
 	for(size_t iters=0; iters < MAXITERS && change >= THRESH; iters++) {
+#ifdef DEBUG
+		cerr << "Gaussian Mean/Var/Prio: " << mu[1]<<","<<sd[1]<<","<<prior[1]<<endl;
+		cerr << "Gamma Mean/True Mean/Var/Prio: " <<mu[0]<<","<<mu[0]+mu[1]<<","<<sd[0]<<","<<prior[0]<<endl;
+		cerr << "Gamma Mean/True Mean/Var/Prio: " <<mu[2]<<","<<mu[2]+mu[1]<<","<<sd[2]<<","<<prior[2]<<endl;
+#endif //DEBUG
 		/*
 		 * estimate probabilities
 		 */
 		prob.setZero();
-		for(size_t rr=0; rr<prob.rows(); rr++) {
-			double total = 0;
-			for(size_t cc=0; cc<prob.cols(); cc++) {
-				double p = prior[cc]*pdfs[cc](mean[cc], sd[cc], data[rr]);
-				prob(rr, cc) = p;
-				total += prob(rr,cc);
-			}
-			prob.row(rr) /= total;
+		for(size_t rr=0; rr<data.rows(); rr++) {
+			double p = 0;
+			p = prior[0]*gammaPDF_MS(mu[0], sd[0], data[rr]-mu[1]);
+			prob(rr, 0) = p;
+			p = prior[1]*gaussianPDF(mu[1], sd[1], data[rr]);
+			prob(rr, 1) = p;
+			p = prior[2]*gammaPDF_MS(mu[2], sd[2], data[rr]-mu[1]);
+			prob(rr, 2) = p;
+			prob.row(rr) /= prob.row(rr).sum();
 		}
 		prob /= prob.sum();
 
 		/*
 		 * update means/stddevs
 		 */
-		pmean = mean;
-		change = 0;
-		for(size_t tt=0; tt<prior.rows(); tt++) {
-			mean[tt] = 0;
+
+		// update mean of gaussian first
+		pmean = mu;
+		mu[1] = 0;
+		sd[1] = 0;
+		prior[1] = 0;
+		for(size_t rr=0; rr<data.rows(); rr++) {
+			double p = prob(rr,1);
+			mu[1] += p*data[rr];
+			sd[1] += p*data[rr]*data[rr];
+			prior[1] += p;
+		}
+		mu[1] /= prior[1];
+		sd[1] = sqrt(sd[1]/prior[1]-mu[1]*mu[1]);
+
+		// Update means (which are relative) of the gammas
+		for(size_t tt=0; tt<3; tt+=2) {
+			mu[tt] = 0;
 			sd[tt] = 0;
 			prior[tt] = 0;
 			for(size_t rr=0; rr<data.rows(); rr++) {
-				mean[tt] += prob(rr,tt)*data[rr];
-				sd[tt] += prob(rr,tt)*data[rr]*data[rr];
-				prior[tt] += prob(rr,tt);
+				double p = prob(rr,tt);
+				mu[tt] += p*(data[rr]-mu[1]);
+				sd[tt] += p*(data[rr]-mu[1])*(data[rr]-mu[1]);
+				prior[tt] += p;
 			}
-			mean[tt] /= prior[tt];
-			sd[tt] = sqrt(sd[tt]/prior[tt]-mean[tt]*mean[tt]);
-
+			mu[tt] /= prior[tt];
+			sd[tt] = sqrt(sd[tt]/prior[tt]-mu[tt]*mu[tt]);
 		}
-
-		// apply k constraint
-		theta = sd[0]*sd[0]/mean[0];
-		k = mean[0]/theta;
-		if(k <= 1) {
-			k = 1.1;
-			theta = sqrt(sd[0]*sd[0]/k);
-			mean[0] = k*theta;
-		}
-
-		// apply mode constraint
-		mode = (k-1)*theta;
 		prior /= prior.sum();
+		change = std::max(std::max(std::abs(pmean[0]-mu[0])/sd[0],
+					fabs(pmean[1]-mu[1])/sd[1]), fabs(pmean[2]-mu[2])/sd[2]);
 	}
 
 	if(!plotfile.empty()) {
@@ -604,9 +633,9 @@ void gaussGammaMixtureModel(const Ref<const VectorXd> data,
 
 		ofs<<"<polyline fill=\"none\" stroke=\"blue\" stroke-width=\"2\""
 			<<" points=\""<<endl;
-		for(double x=low; x <= 0; x+=dx) {
+		for(double x=low; x <= mu[1]; x+=dx) {
 			double truex = totalwidth*(x-low)/(high-low);
-			double truey = (totalheight-ymax*prior[0]*gammaPDF_MS(mean[0], sd[0], x));
+			double truey = (totalheight-ymax*prior[0]*gammaPDF_MS(mu[0], sd[0], x-mu[1]));
 			ofs<<truex<<","<<truey<<endl;
 		}
 		ofs<<"\"/>"<<endl<<endl;
@@ -615,16 +644,16 @@ void gaussGammaMixtureModel(const Ref<const VectorXd> data,
 			<<" points=\""<<endl;
 		for(double x=low; x <= high; x+=dx) {
 			double truex = totalwidth*(x-low)/(high-low);
-			double truey = (totalheight-ymax*prior[1]*gaussianPDF(mean[1], sd[1], x));
+			double truey = (totalheight-ymax*prior[1]*gaussianPDF(mu[1], sd[1], x));
 			ofs<<truex<<","<<truey<<endl;
 		}
 		ofs<<"\"/>"<<endl<<endl;
 
 		ofs<<"<polyline fill=\"none\" stroke=\"red\" stroke-width=\"2\""
 			<<" points=\""<<endl;
-		for(double x=0; x <= high; x+=dx) {
+		for(double x=mu[1]; x <= high; x+=dx) {
 			double truex = totalwidth*(x-low)/(high-low);
-			double truey = (totalheight-ymax*prior[2]*gammaPDF_MS(mean[2], sd[2], x));
+			double truey = (totalheight-ymax*prior[2]*gammaPDF_MS(mu[2], sd[2], x-mu[1]));
 			ofs<<truex<<","<<truey<<endl;
 		}
 		ofs<<"\"/>"<<endl<<endl;

@@ -538,6 +538,27 @@ void expMax1D(const Ref<const VectorXd> data,
 		std::string plotfile = "");
 
 /**
+ * @brief Computes the mean and standard deviation of multiple distributions
+ * based on 1D data. This is a special version in which a negative gamma, a
+ * gaussian and positive gamma. The means of the negative and positive gamma
+ * are relative to the center of the gaussian
+ *
+ * @param data Data points to fit
+ * @param pdfs Probability distribution functions of the form pdf(mu, sd, x)
+ * and returning the probability density at x
+ * @param mean Output mean of each distribution, value when called will be used
+ * for initialization so it should be pre-set and pre-allocated
+ * @param sd Output standard deviation of each distribution, value when called
+ * will be used for initialization so it should be pre-set and pre-allocated
+ * @param prior Output prior probability of each distribution, initial value is
+ * not used but it should be pre-allocated
+ * @param plotfile file to plot histogram in (svg)
+ */
+void gaussGammaMixtureModel(const Ref<const VectorXd> data,
+		Ref<VectorXd> mu, Ref<VectorXd> sd, Ref<VectorXd> prior,
+		std::string plotfile);
+
+/**
  * @brief Approximates k-means using the algorithm of:
  *
  * 'Fast Approximate k-Means via Cluster Closures' by Wang et al
