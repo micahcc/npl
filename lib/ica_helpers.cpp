@@ -137,6 +137,24 @@ VectorXd onDiskSVD(const MatrixReorg& A, int minrank, size_t poweriters,
  * @brief Estimates noise in columns of A by computing the difference between
  * the columns of A and the predicted columns from UEVt.
  *
+ * Let A = UEVt, and VW = S and Vt = WS^t and A=UEWS^t, and form a regression
+ * using A = XB, with X = UEW and B = S^t, then
+ * inv(XtX) = inv(WtEUtUEW)
+ * inv(XtX) = inv(WtE^2W)
+ * inv(XtX) = WtE^-2W
+ *
+ * B(COMP, OUTNUM)
+ * ssres = (UEV-A)^2_outnum
+ * SIGMAHAT(OUTNUM) = ssres/(SAMPLES-REGRESSORS)
+ * STDERR(OUTNUM,REGRESSOR) = beta(OUTNUM, /(SAMPLES-REGRESSORS)
+ *
+ * Standard error = sqrt(sigmahat*C^-1_ii)
+ * C^1 = ((UEW)^t(UEW))^1
+ * C^1 = (WtE^2W))^1
+ * C^1 = WtE^-2W
+ *
+ * B(COMP,OUTNUM) = IC(OUTNUM, COMP)
+ *
  * @param A Matrix with noisy full data
  * @param U U matrix in SVD
  * @param E E diagonal matrix in SVD
@@ -144,18 +162,32 @@ VectorXd onDiskSVD(const MatrixReorg& A, int minrank, size_t poweriters,
  *
  * @return Vector of errors, one for each column in A
  */
-VectorXd estnoise(const MatrixReorg& A,
-		Ref<MatrixXd> U, Ref<VectorXd> E, Ref<MatrixXd> V)
+MatrixXd icsToT(const MatrixReorg& A,
+		Ref<MatrixXd> U, Ref<VectorXd> E, Ref<MatrixXd> V,
+		Ref<MatrixXd> W, Ref<MatrixXd> ics)
 {
-	VectorXd out(A.cols());
+	// sigmahat = (A - UEV^t), for each column there is a sigma hat
+	size_t nreg = U.cols();
+	size_t npoints = U.rows();
+	VectorXd Cinv = (W.transpose()*(E.array().pow(-2)).matrix().asDiagonal()*W).diagonal();
+	MatrixXd out = ics;
 	size_t oc = 0;
 	for(size_t cg = 0; cg < A.tallMatCols().size(); cg++) {
 		MatMap m(A.tallMatName(cg));
 		if(A.tallMatCols()[cg] != m.cols())
 			throw INVALID_ARGUMENT("Columns mismatch between read data and "
 					"previously written data");
-		for(size_t cc=0; cc<m.cols(); cc++, oc++)
-			out[oc] = (m.mat.col(cc)-U*E.asDiagonal()*V.row(oc).transpose()).norm();
+		for(size_t cc=0; cc<m.cols(); cc++, oc++) {
+			double ssres = (m.mat.col(cc)-U*E.asDiagonal()*V.row(oc).
+					transpose()).squaredNorm();
+			double sigmahat = ssres/(npoints-nreg);
+			for(size_t comp=0; comp < ics.cols(); comp++) {
+				double std_err = sqrt(sigmahat*Cinv[comp]);
+				double beta = ics(oc, comp);
+				double t = beta/std_err;
+				out(oc, comp) = t;
+			}
+		}
 	}
 	return out;
 }
@@ -748,7 +780,6 @@ void GICAfmri::computeTemporaICA()
 	size_t maskn = 0; // Mask number
 	MatMap tall(m_A.tallMatName(matn));
 	cerr<<"Regressing full dataset"<<endl;
-	MatrixXd tvalues(m_A.cols(), ics.cols());
 	for(size_t cc=0, tc=0; cc < m_A.cols(); maskn++) {
 		cerr<<"Subject Column: "<<maskn<< " Full Column: "<<cc
 			<<" TallMat Column: "<<tc<<endl;
@@ -758,12 +789,13 @@ void GICAfmri::computeTemporaICA()
 		odim[3] = ics.cols();
 
 		auto tmap = mask->copyCast(4, odim, FLOAT32);
+		auto pmap = mask->copyCast(4, odim, FLOAT32);
 		auto bmap = mask->copyCast(4, odim, FLOAT32);
 		NDIter<int> mit(mask);
-		Vector3DIter<double> tit(tmap), bit(bmap);
+		Vector3DIter<double> tit(tmap), bit(bmap), pit(pmap);
 
 		// Iterate Through pixels of mask
-		for(; !mit.eof(); ++mit, ++tit, ++bit) {
+		for(; !mit.eof(); ++mit, ++tit, ++bit, ++pit) {
 			if(*mit == 0) {
 				for(size_t comp=0; comp<ics.cols(); comp++) {
 					tit.set(comp, 0);
@@ -781,8 +813,8 @@ void GICAfmri::computeTemporaICA()
 				for(size_t comp=0; comp<ics.cols(); comp++) {
 					size_t trcomp = sorted[comp];
 					tit.set(comp, result.t[trcomp]);
+					pit.set(comp, result.p[trcomp]);
 					bit.set(comp, result.bhat[trcomp]);
-					tvalues(cc, comp) = result.t[trcomp];
 				}
 				tc++;
 				cc++;
@@ -792,8 +824,6 @@ void GICAfmri::computeTemporaICA()
 		tmap->write(m_pref+"_tmap_m"+to_string(maskn)+".nii.gz");
 		bmap->write(m_pref+"_bmap_m"+to_string(maskn)+".nii.gz");
 	}
-
-	computeProb(ics.cols(), tvalues);
 }
 
 void GICAfmri::computeSpatialICA()
@@ -809,12 +839,13 @@ void GICAfmri::computeSpatialICA()
 	// Convert each signal matrix into a t-score
 	// A = UEVt, VW = X, WXt = Vt, A = UEWXt, A = UEWB
 	cerr<<"Estimating Noise"<<endl;
-	VectorXd sigma = estnoise(m_A, m_U, m_E, m_V);
+	MatrixXd tvalues = icsToT(m_A, m_U, m_E, m_V, W, ics);
 
 	// explained variance for component var UEWB_i (ith row), EWB_i
 	VectorXd expvar(ics.cols());
 	for(size_t cc=0; cc<ics.cols(); cc++)
-		expvar[cc] = (m_E.asDiagonal()*W*ics.col(cc)).squaredNorm();
+		expvar[cc] = (m_E.asDiagonal()*W.col(cc)*ics.col(cc).transpose()).
+			array().square().sum();
 	expvar /= expvar.sum();
 
 	// Create Sorted Lookup for explained variance
@@ -833,7 +864,6 @@ void GICAfmri::computeSpatialICA()
 	 */
 	cerr<<"Computing T-Maps"<<endl;
 	size_t odim[4];
-	MatrixXd tvalues(m_A.cols(), ics.cols());
 	for(size_t rr=0, maskn = 0; rr < ics.rows(); maskn++) {
 		auto mask = readMRImage(m_pref+"_mask_"+to_string(maskn)+".nii.gz");
 		for(size_t ii=0; ii<3; ii++)
@@ -857,10 +887,9 @@ void GICAfmri::computeSpatialICA()
 				for(size_t comp=0; comp<ics.cols(); comp++) {
 					size_t trcomp = sorted[comp];
 					double b = ics(rr, trcomp);
-					double t = sigma[rr] == 0 ? 0 : b/sigma[rr];
+					double t = tvalues(rr, trcomp);
 					tit.set(comp, t);
 					bit.set(comp, b);
-					tvalues(rr, comp) = t;
 				}
 				rr++;
 			}
@@ -874,7 +903,14 @@ void GICAfmri::computeSpatialICA()
 	cerr<<"Done with Spatial ICA!"<<endl;
 }
 
-void GICAfmri::computeProb(size_t ncomp, const MatrixXd& tvalues)
+/**
+ * @brief Converts T-Values to probabilities and z-scores. Note that the input
+ * "tvalues" will actually be centered on the mode of the distribution
+ *
+ * @param ncomp
+ * @param tvalues
+ */
+void GICAfmri::computeProb(size_t ncomp, Ref<MatrixXd> tvalues)
 {
 	cerr<<"Fitting T-maps"<<endl;
 	MatrixXd mu(3, ncomp);
@@ -885,10 +921,62 @@ void GICAfmri::computeProb(size_t ncomp, const MatrixXd& tvalues)
 	pdfs.push_back(gaussianPDF); // middle is the gaussian that we care about
 	pdfs.push_back(gammaPDF_MS);
 
+	size_t nbins = log2(tvalues.rows());
 	for(size_t comp=0; comp<ncomp; comp++) {
-		mu.col(comp) << -1,0,1;
-		sd.col(comp) << 1,1,1;
-		expMax1D(tvalues.col(comp), pdfs, mu.col(comp), sd.col(comp), prior);
+
+		// estimate the mode, then center on it
+		double low = tvalues.col(comp).minCoeff();
+		double high = tvalues.col(comp).maxCoeff();
+		double width = (high-low)/(nbins-1);
+		VectorXd bins(nbins);
+		bins.setZero();
+		for(size_t ii=0; ii<tvalues.rows(); ii++) {
+			size_t b = (tvalues(ii, comp)-low)/width;
+			bins[b]++;
+		}
+		bins = bins/(width*bins.sum());
+		size_t maxi=0;
+		for(size_t ii=0; ii<nbins; ii++) {
+			if(bins[ii] > bins[maxi])
+				maxi = ii;
+		}
+		cerr << "Mode: "<<maxi<<" = " << (maxi*width + low) <<endl;
+		for(size_t rr=0; rr<tvalues.rows(); rr++)
+			tvalues(rr,comp) -= (maxi*width + low);
+
+		// Initialize Distributions
+		mu.col(comp).setZero();
+		sd.col(comp).setZero();
+		prior.setZero();
+		for(size_t ii=0; ii<tvalues.rows(); ii++){
+			double t = tvalues(ii, comp);
+			prior[1]++;
+			mu(1,comp) += t;
+			sd(1,comp) += t*t;
+			if(t < 0) {
+				prior[0]++;
+				mu(0,comp) += t;
+				sd(0,comp) += t*t;
+			} else {
+				prior[2]++;
+				mu(2,comp) += t;
+				sd(2,comp) += t*t;
+			}
+		}
+		for(size_t ii=0; ii<3; ii++) {
+			mu(ii,comp) /= prior[ii];
+			sd(ii,comp) = sqrt(sd(ii,comp)/prior[ii]-mu(ii,comp)*mu(ii,comp));
+		}
+		prior /= prior.sum();
+		mu(1, comp) = 0;
+
+		cerr << "Initial Mean: "<<mu.transpose().row(comp)<<endl;
+		cerr << "Initial sd: "<<sd.transpose().row(comp)<<endl;
+		expMax1D(tvalues.col(comp), pdfs, mu.col(comp), sd.col(comp), prior,
+				m_pref+"_tplot"+to_string(comp)+".svg");
+
+		// acount for the shift due to mode calculation
+		mu(1, comp) += (maxi*width+low);
 	}
 
 	// now convert the t-scores to p-scores
@@ -896,19 +984,24 @@ void GICAfmri::computeProb(size_t ncomp, const MatrixXd& tvalues)
 		auto tmap = readMRImage(m_pref+"_tmap_m"+to_string(maskn)+".nii.gz");
 		auto mask = readMRImage(m_pref+"_mask_"+to_string(maskn)+".nii.gz");
 		auto pmap = tmap->copy();
-		for(Vector3DIter<double> tit(tmap), pit(pmap), mit(mask); !tit.eof();
-					++mit, ++tit, ++pit) {
+		auto zmap = tmap->copy();
+		for(Vector3DIter<double> tit(tmap), pit(pmap), zit(zmap), mit(mask);
+					!tit.eof(); ++mit, ++tit, ++pit, ++zit) {
 			if(mit[0] == 0)
 				continue;
 			for(size_t comp=0; comp<ncomp; comp++) {
-				double p = 0.5*gaussianCDF(mu(1, comp), sd(1, comp), tit[comp]);
+				double z = (tit[comp]-mu(1,comp))/sd(1,comp);
+				double p = 0.5*prior[1]*gaussianCDF(mu(1, comp), sd(1, comp), z);
 				if(p > 0.5) p = 1-p;
 				p /= 2;
 				p = 1-p;
+				zit.set(comp, z);
 				pit.set(comp, p);
 			}
 			cc++;
 		}
+		zmap->write(m_pref+"_zmap_m"+to_string(maskn)+".nii.gz");
+		pmap->write(m_pref+"_pmap_m"+to_string(maskn)+".nii.gz");
 	}
 	cerr << "Done with Regression" << endl;
 }

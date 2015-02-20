@@ -364,6 +364,35 @@ void regress(RegrResult* out,
 }
 
 /**
+ * @brief Computes the Ordinary Least Square predictors, beta for
+ *
+ * \f$ y = X \hat \beta \f$
+ *
+ * Returning beta. This is the same as the other regress function, but allows
+ * for cacheing of pseudoinverse of X
+ *
+ * @param out Struct with Regression Results.
+ * @param y response variables
+ * @param X independent variables
+ *
+ */
+void regress(RegrResult* out,
+		const Ref<const VectorXd> y,
+		const Ref<const MatrixXd> X)
+{
+	if(y.rows() != X.rows())
+		throw INVALID_ARGUMENT("y and X matrices row mismatch");
+
+	// need to compute the CDF for students_t_cdf
+	const double MAX_T = 100;
+	const double STEP_T = 0.1;
+	StudentsT distrib(out->dof, STEP_T, MAX_T);
+
+	MatrixXd Xinv = pseudoInverse(X);
+	VectorXd covInv = pseudoInverse(X.transpose()*X).diagonal();
+}
+
+/**
  * @brief 1D Gaussian distribution function
  *
  * @param mean Mean of gaussian distribution
@@ -455,11 +484,9 @@ void expMax1D(const Ref<const VectorXd> data,
 				"initialized and have the same size as pdfs");
 
 	size_t MAXITERS = 1000;
-	double THRESH = 0.00001;
+	double THRESH = 0.01;
 	size_t ndist = pdfs.size();
 	double change = THRESH;
-	for(size_t ii=0; ii<ndist; ii++)
-		prior[ii] = 1./ndist;
 
 	MatrixXd prob(data.rows(), ndist);
 	for(size_t iters=0; iters < MAXITERS && change >= THRESH; iters++) {
@@ -495,22 +522,31 @@ void expMax1D(const Ref<const VectorXd> data,
 			mean[tt] /= prior[tt];
 			sd[tt] = sqrt(sd[tt]/prior[tt]-mean[tt]*mean[tt]);
 
-			if(fabs(pmean - mean[tt]) > change)
-				change = fabs(pmean - mean[tt]);
+			if(sd[tt] != 0 && fabs(pmean - mean[tt])/sd[tt] > change)
+				change = fabs(pmean - mean[tt])/sd[tt];
 		}
 		prior /= prior.sum();
+
+//#ifdef DEBUG
+//		cerr << "iter="<<iters<<endl;
+//		cerr << "Means: " << mean.transpose()<< endl;
+//		cerr << "Sigmas: " << sd.transpose() << endl;
+//		cerr << "Weight: " << prior.transpose() << endl << endl;
+//#endif //DEBUG
 	}
 
 	if(!plotfile.empty()) {
 		size_t totalwidth = 1024;
 		size_t totalheight = 1024;
-		double dx = 0.1;
 
 		size_t nbins = sqrt(data.rows());
+		size_t steps = 5*nbins;;
 		double low = data.minCoeff();
 		double high = data.maxCoeff();
+		double dx = (high-low)/steps;
 		double width = (high-low)/(nbins-1);
 		VectorXd scale(nbins);
+		scale.setZero();
 		for(size_t ii=0; ii<data.rows(); ii++) {
 			size_t b = (data[ii]-low)/width;
 			scale[b]++;
@@ -558,35 +594,6 @@ void expMax1D(const Ref<const VectorXd> data,
 		ofs<<"\"/>"<<endl<<endl;
 		ofs<<"</svg>"<<endl;
 	}
-}
-
-/**
- * @brief Computes the Ordinary Least Square predictors, beta for
- *
- * \f$ y = X \hat \beta \f$
- *
- * Returning beta. This is the same as the other regress function, but allows
- * for cacheing of pseudoinverse of X
- *
- * @param out Struct with Regression Results.
- * @param y response variables
- * @param X independent variables
- *
- */
-void regress(RegrResult* out,
-		const Ref<const VectorXd> y,
-		const Ref<const MatrixXd> X)
-{
-	if(y.rows() != X.rows())
-		throw INVALID_ARGUMENT("y and X matrices row mismatch");
-
-	// need to compute the CDF for students_t_cdf
-	const double MAX_T = 100;
-	const double STEP_T = 0.1;
-	StudentsT distrib(out->dof, STEP_T, MAX_T);
-
-	MatrixXd Xinv = pseudoInverse(X);
-	VectorXd covInv = pseudoInverse(X.transpose()*X).diagonal();
 }
 
 /**

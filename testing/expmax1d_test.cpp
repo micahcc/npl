@@ -90,6 +90,7 @@ int main()
 	pdfs.push_back(gammaPDF_MS);
 	mu << -1,0,1;
 	sd << 1,1,1;
+	prior << .3,.3,.3;
 	expMax1D(samples, pdfs, mu, sd, prior, "expmax1d_test.svg");
 
 	cerr<<"Negative Gauss: "<<mu[0]<<", "<<sd[0]<<endl;
