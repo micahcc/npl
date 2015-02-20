@@ -907,7 +907,9 @@ void GICAfmri::computeSpatialICA()
 
 /**
  * @brief Converts T-Values to probabilities and z-scores. Note that the input
- * "tvalues" will actually be centered on the mode of the distribution
+ * "tvalues" will actually be centered on the mode of the distribution.
+ *
+ * TODO specialized version constraining the mode to modes to be outside the mean
  *
  * @param ncomp
  * @param tvalues
