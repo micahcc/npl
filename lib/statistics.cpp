@@ -663,6 +663,18 @@ void gaussGammaMixtureModel(const Ref<const VectorXd> data,
 			double truey = (totalheight-ymax*prior[2]*gammaPDF_MS(mu[2], sd[2], x-mu[1]));
 			ofs<<truex<<","<<truey<<endl;
 		}
+
+		ofs<<"<polyline fill=\"none\" stroke=\"black\" stroke-width=\"4\""
+			<<" points=\""<<endl;
+		for(double x=mu[1]; x <= high; x+=dx) {
+			double truex = totalwidth*(x-low)/(high-low);
+			double truey = (totalheight-ymax*(
+						prior[0]*gammaPDF_MS(mu[0], sd[0], x-mu[1])+
+						prior[1]*gaussianPDF(mu[1], sd[1], x)+
+						prior[2]*gammaPDF_MS(mu[2], sd[2], x-mu[1])
+						));
+			ofs<<truex<<","<<truey<<endl;
+		}
 		ofs<<"\"/>"<<endl<<endl;
 		ofs<<"</svg>"<<endl;
 	}
@@ -750,7 +762,7 @@ void expMax1D(const Ref<const VectorXd> data,
 		size_t totalheight = 1024;
 
 		size_t nbins = sqrt(data.rows());
-		size_t steps = 5*nbins;;
+		size_t steps = 10*nbins;
 		double low = data.minCoeff();
 		double high = data.maxCoeff();
 		double dx = (high-low)/steps;
@@ -776,29 +788,25 @@ void expMax1D(const Ref<const VectorXd> data,
 				<<"fill=\"gainsboro\" stroke=\"white\"></rect>"<<endl;
 		}
 
-		ofs<<"<polyline fill=\"none\" stroke=\"blue\" stroke-width=\"2\""
-			<<" points=\""<<endl;
-		for(double x=low; x <= 0; x+=dx) {
-			double truex = totalwidth*(x-low)/(high-low);
-			double truey = (totalheight-ymax*prior[0]*gammaPDF_MS(mean[0], sd[0], x));
-			ofs<<truex<<","<<truey<<endl;
+		for(size_t tt=0; tt<mean.rows(); tt++) {
+			ofs<<"<polyline fill=\"none\" stroke=\"coral\" stroke-width=\"2\""
+				<<" points=\""<<endl;
+			for(double x=low; x <= high; x+=dx) {
+				double truex = totalwidth*(x-low)/(high-low);
+				double truey = (totalheight-ymax*prior[tt]*pdfs[tt](mean[tt], sd[tt], x));
+				ofs<<truex<<","<<truey<<endl;
+			}
+			ofs<<"\"/>"<<endl<<endl;
 		}
-		ofs<<"\"/>"<<endl<<endl;
 
-		ofs<<"<polyline fill=\"none\" stroke=\"coral\" stroke-width=\"2\""
+		ofs<<"<polyline fill=\"none\" stroke=\"black\" stroke-width=\"4\""
 			<<" points=\""<<endl;
 		for(double x=low; x <= high; x+=dx) {
 			double truex = totalwidth*(x-low)/(high-low);
-			double truey = (totalheight-ymax*prior[1]*gaussianPDF(mean[1], sd[1], x));
-			ofs<<truex<<","<<truey<<endl;
-		}
-		ofs<<"\"/>"<<endl<<endl;
-
-		ofs<<"<polyline fill=\"none\" stroke=\"red\" stroke-width=\"2\""
-			<<" points=\""<<endl;
-		for(double x=0; x <= high; x+=dx) {
-			double truex = totalwidth*(x-low)/(high-low);
-			double truey = (totalheight-ymax*prior[2]*gammaPDF_MS(mean[2], sd[2], x));
+			double y = 0;
+			for(size_t tt=0; tt<mean.rows(); tt++)
+				y += prior[tt]*pdfs[tt](mean[tt], sd[tt], x);
+			double truey = (totalheight-ymax*y);
 			ofs<<truex<<","<<truey<<endl;
 		}
 		ofs<<"\"/>"<<endl<<endl;
