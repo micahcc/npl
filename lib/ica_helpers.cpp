@@ -836,6 +836,7 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 		writer.mat = m_E;
 	}
 
+	cerr<<"Signular Values:\n" << m_E.transpose()<<endl;
 	if(spatial){
 		cerr<<"Performing Spatial ICA"<<endl;
 		computeSpatialICA();
@@ -1095,9 +1096,9 @@ void GICAfmri::computeProb(size_t ncomp, Ref<MatrixXd> tvalues)
 				continue;
 			for(size_t comp=0; comp<ncomp; comp++) {
 				double z = (tit[comp]-mu(1,comp))/sd(1,comp);
-				double p = 0.5*prior[1]*gaussianCDF(mu(1, comp), sd(1, comp), z);
+				double p = gaussianCDF(0, 1, z);
 				if(p > 0.5) p = 1-p;
-				p /= 2;
+				p = prior[1]*p/2;
 				p = 1-p;
 				zit.set(comp, z);
 				pit.set(comp, p);
