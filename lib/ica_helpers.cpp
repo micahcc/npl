@@ -877,31 +877,12 @@ void GICAfmri::computeTemporaICA()
 		writer.mat = W;
 	}
 	cerr << "Done" << endl;
-
-	// A = UEVt // UW = X // U = XWt // A = XWtEVt
-	// Explained variance for component i: X_iWtE
-	VectorXd expvar(ics.cols());
-	for(size_t cc=0; cc<ics.cols(); cc++) {
-		expvar[cc] = (W.col(cc).transpose()*m_E.asDiagonal()).squaredNorm();
-	}
-	expvar /= expvar.sum();
-
-	// Create Sorted Lookup for explained variance
-	vector<int> sorted(expvar.rows());
-	for(size_t ii=0; ii<sorted.size(); ii++) sorted[ii] = ii;
-	std::sort(sorted.begin(), sorted.end(),
-			[&expvar](int i, int j) { return expvar[i] > expvar[j]; });
-
-	cerr << "Explained Variance:"<<endl;
-	for(size_t cc=0; cc<ics.cols(); cc++)
-		cerr<<sorted[cc]<<" "<<expvar[sorted[cc]]<<endl;
-
 	cerr << "Regressing Temporal Components" << endl;
 	/*
 	 * Initialize Regression Variables
 	 */
 	cerr<<"Setting up Regression"<<endl;
-	const double MAX_T = 2000;
+	const double MAX_T = 5000;
 	const double STEP_T = 0.1;
 	StudentsT distrib(ics.rows()-1, STEP_T, MAX_T);
 	MatrixXd Xinv = pseudoInverse(ics);
@@ -918,6 +899,9 @@ void GICAfmri::computeTemporaICA()
 	size_t maskn = 0; // Mask number
 	MatMap tall(m_A.tallMatName(matn));
 	MatrixXd tvalues(m_A.cols(), ics.cols());
+	VectorXd expvar(ics.cols());
+	expvar.setZero();
+	double totalvar = 0;
 	cerr<<"Regressing full dataset"<<endl;
 	for(size_t cc=0, tc=0; cc < m_A.cols(); maskn++) {
 		cerr<<"Subject Column: "<<maskn<< " Full Column: "<<cc
@@ -948,11 +932,13 @@ void GICAfmri::computeTemporaICA()
 
 				// Perform regression
 				regress(&result, tall.mat.col(tc), ics, Cinv, Xinv, distrib);
+				totalvar += tall.mat.col(tc).squaredNorm()/tall.mat.rows();
 				for(size_t comp=0; comp<ics.cols(); comp++) {
-					size_t trcomp = sorted[comp];
-					tit.set(comp, result.t[trcomp]);
-					bit.set(comp, result.bhat[trcomp]);
-					tvalues(cc, comp) = result.t[trcomp];
+					tit.set(comp, result.t[comp]);
+					bit.set(comp, result.bhat[comp]);
+					tvalues(cc, comp) = result.t[comp];
+					expvar[comp] += (tall.mat.col(tc)-result.bhat[comp]*
+							ics.col(comp)).squaredNorm()/tall.mat.rows();
 				}
 				tc++;
 				cc++;
@@ -961,6 +947,49 @@ void GICAfmri::computeTemporaICA()
 		// write output matching mask
 		tmap->write(tmap_name(maskn));
 		bmap->write(bmap_name(maskn));
+	}
+
+	/*
+	 * Reorder Based on Explained Variance
+	 */
+	// Tailly Explained Variance
+	for(size_t ii=0; ii<expvar.rows(); ii++)
+		expvar[ii] = 1 - expvar[ii]/totalvar;
+
+	// Create Sorted Lookup for explained variance
+	vector<int> sorted(expvar.rows());
+	for(size_t ii=0; ii<sorted.size(); ii++) sorted[ii] = ii;
+	std::sort(sorted.begin(), sorted.end(),
+			[&expvar](int i, int j) { return expvar[i] > expvar[j]; });
+
+	cerr << "Explained Variance:"<<endl;
+	for(size_t cc=0; cc<ics.cols(); cc++)
+		cerr<<sorted[cc]<<" "<<expvar[sorted[cc]]<<endl;
+
+	// Sort Tmap and Bmap by explained variance
+	VectorXd tmpb(expvar.rows());
+	VectorXd tmpt(expvar.rows());
+	for(size_t ii=0; ii<maskn; ii++) {
+		auto tmap = readMRImage(tmap_name(ii));
+		auto bmap = readMRImage(bmap_name(ii));
+
+		for(Vector3DIter<double> tit(tmap),bit(bmap); !tit.eof(); ++tit, ++bit){
+			// store in temporary array
+			for(size_t comp=0; comp<expvar.rows(); comp++) {
+				tmpt[comp] = tit[comp];
+				tmpb[comp] = bit[comp];
+			}
+
+			// fill in new order
+			for(size_t comp=0; comp<expvar.rows(); comp++) {
+				tit.set(comp, tmpt[sorted[comp]]);
+				bit.set(comp, tmpt[sorted[comp]]);
+			}
+		}
+
+		// write output matching mask
+		tmap->write(tmap_name(ii));
+		bmap->write(bmap_name(ii));
 	}
 
 	computeProb(ics.cols(), tvalues);
