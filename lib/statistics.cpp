@@ -2413,7 +2413,6 @@ double fastICA_dg2(double u)
  */
 MatrixXd ica(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 {
-
 	// remove mean/variance
 	MatrixXd X(Xin.rows(), Xin.cols());
 	for(size_t cc=0; cc<X.cols(); cc++)  {
@@ -2436,7 +2435,7 @@ MatrixXd ica(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 	// Seed with a real random value, if available
 	std::random_device rd;
 	std::default_random_engine rng(rd());
-	std::uniform_real_distribution<double> unif(0, 1);
+	std::normal_distribution<double> unif(0, 1);
 
 	int samples = X.rows();
 	int dims = X.cols();
@@ -2469,8 +2468,8 @@ MatrixXd ica(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 #ifndef NDEBUG
 		std::cout << "Peforming Fast ICA: " << pp << std::endl;
 #endif// NDEBUG
-		mag = 1;
-		for(int ii = 0 ; mag > MAGTHRESH && ii < ITERS; ii++) {
+		mag = MAGTHRESH;
+		for(int ii = 0 ; mag >= MAGTHRESH && ii < ITERS; ii++) {
 
 			//move to working
 			wprev = W.col(pp);
