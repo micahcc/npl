@@ -878,13 +878,20 @@ void GICAfmri::computeTemporaICA()
 	}
 	cerr << "Done" << endl;
 
-	// A = UEVt // UW = X // U = XWt // A = XWtEVt
-	// Explained variance for component i: X_iWtE
+	// A = UEVt // UW = S // U = SWt // A = SWtEVt
+	// B = WtEVt, BBt = WtEEW
+	// X = S, XtX = StS
+	// DVar = 2*BBt(c,:)*XtX(:,c)-XtX(c,c)*BB(c,c)-2*B(c,:)*YtX(:,c)
 	VectorXd expvar(ics.cols());
-	for(size_t cc=0; cc<ics.cols(); cc++) {
-		expvar[cc] = (W.col(cc).transpose()*m_E.asDiagonal()).squaredNorm();
+	MatrixXd XtX = ics.transpose()*ics;
+	MatrixXd BBt = W.transpose()*m_E.asDiagonal()*m_E.asDiagonal()*W;
+	MatrixXd B = W.transpose()*m_E.asDiagonal()*m_V.transpose();
+	MatrixXd YtX(m_A.cols(), ics.cols());
+	m_A.postMult(YtX, ics, true);
+	for(size_t c=0; c<ics.cols(); c++){
+		expvar[c] = 2*BBt.row(c)*XtX.col(c)-XtX(c,c)*BBt(c,c)-
+			2*B.row(c)*YtX.col(c);
 	}
-	expvar /= expvar.sum();
 
 	// Create Sorted Lookup for explained variance
 	vector<int> sorted(expvar.rows());
@@ -916,6 +923,7 @@ void GICAfmri::computeTemporaICA()
 	 */
 	size_t matn = 0; // matrix number (tall matrices)
 	size_t maskn = 0; // Mask number
+
 	MatMap tall(m_A.tallMatName(matn));
 	MatrixXd tvalues(m_A.cols(), ics.cols());
 	cerr<<"Regressing full dataset"<<endl;
@@ -1001,12 +1009,20 @@ void GICAfmri::computeSpatialICA()
 	cerr<<"Estimating Noise"<<endl;
 	MatrixXd tvalues = icsToT(m_A, m_U, m_E, m_V, W, ics);
 
-	// explained variance for component var UEWB_i (ith row), EWB_i
+	// Explained variance
+	// A = UEVt, VW = S, WSt = Vt, A = UEWSt
+	// X = UEW, B = St
+	// BBt = StS
+	// XtX = WtEEW
+	// 2*BBt(c,:)*XtX(:,c)-XtX(c,c)*BB(c,c)-2*B(c,:)*YtX(:,c)
+	MatrixXd BBt = ics.transpose()*ics;
+	MatrixXd XtX = W.transpose()*m_E.asDiagonal()*m_E.asDiagonal()*W;
+	MatrixXd X = m_U*m_E.asDiagonal()*W;
+	MatrixXd YtX(m_A.cols(), W.cols());
+	m_A.postMult(YtX, X, true);
 	VectorXd expvar(ics.cols());
 	for(size_t cc=0; cc<ics.cols(); cc++)
-		expvar[cc] = (m_E.asDiagonal()*W.col(cc)*ics.col(cc).transpose()).
-			array().square().sum();
-	expvar /= expvar.sum();
+		expvar[cc] = 2*BBt.row(cc)*XtX.col(cc) - XtX(cc,cc)*BBt(cc,cc)-2*ics.col(cc).transpose()*YtX.col(cc);
 
 	// Create Sorted Lookup for explained variance
 	vector<int> sorted(ics.cols());
