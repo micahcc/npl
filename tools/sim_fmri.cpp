@@ -125,6 +125,10 @@ int main(int argc, char** argv)
 	TCLAP::SwitchArg a_randregions("R", "region-rand", "Randomize regions "
 			"by smoothing a gaussian random field, then arbitrarily assigning "
 			"to fit the needed number of regions", cmd);
+	TCLAP::ValueArg<string> a_bmap("B", "bmap",
+			"Instead of a region map, provide a map of weights at each voxel. "
+			"This must be a 4D image with each volume representing weight for "
+			"a particular signal", false, "", "*.nii.gz", cmd);
 
 	TCLAP::ValueArg<string> a_actfile("a", "act-file", "Activation spike "
 			"train for each label. Lines (1-... ) correspond to labels. "
@@ -223,34 +227,6 @@ int main(int argc, char** argv)
 		cerr << "Done\n";
 	}
 
-	ptr<MRImage> labelmap;
-	if(a_randregions.isSet()) {
-		cerr << "Simulating Region Map...";
-		labelmap = dPtrCast<MRImage>(createRandLabels(gmprob, activate.size(), 5));
-		cerr << "Done\n";
-		if(a_regions.isSet()) {
-			cerr << "Provided both rand regions (-R) and region file (-r), "
-				"so writing to "<<a_regions.getValue()<<"(from -r)"<<endl;
-			labelmap->write(a_regions.getValue());
-		}
-	} else if(a_regions.isSet()) {
-		cerr << "Reading Region Map...";
-		labelmap = readMRImage(a_regions.getValue());
-		cerr << "Done\n";
-	} else {
-		cerr << "Must either randomize regions (-R) or set regions (-r)!\n";
-		return -1;
-	}
-
-	/* Check Images for Matching Orientation */
-	if(labelmap->ndim() != 3)
-		throw INVALID_ARGUMENT("Non-3D Image Provided as Labelmap");
-	if(gmprob->ndim() != 3)
-		throw INVALID_ARGUMENT("Non-3D Image Provided for GM Probability Map");
-	if(!labelmap->matchingOrient(gmprob, true, true))
-		throw INVALID_ARGUMENT("Greymatter and Labelmaps provided do not "
-				"have the same orientation!");
-
 	double sd = a_smooth.getValue();
 	double learn = a_learn.getValue();
 	double hdtr = a_hdres.getValue();
@@ -301,65 +277,109 @@ int main(int argc, char** argv)
 		}
 	}
 
-	/* create 4D image where each volume is a label probability */
-	vector<size_t> tmpsize(labelmap->dim(), labelmap->dim()+labelmap->ndim());
-	tmpsize.push_back(nreg);
-	auto prob = dPtrCast<MRImage>(labelmap->copyCast(tmpsize.size(),
-				tmpsize.data(), FLOAT32));
-	for(FlatIter<double> it(prob); !it.eof(); ++it)
-		it.set(0);
-
-	cerr << "Creating indivudal probability maps...";
-	Vector3DIter<double> pit(prob);
-	NDIter<int> lit(labelmap);
-	for(pit.goBegin(), lit.goBegin(); !pit.eof(); ++pit, ++lit) {
-		int l = *lit;
-		if(l < 0 || l > nreg) {
-			throw INVALID_ARGUMENT("Error, input labelmap has labels outside "
-					"the the range provided by the input spike trains. The "
-					"labels should range from 0 (unlabeled), 1, .. N for the "
-					"N rows of the spike train input");
-		} else if(l != 0) {
-			pit.set(l-1, 1);
+	ptr<MRImage> labelmap, bmap;
+	if(a_randregions.isSet()) {
+		cerr << "Simulating Region Map...";
+		labelmap = dPtrCast<MRImage>(createRandLabels(gmprob, activate.size(), 5));
+		cerr << "Done\n";
+		if(a_regions.isSet()) {
+			cerr << "Provided both rand regions (-R) and region file (-r), "
+				"so writing to "<<a_regions.getValue()<<"(from -r)"<<endl;
+			labelmap->write(a_regions.getValue());
 		}
+	} else if(a_regions.isSet()) {
+		cerr << "Reading Region Map...";
+		labelmap = readMRImage(a_regions.getValue());
+		cerr << "Done\n";
+	} else if(a_bmap.isSet()) {
+		bmap = readMRImage(a_bmap.getValue());
+		if(bmap->tlen() != nreg) {
+			cerr << "Input map must have same number of regions (volums) "
+				"as simulated  timeseries ("<<bmap->tlen()<<" in --bmap image "
+				"versus "<<nreg<<" simulated regions"<<endl;
+			return -1;
+		}
+	} else {
+		cerr << "Must either randomize regions (-R) or set regions (-r) or "
+			"provide a map of weights -B !\n";
+		return -1;
 	}
-	cerr << "Done\n";
 
-	/* smooth each of the 4D volumes */
-	cerr << "Smoothing probability maps...";
-	for(size_t dd=0; dd<3; dd++)
-		gaussianSmooth1D(prob, dd, sd);
-	cerr << "Done\n";
+	vector<size_t> tmpsize(4);
+	tmpsize[3] = nreg;
+	if(!bmap) {
+		/* Check Images for Matching Orientation */
+		if(labelmap->ndim() != 3)
+			throw INVALID_ARGUMENT("Non-3D Image Provided as Labelmap");
+		if(gmprob->ndim() != 3)
+			throw INVALID_ARGUMENT("Non-3D Image Provided for GM Probability Map");
+		if(!labelmap->matchingOrient(gmprob, true, true))
+			throw INVALID_ARGUMENT("Greymatter and Labelmaps provided do not "
+					"have the same orientation!");
 
-	cerr << "Merging Probability Map with GM Probability"<<endl;
-	NDIter<double> git(gmprob);
-	for(pit.goBegin(); !pit.eof(); ++pit,++git){
-		// Weight Sum of each regions value
-		for(size_t rr=0; rr<nreg; rr++)
-			pit.set(rr, pit[rr]*(*git));
+		/* create 4D image where each volume is a label probability */
+		for(size_t ii=0; ii<3; ii++)
+			tmpsize[ii] = labelmap->dim(ii);
+		bmap = dPtrCast<MRImage>(labelmap->copyCast(tmpsize.size(),
+					tmpsize.data(), FLOAT32));
+		for(FlatIter<double> it(bmap); !it.eof(); ++it)
+			it.set(0);
+
+		cerr << "Creating indivudal probability maps...";
+		Vector3DIter<double> pit(bmap);
+		NDIter<int> lit(labelmap);
+		for(pit.goBegin(), lit.goBegin(); !pit.eof(); ++pit, ++lit) {
+			int l = *lit;
+			if(l < 0 || l > nreg) {
+				throw INVALID_ARGUMENT("Error, input labelmap has labels outside "
+						"the the range provided by the input spike trains. The "
+						"labels should range from 0 (unlabeled), 1, .. N for the "
+						"N rows of the spike train input");
+			} else if(l != 0) {
+				pit.set(l-1, 1);
+			}
+		}
+		cerr << "Done\n";
+
+		/* smooth each of the 4D volumes */
+		cerr << "Smoothing probability maps...";
+		for(size_t dd=0; dd<3; dd++)
+			gaussianSmooth1D(bmap, dd, sd);
+		cerr << "Done\n";
+
+		cerr << "Merging Probability Map with GM Probability"<<endl;
+		NDIter<double> git(gmprob);
+		for(pit.goBegin(); !pit.eof(); ++pit,++git){
+			// Weight Sum of each regions value
+			for(size_t rr=0; rr<nreg; rr++)
+				pit.set(rr, pit[rr]*(*git));
+		}
+
+		if(a_probmap.isSet())
+			bmap->write(a_probmap.getValue());
+	} else {
+		cerr<<"Using input bmap"<<endl;
 	}
-
-	if(a_probmap.isSet())
-		prob->write(a_probmap.getValue());
 
 	/*
 	 * for each pixel sum up the contribution of each timeseries then scale by
 	 * greymatter probability
 	 */
+	for(size_t ii=0; ii<3; ii++)
+		tmpsize[ii] = bmap->dim(ii);
 	tmpsize[3] = tlen;
-	auto out = dPtrCast<MRImage>(labelmap->copyCast(tmpsize.size(),
+	auto out = dPtrCast<MRImage>(bmap->copyCast(tmpsize.size(),
 				tmpsize.data(), FLOAT32));
 
 	cerr << "Merging activation maps...";
 	Vector3DIter<double> oit(out);
-	for(pit.goBegin(); !pit.eof(); ++pit,++oit){
+	for(Vector3DIter<double> bit(bmap); !bit.eof(); ++bit,++oit){
 		for(size_t tt=0; tt<tlen; tt++) {
 			// Weight Sum of each regions value
 			double v = 0;
 			for(size_t rr=0; rr<nreg; rr++)
-				v += design[rr][tt]*pit[rr];
+				v += design[rr][tt]*bit[rr];
 
-			// Weigtht by GM Prob
 			oit.set(tt, v);
 		}
 	}
