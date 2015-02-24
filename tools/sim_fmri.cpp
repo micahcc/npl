@@ -103,16 +103,20 @@ int main(int argc, char** argv)
 
 	TCLAP::CmdLine cmd("Creates a 4D fMRI image where activations throughout "
 			"the brain are given by spikes convolved with the hemodynamic "
-			"response function. The following are needed: a greymatter map "
-			"to determine where signal is present, a labelmap of activated "
-			"regions (alternatively it can be generated with -R), and a signal "
-			"time course for each label (these can simulated with multiple "
-			"-A lambda -A lambda ...). A t2* image (-m) is optional, but make "
-			"the output look more like an fMRI. ", ' ', __version__ );
+			"response function. There are three basic modes: "
+			"a) One that inputs a map of activation levels (-B/--bmap), "
+			"b) One that provide a labelmap and grey matter map (-r/--region-map) "
+			"and c) one where you specificy a grey matter map and get random labels "
+			"(-R/--region-rand). Time-series is handled separately, although the "
+			"number of regions in -r labelmap or volumes in the -B map must match "
+			"the number of generated regions. To input a signal use -a, and reach "
+			"column will be a separate signal or use -A lambda -A lambda ...). "
+			" A t2* image (-m) is optional, but make the output look more like "
+			"an fMRI. ", ' ', __version__ );
 
 	TCLAP::ValueArg<string> a_anatomy("g", "greymatter", "Greymatter "
-			"probability image. Signal is weited by GM prob.",
-			true, "", "*.nii.gz", cmd);
+			"probability image. Signal is weighted by GM prob.",
+			false, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_t2star("m", "t2-map", "T2* Map to overlay the"
 			"signal onto. This is useful, for instance, if you intend to "
 			"simulate motion.", false, "", "*.nii.gz", cmd);
@@ -121,14 +125,16 @@ int main(int argc, char** argv)
 			"gets the signal from the first column of activation table, label "
 			"2 from the second and so on. Note that if both -R and -r are set "
 			"then this becomes an OUTPUT file to write the new regions to",
-			false, "", "*.nii.gz", cmd);
+			false, "", "*.nii.gz");
 	TCLAP::SwitchArg a_randregions("R", "region-rand", "Randomize regions "
 			"by smoothing a gaussian random field, then arbitrarily assigning "
-			"to fit the needed number of regions", cmd);
+			"to fit the needed number of regions");
 	TCLAP::ValueArg<string> a_bmap("B", "bmap",
 			"Instead of a region map, provide a map of weights at each voxel. "
 			"This must be a 4D image with each volume representing weight for "
-			"a particular signal", false, "", "*.nii.gz", cmd);
+			"a particular signal", false, "", "*.nii.gz");
+	vector<TCLAP::Arg*> opts({&a_regions, &a_randregions, &a_bmap});
+	cmd.xorAdd(opts);
 
 	TCLAP::ValueArg<string> a_actfile("a", "act-file", "Activation spike "
 			"train for each label. Lines (1-... ) correspond to labels. "
@@ -186,17 +192,6 @@ int main(int argc, char** argv)
 	 * Input
 	 *********/
 	// read regions
-	cerr << "Reading Graymatter Probability...";
-	auto gmprob = readMRImage(a_anatomy.getValue());
-	cerr << "Done\n";
-
-	ptr<MRImage> t2star;
-	if(a_t2star.isSet()) {
-		t2star = readMRImage(a_t2star.getValue());
-		if(!t2star->matchingOrient(gmprob, false, true))
-			throw INVALID_ARGUMENT("T2* Has Different Orientation from GM Image");
-	}
-
 	vector<vector<double>> activate;
 	if(a_actrand.isSet()) {
 		cerr << "Simulating Random Activations: ";
@@ -249,8 +244,6 @@ int main(int argc, char** argv)
 			if(ii != 0) cerr << ",";
 			cerr << correlation(tlen, design[rr].data(),
 					design[ii].data());
-//			cerr << mutualInformation(tlen, design[rr].data(),
-//					design[ii].data(), std::sqrt(tlen));
 		}
 		cerr << endl;
 	}
@@ -277,37 +270,28 @@ int main(int argc, char** argv)
 		}
 	}
 
-	ptr<MRImage> labelmap, bmap;
-	if(a_randregions.isSet()) {
-		cerr << "Simulating Region Map...";
-		labelmap = dPtrCast<MRImage>(createRandLabels(gmprob, activate.size(), 5));
-		cerr << "Done\n";
-		if(a_regions.isSet()) {
-			cerr << "Provided both rand regions (-R) and region file (-r), "
-				"so writing to "<<a_regions.getValue()<<"(from -r)"<<endl;
-			labelmap->write(a_regions.getValue());
-		}
-	} else if(a_regions.isSet()) {
-		cerr << "Reading Region Map...";
-		labelmap = readMRImage(a_regions.getValue());
-		cerr << "Done\n";
-	} else if(a_bmap.isSet()) {
-		bmap = readMRImage(a_bmap.getValue());
-		if(bmap->tlen() != nreg) {
-			cerr << "Input map must have same number of regions (volums) "
-				"as simulated  timeseries ("<<bmap->tlen()<<" in --bmap image "
-				"versus "<<nreg<<" simulated regions"<<endl;
-			return -1;
-		}
-	} else {
-		cerr << "Must either randomize regions (-R) or set regions (-r) or "
-			"provide a map of weights -B !\n";
-		return -1;
-	}
-
 	vector<size_t> tmpsize(4);
 	tmpsize[3] = nreg;
-	if(!bmap) {
+	ptr<MRImage> t2star, gmprob, labelmap, bmap;
+	if(a_randregions.isSet() || a_regions.isSet()) {
+		cerr << "Reading Graymatter Probability...";
+		auto gmprob = readMRImage(a_anatomy.getValue());
+		cerr << "Done\n";
+		if(a_randregions.isSet()) {
+			cerr << "Simulating Region Map...";
+			labelmap = dPtrCast<MRImage>(createRandLabels(gmprob, activate.size(), 5));
+			cerr << "Done\n";
+			if(a_regions.isSet()) {
+				cerr << "Provided both rand regions (-R) and region file (-r), "
+					"so writing to "<<a_regions.getValue()<<"(from -r)"<<endl;
+				labelmap->write(a_regions.getValue());
+			}
+		} else if(a_regions.isSet()) {
+			cerr << "Reading Region Map...";
+			labelmap = readMRImage(a_regions.getValue());
+			cerr << "Done\n";
+		}
+
 		/* Check Images for Matching Orientation */
 		if(labelmap->ndim() != 3)
 			throw INVALID_ARGUMENT("Non-3D Image Provided as Labelmap");
@@ -357,9 +341,20 @@ int main(int argc, char** argv)
 
 		if(a_probmap.isSet())
 			bmap->write(a_probmap.getValue());
-	} else {
+	} else if(a_bmap.isSet()) {
 		cerr<<"Using input bmap"<<endl;
+		bmap = readMRImage(a_bmap.getValue());
+		cerr<<"Done Reading"<<endl;
+		if(bmap->tlen() != nreg) {
+			cerr << "Input map must have same number of regions (volums) "
+				"as simulated  timeseries ("<<bmap->tlen()<<" in --bmap image "
+				"versus "<<nreg<<" simulated regions) "<<endl;
+			return -1;
+		}
 	}
+
+	if(a_t2star.isSet())
+		t2star = readMRImage(a_t2star.getValue());
 
 	/*
 	 * for each pixel sum up the contribution of each timeseries then scale by
@@ -371,7 +366,7 @@ int main(int argc, char** argv)
 	auto out = dPtrCast<MRImage>(bmap->copyCast(tmpsize.size(),
 				tmpsize.data(), FLOAT32));
 
-	cerr << "Merging activation maps...";
+	cerr << "Merging activation maps..."<<endl;
 	Vector3DIter<double> oit(out);
 	for(Vector3DIter<double> bit(bmap); !bit.eof(); ++bit,++oit){
 		for(size_t tt=0; tt<tlen; tt++) {
@@ -383,9 +378,9 @@ int main(int argc, char** argv)
 			oit.set(tt, v);
 		}
 	}
-	cerr << "Done\n";
+	cerr << "Done"<<endl;
 
-	cerr<<"Adding Noise...";
+	cerr<<"Adding Noise..."<<endl;
 	std::random_device rd;
 	std::default_random_engine rng(rd());
 	std::normal_distribution<double> dist(0, a_noise.getValue());

@@ -139,7 +139,7 @@ VectorXd onDiskSVD(const MatrixReorg& A, int minrank, size_t poweriters,
  * the columns of A and the predicted columns from UEVt.
  *
  * Let A = UEVt, and VW = S and Vt = WS^t and A=UEWS^t, and form a regression
- * using A = XB, with X = UEW and B = S^t, then
+ * using Y = XB, with Y=A, X=UEW and B=S^t, then
  * inv(XtX) = inv(WtEUtUEW)
  * inv(XtX) = inv(WtE^2W)
  * inv(XtX) = WtE^-2W
@@ -147,7 +147,7 @@ VectorXd onDiskSVD(const MatrixReorg& A, int minrank, size_t poweriters,
  * B(COMP, OUTNUM)
  * ssres = (UEV-A)^2_outnum
  * SIGMAHAT(OUTNUM) = ssres/(SAMPLES-REGRESSORS)
- * STDERR(OUTNUM,REGRESSOR) = beta(OUTNUM, /(SAMPLES-REGRESSORS)
+ * STDERR(OUTNUM,REGRESSOR) = beta(COMP, OUTNUM)*inv(XtX)(comp, comp)
  *
  * Standard error = sqrt(sigmahat*C^-1_ii)
  * C^1 = ((UEW)^t(UEW))^1
@@ -881,6 +881,7 @@ void GICAfmri::computeTemporaICA()
 	// A = UEVt // UW = S // U = SWt // A = SWtEVt
 	// B = WtEVt, BBt = WtEEW
 	// X = S, XtX = StS
+	// Note that B here could be used instead of regresing each ...
 	// DVar = 2*BBt(c,:)*XtX(:,c)-XtX(c,c)*BB(c,c)-2*B(c,:)*YtX(:,c)
 	VectorXd expvar(ics.cols());
 	MatrixXd XtX = ics.transpose()*ics;

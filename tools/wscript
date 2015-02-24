@@ -10,6 +10,11 @@ def build(bld):
             source = 'resample.cpp',
             use = [npl, 'tclap'])
 
+    bld.program(target = 'melodic_recreate',
+            source = 'melodic_subjects.cpp',
+            use = [npl, 'tclap'])
+
+
     bld.program(target = 'nplOLS',
             source = 'ols.cpp',
             use = [npl, 'tclap'])
