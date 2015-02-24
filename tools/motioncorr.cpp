@@ -239,6 +239,12 @@ int main(int argc, char** argv)
 			"If this is set, then instead of estimating motion, the inverse "
 			"motion parameters are applied to the input timeseries.",
 			false, "", "*.txt", cmd);
+	TCLAP::ValueArg<double> a_simmotion("S", "simulate", "Simulate motion!. "
+			"This will actually produce a random motion step at each time "
+			"point then apply the motion to the input image. The output motion "
+			"file will be the motion applied. To reverse it use "
+			"-a file. The variable to -S is the standard deviation of shifts "
+			"in mm. Rotation will be 1/100 of it", false, 0.1, "sd", cmd);
 	TCLAP::MultiArg<double> a_sigmas("s", "sigmas", "Smoothing standard "
 			"deviations. These are the steps of the registration.", false,
 			"sd", cmd);
@@ -303,7 +309,34 @@ int main(int argc, char** argv)
 				return -1;
 			}
 		}
+	} else if(a_simmotion.isSet()) {
+		std::normal_distribution<> normdist(0,1);
+		std::default_random_engine rng;
 
+		motion.resize(fmri->tlen());
+
+		// find center of image
+		double center[3];
+		for(size_t ii=0; ii<3; ii++)
+			center[ii] = (double)fmri->dim(ii)/2.;
+		fmri->indexToPoint(3, center, center);
+
+		double rotation[3] = {0,0,0};
+		double shift[3] = {0,0,0};
+		for(size_t ll=0; ll < motion.size(); ll++) {
+			motion[ll].resize(9);
+			for(size_t kk=0; kk<3; kk++)
+				motion[ll][kk] = center[kk];
+
+			for(size_t kk=0; kk<3; kk++) {
+				motion[ll][kk+3] = rotation[kk];
+				rotation[kk] += normdist(rng)*a_simmotion.getValue()/100;
+			}
+			for(size_t kk=0; kk<3; kk++) {
+				motion[ll][kk+6] = shift[kk];
+				shift[kk] += normdist(rng)*a_simmotion.getValue();
+			}
+		}
 	} else {
 		// Compute Motion
 		motion = computeMotion(fmri, ref, sigmas, a_minstep.getValue(),
