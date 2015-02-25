@@ -103,16 +103,20 @@ int main(int argc, char** argv)
 
 	TCLAP::CmdLine cmd("Creates a 4D fMRI image where activations throughout "
 			"the brain are given by spikes convolved with the hemodynamic "
-			"response function. The following are needed: a greymatter map "
-			"to determine where signal is present, a labelmap of activated "
-			"regions (alternatively it can be generated with -R), and a signal "
-			"time course for each label (these can simulated with multiple "
-			"-A lambda -A lambda ...). A t2* image (-m) is optional, but make "
-			"the output look more like an fMRI. ", ' ', __version__ );
+			"response function. There are three basic modes: "
+			"a) One that inputs a map of activation levels (-B/--bmap), "
+			"b) One that provide a labelmap and grey matter map (-r/--region-map) "
+			"and c) one where you specificy a grey matter map and get random labels "
+			"(-R/--region-rand). Time-series is handled separately, although the "
+			"number of regions in -r labelmap or volumes in the -B map must match "
+			"the number of generated regions. To input a signal use -a, and reach "
+			"column will be a separate signal or use -A lambda -A lambda ...). "
+			" A t2* image (-m) is optional, but make the output look more like "
+			"an fMRI. ", ' ', __version__ );
 
 	TCLAP::ValueArg<string> a_anatomy("g", "greymatter", "Greymatter "
-			"probability image. Signal is weited by GM prob.",
-			true, "", "*.nii.gz", cmd);
+			"probability image. Signal is weighted by GM prob.",
+			false, "", "*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_t2star("m", "t2-map", "T2* Map to overlay the"
 			"signal onto. This is useful, for instance, if you intend to "
 			"simulate motion.", false, "", "*.nii.gz", cmd);
@@ -121,10 +125,16 @@ int main(int argc, char** argv)
 			"gets the signal from the first column of activation table, label "
 			"2 from the second and so on. Note that if both -R and -r are set "
 			"then this becomes an OUTPUT file to write the new regions to",
-			false, "", "*.nii.gz", cmd);
+			false, "", "*.nii.gz");
 	TCLAP::SwitchArg a_randregions("R", "region-rand", "Randomize regions "
 			"by smoothing a gaussian random field, then arbitrarily assigning "
-			"to fit the needed number of regions", cmd);
+			"to fit the needed number of regions");
+	TCLAP::ValueArg<string> a_bmap("B", "bmap",
+			"Instead of a region map, provide a map of weights at each voxel. "
+			"This must be a 4D image with each volume representing weight for "
+			"a particular signal", false, "", "*.nii.gz");
+	vector<TCLAP::Arg*> opts({&a_regions, &a_randregions, &a_bmap});
+	cmd.xorAdd(opts);
 
 	TCLAP::ValueArg<string> a_actfile("a", "act-file", "Activation spike "
 			"train for each label. Lines (1-... ) correspond to labels. "
@@ -182,17 +192,6 @@ int main(int argc, char** argv)
 	 * Input
 	 *********/
 	// read regions
-	cerr << "Reading Graymatter Probability...";
-	auto gmprob = readMRImage(a_anatomy.getValue());
-	cerr << "Done\n";
-
-	ptr<MRImage> t2star;
-	if(a_t2star.isSet()) {
-		t2star = readMRImage(a_t2star.getValue());
-		if(!t2star->matchingOrient(gmprob, false, true))
-			throw INVALID_ARGUMENT("T2* Has Different Orientation from GM Image");
-	}
-
 	vector<vector<double>> activate;
 	if(a_actrand.isSet()) {
 		cerr << "Simulating Random Activations: ";
@@ -223,34 +222,6 @@ int main(int argc, char** argv)
 		cerr << "Done\n";
 	}
 
-	ptr<MRImage> labelmap;
-	if(a_randregions.isSet()) {
-		cerr << "Simulating Region Map...";
-		labelmap = dPtrCast<MRImage>(createRandLabels(gmprob, activate.size(), 5));
-		cerr << "Done\n";
-		if(a_regions.isSet()) {
-			cerr << "Provided both rand regions (-R) and region file (-r), "
-				"so writing to "<<a_regions.getValue()<<"(from -r)"<<endl;
-			labelmap->write(a_regions.getValue());
-		}
-	} else if(a_regions.isSet()) {
-		cerr << "Reading Region Map...";
-		labelmap = readMRImage(a_regions.getValue());
-		cerr << "Done\n";
-	} else {
-		cerr << "Must either randomize regions (-R) or set regions (-r)!\n";
-		return -1;
-	}
-
-	/* Check Images for Matching Orientation */
-	if(labelmap->ndim() != 3)
-		throw INVALID_ARGUMENT("Non-3D Image Provided as Labelmap");
-	if(gmprob->ndim() != 3)
-		throw INVALID_ARGUMENT("Non-3D Image Provided for GM Probability Map");
-	if(!labelmap->matchingOrient(gmprob, true, true))
-		throw INVALID_ARGUMENT("Greymatter and Labelmaps provided do not "
-				"have the same orientation!");
-
 	double sd = a_smooth.getValue();
 	double learn = a_learn.getValue();
 	double hdtr = a_hdres.getValue();
@@ -273,8 +244,6 @@ int main(int argc, char** argv)
 			if(ii != 0) cerr << ",";
 			cerr << correlation(tlen, design[rr].data(),
 					design[ii].data());
-//			cerr << mutualInformation(tlen, design[rr].data(),
-//					design[ii].data(), std::sqrt(tlen));
 		}
 		cerr << endl;
 	}
@@ -301,71 +270,117 @@ int main(int argc, char** argv)
 		}
 	}
 
-	/* create 4D image where each volume is a label probability */
-	vector<size_t> tmpsize(labelmap->dim(), labelmap->dim()+labelmap->ndim());
-	tmpsize.push_back(nreg);
-	auto prob = dPtrCast<MRImage>(labelmap->copyCast(tmpsize.size(),
-				tmpsize.data(), FLOAT32));
-	for(FlatIter<double> it(prob); !it.eof(); ++it)
-		it.set(0);
+	vector<size_t> tmpsize(4);
+	tmpsize[3] = nreg;
+	ptr<MRImage> t2star, gmprob, labelmap, bmap;
+	if(a_randregions.isSet() || a_regions.isSet()) {
+		cerr << "Reading Graymatter Probability...";
+		auto gmprob = readMRImage(a_anatomy.getValue());
+		cerr << "Done\n";
+		if(a_randregions.isSet()) {
+			cerr << "Simulating Region Map...";
+			labelmap = dPtrCast<MRImage>(createRandLabels(gmprob, activate.size(), 5));
+			cerr << "Done\n";
+			if(a_regions.isSet()) {
+				cerr << "Provided both rand regions (-R) and region file (-r), "
+					"so writing to "<<a_regions.getValue()<<"(from -r)"<<endl;
+				labelmap->write(a_regions.getValue());
+			}
+		} else if(a_regions.isSet()) {
+			cerr << "Reading Region Map...";
+			labelmap = readMRImage(a_regions.getValue());
+			cerr << "Done\n";
+		}
 
-	cerr << "Creating indivudal probability maps...";
-	Vector3DIter<double> pit(prob);
-	NDIter<int> lit(labelmap);
-	for(pit.goBegin(), lit.goBegin(); !pit.eof(); ++pit, ++lit) {
-		int l = *lit;
-		if(l < 0 || l > nreg) {
-			throw INVALID_ARGUMENT("Error, input labelmap has labels outside "
-					"the the range provided by the input spike trains. The "
-					"labels should range from 0 (unlabeled), 1, .. N for the "
-					"N rows of the spike train input");
-		} else if(l != 0) {
-			pit.set(l-1, 1);
+		/* Check Images for Matching Orientation */
+		if(labelmap->ndim() != 3)
+			throw INVALID_ARGUMENT("Non-3D Image Provided as Labelmap");
+		if(gmprob->ndim() != 3)
+			throw INVALID_ARGUMENT("Non-3D Image Provided for GM Probability Map");
+		if(!labelmap->matchingOrient(gmprob, true, true))
+			throw INVALID_ARGUMENT("Greymatter and Labelmaps provided do not "
+					"have the same orientation!");
+
+		/* create 4D image where each volume is a label probability */
+		for(size_t ii=0; ii<3; ii++)
+			tmpsize[ii] = labelmap->dim(ii);
+		bmap = dPtrCast<MRImage>(labelmap->copyCast(tmpsize.size(),
+					tmpsize.data(), FLOAT32));
+		for(FlatIter<double> it(bmap); !it.eof(); ++it)
+			it.set(0);
+
+		cerr << "Creating indivudal probability maps...";
+		Vector3DIter<double> pit(bmap);
+		NDIter<int> lit(labelmap);
+		for(pit.goBegin(), lit.goBegin(); !pit.eof(); ++pit, ++lit) {
+			int l = *lit;
+			if(l < 0 || l > nreg) {
+				throw INVALID_ARGUMENT("Error, input labelmap has labels outside "
+						"the the range provided by the input spike trains. The "
+						"labels should range from 0 (unlabeled), 1, .. N for the "
+						"N rows of the spike train input");
+			} else if(l != 0) {
+				pit.set(l-1, 1);
+			}
+		}
+		cerr << "Done\n";
+
+		/* smooth each of the 4D volumes */
+		cerr << "Smoothing probability maps...";
+		for(size_t dd=0; dd<3; dd++)
+			gaussianSmooth1D(bmap, dd, sd);
+		cerr << "Done\n";
+
+		cerr << "Merging Probability Map with GM Probability"<<endl;
+		NDIter<double> git(gmprob);
+		for(pit.goBegin(); !pit.eof(); ++pit,++git){
+			// Weight Sum of each regions value
+			for(size_t rr=0; rr<nreg; rr++)
+				pit.set(rr, pit[rr]*(*git));
+		}
+
+		if(a_probmap.isSet())
+			bmap->write(a_probmap.getValue());
+	} else if(a_bmap.isSet()) {
+		cerr<<"Using input bmap"<<endl;
+		bmap = readMRImage(a_bmap.getValue());
+		cerr<<"Done Reading"<<endl;
+		if(bmap->tlen() != nreg) {
+			cerr << "Input map must have same number of regions (volums) "
+				"as simulated  timeseries ("<<bmap->tlen()<<" in --bmap image "
+				"versus "<<nreg<<" simulated regions) "<<endl;
+			return -1;
 		}
 	}
-	cerr << "Done\n";
 
-	/* smooth each of the 4D volumes */
-	cerr << "Smoothing probability maps...";
-	for(size_t dd=0; dd<3; dd++)
-		gaussianSmooth1D(prob, dd, sd);
-	cerr << "Done\n";
-
-	cerr << "Merging Probability Map with GM Probability"<<endl;
-	NDIter<double> git(gmprob);
-	for(pit.goBegin(); !pit.eof(); ++pit,++git){
-		// Weight Sum of each regions value
-		for(size_t rr=0; rr<nreg; rr++)
-			pit.set(rr, pit[rr]*(*git));
-	}
-
-	if(a_probmap.isSet())
-		prob->write(a_probmap.getValue());
+	if(a_t2star.isSet())
+		t2star = readMRImage(a_t2star.getValue());
 
 	/*
 	 * for each pixel sum up the contribution of each timeseries then scale by
 	 * greymatter probability
 	 */
+	for(size_t ii=0; ii<3; ii++)
+		tmpsize[ii] = bmap->dim(ii);
 	tmpsize[3] = tlen;
-	auto out = dPtrCast<MRImage>(labelmap->copyCast(tmpsize.size(),
+	auto out = dPtrCast<MRImage>(bmap->copyCast(tmpsize.size(),
 				tmpsize.data(), FLOAT32));
 
-	cerr << "Merging activation maps...";
+	cerr << "Merging activation maps..."<<endl;
 	Vector3DIter<double> oit(out);
-	for(pit.goBegin(); !pit.eof(); ++pit,++oit){
+	for(Vector3DIter<double> bit(bmap); !bit.eof(); ++bit,++oit){
 		for(size_t tt=0; tt<tlen; tt++) {
 			// Weight Sum of each regions value
 			double v = 0;
 			for(size_t rr=0; rr<nreg; rr++)
-				v += design[rr][tt]*pit[rr];
+				v += design[rr][tt]*bit[rr];
 
-			// Weigtht by GM Prob
 			oit.set(tt, v);
 		}
 	}
-	cerr << "Done\n";
+	cerr << "Done"<<endl;
 
-	cerr<<"Adding Noise...";
+	cerr<<"Adding Noise..."<<endl;
 	std::random_device rd;
 	std::default_random_engine rng(rd());
 	std::normal_distribution<double> dist(0, a_noise.getValue());

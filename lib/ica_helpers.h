@@ -50,25 +50,30 @@ class MatrixReorg;
  * @param poweriters Number of power iterations to perform. 2 passes over A are
  * required for each iteration, but iteration drives error to 0 at an
  * exponential rate
+ * @param varthresh stop after the eigenvalues reach this ratio of the maximum
+ * @param cvarthresh stop after the sum of eigenvalues reaches this ratio of total
  * @param U Output U matrix, if null then ignored
  * @param V Output V matrix, if null then ignored
  *
  * @return Vector of singular values
  */
 VectorXd onDiskSVD(const MatrixReorg& A,
-		int rank, size_t poweriters, double varthresh,
+		int rank, size_t poweriters, double varthresh, double cvarthresh,
 		MatrixXd* U=NULL, MatrixXd* V=NULL);
 
 /**
  * @brief Computes the SVD from XXt using the JacobiSVD
  *
  * @param A MatrixReorg object that can be used to load images on disk
+ * @param varthresh stop after the eigenvalues reach this ratio of the maximum
+ * @param cvarthresh stop after the sum of eigenvalues reaches this ratio of total
  * @param U Output U matrix, if null then ignored
  * @param V Output V matrix, if null then ignored
  *
  * @return Vector of singular values
  */
-VectorXd covSVD(const MatrixReorg& A, double varthresh, MatrixXd* U, MatrixXd* V);
+VectorXd covSVD(const MatrixReorg& A, double varthresh, double cvarthresh,
+		MatrixXd* U, MatrixXd* V);
 
 class MatMap
 {
@@ -213,26 +218,11 @@ public:
 		return m_totalrows;
 	};
 
-//	inline const vector<int>& wideMatRows() const
-//	{
-//		return m_outrows;
-//	};
-//
-//	inline int wideMatCols() const
-//	{
-//		return m_totalcols;
-//	};
-//
 	inline std::string tallMatName(size_t ii) const
 	{
 		return m_prefix+"_tall_"+std::to_string(ii);
 	};
 
-//	inline std::string wideMatName(size_t ii) const
-//	{
-//		return m_prefix+"_wide_"+std::to_string(ii);
-//	};
-//
 	inline std::string inColMaskName(size_t ii) const
 	{
 		return m_prefix+"_mask_"+std::to_string(ii)+".nii.gz";
@@ -246,6 +236,20 @@ public:
 
 	inline int rows() const { return m_totalrows; };
 	inline int cols() const { return m_totalcols; };
+
+	std::string mask_name(size_t ii) const
+	{
+		return m_prefix+"_mask_"+std::to_string(ii)+".nii.gz";
+	};
+
+	std::string info_name() const
+	{
+		return m_prefix+".info";
+	};
+	std::string tall_name(size_t ii) const
+	{
+		return m_prefix+"_tall_"+std::to_string(ii);
+	};
 
 	private:
 	int m_totalrows;
@@ -267,6 +271,11 @@ public:
 
 	/**
 	 * @brief Cutoff for explained variance in PCA
+	 */
+	double cvarthresh;
+
+	/**
+	 * @brief Cutoff for ratio of maximum variance (singular value) for cutoff
 	 */
 	double varthresh;
 
@@ -318,6 +327,8 @@ public:
 	 * be bandpass filtered with this cuton frequency
 	 */
 	double maxfreq;
+
+	bool trycontinue;
 
 	/**
 	 * @brief Compute ICA for the given group, defined by tcat x scat images
@@ -381,6 +392,52 @@ public:
 		compute(1, 1, tmask, tinput);
 	}
 
+	std::string sica_name() const {
+		return m_pref+"_SpaceIC";
+	};
+	std::string tica_name() const {
+		return m_pref+"_TimeIC";
+	};
+	std::string sw_name() const {
+		return m_pref+"_SpaceW";
+	};
+	std::string tw_name() const {
+		return m_pref+"_TimeW";
+	};
+	std::string mask_name(size_t ii) const {
+		return m_pref+"_mask_"+ std::to_string(ii)+".nii.gz";
+	};
+	std::string tmap_name(size_t ii) const {
+		return m_pref+"_tmap_m"+std::to_string(ii)+".nii.gz";
+	};
+	std::string pmap_name(size_t ii) const {
+		return m_pref+"_pmap_m"+std::to_string(ii)+".nii.gz";
+	};
+	std::string zmap_name(size_t ii) const {
+		return m_pref+"_zmap_m"+std::to_string(ii)+".nii.gz";
+	};
+	std::string bmap_name(size_t ii) const {
+		return m_pref+"_bmap_m"+std::to_string(ii)+".nii.gz";
+	};
+	std::string tplot_name(size_t ii) const {
+		return m_pref+"_tplot_c"+std::to_string(ii)+".svg";
+	};
+	std::string info_name() {
+		return m_pref+".info";
+	};
+	std::string U_name() const {
+		return m_pref+"_Umat";
+	};
+	std::string V_name() const {
+		return m_pref+"_Vmat";
+	};
+	std::string E_name() const {
+		return m_pref+"_Evec";
+	};
+	std::string tall_name(size_t ii) const {
+		return m_pref+"_tall_"+std::to_string(ii);
+	};
+
 private:
 	std::string m_pref;
 
@@ -397,6 +454,7 @@ private:
 	void createMatrices(size_t tcat, size_t scat, vector<std::string> masks,
 			vector<std::string> inputs);
 	void computeProb(size_t ncomp, Ref<MatrixXd> tvalues);
+	void cleanup();
 
 };
 

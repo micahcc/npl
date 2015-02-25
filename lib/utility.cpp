@@ -527,7 +527,7 @@ void boldsim(size_t len, double* iobuff, double dt, double learn)
 	const double TAU_0 = .98; //Hu = .98, Vakorin = 1.18
 	const double ALPHA = .33; //Hu = .33,
 	const double E_0 = .34; //Hu = .34
-	const double V_0 = 0.04; //Hu = .03
+	const double V_0 = 0.33; //Hu = .03, set to 0.33 to create roughly 0-1
 	const double TAU_S = 1.54; //Hu = 1.54, Vakorin = 2.72
 	const double TAU_F = 2.46; //Hu = 2.46, Vakorin = .56
 	const double EPSILON = .7; //Hu = .54

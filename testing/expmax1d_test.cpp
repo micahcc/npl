@@ -31,8 +31,8 @@ int main()
 	std::random_device rd;
 	std::default_random_engine rng(rd());
 
-	std::gamma_distribution<double> gsdist1(8,2);
-	std::gamma_distribution<double> gsdist2(8,2);
+	std::gamma_distribution<double> gsdist1(9,3);
+	std::gamma_distribution<double> gsdist2(10,2);
 	std::normal_distribution<double> normdist(0.5, 4);
 	std::uniform_int_distribution<int> undist(0,6);
 	VectorXd samples(1000);
@@ -90,18 +90,18 @@ int main()
 	pdfs.push_back(gammaPDF_MS);
 	mu << -1,0,1;
 	sd << 1,1,1;
-	prior << .3,.3,.3;
+	prior << .05,.9,.05;
 	expMax1D(samples, pdfs, mu, sd, prior, "expmax1d_test.svg");
 
 	cerr<<"Negative Gauss: "<<mu[0]<<", "<<sd[0]<<endl;
 	cerr<<"Positive Gauss: "<<mu[2]<<", "<<sd[2]<<endl;
 	cerr<<"Normal Dist : "<<mu[1]<<", "<<sd[1]<<endl;
 
-	if((mu[0] - truemean[0])/sd[0] > 0.1)
+	if((mu[0] - truemean[0])/sd[0] > 0.5)
 		return -1;
-	if((mu[1] - truemean[1])/sd[1] > 0.1)
+	if((mu[1] - truemean[1])/sd[1] > 0.5)
 		return -1;
-	if((mu[2] - truemean[2])/sd[2] > 0.1)
+	if((mu[2] - truemean[2])/sd[2] > 0.5)
 		return -1;
 	return 0;
 }

@@ -2,6 +2,10 @@
 def build(bld):
     npl = 'npl'+bld.env.LIBPOST
 
+    bld.program(target = 'nplAddGaussian',
+            source = 'add_gaussian.cpp',
+            use = [npl, 'tclap'])
+
     bld.program(target = 'nplSmooth',
             source = 'smooth.cpp',
             use = [npl, 'tclap'])
@@ -9,6 +13,11 @@ def build(bld):
     bld.program(target = 'nplResample',
             source = 'resample.cpp',
             use = [npl, 'tclap'])
+
+    bld.program(target = 'melodic_recreate',
+            source = 'melodic_subjects.cpp',
+            use = [npl, 'tclap'])
+
 
     bld.program(target = 'nplOLS',
             source = 'ols.cpp',
@@ -91,7 +100,6 @@ def build(bld):
             use = [npl, 'tclap'])
 
     bld.program(target = 'nplGICA',
-            install_path='${PREFIX}/tools_incomplete',
             source = 'fmri_gica2.cpp',
             use = [npl, 'tclap'])
 
