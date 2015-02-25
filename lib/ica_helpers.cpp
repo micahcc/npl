@@ -493,8 +493,9 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 
 		img_glob_row = 0;
 		for(size_t tb = 0; tb<timeblocks; tb++) {
-			auto img = readMRImage(filenames[sb*timeblocks+tb]);
 			if(m_verbose) cerr<<"Image: "<<filenames[sb*timeblocks+tb]<<endl;
+			auto img = readMRImage(filenames[sb*timeblocks+tb]);
+			if(m_verbose) cerr<<"Done Loading"<<endl;
 
 			if(!img->matchingOrient(mask, false, true))
 				throw INVALID_ARGUMENT("Mismatch in mask/image size in col:"+
@@ -541,6 +542,8 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 					// Fill, Calculate Mean/SD and normalize
 					mean = 0;
 					sd = 0;
+					if(m_verbose) cerr<<"Loading ["<<img_glob_row<<"-"
+						<<(img_glob_row+tlen)<<","<<cc<<"]"<<endl;
 					for(size_t tt=0; tt<tlen; tt++) {
 						datamap.mat(tt+img_glob_row, cc) = it[tt];
 						mean += it[tt];

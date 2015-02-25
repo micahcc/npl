@@ -336,8 +336,8 @@ ptr<MRImage> estBiasParams(ptr<const MRImage> in, ptr<const MRImage> weight,
 
 			// Apply Weighting By Row, since we want to multiply the diagonal
 			// weighting matrix by the B matrix from the left
-			assert(linparam >= 0 && linparam < nparams);
-			assert(linpix >= 0 && linpix < npixels+nparams);
+			assert(linparam < nparams);
+			assert(linpix < npixels+nparams);
 			pixB.push_back(Eigen::Triplet<double>(linpix, linparam,
 						w*weights[linpix]));
 		}
