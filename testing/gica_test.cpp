@@ -51,7 +51,8 @@ int main()
 
 	{
 	GICAfmri gica("gica_test_space");
-	gica.varthresh = 0.90;
+	gica.cvarthresh = 0.90;
+	gica.varthresh = 0.10;
 	gica.maxmem = 0.5;
 	gica.spatial = true;
 	gica.normts = true;
@@ -69,7 +70,8 @@ int main()
 
 	{
 	GICAfmri gica("gica_test_time");
-	gica.varthresh = 0.90;
+	gica.cvarthresh = 0.90;
+	gica.varthresh = 0.10;
 	gica.maxmem = 0.5;
 	gica.spatial = false;
 	gica.normts = true;
@@ -86,7 +88,8 @@ int main()
 
 	{
 	GICAfmri gica("gica_test_space");
-	gica.varthresh = 0.90;
+	gica.cvarthresh = 0.90;
+	gica.varthresh = 0.10;
 	gica.maxmem = 0.5;
 	gica.spatial = true;
 	gica.normts = true;
@@ -103,7 +106,8 @@ int main()
 
 	{
 	GICAfmri gica("gica_test_time");
-	gica.varthresh = 0.90;
+	gica.cvarthresh = 0.90;
+	gica.varthresh = 0.10;
 	gica.maxmem = 0.5;
 	gica.spatial = false;
 	gica.normts = true;

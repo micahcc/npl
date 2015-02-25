@@ -57,19 +57,18 @@ namespace npl {
  * Probabilistic algorithms for constructing approximate matrix decompositions.
  * 2009;1–74. Available from: http://arxiv.org/abs/0909.4061
  *
- * @param prefix File prefix
- * @param tol Tolerance for stopping
- * @param startrank Initial rank (est rank double each time, -1 to start at
- * log(min(rows,cols)))
- * @param maxrank Maximum rank (or -1 to select the min(rows,cols))
- * @param poweriters
+ * @param A Input matrix (made up of many tall on disk matrices)
+ * @param minrank Minimum rank to estimate
+ * @param poweriters Number of power iterations to perform during computation
+ * @param varthresh stop after the eigenvalues reach this ratio of the maximum
+ * @param cvarthresh stop after the sum of eigenvalues reaches this ratio of total
  * @param U Output U matrix, if null then ignored
  * @param V Output V matrix, if null then ignored
  *
  * @return Vector of singular values
  */
 VectorXd onDiskSVD(const MatrixReorg& A, int minrank, size_t poweriters,
-		double varthresh, MatrixXd* U, MatrixXd* V)
+		double varthresh, double cvarthresh, MatrixXd* U, MatrixXd* V)
 {
 	// Algorithm 4.4
 	MatrixXd Yc;
@@ -77,6 +76,11 @@ VectorXd onDiskSVD(const MatrixReorg& A, int minrank, size_t poweriters,
 	MatrixXd Qtmp;
 	MatrixXd Qhat;
 	MatrixXd Omega;
+
+	if(varthresh < 0 || varthresh > 1)
+		varthresh = 0.1;
+	if(cvarthresh < 0 || cvarthresh > 1)
+		cvarthresh = 0.9;
 
 	// From the Original Algorithm A -> At everywhere
 	Yc.resize(A.cols(), minrank);
@@ -106,15 +110,17 @@ VectorXd onDiskSVD(const MatrixReorg& A, int minrank, size_t poweriters,
 	MatrixXd B(Qtmp.cols(), A.rows());;
 	A.preMult(B, Qtmp.transpose(), true);
 	Eigen::JacobiSVD<MatrixXd> smallsvd(B, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	const auto& svals = smallsvd.singularValues();
 
 	// Estimate Rank
 	size_t rank = 0;
+	double maxval = smallsvd.singularValues()[0];
 	double totalvar = smallsvd.singularValues().sum();
 	double var = 0;
 	for(rank=0; rank<smallsvd.singularValues().size(); rank++) {
-		if(var > totalvar*varthresh)
+		if(var > totalvar*cvarthresh || svals[rank] < varthresh*maxval)
 			break;
-		var += smallsvd.singularValues()[rank];
+		var += svals[rank];
 	}
 	cerr << "SVD Rank: " << rank << endl;
 	if(rank == 0) {
@@ -198,24 +204,29 @@ MatrixXd icsToT(const MatrixReorg& A,
  * @brief Computes the SVD from XXt using the JacobiSVD
  *
  * @param A MatrixReorg object that can be used to load images on disk
+ * @param varthresh stop after the eigenvalues reach this ratio of the maximum
+ * @param cvarthresh stop after the sum of eigenvalues reaches this ratio of total
  * @param U Output U matrix, if null then ignored
  * @param V Output V matrix, if null then ignored
  *
  * @return Vector of singular values
  */
-VectorXd covSVD(const MatrixReorg& A, double varthresh, MatrixXd* U, MatrixXd* V)
+VectorXd covSVD(const MatrixReorg& A, double varthresh, double cvarthresh,
+		MatrixXd* U, MatrixXd* V)
 {
-	if(!U && V){
+	if(!U && V)
 		throw INVALID_ARGUMENT("U must be nonnull to compute V!");
-	}
 
 	if(varthresh < 0 || varthresh > 1)
-		varthresh = 0.9;
+		varthresh = 0.1;
+	if(cvarthresh < 0 || cvarthresh > 1)
+		cvarthresh = 0.9;
 
 	int rank = 0; // Rank of Singular Value Decomp
 
 	// Create AA* matrix
 	MatrixXd AAt(A.rows(), A.rows());
+	AAt.setZero();
 	for(size_t cc = 0; cc < A.ntall(); cc++) {
 		MatMap m(A.tallMatName(cc));
 		AAt += m.mat*m.mat.transpose();
@@ -229,22 +240,27 @@ VectorXd covSVD(const MatrixReorg& A, double varthresh, MatrixXd* U, MatrixXd* V
 	const auto& evals = eig.eigenvalues();
 
 	// Compute Rank
+	double maxvar = sqrt(evals[AAt.rows()-1]);
 	double totalvar = 0;
 	double sum = 0;
 	for(size_t ii=0; ii<AAt.rows(); ii++) {
 		if(evals[AAt.rows()-ii-1] > std::numeric_limits<double>::epsilon())
-			totalvar += sqrt(eig.eigenvalues()[AAt.rows()-ii-1]);
+			totalvar += sqrt(evals[AAt.rows()-ii-1]);
 	}
 
 	for(size_t ii=0; ii<AAt.rows(); ii++) {
 		if(evals[AAt.rows()-ii-1] > std::numeric_limits<double>::epsilon()) {
-			sum += sqrt(evals[AAt.rows()-ii-1]);
-			if(sum < totalvar*varthresh)
+			double v = sqrt(evals[AAt.rows()-ii-1]);
+			if(sum < totalvar*cvarthresh && v > varthresh*maxvar)
 				rank++;
 			else
 				break;
+			sum += v;
 		}
 	}
+
+	if(rank <= 0)
+		throw RUNTIME_ERROR("Error rank found to be zero!");
 
 	VectorXd singvals(rank);
 	for(size_t ii=0; ii<rank; ii++)
@@ -653,7 +669,8 @@ void MatrixReorg::postMult(Eigen::Ref<MatrixXd> out,
 GICAfmri::GICAfmri(std::string pref)
 {
 	m_pref = pref;
-	varthresh = 0.9;
+	varthresh = 0.1;
+	cvarthresh = 0.9;
 	minrank = 200;
 	poweriters = 2;
 	maxmem = 4; //gigs
@@ -821,10 +838,11 @@ void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
 		trycontinue = false;
 		if(fullsvd) {
 			cerr<<"Running XXt SVD"<<endl;
-			m_E = covSVD(m_A, varthresh, &m_U, &m_V);
+			m_E = covSVD(m_A, varthresh, cvarthresh, &m_U, &m_V);
 		} else {
 			cerr<<"Running Probabilistic SVD"<<endl;
-			m_E = onDiskSVD(m_A, minrank, poweriters, varthresh, &m_U, &m_V);
+			m_E = onDiskSVD(m_A, minrank, poweriters, varthresh, cvarthresh,
+					&m_U, &m_V);
 		}
 		MatMap writer;
 

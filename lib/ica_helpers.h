@@ -50,25 +50,30 @@ class MatrixReorg;
  * @param poweriters Number of power iterations to perform. 2 passes over A are
  * required for each iteration, but iteration drives error to 0 at an
  * exponential rate
+ * @param varthresh stop after the eigenvalues reach this ratio of the maximum
+ * @param cvarthresh stop after the sum of eigenvalues reaches this ratio of total
  * @param U Output U matrix, if null then ignored
  * @param V Output V matrix, if null then ignored
  *
  * @return Vector of singular values
  */
 VectorXd onDiskSVD(const MatrixReorg& A,
-		int rank, size_t poweriters, double varthresh,
+		int rank, size_t poweriters, double varthresh, double cvarthresh,
 		MatrixXd* U=NULL, MatrixXd* V=NULL);
 
 /**
  * @brief Computes the SVD from XXt using the JacobiSVD
  *
  * @param A MatrixReorg object that can be used to load images on disk
+ * @param varthresh stop after the eigenvalues reach this ratio of the maximum
+ * @param cvarthresh stop after the sum of eigenvalues reaches this ratio of total
  * @param U Output U matrix, if null then ignored
  * @param V Output V matrix, if null then ignored
  *
  * @return Vector of singular values
  */
-VectorXd covSVD(const MatrixReorg& A, double varthresh, MatrixXd* U, MatrixXd* V);
+VectorXd covSVD(const MatrixReorg& A, double varthresh, double cvarthresh,
+		MatrixXd* U, MatrixXd* V);
 
 class MatMap
 {
@@ -266,6 +271,11 @@ public:
 
 	/**
 	 * @brief Cutoff for explained variance in PCA
+	 */
+	double cvarthresh;
+
+	/**
+	 * @brief Cutoff for ratio of maximum variance (singular value) for cutoff
 	 */
 	double varthresh;
 
