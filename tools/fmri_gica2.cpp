@@ -108,6 +108,10 @@ int main(int argc, char** argv)
 			"using existing matrices from previous runs. A check will be "
 			"performed to see if the input matrices fit the correct size",
 			cmd);
+	TCLAP::SwitchArg a_fullsvd("F", "full-svd", "Don't use probabilistic "
+			"svd, instead just use the full covariance matrix to compute the "
+			"SVD. Warning this will scale memory with the square of the total "
+			"timepoints.", cmd);
 
 	cmd.add(a_verbose);
 	cmd.parse(argc, argv);
@@ -129,6 +133,7 @@ int main(int argc, char** argv)
 	gica.minrank = a_rank.getValue();
 	gica.poweriters = a_poweriters.getValue();
 	gica.trycontinue = a_continue.isSet();
+	gica.fullsvd = a_fullsvd.isSet();
 
 	size_t tb = 0;
 	size_t sb = 0;

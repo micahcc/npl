@@ -58,6 +58,41 @@ int main()
 	gica.verbose = true;
 	gica.minrank = 10;
 	gica.poweriters = 3;
+	gica.fullsvd = true;
+
+	gica.compute("", "gica_test_fmri.nii.gz");
+	auto pmap_real = readMRImage("gica_test_prob.nii.gz");
+	auto bmap_est  = readMRImage("gica_test_space_bmap_m0.nii.gz");
+	if(coratleast(0.5, pmap_real, bmap_est) != 0)
+		return -1;
+	}
+
+	{
+	GICAfmri gica("gica_test_time");
+	gica.varthresh = 0.90;
+	gica.maxmem = 0.5;
+	gica.spatial = false;
+	gica.normts = true;
+	gica.verbose = true;
+	gica.minrank = 10;
+	gica.fullsvd = true;
+
+	gica.compute("", "gica_test_fmri.nii.gz");
+	auto pmap_real = readMRImage("gica_test_prob.nii.gz");
+	auto bmap_est  = readMRImage("gica_test_time_bmap_m0.nii.gz");
+	if(coratleast(0.5, pmap_real, bmap_est) != 0)
+		return -1;
+	}
+
+	{
+	GICAfmri gica("gica_test_space");
+	gica.varthresh = 0.90;
+	gica.maxmem = 0.5;
+	gica.spatial = true;
+	gica.normts = true;
+	gica.verbose = true;
+	gica.minrank = 10;
+	gica.poweriters = 3;
 
 	gica.compute("", "gica_test_fmri.nii.gz");
 	auto pmap_real = readMRImage("gica_test_prob.nii.gz");
