@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file applyDeform.cpp Tool to apply a deformation field to another image. 
+ * @file applyDeform.cpp Tool to apply a deformation field to another image.
  * Not yet functional
  *
  *****************************************************************************/
@@ -112,14 +112,13 @@ ptr<NDArray> copyHelp(ptr<const NDArray> in, regex re, const vector<string>& loo
 	// figure out size
 	size_t odim = 0;
 	for(size_t ii=0; ii<lookup.size(); ii++) {
-		if(regex_match(lookup[ii], re)) 
+		if(regex_match(lookup[ii], re))
 			odim++;
 	}
 
 	vector<size_t> osize(4);
-	for(size_t dd=0; dd<3; dd++) {
+	for(size_t dd=0; dd<3; dd++)
 		osize[dd] = in->dim(dd);
-	}
 	osize[3] = odim;
 
 	auto out = in->copyCast(4, osize.data(), in->type());
@@ -129,7 +128,7 @@ ptr<NDArray> copyHelp(ptr<const NDArray> in, regex re, const vector<string>& loo
 		size_t time_out = 0;
 		for(size_t time_in=0; time_in<lookup.size(); time_in++) {
 			// copy lines conditionally
-			if(regex_match(lookup[time_in], re)) 
+			if(regex_match(lookup[time_in], re))
 				oit.set(time_out++, iit[time_in]);
 		}
 	}
@@ -140,7 +139,7 @@ ptr<NDArray> copyHelp(ptr<const NDArray> in, regex re, const vector<string>& loo
 int filter(string infile, string ofile, const vector<bool>& keepers)
 {
 	size_t nkeepers = 0;
-	for(size_t ii=0; ii<keepers.size(); ii++) 
+	for(size_t ii=0; ii<keepers.size(); ii++)
 		nkeepers += keepers[ii];
 
 	char delim = ' ';
@@ -154,7 +153,7 @@ int filter(string infile, string ofile, const vector<bool>& keepers)
 	size_t ncol = incsv[0].size();
 	for(size_t rr=0; rr<incsv.size(); rr++) {
 		if(ncol != incsv[rr].size()) {
-			cerr << "Error, mismatch in row width (# columns) in !" 
+			cerr << "Error, mismatch in row width (# columns) in !"
 				<< infile << endl;
 			return -1;
 		}
@@ -166,10 +165,10 @@ int filter(string infile, string ofile, const vector<bool>& keepers)
 		cout << "Square Input, assuming you want to extract both rows "
 			"and columns." << endl;
 		out.resize(nkeepers);
-		size_t irow = 0; 
-		size_t orow = 0; 
-		size_t icol = 0; 
-		size_t ocol = 0; 
+		size_t irow = 0;
+		size_t orow = 0;
+		size_t icol = 0;
+		size_t ocol = 0;
 
 		for(irow=0, orow=0; irow < nrow && orow < nkeepers; ++irow) {
 			if(keepers[irow]) {
@@ -231,8 +230,8 @@ int main(int argc, char* argv[])
 {
 	cerr << "Version: " << __version__ << endl;
 	try {
-		/* 
-		 * Command Line 
+		/*
+		 * Command Line
 		 */
 		TCLAP::CmdLine cmd("This program takes an 4D volume, a list file with "
 				"values coresponding to each volume and a regular expression. "

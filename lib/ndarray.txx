@@ -598,13 +598,27 @@ int NDArrayStore<D,T>::writePixels(gzFile file) const
 	for(size_t ii=0 ; ii<ndim(); ii++)
 		order.push_back(ii);
 
+	vector<T> buffer(1024);
 	Slicer it(ndim(), dim());
 	it.setOrder(order);
-	for(it.goBegin(); !it.isEnd(); ++it) {
-		gzwrite(file, &this->_m_data[*it], sizeof(T));
+
+	// fill buffer
+	size_t bi = 0;
+	for(it.goBegin(); !it.isEnd(); ++it, ++bi) {
+		// flush buffer
+		if(bi == buffer.size()) {
+			gzwrite(file, buffer.data(), bi*sizeof(T));
+			bi = 0;
+		}
+
+		buffer[bi] = this->_m_data[*it];
 	}
+	if(bi > 0)
+		gzwrite(file, buffer.data(), bi*sizeof(T));
+
 	return 0;
 }
+
 
 template <size_t D, typename T>
 const T& NDArrayStore<D,T>::operator[](const int64_t* index) const

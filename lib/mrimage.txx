@@ -521,7 +521,7 @@ int MRImageStore<D,T>::writeNifti1Image(gzFile file) const
 	int ret = writeNifti1Header(file);
 	if(ret != 0)
 		return ret;
-	ret = writePixels(file);
+	ret = NDArrayStore<D,T>::writePixels(file);
 	return ret;
 }
 
@@ -531,7 +531,7 @@ int MRImageStore<D,T>::writeNifti2Image(gzFile file) const
 	int ret = writeNifti2Header(file);
 	if(ret != 0)
 		return ret;
-	ret = writePixels(file);
+	ret = NDArrayStore<D,T>::writePixels(file);
 	return ret;
 }
 
@@ -811,34 +811,6 @@ int MRImageStore<D,T>::writeNifti2Header(gzFile file) const
 
 	gzwrite(file, &header, sizeof(header));
 	gzwrite(file, ext, sizeof(ext));
-
-	return 0;
-}
-
-template <size_t D, typename T>
-int MRImageStore<D,T>::writePixels(gzFile file) const
-{
-	// x is the fastest in nifti, for us it is the slowest
-	std::vector<size_t> order;
-	for(size_t ii=0 ; ii<ndim(); ii++)
-		order.push_back(ii);
-
-	vector<T> buffer(1<<20);
-	Slicer it(ndim(), dim());
-	it.setOrder(order);
-
-	// fill buffer
-	size_t bi = 0;
-	for(it.goBegin(); !it.isEnd(); ++it, ++bi) {
-		// flush buffer
-		if(bi == buffer.size()) {
-			gzwrite(file, buffer.data(), bi*sizeof(T));
-			bi = 0;
-		}
-
-		buffer[bi] = this->_m_data[*it];
-	}
-	gzwrite(file, buffer.data(), bi*sizeof(T));
 
 	return 0;
 }

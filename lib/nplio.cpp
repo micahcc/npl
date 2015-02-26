@@ -59,7 +59,7 @@ void readPixels(ptr<NDArray> arr, gzFile file, size_t vox_offset,
 		size_t pixsize, bool doswap)
 {
 	int bytesread = 0;
-	vector<T> buffer(1<<20);
+	vector<T> buffer(1024);
 
 	if(pixsize != sizeof(T)) {
 		throw INVALID_ARGUMENT("Pixel size in file ("+to_string(pixsize)

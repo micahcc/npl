@@ -1157,7 +1157,7 @@ protected:
 	int writeNifti2Image(gzFile file) const;
 	int writeNifti1Header(gzFile file) const;
 	int writeNifti2Header(gzFile file) const;
-	int writePixels(gzFile file) const;
+//	int writePixels(gzFile file) const;
 	int writeJSON(gzFile file) const;
 };
 } // npl
