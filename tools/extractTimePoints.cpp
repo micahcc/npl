@@ -121,7 +121,14 @@ ptr<NDArray> copyHelp(ptr<const NDArray> in, regex re, const vector<string>& loo
 		osize[dd] = in->dim(dd);
 	osize[3] = odim;
 
+	cerr << "Creating 4D Image: ";
+	for(size_t ii=0; ii<4; ii++)
+		cerr << osize[ii]<<",";
+	cerr<<endl;
+
 	auto out = in->copyCast(4, osize.data(), in->type());
+
+	cerr << "Filling...";
 	Vector3DConstIter<T> iit(in);
 	Vector3DIter<T> oit(out);
 	for(iit.goBegin(), oit.goBegin(); !iit.eof() && !oit.eof(); ++iit, ++oit) {
@@ -132,6 +139,7 @@ ptr<NDArray> copyHelp(ptr<const NDArray> in, regex re, const vector<string>& loo
 				oit.set(time_out++, iit[time_in]);
 		}
 	}
+	cerr<<"Done"<<endl;
 	assert(iit.eof() && oit.eof());
 	return out;
 }
