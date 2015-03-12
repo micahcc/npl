@@ -99,15 +99,18 @@ def build(bld):
             source = 'fmri_ica.cpp',
             use = [npl, 'tclap'])
 
-    bld.program(target = 'nplGICA',
-            source = 'fmri_gica2.cpp',
+    bld.program(target = 'nplGICA_reorg',
+            source = 'gica_reorg.cpp',
             use = [npl, 'tclap'])
 
-#    bld.program(target = 'nplGICAsc',
-#            install_path='${PREFIX}/tools_incomplete',
-#            source = 'fmri_space_cat_ica.cpp',
-#            use = [npl, 'tclap'])
-#
+    bld.program(target = 'nplGICA_reduce',
+            source = 'gica_reduce.cpp',
+            use = [npl, 'tclap'])
+
+    bld.program(target = 'nplGICA_ica',
+            source = 'gica_ica.cpp',
+            use = [npl, 'tclap'])
+
     bld.program(target = 'nplhd',
             source = 'niiHeader.cpp',
             use = [npl, 'tclap'])

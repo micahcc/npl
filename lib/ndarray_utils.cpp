@@ -39,6 +39,7 @@
 #include "fftw3.h"
 
 #include <string>
+#include <unordered_set>
 #include <iostream>
 #include <iomanip>
 #include <cassert>
@@ -57,6 +58,22 @@ using std::vector;
 using Eigen::Matrix3d;
 using Eigen::Vector3d;
 using Eigen::AngleAxisd;
+
+/**
+ * @brief Produces a std::unordered_set of labels within a labelmap
+ *
+ * @param in Input image any dimension or size
+ *
+ * @return set of values, note that all pixels are cast to int64_t so a
+ * double image may be valid, but might produce odd results
+ */
+std::unordered_set<int64_t> getLabels(ptr<const NDArray> in)
+{
+	std::unordered_set<int64_t> oset;
+	for(FlatConstIter<int64_t> it(in); !it.eof(); ++it)
+		oset.insert(*it);
+	return oset;
+}
 
 /**
  * @brief Computes the derivative of the image in the specified direction.

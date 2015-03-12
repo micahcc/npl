@@ -50,76 +50,67 @@ int main()
 	simulate(20, 20, 20, 500, 2, 5);
 
 	{
-	GICAfmri gica("gica_test_space");
-	gica.cvarthresh = 0.90;
-	gica.varthresh = 0.10;
-	gica.maxmem = 0.5;
-	gica.spatial = true;
-	gica.normts = true;
-	gica.verbose = true;
-	gica.minrank = 10;
-	gica.poweriters = 3;
-	gica.fullsvd = true;
+		std::vector<std::string> inputs(1, "gica_test_fmri.nii.gz");
+		std::vector<std::string> masks(1, "");
 
-	gica.compute("", "gica_test_fmri.nii.gz");
-	auto pmap_real = readMRImage("gica_test_prob.nii.gz");
-	auto bmap_est  = readMRImage("gica_test_space_bmap_m0.nii.gz");
-	if(coratleast(0.5, pmap_real, bmap_est) != 0)
-		return -1;
+		gicaCreateMatrices(1, 1, masks, inputs, "gica_test_space", 0.5, true, true);
+		gicaReduceFull("gica_test_space", "gica_test_space", 0.1, 0.9, true);
+		//gicaReduceProb("gica_test_time", "gica_test_time", 10, 3, 0.1, 0.9, true);
+		//gicaTemporalICA("gica_test_space", "gica_test_space", "gica_test_space");
+		gicaSpatialICA("gica_test_space", "gica_test_space", "gica_test_space", true);
+
+		auto pmap_real = readMRImage("gica_test_prob.nii.gz");
+		auto bmap_est  = readMRImage("gica_test_space_bmap_m0.nii.gz");
+		if(coratleast(0.5, pmap_real, bmap_est) != 0)
+			return -1;
 	}
 
 	{
-	GICAfmri gica("gica_test_time");
-	gica.cvarthresh = 0.90;
-	gica.varthresh = 0.10;
-	gica.maxmem = 0.5;
-	gica.spatial = false;
-	gica.normts = true;
-	gica.verbose = true;
-	gica.minrank = 10;
-	gica.fullsvd = true;
+		std::vector<std::string> inputs(1, "gica_test_fmri.nii.gz");
+		std::vector<std::string> masks(1, "");
 
-	gica.compute("", "gica_test_fmri.nii.gz");
-	auto pmap_real = readMRImage("gica_test_prob.nii.gz");
-	auto bmap_est  = readMRImage("gica_test_time_bmap_m0.nii.gz");
-	if(coratleast(0.5, pmap_real, bmap_est) != 0)
-		return -1;
+		gicaCreateMatrices(1, 1, masks, inputs, "gica_test_time", 0.5, true, true);
+		gicaReduceFull("gica_test_time", "gica_test_time", 0.1, 0.9, true);
+		//gicaReduceProb("gica_test_time", "gica_test_time", 10, 3, 0.1, 0.9, true);
+		gicaTemporalICA("gica_test_time", "gica_test_time", "gica_test_time", true);
+		//gicaSpatialICA("gica_test_space", "gica_test_space", "gica_test_space", true);
+
+		auto pmap_real = readMRImage("gica_test_prob.nii.gz");
+		auto bmap_est  = readMRImage("gica_test_time_bmap_m0.nii.gz");
+		if(coratleast(0.5, pmap_real, bmap_est) != 0)
+			return -1;
 	}
 
 	{
-	GICAfmri gica("gica_test_space");
-	gica.cvarthresh = 0.90;
-	gica.varthresh = 0.10;
-	gica.maxmem = 0.5;
-	gica.spatial = true;
-	gica.normts = true;
-	gica.verbose = true;
-	gica.minrank = 10;
-	gica.poweriters = 3;
+		std::vector<std::string> inputs(1, "gica_test_fmri.nii.gz");
+		std::vector<std::string> masks(1, "");
 
-	gica.compute("", "gica_test_fmri.nii.gz");
-	auto pmap_real = readMRImage("gica_test_prob.nii.gz");
-	auto bmap_est  = readMRImage("gica_test_space_bmap_m0.nii.gz");
-	if(coratleast(0.5, pmap_real, bmap_est) != 0)
-		return -1;
+		gicaCreateMatrices(1, 1, masks, inputs, "gica_test_space", 0.5, true, true);
+		//gicaReduceFull("gica_test_space", "gica_test_space", 0.1, 0.9, true);
+		gicaReduceProb("gica_test_space", "gica_test_space", 10, 3, 0.1, 0.9, true);
+		//gicaTemporalICA("gica_test_space", "gica_test_space", "gica_test_space", true);
+		gicaSpatialICA("gica_test_space", "gica_test_space", "gica_test_space", true);
+
+		auto pmap_real = readMRImage("gica_test_prob.nii.gz");
+		auto bmap_est  = readMRImage("gica_test_space_bmap_m0.nii.gz");
+		if(coratleast(0.5, pmap_real, bmap_est) != 0)
+			return -1;
 	}
 
 	{
-	GICAfmri gica("gica_test_time");
-	gica.cvarthresh = 0.90;
-	gica.varthresh = 0.10;
-	gica.maxmem = 0.5;
-	gica.spatial = false;
-	gica.normts = true;
-	gica.verbose = true;
-	gica.minrank = 10;
-	gica.poweriters = 3;
+		std::vector<std::string> inputs(1, "gica_test_fmri.nii.gz");
+		std::vector<std::string> masks(1, "");
 
-	gica.compute("", "gica_test_fmri.nii.gz");
-	auto pmap_real = readMRImage("gica_test_prob.nii.gz");
-	auto bmap_est  = readMRImage("gica_test_time_bmap_m0.nii.gz");
-	if(coratleast(0.5, pmap_real, bmap_est) != 0)
-		return -1;
+		gicaCreateMatrices(1, 1, masks, inputs, "gica_test_time", 0.5, true, true);
+		//gicaReduceFull("gica_test_time", "gica_test_time", 0.1, 0.9, true);
+		gicaReduceProb("gica_test_time", "gica_test_time", 10, 3, 0.1, 0.9, true);
+		gicaTemporalICA("gica_test_time", "gica_test_time", "gica_test_time", true);
+		//gicaSpatialICA("gica_test_space", "gica_test_space", "gica_test_space", true);
+
+		auto pmap_real = readMRImage("gica_test_prob.nii.gz");
+		auto bmap_est  = readMRImage("gica_test_time_bmap_m0.nii.gz");
+		if(coratleast(0.5, pmap_real, bmap_est) != 0)
+			return -1;
 	}
 
 	return 0;

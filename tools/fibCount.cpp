@@ -54,16 +54,6 @@ KDTree<3, 1, float, int> readLabelMesh(string filename);
 KDTree<3, 1, float, int> readLabelMap(string filename);
 
 /**
- * @brief Reads tracts into a vector of tracts, where each tract is a vector of
- * float[3].
- *
- * @param filename
- *
- * @return
- */
-TractSet readTracts(string filename);
-
-/**
  * @brief Computes average scalar statistic along each tract then accumulates
  * the average statistic for all labels along the tract. This produces a
  * weighted average of the stastic between pairs of points
@@ -100,13 +90,16 @@ int main(int argc, char * argv[])
 			"connectivity over.", false, "", "*.dfs");
 	cmd.xorAdd(a_labelmap, a_mesh);
 
-	TCLAP::ValueArg<string> a_countfile("c", "count-ofile", "Adjacency matrix "
+	TCLAP::ValueArg<string> a_cgraphs("c", "count-ofile", "Adjacency matrix "
 			"containing fiber counts between pairs of regions.", false, "",
 			"graph", cmd);
-	TCLAP::MultiArg<string> a_fafile("f", "field-graph",
+	TCLAP::MultiArg<string> a_fgraphs("f", "field-graph",
 			"Adjacency matrix containing average field between pairs of "
 			"regions. Repeat for multiple, number of args should match -F",
 			false, "", "graph", cmd);
+	TCLAP::ValueArg<string> a_lgraphs("L", "length-ofile",
+			"Adjacency matrix containing average length of fibers between "
+			"pairs of regions.", false, "", "graph", cmd);
 
 	TCLAP::MultiArg<string> a_scalars("F", "field",
 			"Scalar image whose values will be averaged over the tracts "
@@ -119,10 +112,6 @@ int main(int argc, char * argv[])
 			"If this argument is provided more than once, then the number "
 			"should match the number of inputs for -F, and each field will "
 			"be masked with its own set of labels.", false, "", "*.nii.gz", cmd);
-
-	TCLAP::ValueArg<string> a_lengthfile("L", "length-ofile",
-			"Adjacency matrix containing average length of fibers between "
-			"pairs of regions.", false, "", "graph", cmd);
 
 	TCLAP::ValueArg<double> a_radius("r", "fiber-radius",
 				"Maximum distance from a fiber for a fiber to be considered "
@@ -138,62 +127,62 @@ int main(int argc, char * argv[])
 
 	size_t nlabel;
 	KDTree<3, 1, float, int> tree;
-	if(a_mesh.isSet()) {
-		nlabel = readLabelMesh(a_mesh.getValue(), tree);
-	} else if(a_labelmap.isSet()) {
-		nlabel = readLabelMap(a_labelmap.getValue(), tree);
-	}
+	if(a_mesh.isSet())
+		nlabel = readLabelMesh(a_mesh.getValue(), &tree);
+	else if(a_labelmap.isSet())
+		nlabel = readLabelMap(a_labelmap.getValue(), &tree);
 
 	// Compute the Attached Labels for each Tract
+	cerr<<"Reading Tracts"<<endl;
 	TractSet tractData = readTracts(a_tracts.getValue());
+	cerr<<"Done"<<endl;
 
-	// Compute Connections, note it might be worth storing the position of
-	// where regions fall on connecting fibers then limiting average FA only to
-	// the values that fall between connections.
-	vector<vector<int>> conns;
-	if(a_endcount.isSet())
-		conns = computeEndConnections(tractData, tree, a_radius.getValue());
-	else
-		conns = computeConnections(tractData, tree, a_radius.getValue());
+	cerr<<"Reading Scalars"<<endl;
+	vector<ptr<MRImage>> simgs;
+	for(auto fname : a_scalars.getValue())
+		simgs.push_back(readMRImage(fname));
+	cerr<<"Done"<<endl;
 
-	// Compute Average Statistics for each tract then average that average over
-	// all tracts connecting regions
-	for(size_t ii=0; ii<a_scalars.size(); ii++) {
-		ptr<MRImage> simg = readMRImage(a_scalars.getValue()[ii]);
-		ptr<MRImage> smask = NULL;
-		if(ii < a_scalarmasks.size())
-			smask = readMRImage(a_scalarmasks.getValue()[ii]);
+	cerr<<"Creating Output Graphs"<<endl;
+	// create Graphs
+	Graph<double> cgraph(nlabel);
+	Graph<double> lengraph(nlabel);
+	std::vector<Graph<double>> fgraphs(a_scalars.size());
+	for(size_t ii=0; ii<fgraphs.size(); ii++)
+		fgraph[ii].init(nlabel);
+	cerr<<"Done"<<endl;
 
-		if(ii < a_fafile.size()) {
-			auto out = computeTractAvg(tractData, conns, simg, smask);
-			out->save(a_fafile.getValue()[ii]);
-		}
-	}
+	// scalars[tract][point][scalar]
+	cerr<<"Computing per-point scalars"<<endl;
+	std::vector<std::vector<std::list<double>>> scalars = computeScalars(
+			tractData, simgs);
+	cerr<<"Done"<<endl;
 
-	if(a_countfile.isSet()) {
-		cerr << "Computing Count" << endl;
-		Graph<double> count(nlabel);
-		for(size_t ii=0; ii<nlabel; ii++) {
-			for(size_t jj=0; jj<nlabel; jj++) {
-				count(ii, jj) = 0;
-			}
-		}
+	cerr<<"Averaging Scalars over Graphs"<<endl;
+	computePerEdgeScalars(tractData, scalars, &cgraph, &lengraph, &fgraph);
+	cerr<<"Done"<<endl;
 
-		for(size_t tt=0; tt<conns.size(); tt++) {
-			for(size_t ll=0; ll<cons[tt].size(); ++ll){
-				for(size_t kk=ll; kk<cons[tt].size(); ++kk) {
-					count(conns[tt][ll], conns[tt][kk])++;
-				}
-			}
-		}
-		count.save(a_countfile.getValue());
-	}
+//
+//
+//	// Compute Average Statistics for each tract then average that average over
+//	// all tracts connecting regions
+//	for(size_t ii=0; ii<a_scalars.size(); ii++) {
+//		ptr<MRImage> simg = readMRImage(a_scalars.getValue()[ii]);
+//		ptr<MRImage> smask = NULL;
+//		if(ii < a_scalarmasks.size())
+//			smask = readMRImage(a_scalarmasks.getValue()[ii]);
+//
+//		if(ii < a_fafile.size()) {
+//			auto out = computeTractAvg(tractData, conns, simg, smask);
+//			out->save(a_fafile.getValue()[ii]);
+//		}
+//	}
 
-	if(a_lengthfile->count > 0) {
-		cerr << "Computing Length" << endl;
-		auto lengths = computeLengthAvg(tractData, conns);
-		lengths->save(a_lengthfile.getValue());
-	}
+	if(a_countfile.isSet())
+		cgraph.save(a_countfile.getValue();
+
+	if(a_lengthfile.isSet())
+		lengraph->save(a_lengthfile.getValue());
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
@@ -221,147 +210,163 @@ F distance(F a[3], F b[3])
 * @param maskLabels list of labels to average scalar fields over
 * @param labelinter interpolator for labelmap
 */
-void computeScalars(vtkSmartPointer<vtkPolyData> tractData,
-			const list<FInterp::Pointer>& interps,
-			const list<set<int>>& maskLabels,
-			const LInterp::Pointer labelinterp = NULL)
+vector<vector<list<double>>> computeScalars(const TrackSet& tractData,
+		const vector<ptr<MRImage>>& simgs)
 {
-	assert(maskLabels.size() == 1 || maskLabels.size() == interps.size() ||
-				!labelinterp);
+	vector<vector<list<double>>> outscalars(tractData.size());
+	vector<LinInterp3DView<double>> interps(simgs.size());
+	for(size_t ii=0; ii<simgs.size(); ii++) {
+		interps.setArray(simgs[ii]);
+		interps.m_ras = true;
+	}
 
-    vtkIdType npts;
-    vtkIdType* ids;
-	double pt1[3];
-	double pt2[3];
-	FImageT::PointType fpt;
-
-	size_t numfield = interps.size();
-
-	//only iterate through the sets of labels if we have multiple
-	bool iterateLabels = (numfield == maskLabels.size());
-	vector<double> fieldPtCount(numfield);
-
-	//create the scalar output, (1 value for length + 1 for each scalar field)
-	vtkSmartPointer<vtkFloatArray> scalars = vtkSmartPointer<vtkFloatArray>::New();
-	scalars->SetNumberOfComponents(1 + numfield);
-
-	//to calculate average along the length we will multiply
-	//the length*value for each segment:
-	//v[0]*.5*l + v[1]*.5*l
-	float* tuple = new float[1 + numfield];
-	float* pfield = new float[numfield];
-
-	// set up interpolators for the input scalar fields
-	list<FInterp::Pointer>::const_iterator interp_it;
-	list<set<int>>::const_iterator label_it;
-
-    /*
-	 *  iterate through fibers, calculating scalar fields and length of each
-	 */
-	cerr << "Initializing Traversal" << endl;
-    vtkSmartPointer<vtkCellArray> tracts = tractData->GetLines();
-    tracts->InitTraversal();
-    while(tracts->GetNextCell(npts, ids)) {
-		//initialize point 0
-		tractData->GetPoint(ids[0], pt1);
-		fpt[0] = -pt1[0];
-		fpt[1] = -pt1[1];
-		fpt[2] = pt1[2];
-
-		//zero counts
-		fill(fieldPtCount.begin(), fieldPtCount.end(), 0);
-		for(unsigned int ii = 0 ; ii < numfield; ii++)
-			pfield[ii] = NAN;
-		for(unsigned int ii = 0 ; ii < numfield+1; ii++)
-			tuple[ii] = 0;
-
-		//calculate scalars for point 0
-		interp_it = interps.begin() ;
-		label_it = maskLabels.begin() ;
-		for(int jj = 0; interp_it != interps.end(); jj++, interp_it++) {
-			bool valid_field = (*interp_it)->IsInsideBuffer(fpt);
-
-			//valid if we have no labelmap OR we have a labelmap, the point is
-			//in the image, and the set matching the current field contains the label
-			bool valid_label = (!labelinterp ||
-						(labelinterp && labelinterp->IsInsideBuffer(fpt) &&
-						 (*label_it).count(labelinterp->Evaluate(fpt))));
-
-			if(valid_field && valid_label)
-				pfield[jj] = (*interp_it)->Evaluate(fpt);
-
-			if(iterateLabels)
-				label_it++;
-		}
-
-		//calculate scalars at each point, and add up length
-		for(int ii = 1 ; ii < npts ; ii++) {
-			tractData->GetPoint(ids[ii], pt2);
-
-			//evaluate FA, at point in RAS
-			fpt[0] = -pt2[1];
-			fpt[1] = -pt2[2];
-			fpt[2] = pt2[0];
-
-			//sum length
-			double dist = distance(pt1, pt2);
-			tuple[0] += dist;
-
-			label_it = maskLabels.begin() ;
-			interp_it = interps.begin() ;
-			for(int jj = 0; interp_it != interps.end(); jj++, interp_it++) {
-				bool valid_field = (*interp_it)->IsInsideBuffer(fpt);
-
-				//valid if we have no labelmap OR we have a labelmap, the point is
-				//in the image, and the set matching the current field contains the label
-				bool valid_label = (!labelinterp ||
-						(labelinterp && labelinterp->IsInsideBuffer(fpt) &&
-						 (*label_it).count(labelinterp->Evaluate(fpt))));
-
-				double s = 0;
-
-				//sum for first half of segment (if its valid)
-				if(!isnan(pfield[jj])) {
-					s += dist*.5*pfield[jj];
-					fieldPtCount[jj] += dist*.5;
-				}
-
-				//sum for second half of segment (if its valid)
-				if(valid_field && valid_label) {
-					fieldPtCount[jj] += dist*.5;
-					s += dist*.5*(*interp_it)->Evaluate(fpt);
-
-					//set pfield as valid for next point
-					pfield[jj] = (*interp_it)->Evaluate(fpt);
-				} else {
-					//set pfield as invalid for next point
-					pfield[jj] = NAN;
-				}
-
-				tuple[jj+1] += s;
-
-				if(iterateLabels)
-					label_it++;
+	for(size_t tract=0; tract<tractData.size(); ++tract) {
+		// create scalars for tract
+		outscalars[tract].resize(tractData[tract].size());
+		for(size_t point=0; point<tractData[tract].size(); ++point) {
+			// interpolate at point
+			for(size_t ss=0; ss<interps.size(); ss++) {
+				outscalars[tract][point].push_back(interps.get(
+						tractData[tract][point][0],
+						tractData[tract][point][1],
+						tractData[tract][point][2]))
 			}
-
-			//step to next point and make pt1 previous
-			copy(pt2, pt2+3, pt1);
 		}
+	}
 
-		//average over length, but only for the length within the scalars label
-		//groups
-		for(unsigned int jj = 0; jj < numfield; jj++) {
-			*olog << "Labeled Length: " << fieldPtCount[jj] << " : "
-						<< tuple[jj+1] << " : "
-						<< tuple[jj+1]/fieldPtCount[jj] << endl;
-			tuple[jj+1] /= fieldPtCount[jj];
-		}
-
-		scalars->InsertNextTupleValue(tuple);
-    }
-
-	delete[] tuple;
-
+//    vtkIdType npts;
+//    vtkIdType* ids;
+//	double pt1[3];
+//	double pt2[3];
+//	FImageT::PointType fpt;
+//
+//	size_t numfield = interps.size();
+//
+//	//only iterate through the sets of labels if we have multiple
+//	bool iterateLabels = (numfield == maskLabels.size());
+//	vector<double> fieldPtCount(numfield);
+//
+//	//create the scalar output, (1 value for length + 1 for each scalar field)
+//	vtkSmartPointer<vtkFloatArray> scalars = vtkSmartPointer<vtkFloatArray>::New();
+//	scalars->SetNumberOfComponents(1 + numfield);
+//
+//	//to calculate average along the length we will multiply
+//	//the length*value for each segment:
+//	//v[0]*.5*l + v[1]*.5*l
+//	float* tuple = new float[1 + numfield];
+//	float* pfield = new float[numfield];
+//
+//	// set up interpolators for the input scalar fields
+//	list<FInterp::Pointer>::const_iterator interp_it;
+//	list<set<int>>::const_iterator label_it;
+//
+//    /*
+//	 *  iterate through fibers, calculating scalar fields and length of each
+//	 */
+//	cerr << "Initializing Traversal" << endl;
+//    vtkSmartPointer<vtkCellArray> tracts = tractData->GetLines();
+//    tracts->InitTraversal();
+//    while(tracts->GetNextCell(npts, ids)) {
+//		//initialize point 0
+//		tractData->GetPoint(ids[0], pt1);
+//		fpt[0] = -pt1[0];
+//		fpt[1] = -pt1[1];
+//		fpt[2] = pt1[2];
+//
+//		//zero counts
+//		fill(fieldPtCount.begin(), fieldPtCount.end(), 0);
+//		for(unsigned int ii = 0 ; ii < numfield; ii++)
+//			pfield[ii] = NAN;
+//		for(unsigned int ii = 0 ; ii < numfield+1; ii++)
+//			tuple[ii] = 0;
+//
+//		//calculate scalars for point 0
+//		interp_it = interps.begin() ;
+//		label_it = maskLabels.begin() ;
+//		for(int jj = 0; interp_it != interps.end(); jj++, interp_it++) {
+//			bool valid_field = (*interp_it)->IsInsideBuffer(fpt);
+//
+//			//valid if we have no labelmap OR we have a labelmap, the point is
+//			//in the image, and the set matching the current field contains the label
+//			bool valid_label = (!labelinterp ||
+//						(labelinterp && labelinterp->IsInsideBuffer(fpt) &&
+//						 (*label_it).count(labelinterp->Evaluate(fpt))));
+//
+//			if(valid_field && valid_label)
+//				pfield[jj] = (*interp_it)->Evaluate(fpt);
+//
+//			if(iterateLabels)
+//				label_it++;
+//		}
+//
+//		//calculate scalars at each point, and add up length
+//		for(int ii = 1 ; ii < npts ; ii++) {
+//			tractData->GetPoint(ids[ii], pt2);
+//
+//			//evaluate FA, at point in RAS
+//			fpt[0] = -pt2[1];
+//			fpt[1] = -pt2[2];
+//			fpt[2] = pt2[0];
+//
+//			//sum length
+//			double dist = distance(pt1, pt2);
+//			tuple[0] += dist;
+//
+//			label_it = maskLabels.begin() ;
+//			interp_it = interps.begin() ;
+//			for(int jj = 0; interp_it != interps.end(); jj++, interp_it++) {
+//				bool valid_field = (*interp_it)->IsInsideBuffer(fpt);
+//
+//				//valid if we have no labelmap OR we have a labelmap, the point is
+//				//in the image, and the set matching the current field contains the label
+//				bool valid_label = (!labelinterp ||
+//						(labelinterp && labelinterp->IsInsideBuffer(fpt) &&
+//						 (*label_it).count(labelinterp->Evaluate(fpt))));
+//
+//				double s = 0;
+//
+//				//sum for first half of segment (if its valid)
+//				if(!isnan(pfield[jj])) {
+//					s += dist*.5*pfield[jj];
+//					fieldPtCount[jj] += dist*.5;
+//				}
+//
+//				//sum for second half of segment (if its valid)
+//				if(valid_field && valid_label) {
+//					fieldPtCount[jj] += dist*.5;
+//					s += dist*.5*(*interp_it)->Evaluate(fpt);
+//
+//					//set pfield as valid for next point
+//					pfield[jj] = (*interp_it)->Evaluate(fpt);
+//				} else {
+//					//set pfield as invalid for next point
+//					pfield[jj] = NAN;
+//				}
+//
+//				tuple[jj+1] += s;
+//
+//				if(iterateLabels)
+//					label_it++;
+//			}
+//
+//			//step to next point and make pt1 previous
+//			copy(pt2, pt2+3, pt1);
+//		}
+//
+//		//average over length, but only for the length within the scalars label
+//		//groups
+//		for(unsigned int jj = 0; jj < numfield; jj++) {
+//			*olog << "Labeled Length: " << fieldPtCount[jj] << " : "
+//						<< tuple[jj+1] << " : "
+//						<< tuple[jj+1]/fieldPtCount[jj] << endl;
+//			tuple[jj+1] /= fieldPtCount[jj];
+//		}
+//
+//		scalars->InsertNextTupleValue(tuple);
+//    }
+//
+//	delete[] tuple;
+//
 	tractData->GetCellData()->SetScalars(scalars);
 }
 
@@ -733,7 +738,8 @@ int createGraphs(vtkSmartPointer<vtkPolyData> tractData,
  */
 KDTree<3, 1, float, int> readLabelMesh(string filename)
 {
-
+	throw std::invalid_argument("readLabelMesh not yet implemented");
+	return KDTree<3 ,1 float, int>();
 };
 
 /**

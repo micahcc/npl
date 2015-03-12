@@ -42,6 +42,43 @@ using namespace std;
 
 namespace npl {
 
+std::string sica_name(std::string m_pref) {
+	return m_pref+"_SpaceIC";
+};
+std::string tica_name(std::string m_pref) {
+	return m_pref+"_TimeIC";
+};
+std::string sw_name(std::string m_pref) {
+	return m_pref+"_SpaceW";
+};
+std::string tw_name(std::string m_pref) {
+	return m_pref+"_TimeW";
+};
+std::string tmap_name(std::string m_pref, size_t ii) {
+	return m_pref+"_tmap_m"+std::to_string(ii)+".nii.gz";
+};
+std::string pmap_name(std::string m_pref, size_t ii) {
+	return m_pref+"_pmap_m"+std::to_string(ii)+".nii.gz";
+};
+std::string zmap_name(std::string m_pref, size_t ii) {
+	return m_pref+"_zmap_m"+std::to_string(ii)+".nii.gz";
+};
+std::string bmap_name(std::string m_pref, size_t ii) {
+	return m_pref+"_bmap_m"+std::to_string(ii)+".nii.gz";
+};
+std::string tplot_name(std::string m_pref, size_t ii) {
+	return m_pref+"_tplot_c"+std::to_string(ii)+".svg";
+};
+std::string U_name(std::string m_pref) {
+	return m_pref+"_Umat";
+};
+std::string V_name(std::string m_pref) {
+	return m_pref+"_Vmat";
+};
+std::string E_name(std::string m_pref) {
+	return m_pref+"_Evec";
+};
+
 /*****************************************************************************
  * High Level Functions for Performing Large Scale ICA Analysis
  ****************************************************************************/
@@ -669,234 +706,95 @@ void MatrixReorg::postMult(Eigen::Ref<MatrixXd> out,
 	}
 };
 
-GICAfmri::GICAfmri(std::string pref)
-{
-	m_pref = pref;
-	varthresh = 0.1;
-	cvarthresh = 0.9;
-	minrank = 200;
-	poweriters = 2;
-	maxmem = 4; //gigs
-	verbose = false;
-	spatial = true;
-	normts = true;
-	minfreq = 0.01;
-	maxfreq = 0.5;
-	fullsvd = false;
-	trycontinue = false;
-}
-
-void GICAfmri::createMatrices(size_t tcat, size_t scat, vector<string> masks,
-		vector<string> inputs)
+void gicaCreateMatrices(size_t tcat, size_t scat, vector<string> masks,
+		vector<string> inputs, std::string prefix, double maxmem, bool normts,
+		bool verbose)
 {
 	cerr << "Reorganizing data into matrices..."<<endl;
 	size_t ndoubles = (size_t)(0.5*maxmem*(1<<27));
-	new (&m_A) MatrixReorg(m_pref, ndoubles, verbose);
-
-	bool successload = false;
-	if(trycontinue) {
-		cerr<<"Using existing matrices!"<<endl;
-		try{
-			m_A.checkMats();
-			successload = true;
-			cerr<<"Success Loading Existing Mats"<<endl;
-		} catch(...) {
-			trycontinue = false;
-			successload = false;
-			cerr<<"Failed to Load Existing Mats, Recreating"<<endl;
-		}
-	}
-
-	if(!successload) {
-		int status = m_A.createMats(tcat, scat, masks, inputs, normts);
-		if(status != 0)
-			throw RUNTIME_ERROR("Error while reorganizing data into 2D Matrices");
-		cerr<<"Done Reorganizing"<<endl;
-	}
+	MatrixReorg A(prefix, ndoubles, verbose);
+	int status = A.createMats(tcat, scat, masks, inputs, normts);
+	if(status != 0)
+		throw RUNTIME_ERROR("Error while reorganizing data into 2D Matrices");
+	cerr<<"Done Reorganizing"<<endl;
 }
 
-void GICAfmri::cleanup()
+void gicaReduceFull(std::string inpref, std::string outpref, double varthresh,
+		double cvarthresh, bool verbose)
 {
-	cerr<<"Removing old data in 3 seconds ctr-c to exit"<<endl;
-	sleep(3);
-	if(remove(info_name().c_str())==0)
-		cerr<<"Removed "<<info_name()<<endl;
-	if(remove(U_name().c_str())==0)
-		cerr<<"Removed "<<U_name()<<endl;
-	if(remove(V_name().c_str())==0)
-		cerr<<"Removed "<<V_name()<<endl;
-	if(remove(E_name().c_str())==0)
-		cerr<<"Removed "<<E_name()<<endl;
-	if(remove(sica_name().c_str())==0)
-		cerr<<"Removed "<<sica_name()<<endl;
-	if(remove(sw_name().c_str())==0)
-		cerr<<"Removed "<<sw_name()<<endl;
-	if(remove(tica_name().c_str())==0)
-		cerr<<"Removed "<<tica_name()<<endl;
-	if(remove(tw_name().c_str())==0)
-		cerr<<"Removed "<<tw_name()<<endl;
-	size_t ii=0;
-	std::string name;
+	MatrixXd U, E, V;
+	MatrixReorg A(inpref, -1, verbose);
+	A.checkMats();
 
-	// remove zmaps
-	ii = 0;
-	while(remove(zmap_name(ii).c_str())==0){
-		cerr<<"Removed "<<zmap_name(ii)<<endl;
-		ii++;
-	}
+	cerr<<"Running XXt SVD"<<endl;
+	E = covSVD(A, varthresh, cvarthresh, &U, &V);
+	cerr<<"Done"<<endl;
+	MatMap writer;
+	writer.create(U_name(outpref), U.rows(), U.cols());
+	writer.mat = U;
+	writer.create(V_name(outpref), V.rows(), V.cols());
+	writer.mat = V;
+	writer.create(E_name(outpref), E.rows(), E.cols());
+	writer.mat = E;
 
-	// remove tmaps
-	ii = 0;
-	while(remove(tmap_name(ii).c_str())==0){
-		cerr<<"Removed "<<tmap_name(ii)<<endl;
-		ii++;
-	}
-
-	// remove pmaps
-	ii = 0;
-	while(remove(pmap_name(ii).c_str())==0){
-		cerr<<"Removed "<<pmap_name(ii)<<endl;
-		ii++;
-	}
-
-	// remove bmaps
-	ii = 0;
-	while(remove(bmap_name(ii).c_str())==0){
-		cerr<<"Removed "<<bmap_name(ii)<<endl;
-		ii++;
-	}
-
-	// remove tall matrices
-	ii = 0;
-	while(remove(tall_name(ii).c_str())==0){
-		cerr<<"Removed "<<tall_name(ii)<<endl;
-		ii++;
-	}
-
-	// remove masks
-	ii = 0;
-	while(remove(mask_name(ii).c_str())==0) {
-		cerr<<"Removed "<<mask_name(ii)<<endl;
-		ii++;
-	}
+	if(verbose)
+		cerr<<"Signular Values:\n" << E.transpose()<<endl;
 }
 
-/**
- * @brief Compute ICA for the given group, defined by tcat x scat images
- * laid out in column major ordering.
- *
- * The basic idea is to split the rows into digesteable chunks, then
- * perform the SVD on each of them.
- *
- * A = [A1 A2 A3 ... ]
- * A = [UEV1 UEV2 .... ]
- * A = [UE1 UE2 UE3 ...] diag([V1, V2, V3...])
- *
- * UE1 should have far fewer columns than rows so that where A is RxC,
- * with R < C, [UE1 ... ] should have be R x LN with LN < R
- *
- * Say we are concatinating S subjects each with T timepoints, then
- * A is STxC, assuming a rank of L then [UE1 ... ] will be ST x SL
- *
- * Even if L = T / 2 then this is a 1/4 savings in the SVD computation
- *
- * @param tcat Number of fMRI images to append in time direction
- * @param scat Number of fMRI images to append in space direction
- * @param masks Masks, one per spaceblock (columns of matching space)
- * @param inputs Files in time-major order, [s0t0 s0t1 s0t2 s1t0 s1t1 s1t2]
- * where s0 means 0th space-appended image, and t0 means the same for time
- * @param normts normalize
- */
-void GICAfmri::compute(size_t tcat, size_t scat, vector<string> masks,
-		vector<string> inputs)
+void gicaReduceProb(std::string inpref, std::string outpref, size_t rank,
+		size_t poweriters, double varthresh, double cvarthresh, bool verbose)
 {
-	// remove all the existing files if not continuing
-	if(!trycontinue) {
-		cleanup();
-	}
-	createMatrices(tcat, scat, masks, inputs);
+	MatrixXd U, E, V;
+	MatrixReorg A(inpref, -1, verbose);
+	A.checkMats();
 
-	m_U.resize(0,0);
-	m_V.resize(0,0);
-	m_E.resize(0);
-	if(trycontinue) {
-		MatMap loader;
-		if(loader.open(U_name()) == 0) {
-			cerr << "Loaded "<<U_name()<<" as U Matrix"<<endl;
-			m_U = loader.mat;
-		}
-		if(loader.open(V_name()) == 0) {
-			cerr << "Loaded "<<V_name()<<" as V Matrix"<<endl;
-			m_V = loader.mat;
-		}
-		if(loader.open(E_name()) == 0) {
-			cerr<<"Loaded "<<E_name()<<" as singular values"<<endl;
-			m_E = loader.mat;
-		}
-	}
+	cerr<<"Running On Disk SVD"<<endl;
+	E = onDiskSVD(A, rank, poweriters, varthresh, cvarthresh, &U, &V);
+	cerr<<"Done"<<endl;
+	MatMap writer;
+	writer.create(U_name(outpref), U.rows(), U.cols());
+	writer.mat = U;
+	writer.create(V_name(outpref), V.rows(), V.cols());
+	writer.mat = V;
+	writer.create(E_name(outpref), E.rows(), E.cols());
+	writer.mat = E;
 
-	if(!trycontinue || m_E.rows() == 0 || m_V.rows() != m_A.cols() ||
-			m_V.cols() != m_E.rows() || m_U.cols() != m_E.rows() || m_U.rows()
-			!= m_A.rows()) {
-		trycontinue = false;
-		if(fullsvd) {
-			cerr<<"Running XXt SVD"<<endl;
-			m_E = covSVD(m_A, varthresh, cvarthresh, &m_U, &m_V);
-		} else {
-			cerr<<"Running Probabilistic SVD"<<endl;
-			m_E = onDiskSVD(m_A, minrank, poweriters, varthresh, cvarthresh,
-					&m_U, &m_V);
-		}
-		MatMap writer;
-
-		writer.create(U_name(), m_U.rows(), m_U.cols());
-		writer.mat = m_U;
-		writer.create(V_name(), m_V.rows(), m_V.cols());
-		writer.mat = m_V;
-		writer.create(E_name(), m_E.rows(), m_E.cols());
-		writer.mat = m_E;
-	}
-
-	cerr<<"Signular Values:\n" << m_E.transpose()<<endl;
-	if(spatial){
-		cerr<<"Performing Spatial ICA"<<endl;
-		computeSpatialICA();
-	} else {
-		cerr<<"Performing Temporal ICA"<<endl;
-		computeTemporaICA();
-	}
+	if(verbose)
+		cerr<<"Signular Values:\n" << E.transpose()<<endl;
 }
 
-void GICAfmri::computeTemporaICA()
+void gicaTemporalICA(std::string reorgpref, std::string reducepref,
+		std::string outpref, bool verbose)
 {
+	// load tall matrices
+	MatrixReorg A(reorgpref, -1, verbose);
+
+	// Load U, V, E matrices
+	MatrixXd U, V, W, ics;
+	VectorXd E;
+	{
+		MatMap reader;
+		reader.open(U_name(reducepref));
+		U = reader.mat;
+		reader.open(V_name(reducepref));
+		V = reader.mat;
+		reader.open(E_name(reducepref));
+		E = reader.mat;
+	}
+
 	/*
 	 * Compute ICA and explained variance
 	 */
 	size_t odim[4];
-	cerr<<"Performing Temporal ICA ("<<m_U.rows()<<"x"<<m_U.cols()<<")"<<endl;
-	MatrixXd ics, W;
+	cerr<<"Performing Temporal ICA ("<<U.rows()<<"x"<<U.cols()<<")"<<endl;
 
-	if(trycontinue) {
-		MatMap loader;
-		if(loader.open(tica_name()) == 0) {
-			cerr<<"Loaded "<<tica_name()<<" as Indepenent Components"<<endl;
-			ics = loader.mat;
-		}
-		if(loader.open(tw_name()) == 0) {
-			cerr<<"Loaded "<<tw_name()<<" as Unmixing Matrix"<<endl;
-			W = loader.mat;
-		}
-	}
-	if(ics.rows() != m_A.rows() || ics.cols() != m_U.cols()) {
-		trycontinue = false;
-		W.resize(m_U.cols(), m_U.cols());
-		ics = ica(m_U, &W);
-		MatMap writer;
-		writer.create(tica_name(), ics.rows(), ics.cols());
-		writer.mat = ics;
-		writer.create(tw_name(), W.rows(), W.cols());
-		writer.mat = W;
-	}
+	W.resize(U.cols(), U.cols());
+	ics = ica(U, &W);
+	MatMap writer;
+	writer.create(tica_name(outpref), ics.rows(), ics.cols());
+	writer.mat = ics;
+	writer.create(tw_name(outpref), W.rows(), W.cols());
+	writer.mat = W;
 	cerr << "Done" << endl;
 
 	// A = UEVt // UW = S // U = SWt // A = SWtEVt
@@ -906,10 +804,10 @@ void GICAfmri::computeTemporaICA()
 	// DVar = 2*BBt(c,:)*XtX(:,c)-XtX(c,c)*BB(c,c)-2*B(c,:)*YtX(:,c)
 	VectorXd expvar(ics.cols());
 	MatrixXd XtX = ics.transpose()*ics;
-	MatrixXd BBt = W.transpose()*m_E.asDiagonal()*m_E.asDiagonal()*W;
-	MatrixXd B = W.transpose()*m_E.asDiagonal()*m_V.transpose();
-	MatrixXd YtX(m_A.cols(), ics.cols());
-	m_A.postMult(YtX, ics, true);
+	MatrixXd BBt = W.transpose()*E.asDiagonal()*E.asDiagonal()*W;
+	MatrixXd B = W.transpose()*E.asDiagonal()*V.transpose();
+	MatrixXd YtX(A.cols(), ics.cols());
+	A.postMult(YtX, ics, true);
 	for(size_t c=0; c<ics.cols(); c++){
 		expvar[c] = 2*BBt.row(c)*XtX.col(c)-XtX(c,c)*BBt(c,c)-
 			2*B.row(c)*YtX.col(c);
@@ -946,13 +844,13 @@ void GICAfmri::computeTemporaICA()
 	size_t matn = 0; // matrix number (tall matrices)
 	size_t maskn = 0; // Mask number
 
-	MatMap tall(m_A.tallMatName(matn));
-	MatrixXd tvalues(m_A.cols(), ics.cols());
+	MatMap tall(A.tallMatName(matn));
+	MatrixXd tvalues(A.cols(), ics.cols());
 	cerr<<"Regressing full dataset"<<endl;
-	for(size_t cc=0, tc=0; cc < m_A.cols(); maskn++) {
+	for(size_t cc=0, tc=0; cc < A.cols(); maskn++) {
 		cerr<<"Subject Column: "<<maskn<< " Full Column: "<<cc
 			<<" TallMat Column: "<<tc<<endl;
-		auto mask = readMRImage(mask_name(maskn));
+		auto mask = readMRImage(A.mask_name(maskn));
 		for(size_t ii=0; ii<3; ii++)
 			odim[ii] = mask->dim(ii);
 		odim[3] = ics.cols();
@@ -972,7 +870,7 @@ void GICAfmri::computeTemporaICA()
 			} else {
 				// Load the next block of columns as necessary
 				if(tc >= tall.cols()) {
-					tall.open(m_A.tallMatName(++matn));
+					tall.open(A.tallMatName(++matn));
 					tc = 0;
 				}
 
@@ -989,48 +887,50 @@ void GICAfmri::computeTemporaICA()
 			}
 		}
 		// write output matching mask
-		tmap->write(tmap_name(maskn));
-		bmap->write(bmap_name(maskn));
+		tmap->write(tmap_name(reducepref, maskn));
+		bmap->write(bmap_name(reducepref, maskn));
 	}
 
 	// don't do this right now, its not working properly
 //	computeProb(ics.cols(), tvalues);
 }
 
-void GICAfmri::computeSpatialICA()
+void gicaSpatialICA(std::string reorgpref, std::string reducepref,
+		std::string outpref, bool verbose)
 {
+	// load tall matrices
+	MatrixReorg A(reorgpref, -1, verbose);
+
+	// Load U, V, E matrices
+	MatrixXd U, V, W, ics;
+	VectorXd E;
+	{
+		MatMap reader;
+		reader.open(U_name(reducepref));
+		U = reader.mat;
+		reader.open(V_name(reducepref));
+		V = reader.mat;
+		reader.open(E_name(reducepref));
+		E = reader.mat;
+	}
+
 	/*
 	 * Compute ICA and explained variance
 	 */
-	cerr<<"Performing Spatial ICA ("<<m_V.rows()<<"x"<<m_V.cols()<<")"<<endl;
-	MatrixXd ics, W;
-	if(trycontinue) {
-		MatMap loader;
-		if(loader.open(sica_name()) == 0) {
-			cerr<<"Loaded "<<sica_name()<<" as Indepenent Components"<<endl;
-			ics = loader.mat;
-		}
-		if(loader.open(sw_name()) == 0) {
-			cerr<<"Loaded "<<sw_name()<<" as Unmixing Matrix"<<endl;
-			W = loader.mat;
-		}
-	}
-	if(ics.rows() != m_A.cols() || ics.cols() != m_U.cols()) {
-		trycontinue = false;
-		W.resize(m_V.cols(), m_V.cols());
-		ics = ica(m_V, &W);
-		MatMap writer;
-		writer.create(sica_name(), ics.rows(), ics.cols());
-		writer.mat = ics;
-		writer.create(sw_name(), W.rows(), W.cols());
-		writer.mat = W;
-	}
+	cerr<<"Performing Spatial ICA ("<<V.rows()<<"x"<<V.cols()<<")"<<endl;
+	W.resize(V.cols(), V.cols());
+	ics = ica(V, &W);
+	MatMap writer;
+	writer.create(sica_name(outpref), ics.rows(), ics.cols());
+	writer.mat = ics;
+	writer.create(sw_name(outpref), W.rows(), W.cols());
+	writer.mat = W;
 	cerr << "Done" << endl;
 
 	// Convert each signal matrix into a t-score
 	// A = UEVt, VW = X, WXt = Vt, A = UEWXt, A = UEWB
 	cerr<<"Estimating Noise"<<endl;
-	MatrixXd tvalues = icsToT(m_A, m_U, m_E, m_V, W, ics);
+	MatrixXd tvalues = icsToT(A, U, E, V, W, ics);
 
 	// Explained variance
 	// A = UEVt, VW = S, WSt = Vt, A = UEWSt
@@ -1039,13 +939,14 @@ void GICAfmri::computeSpatialICA()
 	// XtX = WtEEW
 	// 2*BBt(c,:)*XtX(:,c)-XtX(c,c)*BB(c,c)-2*B(c,:)*YtX(:,c)
 	MatrixXd BBt = ics.transpose()*ics;
-	MatrixXd XtX = W.transpose()*m_E.asDiagonal()*m_E.asDiagonal()*W;
-	MatrixXd X = m_U*m_E.asDiagonal()*W;
-	MatrixXd YtX(m_A.cols(), W.cols());
-	m_A.postMult(YtX, X, true);
+	MatrixXd XtX = W.transpose()*E.asDiagonal()*E.asDiagonal()*W;
+	MatrixXd X = U*E.asDiagonal()*W;
+	MatrixXd YtX(A.cols(), W.cols());
+	A.postMult(YtX, X, true);
 	VectorXd expvar(ics.cols());
 	for(size_t cc=0; cc<ics.cols(); cc++)
-		expvar[cc] = 2*BBt.row(cc)*XtX.col(cc) - XtX(cc,cc)*BBt(cc,cc)-2*ics.col(cc).transpose()*YtX.col(cc);
+		expvar[cc] = 2*BBt.row(cc)*XtX.col(cc) - XtX(cc,cc)*BBt(cc,cc) -
+			2*ics.col(cc).transpose()*YtX.col(cc);
 
 	// Create Sorted Lookup for explained variance
 	vector<int> sorted(ics.cols());
@@ -1064,7 +965,7 @@ void GICAfmri::computeSpatialICA()
 	cerr<<"Computing T-Maps"<<endl;
 	size_t odim[4];
 	for(size_t rr=0, maskn = 0; rr < ics.rows(); maskn++) {
-		auto mask = readMRImage(mask_name(maskn));
+		auto mask = readMRImage(A.mask_name(maskn));
 		for(size_t ii=0; ii<3; ii++)
 			odim[ii] = mask->dim(ii);
 		odim[3] = ics.cols();
@@ -1094,62 +995,62 @@ void GICAfmri::computeSpatialICA()
 			}
 		}
 		// write output matching mask
-		tmap->write(tmap_name(maskn));
-		bmap->write(bmap_name(maskn));
+		tmap->write(tmap_name(outpref, maskn));
+		bmap->write(bmap_name(outpref, maskn));
 	}
 
 // Probabilities are a bit a iffy at this point, better to do this later
 //	computeProb(ics.cols(), tvalues);
 	cerr<<"Done with Spatial ICA!"<<endl;
 }
-
-/**
- * @brief Converts T-Values to probabilities and z-scores. Note that the input
- * "tvalues" will actually be centered on the mode of the distribution.
- *
- * TODO specialized version constraining the mode to modes to be outside the mean
- *
- * @param ncomp
- * @param tvalues
- */
-void GICAfmri::computeProb(size_t ncomp, Ref<MatrixXd> tvalues)
-{
-	cerr<<"Fitting T-maps"<<endl;
-	MatrixXd mu(3, ncomp);
-	MatrixXd sd(3, ncomp);
-	VectorXd prior(3);
-
-	for(size_t comp=0; comp<ncomp; comp++) {
-		gaussGammaMixtureModel(tvalues.col(comp), mu.col(comp), sd.col(comp),
-				prior, tplot_name(comp));
-	}
-
-	// now convert the t-scores to p-scores
-	for(size_t cc=0, maskn=0; cc<m_A.cols(); cc++, maskn++) {
-		auto tmap = readMRImage(tmap_name(maskn));
-		auto mask = readMRImage(mask_name(maskn));
-		auto pmap = tmap->copy();
-		auto zmap = tmap->copy();
-		for(Vector3DIter<double> tit(tmap), pit(pmap), zit(zmap), mit(mask);
-					!tit.eof(); ++mit, ++tit, ++pit, ++zit) {
-			if(mit[0] == 0)
-				continue;
-			for(size_t comp=0; comp<ncomp; comp++) {
-				double z = (tit[comp]-mu(1,comp))/sd(1,comp);
-				double p = gaussianCDF(0, 1, z);
-				if(p > 0.5) p = 1-p;
-				p = prior[1]*p/2;
-				p = 1-p;
-				zit.set(comp, z);
-				pit.set(comp, p);
-			}
-			cc++;
-		}
-		zmap->write(zmap_name(maskn));
-		pmap->write(pmap_name(maskn));
-	}
-	cerr << "Done with Regression" << endl;
-}
+//
+///**
+// * @brief Converts T-Values to probabilities and z-scores. Note that the input
+// * "tvalues" will actually be centered on the mode of the distribution.
+// *
+// * TODO specialized version constraining the mode to modes to be outside the mean
+// *
+// * @param ncomp
+// * @param tvalues
+// */
+//void GICAfmri::computeProb(size_t ncomp, Ref<MatrixXd> tvalues)
+//{
+//	cerr<<"Fitting T-maps"<<endl;
+//	MatrixXd mu(3, ncomp);
+//	MatrixXd sd(3, ncomp);
+//	VectorXd prior(3);
+//
+//	for(size_t comp=0; comp<ncomp; comp++) {
+//		gaussGammaMixtureModel(tvalues.col(comp), mu.col(comp), sd.col(comp),
+//				prior, tplot_name(comp));
+//	}
+//
+//	// now convert the t-scores to p-scores
+//	for(size_t cc=0, maskn=0; cc<m_A.cols(); cc++, maskn++) {
+//		auto tmap = readMRImage(tmap_name(maskn));
+//		auto mask = readMRImage(mask_name(maskn));
+//		auto pmap = tmap->copy();
+//		auto zmap = tmap->copy();
+//		for(Vector3DIter<double> tit(tmap), pit(pmap), zit(zmap), mit(mask);
+//					!tit.eof(); ++mit, ++tit, ++pit, ++zit) {
+//			if(mit[0] == 0)
+//				continue;
+//			for(size_t comp=0; comp<ncomp; comp++) {
+//				double z = (tit[comp]-mu(1,comp))/sd(1,comp);
+//				double p = gaussianCDF(0, 1, z);
+//				if(p > 0.5) p = 1-p;
+//				p = prior[1]*p/2;
+//				p = 1-p;
+//				zit.set(comp, z);
+//				pit.set(comp, p);
+//			}
+//			cc++;
+//		}
+//		zmap->write(zmap_name(maskn));
+//		pmap->write(pmap_name(maskn));
+//	}
+//	cerr << "Done with Regression" << endl;
+//}
 
 
 } // NPL

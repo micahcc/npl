@@ -61,6 +61,78 @@ VectorXd onDiskSVD(const MatrixReorg& A,
 		int rank, size_t poweriters, double varthresh, double cvarthresh,
 		MatrixXd* U=NULL, MatrixXd* V=NULL);
 
+void gicaCreateMatrices(size_t tcat, size_t scat, vector<std::string> masks,
+		vector<std::string> inputs, std::string prefix, double maxmem, bool normts,
+		bool verbose);
+
+/**
+ * @brief Compute PCA for the given group, defined
+ *
+ * The basic idea is to split the rows into digesteable chunks, then
+ * perform the SVD on each of them.
+ *
+ * A = [A1 A2 A3 ... ]
+ * A = [UEV1 UEV2 .... ]
+ * A = [UE1 UE2 UE3 ...] diag([V1, V2, V3...])
+ *
+ * UE1 should have far fewer columns than rows so that where A is RxC,
+ * with R < C, [UE1 ... ] should have be R x LN with LN < R
+ *
+ * Say we are concatinating S subjects each with T timepoints, then
+ * A is STxC, assuming a rank of L then [UE1 ... ] will be ST x SL
+ *
+ * Even if L = T / 2 then this is a 1/4 savings in the SVD computation
+ *
+ * @param inpref input prefix of reorganized data matrices
+ * @param outpref output prefix for U,E,V matrices
+ * @param varthresh threshold for singular values, everything smaller than
+ * this ratio of the leading singular value will be treated as zero
+ * @param cvarthresh threshold for singular values, everything after this
+ * ratio of the total sum of singular values will be treated as zero
+ * @param verbose whether to print debuging information
+ */
+void gicaReduceFull(std::string inpref, std::string outpref, double varthresh,
+		double cvarthresh, bool verbose);
+
+/**
+ * @brief Compute PCA for the given group, defined
+ *
+ * The basic idea is to split the rows into digesteable chunks, then
+ * perform the SVD on each of them.
+ *
+ * A = [A1 A2 A3 ... ]
+ * A = [UEV1 UEV2 .... ]
+ * A = [UE1 UE2 UE3 ...] diag([V1, V2, V3...])
+ *
+ * UE1 should have far fewer columns than rows so that where A is RxC,
+ * with R < C, [UE1 ... ] should have be R x LN with LN < R
+ *
+ * Say we are concatinating S subjects each with T timepoints, then
+ * A is STxC, assuming a rank of L then [UE1 ... ] will be ST x SL
+ *
+ * Even if L = T / 2 then this is a 1/4 savings in the SVD computation
+ *
+ * @param inpref input prefix of reorganized data matrices
+ * @param outpref output prefix for U,E,V matrices
+ * @param rank number of rows to estimate full matrix
+ * @param poweriter number of power iterations to perform do better
+ * distringuish between close singular values 2-3 are probably sufficient for
+ * most cases
+ * @param varthresh threshold for singular values, everything smaller than
+ * this ratio of the leading singular value will be treated as zero
+ * @param cvarthresh threshold for singular values, everything after this
+ * ratio of the total sum of singular values will be treated as zero
+ * @param verbose whether to print debuging information
+ */
+void gicaReduceProb(std::string inpref, std::string outpref, size_t rank,
+		size_t poweriters, double varthresh, double cvarthresh, bool verbose);
+
+void gicaTemporalICA(std::string reorgpref, std::string reducepref,
+		std::string outpref, bool verbose);
+
+void gicaSpatialICA(std::string reorgpref, std::string reducepref,
+		std::string outpref, bool verbose);
+
 /**
  * @brief Computes the SVD from XXt using the JacobiSVD
  *
@@ -259,203 +331,6 @@ public:
 //	vector<int> m_outrows;
 	vector<int> m_outcols;
 	size_t m_maxdoubles;
-};
-
-/**
- * @brief Perform Group ICA on multiple fMRI Images
- */
-class GICAfmri
-{
-public:
-	GICAfmri(std::string pref) ;
-
-	/**
-	 * @brief Cutoff for explained variance in PCA
-	 */
-	double cvarthresh;
-
-	/**
-	 * @brief Cutoff for ratio of maximum variance (singular value) for cutoff
-	 */
-	double varthresh;
-
-	/**
-	 * @brief Minimum rank to estimate the full matrix with
-	 */
-	int minrank;
-
-	/**
-	 * @brief Number of power iterations, usually 2-3 are sufficient
-	 */
-	size_t poweriters;
-
-	/**
-	 * @brief Maximum number of gigabytes of memory to use
-	 */
-	double maxmem;
-
-	/**
-	 * @brief Print more information
-	 */
-	int verbose;
-
-	/**
-	 * @brief Whether to perform spatial ICA (rather than temporal)
-	 */
-	bool spatial;
-
-	/**
-	 * @brief Do not use the randomized method of matrix reduction and
-	 * instead compute the full svd, then find the non-zero singular values
-	 * from that. This is much slower but is useful for testing
-	 */
-	bool fullsvd;
-
-	/**
-	 * @brief Normalize individual subjects' time-series
-	 */
-	bool normts;
-
-	/**
-	 * @brief Minimum frequency to keep in single fMRI, subject timeseries will
-	 * be bandpass filtered with this cuton frequency
-	 */
-	double minfreq;
-
-	/**
-	 * @brief Maximum frequency to keep in single fMRI, subject timeseries will
-	 * be bandpass filtered with this cuton frequency
-	 */
-	double maxfreq;
-
-	bool trycontinue;
-
-	/**
-	 * @brief Compute ICA for the given group, defined by tcat x scat images
-	 * laid out in column major ordering.
-	 *
-	 * The basic idea is to split the rows into digesteable chunks, then
-	 * perform the SVD on each of them.
-	 *
-	 * A = [A1 A2 A3 ... ]
-	 * A = [UEV1 UEV2 .... ]
-	 * A = [UE1 UE2 UE3 ...] diag([V1, V2, V3...])
-	 *
-	 * UE1 should have far fewer columns than rows so that where A is RxC,
-	 * with R < C, [UE1 ... ] should have be R x LN with LN < R
-	 *
-	 * Say we are concatinating S subjects each with T timepoints, then
-	 * A is STxC, assuming a rank of L then [UE1 ... ] will be ST x SL
-	 *
-	 * Even if L = T / 2 then this is a 1/4 savings in the SVD computation
-	 *
-	 * @param tcat Number of fMRI images to append in time direction
-	 * @param scat Number of fMRI images to append in space direction
-	 * @param masks Masks, one per spaceblock (columns of matching space)
-	 * @param inputs Files in time-major order, [s0t0 s0t1 s0t2 s1t0 s1t1 s1t2]
-	 * where s0 means 0th space-appended image, and t0 means the same for time
-	 */
-	void compute(size_t tcat, size_t scat, std::vector<std::string> masks,
-			vector<std::string> inputs);
-
-	/**
-	 * @brief Compute ICA for the given group, defined by tcat x scat images
-	 * laid out in column major ordering.
-	 *
-	 * The basic idea is to split the rows into digesteable chunks, then
-	 * perform the SVD on each of them.
-	 *
-	 * A = [A1 A2 A3 ... ]
-	 * A = [UEV1 UEV2 .... ]
-	 * A = [UE1 UE2 UE3 ...] diag([V1, V2, V3...])
-	 *
-	 * UE1 should have far fewer columns than rows so that where A is RxC,
-	 * with R < C, [UE1 ... ] should have be R x LN with LN < R
-	 *
-	 * Say we are concatinating S subjects each with T timepoints, then
-	 * A is STxC, assuming a rank of L then [UE1 ... ] will be ST x SL
-	 *
-	 * Even if L = T / 2 then this is a 1/4 savings in the SVD computation
-	 *
-	 * @param tcat Number of fMRI images to append in time direction
-	 * @param scat Number of fMRI images to append in space direction
-	 * @param masks Masks, one per spaceblock (columns of matching space)
-	 * @param inputs Files in time-major order, [s0t0 s0t1 s0t2 s1t0 s1t1 s1t2]
-	 * where s0 means 0th space-appended image, and t0 means the same for time
-	 */
-	void compute(std::string mask, std::string input)
-	{
-		std::vector<std::string> tmask;
-		if(!mask.empty())
-			tmask.push_back(mask);
-		std::vector<std::string> tinput(1, input);
-		compute(1, 1, tmask, tinput);
-	}
-
-	std::string sica_name() const {
-		return m_pref+"_SpaceIC";
-	};
-	std::string tica_name() const {
-		return m_pref+"_TimeIC";
-	};
-	std::string sw_name() const {
-		return m_pref+"_SpaceW";
-	};
-	std::string tw_name() const {
-		return m_pref+"_TimeW";
-	};
-	std::string mask_name(size_t ii) const {
-		return m_pref+"_mask_"+ std::to_string(ii)+".nii.gz";
-	};
-	std::string tmap_name(size_t ii) const {
-		return m_pref+"_tmap_m"+std::to_string(ii)+".nii.gz";
-	};
-	std::string pmap_name(size_t ii) const {
-		return m_pref+"_pmap_m"+std::to_string(ii)+".nii.gz";
-	};
-	std::string zmap_name(size_t ii) const {
-		return m_pref+"_zmap_m"+std::to_string(ii)+".nii.gz";
-	};
-	std::string bmap_name(size_t ii) const {
-		return m_pref+"_bmap_m"+std::to_string(ii)+".nii.gz";
-	};
-	std::string tplot_name(size_t ii) const {
-		return m_pref+"_tplot_c"+std::to_string(ii)+".svg";
-	};
-	std::string info_name() {
-		return m_pref+".info";
-	};
-	std::string U_name() const {
-		return m_pref+"_Umat";
-	};
-	std::string V_name() const {
-		return m_pref+"_Vmat";
-	};
-	std::string E_name() const {
-		return m_pref+"_Evec";
-	};
-	std::string tall_name(size_t ii) const {
-		return m_pref+"_tall_"+std::to_string(ii);
-	};
-
-private:
-	std::string m_pref;
-
-	MatrixXd m_U, m_V;
-	VectorXd m_E;
-
-	MatrixReorg m_A;
-
-	size_t svd_help(std::string inname, std::string usname,
-			std::string vname);
-
-	void computeSpatialICA();
-	void computeTemporaICA();
-	void createMatrices(size_t tcat, size_t scat, vector<std::string> masks,
-			vector<std::string> inputs);
-	void computeProb(size_t ncomp, Ref<MatrixXd> tvalues);
-	void cleanup();
-
 };
 
 }
