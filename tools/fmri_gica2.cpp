@@ -80,8 +80,12 @@ int main(int argc, char** argv)
 			"in a rows of spatial-concatination. ", false, 1,
 			"spatial-rows", cmd);
 
+	TCLAP::ValueArg<double> a_cvarthresh("", "cvar-thresh", "Cut off after this "
+			"ratio of the cumulative explained variance has been found.", false,
+			0.99, "ratio", cmd);
 	TCLAP::ValueArg<double> a_varthresh("", "var-thresh", "Cut off after this "
-			"ratio of the variance has been accounted for.", false, 0.99, "ratio", cmd);
+			"ratio of the maximum variance component has been reached .",
+			false, 0.1, "ratio", cmd);
 	TCLAP::ValueArg<size_t> a_poweriters("", "power-iters", "Power iteration "
 			"can increase accuracy of eigenvalues when they are clustered. "
 			"Setting this to 2 or 3 could improve the results, but will cost "
@@ -126,6 +130,7 @@ int main(int argc, char** argv)
 
 	GICAfmri gica(a_prefix.getValue());
 	gica.varthresh = a_varthresh.getValue();
+	gica.cvarthresh = a_cvarthresh.getValue();
 	gica.maxmem = a_gbram.getValue();
 	gica.spatial = a_spatial_ica.isSet();
 	gica.normts = !a_no_norm_ts.isSet();

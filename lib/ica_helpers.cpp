@@ -553,8 +553,8 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 					// Fill, Calculate Mean/SD and normalize
 					mean = 0;
 					sd = 0;
-					if(m_verbose) cerr<<"Loading ["<<img_glob_row<<"-"
-						<<(img_glob_row+tlen)<<","<<cc<<"]"<<endl;
+//					if(m_verbose) cerr<<"Loading ["<<img_glob_row<<"-"
+//						<<(img_glob_row+tlen)<<","<<cc<<"]"<<endl;
 					for(size_t tt=0; tt<tlen; tt++) {
 						datamap.mat(tt+img_glob_row, cc) = it[tt];
 						mean += it[tt];
@@ -993,7 +993,8 @@ void GICAfmri::computeTemporaICA()
 		bmap->write(bmap_name(maskn));
 	}
 
-	computeProb(ics.cols(), tvalues);
+	// don't do this right now, its not working properly
+//	computeProb(ics.cols(), tvalues);
 }
 
 void GICAfmri::computeSpatialICA()
@@ -1097,7 +1098,8 @@ void GICAfmri::computeSpatialICA()
 		bmap->write(bmap_name(maskn));
 	}
 
-	computeProb(ics.cols(), tvalues);
+// Probabilities are a bit a iffy at this point, better to do this later
+//	computeProb(ics.cols(), tvalues);
 	cerr<<"Done with Spatial ICA!"<<endl;
 }
 
