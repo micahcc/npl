@@ -2,6 +2,10 @@
 def build(bld):
     npl = 'npl'+bld.env.LIBPOST
 
+    bld.program(target = 'nplFibCount',
+            source = 'fibCount.cpp',
+            use = [npl, 'tclap'])
+
     bld.program(target = 'nplAddGaussian',
             source = 'add_gaussian.cpp',
             use = [npl, 'tclap'])

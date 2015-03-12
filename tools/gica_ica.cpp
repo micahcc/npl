@@ -56,12 +56,12 @@ int main(int argc, char** argv)
 			"done by concatinating in time. By default a Temporal ICA will "
 			"be performed, to do a spatial ICA select -S.", ' ', __version__ );
 
-	TCLAP::ValueArg<string> a_infull("f", "full-prefix", "Prefix for input tall "
-			"matrices and masks, used in nplGICA_reorg", true, "prefix", cmd);
-	TCLAP::ValueArg<string> a_inreduce("r", "reduce-prefix", "Prefix for reduced "
-			"(using SVD) matrices, used in nplGICA_reduce", true, "prefix", cmd);
-	TCLAP::ValueArg<string> a_out("o", "output-prefix", "Prefix for output "
-			"ICA matrices.", true, "prefix", cmd);
+	TCLAP::ValueArg<string> a_reorgprefix("", "reorg-prefix", "Prefix for input tall "
+			"matrices and masks, used in nplGICA_reorg", true, "", "prefix", cmd);
+	TCLAP::ValueArg<string> a_reduceprefix("", "reduce-prefix", "Prefix for reduced "
+			"(using SVD) matrices, used in nplGICA_reduce", true, "", "prefix", cmd);
+	TCLAP::ValueArg<string> a_icaprefix("", "ica-prefix", "Prefix for output "
+			"ICA matrices.", true, "", "prefix", cmd);
 
 	TCLAP::SwitchArg a_temporal_ica("T", "temporal-ica", "Perform a temporal ICA"
 			", producing temporally independent "
@@ -71,11 +71,11 @@ int main(int argc, char** argv)
 	cmd.parse(argc, argv);
 
 	if(a_temporal_ica.isSet()) {
-		gicaTemporalICA(a_infull.getValue(), a_inreduce.getValue(),
-				a_out.getValue());
+		gicaTemporalICA(a_reorgprefix.getValue(), a_reduceprefix.getValue(),
+				a_icaprefix.getValue(), a_verbose.isSet());
 	} else {
-		gicaSpatialICA(a_infull.getValue(), a_inreduce.getValue(),
-				a_out.getValue());
+		gicaSpatialICA(a_reorgprefix.getValue(), a_reduceprefix.getValue(),
+				a_icaprefix.getValue(), a_verbose.isSet());
 	}
 
 

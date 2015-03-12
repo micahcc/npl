@@ -768,6 +768,7 @@ void gicaTemporalICA(std::string reorgpref, std::string reducepref,
 {
 	// load tall matrices
 	MatrixReorg A(reorgpref, -1, verbose);
+	A.checkMats();
 
 	// Load U, V, E matrices
 	MatrixXd U, V, W, ics;
@@ -900,6 +901,7 @@ void gicaSpatialICA(std::string reorgpref, std::string reducepref,
 {
 	// load tall matrices
 	MatrixReorg A(reorgpref, -1, verbose);
+	A.checkMats();
 
 	// Load U, V, E matrices
 	MatrixXd U, V, W, ics;

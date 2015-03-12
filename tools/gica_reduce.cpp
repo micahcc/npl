@@ -69,9 +69,9 @@ int main(int argc, char** argv)
 			"can be used to reduce the rank automatically. Not applicable "
 			"to full SVD", false, 100, "rank", cmd);
 
-	TCLAP::ValueArg<string> a_in("i", "input-prefix", "Prefix for input tall "
+	TCLAP::ValueArg<string> a_reorgprefix("", "reorg-prefix", "Prefix for input tall "
 			"matrices and masks", true, "", "*.nii.gz", cmd);
-	TCLAP::ValueArg<string> a_out("o", "output-prefix", "Prefix for output "
+	TCLAP::ValueArg<string> a_reduceprefix("", "reduce-prefix", "Prefix for output "
 			"UEV matrices.", true, "", "*.nii.gz", cmd);
 	TCLAP::SwitchArg a_full("F", "full-svd", "Perform full SVD rather than "
 			"probabilistic one", cmd);
@@ -79,11 +79,11 @@ int main(int argc, char** argv)
 	cmd.add(a_verbose);
 	cmd.parse(argc, argv);
 	if(a_full.isSet()) {
-		gicaReduceFull(a_in.getValue(), a_out.getValue(),
+		gicaReduceFull(a_reorgprefix.getValue(), a_reduceprefix.getValue(),
 				a_varthresh.getValue(), a_cvarthresh.getValue(),
 				a_verbose.isSet());
 	} else {
-		gicaReduceProb(a_in.getValue(), a_out.getValue(),
+		gicaReduceProb(a_reorgprefix.getValue(), a_reduceprefix.getValue(),
 				a_varthresh.getValue(), a_cvarthresh.getValue(),
 				a_rank.getValue(), a_poweriters.getValue(),
 				a_verbose.isSet());

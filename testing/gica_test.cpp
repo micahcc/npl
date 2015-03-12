@@ -48,11 +48,10 @@ int main()
 
 	// creates gica_test_prob.nii,gz and gica_test_fmri.nii.gz
 	simulate(20, 20, 20, 500, 2, 5);
+	std::vector<std::string> inputs(1, "gica_test_fmri.nii.gz");
+	std::vector<std::string> masks;
 
 	{
-		std::vector<std::string> inputs(1, "gica_test_fmri.nii.gz");
-		std::vector<std::string> masks(1, "");
-
 		gicaCreateMatrices(1, 1, masks, inputs, "gica_test_space", 0.5, true, true);
 		gicaReduceFull("gica_test_space", "gica_test_space", 0.1, 0.9, true);
 		//gicaReduceProb("gica_test_time", "gica_test_time", 10, 3, 0.1, 0.9, true);
@@ -66,9 +65,6 @@ int main()
 	}
 
 	{
-		std::vector<std::string> inputs(1, "gica_test_fmri.nii.gz");
-		std::vector<std::string> masks(1, "");
-
 		gicaCreateMatrices(1, 1, masks, inputs, "gica_test_time", 0.5, true, true);
 		gicaReduceFull("gica_test_time", "gica_test_time", 0.1, 0.9, true);
 		//gicaReduceProb("gica_test_time", "gica_test_time", 10, 3, 0.1, 0.9, true);
@@ -82,9 +78,6 @@ int main()
 	}
 
 	{
-		std::vector<std::string> inputs(1, "gica_test_fmri.nii.gz");
-		std::vector<std::string> masks(1, "");
-
 		gicaCreateMatrices(1, 1, masks, inputs, "gica_test_space", 0.5, true, true);
 		//gicaReduceFull("gica_test_space", "gica_test_space", 0.1, 0.9, true);
 		gicaReduceProb("gica_test_space", "gica_test_space", 10, 3, 0.1, 0.9, true);
@@ -98,9 +91,6 @@ int main()
 	}
 
 	{
-		std::vector<std::string> inputs(1, "gica_test_fmri.nii.gz");
-		std::vector<std::string> masks(1, "");
-
 		gicaCreateMatrices(1, 1, masks, inputs, "gica_test_time", 0.5, true, true);
 		//gicaReduceFull("gica_test_time", "gica_test_time", 0.1, 0.9, true);
 		gicaReduceProb("gica_test_time", "gica_test_time", 10, 3, 0.1, 0.9, true);

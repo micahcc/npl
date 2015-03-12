@@ -62,7 +62,7 @@ int main(int argc, char** argv)
 	TCLAP::MultiArg<string> a_masks("m", "mask", "Mask images.",
 			false, "*.nii.gz", cmd);
 
-	TCLAP::ValueArg<string> a_prefix("p", "prefix", "Output "
+	TCLAP::ValueArg<string> a_prefix("", "reorg-prefix", "Output "
 			"prefix for ICA tall matrices and masks. "
 			"The number of tall matrices will depend on the memory size -M GB "
 			"and the number of masks will depend on the number of columns "
