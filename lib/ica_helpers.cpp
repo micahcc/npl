@@ -266,7 +266,7 @@ VectorXd covSVD(const MatrixReorg& A, double varthresh, double cvarthresh,
 	int rank = 0; // Rank of Singular Value Decomp
 
 	// Create AA* matrix
-	cerr<<"Computing AAt ("<<A.rows()<<" x "<<A.rows()<<endl;
+	cerr<<"Computing AAt ("<<A.rows()<<" x "<<A.rows()<<")"<<endl;
 	MatrixXd AAt(A.rows(), A.rows());
 	AAt.setZero();
 	for(size_t cc = 0; cc < A.ntall(); cc++) {
@@ -313,17 +313,21 @@ VectorXd covSVD(const MatrixReorg& A, double varthresh, double cvarthresh,
 		singvals[ii] = sqrt(evals[AAt.rows()-ii-1]);
 
 	if(U) {
+		cerr<<"Computing U"<<endl;
 		U->resize(A.rows(), rank);
 		for(size_t ii=0; ii<rank; ii++)
 			U->col(ii) = evecs.col(AAt.rows()-ii-1);
+		cerr<<"Done"<<endl;
 	}
 
 	// V = A^TUE^-1
 	if(V) {
+		cerr<<"Computing V"<<endl;
 		V->resize(A.cols(), rank);
 		A.postMult(*V, *U, true);
 		for(size_t cc=0; cc<rank; cc++)
 			V->col(cc) /= singvals[cc];
+		cerr<<"Done"<<endl;
 	}
 
 	cerr<<"Done"<<endl;
