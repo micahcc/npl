@@ -1251,8 +1251,6 @@ public:
 	 */
 	T operator()(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
-		throw INVALID_ARGUMENT("Error integers passed to linear interpolator"
-				" instead use NDVectorView");
 		return get((double)x,(double)y,(double)z,t);
 	};
 
@@ -1263,8 +1261,6 @@ public:
 	 */
 	T get(int64_t x=0, int64_t y=0, int64_t z=0, int64_t t=0)
 	{
-		throw INVALID_ARGUMENT("Error integers passed to linear interpolator"
-				" instead use NDVectorView");
 		return get((double)x,(double)y,(double)z,t);
 	};
 

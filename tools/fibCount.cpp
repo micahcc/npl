@@ -101,14 +101,15 @@ void cropTracks(ptr<MRImage> mask, TrackSet* trackData, double lenthresh = 0);
  * track)
  * @param scalars Scalars, one per track
  * @param labelToVertex Mapping from labels to vertices in the graphs
+ * @param tdist distance to search in tree to see if a fiber is connected
  * @param cgraph Graph consisting of counts
  * @param lgraph Graph consisting of average length
  * @param sgraphs Graph consisting of averaged scalars
  */
 void computePerEdgeScalars(const TrackSet& tractData,
 		KDTree<3,1,float,int64_t> labeltree, const vector<vector<double>>& scalars,
-		const std::map<int64_t, size_t>& labelToVertex, Graph<size_t>* cgraph,
-		Graph<double>* lgraph, vector<Graph<double>>* sgraphs);
+		const std::map<int64_t, size_t>& labelToVertex, double tdist,
+		Graph<size_t>* cgraph, Graph<double>* lgraph, vector<Graph<double>>* sgraphs);
 
 int main(int argc, char * argv[])
 {
@@ -149,6 +150,9 @@ int main(int argc, char * argv[])
 			"pairs of regions.", false, "", "graph", cmd);
 	TCLAP::ValueArg<double> a_lenthresh("T", "thresh",
 			"Length threshold for fibers (ignore any fibers shorter",
+			false, 5, "mm", cmd);
+	TCLAP::ValueArg<double> a_dist("d", "dist",
+			"Distance from a label that is considered connected to a tract",
 			false, 5, "mm", cmd);
 
 	TCLAP::MultiArg<string> a_scalars("F", "field",
@@ -219,8 +223,8 @@ int main(int argc, char * argv[])
 	cerr<<"Done"<<endl;
 
 	cerr<<"Averaging Scalars over Graphs"<<endl;
-	computePerEdgeScalars(tractData, tree, scalars, labelToVertex, &cgraph,
-			&lengraph, &fgraphs);
+	computePerEdgeScalars(tractData, tree, scalars, labelToVertex,
+			a_dist.getValue(), &cgraph, &lengraph, &fgraphs);
 	cerr<<"Done"<<endl;
 
 	if(a_cgraph.isSet())
@@ -375,11 +379,11 @@ vector<vector<double>> computeScalars(const TrackSet& tractData,
 void computePerEdgeScalars(const TrackSet& trackData,
 		KDTree<3,1,float,int64_t> labeltree,
 		const vector<vector<double>>& scalars,
-		const std::map<int64_t, size_t>& labelToVertex,
+		const std::map<int64_t, size_t>& labelToVertex, double treed,
 		Graph<size_t>* cgraph, Graph<double>* lgraph,
 		vector<Graph<double>>* sgraphs)
 {
-
+	double stepsize = 1;
 	std::array<float, 3> pt, ppt; // points
 	std::unordered_set<int64_t> conlabels; // labels connected by track
 
@@ -399,16 +403,24 @@ void computePerEdgeScalars(const TrackSet& trackData,
 
 		// iterate through points to find all connections made by track and
 		double len = 0;
+		double udist = stepsize;
 		pt = trackData[tt][0];
 		conlabels.clear();
 		for(size_t pp=1; pp<trackData[tt].size(); pp++) {
 			ppt = pt;
 			pt = trackData[tt][pp];
-			len += distance(pt, ppt);
+			double dlen = distance(pt, ppt);
+			len += dlen;
 
-			double treed = INFINITY;
-			auto result = labeltree.nearest(pt.size(), pt.data(), treed);
-			conlabels.insert(result->m_data[0]);
+			// udist is distance since last update of labels, just so that we
+			// don't waste too much time doing tree-searches
+			udist -= dlen;
+			if(udist < 0) {
+				auto result = labeltree.withindist(pt.size(), pt.data(), treed);
+				for(auto node : result)
+					conlabels.insert(node->m_data[0]);
+				udist = stepsize;
+			}
 		}
 
 		// assign length, count to pairs
