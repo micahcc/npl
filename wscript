@@ -45,7 +45,7 @@ def configure(conf):
         conf.env.CXXFLAGS.extend(['-g'])
     elif opts['release']:
         conf.env.DEFINES.append('NDEBUG=1')
-        conf.env.CXXFLAGS.extend(['-O3', '-mtune=core2'])
+        conf.env.CXXFLAGS.extend(['-O2', '-march=core2'])
     elif opts['native']:
         conf.env.DEFINES.append('NDEBUG=1')
         conf.env.CXXFLAGS.extend(['-O3', '-march=native'])

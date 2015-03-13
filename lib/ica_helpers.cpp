@@ -752,7 +752,7 @@ void gicaReduceFull(std::string inpref, std::string outpref, double varthresh,
 
 	cerr<<"Writing "<<E_name(outpref)<<" ("<<E.rows()<<"x"<<E.cols()<<")"<<endl;
 	writer.create(E_name(outpref), E.rows(), E.cols());
-	E.resize(0,0);
+	writer.mat = E;
 
 	cerr<<"Writing "<<U_name(outpref)<<" ("<<U.rows()<<"x"<<U.cols()<<")"<<endl;
 	writer.create(U_name(outpref), U.rows(), U.cols());
