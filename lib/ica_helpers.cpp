@@ -739,10 +739,13 @@ void gicaReduceFull(std::string inpref, std::string outpref, double varthresh,
 	E = covSVD(A, varthresh, cvarthresh, &U, &V);
 	cerr<<"Done"<<endl;
 	MatMap writer;
+	cerr<<"Writing "<<U_name(outpref)<<endl;
 	writer.create(U_name(outpref), U.rows(), U.cols());
 	writer.mat = U;
+	cerr<<"Writing "<<V_name(outpref)<<endl;
 	writer.create(V_name(outpref), V.rows(), V.cols());
 	writer.mat = V;
+	cerr<<"Writing "<<E_name(outpref)<<endl;
 	writer.create(E_name(outpref), E.rows(), E.cols());
 	writer.mat = E;
 
@@ -766,10 +769,13 @@ void gicaReduceProb(std::string inpref, std::string outpref, double varthresh,
 	E = onDiskSVD(A, rank, poweriters, varthresh, cvarthresh, &U, &V);
 	cerr<<"Done"<<endl;
 	MatMap writer;
+	cerr<<"Writing "<<U_name(outpref)<<endl;
 	writer.create(U_name(outpref), U.rows(), U.cols());
 	writer.mat = U;
+	cerr<<"Writing "<<V_name(outpref)<<endl;
 	writer.create(V_name(outpref), V.rows(), V.cols());
 	writer.mat = V;
+	cerr<<"Writing "<<E_name(outpref)<<endl;
 	writer.create(E_name(outpref), E.rows(), E.cols());
 	writer.mat = E;
 
