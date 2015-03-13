@@ -727,6 +727,9 @@ void gicaReduceFull(std::string inpref, std::string outpref, double varthresh,
 	A.checkMats();
 
 	cerr<<"Running XXt SVD"<<endl;
+	cerr<<"A = "<<A.rows()<<" x "<<A.cols()<<endl;
+	cerr<<"Varthresh = "<<varthresh<<endl;
+	cerr<<"Cumulative Varthresh = "<<cvarthresh<<endl;
 	E = covSVD(A, varthresh, cvarthresh, &U, &V);
 	cerr<<"Done"<<endl;
 	MatMap writer;
@@ -749,6 +752,11 @@ void gicaReduceProb(std::string inpref, std::string outpref, size_t rank,
 	A.checkMats();
 
 	cerr<<"Running On Disk SVD"<<endl;
+	cerr<<"A = "<<A.rows()<<" x "<<A.cols()<<endl;
+	cerr<<"Rank = "<<rank<<endl;
+	cerr<<"PowerIters = "<<poweriters<<endl;
+	cerr<<"Varthresh = "<<varthresh<<endl;
+	cerr<<"Cumulative Varthresh = "<<cvarthresh<<endl;
 	E = onDiskSVD(A, rank, poweriters, varthresh, cvarthresh, &U, &V);
 	cerr<<"Done"<<endl;
 	MatMap writer;
