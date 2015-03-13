@@ -262,21 +262,26 @@ VectorXd covSVD(const MatrixReorg& A, double varthresh, double cvarthresh,
 	int rank = 0; // Rank of Singular Value Decomp
 
 	// Create AA* matrix
+	cerr<<"Computing AAt"<<endl;
 	MatrixXd AAt(A.rows(), A.rows());
 	AAt.setZero();
 	for(size_t cc = 0; cc < A.ntall(); cc++) {
 		MatMap m(A.tallMatName(cc));
 		AAt += m.mat*m.mat.transpose();
 	}
+	cerr<<"Done"<<endl;
 
 	/*
 	 * Perform SVD
 	 */
+	cerr<<"Computing Eigensolutions to AAT"<<endl;
 	Eigen::SelfAdjointEigenSolver<MatrixXd> eig(AAt);
 	const auto& evecs = eig.eigenvectors();
 	const auto& evals = eig.eigenvalues();
+	cerr<<"Done"<<endl;
 
 	// Compute Rank
+	cerr<<"Reducing rank"<<endl;
 	double maxvar = sqrt(evals[AAt.rows()-1]);
 	double totalvar = 0;
 	double sum = 0;
@@ -317,6 +322,7 @@ VectorXd covSVD(const MatrixReorg& A, double varthresh, double cvarthresh,
 			V->col(cc) /= singvals[cc];
 	}
 
+	cerr<<"Done"<<endl;
 	return singvals;
 }
 
