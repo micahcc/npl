@@ -80,7 +80,7 @@ int main()
 	{
 		gicaCreateMatrices(1, 1, masks, inputs, "gica_test_space", 0.5, true, true);
 		//gicaReduceFull("gica_test_space", "gica_test_space", 0.1, 0.9, true);
-		gicaReduceProb("gica_test_space", "gica_test_space", 10, 3, 0.1, 0.9, true);
+		gicaReduceProb("gica_test_space", "gica_test_space", 0.1, 0.9, 10, 3, true);
 		//gicaTemporalICA("gica_test_space", "gica_test_space", "gica_test_space", true);
 		gicaSpatialICA("gica_test_space", "gica_test_space", "gica_test_space", true);
 
@@ -93,7 +93,7 @@ int main()
 	{
 		gicaCreateMatrices(1, 1, masks, inputs, "gica_test_time", 0.5, true, true);
 		//gicaReduceFull("gica_test_time", "gica_test_time", 0.1, 0.9, true);
-		gicaReduceProb("gica_test_time", "gica_test_time", 10, 3, 0.1, 0.9, true);
+		gicaReduceProb("gica_test_time", "gica_test_time", 0.1, 0.9, 10, 3, true);
 		gicaTemporalICA("gica_test_time", "gica_test_time", "gica_test_time", true);
 		//gicaSpatialICA("gica_test_space", "gica_test_space", "gica_test_space", true);
 
