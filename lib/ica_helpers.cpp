@@ -120,7 +120,7 @@ VectorXd onDiskSVD(const MatrixReorg& A, int minrank, size_t poweriters,
 		cvarthresh = 0.9;
 
 	// From the Original Algorithm A -> At everywhere
-	cerr<<"Allocating "<<A.cols()<<" x "<<minrank<<", "<<A.rows()<<" x "<<minrank<<endl;
+	cerr<<"Allocating "<<A.cols()<<" x "<<minrank<<" and 2 "<<A.rows()<<" x "<<minrank<<endl;
 	Yc.resize(A.cols(), minrank);
 	Yhc.resize(A.rows(), minrank);
 	Omega.resize(A.rows(), minrank);
@@ -754,7 +754,7 @@ void gicaReduceFull(std::string inpref, std::string outpref, double varthresh,
 	writer.mat = E;
 
 	if(verbose)
-		cerr<<"Signular Values:\n" << E.transpose()<<endl;
+		cerr<<"Singular Values:\n" << E.transpose()<<endl;
 }
 
 void gicaReduceProb(std::string inpref, std::string outpref, double varthresh,
@@ -784,7 +784,7 @@ void gicaReduceProb(std::string inpref, std::string outpref, double varthresh,
 	writer.mat = E;
 
 	if(verbose)
-		cerr<<"Signular Values:\n" << E.transpose()<<endl;
+		cerr<<"Singular Values:\n" << E.transpose()<<endl;
 }
 
 void gicaTemporalICA(std::string reorgpref, std::string reducepref,
