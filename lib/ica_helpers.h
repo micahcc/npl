@@ -89,10 +89,11 @@ void gicaCreateMatrices(size_t tcat, size_t scat, vector<std::string> masks,
  * this ratio of the leading singular value will be treated as zero
  * @param cvarthresh threshold for singular values, everything after this
  * ratio of the total sum of singular values will be treated as zero
+ * @param maxrank maximum rank to use in reduction
  * @param verbose whether to print debuging information
  */
 void gicaReduceFull(std::string inpref, std::string outpref, double varthresh,
-		double cvarthresh, bool verbose);
+		double cvarthresh, size_t maxrank, bool verbose);
 
 /**
  * @brief Compute PCA for the given group, defined
@@ -139,13 +140,14 @@ void gicaSpatialICA(std::string reorgpref, std::string reducepref,
  * @param A MatrixReorg object that can be used to load images on disk
  * @param varthresh stop after the eigenvalues reach this ratio of the maximum
  * @param cvarthresh stop after the sum of eigenvalues reaches this ratio of total
+ * @param maxrank use no more than the given rank when reducing
  * @param U Output U matrix, if null then ignored
  * @param V Output V matrix, if null then ignored
  *
  * @return Vector of singular values
  */
 VectorXd covSVD(const MatrixReorg& A, double varthresh, double cvarthresh,
-		MatrixXd* U, MatrixXd* V);
+		size_t maxrank, MatrixXd* U, MatrixXd* V);
 
 class MatMap
 {

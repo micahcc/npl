@@ -246,13 +246,14 @@ MatrixXd icsToT(const MatrixReorg& A,
  * @param A MatrixReorg object that can be used to load images on disk
  * @param varthresh stop after the eigenvalues reach this ratio of the maximum
  * @param cvarthresh stop after the sum of eigenvalues reaches this ratio of total
+ * @param maxrank maximum rank to use
  * @param U Output U matrix, if null then ignored
  * @param V Output V matrix, if null then ignored
  *
  * @return Vector of singular values
  */
 VectorXd covSVD(const MatrixReorg& A, double varthresh, double cvarthresh,
-		MatrixXd* U, MatrixXd* V)
+		size_t maxrank, MatrixXd* U, MatrixXd* V)
 {
 	if(!U && V)
 		throw INVALID_ARGUMENT("U must be nonnull to compute V!");
@@ -274,6 +275,8 @@ VectorXd covSVD(const MatrixReorg& A, double varthresh, double cvarthresh,
 	}
 	cerr<<"Done"<<endl;
 
+	if(maxrank == 0) maxrank = AAt.rows();
+
 	/*
 	 * Perform SVD
 	 */
@@ -288,12 +291,12 @@ VectorXd covSVD(const MatrixReorg& A, double varthresh, double cvarthresh,
 	double maxvar = sqrt(evals[AAt.rows()-1]);
 	double totalvar = 0;
 	double sum = 0;
-	for(size_t ii=0; ii<AAt.rows(); ii++) {
+	for(size_t ii=0; ii<maxrank; ii++) {
 		if(evals[AAt.rows()-ii-1] > std::numeric_limits<double>::epsilon())
 			totalvar += sqrt(evals[AAt.rows()-ii-1]);
 	}
 
-	for(size_t ii=0; ii<AAt.rows(); ii++) {
+	for(size_t ii=0; ii<maxrank; ii++) {
 		if(evals[AAt.rows()-ii-1] > std::numeric_limits<double>::epsilon()) {
 			double v = sqrt(evals[AAt.rows()-ii-1]);
 			if(sum < totalvar*cvarthresh && v > varthresh*maxvar)
@@ -733,7 +736,7 @@ void gicaCreateMatrices(size_t tcat, size_t scat, vector<string> masks,
 }
 
 void gicaReduceFull(std::string inpref, std::string outpref, double varthresh,
-		double cvarthresh, bool verbose)
+		double cvarthresh, size_t maxrank, bool verbose)
 {
 	MatrixXd U, E, V;
 	MatrixReorg A(inpref, -1, verbose);
@@ -743,7 +746,7 @@ void gicaReduceFull(std::string inpref, std::string outpref, double varthresh,
 	cerr<<"A = "<<A.rows()<<" x "<<A.cols()<<endl;
 	cerr<<"Varthresh = "<<varthresh<<endl;
 	cerr<<"Cumulative Varthresh = "<<cvarthresh<<endl;
-	E = covSVD(A, varthresh, cvarthresh, &U, &V);
+	E = covSVD(A, varthresh, cvarthresh, maxrank, &U, &V);
 	cerr<<"Done"<<endl;
 	MatMap writer;
 

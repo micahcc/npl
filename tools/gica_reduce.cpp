@@ -65,10 +65,10 @@ int main(int argc, char** argv)
 			"Setting this to 2 or 3 could improve the results, but will cost "
 			"2*i more computation time. Not applicable for full SVD",
 			false, 0, "iters", cmd);
-	TCLAP::ValueArg<int> a_rank("", "rank", "Initial rank estimate. "
-			"You usually want to high ball this a bit so that var thresh "
-			"can be used to reduce the rank automatically. Not applicable "
-			"to full SVD", false, 100, "rank", cmd);
+	TCLAP::ValueArg<int> a_rank("", "rank", "Maximum output rank. If "
+			"randomized SVD is applied, then this is the initial reduction. "
+			"If full SVD is being performed then this is the maximum number of "
+			"rows to save. ", false, 100, "rank", cmd);
 
 	TCLAP::ValueArg<string> a_reorgprefix("", "reorg-prefix", "Prefix for input tall "
 			"matrices and masks", true, "", "*.nii.gz", cmd);
@@ -85,7 +85,8 @@ int main(int argc, char** argv)
 	cerr<<a_reduceprefix.getValue()<<"_Evec"<<endl;
 	if(a_full.isSet()) {
 		gicaReduceFull(a_reorgprefix.getValue(), a_reduceprefix.getValue(),
-				a_varthresh.getValue(), cvarthresh, a_verbose.isSet());
+				a_varthresh.getValue(), cvarthresh, a_rank.getValue(),
+				a_verbose.isSet());
 	} else {
 		gicaReduceProb(a_reorgprefix.getValue(), a_reduceprefix.getValue(),
 				a_varthresh.getValue(), cvarthresh,
