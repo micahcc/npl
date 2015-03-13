@@ -101,6 +101,7 @@ public:
 	};
 
 	KDTree(const KDTree& other)  {
+		(void)other;
 		throw "Copy Constructor Not Yet Implemented";
 	};
 
