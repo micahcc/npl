@@ -741,8 +741,8 @@ void gicaReduceFull(std::string inpref, std::string outpref, double varthresh,
 		cerr<<"Signular Values:\n" << E.transpose()<<endl;
 }
 
-void gicaReduceProb(std::string inpref, std::string outpref, size_t rank,
-		size_t poweriters, double varthresh, double cvarthresh, bool verbose)
+void gicaReduceProb(std::string inpref, std::string outpref, double varthresh,
+		double cvarthresh, size_t rank, size_t poweriters, bool verbose)
 {
 	MatrixXd U, E, V;
 	MatrixReorg A(inpref, -1, verbose);

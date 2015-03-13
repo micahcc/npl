@@ -124,8 +124,8 @@ void gicaReduceFull(std::string inpref, std::string outpref, double varthresh,
  * ratio of the total sum of singular values will be treated as zero
  * @param verbose whether to print debuging information
  */
-void gicaReduceProb(std::string inpref, std::string outpref, size_t rank,
-		size_t poweriters, double varthresh, double cvarthresh, bool verbose);
+void gicaReduceProb(std::string inpref, std::string outpref, double varthresh,
+		double cvarthresh, size_t rank, size_t poweriters, bool verbose);
 
 void gicaTemporalICA(std::string reorgpref, std::string reducepref,
 		std::string outpref, bool verbose);
