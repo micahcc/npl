@@ -159,6 +159,8 @@ public:
 		open(filename);
 	};
 
+	~MatMap() { close(); };
+
 	int open(std::string filename)
 	{
 		if(datamap.openExisting(filename, true) < 0)

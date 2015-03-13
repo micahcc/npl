@@ -53,9 +53,10 @@ int main(int argc, char** argv)
 	TCLAP::CmdLine cmd("Perform reduction of reorganized fMRI matrices. This "
 			"is the second phase of ICA analysis.", ' ', __version__ );
 
-	TCLAP::ValueArg<double> a_cvarthresh("", "cvar-thresh", "Cut off after this "
-			"ratio of the cumulative explained variance has been found.", false,
-			0.99, "ratio", cmd);
+	double cvarthresh = 1;
+//	TCLAP::ValueArg<double> a_cvarthresh("", "cvar-thresh", "Cut off after this "
+//			"ratio of the cumulative explained variance has been found.", false,
+//			0.99, "ratio", cmd);
 	TCLAP::ValueArg<double> a_varthresh("", "var-thresh", "Cut off after this "
 			"ratio of the maximum variance component has been reached .",
 			false, 0.1, "ratio", cmd);
@@ -78,13 +79,16 @@ int main(int argc, char** argv)
 
 	cmd.add(a_verbose);
 	cmd.parse(argc, argv);
+	cerr<<"Outputs will be:"<<endl;
+	cerr<<a_reduceprefix.getValue()<<"_Umat"<<endl;
+	cerr<<a_reduceprefix.getValue()<<"_Vmat"<<endl;
+	cerr<<a_reduceprefix.getValue()<<"_Evec"<<endl;
 	if(a_full.isSet()) {
 		gicaReduceFull(a_reorgprefix.getValue(), a_reduceprefix.getValue(),
-				a_varthresh.getValue(), a_cvarthresh.getValue(),
-				a_verbose.isSet());
+				a_varthresh.getValue(), cvarthresh, a_verbose.isSet());
 	} else {
 		gicaReduceProb(a_reorgprefix.getValue(), a_reduceprefix.getValue(),
-				a_varthresh.getValue(), a_cvarthresh.getValue(),
+				a_varthresh.getValue(), cvarthresh,
 				a_rank.getValue(), a_poweriters.getValue(),
 				a_verbose.isSet());
 	}

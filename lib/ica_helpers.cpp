@@ -108,23 +108,21 @@ VectorXd onDiskSVD(const MatrixReorg& A, int minrank, size_t poweriters,
 		double varthresh, double cvarthresh, MatrixXd* U, MatrixXd* V)
 {
 	// Algorithm 4.4
-	MatrixXd Yc;
-	MatrixXd Yhc;
-	MatrixXd Qtmp;
-	MatrixXd Qhat;
-	MatrixXd Omega;
+	// From the Original Algorithm A -> At everywhere
+	cerr<<"Allocating 2x "<<A.cols()<<"x"<<minrank<<" and 3x "<<A.rows()<<"x"<<minrank<<endl;
+	MatrixXd Qtmp(A.cols(), minrank);
+
+	{
+	MatrixXd Yc(A.cols(), minrank);
+	MatrixXd Yhc(A.rows(), minrank);
+	MatrixXd Qhat(A.rows(), minrank);
+	MatrixXd Omega(A.rows(), minrank);
+	cerr<<"Done"<<endl;
 
 	if(varthresh < 0 || varthresh > 1)
 		varthresh = 0.1;
 	if(cvarthresh < 0 || cvarthresh > 1)
 		cvarthresh = 0.9;
-
-	// From the Original Algorithm A -> At everywhere
-	cerr<<"Allocating "<<A.cols()<<" x "<<minrank<<" and 2 "<<A.rows()<<" x "<<minrank<<endl;
-	Yc.resize(A.cols(), minrank);
-	Yhc.resize(A.rows(), minrank);
-	Omega.resize(A.rows(), minrank);
-	cerr<<"Done"<<endl;
 
 	cerr<<"Gaussian Projecting"<<endl;
 	fillGaussian<MatrixXd>(Omega);
@@ -145,6 +143,7 @@ VectorXd onDiskSVD(const MatrixReorg& A, int minrank, size_t poweriters,
 		Qtmp = qr.householderQ()*MatrixXd::Identity(A.cols(), minrank);
 	}
 	cerr << "Done" << endl;
+	}
 
 	// Form B = Q* x A
 	cerr<<"Making Low Rank Approximation ("<<Qtmp.cols()<<"x"<<A.rows()<<")"<<endl;
@@ -313,7 +312,7 @@ VectorXd covSVD(const MatrixReorg& A, double varthresh, double cvarthresh,
 		singvals[ii] = sqrt(evals[AAt.rows()-ii-1]);
 
 	if(U) {
-		cerr<<"Computing U"<<endl;
+		cerr<<"Computing U ("<<A.rows()<<"x"<<rank<<")"<<endl;
 		U->resize(A.rows(), rank);
 		for(size_t ii=0; ii<rank; ii++)
 			U->col(ii) = evecs.col(AAt.rows()-ii-1);
@@ -322,7 +321,7 @@ VectorXd covSVD(const MatrixReorg& A, double varthresh, double cvarthresh,
 
 	// V = A^TUE^-1
 	if(V) {
-		cerr<<"Computing V"<<endl;
+		cerr<<"Computing V ("<<A.cols()<<"x"<<rank<<")"<<endl;
 		V->resize(A.cols(), rank);
 		A.postMult(*V, *U, true);
 		for(size_t cc=0; cc<rank; cc++)
@@ -747,15 +746,21 @@ void gicaReduceFull(std::string inpref, std::string outpref, double varthresh,
 	E = covSVD(A, varthresh, cvarthresh, &U, &V);
 	cerr<<"Done"<<endl;
 	MatMap writer;
-	cerr<<"Writing "<<U_name(outpref)<<endl;
+
+	cerr<<"Writing "<<E_name(outpref)<<" ("<<E.rows()<<"x"<<E.cols()<<")"<<endl;
+	writer.create(E_name(outpref), E.rows(), E.cols());
+	E.resize(0,0);
+
+	cerr<<"Writing "<<U_name(outpref)<<" ("<<U.rows()<<"x"<<U.cols()<<")"<<endl;
 	writer.create(U_name(outpref), U.rows(), U.cols());
 	writer.mat = U;
-	cerr<<"Writing "<<V_name(outpref)<<endl;
+	U.resize(0,0);
+
+	cerr<<"Writing "<<V_name(outpref)<<" ("<<V.rows()<<"x"<<V.cols()<<")"<<endl;
 	writer.create(V_name(outpref), V.rows(), V.cols());
 	writer.mat = V;
-	cerr<<"Writing "<<E_name(outpref)<<endl;
-	writer.create(E_name(outpref), E.rows(), E.cols());
-	writer.mat = E;
+	V.resize(0,0);
+	writer.close();
 
 	if(verbose)
 		cerr<<"Singular Values:\n" << E.transpose()<<endl;
@@ -777,15 +782,21 @@ void gicaReduceProb(std::string inpref, std::string outpref, double varthresh,
 	E = onDiskSVD(A, rank, poweriters, varthresh, cvarthresh, &U, &V);
 	cerr<<"Done"<<endl;
 	MatMap writer;
-	cerr<<"Writing "<<U_name(outpref)<<endl;
-	writer.create(U_name(outpref), U.rows(), U.cols());
-	writer.mat = U;
-	cerr<<"Writing "<<V_name(outpref)<<endl;
-	writer.create(V_name(outpref), V.rows(), V.cols());
-	writer.mat = V;
-	cerr<<"Writing "<<E_name(outpref)<<endl;
+
+	cerr<<"Writing "<<E_name(outpref)<<" ("<<E.rows()<<"x"<<E.cols()<<")"<<endl;
 	writer.create(E_name(outpref), E.rows(), E.cols());
 	writer.mat = E;
+
+	cerr<<"Writing "<<U_name(outpref)<<" ("<<U.rows()<<"x"<<U.cols()<<")"<<endl;
+	writer.create(U_name(outpref), U.rows(), U.cols());
+	writer.mat = U;
+	U.resize(0,0);
+
+	cerr<<"Writing "<<V_name(outpref)<<" ("<<V.rows()<<"x"<<V.cols()<<")"<<endl;
+	writer.create(V_name(outpref), V.rows(), V.cols());
+	writer.mat = V;
+	V.resize(0,0);
+	writer.close();
 
 	if(verbose)
 		cerr<<"Singular Values:\n" << E.transpose()<<endl;
