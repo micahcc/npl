@@ -120,12 +120,16 @@ VectorXd onDiskSVD(const MatrixReorg& A, int minrank, size_t poweriters,
 		cvarthresh = 0.9;
 
 	// From the Original Algorithm A -> At everywhere
+	cerr<<"Allocating "<<A.cols()<<" x "<<minrank<<", "<<A.rows()<<" x "<<minrank<<endl;
 	Yc.resize(A.cols(), minrank);
 	Yhc.resize(A.rows(), minrank);
 	Omega.resize(A.rows(), minrank);
+	cerr<<"Done"<<endl;
 
+	cerr<<"Gaussian Projecting"<<endl;
 	fillGaussian<MatrixXd>(Omega);
 	A.postMult(Yc, Omega, true);
+	cerr<<"Done"<<endl;
 
 	Eigen::HouseholderQR<MatrixXd> qr(Yc);
 	Qtmp = qr.householderQ()*MatrixXd::Identity(A.cols(), minrank);
@@ -159,7 +163,7 @@ VectorXd onDiskSVD(const MatrixReorg& A, int minrank, size_t poweriters,
 			break;
 		var += svals[rank];
 	}
-	cerr << "SVD Rank: " << rank << endl;
+	cerr<<"SVD Rank: "<<rank<<endl;
 	if(rank == 0) {
 		throw INVALID_ARGUMENT("Error arguments have been set in such a "
 				"way that no components will be selected. Try increasing "
@@ -262,7 +266,7 @@ VectorXd covSVD(const MatrixReorg& A, double varthresh, double cvarthresh,
 	int rank = 0; // Rank of Singular Value Decomp
 
 	// Create AA* matrix
-	cerr<<"Computing AAt"<<endl;
+	cerr<<"Computing AAt ("<<A.rows()<<" x "<<A.rows()<<endl;
 	MatrixXd AAt(A.rows(), A.rows());
 	AAt.setZero();
 	for(size_t cc = 0; cc < A.ntall(); cc++) {
@@ -300,7 +304,7 @@ VectorXd covSVD(const MatrixReorg& A, double varthresh, double cvarthresh,
 			sum += v;
 		}
 	}
-
+	cerr<<"SVD Rank: "<<rank<<endl;
 	if(rank <= 0)
 		throw RUNTIME_ERROR("Error rank found to be zero!");
 
