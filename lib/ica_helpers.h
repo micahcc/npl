@@ -14,7 +14,8 @@
  * limitations under the License.
  *
  * @file ica_helpers.h Tools for performing ICA, including rewriting images as
- * matrices.
+ * matrices. This file should really be fmri inference helpers or something
+ * along that line, because it also include GLM helpers.
  *
  *****************************************************************************/
 #ifndef ICA_HELPERS_H
@@ -337,6 +338,29 @@ public:
 	size_t m_maxdoubles;
 };
 
-}
+/**
+ * @brief Performs general linear model analysis on a 4D image.
+ *
+ * @param fmri Input 4D image.
+ * @param Input X Regressors
+ * @param bimg Output betas for each voxel (should have same
+ * @param Timg
+ * @param pimg
+ */
+void fmriGLM(ptr<const MRImage> fmri, const MatrixXd& X,
+		ptr<MRImage> bimg, ptr<MRImage> Timg, ptr<MRImage> pimg);
+
+
+/**
+ * @brief Takes the FFT of each line of the image, performs bandpass filtering
+ * on the line and then invert FFTs and writes back to the input image.
+ *
+ * @param inimg Input image
+ * @param cuton Minimum frequency (may be 0)
+ * @param cutoff Maximum frequency in band (may be INFINITY)
+ */
+void fmriBandPass(ptr<MRImage> inimg, double cuton, double cutoff);
+
+} // NPL
 
 #endif //ICA_HELPERS_H

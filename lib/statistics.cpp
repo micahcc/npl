@@ -49,6 +49,21 @@ namespace npl {
  * Basic Statistical Functions
  **********************************************************/
 
+
+/**
+ * @brief Computes the statistical variance of a column vector
+ *
+ * @param vec Input samples
+ *
+ * @return Variance
+ */
+double sample_var(const Ref<const VectorXd> vec)
+{
+	double v = vec.array().square().sum();
+	double m = vec.array().sum();
+	return sample_var(vec.rows(), m, v);
+}
+
 /**
  * @brief Computes mutual information between signal a and signal b which
  * are of length len. Marginal bins used is mbin
@@ -2395,6 +2410,117 @@ double fastICA_dg2(double u)
  ****************************************************************************/
 
 /**
+ * @brief Computes the Independent Components of input matrix X using symmetric
+ * decorrlation. Note that you should run PCA on X before running ICA.
+ *
+ * Same number of cols as output
+ *
+ * Note that this whole problem is the transpose of the version listed on
+ * wikipedia.
+ *
+ * In: I number of components
+ * In: X RxC matrix with rows representing C-D samples
+ * for p in 1 to I:
+ *   wp = random weight
+ *   while wp changes:
+ *     wp = g(X wp)X/R - wp SUM(g'(X wp))/R
+ *     wp = wp - SUM wp^T wj wj
+ *     normalize(wp)
+ *
+ * Output: W = [w0 w1 w2 ... ]
+ * Output: S = XW, where each column is a dimension, each row a sample
+ *
+ * @param Xin 	RxC matrix where each row is a sample, each column a
+ * dimension (or feature). The number of columns in the output
+ * will be fewer because there will be fewer features.
+ * Columns should be zero-mean and uncorrelated with one another.
+ *
+ * @return 		RxP matrix, where P is the number of independent components
+ */
+MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
+{
+	// remove mean/variance
+	MatrixXd X(Xin.rows(), Xin.cols());
+	for(size_t cc=0; cc<X.cols(); cc++)  {
+		double sum = 0;
+		double sumsq = 0;
+		for(size_t rr=0; rr<X.rows(); rr++)  {
+			sum += Xin(rr,cc);
+			sumsq += Xin(rr,cc)*Xin(rr,cc);
+		}
+		double sigma = sqrt(sample_var(X.rows(), sum, sumsq));
+		double mean = sum/X.rows();
+
+		for(size_t rr=0; rr<X.rows(); rr++)
+			X(rr,cc) = (Xin(rr,cc)-mean)/sigma;
+	}
+
+	const size_t ITERS = 10000;
+	const double MAGTHRESH = 0.0001;
+
+	// Seed with a real random value, if available
+	std::random_device rd;
+	std::default_random_engine rng(rd());
+	std::normal_distribution<double> rdist(0, 1);
+
+	int samples = X.rows();
+	int dims = X.cols();
+	int ncomp = std::min(samples, dims);
+
+	//randomize weights
+	MatrixXd proj;
+	MatrixXd Wprev(dims, ncomp);
+	MatrixXd W(dims, ncomp);
+	for(size_t cc=0; cc < W.cols(); cc++) {
+		for(size_t rr=0; rr < W.rows(); rr++)
+			W(rr,cc) = rdist(rng);
+	}
+
+	Eigen::HouseholderQR<MatrixXd> qr(W);
+	W = qr.householderQ()*MatrixXd::Identity(W.rows(), W.cols());
+	Wprev = W;
+#ifndef NDEBUG
+	std::cout << "Peforming Fast ICA"<<std::endl;
+#endif// NDEBUG
+	double mag = MAGTHRESH;
+	for(size_t ii=0; ii<ITERS && mag >= MAGTHRESH; ii++) {
+		/* Update the columns of W to maximize non-gaussianity
+		 * g(X wp) X^T/R - wp SUM(g'(X wp)))/R
+		 */
+
+		//project w^tx
+		proj = X*W;
+
+		for(int pp = 0 ; pp < ncomp ; pp++) {
+			//- wp SUM(g'(X wp)))/R
+			double sum = 0;
+			for(size_t jj=0; jj<samples; jj++)
+				sum += fastICA_dg2(proj(jj,pp));
+			W.col(pp) = -W.col(pp)*sum/samples;
+			// X^Tg(X wp)/R
+			for(size_t jj=0; jj<samples; jj++)
+				proj(jj,pp) = fastICA_g2(proj(jj,pp));
+			W.col(pp) += X.transpose()*proj.col(pp)/samples;
+		}
+
+		qr.compute(W);
+		W = qr.householderQ()*MatrixXd::Identity(W.rows(), W.cols());
+		mag = (W-Wprev).array().square().sum();
+		std::cout << "Change(" << mag << "):\n";
+#ifndef NDEBUG
+		std::cout << "New W:\n"<<W<< std::endl;
+#endif// NDEBUG
+		Wprev = W;
+	}
+#ifndef NDEBUG
+		std::cout<<"Final W:\n"<<W<<endl;
+#endif// NDEBUG
+
+	if(unmix) *unmix = W;
+	return X*W;
+}
+
+/**
  * @brief Computes the Independent Components of input matrix X. Note that
  * you should run PCA on X before running ICA.
  *
@@ -2422,7 +2548,7 @@ double fastICA_dg2(double u)
  *
  * @return 		RxP matrix, where P is the number of independent components
  */
-MatrixXd ica(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
+MatrixXd asymICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 {
 	// remove mean/variance
 	MatrixXd X(Xin.rows(), Xin.cols());
@@ -2446,7 +2572,7 @@ MatrixXd ica(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 	// Seed with a real random value, if available
 	std::random_device rd;
 	std::default_random_engine rng(rd());
-	std::normal_distribution<double> unif(0, 1);
+	std::normal_distribution<double> rdist(0, 1);
 
 	int samples = X.rows();
 	int dims = X.cols();
@@ -2454,8 +2580,6 @@ MatrixXd ica(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 
 	double mag = 1;
 	VectorXd proj(samples);
-	VectorXd nonlin1(samples);
-	VectorXd nonlin2(samples);
 	VectorXd wprev(dims);
 
 	MatrixXd W(dims, ncomp);
@@ -2463,7 +2587,7 @@ MatrixXd ica(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 	for(int pp = 0 ; pp < ncomp ; pp++) {
 		//randomize weights
 		for(unsigned int ii = 0; ii < dims ; ii++)
-			W.col(pp)[ii] = unif(rng);
+			W.col(pp)[ii] = rdist(rng);
 
 		//GramSchmidt Decorrelate
 		//sum(w^t_p w_j w_j) for j < p

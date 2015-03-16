@@ -832,7 +832,7 @@ void gicaTemporalICA(std::string reorgpref, std::string reducepref,
 	cerr<<"Performing Temporal ICA ("<<U.rows()<<"x"<<U.cols()<<")"<<endl;
 
 	W.resize(U.cols(), U.cols());
-	ics = ica(U, &W);
+	ics = symICA(U, &W);
 	MatMap writer;
 	writer.create(tica_name(outpref), ics.rows(), ics.cols());
 	writer.mat = ics;
@@ -963,7 +963,7 @@ void gicaSpatialICA(std::string reorgpref, std::string reducepref,
 	 */
 	cerr<<"Performing Spatial ICA ("<<V.rows()<<"x"<<V.cols()<<")"<<endl;
 	W.resize(V.cols(), V.cols());
-	ics = ica(V, &W);
+	ics = symICA(V, &W);
 	MatMap writer;
 	writer.create(sica_name(outpref), ics.rows(), ics.cols());
 	writer.mat = ics;
@@ -1096,6 +1096,239 @@ void gicaSpatialICA(std::string reorgpref, std::string reducepref,
 //	cerr << "Done with Regression" << endl;
 //}
 
+/**
+ * @brief Performs general linear model analysis on a 4D image.
+ *
+ * @param fmri Input 4D image.
+ * @param Input X Regressors
+ * @param bimg Output betas for each voxel (should have same
+ * @param Timg
+ * @param pimg
+ */
+void fmriGLM(ptr<const MRImage> fmri, const MatrixXd& X,
+		ptr<MRImage> bimg, ptr<MRImage> Timg, ptr<MRImage> pimg)
+{
+	if(fmri->tlen() != fmri->dim(3))
+		throw INVALID_ARGUMENT("fMRI must be 4D!");
+	if(fmri->tlen() <= 2)
+		throw INVALID_ARGUMENT("fMRI must have at least 2 timepoints!");
+	if(fmri->tlen() != X.rows())
+		throw INVALID_ARGUMENT("fMRI must have same number of timepoints as X "
+				"has rows!");
+	if(X.cols() < 1)
+		throw INVALID_ARGUMENT("X (regressors) must have at least 1 column!");
+	for(size_t ii=0; ii<3; ii++) {
+		if(bimg->dim(ii) != fmri->dim(ii))
+			throw INVALID_ARGUMENT("beta image must have matching size to fMRI!");
+		if(pimg->dim(ii) != fmri->dim(ii))
+			throw INVALID_ARGUMENT("p image must have matching size to fMRI!");
+		if(Timg->dim(ii) != fmri->dim(ii))
+			throw INVALID_ARGUMENT("T image must have matching size to fMRI!");
+	}
+	if(X.cols() != bimg->tlen())
+		throw INVALID_ARGUMENT("X (regressors) must have at same number of "
+				"columns as beta image has vector elements (volumes)!");
+	if(X.cols() != Timg->tlen())
+		throw INVALID_ARGUMENT("X (regressors) must have at same number of "
+				"columns as T image has vector elements (volumes)!");
+	if(X.cols() != pimg->tlen())
+		throw INVALID_ARGUMENT("X (regressors) must have at same number of "
+				"columns as p image has vector elements (volumes)!");
+	if(!fmri->matchingOrient(bimg, false, false))
+		throw INVALID_ARGUMENT("beta image must have matching orientation to fMRI!");
+	if(!fmri->matchingOrient(pimg, false, false))
+		throw INVALID_ARGUMENT("p image must have matching orientation to fMRI!");
+	if(!fmri->matchingOrient(Timg, false, false))
+		throw INVALID_ARGUMENT("T image must have matching orientation to fMRI!");
+
+	size_t tlen = fmri->tlen();
+	vector<size_t> osize(4);
+	for(size_t ii=0; ii<3; ii++)
+		osize[ii] = fmri->dim(ii);
+	osize[3] = X.cols();
+
+    // Cache Reused Vectors
+    MatrixXd Xinv = pseudoInverse(X);
+    VectorXd covInv = pseudoInverse(X.transpose()*X).diagonal();
+
+    const double MAX_T = 100;
+    const double STEP_T = 0.1;
+    StudentsT student_cdf(X.rows()-1, STEP_T, MAX_T);
+
+    // regress each timesereies
+    Vector3DConstIter<double> it(fmri);
+    Eigen::VectorXd y(tlen);
+    vector<int64_t> ind(3);
+	RegrResult ret;
+    for(Vector3DIter<double> bit(bimg), tit(Timg), pit(pimg); !it.eof();
+			++tit, ++it, ++bit, ++pit) {
+
+        // copy to signal
+        for(size_t tt=0; tt<tlen; ++tt)
+            y[tt] = it[tt];
+
+		// perform regression
+		regress(&ret, y, X, covInv, Xinv, student_cdf);
+
+		for(size_t ii=0; ii<X.cols(); ii++) {
+			bit.set(ii, ret.bhat[ii]);
+			tit.set(ii, ret.t[ii]);
+			pit.set(ii, ret.p[ii]);
+		}
+    }
+}
+
+/**
+ * @brief Lowpass smooth transition.
+ *
+ * \frac{G_0^2}{1+(\frac{\omega}{\omega_c})^{2n}}
+ * G_0 is the zero frequency gain
+ * \omega_c is the center frequency
+ *
+ * \frac{1}{1+(\frac{\omega}{\omega_c})^{2n}}
+ *
+ * @param middle
+ * @param w the order of the butterworth filter
+ *
+ * @return
+ */
+double lp_transition(double f, double cutoff, double cuton, int w)
+{
+	(void)cuton;
+	return 1.0/(1.0+pow(f/cutoff, 2*w));
+}
+
+/**
+ * @brief High pass smooth transition.
+ *
+ * @param middle
+ * @param width
+ *
+ * @return
+ */
+double hp_transition(double f, double cutoff, double cuton, int w)
+{
+	(void)cutoff;
+	return 1-1.0/(1.0+pow(-f/cuton, 2*w));
+}
+
+/**
+ * @brief Band pass smooth transition.
+ *
+ * @param middle
+ * @param width
+ *
+ * @return
+ */
+double bp_transition(double f, double cutoff, double cuton, int w)
+{
+	return lp_transition(f, cutoff, cuton, w) +
+		hp_transition(f, cutoff, cuton, w) - 1;
+}
+
+/**
+ * @brief Band Stop smooth transition.
+ *
+ * @param middle
+ * @param width
+ *
+ * @return
+ */
+double bs_transition(double f, double cutoff , double cuton, int w)
+{
+	return lp_transition(f, cutoff, cuton, w) +
+		hp_transition(f, cutoff, cuton, w);
+}
+
+/**
+ * @brief Takes the FFT of each line of the image, performs bandpass filtering
+ * on the line and then invert FFTs and writes back to the input image.
+ *
+ * @param inimg Input image
+ * @param cuton Minimum frequency (may be 0)
+ * @param cutoff Maximum frequency in band (may be INFINITY)
+ */
+void fmriBandPass(ptr<MRImage> inimg, double cuton, double cutoff)
+{
+	const int BUTTERWORTH_ORDER = 2;
+
+	if(inimg->ndim() != 4)
+		throw INVALID_ARGUMENT("Input image to timeFilter is not 4D!");
+
+	size_t tlen = inimg->tlen();
+	double Fs = 1./inimg->spacing(3);
+
+	int psize = round2(inimg->tlen()); // padded data size
+
+	auto rbuffer = (double*)fftw_malloc(sizeof(double)*psize);
+	auto ibuffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*psize);
+
+	fftw_plan fwd = fftw_plan_dft_r2c_1d(psize, rbuffer, ibuffer, FFTW_MEASURE);
+	fftw_plan rev = fftw_plan_dft_c2r_1d(psize, ibuffer, rbuffer, FFTW_MEASURE);
+
+	double(*smoothfunc)(double, double, double, int) = NULL;
+	bool pos_valid = !(cuton < 0 || std::isnan(cuton) || std::isinf(cuton));
+	bool neg_valid = !(cutoff < 0 || std::isnan(cutoff) || std::isinf(cutoff));
+
+	if(!pos_valid && !neg_valid) {
+		throw INVALID_ARGUMENT("Error there appears to be invalid negative frequency "
+			"(low-pass) transitions and invalid positve (high-pass)");
+	}
+
+	//high pass filter
+	if(pos_valid && !neg_valid) {
+		cerr << "High Pass Filtering, Min Freq: " << cuton << endl;
+		smoothfunc = hp_transition;
+	//low pass filter
+	} else if(!pos_valid && neg_valid) {
+		cerr << "Low Pass Filtering, Max Freq: " << cutoff << endl;
+		smoothfunc = lp_transition;
+	//band stop
+	} else if(cutoff < cuton) {
+		cerr << "Band Stop Filtering: [" << cutoff << ", " << cuton
+			<< "]" << endl;
+		smoothfunc = bs_transition;
+	//band pass
+	} else if(cuton < cutoff) {
+		cerr << "Band Pass Filtering: [" << cuton << ", " << cutoff
+			<< "]" << endl;
+		smoothfunc = bp_transition;
+	}
+
+	cerr << "Frequencies in FFT: " << 0 << " - " << Fs/2.0
+		<< "hz" << endl;
+
+	//Create the 1-D filter
+	double T = (double)psize*inimg->spacing(3);
+	for(Vector3DIter<double> it(inimg); !it.eof(); ++it) {
+		// Copy from input
+		for(size_t tt = 0 ; tt < tlen; tt++)
+			rbuffer[tt] = it[tt];
+
+		// Zero Pad
+		for(size_t tt = tlen; tt < psize; tt++)
+			rbuffer[tt] = 0;
+
+		// fourier transform
+		fftw_execute(fwd);
+
+		// Positive Frequencies Only
+		for(size_t ii=0; ii<psize/2+1; ii++) {
+			double ff = (double)ii/T;
+			cdouble_t tmp(ibuffer[ii][0], ibuffer[ii][1]);
+			tmp *= smoothfunc(ff, cutoff, cuton, BUTTERWORTH_ORDER);
+			ibuffer[ii][0] = tmp.real();
+			ibuffer[ii][1] = tmp.imag();
+		}
+
+		// inverse fourier transform
+		fftw_execute(rev);
+
+		// Copy Back Out
+		for(size_t tt = 0 ; tt < tlen; tt++)
+			it.set(tt, rbuffer[tt]);
+	}
+};
 
 } // NPL
 

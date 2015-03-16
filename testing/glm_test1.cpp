@@ -23,6 +23,7 @@
 #include <iostream>
 #include <random>
 
+#include <random>
 #include <Eigen/Dense>
 #include "statistics.h"
 #include "utility.h"
@@ -40,15 +41,27 @@ int main()
 	VectorXd beta(4);
 	beta << 1, -2, 3, -4;
 
+	double noise_sd = 1;
+	std::default_random_engine rng;
+	std::normal_distribution<double> rdist(0, noise_sd);
+
 	size_t tlen = 1024;
+	double se = noise_sd/sqrt(tlen);
 	MatrixXd X(tlen, 4);
 	for(size_t rr=0; rr<X.rows(); rr++ ) {
-		for(size_t cc=0; cc<X.cols(); cc++) {
-			X(rr,cc) = cos(M_PI*rr/100*cc);
-		}
+		for(size_t cc=0; cc<X.cols(); cc++)
+			X(rr,cc) = cos(M_PI*rr/100*(cc+1));
 	}
 
-	VectorXd y = X*beta + VectorXd::Random(tlen);
+	VectorXd Xsd(X.cols());
+	for(size_t ii=0; ii<X.cols(); ii++)
+		Xsd[ii] = sqrt(sample_var(X.col(ii)));
+
+	VectorXd y = X*beta;
+	for(size_t ii=0; ii<y.rows(); ii++) {
+		double e = rdist(rng);
+		y[ii] += e;
+	}
 
 	// Cache Reused Vectors
 	MatrixXd Xinv = pseudoInverse(X);
@@ -76,9 +89,18 @@ int main()
 	cerr << "Beta: Est" << ret.bhat.transpose() << " vs " << beta.transpose()
 		<< endl;
 	cerr << "Standard Errors: " << ret.std_err.transpose() << endl;
-	cerr << "T-Value: " << ret.t.transpose() << endl;
+	cerr << "T-Value: " << ret.t.transpose() <<endl;
 	cerr << "P-value: " << ret.p.transpose() << endl;
 	cerr << "DOF: "<< ret.dof << endl;
+	cerr << "Standard Error of Beta: "<<se<< endl;
+
+	for(size_t b=0; b<beta.rows(); b++) {
+		if(fabs(beta[b] - ret.bhat[b]) > 2*se) {
+			cerr << "Too large a difference in beta ("<<
+				beta[b] << " vs " << ret.bhat[b]<<endl;
+			return -1;
+		}
+	}
 
 	return 0;
 }

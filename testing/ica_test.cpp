@@ -142,7 +142,7 @@ int main()
     plotMat("after_pca.svg", pdata);
 
 	std::cerr << "ICA...";
-    auto idata = ica(pdata);
+    auto idata = asymICA(pdata);
 	std::cerr << "Done" << std::endl;
     plotMat("after_ica.svg", idata);
 

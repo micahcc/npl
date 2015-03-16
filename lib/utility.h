@@ -30,31 +30,6 @@
 namespace npl {
 
 /**
- * @brief Computes mutual information between signal a and signal b which
- * are of length len. Marginal bins used is mbin
- *
- * @param len Length of signal and and b
- * @param a Signal a
- * @param b Signal b
- * @param mbin Bins to use in marginal distribution (mbin*mbin) used in joint
- *
- * @return
- */
-double mutualInformation(size_t len, double* a, double* b, size_t mbin);
-
-/**
- * @brief Computes correlation between signal a and signal b which
- * are of length len.
- *
- * @param len Length of signal and and b
- * @param a Signal a
- * @param b Signal b
- *
- * @return
- */
-double correlation(size_t len, double* a, double* b);
-
-/**
  * @brief Returns the directory name for the given file
  *
  * @param path Input path

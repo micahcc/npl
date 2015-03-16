@@ -32,6 +32,15 @@ namespace npl {
  * @{
  */
 
+/**
+ * @brief Computes the statistical variance of a column vector
+ *
+ * @param vec Input samples
+ *
+ * @return Variance
+ */
+double sample_var(const Ref<const VectorXd> vec);
+
 template <typename T>
 void fillGaussian(Ref<T> m)
 {
@@ -414,7 +423,38 @@ void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
 MatrixXd pca(const Ref<const MatrixXd> X, double varth = 1, int odim = -1);
 
 /**
- * @brief Computes the Independent Components of input matrix X. Note that
+ * @brief Computes the Independent Components of input matrix X using symmetric
+ * decorrlation. Note that you should run PCA on X before running ICA.
+ *
+ * Same number of cols as output
+ *
+ * Note that this whole problem is the transpose of the version listed on
+ * wikipedia.
+ *
+ * In: I number of components
+ * In: X RxC matrix with rows representing C-D samples
+ * for p in 1 to I:
+ *   wp = random weight
+ *   while wp changes:
+ *     wp = g(X wp)X/R - wp SUM(g'(X wp))/R
+ *     wp = wp - SUM wp^T wj wj
+ *     normalize(wp)
+ *
+ * Output: W = [w0 w1 w2 ... ]
+ * Output: S = XW, where each column is a dimension, each row a sample
+ *
+ * @param Xin 	RxC matrix where each row is a sample, each column a
+ * dimension (or feature). The number of columns in the output
+ * will be fewer because there will be fewer features.
+ * Columns should be zero-mean and uncorrelated with one another.
+ *
+ * @return 		RxP matrix, where P is the number of independent components
+ */
+MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix = NULL);
+
+/**
+ * @brief Computes the Independent Components of input matrix X using
+ * sequential component extraction. Note that
  * you should run PCA on X before running ICA.
  *
  * Outputs reduced dimension (fewer cols) in output
@@ -434,16 +474,16 @@ MatrixXd pca(const Ref<const MatrixXd> X, double varth = 1, int odim = -1);
  * Output: W = [w0 w1 w2 ... ]
  * Output: S = XW, where each column is a dimension, each row a sample
  *
- * @param X 	RxC matrix where each column row is a sample, each column a
+ * @param Xin 	RxC matrix where each row is a sample, each column a
  * dimension (or feature). The number of columns in the output
- * will be fewer because there will be fewer features
- * @param unmix unmixing matrix
+ * will be fewer because there will be fewer features.
+ * Columns should be zero-mean and uncorrelated with one another.
  *
  * @return 		RxP matrix, where P is the number of independent components
  */
-MatrixXd ica(const Ref<const MatrixXd> X, MatrixXd* unmix = NULL);
+MatrixXd asymICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix = NULL);
 
-/**
+	/**
  * @brief Computes the pseudoinverse of the input matrix
  *
  * \f$ P = UE^-1V^* \f$

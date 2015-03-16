@@ -67,12 +67,11 @@ int main(int argc, char** argv)
 		cerr << "Input should be 4D!" << endl;
 		return -1;
 	}
-	assert(fmri->tlen() == fmri->dim(3));
-	int tlen = fmri->tlen();
-	double TR = fmri->spacing(3);
 
 	// read the event-related designs, will have rows to match time, and cols
 	// to match number of regressors
+	int tlen = fmri->tlen();
+	double TR = fmri->spacing(3);
 	MatrixXd X(tlen, a_events.getValue().size());
 	size_t regnum = 0;
 	for(auto it=a_events.begin(); it != a_events.end(); it++, regnum++) {
@@ -87,57 +86,16 @@ int main(int argc, char** argv)
 			X(ii, regnum) = v[ii];
 	}
 
-    // create output images
-    std::list<ptr<MRImage>> tImgs;
-    std::list<ptr<MRImage>> pImgs;
-    std::list<NDView<double>> tAccs;
-    std::list<NDView<double>> pAccs;
-    for(size_t ii=0; ii<X.cols(); ii++) {
-        tImgs.push_back(dPtrCast<MRImage>(fmri->extractCast(3, fmri->dim(), FLOAT64)));
-        tAccs.push_back(NDView<double>(tImgs.back()));
-        pImgs.push_back(dPtrCast<MRImage>(fmri->extractCast(3, fmri->dim(), FLOAT64)));
-        pAccs.push_back(NDView<double>(pImgs.back()));
-    }
+	ptr<MRImage> bimg, Timg, pimg;
+	bimg=dPtrCast<MRImage>(fmri->copyCast(4, osize.data(), FLOAT32));
+	Timg=dPtrCast<MRImage>(fmri->copyCast(4, osize.data(), FLOAT32));
+	pimg=dPtrCast<MRImage>(fmri->copyCast(4, osize.data(), FLOAT32));
 
-    vector<int64_t> ind(3);
+	fmriGLM(fmri, X, bimg, Timg, pimg);
 
-    // Cache Reused Vectors
-    auto Xinv = pseudoInverse(X);
-    auto covInv = pseudoInverse(X.transpose()*X);
+	if() {
 
-    const double MAX_T = 100;
-    const double STEP_T = 0.1;
-    StudentsT student_cdf(X.rows()-1, STEP_T, MAX_T);
-
-    // regress each timesereies
-    ChunkIter<double> it(fmri);
-    it.setLineChunk(3);
-    Eigen::VectorXd signal(tlen);
-    for(it.goBegin(); !it.eof(); it.nextChunk()) {
-
-        // copy to signal
-        it.goChunkBegin();
-        for(size_t tt=0; !it.eoc(); ++tt, ++it)
-            signal[tt] = *it;
-
-        RegrResult ret = regress(signal, X, covInv, Xinv, student_cdf);
-
-        auto t_it = tAccs.begin();
-        auto p_it = pAccs.begin();
-        for(size_t ii=0; ii<X.cols(); ii++) {
-            (*t_it).set(ind, ret.t[ii]);
-            (*p_it).set(ind, ret.p[ii]);
-            ++t_it;
-            ++p_it;
-        }
-    }
-
-    auto t_it = tImgs.begin();
-    auto p_it = pImgs.begin();
-    for(size_t ii=0; ii<X.cols(); ii++) {
-        (*t_it)->write(a_odir.getValue()+"/t_"+to_string(ii)+".nii.gz");
-        (*p_it)->write(a_odir.getValue()+"/p_"+to_string(ii)+".nii.gz");
-    }
+	}
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }

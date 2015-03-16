@@ -124,18 +124,6 @@ int extractLabelIcaTS(ptr<const MRImage> fmri, ptr<const MRImage> labelmap,
 void computeAppendDerivs(list<vector<double>>& design,
 			int start, int number);
 
-/**
- * @brief Takes the FFT of each line of the image, performs bandpass filtering
- * on the line and then invert FFTs and writes back to the input image.
- *
- * @param inimg Input image
- * @param off Cut off at the specified frequency
- * @param on Cut on at the specified frequency
- *
- * @return
- */
-void timeFilter(ptr<MRImage> inimg, double off, double on);
-
 int main(int argc, char* argv[])
 {
 	cerr << "Version: " << __version__ << endl;
@@ -238,18 +226,14 @@ int main(int argc, char* argv[])
 			"Output Regressors. Single file with all the regression timeseries "
 			"used", false,"","*.csv", cmd);
 
-	TCLAP::ValueArg<double> a_lpfilter("f", "lowpass-cutoff",
-				"Remove signal above the given frequency in hz. "
-				"Note that if -f lp and -F hp is set and lp < hp then the band "
-				"[0, lp], [hp, INF] will be kept, If lp > hp the band "
-				"[lp,hp] will be kept. If only -f lp is set then the band [0,lp] "
-				"will be kept. ", false, INFINITY, "hz", cmd);
-	TCLAP::ValueArg<double> a_hpfilter("F", "highpass-cutoff",
-				"Remove signal below the given frequency in hz. "
-				"Note that if -f lp and -F hp is set and lp < hp then the band "
-				"[0, lp], [hp, INF] will be kept, If lp > hp the band "
-				"[lp,hp] will be kept. If only -F hp is set then the band [hp,inf] "
-				"will be kept. ", false, 0, "hz", cmd);
+	TCLAP::ValueArg<double> a_minfreq("f", "minfreq",
+				"Remove signal above below the given frequency in hz. "
+				"Note that if not provided, then 0 will be used ", false, 0,
+				"hz", cmd);
+	TCLAP::ValueArg<double> a_maxfreq("F", "maxfreq",
+				"Remove signal above the given frequency in hz. If not set "
+				"then all high frequency will be kept", false, INFINITY, "hz",
+				cmd);
 
 	cmd.add(a_verbose);
 
@@ -390,8 +374,8 @@ int main(int argc, char* argv[])
 
 	/* Time Filter */
 	cerr << "Performing Bandpass fileter...";
-	if(a_hpfilter.isSet() || a_lpfilter.isSet())
-		timeFilter(fmri, a_lpfilter.getValue(), a_hpfilter.getValue());
+	if(a_minfreq.isSet() || a_maxfreq.isSet())
+		fmriBandPass(fmri, a_minfreq.getValue(), a_maxfreq.getValue());
 	cerr << "Done" << endl;
 
 	if(a_output.isSet()) {
@@ -818,159 +802,4 @@ void computeAppendDerivs(list<vector<double>>& design,
 		it++;
 	}
 }
-
-/**
- * @brief Lowpass smooth transition.
- *
- * \frac{G_0^2}{1+(\frac{\omega}{\omega_c})^{2n}}
- * G_0 is the zero frequency gain
- * \omega_c is the center frequency
- *
- * \frac{1}{1+(\frac{\omega}{\omega_c})^{2n}}
- *
- * @param middle
- * @param w the order of the butterworth filter
- *
- * @return
- */
-double lp_transition(double f, double cutoff, double cuton, int w)
-{
-	(void)cuton;
-	return 1.0/(1.0+pow(f/cutoff, 2*w));
-}
-
-/**
- * @brief High pass smooth transition.
- *
- * @param middle
- * @param width
- *
- * @return
- */
-double hp_transition(double f, double cutoff, double cuton, int w)
-{
-	(void)cutoff;
-	return 1-1.0/(1.0+pow(-f/cuton, 2*w));
-}
-
-/**
- * @brief Band pass smooth transition.
- *
- * @param middle
- * @param width
- *
- * @return
- */
-double bp_transition(double f, double cutoff, double cuton, int w)
-{
-	return lp_transition(f, cutoff, cuton, w) +
-			hp_transition(f, cutoff, cuton, w) - 1;
-}
-
-/**
- * @brief Band Stop smooth transition.
- *
- * @param middle
- * @param width
- *
- * @return
- */
-double bs_transition(double f, double cutoff , double cuton, int w)
-{
-	return lp_transition(f, cutoff, cuton, w) +
-			hp_transition(f, cutoff, cuton, w);
-}
-
-/**
- * @brief Takes the FFT of each line of the image, performs bandpass filtering
- * on the line and then invert FFTs and writes back to the input image.
- *
- * @param inimg Input image
- * @param off Cut off at the specified frequency
- * @param on Cut on at the specified frequency
- * @param width Butterworth order
- *
- * @return
- */
-void timeFilter(ptr<MRImage> inimg, double cutoff, double cuton)
-{
-	const int BUTTERWORTH_ORDER = 2;
-
-	if(inimg->ndim() != 4)
-		throw INVALID_ARGUMENT("Input image to timeFilter is not 4D!");
-
-	size_t tlen = inimg->tlen();
-	double Fs = 1./inimg->spacing(3);
-
-	int psize = round2(inimg->tlen()); // padded data size
-
-	auto rbuffer = (double*)fftw_malloc(sizeof(double)*psize);
-	auto ibuffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*psize);
-
-	fftw_plan fwd = fftw_plan_dft_r2c_1d(psize, rbuffer, ibuffer, FFTW_MEASURE);
-	fftw_plan rev = fftw_plan_dft_c2r_1d(psize, ibuffer, rbuffer, FFTW_MEASURE);
-
-	double(*smoothfunc)(double, double, double, int) = NULL;
-	bool pos_valid = !(cuton < 0 || std::isnan(cuton) || std::isinf(cuton));
-	bool neg_valid = !(cutoff < 0 || std::isnan(cutoff) || std::isinf(cutoff));
-
-	if(!pos_valid && !neg_valid) {
-		throw INVALID_ARGUMENT("Error there appears to be invalid negative frequency "
-			"(low-pass) transitions and invalid positve (high-pass)");
-	}
-
-	//high pass filter
-	if(pos_valid && !neg_valid) {
-		cerr << "High Pass Filtering, Min Freq: " << cuton << endl;
-		smoothfunc = hp_transition;
-	//low pass filter
-	} else if(!pos_valid && neg_valid) {
-		cerr << "Low Pass Filtering, Max Freq: " << cutoff << endl;
-		smoothfunc = lp_transition;
-	//band stop
-	} else if(cutoff < cuton) {
-		cerr << "Band Stop Filtering: [" << cutoff << ", " << cuton
-			<< "]" << endl;
-		smoothfunc = bs_transition;
-	//band pass
-	} else if(cuton < cutoff) {
-		cerr << "Band Pass Filtering: [" << cuton << ", " << cutoff
-			<< "]" << endl;
-		smoothfunc = bp_transition;
-	}
-
-	cerr << "Frequencies in FFT: " << 0 << " - " << Fs/2.0
-		<< "hz" << endl;
-
-	//Create the 1-D filter
-	double T = (double)psize*inimg->spacing(3);
-	for(Vector3DIter<double> it(inimg); !it.eof(); ++it) {
-		// Copy from input
-		for(size_t tt = 0 ; tt < tlen; tt++)
-			rbuffer[tt] = it[tt];
-
-		// Zero Pad
-		for(size_t tt = tlen; tt < psize; tt++)
-			rbuffer[tt] = 0;
-
-		// fourier transform
-		fftw_execute(fwd);
-
-		// Positive Frequencies Only
-		for(size_t ii=0; ii<psize/2+1; ii++) {
-			double ff = (double)ii/T;
-			cdouble_t tmp(ibuffer[ii][0], ibuffer[ii][1]);
-			tmp *= smoothfunc(ff, cutoff, cuton, BUTTERWORTH_ORDER);
-			ibuffer[ii][0] = tmp.real();
-			ibuffer[ii][1] = tmp.imag();
-		}
-
-		// inverse fourier transform
-		fftw_execute(rev);
-
-		// Copy Back Out
-		for(size_t tt = 0 ; tt < tlen; tt++)
-			it.set(tt, rbuffer[tt]);
-	}
-};
 
