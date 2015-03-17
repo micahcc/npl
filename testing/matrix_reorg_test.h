@@ -19,7 +19,7 @@
 #ifndef MATRIX_REORG_TEST_H
 #define MATRIX_REORG_TEST_H
 
-#include "ica_helpers.h"
+#include "fmri_inference.h"
 #include "nplio.h"
 #include "mrimage.h"
 #include "iterators.h"

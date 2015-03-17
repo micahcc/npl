@@ -21,7 +21,7 @@
 #include <stdexcept>
 
 #include "version.h"
-#include "ica_helpers.h"
+#include "fmri_inference.h"
 #include "mrimage.h"
 #include "ndarray_utils.h"
 #include "nplio.h"

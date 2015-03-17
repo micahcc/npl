@@ -20,7 +20,7 @@
 #include "version.h"
 #include "statistics.h"
 #include "npltypes.h"
-#include "ica_helpers.h"
+#include "fmri_inference.h"
 
 #include <iostream>
 #include <iomanip>

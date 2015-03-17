@@ -21,7 +21,7 @@
 #include <string>
 
 #include "matrix_reorg_test.h"
-#include "ica_helpers.h"
+#include "fmri_inference.h"
 #include "mrimage_utils.h"
 #include "mrimage.h"
 #include "iterators.h"
