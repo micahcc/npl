@@ -33,6 +33,7 @@
 #include <Eigen/Dense>
 #include <memory>
 #include <list>
+#include <unordered_set>
 
 namespace npl {
 
@@ -42,6 +43,17 @@ using std::vector;
  * \defgroup NDarrayUtilities NDarray and Image Functions
  * @{
  */
+
+
+/**
+ * @brief Produces a std::unordered_set of labels within a labelmap
+ *
+ * @param in Input image any dimension or size
+ *
+ * @return set of values, note that all pixels are cast to int64_t so a
+ * double image may be valid, but might produce odd results
+ */
+std::unordered_set<int64_t> getLabels(ptr<const NDArray> in);
 
 /**
  * @brief Returns whether two NDArrays have the same dimensions, and therefore
@@ -358,6 +370,14 @@ void fillCircle(ptr<NDArray> inout, double radius, double alpha);
  *
  */
 void fillLinear(ptr<NDArray> inout);
+
+/**
+ * @brief Fills image with the linear index at each pixel
+ *
+ * @param inout input/output image, will be filled with gaussian white noise
+ *
+ */
+void fillZero(ptr<NDArray> inout);
 
 /**
  * @brief Fills image with the linear index at each pixel

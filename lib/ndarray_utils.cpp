@@ -2109,6 +2109,18 @@ void fillLinear(ptr<NDArray> inout)
  * @param inout input/output image, will be filled with gaussian white noise
  *
  */
+void fillZero(ptr<NDArray> inout)
+{
+	for(FlatIter<float> it(inout); !it.eof(); ++it)
+		it.set(0);
+}
+
+/**
+ * @brief Fills image with the linear index at each pixel
+ *
+ * @param inout input/output image, will be filled with gaussian white noise
+ *
+ */
 void fillGaussian(ptr<NDArray> inout)
 {
 	std::random_device rd;

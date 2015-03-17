@@ -417,6 +417,11 @@ def build(bld):
             use=npl)
 
     bld.program(install_path='${PREFIX}/tests', features='test',
+            target='glm_test4',
+            source='glm_test4.cpp',
+            use=npl)
+
+    bld.program(install_path='${PREFIX}/tests', features='test',
             target='kmeans_test',
             source='kmeans_test.cpp',
             use=npl)

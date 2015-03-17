@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file glm_test3.cpp Tests large scale GLM with added out-of-band noise which
- * is removed using bandpass filtering
+ * @file glm_test4.cpp Tests large scale GLM with added out-of-band noise which
+ * is removed using ICA from beta=0 regions
  *
  *****************************************************************************/
 
@@ -92,15 +92,31 @@ int main()
 			it.set(rr, it[rr]+y[rr]+tmp[rr]);
 	}
 
+	// Create mask of zero-beta regions
+	auto mask = createMRImage(3, voldim.data(), INT32);
+	for(Vector3DIter<int> mit(mask), bit(realbeta); !mit.eof() && !bit.eof();
+			++mit, ++bit) {
+		// Only keep a region if all betas are 0
+		bool keep = true;
+		for(size_t ii=0; ii<X.cols(); ii++)
+			if(bit[ii] != 0) keep = false;
+
+		if(keep) mit.set(1);
+		else  mit.set(0);
+	}
+
 	writeMRImage(fmri, "fmri_withnoise.nii.gz");
 	writeMRImage(realbeta, "betas.nii.gz");
+	writeMRImage(mask, "mask.nii.gz");
 
+	// Remove effects of confounding signals
+	MatrixXd Xremove = extractLabelICA(fmri, mask, 2);
+	regressOut(fmri, Xremove);
+
+	// Perform GLM
 	auto t_est = dPtrCast<MRImage>(fmri->copyCast(4, voldim.data()));
 	auto p_est = dPtrCast<MRImage>(fmri->copyCast(4, voldim.data()));
 	auto b_est = dPtrCast<MRImage>(fmri->copyCast(4, voldim.data()));
-
-	fmriBandPass(fmri, 0.01, 0.1);
-	writeMRImage(fmri, "fmri_bandpassed.nii.gz");
 	fmriGLM(fmri, X, b_est, t_est, p_est);
 	writeMRImage(b_est, "beta_est.nii.gz");
 	writeMRImage(p_est, "p_est.nii.gz");

@@ -361,6 +361,75 @@ void fmriGLM(ptr<const MRImage> fmri, const MatrixXd& X,
  */
 void fmriBandPass(ptr<MRImage> inimg, double cuton, double cutoff);
 
+/**
+ * @brief Regresses out the given variables, creating time series which are
+ * uncorrelated with X
+ *
+ * @param inout Input 4D image
+ * @param X matrix of covariates
+ *
+ */
+ptr<MRImage> regressOut(ptr<const MRImage> inimg, const MatrixXd& X);
+
+/**
+ * @brief Creates a matrix of timeseries, then perfrorms principal components
+ * analysis on it to reduce the number of timeseries to outsz. Each unique
+ * non-zero label in the input image will be considered a group of measurements
+ * which will be reduced together. Thus if there are labels 0,1,2 there will be
+ * 2 columns in the output.
+ *
+ * Note that labelmap and fmri should be in the same pixel space (except for
+ * dimension 3)
+ *
+ * @param fmri 		FMRI image with timeseres to extract
+ * @param labelmap	Labelmap used to identify relevent input timeseries
+ *
+ * @return Matrix of time-series which were reduced, 1 column per
+ * label group, since each label group gets reduced to an average
+ */
+MatrixXd extractLabelAVG(ptr<const MRImage> fmri,
+		ptr<const MRImage> labelmap);
+
+/**
+ * @brief Creates a matrix of timeseries, then perfrorms principal components
+ * analysis on it to reduce the number of timeseries to outsz. Each unique
+ * non-zero label in the input image will be considered a group of measurements
+ * which will be reduced together. Thus if there are labels 0,1,2 there will be
+ * 2*outsz columns in the output.
+ *
+ * Note that labelmap and fmri should be in the same pixel space (except for
+ * dimension 3)
+ *
+ * @param fmri 		FMRI image with timeseres to extract
+ * @param labelmap	Labelmap used to identify relevent input timeseries
+ * @param outsz		Number of output timeseres ti append to design
+ *
+ * @return Matrix of time-series which were reduced, 1 block of outsz for each
+ * label group, since each label group gets reduced to outsz leading components
+ */
+MatrixXd extractLabelPCA(ptr<const MRImage> fmri,
+		ptr<const MRImage> labelmap, size_t outsz);
+
+/**
+ * @brief Creates a matrix of timeseries, then perfrorms principal components
+ * analysis on it to reduce the number of timeseries to outsz. Each unique
+ * non-zero label in the input image will be considered a group of measurements
+ * which will be reduced together. Thus if there are labels 0,1,2 there will be
+ * 2*outsz columns in the output.
+ *
+ * Note that labelmap and fmri should be in the same pixel space (except for
+ * dimension 3)
+ *
+ * @param fmri 		FMRI image with timeseres to extract
+ * @param labelmap	Labelmap used to identify relevent input timeseries
+ * @param outsz		Number of output timeseres ti append to design
+ *
+ * @return Matrix of time-series which were reduced, 1 block of outsz for each
+ * label group, since each label group gets reduced to outsz leading components
+ */
+MatrixXd extractLabelICA(ptr<const MRImage> fmri,
+		ptr<const MRImage> labelmap, size_t outsz);
+
 } // NPL
 
 #endif //ICA_HELPERS_H

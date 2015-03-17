@@ -79,7 +79,7 @@ MatrixXd reduce(shared_ptr<const MRImage> in, double expvar)
 
     // perform ICA
 	std::cerr << "ICA...";
-	MatrixXd X_ic = ica(X_pc);
+	MatrixXd X_ic = symICA(X_pc);
 	cerr << X_pc.col(0).transpose() << endl;
 	std::cerr << "Done" << endl;
 

@@ -31,6 +31,7 @@
 #include "iterators.h"
 #include "utility.h"
 #include "basic_plot.h"
+#include "statistics.h"
 
 using namespace npl;
 using namespace std;
@@ -242,8 +243,7 @@ int main(int argc, char** argv)
 
 		for(size_t ii=0; ii<=rr; ii++) {
 			if(ii != 0) cerr << ",";
-			cerr << correlation(tlen, design[rr].data(),
-					design[ii].data());
+			cerr << correlation(tlen, design[rr].data(), design[ii].data());
 		}
 		cerr << endl;
 	}

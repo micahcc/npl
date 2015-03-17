@@ -41,6 +41,28 @@ namespace npl {
  */
 double sample_var(const Ref<const VectorXd> vec);
 
+/**
+ * @brief Removes the effects of X from signal (y). Note that this takes both X
+ * and the pseudoinverse of X because the bulk of the computation will be on
+ * the pseudoinverse.
+ *
+ * Each column of X should be a regressor, Xinv should be the pseudoinverse of X
+ *
+ * Beta in OLS may be computed with the pseudoinverse (P):
+ * B = Py
+ * where P is the pseudoinverse:
+ * P = VE^{-1}U^*
+ *
+ * @param signal response term (y), will be modified to remove the effects of X
+ * @param X Design matrix, or independent values in colums
+ * @param Xinv the pseudoinverse of X
+ */
+inline
+void regressOutLS(VectorXd& signal, const MatrixXd& X, const MatrixXd& Xinv)
+{
+	signal = signal - (Xinv*signal)*X;
+}
+
 template <typename T>
 void fillGaussian(Ref<T> m)
 {

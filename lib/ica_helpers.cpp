@@ -1316,7 +1316,7 @@ void fmriBandPass(ptr<MRImage> inimg, double cuton, double cutoff)
 		for(size_t ii=0; ii<psize/2+1; ii++) {
 			double ff = (double)ii/T;
 			cdouble_t tmp(ibuffer[ii][0], ibuffer[ii][1]);
-			tmp *= smoothfunc(ff, cutoff, cuton, BUTTERWORTH_ORDER);
+			tmp *= smoothfunc(ff, cutoff, cuton, BUTTERWORTH_ORDER)/psize;
 			ibuffer[ii][0] = tmp.real();
 			ibuffer[ii][1] = tmp.imag();
 		}
@@ -1329,6 +1329,332 @@ void fmriBandPass(ptr<MRImage> inimg, double cuton, double cutoff)
 			it.set(tt, rbuffer[tt]);
 	}
 };
+
+/**
+ * @brief Regresses out the given variables, creating time series which are
+ * uncorrelated with X
+ *
+ * @param inout Input 4D image
+ * @param X matrix of covariates
+ *
+ */
+ptr<MRImage> regressOut(ptr<const MRImage> inimg, const MatrixXd& X)
+{
+	// Add Augmented version with intercept
+	MatrixXd Xaug(X.rows(), X.cols()+1);
+	Xaug.leftCols(X.cols()) = X;
+	Xaug.rightCols(1).setOnes();
+
+	const double DELTA = 1e-20;
+	size_t tlen = inimg->tlen();
+	if(tlen != Xaug.rows()) {
+		throw INVALID_ARGUMENT("Error, input design matrix must have matching "
+				"number of rows to input fMRI");
+	}
+	MatrixXd Xinv = pseudoInverse(X);
+	VectorXd y(X.rows());
+	VectorXd beta(X.cols());
+
+	//allocate output
+	auto out = dPtrCast<MRImage>(inimg->copyCast(FLOAT32));
+
+	// Create Iterators
+	Vector3DIter<double> oit(out);
+	Vector3DConstIter<double> iit(inimg);
+
+	// Iterate through and regress each line
+	for(iit.goBegin(), oit.goBegin(); !iit.eof(); ++iit, ++oit) {
+
+		// statistics
+		double minv = std::numeric_limits<double>::max();
+		double maxv = std::numeric_limits<double>::min();
+
+		for(size_t tt=0; tt<tlen; ++tt) {
+			minv = std::min(minv, iit[tt]);
+			maxv = std::max(maxv, iit[tt]);
+			y[tt] = iit[tt];
+		}
+
+		if(fabs(maxv - minv) > DELTA)
+			regressOutLS(y, X, Xinv);
+		else
+			y.setZero();
+
+		for(size_t tt=0; tt<tlen; ++tt) {
+			oit.set(tt, y[tt]);
+		}
+	}
+
+	return out;
+}
+
+/**
+ * @brief Creates a matrix of timeseries, then perfrorms principal components
+ * analysis on it to reduce the number of timeseries to outsz. Each unique
+ * non-zero label in the input image will be considered a group of measurements
+ * which will be reduced together. Thus if there are labels 0,1,2 there will be
+ * 2 columns in the output.
+ *
+ * Note that labelmap and fmri should be in the same pixel space (except for
+ * dimension 3)
+ *
+ * @param fmri 		FMRI image with timeseres to extract
+ * @param labelmap	Labelmap used to identify relevent input timeseries
+ *
+ * @return Matrix of time-series which were reduced, 1 column per
+ * label group, since each label group gets reduced to an average
+ */
+MatrixXd extractLabelAVG(ptr<const MRImage> fmri,
+		ptr<const MRImage> labelmap)
+{
+	// Check Inputs
+	if(!fmri->matchingOrient(labelmap, false, true))
+		throw INVALID_ARGUMENT("Input image orientations do not match!");
+
+	size_t tlen = fmri->tlen();
+	if(tlen <= 1)
+		throw INVALID_ARGUMENT("Input image not 4D!");
+
+	// Create output regressors (all non-zero labels)
+	MatrixXd X;
+	auto labels = getLabels(labelmap);
+	if(labels.count(0) > 0)
+		X.resize(tlen, labels.size()-1);
+	else
+		X.resize(tlen, labels.size());
+	X.setZero();
+
+	// Create Map of labels->columns
+	std::map<int64_t, int64_t> labelToCol;
+	{
+	auto it = labels.begin();
+	for(size_t ii=0; it != labels.end(); ++it) {
+		if(*it != 0)
+			labelToCol[*it] = ii++;
+	}
+	}
+
+	// Create Local Variables
+	Vector3DConstIter<double> it(fmri);
+	NDConstIter<int> lit(labelmap);
+	for(it.goBegin(), lit.goBegin(); !lit.eof(); ++lit, ++it) {
+		if(*lit != 0) {
+			size_t col = labelToCol[*lit];
+			for(size_t tt=0; tt<tlen; tt++)
+				X(tt, col) += it[tt];
+		}
+	}
+
+	X /= tlen;
+	return X;
+}
+
+/**
+ * @brief Creates a matrix of timeseries, then perfrorms principal components
+ * analysis on it to reduce the number of timeseries to outsz. Each unique
+ * non-zero label in the input image will be considered a group of measurements
+ * which will be reduced together. Thus if there are labels 0,1,2 there will be
+ * 2*outsz columns in the output.
+ *
+ * Note that labelmap and fmri should be in the same pixel space (except for
+ * dimension 3)
+ *
+ * @param fmri 		FMRI image with timeseres to extract
+ * @param labelmap	Labelmap used to identify relevent input timeseries
+ * @param outsz		Number of output timeseres ti append to design
+ *
+ * @return Matrix of time-series which were reduced, 1 block of outsz for each
+ * label group, since each label group gets reduced to outsz leading components
+ */
+MatrixXd extractLabelPCA(ptr<const MRImage> fmri,
+		ptr<const MRImage> labelmap, size_t outsz)
+{
+	// Check Inputs
+	if(!fmri->matchingOrient(labelmap, false, true))
+		throw INVALID_ARGUMENT("Input image orientations do not match!");
+
+	int tlen = fmri->tlen();
+	if(tlen <= 1)
+		throw INVALID_ARGUMENT("Input image is not 4D!");
+
+	// Need to create a block matrix where each block corresponds to 1 label
+	// group. To do this, the number of members of each group is computed and
+	// then a map to the first element of each column block is calculated
+
+	// Create Map of labels->size
+	std::map<int64_t, int64_t> labelToCol;
+	for(FlatConstIter<int64_t> it(labelmap); !it.eof(); ++it) {
+		if(*it != 0) {
+			auto ret = labelToCol.insert({*it,0});
+			ret.first->second++;
+		}
+	}
+
+	cerr << "Counts: " <<endl;
+	for(auto& p : labelToCol)
+		cerr<<p.first<<"->"<<p.second<<endl;
+	cerr<<endl;
+
+	size_t cumu = 0;
+	for(auto& p : labelToCol) {
+		size_t prev = cumu;
+		cumu += p.second;
+		p.second = prev;
+	}
+
+	cerr << "Offsets: " <<endl;
+	for(auto& p : labelToCol)
+		cerr<<p.first<<"->"<<p.second<<endl;
+	cerr<<endl;
+
+	cerr<<"Total cols: " <<cumu<<endl;
+	MatrixXd X(tlen, cumu);
+
+	// Create Local Variables
+	Vector3DConstIter<double> it(fmri);
+	NDConstIter<int> lit(labelmap);
+
+	// Fill Matrix with X, note that each time we find a particular label, we
+	// use the current value in labelToCol then incremente it, so that next
+	// visitation to the label produces the next volumn, and so on
+	double mean, stddev;
+	for(it.goBegin(), lit.goBegin(); !lit.eof(); ++lit, ++it) {
+		if(*lit != 0) {
+			mean = 0;
+			stddev = 0;
+			size_t col = labelToCol[*lit];
+			labelToCol[*lit]++;
+
+			// Compute Mean and Fill Column of X
+			for(int tt = 0 ; tt<tlen; tt++) {
+				X(tt, col) = it[tt];
+				mean += it[tt];
+				stddev += it[tt]*it[tt];
+			}
+			stddev = sqrt(sample_var(tlen, mean, stddev));
+			mean /= tlen;
+
+			//skip invalid timeseries (left as zeros)
+			if(std::isnan(mean) || std::isinf(mean) || stddev == 0)
+				X.col(col).setZero();
+			else
+				X.col(col) = (X.col(col).array()-mean)/stddev;
+		}
+	}
+
+	std::cout << "PCA" << endl;
+	X = pca(X, 1, outsz);
+	std::cout << "Done" << endl;
+
+	return X;
+}
+
+/**
+ * @brief Creates a matrix of timeseries, then perfrorms independent components
+ * analysis on it to reduce the number of timeseries to outsz. Each unique
+ * non-zero label in the input image will be considered a group of measurements
+ * which will be reduced together. Thus if there are labels 0,1,2 there will be
+ * 2*outsz columns in the output.
+ *
+ * Note that labelmap and fmri should be in the same pixel space (except for
+ * dimension 3)
+ *
+ * @param fmri 		FMRI image with timeseres to extract
+ * @param labelmap	Labelmap used to identify relevent input timeseries
+ * @param outsz		Number of output timeseres ti append to design
+ *
+ * @return Matrix of time-series which were reduced, 1 block of outsz for each
+ * label group, since each label group gets reduced to outsz leading components
+ */
+MatrixXd extractLabelICA(ptr<const MRImage> fmri,
+		ptr<const MRImage> labelmap, size_t outsz)
+{
+	// Check Inputs
+	if(!fmri->matchingOrient(labelmap, false, true))
+		throw INVALID_ARGUMENT("Input image orientations do not match!");
+
+	int tlen = fmri->tlen();
+	if(tlen <= 1)
+		throw INVALID_ARGUMENT("Input image is not 4D!");
+
+	// Need to create a block matrix where each block corresponds to 1 label
+	// group. To do this, the number of members of each group is computed and
+	// then a map to the first element of each column block is calculated
+
+	// Create Map of labels->size
+	std::map<int64_t, int64_t> labelToCol;
+	size_t tc = 0;
+	for(FlatConstIter<int64_t> it(labelmap); !it.eof(); ++it) {
+		if(*it != 0) {
+			auto ret = labelToCol.insert({*it,0});
+			ret.first->second++;
+			tc++;
+		}
+	}
+
+	cerr << "Counts: " <<endl;
+	for(auto& p : labelToCol)
+		cerr<<p.first<<"->"<<p.second<<endl;
+	cerr<<endl;
+
+	size_t cumu = 0;
+	for(auto& p : labelToCol) {
+		size_t prev = cumu;
+		cumu += p.second;
+		p.second = prev;
+	}
+
+	cerr << "Offsets: " <<endl;
+	for(auto& p : labelToCol)
+		cerr<<p.first<<"->"<<p.second<<endl;
+	cerr<<endl;
+
+	cerr<<"Total cols: " <<cumu<<endl;
+	MatrixXd X(tlen, cumu);
+
+	// Create Local Variables
+	Vector3DConstIter<double> it(fmri);
+	NDConstIter<int> lit(labelmap);
+
+	// Fill Matrix with X, note that each time we find a particular label, we
+	// use the current value in labelToCol then incremente it, so that next
+	// visitation to the label produces the next volumn, and so on
+	double mean, stddev;
+	for(it.goBegin(), lit.goBegin(); !lit.eof(); ++lit, ++it) {
+		if(*lit != 0) {
+			tc--;
+			mean = 0;
+			stddev = 0;
+			size_t col = labelToCol[*lit];
+			labelToCol[*lit]++;
+
+			// Compute Mean and Fill Column of X
+			for(int tt = 0 ; tt<tlen; tt++) {
+				X(tt, col) = it[tt];
+				mean += it[tt];
+				stddev += it[tt]*it[tt];
+			}
+			stddev = sqrt(sample_var(tlen, mean, stddev));
+			mean /= tlen;
+
+			//skip invalid timeseries (left as zeros)
+			if(std::isnan(mean) || std::isinf(mean) || stddev == 0)
+				X.col(col).setZero();
+			else
+				X.col(col) = (X.col(col).array()-mean)/stddev;
+		}
+	}
+
+	std::cout << "PCA" << endl;
+	X = pca(X, 1, outsz);
+	std::cout << "Done" << endl;
+
+	std::cout << "ICA...";
+	X = symICA(X);
+	std::cout << "Done" << endl;
+
+	return X;
+}
 
 } // NPL
 
