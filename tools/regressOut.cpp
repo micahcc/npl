@@ -40,7 +40,7 @@
 #include "mrimage.h"
 #include "mrimage_utils.h"
 #include "ndarray_utils.h"
-#include "ica_helpers.h"
+#include "fmri_inference.h"
 #include "iterators.h"
 #include "version.h"
 

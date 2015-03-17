@@ -30,7 +30,7 @@
 
 #include "fftw3.h"
 
-#include "ica_helpers.h"
+#include "fmri_inference.h"
 #include "mrimage.h"
 #include "nplio.h"
 #include "iterators.h"

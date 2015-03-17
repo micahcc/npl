@@ -377,6 +377,11 @@ def build(bld):
             use=npl+'tclap')
 
     bld.program(install_path='${PREFIX}/tests', features='test',
+            target='symica_test',
+            source='symica_test.cpp',
+            use=npl)
+
+    bld.program(install_path='${PREFIX}/tests', features='test',
             target='ica_test',
             source='ica_test.cpp',
             use=npl)
