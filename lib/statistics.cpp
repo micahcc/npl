@@ -2105,65 +2105,6 @@ VectorXd shootingRegr(const Ref<const MatrixXd> X, const Ref<const VectorXd> y, 
 }
 
 /**
- * @brief Computes the Principal Components of input matrix X using the
- * covariance matrix.
- *
- * Outputs projections in the columns of a matrix.
- *
- * @param cov 	Covariance matrix of XtX
- * @param varth Variance threshold. Don't include dimensions after this percent
- * of the variance has been explained.
- *
- * @return 		RxP matrix, where P is the number of principal components
- */
-MatrixXd pcacov(const Ref<const MatrixXd> cov, double varth)
-{
-	assert(cov.rows() == cov.cols());
-
-#ifndef NDEBUG
-	std::cout << "Computing ..." << std::endl;
-#endif //DEBUG
-	Eigen::SelfAdjointEigenSolver<MatrixXd> solver(cov);
-#ifndef NDEBUG
-	std::cout << "Done" << std::endl;
-#endif //DEBUG
-
-	double total = 0;
-	for(int64_t ii=solver.eigenvalues().rows()-1; ii>=0; ii--) {
-		assert(solver.eigenvalues()[ii] >= 0);
-		total += solver.eigenvalues()[ii];
-	}
-
-	double sum = 0;
-	size_t ndim = 0;
-	for(int64_t ii=solver.eigenvalues().rows()-1; ii>=0; ii--) {
-		sum += solver.eigenvalues()[ii];
-		if(sum / total < varth)
-			ndim++;
-		else
-			break;
-	}
-
-#ifndef NDEBUG
-	std::cout << "Output Dimensions: " << ndim
-		<< "\nCreating Reduced MatrixXd..." << std::endl;
-#endif //DEBUG
-
-	MatrixXd out(cov.rows(), ndim);
-	for(int64_t ii=solver.eigenvalues().rows()-1, jj=0; ii>=0; ii--, jj++) {
-		for(size_t rr=0; rr<cov.rows(); rr++) {
-			out(rr, jj) = solver.eigenvectors()(rr, ii);
-		}
-	}
-
-#ifndef NDEBUG
-	std::cout  << "  Done" << std::endl;
-#endif
-
-	return out;
-}
-
-/**
  * @brief
  *
  * @param A M x N
@@ -2317,6 +2258,69 @@ void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
 	V = smallsvd.matrixV();
 }
 
+/**
+ * @brief Computes the Principal Components of input matrix X using the
+ * randomized power iteration SVD algorithm.
+ *
+ * Outputs reduced dimension (fewer cols) in output. Note that prior to this,
+ * the columns of X should be 0 mean otherwise the first component will
+ * be the mean
+ *
+ * @param X 	RxC matrix where each column row is a sample, each column a
+ * dimension (or feature). The number of columns in the output
+ * will be fewer because there will be fewer features
+ * @param varth Variance threshold. This is the ratio (0-1) of variance to
+ * include in the output. This is used to determine the dimensionality of the
+ * output. If this is 1 then all variance will be included. If this < 1 and
+ * odim > 0 then whichever gives a larger output dimension will be selected.
+ * @param odim Threshold for output dimensions. If this is <= 0 then it is
+ * ignored, if it is > 0 then max(dim(varth), odim) is used as the output
+ * dimension.
+ *
+ * @return 		RxP matrix, where P is the number of principal components
+ */
+MatrixXd rpiPCA(const Ref<const MatrixXd> X, double varth, int odim)
+{
+	double totalv = 0; // total variance
+	int outdim = 0;
+
+//#ifndef NDEBUG
+	std::cout << "Computing SVD of "<<X.rows()<<"x"<<X.cols()<<" matrix"<< std::endl;
+//#endif //DEBUG
+
+	MatrixXd U, V;
+	VectorXd E;
+	randomizePowerIterationSVD(X, 0.01, 2, 10, 3, U, E, V);
+//#ifndef NDEBUG
+	std::cout << "Done" << std::endl;
+//#endif //DEBUG
+
+	//only keep dimensions with variance passing the threshold
+	totalv = E.sum();
+
+	double sum = 0;
+	for(outdim = 0; outdim < E.rows() && sum < totalv*varth; outdim++)
+		sum += E[outdim];
+	std::cout << totalv << endl;
+	std::cout << varth*totalv << endl;
+	std::cout<<E.transpose()<<endl;
+//#ifndef NDEBUG
+	std::cout << "Output Dimensions: " << outdim
+		<< "\nCreating Reduced MatrixXd..." << std::endl;
+//#endif //DEBUG
+
+	// Merge the two dimension estimation results
+	outdim = std::max(odim, outdim);
+
+	// Return whitened signal
+	MatrixXd Xr = U.leftCols(outdim)*E.head(outdim).asDiagonal();
+//#ifndef NDEBUG
+	std::cout  << "  Done" << std::endl;
+//#endif
+
+	return Xr;
+}
+
 
 /**
  * @brief Computes the Principal Components of input matrix X
@@ -2344,7 +2348,7 @@ MatrixXd pca(const Ref<const MatrixXd> X, double varth, int odim)
 	int outdim = 0;
 
 //#ifndef NDEBUG
-	std::cout << "Computing SVD" << std::endl;
+	std::cout << "Computing SVD of "<<X.rows()<<"x"<<X.cols()<<" matrix"<< std::endl;
 //#endif //DEBUG
 	Eigen::JacobiSVD<MatrixXd> svd(X, Eigen::ComputeThinU);
 //#ifndef NDEBUG

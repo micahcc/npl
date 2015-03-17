@@ -1351,7 +1351,8 @@ ptr<MRImage> regressOut(ptr<const MRImage> inimg, const MatrixXd& X)
 		throw INVALID_ARGUMENT("Error, input design matrix must have matching "
 				"number of rows to input fMRI");
 	}
-	MatrixXd Xinv = pseudoInverse(X);
+	MatrixXd cinv = pseudoInverse(X.transpose()*X);
+	MatrixXd prebeta = cinv*X.transpose();
 	VectorXd y(X.rows());
 	VectorXd beta(X.cols());
 
@@ -1375,9 +1376,13 @@ ptr<MRImage> regressOut(ptr<const MRImage> inimg, const MatrixXd& X)
 			y[tt] = iit[tt];
 		}
 
-		if(fabs(maxv - minv) > DELTA)
-			regressOutLS(y, X, Xinv);
-		else
+		// b = (XtX)^-1Xty
+		// X*((XtX)^-1Xty)
+		// y
+		if(fabs(maxv - minv) > DELTA) {
+			beta = prebeta*y;
+			y -= X*beta;
+		} else
 			y.setZero();
 
 		for(size_t tt=0; tt<tlen; ++tt) {
@@ -1543,7 +1548,7 @@ MatrixXd extractLabelPCA(ptr<const MRImage> fmri,
 	}
 
 	std::cout << "PCA" << endl;
-	X = pca(X, 1, outsz);
+	X = rpiPCA(X, 1, outsz);
 	std::cout << "Done" << endl;
 
 	return X;
@@ -1646,7 +1651,7 @@ MatrixXd extractLabelICA(ptr<const MRImage> fmri,
 	}
 
 	std::cout << "PCA" << endl;
-	X = pca(X, 1, outsz);
+	X = rpiPCA(X, 1, outsz);
 	std::cout << "Done" << endl;
 
 	std::cout << "ICA...";

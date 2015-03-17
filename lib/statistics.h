@@ -58,9 +58,10 @@ double sample_var(const Ref<const VectorXd> vec);
  * @param Xinv the pseudoinverse of X
  */
 inline
-void regressOutLS(VectorXd& signal, const MatrixXd& X, const MatrixXd& Xinv)
+void regressOutLS(VectorXd& signal, const MatrixXd& X, const MatrixXd& covInv)
 {
-	signal = signal - (Xinv*signal)*X;
+	VectorXd beta = covInv*X.transpose()*signal;
+	signal -= X*beta;
 }
 
 template <typename T>
@@ -443,6 +444,29 @@ void randomizePowerIterationSVD(const Ref<const MatrixXd> A,
  * @return 		RxP matrix, where P is the number of principal components
  */
 MatrixXd pca(const Ref<const MatrixXd> X, double varth = 1, int odim = -1);
+
+/**
+ * @brief Computes the Principal Components of input matrix X using the
+ * randomized power iteration SVD algorithm.
+ *
+ * Outputs reduced dimension (fewer cols) in output. Note that prior to this,
+ * the columns of X should be 0 mean otherwise the first component will
+ * be the mean
+ *
+ * @param X 	RxC matrix where each column row is a sample, each column a
+ * dimension (or feature). The number of columns in the output
+ * will be fewer because there will be fewer features
+ * @param varth Variance threshold. This is the ratio (0-1) of variance to
+ * include in the output. This is used to determine the dimensionality of the
+ * output. If this is 1 then all variance will be included. If this < 1 and
+ * odim > 0 then whichever gives a larger output dimension will be selected.
+ * @param odim Threshold for output dimensions. If this is <= 0 then it is
+ * ignored, if it is > 0 then max(dim(varth), odim) is used as the output
+ * dimension.
+ *
+ * @return 		RxP matrix, where P is the number of principal components
+ */
+MatrixXd rpiPCA(const Ref<const MatrixXd> X, double varth, int odim);
 
 /**
  * @brief Computes the Independent Components of input matrix X using symmetric
