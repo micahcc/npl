@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file ica_helpers.cpp Tools for performing ICA, including rewriting images as
+ * @file fmri_inference.cpp Tools for performing ICA, including rewriting images as
  * matrices. All the main functions for real world ICA.
  *
  *****************************************************************************/
 
-#include "ica_helpers.h"
+#include "fmri_inference.h"
 
 #include <Eigen/Dense>
 #include <Eigen/IterativeSolvers>

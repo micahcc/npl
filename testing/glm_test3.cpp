@@ -33,7 +33,7 @@
 #include "utility.h"
 #include "nplio.h"
 #include "basic_plot.h"
-#include "ica_helpers.h"
+#include "fmri_inference.h"
 
 using std::string;
 using Eigen::MatrixXd;

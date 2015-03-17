@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * @file ica_helpers.h Tools for performing ICA, including rewriting images as
+ * @file fmri_inference.h Tools for performing ICA, including rewriting images as
  * matrices. This file should really be fmri inference helpers or something
  * along that line, because it also include GLM helpers.
  *
