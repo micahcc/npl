@@ -2472,8 +2472,9 @@ MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 	int ncomp = std::min(samples, dims);
 
 	//randomize weights
-	MatrixXd proj;
+	MatrixXd proj(X.rows(), ncomp);
 	MatrixXd Wprev(dims, ncomp);
+	MatrixXd wwt;
 	MatrixXd W(dims, ncomp);
 	for(size_t cc=0; cc < W.cols(); cc++) {
 		for(size_t rr=0; rr < W.rows(); rr++)
@@ -2483,6 +2484,7 @@ MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 	Eigen::HouseholderQR<MatrixXd> qr(W);
 	W = qr.householderQ()*MatrixXd::Identity(W.rows(), W.cols());
 	Wprev = W;
+
 #ifndef NDEBUG
 	std::cout << "Peforming Fast ICA"<<std::endl;
 #endif// NDEBUG
@@ -2509,11 +2511,20 @@ MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 
 		qr.compute(W);
 		W = qr.householderQ()*MatrixXd::Identity(W.rows(), W.cols());
-		mag = (W-Wprev).array().square().sum();
-		std::cout << "Change(" << mag << "):\n";
+
+		mag = 0;
+		if(W.rows() < W.cols())
+			wwt = W*Wprev.transpose();
+		else
+			wwt = W.transpose()*Wprev;
+		for(size_t cc=0; cc<wwt.cols(); cc++)
+			mag += std::abs(wwt.col(cc).array().abs().maxCoeff()-1);
 #ifndef NDEBUG
-		std::cout << "New W:\n"<<W<< std::endl;
+		std::cout << "W:\n"<<W<< std::endl;
+		std::cout << "Wp:\n"<<Wprev<< std::endl;
+		std::cout<<"WWT:\n"<<wwt<<endl;
 #endif// NDEBUG
+		std::cout<<"Change("<<mag<<"):\n";
 		Wprev = W;
 	}
 #ifndef NDEBUG
