@@ -2469,61 +2469,99 @@ MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 
 	int samples = X.rows();
 	int dims = X.cols();
-	int ncomp = std::min(samples, dims);
 
 	//randomize weights
-	MatrixXd proj(X.rows(), ncomp);
-	MatrixXd Wprev(dims, ncomp);
+	MatrixXd proj(samples, dims);
+	MatrixXd gproj(samples, dims);
+	MatrixXd Wprev(dims, dims);
 	MatrixXd wwt;
-	MatrixXd W(dims, ncomp);
+	MatrixXd EyGy(dims, dims);
+	VectorXd Egprime(dims);
+	VectorXd beta(dims);
+	MatrixXd W(dims, dims);
 	for(size_t cc=0; cc < W.cols(); cc++) {
 		for(size_t rr=0; rr < W.rows(); rr++)
 			W(rr,cc) = rdist(rng);
 	}
 
-	Eigen::HouseholderQR<MatrixXd> qr(W);
+	Eigen::ColPivHouseholderQR<MatrixXd> qr(W);
+//	Eigen::HouseholderQR<MatrixXd> qr(W);
 	W = qr.householderQ()*MatrixXd::Identity(W.rows(), W.cols());
 	Wprev = W;
+//	double nongauss = 0;
+//	double pnongauss = 0;
 
 #ifndef NDEBUG
 	std::cout << "Peforming Fast ICA"<<std::endl;
 #endif// NDEBUG
 	double mag = MAGTHRESH;
 	for(size_t ii=0; ii<ITERS && mag >= MAGTHRESH; ii++) {
-		/* Update the columns of W to maximize non-gaussianity
-		 * g(X wp) X^T/R - wp SUM(g'(X wp)))/R
+		/* Update Wnew = W + W(E{yg(y^t)} - diag(beta_i))
+		 * where Y = WX, and 1 ND sample per columns
+		 * Beta_i = E(y_i g(y_i))
+		 * D = diag(1/(beta_i-E(g'(y_i))))
+		 *
+		 * I use the transpose of this so that expected values are column
+		 * reductions, and Y = XW and the columns of Y are distributed
+		 * independently.
 		 */
 
-		//project w^tx
+		//project, note that proj = Y^t from the paper, and X = X^t from paper
 		proj = X*W;
+		qr.compute(proj);
+		proj = qr.householderQ()*MatrixXd::Identity(proj.cols(), proj.cols());
+		gproj = proj.unaryExpr(std::ptr_fun(fastICA_g2));
 
-		for(int pp = 0 ; pp < ncomp ; pp++) {
-			//- wp SUM(g'(X wp)))/R
-			double sum = 0;
-			for(size_t jj=0; jj<samples; jj++)
-				sum += fastICA_dg2(proj(jj,pp));
-			W.col(pp) = -W.col(pp)*sum/samples;
-			// X^Tg(X wp)/R
-			for(size_t jj=0; jj<samples; jj++)
-				proj(jj,pp) = fastICA_g2(proj(jj,pp));
-			W.col(pp) += X.transpose()*proj.col(pp)/samples;
+		// E(yg(y^T)), in ours rows of proj are samples, in origina cols of y
+		EyGy = proj.transpose()*gproj/dims;
+		beta = EyGy.diagonal();
+
+		// D = diag(1/(beta_i-E(g'(y_i))))
+		for(size_t dd=0; dd<dims; dd++) {
+			Egprime[dd] = 0;
+			for(size_t ss=0; ss<samples; ss++)
+				Egprime[dd] += fastICA_dg2(proj(ss, dd));
+			Egprime[dd] /= samples;
 		}
+		Wprev = W;
+		W = Wprev + Wprev*(EyGy-beta.diagonal())*
+			(beta-Egprime).cwiseInverse().diagonal();
 
-		qr.compute(W);
-		W = qr.householderQ()*MatrixXd::Identity(W.rows(), W.cols());
-
+//		// E(g(y)y^T) =
+//		for(int pp = 0 ; pp < ncomp ; pp++) {
+//			//- wp SUM(g'(X wp)))/R
+//			double sum = 0;
+//			for(size_t jj=0; jj<samples; jj++)
+//				sum += fastICA_dg2(proj(jj,pp));
+//			W.col(pp) = -W.col(pp)*sum/samples;
+//			// X^Tg(X wp)/R
+//			for(size_t jj=0; jj<samples; jj++)
+//				proj(jj,pp) = fastICA_g2(proj(jj,pp));
+//			W.col(pp) += X.transpose()*proj.col(pp)/samples;
+//
+//			// normalize, then weight by non-gaussianity
+//			W.col(pp) *= proj.col(pp).sum()/tmp;
+//		}
+//		pnongauss = nongauss;
+//		nongauss = proj . tmp = W.col(pp).norm();
+//		std::cout << "W:\n"<<W<< std::endl;
+//
+//		qr.compute(W);
+//		W = qr.householderQ()*MatrixXd::Identity(W.rows(), W.cols());
+//
 		mag = 0;
 		if(W.rows() < W.cols())
 			wwt = W*Wprev.transpose();
 		else
 			wwt = W.transpose()*Wprev;
+
 		for(size_t cc=0; cc<wwt.cols(); cc++)
 			mag += std::abs(wwt.col(cc).array().abs().maxCoeff()-1);
-#ifndef NDEBUG
+//#ifndef NDEBUG
 		std::cout << "W:\n"<<W<< std::endl;
 		std::cout << "Wp:\n"<<Wprev<< std::endl;
-		std::cout<<"WWT:\n"<<wwt<<endl;
-#endif// NDEBUG
+		std::cout<<"WtWp:\n"<<wwt<<endl;
+//#endif// NDEBUG
 		std::cout<<"Change("<<mag<<"):\n";
 		Wprev = W;
 	}
