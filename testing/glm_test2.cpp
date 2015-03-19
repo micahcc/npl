@@ -39,12 +39,19 @@ using Eigen::MatrixXd;
 
 using namespace npl;
 
-int main()
+int main(int argc, char** argv)
 {
+
 	vector<size_t> voldim({12,17,13,9});
 	vector<size_t> fdim({12,17,13,1024});
 	ptr<MRImage> realbeta;
 	ptr<MRImage> fmri;
+
+	if(argc == 4) {
+		fdim[0] = voldim[0] = atoi(argv[1]);
+		fdim[1] = voldim[1] = atoi(argv[2]);
+		fdim[2] = voldim[2] = atoi(argv[3]);
+	}
 
 	// create X and fill it with chirps frequencies:
 	// .01Hz - .1Hz
