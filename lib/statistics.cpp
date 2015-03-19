@@ -2594,7 +2594,7 @@ MatrixXd asymICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 	}
 
 	const size_t ITERS = 10000;
-	const double MAGTHRESH = 1e-5;
+	const double MAGTHRESH = 1e-4;
 
 	// Seed with a real random value, if available
 	std::random_device rd;
