@@ -2511,8 +2511,12 @@ MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 		//project, note that proj = Y^t from the paper, and X = X^t from paper
 		proj = X*V;
 		Vprev = V;
-		tmp1 = X.transpose()*proj.unaryExpr(std::ptr_fun(fastICA_g2));
-		tmp2 = proj.unaryExpr(std::ptr_fun(fastICA_dg2)).transpose()*
+//		tmp1 = proj.transpose()*proj.unaryExpr(std::ptr_fun(fastICA_g1))/samples;
+//		tmp2 = proj.unaryExpr(std::ptr_fun(fastICA_dg1)).colwise().sum();
+//		tmp3 = (tmp1.diagonal() - tmp2).cwiseInverse();
+//		tmp4 = Vprev + Vprev*(tmp1-)*tmp3.asDiagonal();
+		tmp1 = X.transpose()*proj.unaryExpr(std::ptr_fun(fastICA_g1));
+		tmp2 = proj.unaryExpr(std::ptr_fun(fastICA_dg1)).transpose()*
 				ones;
 		tmp3 = tmp1-Vprev*tmp2.asDiagonal();
 
@@ -2527,11 +2531,11 @@ MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 
 		for(size_t cc=0; cc<vvt.cols(); cc++)
 			mag += std::abs(vvt.col(cc).array().abs().maxCoeff()-1);
-#ifndef NDEBUG
+#if DEBUG
 		std::cout << "V:\n"<<V<< std::endl;
 		std::cout << "Vp:\n"<<Vprev<< std::endl;
 		std::cout<<"VtVp:\n"<<vvt<<endl;
-#endif// NDEBUG
+#endif// DEBUG
 		std::cout<<"Change("<<mag<<")"<<endl;
 		Vprev = V;
 	}
@@ -2590,7 +2594,7 @@ MatrixXd asymICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 	}
 
 	const size_t ITERS = 10000;
-	const double MAGTHRESH = 0.0001;
+	const double MAGTHRESH = 1e-5;
 
 	// Seed with a real random value, if available
 	std::random_device rd;
@@ -2606,6 +2610,7 @@ MatrixXd asymICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 	VectorXd wprev(dims);
 
 	MatrixXd W(dims, ncomp);
+	Eigen::HouseholderQR<MatrixXd> qr(W.rows(), W.cols());
 
 	for(int pp = 0 ; pp < ncomp ; pp++) {
 		//randomize weights
@@ -2623,9 +2628,7 @@ MatrixXd asymICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 			W.col(pp) -= wt_wj*W.col(jj);
 		}
 		W.col(pp).normalize();
-#ifndef NDEBUG
-		std::cout << "Peforming Fast ICA: " << pp << std::endl;
-#endif// NDEBUG
+		std::cout << "Peforming Fast ICA (" << pp << ")"<<std::endl;
 		mag = MAGTHRESH;
 		for(int ii = 0 ; mag >= MAGTHRESH && ii < ITERS; ii++) {
 
@@ -2640,15 +2643,10 @@ MatrixXd asymICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 			proj = X*W.col(pp);
 
 			//- wp SUM(g'(X wp)))/R
-			double sum = 0;
-			for(size_t jj=0; jj<samples; jj++)
-				sum += fastICA_dg2(proj[jj]);
-			W.col(pp) = -W.col(pp)*sum/samples;
+			W.col(pp) = -wprev*proj.unaryExpr(std::ptr_fun(fastICA_dg2)).sum();
 
 			// X^Tg(X wp)/R
-			for(size_t jj=0; jj<samples; jj++)
-				proj[jj] = fastICA_g2(proj[jj]);
-			W.col(pp) += X.transpose()*proj/samples;
+			W.col(pp) += X.transpose()*proj.unaryExpr(std::ptr_fun(fastICA_g2));
 
 			//GramSchmidt Decorrelate
 			//sum(w^t_p w_j w_j) for j < p
@@ -2661,11 +2659,11 @@ MatrixXd asymICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 				W.col(pp) -= wt_wj*W.col(jj);
 			}
 			W.col(pp).normalize();
-			mag = (W.col(pp)-wprev).norm();
+			mag = 1+W.col(pp).dot(wprev);
 		}
 
 #ifndef NDEBUG
-		std::cout << "Final (" << pp << "):\n";
+		std::cout << "\nFinal (" << pp << "):\n";
 		std::cout << W.col(pp).transpose() << std::endl;
 #endif// NDEBUG
 	}

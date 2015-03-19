@@ -832,7 +832,7 @@ void gicaTemporalICA(std::string reorgpref, std::string reducepref,
 	cerr<<"Performing Temporal ICA ("<<U.rows()<<"x"<<U.cols()<<")"<<endl;
 
 	W.resize(U.cols(), U.cols());
-	ics = symICA(U, &W);
+	ics = asymICA(U, &W);
 	MatMap writer;
 	writer.create(tica_name(outpref), ics.rows(), ics.cols());
 	writer.mat = ics;
@@ -963,7 +963,7 @@ void gicaSpatialICA(std::string reorgpref, std::string reducepref,
 	 */
 	cerr<<"Performing Spatial ICA ("<<V.rows()<<"x"<<V.cols()<<")"<<endl;
 	W.resize(V.cols(), V.cols());
-	ics = symICA(V, &W);
+	ics = asymICA(V, &W);
 	MatMap writer;
 	writer.create(sica_name(outpref), ics.rows(), ics.cols());
 	writer.mat = ics;
@@ -1655,7 +1655,7 @@ MatrixXd extractLabelICA(ptr<const MRImage> fmri,
 	std::cout << "Done" << endl;
 
 	std::cout << "ICA...";
-	X = symICA(X);
+	X = asymICA(X);
 	std::cout << "Done" << endl;
 
 	return X;
