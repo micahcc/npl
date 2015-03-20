@@ -211,7 +211,7 @@ int main(int argc, char * argv[])
 		cgraph.name(ii) = to_string(ll);
 		lengraph.name(ii) = to_string(ll);
 		for(size_t gg=0; gg<fgraphs.size(); gg++)
-			fgraphs[gg].name(ii) = ll;
+			fgraphs[gg].name(ii) = to_string(ll);
 		ii++;
 	}
 	cerr<<"Done"<<endl;
@@ -456,11 +456,9 @@ void computePerEdgeScalars(const TrackSet& trackData,
 	// now divide by the counts
 	for(size_t ii=0; ii<cgraph->nodes(); ii++) {
 		for(size_t jj=0; jj<cgraph->nodes(); jj++) {
-			if((*cgraph)(ii,jj) > 0) {
-				(*lgraph)(ii,jj) /= (*cgraph)(ii,jj);
-				for(size_t kk=0; kk<sgraphs->size(); kk++)
-					(*sgraphs)[kk](ii,jj) /= (*cgraph)(ii,jj);
-			}
+			(*lgraph)(ii,jj) /= (*cgraph)(ii,jj);
+			for(size_t kk=0; kk<sgraphs->size(); kk++)
+				(*sgraphs)[kk](ii,jj) /= (*cgraph)(ii,jj);
 		}
 	}
 }
