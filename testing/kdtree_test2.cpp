@@ -48,7 +48,7 @@ int main()
 		datas[ii].resize(DSIZE);
 		for(size_t jj=0; jj<DIM; jj++)
 			points[ii][jj] = (dist3(gen) < 0 ? dist1(gen) : dist2(gen));
-		
+
 
 		for(size_t jj=0; jj<DSIZE; jj++)
 			datas[ii][jj] = (dist3(gen) < 0 ? dist1(gen) : dist2(gen));
@@ -80,10 +80,10 @@ int main()
 			cerr << point[jj] << ",";
 		}
 		cerr << endl;
-		
+
 		// tree search
 		double treed = DIST;
-		auto result = tree.nearest(point, treed);
+		const auto result = tree.nearest(point, treed);
 
 		// brute force search
 		double dist = INFINITY;
@@ -100,7 +100,7 @@ int main()
 				mini = kk;
 			}
 		}
-		
+
 		if(result && mini == -1) {
 			cerr << "Tree found a point not found in brute force!" << endl;
 			return -1;

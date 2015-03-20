@@ -2467,84 +2467,66 @@ MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 	std::default_random_engine rng(rd());
 	std::normal_distribution<double> rdist(0, 1);
 
-	int samples = X.rows();
 	int dims = X.cols();
-	int ncomp = std::min(samples, dims);
 
 	//randomize weights
-	MatrixXd proj(samples, dims);
-	MatrixXd gproj(samples, dims);
-	MatrixXd Vprev(dims, ncomp);
-	MatrixXd V(dims, ncomp);
-	MatrixXd Vtmp(dims, ncomp);
-	MatrixXd Vbest(dims, ncomp);
-	MatrixXd vvt;
-	VectorXd beta(dims);
-	MatrixXd tmp1, tmp3;
-	VectorXd tmp2;
-	VectorXd ones(samples);
-	ones.setOnes();
-	Eigen::HouseholderQR<MatrixXd> qr(V.rows(), V.cols());
+	VectorXd proj(dims);
+	MatrixXd Wprev(dims, dims);
+	MatrixXd Wtmp(dims, dims);
+	MatrixXd W(dims, dims);
+	MatrixXd wtw(dims, dims);
+	Eigen::HouseholderQR<MatrixXd> qr(W.rows(), W.cols());
 	Eigen::SelfAdjointEigenSolver<MatrixXd> eig;
-
 #ifndef NDEBUG
 	std::cout << "Peforming Fast ICA"<<std::endl;
 #endif// NDEBUG
 	double mag = MAGTHRESH;
 	// initialize
-	for(size_t cc=0; cc < V.cols(); cc++) {
-		for(size_t rr=0; rr < V.rows(); rr++)
-			V(rr,cc) = rdist(rng);
+	for(size_t cc=0; cc < W.cols(); cc++) {
+		for(size_t rr=0; rr < W.rows(); rr++)
+			W(rr,cc) = rdist(rng);
 	}
-	qr.compute(V);
-	V = qr.householderQ()*MatrixXd::Identity(V.rows(), V.cols());
-	MatrixXd P, L;
-	VectorXd D;
+	qr.compute(W);
+	W = qr.householderQ()*MatrixXd::Identity(W.rows(), W.cols());
 
 	for(size_t ii=0; ii<ITERS && mag >= MAGTHRESH; ii++) {
-		/* W+ = g(WZ)Z^T - diag[g'(WZ)1]V
-		 * Definition in this: P = XV, Y=Pt, V=Wt, X=Zt
-		 * Definition in paper: Y = WZ
-		 * V+ = X^t g(XV) - V diag[1^t g'(XV)]
-		 */
+		Wprev = W;
 
-		//project, note that proj = Y^t from the paper, and X = X^t from paper
-		proj = X*V;
-		Vprev = V;
-//		tmp1 = proj.transpose()*proj.unaryExpr(std::ptr_fun(fastICA_g1))/samples;
-//		tmp2 = proj.unaryExpr(std::ptr_fun(fastICA_dg1)).colwise().sum();
-//		tmp3 = (tmp1.diagonal() - tmp2).cwiseInverse();
-//		tmp4 = Vprev + Vprev*(tmp1-)*tmp3.asDiagonal();
-		tmp1 = X.transpose()*proj.unaryExpr(std::ptr_fun(fastICA_g1));
-		tmp2 = proj.unaryExpr(std::ptr_fun(fastICA_dg1)).transpose()*
-				ones;
-		tmp3 = tmp1-Vprev*tmp2.asDiagonal();
+		for(size_t pp=0; pp<W.cols(); pp++) {
+			//w^tx
+			proj = X*Wprev.col(pp);
 
-		eig.compute(tmp3*tmp3.transpose());
-		L = eig.eigenvectors();
-		D = eig.eigenvalues();
+			//- wp SUM(g'(X wp)))/R
+			Wtmp.col(pp) = -Wprev.col(pp)*proj.unaryExpr(std::ptr_fun(fastICA_dg2)).sum();
 
-		V = L*D.array().pow(-0.5).matrix().asDiagonal()*L.transpose()*tmp3;
+			// X^Tg(X wp)/R
+			Wtmp.col(pp) += X.transpose()*proj.unaryExpr(std::ptr_fun(fastICA_g2));
+		}
+
+		eig.compute(Wtmp*Wtmp.transpose());
+		const auto& L = eig.eigenvectors();
+		const auto& D = eig.eigenvalues();
+
+		W = L*D.array().pow(-0.5).matrix().asDiagonal()*L.transpose()*Wtmp;
 
 		mag = 0;
-		vvt = Vprev.transpose()*V;
+		wtw = Wprev.transpose()*W;
 
-		for(size_t cc=0; cc<vvt.cols(); cc++)
-			mag += std::abs(vvt.col(cc).array().abs().maxCoeff()-1);
+		for(size_t cc=0; cc<wtw.cols(); cc++)
+			mag += std::abs(wtw.col(cc).array().abs().maxCoeff()-1);
 #if DEBUG
-		std::cout << "V:\n"<<V<< std::endl;
-		std::cout << "Vp:\n"<<Vprev<< std::endl;
-		std::cout<<"VtVp:\n"<<vvt<<endl;
+		std::cout << "V:\n"<<W<< std::endl;
+		std::cout << "Vp:\n"<<Wprev<< std::endl;
+		std::cout<<"VtVp:\n"<<wtw<<endl;
 #endif// DEBUG
 		std::cout<<"Change("<<mag<<")"<<endl;
-		Vprev = V;
 	}
 #ifndef NDEBUG
-	std::cout<<"Stop with V:\n"<<V<<endl;
+	std::cout<<"Stop with W:\n"<<W<<endl;
 #endif// NDEBUG
 
-	if(unmix) *unmix = V;
-	return X*V;
+	if(unmix) *unmix = W;
+	return X*W;
 }
 
 /**

@@ -107,7 +107,7 @@ void cropTracks(ptr<MRImage> mask, TrackSet* trackData, double lenthresh = 0);
  * @param sgraphs Graph consisting of averaged scalars
  */
 void computePerEdgeScalars(const TrackSet& tractData,
-		KDTree<3,1,float,int64_t> labeltree, const vector<vector<double>>& scalars,
+		const KDTree<3,1,float,int64_t>& labeltree, const vector<vector<double>>& scalars,
 		const std::map<int64_t, size_t>& labelToVertex, double tdist,
 		Graph<size_t>* cgraph, Graph<double>* lgraph, vector<Graph<double>>* sgraphs);
 
@@ -131,7 +131,7 @@ int main(int argc, char * argv[])
 
 	TCLAP::ValueArg<string> a_labelmap("l", "labelmap", "Input label image to "
 			"calculate connectivity over. Should be grey-matter only (ie "
-			"no white matter).", true, "", "*.nii.gz");
+			"no white matter).", true, "", "*.nii.gz", cmd);
 //	TCLAP::ValueArg<string> a_mesh("m", "labelmesh", "Input mesh to calculate "
 //			"connectivity over.", false, "", "*.dfs");
 //	cmd.xorAdd(a_labelmap, a_mesh);
@@ -181,14 +181,14 @@ int main(int argc, char * argv[])
 			labelToVertex[*it] = ii;
 	}
 
-	ptr<MRImage> mask = readMRImage(a_mask.getValue());
+	ptr<MRImage> mask = readMRImage(a_labelmap.getValue());
 
 	// Compute the Attached Labels for each Tract
 	cerr<<"Reading Tracts"<<endl;
-	TrackSet tractData = readTracks(a_tracts.getValue());
+	TrackSet tractData = readTracks(a_tracts.getValue(), a_labelmap.getValue());
 	cerr<<"Done"<<endl;
 
-	cerr<<"Cropping Tracks to Masked Region"<<endl;
+	cerr<<"Cropping Tracks to Masked (label != 0) Region"<<endl;
 	cropTracks(mask, &tractData, a_lenthresh.getValue());
 	cerr<<"Done"<<endl;
 
@@ -212,15 +212,17 @@ int main(int argc, char * argv[])
 		lengraph.name(ii) = to_string(ll);
 		for(size_t gg=0; gg<fgraphs.size(); gg++)
 			fgraphs[gg].name(ii) = ll;
+		ii++;
 	}
 	cerr<<"Done"<<endl;
 
 	// scalars[tract][point][scalar]
-	cerr<<"Computing per-track scalars"<<endl;
 	vector<vector<double>> scalars;
-	if(a_scalars.isSet())
-		computeScalars(tractData, simgs);
-	cerr<<"Done"<<endl;
+	if(a_scalars.isSet()) {
+		cerr<<"Computing per-track scalars"<<endl;
+		scalars = computeScalars(tractData, simgs);
+		cerr<<"Done"<<endl;
+	}
 
 	cerr<<"Averaging Scalars over Graphs"<<endl;
 	computePerEdgeScalars(tractData, tree, scalars, labelToVertex,
@@ -270,6 +272,7 @@ typename T::value_type distance(T a, T b)
 void cropTracks(ptr<MRImage> mask, TrackSet* trackData, double lenthresh)
 {
 	NNInterp3DView<int64_t> minterp(mask);
+	minterp.m_ras = true;
 	std::array<float, 3> pt, ppt;
 	std::list<std::array<float,3>> pts;
 	for(size_t tt=0; tt<trackData->size(); tt++) {
@@ -298,6 +301,7 @@ void cropTracks(ptr<MRImage> mask, TrackSet* trackData, double lenthresh)
 					if(curlen > maxlen) {
 						maxbeg = curbeg;
 						maxend = pp-1;
+						maxlen = curlen;
 					}
 					curbeg = -1;
 					curlen = 0;
@@ -311,6 +315,13 @@ void cropTracks(ptr<MRImage> mask, TrackSet* trackData, double lenthresh)
 				curlen = 0;
 			}
 		}
+		// get if we finish inside the brain
+		if(curlen > maxlen) {
+			maxbeg = curbeg;
+			maxend = (*trackData)[tt].size()-1;
+			maxlen = curlen;
+		}
+
 		vector<std::array<float,3>> keep;
 		if(lenthresh > 0 && maxlen > lenthresh) {
 			keep.resize(maxend+1-maxbeg);
@@ -334,7 +345,7 @@ void cropTracks(ptr<MRImage> mask, TrackSet* trackData, double lenthresh)
 vector<vector<double>> computeScalars(const TrackSet& tractData,
 		const vector<ptr<MRImage>>& simgs)
 {
-	double prevpt[3], pt[3];
+	std::array<float,3> prevpt, pt;
 	vector<double> sums(simgs.size());
 	vector<vector<double>> outscalars(tractData.size());
 	vector<LinInterp3DView<double>> interps(simgs.size());
@@ -351,10 +362,8 @@ vector<vector<double>> computeScalars(const TrackSet& tractData,
 
 		for(size_t pp=1; pp<tractData[tt].size(); ++pp) {
 			// interpolate at point
-			for(size_t ii=0; ii<3; ii++) {
-				prevpt[ii] = tractData[tt-1][pp][ii];
-				pt[ii] = tractData[tt][pp][ii];
-			}
+			prevpt = tractData[tt][pp-1];
+			pt = tractData[tt][pp];
 
 			// compute step size
 			double dlen = distance(pt, prevpt);
@@ -377,13 +386,13 @@ vector<vector<double>> computeScalars(const TrackSet& tractData,
 }
 
 void computePerEdgeScalars(const TrackSet& trackData,
-		KDTree<3,1,float,int64_t> labeltree,
+		const KDTree<3,1,float,int64_t>& labeltree,
 		const vector<vector<double>>& scalars,
 		const std::map<int64_t, size_t>& labelToVertex, double treed,
 		Graph<size_t>* cgraph, Graph<double>* lgraph,
 		vector<Graph<double>>* sgraphs)
 {
-	double stepsize = 1;
+	double stepsize = 3;
 	std::array<float, 3> pt, ppt; // points
 	std::unordered_set<int64_t> conlabels; // labels connected by track
 
@@ -400,6 +409,7 @@ void computePerEdgeScalars(const TrackSet& trackData,
 	// summing up properties of tracks connecting regions
 	for(size_t tt=0; tt<trackData.size(); tt++) {
 		if(trackData[tt].empty()) continue;
+		cout<<tt<<"\t/\t"<<trackData.size()<<"\r";
 
 		// iterate through points to find all connections made by track and
 		double len = 0;
@@ -426,7 +436,8 @@ void computePerEdgeScalars(const TrackSet& trackData,
 		// assign length, count to pairs
 		for(auto it1 = conlabels.begin(); it1 != conlabels.end(); ++it1) {
 			size_t ii = labelToVertex.at(*it1);
-			for(auto it2 = it1; it2 != conlabels.end(); ++it2) {
+			auto it2 = it1; ++it2;
+			for(; it2 != conlabels.end(); ++it2) {
 				size_t jj = labelToVertex.at(*it2);
 				// ii->jj
 				(*lgraph)(ii,jj) += len;
@@ -445,9 +456,11 @@ void computePerEdgeScalars(const TrackSet& trackData,
 	// now divide by the counts
 	for(size_t ii=0; ii<cgraph->nodes(); ii++) {
 		for(size_t jj=0; jj<cgraph->nodes(); jj++) {
-			(*lgraph)(ii,jj) /= (*cgraph)(ii,jj);
-			for(size_t kk=0; kk<sgraphs->size(); kk++)
-				(*sgraphs)[kk](ii,jj) /= (*cgraph)(ii,jj);
+			if((*cgraph)(ii,jj) > 0) {
+				(*lgraph)(ii,jj) /= (*cgraph)(ii,jj);
+				for(size_t kk=0; kk<sgraphs->size(); kk++)
+					(*sgraphs)[kk](ii,jj) /= (*cgraph)(ii,jj);
+			}
 		}
 	}
 }

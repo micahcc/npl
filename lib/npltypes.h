@@ -20,6 +20,7 @@
 #ifndef NPLTYPES_H
 #define NPLTYPES_H
 
+#include <string>
 #include <Eigen/Dense>
 #include <complex>
 #include <memory>
@@ -49,7 +50,7 @@ template <typename T>
 using ptr = std::shared_ptr<T>;
 
 /**
- * @brief Shorter name for dynamic_pointer_cast 
+ * @brief Shorter name for dynamic_pointer_cast
  *
  * @tparam F Cast from this type
  * @tparam T Cast to this type
@@ -98,7 +99,7 @@ struct cdouble_t: public std::complex<double>
 //	explicit cdouble_t(rgb_t);
 //	explicit cdouble_t(const unsigned char& c) : std::complex<double>((double)c) {};
 //	explicit cdouble_t(const char& c) : std::complex<double>((double)c) {};
-	
+
 	cdouble_t& operator=(const std::complex<double>& v);
 	cdouble_t& operator=(const std::complex<float>& v);
 	cdouble_t& operator=(const std::complex<long double>& v);
@@ -157,7 +158,7 @@ struct cquad_t : public std::complex<long double>
 	explicit operator uint8_t() const;
 //	explicit operator std::complex<float>();
 //	explicit operator std::complex<double>();
-//	
+//
 	cquad_t(double re = 0, double im = 0) : std::complex<long double>(re, im) {} ;
 	explicit cquad_t(const cdouble_t&);
 	explicit cquad_t(const cfloat_t&);
@@ -166,10 +167,10 @@ struct cquad_t : public std::complex<long double>
 	cquad_t(const std::complex<long double>&);
 //	explicit cquad_t(rgba_t);
 //	explicit cquad_t(rgb_t);
-//	
+//
 //	explicit cquad_t(const unsigned char& c) : std::complex<long double>((long double)c) {};
 //	explicit cquad_t(const char& c) : std::complex<long double>((long double)c) {};
-	
+
 	cquad_t& operator=(const std::complex<double>& v);
 	cquad_t& operator=(const std::complex<float>& v);
 	cquad_t& operator=(const std::complex<long double>& v);
@@ -210,7 +211,7 @@ struct rgb_t
 	rgb_t& operator=(uint16_t v);
 	rgb_t& operator=(int8_t v);
 	rgb_t& operator=(uint8_t v);
-	
+
 	rgb_t() : red(0), green(0), blue(0) {} ;
 	rgb_t(char r, char g, char b) :
 		red(r), green(g), blue(b) {} ;
@@ -252,7 +253,7 @@ struct rgba_t
 	explicit operator cquad_t() const;
 	explicit operator cdouble_t() const;
 	explicit operator cfloat_t() const;
-	
+
 	rgba_t& operator=(float v);
 	rgba_t& operator=(double v);
 	rgba_t& operator=(long double v);
@@ -264,7 +265,7 @@ struct rgba_t
 	rgba_t& operator=(uint16_t v);
 	rgba_t& operator=(int8_t v);
 	rgba_t& operator=(uint8_t v);
-	
+
 	rgba_t() : red(0), green(0), blue(0), alpha(0) {} ;
 	rgba_t(char r, char g, char b, char a = 0) :
 		red(r), green(g), blue(b), alpha(a) {} ;

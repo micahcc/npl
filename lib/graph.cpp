@@ -29,6 +29,7 @@ using namespace std;
 namespace npl
 {
 
+
 template <typename T>
 GraphDataT getType()
 {
@@ -165,27 +166,48 @@ void Graph<T>::init(size_t nodes, void* data,
 }
 
 template <typename T>
-void Graph<T>::save(std::string filename, GraphStoreT store)
+void Graph<T>::writeCSV(gzFile gz, GraphStoreT store)
 {
-	size_t tmp = 0;
-	gzFile gz;
-	std::string mode = "wb";
+	ostringstream oss;
+	if(store == G_STORE_FULLMAT) {
+		// write labels along first row
+		for(size_t cc=0; cc<nodes(); cc++) {
+			gzputs(gz, ", ");
+			gzputs(gz, name(cc).c_str());
+		}
 
-	// remove .gz to find the "real" format,
-	std::string nogz;
-	if(filename.size() >= 3 && filename.substr(filename.size()-3, 3) == ".gz") {
-		nogz = filename.substr(0, filename.size()-3);
-	} else {
-		// if no .gz, then make encoding "transparent" (plain)
-		nogz = filename;
-		mode += 'T';
+		// Write Data
+		for(size_t rr=0; rr<nodes(); rr++) {
+			gzputc(gz, '\n');
+			gzputs(gz, name(rr).c_str());
+			oss.str("");
+			for(size_t cc=0; cc<nodes(); cc++) {
+				oss<<", "<< (*this)(rr, cc);
+			}
+			gzputs(gz, oss.str().c_str());
+		}
+	} else if(store == G_STORE_LIST) {
+		// Write Data
+		bool first = true;
+		for(size_t rr=0; rr<nodes(); rr++) {
+			for(size_t cc=0; cc<nodes(); cc++) {
+				if((*this)(rr,cc) != (T)0) {
+					if(!first)
+						gzputc(gz, '\n');
+					first = false;
+					oss.str("");
+					oss << name(rr).c_str()<<", "<<name(cc).c_str()<<", "<<
+						(*this)(rr, cc);
+					gzputs(gz, oss.str().c_str());
+				}
+			}
+		}
 	}
+}
 
-	// go ahead and open
-	gz = gzopen(filename.c_str(), mode.c_str());
-	if(!gz)
-		throw RUNTIME_ERROR("Could not open "+filename+" for writing!");
-
+template <typename T>
+void Graph<T>::writeNPL(gzFile gz, GraphStoreT store)
+{
 	if(store == G_STORE_FULLMAT) {
 		// assymetric (Directed) Adjacency Matrix Type
 		// Name     Bytes    Description
@@ -221,7 +243,7 @@ void Graph<T>::save(std::string filename, GraphStoreT store)
 		gzwrite(gz, &offmeta, sizeof(size_t)); // OffMeta
 
 		// write out bytes per element
-		tmp = sizeof(T);
+		size_t tmp = sizeof(T);
 		gzwrite(gz, &tmp, sizeof(size_t)); // byteper
 
 		// write out datatype
@@ -279,7 +301,7 @@ void Graph<T>::save(std::string filename, GraphStoreT store)
 		gzwrite(gz, &offmeta, sizeof(size_t)); // OffMeta
 
 		// write out bytes per element
-		tmp = 2*sizeof(IndType)+sizeof(T);
+		size_t tmp = 2*sizeof(IndType)+sizeof(T);
 		gzwrite(gz, &tmp, sizeof(size_t)); // byteper
 
 		// write out IndType
@@ -325,6 +347,35 @@ void Graph<T>::save(std::string filename, GraphStoreT store)
 			}
 		}
 	}
+}
+
+template <typename T>
+void Graph<T>::save(std::string filename, GraphStoreT store)
+{
+	gzFile gz;
+	std::string mode = "wb";
+
+	// remove .gz to find the "real" format,
+	std::string nogz;
+	if(filename.size() >= 3 && filename.substr(filename.size()-3, 3) == ".gz") {
+		nogz = filename.substr(0, filename.size()-3);
+	} else {
+		// if no .gz, then make encoding "transparent" (plain)
+		nogz = filename;
+		mode += 'T';
+	}
+
+	// go ahead and open
+	gz = gzopen(filename.c_str(), mode.c_str());
+	if(!gz)
+		throw RUNTIME_ERROR("Could not open "+filename+" for writing!");
+
+	if(filename.size() >= 4 && nogz.substr(nogz.size()-4, 4) == ".csv") {
+		writeCSV(gz, store);
+	} else {
+		writeNPL(gz, store);
+	}
+
 
 	gzclose(gz);
 }

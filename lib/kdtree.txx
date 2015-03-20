@@ -63,14 +63,14 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::build_helper(
 		size_t depth)
 {
 	size_t length = (size_t)(end-begin);
-	
+
 
 	////////////////////////////////////////////////
 	// sort indexes based on dimension k
 	////////////////////////////////////////////////
-	
+
 	size_t axis = depth % K;
-	
+
 	// sort based on the given axis
 	std::sort(begin, end,
 		[&](KDTreeNode<K,E,T,D>* left, KDTreeNode<K,E,T,D>* right)
@@ -81,7 +81,7 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::build_helper(
 	////////////////////////////////////////////////
 	// recurse on the left and right sides
 	////////////////////////////////////////////////
-	
+
 	// get median node, and recurse on left/right
 	auto median_it = begin+length/2;
 
@@ -142,19 +142,19 @@ void KDTree<K,E,T,D>::build()
  * @return
  */
 template <size_t K, size_t E, typename T, typename D>
-KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
-		KDTreeNode<K,E,T,D>* pos, const T* pt, double& distsq)
+const KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
+		KDTreeNode<K,E,T,D>* pos, const T* pt, double& distsq) const
 {
 	size_t axis = depth%K;
 
-	KDTreeNode<K,E,T,D>* out = NULL;
+	const KDTreeNode<K,E,T,D>* out = NULL;
 
 	// compute our distance to the point
 	double curdist = 0;
 	for(size_t ii=0; ii<K; ii++) {
 		curdist += (pos->m_point[ii]-pt[ii])*(pos->m_point[ii]-pt[ii]);
 	}
-		
+
 	// update current best
 	if(curdist < distsq) {
 		distsq = curdist;
@@ -169,12 +169,12 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 		// if the search found something, then update the output
 		if(tmp)
 			out = tmp;
-	
+
 	} else if(pos->right && pt[axis] > pos->m_point[axis]) {
 		// if it falls above the current coordinate, and there are nodes to
 		// be inspected, recurse
 		auto tmp = nearest_help(depth+1, pos->right, pt, distsq);
-		
+
 		// if the search found something, then update the output
 		if(tmp)
 			out = tmp;
@@ -185,10 +185,10 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 	// If the hyperplane through the current node intersects
 	// with the sphere of the best (closest) node, then we need to search
 	// the side opposite the original search
-	
+
 	// distance^2 to hyperplane
 	double hypdistsq = pow(pt[axis]-pos->m_point[axis],2);
-	
+
 	if(distsq > hypdistsq) {
 
 		/////////////////////////////////////
@@ -197,7 +197,7 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 		if(pos->right && pt[axis] <= pos->m_point[axis]) {
 			// if it falls below the current coordinate, and there are nodes to
 			// be inspected, recurse
-			
+
 			auto tmp = nearest_help(depth+1, pos->right, pt, distsq);
 			if(tmp)
 				out = tmp;
@@ -206,7 +206,7 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
 			// if it falls above the current coordinate, and there are nodes to
 			// be inspected, recurse
 			auto tmp = nearest_help(depth+1, pos->left, pt, distsq);
-			
+
 			if(tmp)
 				out = tmp;
 		}
@@ -230,7 +230,8 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest_help(size_t depth,
  * 				found
  */
 template <size_t K, size_t E, typename T, typename D>
-KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest(const std::vector<T>& pt, double& dist)
+const KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest(const std::vector<T>& pt,
+		double& dist) const
 {
 	return nearest(pt.size(), pt.data(), dist);
 }
@@ -251,7 +252,8 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest(const std::vector<T>& pt, double& 
  * 				found
  */
 template <size_t K, size_t E, typename T, typename D>
-KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest(size_t len, const T* pt, double& dist)
+const KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest(size_t len, const T* pt,
+		double& dist) const
 {
 	if(!m_built) {
 		std::cerr << "Error! Must build tree before performing search!"
@@ -270,8 +272,8 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest(size_t len, const T* pt, double& d
 	} else {
 		dist = INFINITY;
 	}
-	
-	KDTreeNode<K,E,T,D>* out = nearest_help(0, m_treehead, adjpt, dist);
+
+	const KDTreeNode<K,E,T,D>* out = nearest_help(0, m_treehead, adjpt, dist);
 	dist = sqrt(dist);
 
 	return out;
@@ -280,11 +282,11 @@ KDTreeNode<K,E,T,D>* KDTree<K,E,T,D>::nearest(size_t len, const T* pt, double& d
 
 template <size_t K, size_t E, typename T, typename D>
 std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist_help(size_t depth,
-		KDTreeNode<K,E,T,D>* pos, const T* pt, double distsq)
+		KDTreeNode<K,E,T,D>* pos, const T* pt, double distsq) const
 {
 	size_t axis = depth%K;
 	std::list<const KDTreeNode<K,E,T,D>*> out;
-	
+
 	// compute our distance to the point
 	double curdist = 0;
 	for(size_t ii=0; ii<K; ii++)
@@ -295,7 +297,7 @@ std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist_help(size_t de
 
 	// distance^2 to hyperplane
 	double hypdistsq = pow(pt[axis]-pos->m_point[axis],2);
-	
+
 	// recurse to the side that pt is on, or to the opposite side if
 	// a point could be on the other side and still be under sqrt(distsq)
 	// away
@@ -326,7 +328,7 @@ std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist_help(size_t de
  */
 template <size_t K, size_t E, typename T, typename D>
 std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist(
-			const std::vector<T>& pt, double dist)
+			const std::vector<T>& pt, double dist) const
 {
 	return withindist(pt.size(), pt.data(), dist);
 }
@@ -346,7 +348,7 @@ std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist(
  */
 template <size_t K, size_t E, typename T, typename D>
 std::list<const KDTreeNode<K,E,T,D>*> KDTree<K,E,T,D>::withindist(
-			size_t len, const T* pt, double dist)
+			size_t len, const T* pt, double dist) const
 {
 	// create adjusted point of known length
 	T adjpt[K];

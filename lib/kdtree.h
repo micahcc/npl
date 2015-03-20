@@ -143,11 +143,11 @@ public:
 	 */
 	void clear();
 
-	KDTreeNode<K,E,T,D>* nearest(const std::vector<T>& pt, double& dist);
-	KDTreeNode<K,E,T,D>* nearest(size_t len, const T* pt, double& dist);
+	const KDTreeNode<K,E,T,D>* nearest(const std::vector<T>& pt, double& dist) const;
+	const KDTreeNode<K,E,T,D>* nearest(size_t len, const T* pt, double& dist) const;
 
-	std::list<const KDTreeNode<K,E,T,D>*> withindist(const std::vector<T>& pt, double dist);
-	std::list<const KDTreeNode<K,E,T,D>*> withindist(size_t len, const T* pt, double dist);
+	std::list<const KDTreeNode<K,E,T,D>*> withindist(const std::vector<T>& pt, double dist) const;
+	std::list<const KDTreeNode<K,E,T,D>*> withindist(size_t len, const T* pt, double dist) const;
 
 private:
 
@@ -163,11 +163,11 @@ private:
 	/********************
 	 * Helper Functions
 	 ********************/
-	KDTreeNode<K,E,T,D>* nearest_help(size_t depth, KDTreeNode<K,E,T,D>* pos,
-		const T* pt, double& distsq);
+	const KDTreeNode<K,E,T,D>* nearest_help(size_t depth, KDTreeNode<K,E,T,D>* pos,
+		const T* pt, double& distsq) const;
 
 	std::list<const KDTreeNode<K,E,T,D>*> withindist_help(size_t depth,
-		KDTreeNode<K,E,T,D>* pos, const T* pt, double distsq);
+		KDTreeNode<K,E,T,D>* pos, const T* pt, double distsq) const;
 
 	KDTreeNode<K,E,T,D>* build_helper(
 		typename std::vector<KDTreeNode<K,E,T,D>*>::iterator begin,

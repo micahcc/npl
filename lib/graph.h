@@ -20,6 +20,7 @@
 #define GRAPH_H
 
 #include "npltypes.h"
+#include "zlib.h"
 
 #include <algorithm>
 #include <string>
@@ -135,6 +136,9 @@ private:
 	T* m_data;
     std::function<void(T*)> m_freefunc;
 	std::vector<std::string> m_names;
+
+	void writeCSV(gzFile gz, GraphStoreT store);
+	void writeNPL(gzFile gz, GraphStoreT store);
 };
 
 } // npl
