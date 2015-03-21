@@ -2399,6 +2399,12 @@ double fastICA_dg1(double u)
 }
 
 //exponential and its derivative is another optimization function
+double fastICA_G2(double u)
+{
+	return exp(-u*u/2);
+}
+
+//exponential and its derivative is another optimization function
 double fastICA_g2(double u)
 {
 	return u*exp(-u*u/2);
@@ -2461,6 +2467,7 @@ MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 
 	const size_t ITERS = 10000;
 	const double MAGTHRESH = 0.0001;
+	const double ARMAW = 0.1;
 
 	// Seed with a real random value, if available
 	std::random_device rd;
@@ -2470,11 +2477,15 @@ MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 	int dims = X.cols();
 
 	//randomize weights
-	VectorXd proj(dims);
+	MatrixXd proj(dims, dims);
 	MatrixXd Wprev(dims, dims);
 	MatrixXd Wtmp(dims, dims);
 	MatrixXd W(dims, dims);
 	MatrixXd wtw(dims, dims);
+	VectorXd tmp;
+
+	double nonlin = 0;
+	double arma = -1;
 	Eigen::HouseholderQR<MatrixXd> qr(W.rows(), W.cols());
 	Eigen::SelfAdjointEigenSolver<MatrixXd> eig;
 #ifndef NDEBUG
@@ -2489,19 +2500,21 @@ MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 	qr.compute(W);
 	W = qr.householderQ()*MatrixXd::Identity(W.rows(), W.cols());
 
-	for(size_t ii=0; ii<ITERS && mag >= MAGTHRESH; ii++) {
+	for(size_t ii=0; ii<ITERS && mag >= MAGTHRESH && nonlin > arma; ii++) {
 		Wprev = W;
 
-		for(size_t pp=0; pp<W.cols(); pp++) {
-			//w^tx
-			proj = X*Wprev.col(pp);
+		//w^tx
+		proj = X*Wprev;
 
-			//- wp SUM(g'(X wp)))/R
-			Wtmp.col(pp) = -Wprev.col(pp)*proj.unaryExpr(std::ptr_fun(fastICA_dg2)).sum();
+		nonlin = proj.unaryExpr(std::ptr_fun(fastICA_G2)).sum()/(dims*dims);
+		arma = arma*(1-ARMAW) + nonlin*ARMAW;
 
-			// X^Tg(X wp)/R
-			Wtmp.col(pp) += X.transpose()*proj.unaryExpr(std::ptr_fun(fastICA_g2));
-		}
+		//- wp SUM(g'(X wp)))/R
+		tmp = proj.unaryExpr(std::ptr_fun(fastICA_dg2)).colwise().sum();
+		Wtmp = -Wprev*tmp.asDiagonal();
+
+		// X^Tg(X wp)/R
+		Wtmp += X.transpose()*proj.unaryExpr(std::ptr_fun(fastICA_g2));
 
 		eig.compute(Wtmp*Wtmp.transpose());
 		const auto& L = eig.eigenvectors();
@@ -2519,7 +2532,7 @@ MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 		std::cout << "Vp:\n"<<Wprev<< std::endl;
 		std::cout<<"VtVp:\n"<<wtw<<endl;
 #endif// DEBUG
-		std::cout<<"Change("<<mag<<")"<<endl;
+		std::cout<<"Change("<<mag<<")"<<" Metric("<<nonlin<<"/"<<arma<<")"<<endl;
 	}
 #ifndef NDEBUG
 	std::cout<<"Stop with W:\n"<<W<<endl;
