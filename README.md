@@ -9,6 +9,8 @@ $ ./waf configure --prefix=INSTALLDIR --release
 
 $ ./waf install -j 4
 
+Once you install you will need to add INSTALLDIR/lib to your LD_LIBRARY_PATH. Alternatively you can use --enable-rpath on the configure line to get binaries to look in ../lib for the necessary libraries. 
+
 Tools
 =======
 
