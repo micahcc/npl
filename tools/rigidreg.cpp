@@ -134,8 +134,8 @@ try {
 			rigid.ras_coord = false;
 
 			Eigen::JacobiSVD<MatrixXd> svd(aff.block<3,3>(0,0),
-					Eigen::ComputeThinU, Eigen::ComputeThinV);
-			rigid.setRotation(svd.matrixU*svd.matrixV.transpose());
+					Eigen::ComputeThinU|Eigen::ComputeThinV);
+			rigid.setRotation(svd.matrixU()*svd.matrixV().transpose());
 			rigid.shift = aff.block<3,1>(0, 3);
 			cerr << rigid << endl;
 			rigid.toRASCoords(in_moving);
@@ -203,8 +203,9 @@ try {
 		return -1;
 	}
 
-	cout << "Writing output...";
+	cout << "Writing output..."<<endl;
 	if(a_transform.isSet()) {
+		cout<<"  Transform"<<endl;
 		ofstream ofs(a_transform.getValue().c_str());
 		if(!ofs.is_open()) {
 			cerr<<"Error opening "<< a_transform.getValue()<<" for writing\n";
@@ -216,17 +217,16 @@ try {
 		}
 
 		for(size_t ii=0; ii<3; ii++) {
-			if(ii != 0) ofs << " ";
-			ofs << setw(15) << setprecision(10) << rigid.rotation[ii];
+			ofs <<" "<<setw(15) << setprecision(10) << rigid.rotation[ii];
 		}
 
 		for(size_t ii=0; ii<3; ii++) {
-			if(ii != 0) ofs << " ";
-			ofs << setw(15) << setprecision(10) << rigid.shift[ii];
+			ofs << " "<<setw(15) << setprecision(10) << rigid.shift[ii];
 		}
 	}
 
 	if(a_out.isSet()) {
+		cout<<"  Image"<<endl;
 		if(a_resample.isSet()) {
 			// Apply Rigid Transform
 			rigid.toIndexCoords(in_moving, true);
@@ -235,12 +235,15 @@ try {
 			for(size_t dd=0; dd<3; dd++)
 				shiftImageKern(in_moving, dd, rigid.shift[dd]);
 		} else {
-
 			VectorXd origin = rigid.rotMatrix()*
 						(in_moving->getOrigin().head<3>() - rigid.center) +
 						rigid.center + rigid.shift;
 			MatrixXd dir = rigid.rotMatrix()*
 						in_moving->getDirection().block<3,3>(0,0);
+			cerr<<"Original Origin:\n"<<in_moving->getOrigin().transpose()<<endl;
+			cerr<<"Original Direction:\n"<<in_moving->getDirection()<<endl;
+			cerr<<"New Origin:\n"<<origin.transpose()<<endl;
+			cerr<<"New Direction:\n"<<dir<<endl;
 			in_moving->setOrigin(origin, false);
 			in_moving->setDirection(dir, false);
 		}
