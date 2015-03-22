@@ -6,6 +6,7 @@ Building
 To build download and cd into the root directory. Then run the following commands:
 
 $ ./waf configure --prefix=INSTALLDIR --release
+
 $ ./waf install -j 4
 
 Tools
