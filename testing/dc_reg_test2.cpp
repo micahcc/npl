@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file dc_reg_test1.cpp Tests mutual information derivative for deformation
  *
@@ -51,7 +43,7 @@ shared_ptr<MRImage> gaussianImage(double sx, double sy, double sz)
     int64_t index[3];
     auto in = createMRImage(sizeof(size)/sizeof(size_t), size, FLOAT32);
 
-    // fill with a shape that is somewhat unique when rotated. 
+    // fill with a shape that is somewhat unique when rotated.
     OrderIter<double> sit(in);
     double sum = 0;
     while(!sit.eof()) {
@@ -63,7 +55,7 @@ shared_ptr<MRImage> gaussianImage(double sx, double sy, double sz)
         ++sit;
     }
 
-    for(sit.goBegin(); !sit.eof(); ++sit) 
+    for(sit.goBegin(); !sit.eof(); ++sit)
         sit.set(sit.get()/sum);
 
     return in;
@@ -72,7 +64,7 @@ shared_ptr<MRImage> gaussianImage(double sx, double sy, double sz)
 int main()
 {
 	double sx = 3;
-	double sy = 4; 
+	double sy = 4;
 	double sz = 5;
 
     // create image with gaussian kernel in it
@@ -81,7 +73,7 @@ int main()
 
 	auto origimg = gaussianImage(4, 4, 4);
 	origimg->write("gaussmooth_test_origimg.nii.gz");
-    
+
     if(distcorDerivTest(0.001, 0.157, distimg, origimg, 0, 100) != 0)
         return -1;
     if(distcorDerivTest(0.001, 0.155, distimg, origimg, 100, 0) != 0)

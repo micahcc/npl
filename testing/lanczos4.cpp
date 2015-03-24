@@ -1,14 +1,11 @@
-// This file is part of Eigen, a lightweight C++ template library
-// for linear algebra.
-//
-// Copyright (C) 2014 Micah Chambers <micahc.vt@gmail.com>
-//
-// This Source Code Form is subject to the terms of the Mozilla
-// Public License v. 2.0. If a copy of the MPL was not distributed
-// with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
-//
-// @file lanczos_test4.cpp Create known eigenvalues in low rank matrix then
-// find them using Band Lanczos. Non verbose for very large system testing
+/******************************************************************************
+ * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
+ *
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
+ *
+ ******************************************************************************/
 
 #include <iostream>
 #include <vector>

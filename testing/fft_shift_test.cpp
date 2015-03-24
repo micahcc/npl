@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file fft_shift_test.cpp
  *
@@ -42,7 +34,7 @@ int closeCompare(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b)
 		cerr << "Error image dimensionality differs" << endl;
 		return -1;
 	}
-	
+
 	for(size_t dd=0; dd<a->ndim(); dd++) {
 		if(a->dim(dd) != b->dim(dd)) {
 			cerr << "Image size in the " << dd << " direction differs" << endl;
@@ -87,7 +79,7 @@ int main()
 
 		++sit;
 	}
-	
+
 	// perform fourier shift, +a
 	// strictly the frequency for component k (where k = k-N/2,N/2]
 	// double T = fft->dim(d)*in->spacing()[d];
@@ -99,8 +91,8 @@ int main()
 	for(size_t ii=0; ii<sizeof(shift)/sizeof(double); ii++)
 		shiftImageKern(kshift, ii, shift[ii]);
 	kshift->write("kern_shift.nii.gz");
-	
-	
+
+
 	auto fshift = dynamic_pointer_cast<MRImage>(in->copy());
 	for(size_t ii=0; ii<sizeof(shift)/sizeof(double); ii++)
 		shiftImageFFT(fshift, ii, shift[ii]);
@@ -108,7 +100,7 @@ int main()
 
 	if(closeCompare(kshift, fshift) != 0)
 		return -1;
-	
+
 
 	return 0;
 }

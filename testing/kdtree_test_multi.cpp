@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file kdtree_test_multi.cpp
  *
@@ -48,7 +40,7 @@ int main()
 		datas[ii].resize(DSIZE);
 		for(size_t jj=0; jj<DIM; jj++)
 			points[ii][jj] = (dist3(gen) < 0 ? dist1(gen) : dist2(gen));
-		
+
 
 		for(size_t jj=0; jj<DSIZE; jj++)
 			datas[ii][jj] = (dist3(gen) < 0 ? dist1(gen) : dist2(gen));
@@ -80,11 +72,11 @@ int main()
 			cerr << point[jj] << ",";
 		}
 		cerr << endl;
-		
+
 		// tree search
 		double treed = SEARCHDIST;
 		std::list<const KDTreeNode<DIM,DSIZE, double, double>*> result = tree.withindist(point, treed);
-		
+
 		result.sort(
 				[&](const KDTreeNode<DIM,DSIZE, double, double>* left,
 					const KDTreeNode<DIM,DSIZE, double, double>* right)
@@ -104,7 +96,7 @@ int main()
 				matches.push_back(kk);
 			}
 		}
-	
+
 		// sort matches based point
 		matches.sort([&](const size_t left, const size_t right) {
 				return points[left][0] < points[right][0]; });
@@ -134,7 +126,7 @@ int main()
 			tree_it++;
 			brute_it++;
 		}
-			
+
 
 //		}
 //		for(size_t jj=0; jj<DIM; jj++) {
@@ -153,7 +145,7 @@ int main()
 //			perror += pow(points[mini][jj]-result->m_point[jj],2);
 //		for(size_t jj=0; jj<DSIZE; jj++)
 //			derror += pow(datas[mini][jj]-result->m_data[jj],2);
-//		
+//
 		if(derror > 0 && perror > 0) {
 			cerr << "ERROR! Failed to find closes point ! " << endl;
 			return -1;

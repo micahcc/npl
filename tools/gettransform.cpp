@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file gettransform.cpp creates a transform from two image's orientations.
  * The transform is the rigid transform that would move from the moving
@@ -60,7 +52,7 @@ int main(int argc, char** argv)
 	TCLAP::ValueArg<string> a_fixed("f", "fixed", "Fixed image.", true, "",
 			"*.nii.gz", cmd);
 
-	TCLAP::ValueArg<string> a_moving("m", "moving", "Moving image. ", true, 
+	TCLAP::ValueArg<string> a_moving("m", "moving", "Moving image. ", true,
 			"", "*.nii.gz", cmd);
 
 	TCLAP::ValueArg<string> a_moved("M", "moved", "Moving resampled into "
@@ -89,7 +81,7 @@ int main(int argc, char** argv)
 	rigid.shift = (fixed->getOrigin().head<3>() - rot*moving->getOrigin().head<3>());
 	cout << "Done" << endl;
 	cerr << rigid << endl;
-	
+
 	cout << "Writing output...";
 	if(a_transform.isSet()) {
 		ofstream ofs(a_transform.getValue().c_str());
@@ -116,13 +108,13 @@ int main(int argc, char** argv)
 	// Apply Rigid Transform
 	if(a_moved.isSet()) {
 		rigid.toIndexCoords(moving, true);
-		rotateImageShearKern(moving, rigid.rotation[0], 
+		rotateImageShearKern(moving, rigid.rotation[0],
 				rigid.rotation[1], rigid.rotation[2]);
-		for(size_t dd=0; dd<3; dd++) 
+		for(size_t dd=0; dd<3; dd++)
 			shiftImageKern(moving, dd, rigid.shift[dd]);
 		moving->write(a_moved.getValue());
 	}
-	
+
 
 } catch (TCLAP::ArgException &e)  // catch any exceptions
 { std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }

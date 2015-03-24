@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file bspline_test.cpp Test the b-spline interpolation class
  *
@@ -38,8 +30,8 @@ shared_ptr<MRImage> squareImage()
 	OrderIter<double> sit(in);
 	while(!sit.eof()) {
 		sit.index(3, index);
-		if(index[0] > sz[0]/4 && index[0] < 2*sz[0]/3 && 
-				index[1] > sz[1]/5 && index[1] < sz[1]/2 && 
+		if(index[0] > sz[0]/4 && index[0] < 2*sz[0]/3 &&
+				index[1] > sz[1]/5 && index[1] < sz[1]/2 &&
 				index[2] > sz[2]/3 && index[2] < 2*sz[2]/3) {
 			sit.set(1);
 		} else {
@@ -61,9 +53,9 @@ int main()
 	BSplineView<double> spline;
 	spline.m_ras = true;
 	spline.createOverlay(img, 10);
-	
+
 	// Randomly set parameters
-	for(FlatIter<double> it(spline.getParams()); !it.eof(); ++it) 
+	for(FlatIter<double> it(spline.getParams()); !it.eof(); ++it)
 		it.set(rand()/(double)RAND_MAX);
 	spline.getParams()->write("bspline_params.nii.gz");
 
@@ -81,7 +73,7 @@ int main()
 	c = clock();
 	auto sbspline = spline.reconstruct(img);
 	sbspline->write("bspline_sampled.nii.gz");
-	for(FlatIter<double> it1(img), it2(sbspline); !it1.eof(); ++it1, ++it2) 
+	for(FlatIter<double> it1(img), it2(sbspline); !it1.eof(); ++it1, ++it2)
 		it1.set((*it1)+(*it2));
 	c = clock() - c;
 	cerr << "Recon Time:    " << c << endl;

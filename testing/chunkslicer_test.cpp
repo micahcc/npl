@@ -1,19 +1,11 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @file chunkslicer_test.cpp Tests region-of-interest specification in Slicer 
+ * @file chunkslicer_test.cpp Tests region-of-interest specification in Slicer
  * class
  *
  *****************************************************************************/
@@ -163,7 +155,7 @@ int test5()
 	int64_t breaks[] = {2, 3, 7};
 	slicer.setChunkSize(3, breaks);
 	slicer.goBegin();
-	
+
 	// y steps
 	for(int64_t xx=1; xx<=2; xx++) {
 		for(int64_t yy=1; yy<=3; yy++) {
@@ -181,7 +173,7 @@ int test5()
 		return -1;
 	}
 	slicer.nextChunk();
-	
+
 	for(int64_t xx=1; xx<=2; xx++) {
 		for(int64_t yy=4; yy<=6; yy++) {
 			for(int64_t zz=2; zz<=7; zz++, ++slicer) {
@@ -198,7 +190,7 @@ int test5()
 		return -1;
 	}
 	slicer.nextChunk();
-	
+
 	for(int64_t xx=1; xx<=2; xx++) {
 		for(int64_t yy=7; yy<=8; yy++) {
 			for(int64_t zz=2; zz<=7; zz++, ++slicer) {
@@ -216,7 +208,7 @@ int test5()
 	}
 	slicer.nextChunk();
 
-	// x step 
+	// x step
 	for(int64_t xx=3; xx<=4; xx++) {
 		for(int64_t yy=1; yy<=3; yy++) {
 			for(int64_t zz=2; zz<=7; zz++, ++slicer) {
@@ -233,7 +225,7 @@ int test5()
 		return -1;
 	}
 	slicer.nextChunk();
-	
+
 	for(int64_t xx=3; xx<=4; xx++) {
 		for(int64_t yy=4; yy<=6; yy++) {
 			for(int64_t zz=2; zz<=7; zz++, ++slicer) {
@@ -250,7 +242,7 @@ int test5()
 		return -1;
 	}
 	slicer.nextChunk();
-	
+
 	for(int64_t xx=3; xx<=4; xx++) {
 		for(int64_t yy=7; yy<=8; yy++) {
 			for(int64_t zz=2; zz<=7; zz++, ++slicer) {
@@ -285,7 +277,7 @@ int test5()
 		return -1;
 	}
 	slicer.nextChunk();
-	
+
 	for(int64_t xx=5; xx<=6; xx++) {
 		for(int64_t yy=4; yy<=6; yy++) {
 			for(int64_t zz=2; zz<=7; zz++, ++slicer) {
@@ -302,7 +294,7 @@ int test5()
 		return -1;
 	}
 	slicer.nextChunk();
-	
+
 	for(int64_t xx=5; xx<=6; xx++) {
 		for(int64_t yy=7; yy<=8; yy++) {
 			for(int64_t zz=2; zz<=7; zz++, ++slicer) {
@@ -336,7 +328,7 @@ int test6()
 	int64_t breaks[] = {2, 3, 7};
 	slicer.setChunkSize(3, breaks);
 	slicer.goBegin();
-	
+
 	// y steps
 	for(int64_t xx=1; xx<=2; xx++) {
 		for(int64_t yy=1; yy<=3; yy++) {
@@ -354,7 +346,7 @@ int test6()
 		return -1;
 	}
 	slicer.nextChunk();
-	
+
 	// repeat the last using previousChunk
 	slicer.prevChunk();
 	for(int64_t xx=1; xx<=2; xx++) {
@@ -390,7 +382,7 @@ int test6()
 		return -1;
 	}
 	slicer.nextChunk();
-	
+
 	for(int64_t xx=1; xx<=2; xx++) {
 		for(int64_t yy=7; yy<=8; yy++) {
 			for(int64_t zz=2; zz<=7; zz++, ++slicer) {
@@ -408,7 +400,7 @@ int test6()
 	}
 	slicer.nextChunk();
 
-	// x step 
+	// x step
 	for(int64_t xx=3; xx<=4; xx++) {
 		for(int64_t yy=1; yy<=3; yy++) {
 			for(int64_t zz=2; zz<=7; zz++, ++slicer) {
@@ -425,7 +417,7 @@ int test6()
 		return -1;
 	}
 	slicer.nextChunk();
-	
+
 	for(int64_t xx=3; xx<=4; xx++) {
 		for(int64_t yy=4; yy<=6; yy++) {
 			for(int64_t zz=2; zz<=7; zz++, ++slicer) {
@@ -442,7 +434,7 @@ int test6()
 		return -1;
 	}
 	slicer.nextChunk();
-	
+
 	for(int64_t xx=3; xx<=4; xx++) {
 		for(int64_t yy=7; yy<=8; yy++) {
 			for(int64_t zz=2; zz<=7; zz++, ++slicer) {
@@ -496,7 +488,7 @@ int test6()
 		return -1;
 	}
 	slicer.nextChunk();
-	
+
 	for(int64_t xx=5; xx<=6; xx++) {
 		for(int64_t yy=4; yy<=6; yy++) {
 			for(int64_t zz=2; zz<=7; zz++, ++slicer) {
@@ -513,7 +505,7 @@ int test6()
 		return -1;
 	}
 	slicer.nextChunk();
-	
+
 	for(int64_t xx=5; xx<=6; xx++) {
 		for(int64_t yy=7; yy<=8; yy++) {
 			for(int64_t zz=2; zz<=7; zz++, ++slicer) {
@@ -565,7 +557,7 @@ int test7()
 	int64_t breaks[] = {2, 3, 7};
 	slicer.setChunkSize(3, breaks);
 	slicer.goBegin();
-	
+
 	// y steps
 	for(int64_t xx=1; xx<=2; xx++) {
 		for(int64_t yy=1; yy<=3; yy++) {
@@ -618,7 +610,7 @@ int test7()
 		return -1;
 	}
 	slicer.nextChunk();
-	
+
 	for(int64_t xx=1; xx<=2; xx++) {
 		for(int64_t yy=7; yy<=8; yy++) {
 			for(int64_t zz=2; zz<=7; zz++, ++slicer) {
@@ -636,7 +628,7 @@ int test7()
 	}
 	slicer.nextChunk();
 
-	// x step 
+	// x step
 	for(int64_t xx=3; xx<=4; xx++) {
 		for(int64_t yy=1; yy<=3; yy++) {
 			for(int64_t zz=2; zz<=7; zz++, ++slicer) {
@@ -653,7 +645,7 @@ int test7()
 		return -1;
 	}
 	slicer.nextChunk();
-	
+
 	for(int64_t xx=3; xx<=4; xx++) {
 		for(int64_t yy=4; yy<=6; yy++) {
 			for(int64_t zz=2; zz<=7; zz++, ++slicer) {
@@ -670,7 +662,7 @@ int test7()
 		return -1;
 	}
 	slicer.nextChunk();
-	
+
 	for(int64_t xx=3; xx<=4; xx++) {
 		for(int64_t yy=7; yy<=8; yy++) {
 			for(int64_t zz=2; zz<=7; zz++, ++slicer) {
@@ -726,7 +718,7 @@ int test7()
 		return -1;
 	}
 	slicer.nextChunk();
-	
+
 	for(int64_t xx=5; xx<=6; xx++) {
 		for(int64_t yy=4; yy<=6; yy++) {
 			for(int64_t zz=2; zz<=7; zz++, ++slicer) {
@@ -743,7 +735,7 @@ int test7()
 		return -1;
 	}
 	slicer.nextChunk();
-	
+
 	for(int64_t xx=5; xx<=6; xx++) {
 		for(int64_t yy=7; yy<=8; yy++) {
 			for(int64_t zz=2; zz<=7; zz++, ++slicer) {
@@ -787,21 +779,21 @@ int test7()
 int main()
 {
 	cerr << "Testing unity/full sized chunks" << endl;
-	if(test1() != 0) 
+	if(test1() != 0)
 		return -1;
-	if(test2() != 0) 
+	if(test2() != 0)
 		return -1;
-	if(test3() != 0) 
+	if(test3() != 0)
 		return -1;
-	if(test4() != 0) 
+	if(test4() != 0)
 		return -1;
 
 	cerr << "Testing odd sized chunks" << endl;
-	if(test5() != 0) 
+	if(test5() != 0)
 		return -1;
-	if(test6() != 0) 
+	if(test6() != 0)
 		return -1;
-	if(test7() != 0) 
+	if(test7() != 0)
 		return -1;
 
 	return 0;

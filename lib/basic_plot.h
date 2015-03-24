@@ -1,19 +1,11 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @file tga_test1.cpp Tests function plotting, 
+ * @file tga_test1.cpp Tests function plotting,
  *
  *****************************************************************************/
 #ifndef BASIC_PLOT_H
@@ -31,7 +23,7 @@ template <typename T>
 void writePlot(std::string filename, const std::vector<T>& data);
 
 template <typename T>
-void writePlot(std::string filename, const std::vector<T>& data, 
+void writePlot(std::string filename, const std::vector<T>& data,
 		size_t xsize, size_t ysize);
 
 typedef char rgba[4];
@@ -43,7 +35,7 @@ typedef char rgba[4];
  * Plotter plot;
  *
  * vector<double> data;
- * 
+ *
  * // (fill data)
  *
  * plot.addArray(data.size(), data.data());
@@ -91,7 +83,7 @@ public:
 	 * @param high Upper bound
 	 */
 	void setXRange(double low, double high);
-	
+
 	/**
 	 * @brief Sets the y range. To use the extremal values from input arrays
 	 * and computed yvalues from functions, just leave these at the default
@@ -109,7 +101,7 @@ public:
 	 * @param yres Height of output image
 	 */
 	void setRes(size_t xres, size_t yres);
-	
+
 	// stores style of functions, and functions themselves
 	typedef double (*Function)(double x);
 
@@ -123,7 +115,7 @@ public:
 	void addArray(const StyleT& style, size_t sz, const double* xarr, const double* yarr);
 
 	size_t res[2]; //image size
-	double xrange[2]; 
+	double xrange[2];
 	double yrange[2];
 	bool axes;
 
@@ -170,34 +162,34 @@ public:
 					for(int jj=0; ii<a.size() && jj<8; jj++,ii++) {
 
 						if(a[ii] >= 'A' && a[ii] <= 'F') {
-							if(jj%2 == 0) 
+							if(jj%2 == 0)
 								rgba[jj/2] = a[ii]-'A'+10;
 							else
 								rgba[jj/2] += (a[ii]-'A'+10)*16;
 						} else if(a[ii] >= 'a' && a[ii] <= 'f') {
-							if(jj%2 == 0) 
+							if(jj%2 == 0)
 								rgba[jj/2] = a[ii]-'a'+10;
 							else
 								rgba[jj/2] += (a[ii]-'a'+10)*16;
 						} else if(a[ii] >= '0' && a[ii] <= '9') {
-							if(jj%2 == 0) 
+							if(jj%2 == 0)
 								rgba[jj/2] = a[ii]-'0';
 							else
 								rgba[jj/2] += (a[ii]-'0')*16;
-						} else 
+						} else
 							break;
 					}
 				} else if(a[ii] == 'r') { // red
 					rgba[0] = 255; rgba[1] = 0; rgba[2] = 0; rgba[3] = 255;
 				} else if(a[ii] == 'g') { // green
 					rgba[0] = 0; rgba[1] = 255; rgba[2] = 0; rgba[3] = 255;
-				} else if(a[ii] == 'b') { // blue 
+				} else if(a[ii] == 'b') { // blue
 					rgba[0] = 0; rgba[1] = 0; rgba[2] = 255; rgba[3] = 255;
 				} else if(a[ii] == 'k') { // black
 					rgba[0] = 0; rgba[1] = 0; rgba[2] = 0; rgba[3] = 255;
 				} else if(a[ii] == 'w') { // white
 					rgba[0] = 255; rgba[1] = 255; rgba[2] = 255; rgba[3] = 255;
-				} else if(a[ii] == 'y') { // yellow 
+				} else if(a[ii] == 'y') { // yellow
 					rgba[0] = 255; rgba[1] = 255; rgba[2] = 0; rgba[3] = 255;
 				} else if(a[ii] == 'p') { // pink
 					rgba[0] = 255; rgba[1] = 0; rgba[2] = 255; rgba[3] = 255;
@@ -261,7 +253,7 @@ void writePlot(std::string filename, const std::vector<T>& data, size_t xsize,
 		size_t ysize)
 {
 	Plotter plt(xsize, ysize);
-    
+
     std::vector<double> tmp(data.size());
     for(size_t ii=0; ii<data.size(); ii++)
         tmp[ii] = (double)data[ii];

@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file fract_fft_test.cpp
  *
@@ -115,7 +107,7 @@ void interp(const std::vector<complex<double>>& in,
 	// fill/average pad
 	int64_t radius = 3;
 	double ratio = (double)(in.size())/(double)out.size();
-	
+
 	// copy/center
 	for(size_t oo=0; oo<out.size(); oo++) {
 		double cii = ratio*oo;
@@ -136,7 +128,7 @@ fftw_complex* createChirp(int64_t sz, int64_t origsz, double upratio,
 	assert(sz%2 == 1);
 	const double PI = acos(-1);
 	const complex<double> I(0,1);
-	
+
 	auto chirp = fftw_alloc_complex(sz);
 	auto fwd_plan = fftw_plan_dft_1d((int)sz, chirp, chirp, FFTW_FORWARD,
 				FFTW_MEASURE);
@@ -147,7 +139,7 @@ fftw_complex* createChirp(int64_t sz, int64_t origsz, double upratio,
 		chirp[ii+sz/2][0] = tmp.real();
 		chirp[ii+sz/2][1] = tmp.imag();
 	}
-	
+
 	if(fft) {
 		fftw_execute(fwd_plan);
 		double norm = sqrt(1./sz);
@@ -200,27 +192,27 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 	assert(usize%2 != 0);
 
 	complex<double> A_phi = std::exp(-I*PI/4.+I*phi/2.) / (usize*sqrt(sin(phi)));
-	
+
 	// upsampled version of input
 	std::vector<complex<double>> upsampled(usize);
-	
+
 	// pre-compute chirps
 	auto sigbuff = fftw_alloc_complex(usize);
 	auto ab_chirp = createChirp(uppadsize, isize, (double)usize/(double)isize,
 			alpha, beta, false);
 	auto b_chirp = createChirp(uppadsize, isize, (double)usize/(double)isize,
 			beta, 0, false);
-	
+
 
 	interp(input, upsampled);
-	
+
 	// pre-multiply
 	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
 		complex<double> tmp1(ab_chirp[nn+uppadsize/2][0],
 				ab_chirp[nn+uppadsize/2][1]);
 		upsampled[nn+usize/2] *= tmp1;;
 	}
-	
+
 	// multiply
 	for(int64_t mm = -usize/2; mm<=usize/2; mm++) {
 		sigbuff[mm+usize/2][0] = 0;
@@ -253,16 +245,16 @@ void floatFrFFTBrute(const std::vector<complex<double>>& input, float a_frac,
 
 		upsampled[ii+usize/2] = tmp1*tmp2*A_phi;
 	}
-	
+
 
 	out.resize(input.size());
 	interp(upsampled, out);
-	
+
 	fftw_free(sigbuff);
 	fftw_free(b_chirp);
 	fftw_free(ab_chirp);
 }
-	
+
 /**
  * @brief Computes the fractional fourier transform of the input vector and
  * writes out an equal length array in out. This function is ONLY valid for
@@ -330,7 +322,7 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 
 	// upsample input
 	interp(input, upsampled);
-	
+
 #ifdef DEBUG
 	{
 		std::vector<double> tmp(usize);
@@ -410,7 +402,7 @@ void floatFrFFT(const std::vector<complex<double>>& input, float a_frac,
 
 		upsampled[ii+usize/2] *= tmp1*A_phi;
 	}
-	
+
 
 	out.resize(input.size());
 	interp(upsampled, out);
@@ -443,7 +435,7 @@ int main(int argc, char** argv)
 		else
 			in[ii] = 0.;
 	}
-	
+
 	std::vector<double> phasev(sz);
 	std::vector<double> absv(sz);
 	for(size_t ii=0; ii<sz; ii++) {
@@ -462,7 +454,7 @@ int main(int argc, char** argv)
 	}
 	writePlot("fft_phase.tga", phasev);
 	writePlot("fft_abs.tga", absv);
-	
+
 	for(size_t ii=0; ii<bruteout.size(); ii++) {
 		phasev[ii] = arg(bruteout[ii]);
 		absv[ii] = abs(bruteout[ii]);

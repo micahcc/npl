@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file pseudopolar_test3.cpp Tests the ability of FFT and Zoom based pseudo
  * polar gridded fourier transform to match a brute-force linear interpolation
@@ -24,7 +16,7 @@
 #include <string>
 #include <stdexcept>
 
-#include <Eigen/Geometry> 
+#include <Eigen/Geometry>
 
 #define DEBUG 1
 
@@ -55,7 +47,7 @@ int corrCompare(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b)
 		cerr << "Error image dimensionality differs" << endl;
 		return -1;
 	}
-	
+
 	for(size_t dd=0; dd<a->ndim(); dd++) {
 		if(a->dim(dd) != b->dim(dd)) {
 			cerr << "Image size in the " << dd << " direction differs" << endl;
@@ -89,14 +81,14 @@ int corrCompare(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b)
 	return 0;
 }
 
-int closeCompare(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b, 
+int closeCompare(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b,
 		double thresh)
 {
 	if(a->ndim() != b->ndim()) {
 		cerr << "Error image dimensionality differs" << endl;
 		return -1;
 	}
-	
+
 	for(size_t dd=0; dd<a->ndim(); dd++) {
 		if(a->dim(dd) != b->dim(dd)) {
 			cerr << "Image size in the " << dd << " direction differs" << endl;
@@ -132,7 +124,7 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, double* upsamp)
 #endif //DEBUG
 	auto oimg = dynamic_pointer_cast<MRImage>(in->copyCast(osize.size(),
 			osize.data(), COMPLEX128));
-	
+
 	// copy data
 	std::vector<int64_t> index(in->ndim());
 #ifdef DEBUG
@@ -142,9 +134,9 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, double* upsamp)
 	// fourier transform
 	for(size_t dd = 0; dd < 3; dd++) {
 		auto buffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*(int)osize[dd]);
-		fftw_plan fwd = fftw_plan_dft_1d((int)osize[dd], buffer, buffer, 
+		fftw_plan fwd = fftw_plan_dft_1d((int)osize[dd], buffer, buffer,
 				FFTW_FORWARD, FFTW_MEASURE);
-		
+
 		ChunkIter<cdouble_t> it(oimg);
 		it.setLineChunk(dd);
 		for(it.goBegin(); !it.eof() ; it.nextChunk()) {
@@ -158,7 +150,7 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, double* upsamp)
 
 			// fourier transform
 			fftw_execute(fwd);
-			
+
 			// copy/shift
 			// F += N/2 (even), for N = 4:
 			// 0 -> 2 (f =  0)
@@ -181,12 +173,12 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, double* upsamp)
 #ifdef DEBUG
 	writeComplex("padded_fft", oimg, true);
 #endif //DEBUG
-	
+
 	return oimg;
 }
 
 /**
- * @brief 
+ * @brief
  *
  * @param in		Input Image (in normal space)
  * @param prdim	Pseudo-Radius dimension
@@ -195,7 +187,7 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, double* upsamp)
  */
 shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t prdim)
 {
-	if(in->ndim() != 3) 
+	if(in->ndim() != 3)
 		return NULL;
 
 	double uscale = 2;
@@ -207,13 +199,13 @@ shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t prdim)
 
 	// interpolate along lines
 	std::vector<double> index(3); // index space version of output
-	double radius; 
-	double angles[2]; 
-	std::vector<double> index2(3); // 
+	double radius;
+	double angles[2];
+	std::vector<double> index2(3); //
 	LinInterp3DView<cdouble_t> interp(tmp);
 	for(OrderIter<cdouble_t> oit(out); !oit.eof(); ++oit) {
 		oit.index(index.size(), index.data());
-		
+
 		// make index into slope, then back to a flat index
 		size_t jj=0;
 		radius = (double)index[prdim]-((double)out->dim(prdim))/2.;
@@ -228,7 +220,7 @@ shared_ptr<MRImage> pseudoPolarBrute(shared_ptr<MRImage> in, size_t prdim)
 		// centered radius
 		jj = 0;
 		for(size_t ii=0; ii<3; ii++) {
-			if(ii != prdim) 
+			if(ii != prdim)
 				index2[ii] = angles[jj++]*radius+out->dim(ii)/2.;
 			else
 				index2[ii] = radius+out->dim(ii)/2.;
@@ -260,8 +252,8 @@ shared_ptr<MRImage> createTestImageSpace(size_t x, size_t y, size_t z)
 		sum += v;
 		++sit;
 	}
-	
-	for(sit.goBegin(); !sit.eof(); ++sit) 
+
+	for(sit.goBegin(); !sit.eof(); ++sit)
 		sit.set(sit.get()/sum);
 	cerr << "Finished filling"<<endl;
 
@@ -273,7 +265,7 @@ int testPseudoPolar(size_t x, size_t y, size_t z)
 	auto in = createTestImageSpace(x,y,z);
 	writeComplex("input", in);
 	clock_t n = clock();
-	
+
 	// test the pseudopolar transforms
 	for(size_t dd=0; dd<3; dd++) {
 		cerr << "Computing With PseudoRadius = " << dd << endl;
@@ -285,7 +277,7 @@ int testPseudoPolar(size_t x, size_t y, size_t z)
 		n = clock();
 		auto pp1_zoom = dynamic_pointer_cast<MRImage>(pseudoPolarZoom(in, dd));
 		zoom_time += clock()-n;
-		
+
 		n = clock();
 		auto pp1_brute = pseudoPolarBrute(in, dd);
 		brute_time += clock()-n;
@@ -302,7 +294,7 @@ int testPseudoPolar(size_t x, size_t y, size_t z)
 			return -1;
 		}
 	}
-	
+
 	cerr << "FFT Ticks: " << fft_time << endl;
 	cerr << "Brute Ticks: " << brute_time << endl;
 	cerr << "Zoom Ticks: " << zoom_time << endl;
@@ -314,7 +306,7 @@ int main()
 	// test the 'Power' Fourier Transform
 	if(testPseudoPolar(19, 23, 46) != 0)
 		return -1;
-	
+
 	return 0;
 }
 

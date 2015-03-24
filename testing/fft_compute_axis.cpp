@@ -1,19 +1,11 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @file fft_rotate_test.cpp A test of automatica computation of the rotation 
+ * @file fft_rotate_test.cpp A test of automatica computation of the rotation
  * axis, based on the pseudo-polar fourier transform
  *
  *****************************************************************************/
@@ -22,7 +14,7 @@
 #include <string>
 #include <stdexcept>
 
-#include <Eigen/Geometry> 
+#include <Eigen/Geometry>
 
 #define DEBUG 1
 
@@ -51,7 +43,7 @@ using Eigen::AngleAxisd;
  * @param rz Rotation around z, radians
  * @param in Input image
  *
- * @return 
+ * @return
  */
 shared_ptr<MRImage> bruteForceRotate(Vector3d axis, double theta,
 		shared_ptr<const MRImage> in)
@@ -74,7 +66,7 @@ shared_ptr<MRImage> bruteForceRotate(Vector3d axis, double theta,
 		cind = m*(ind-center)+center;
 
 		// set for each t
-		for(size_t tt = 0; tt<in->tlen(); tt++) 
+		for(size_t tt = 0; tt<in->tlen(); tt++)
 			it.set(tt, lin(cind[0], cind[1], cind[2], tt));
 	}
 
@@ -87,7 +79,7 @@ int closeCompare(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b)
 		cerr << "Error image dimensionality differs" << endl;
 		return -1;
 	}
-	
+
 	for(size_t dd=0; dd<a->ndim(); dd++) {
 		if(a->dim(dd) != b->dim(dd)) {
 			cerr << "Image size in the " << dd << " direction differs" << endl;
@@ -125,17 +117,17 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, size_t ldim)
 
 	auto oimg = createMRImage(3, osize.data(), COMPLEX128);
 	cerr << "Input:\n" << in << "\nPadded:\n" << oimg << endl;
-	
+
 	std::vector<int64_t> shift(3,0);
-	for(size_t dd=0; dd<3; dd++) 
+	for(size_t dd=0; dd<3; dd++)
 		shift[dd] = (osize[dd]-in->dim(dd))/2;
-	
+
 	// copy data
 	NDConstAccess<cdouble_t> inview(in);
 	std::vector<int64_t> index(in->ndim());
 	for(OrderIter<cdouble_t> it(oimg); !it.isEnd(); ++it) {
 		it.index(index.size(), index.data());
-		
+
 		bool outside = false;
 		for(size_t dd=0; dd<3; dd++) {
 			index[dd] -= shift[dd];
@@ -143,7 +135,7 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, size_t ldim)
 				outside = true;
 		}
 
-		if(outside) 
+		if(outside)
 			it.set(0);
 		else
 			it.set(inview[index]);
@@ -155,9 +147,9 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, size_t ldim)
 	// fourier transform
 	for(size_t dd = 0; dd < 3; dd++) {
 		auto buffer = fftw_alloc_complex((int)osize[dd]);
-		fftw_plan fwd = fftw_plan_dft_1d((int)osize[dd], buffer, buffer, 
+		fftw_plan fwd = fftw_plan_dft_1d((int)osize[dd], buffer, buffer,
 				FFTW_FORWARD, FFTW_MEASURE);
-		
+
 		ChunkIter<cdouble_t> it(oimg);
 		it.setLineChunk(dd);
 		for(it.goBegin(); !it.isEnd() ; it.nextChunk()) {
@@ -171,7 +163,7 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, size_t ldim)
 
 			// fourier transform
 			fftw_execute(fwd);
-			
+
 			// copy/shift
 			double normf = 1./osize[dd];
 			for(size_t tt=osize[dd]/2; !it.isChunkEnd(); ++it) {
@@ -185,7 +177,7 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, size_t ldim)
 		fftw_destroy_plan(fwd);
 	}
 	oimg->write("padded_fftd.nii.gz");
-	
+
 	return oimg;
 }
 
@@ -193,7 +185,7 @@ shared_ptr<MRImage> padFFT(shared_ptr<const MRImage> in, size_t ldim)
 void pseudoPolar(shared_ptr<MRImage> in, size_t praddim)
 {
 	std::vector<int64_t> index(in->ndim());
-	
+
 	assert(in->dim(praddim) >= in->dim(0));
 	assert(in->dim(praddim) >= in->dim(1));
 	assert(in->dim(praddim) >= in->dim(2));
@@ -211,16 +203,16 @@ void pseudoPolar(shared_ptr<MRImage> in, size_t praddim)
 			}
 		}
 	}
-	
+
 	// take the longest line for the buffer
 	auto linebuf = fftw_alloc_complex((int)buffsize);
 	auto fullbuf = fftw_alloc_complex((int)buffsize*16);
-	
+
 	// process the non-praddim limnes
 	for(size_t ii=0; ii<2; ii++) {
 
 		size_t linelen = in->dim(line[ii]);
-		fftw_plan rev = fftw_plan_dft_1d((int)linelen, linebuf, linebuf, 
+		fftw_plan rev = fftw_plan_dft_1d((int)linelen, linebuf, linebuf,
 				FFTW_BACKWARD, FFTW_MEASURE);
 
 		ChunkIter<cdouble_t> it(in);
@@ -248,7 +240,7 @@ void pseudoPolar(shared_ptr<MRImage> in, size_t praddim)
 
 		fftw_destroy_plan(rev);
 	}
-	
+
 	fftw_free(linebuf);
 	fftw_free(fullbuf);
 }
@@ -281,25 +273,25 @@ Vector3d getAxis(shared_ptr<const MRImage> img1, shared_ptr<const MRImage> img2)
 {
 	ostringstream oss;
 	Vector3d axis;
-	
+
 	std::vector<int64_t> index(3);
 	size_t pseudo_radius = 0;
 	size_t pseudo_slope[2];
 	double bestang1 = -1;
 	double bestang2 = -1;
 	double maxcor = 0;
-	
+
 	shared_ptr<MRImage> pp1;
 	shared_ptr<MRImage> pp2;
 	for(size_t ii=0; ii<3; ii++) {
 		size_t tmp = 0;
 		for(size_t jj=0; jj<3; jj++) {
-			if(jj != ii) 
+			if(jj != ii)
 				pseudo_slope[tmp++] = jj;
 		}
 		pseudo_radius = ii;
 
-		cerr << "ii: " << ii << " pseudo radius: " << pseudo_radius << 
+		cerr << "ii: " << ii << " pseudo radius: " << pseudo_radius <<
 			", pseudo slope 1: " << pseudo_slope[0] << ", pseudo slope 2: " <<
 			pseudo_slope[1] << endl;
 
@@ -307,7 +299,7 @@ Vector3d getAxis(shared_ptr<const MRImage> img1, shared_ptr<const MRImage> img2)
 		pseudoPolar(pp1, pseudo_radius);
 		ChunkIter<cdouble_t> it1(pp1);
 		it1.setLineChunk(pseudo_radius);
-		
+
 		pp2 = padFFT(img2, pseudo_radius);
 		pseudoPolar(pp2, pseudo_radius);
 		ChunkIter<cdouble_t> it2(pp2);
@@ -316,7 +308,7 @@ Vector3d getAxis(shared_ptr<const MRImage> img1, shared_ptr<const MRImage> img2)
 		oss.str("pp1-");
 		oss << ii << ".nii.gz";
 		writeAbs(oss.str(), pp1);
-		
+
 		oss.str("pp2-");
 		oss << ii << ".nii.gz";
 		writeAbs(oss.str(), pp2);
@@ -354,18 +346,18 @@ Vector3d getAxis(shared_ptr<const MRImage> img1, shared_ptr<const MRImage> img2)
 				cerr << "New Max Cor: " << corr << ", " << bestang1 << ","
 					<< bestang2 << endl;
 			}
-			
+
 		}
 
-		cerr << "ii: " << ii << " pseudo radius: " << pseudo_radius << 
-			", pseudo slope 1: " << pseudo_slope[0] << ", pseudo slope 2: " 
-			<< pseudo_slope[1] << " best cor: " << maxcor << " at " << bestang1 
+		cerr << "ii: " << ii << " pseudo radius: " << pseudo_radius <<
+			", pseudo slope 1: " << pseudo_slope[0] << ", pseudo slope 2: "
+			<< pseudo_slope[1] << " best cor: " << maxcor << " at " << bestang1
 			<< ", " << bestang2 << endl;
 		assert(it1.isEnd());
 		assert(it2.isEnd());
 	}
-	
-	
+
+
 	return axis;
 }
 
@@ -380,8 +372,8 @@ int main()
 	OrderIter<double> sit(in);
 	while(!sit.eof()) {
 		sit.index(3, index);
-		if(index[0] > sz[0]/4 && index[0] < sz[0]/3 && 
-				index[1] > sz[1]/5 && index[1] < sz[1]/2 && 
+		if(index[0] > sz[0]/4 && index[0] < sz[0]/3 &&
+				index[1] > sz[1]/5 && index[1] < sz[1]/2 &&
 				index[2] > sz[2]/3 && index[2] < 2*sz[2]/3) {
 			sit.set(1);
 		} else {

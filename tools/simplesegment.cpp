@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file simplesegment.cpp Segmentater based on KMeans or Expectation
  * maximization.
@@ -32,7 +24,7 @@
 
 using namespace std;
 using namespace npl;
-	
+
 int main(int argc, char** argv)
 {
 	cerr << "Version: " << __version__ << endl;
@@ -41,7 +33,7 @@ int main(int argc, char** argv)
 	 * Command Line
 	 */
 
-	TCLAP::CmdLine cmd("Segments image(s) based on intensity", ' ', 
+	TCLAP::CmdLine cmd("Segments image(s) based on intensity", ' ',
 			__version__ );
 
 	TCLAP::MultiArg<string> a_in("i", "input", "Input image. If this is 4D "
@@ -90,7 +82,7 @@ int main(int argc, char** argv)
 			origin = inimg->getOrigin();
 		} else if(nrows != volsize) {
 			cerr << "Input volumes must have same number of pixels" << endl;
-			cerr << "Input: " << *it << " has different number from the rest!" 
+			cerr << "Input: " << *it << " has different number from the rest!"
 				<< endl;
 			return -1;
 		}
@@ -98,7 +90,7 @@ int main(int argc, char** argv)
 		for(size_t tt=0; tt<tlen; tt++, cdim++) {
 			bool use = !a_dims.isSet();
 			for(auto dit = a_dims.begin(); dit != a_dims.end(); ++dit) {
-				if(*dit == cdim) 
+				if(*dit == cdim)
 					use = true;
 			}
 
@@ -181,7 +173,7 @@ int main(int argc, char** argv)
 
 	assert(ii == nrows);
 	segmented->write(a_out.getValue());
-    
+
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
 }

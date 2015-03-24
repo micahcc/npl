@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file nifti_test1.cpp
  *
@@ -32,10 +24,10 @@ int main()
 	std::map<int64_t,double> slice_timing;
 	Matrix3d direction;
     direction << .36,.48,-.8,-.8,.6,0,.48,.64,.6;
-	
-    Vector3d spacing; 
+
+    Vector3d spacing;
     spacing << 1.1,1.2,1.3;
-	
+
     Vector3d origin;
     origin << 12,32,-3;
 
@@ -67,7 +59,7 @@ int main()
 	auto intversion = dblversion->copyCast(dblversion->ndim(),
 			dblversion->dim(), INT64);
 	dynamic_pointer_cast<MRImage>(intversion)->write("test1b.nii.gz");
-	
+
 	auto floatversion = intversion->copyCast(FLOAT32);
 	dynamic_pointer_cast<MRImage>(intversion)->write("test1c.nii.gz");
 	}
@@ -76,7 +68,7 @@ int main()
 	auto dblversion = readMRImage("test1a.nii.gz", true);
 	auto intversion = readMRImage("test1b.nii.gz", true);
 	auto floatversion = readMRImage("test1c.nii.gz", true);
-	
+
 	NDView<int> v1(dblversion);
 	NDView<int> v2(intversion);
 	NDView<int> v3(floatversion);
@@ -88,7 +80,7 @@ int main()
 		std::cerr << "Mismatch between dimension of written images!" << std::endl;
 		return -1;
 	}
-	
+
 	// check int version versus floatversion
 	if(intversion->ndim() != floatversion->ndim())
 		return -1;
@@ -145,7 +137,7 @@ int main()
 		cerr << "Wrong Slice Order!" << endl;
 		return -1;
 	}
-	
+
 	// be more course now
 	if(dblversion->m_freqdim != 1 ||  dblversion->m_phasedim != 0 ||
 			dblversion->m_slicedim != 2 ||
@@ -155,7 +147,7 @@ int main()
 		cerr << "Difference in double image metadata!" << endl;
 		return -1;
 	}
-	
+
 	if(floatversion->m_freqdim != 1 ||  floatversion->m_phasedim != 0 ||
 			floatversion->m_slicedim != 2 ||
 			fabs(floatversion->m_slice_duration-0.01) > 1e-5 ||
@@ -164,7 +156,7 @@ int main()
 		cerr << "Difference in float image metadata!" << endl;
 		return -1;
 	}
-	
+
 	if(intversion->m_freqdim != 1 ||  intversion->m_phasedim != 0 ||
 			intversion->m_slicedim != 2 ||
 			fabs(intversion->m_slice_duration-0.01) > 1e-5 ||
@@ -212,7 +204,7 @@ int main()
 		cerr << "Original:" << endl << spacing << endl;
 		return -1;
 	}
-	
+
 	diff=0;
 	for(size_t ii=0; ii<origin.rows(); ii++){
 		diff += pow(origin(ii) - dblversion->origin(ii),2);
@@ -221,7 +213,7 @@ int main()
 		cerr << "Diffrence in Origin!" << endl;
 		return -1;
 	}
-	
+
 	diff=0;
 	for(size_t ii=0; ii<direction.rows(); ii++){
 		for(size_t jj=0; jj<direction.cols(); jj++){

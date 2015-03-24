@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file indexMapToOffsetMap.cpp
  *
@@ -189,7 +181,7 @@ void growFromMask(shared_ptr<MRImage> deform, shared_ptr<MRImage> mask, size_t v
 	size_t minval;
 	int nchange = 1;
 	int visitations = 1;
-	
+
 	// need an image to write to so that we don't detect our own changes
 	auto mask_trg = mask->cloneImage();
 
@@ -201,9 +193,9 @@ void growFromMask(shared_ptr<MRImage> deform, shared_ptr<MRImage> mask, size_t v
 			// skip values in mask, or that have been reached
 			if(mask->get_int(kern.center()) != 0)
 				continue;
-			
+
 			visitations++;
-			
+
 			// find minimum non-zero point in kernel
 			minval = SIZE_MAX;
 			std::vector<int64_t> minind(mask->ndim());
@@ -237,7 +229,7 @@ void growFromMask(shared_ptr<MRImage> deform, shared_ptr<MRImage> mask, size_t v
 				nchange++;
 			}
 		}
-	
+
 		// copy changes back to source
 		for(size_t ii=0; ii<mask->elements(); ii++)
 			mask->set_int(ii, mask_trg->get_int(ii));
@@ -352,7 +344,7 @@ shared_ptr<MRImage> smoothOutsideMask(shared_ptr<MRImage> deform,
 
 	// for each pixels neighborhood, smooth neightbors
 	for(kernel.goBegin(); !kernel.isEnd(); ++kernel) {
-		
+
 		// if the center is non-zero masked then aveage from neighbors
 		if(mask->get_int(kernel.center_index()) == 0) {
 			double sum = 0;
@@ -408,7 +400,7 @@ int main(int argc, char** argv)
 
 	// read input
 	std::shared_ptr<MRImage> deform(readMRImage(a_in.getValue()));
-	
+
 	// ensure the image dimensions match our expectations
 	size_t vdim = 4;
 	if(deform->ndim() == 4 && deform->dim(3) == 3)
@@ -502,7 +494,7 @@ int main(int argc, char** argv)
 //		for(size_t ii=0; ii<SMOOTH_ITERS; ii++)
 //			deform = smoothOutsideMask(deform, mask, vdim);
 //		deform = smooth(deform, vdim);
-		
+
 		// convert offset back to deform,
 		for(it.goBegin(); !it.isEnd(); ) {
 			defInd = it.index();
@@ -537,13 +529,13 @@ int main(int argc, char** argv)
 		newdeform = createMRImage(sz, FLOAT32);
 		newdeform->setOrient(atlas->origin(), deform->spacing(),
 				atlas->direction(), true);
-	
+
 		invertDeform(deform, vdim, newdeform);
 		newdeform->write("inverted.nii.gz");
 	} else {
 		newdeform = deform;
 	}
-	
+
 	// convert each coordinate to an offset
 	it.updateDim(newdeform->ndim(), newdeform->dim());
 	it.goBegin();

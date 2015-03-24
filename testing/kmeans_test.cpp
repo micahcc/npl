@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file kmeans_test.cpp Test of the KMeans class.
  *
@@ -65,7 +57,7 @@ int main()
         samples.row(ii) += truemeans.row(c);
         trueclass[ii] = c;
     }
- 
+
     /****************************
      * Perform K-Means
      ***************************/
@@ -98,7 +90,7 @@ int main()
     }
 
     cerr << "Class Map: " << cmap.transpose() << endl;
-    
+
     cerr << "True Means:\n";
     for(size_t ii=0; ii<NCLUSTER; ii++) {
         cerr << truemeans.row(cmap[ii]) << endl;
@@ -112,7 +104,7 @@ int main()
             misscount++;
     }
 
-    cerr << misscount << "/" << NSAMPLES << " (" << 
+    cerr << misscount << "/" << NSAMPLES << " (" <<
         (double)misscount/NSAMPLES << ") Incorrect" << endl;
 
     if(err/(NDIM*NCLUSTER) > 0.1) {

@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file imgcompare.cpp Compare two images using some metric
  *
@@ -38,19 +30,19 @@ int main(int argc, char* argv[])
 {
 	cerr << "Version: " << __version__ << endl;
 	try {
-	
+
 	TCLAP::CmdLine cmd("This program takes two images and directly compares "
 			"them with mutual, information, normalized mutual information or "
-			"correlation", 
+			"correlation",
 			' ', __version__ );
 
-	TCLAP::UnlabeledMultiArg<string> a_in("input", "MRI Image to Process.", 
+	TCLAP::UnlabeledMultiArg<string> a_in("input", "MRI Image to Process.",
 			true, "*.nii.gz");
 	cmd.add(a_in);
-	
-	TCLAP::ValueArg<string> a_mask("M", "mask", "Mask image", false, "", 
+
+	TCLAP::ValueArg<string> a_mask("M", "mask", "Mask image", false, "",
 			"image", cmd);
-	
+
 	TCLAP::ValueArg<string> a_scatter("s", "scatter", "Scatter data file will "
 			"have two columns, x,y ", false, "", "*.txt", cmd);
 
@@ -59,7 +51,7 @@ int main(int argc, char* argv[])
 	TCLAP::ValueArg<int> a_radius("R", "radius", "Kernel radius during bin "
 			"process (apprxomating histogram for MI)", false, 8, "radius", cmd);
 
-	std::vector<string> allowed({"cor","mse", "mi", "nmi", "redund", "mim", 
+	std::vector<string> allowed({"cor","mse", "mi", "nmi", "redund", "mim",
 				"dcor", "mid", "zcor", "dice"});
 	TCLAP::ValuesConstraint<string> allowedVals( allowed );
 	TCLAP::ValueArg<string> a_method("m", "metric", "Comparison metric. "
@@ -70,7 +62,7 @@ int main(int argc, char* argv[])
 			"dual correlation (dcor), and MI-based distance (mid).",
 			false, "cor", &allowedVals, cmd);
 	cmd.parse(argc, argv);
-	
+
 	if(a_in.getValue().size() != 2) {
 		cerr << "Error, must provide two and only two images to compare" << endl;
 		return -1;
@@ -83,7 +75,7 @@ int main(int argc, char* argv[])
 
 	for(size_t dd=0; dd<ndim; dd++) {
 		if(img1->dim(dd) != img2->dim(dd)) {
-			cerr << "Image dimension mismatch!" << endl; 
+			cerr << "Image dimension mismatch!" << endl;
 			return -1;
 		}
 	}
@@ -116,7 +108,7 @@ int main(int argc, char* argv[])
 		mask = dPtrCast<MRImage>(mask->extractCast(ndim, mask->dim()));
 		auto maskr = dPtrCast<MRImage>(img1->createAnother(INT8));
 		vector<double> indpt(ndim);
-		
+
 		//resample images together
 		NNInterpNDView<int> vwm(mask);
 		vwm.m_ras = true;
@@ -143,9 +135,9 @@ int main(int argc, char* argv[])
 			mit.goBegin();
 		}
 		for(FlatConstIter<double> it1(img1), it2(img2); !it1.eof(); ++it1, ++it2) {
-			if(!mask || *mit > 0) 
+			if(!mask || *mit > 0)
 				ofs << setprecision(10) << it1.get() << ", " << it2.get() << endl;
-			if(mask) 
+			if(mask)
 				++mit;
 		}
 	}
@@ -153,7 +145,7 @@ int main(int argc, char* argv[])
 	// Compare
 	double sim = 0;
 	cerr << "Perfoming Comparison" << endl;
-	if(a_method.getValue() == "mse") 
+	if(a_method.getValue() == "mse")
 		sim = mse(img1, img2, mask);
 	else if(a_method.getValue() == "mi")
 		sim = information(img1, img2, a_bins.getValue(),
@@ -161,7 +153,7 @@ int main(int argc, char* argv[])
 	else if(a_method.getValue() == "nmi")
 		sim = information(img1, img2, a_bins.getValue(), a_radius.getValue(),
 				METRIC_NMI, mask);
-	else if(a_method.getValue() == "redund") 
+	else if(a_method.getValue() == "redund")
 		sim = information(img1, img2, a_bins.getValue(), a_radius.getValue(),
 				METRIC_REDUNDANCY, mask);
 	else if(a_method.getValue() == "mim")
@@ -173,7 +165,7 @@ int main(int argc, char* argv[])
 	else if(a_method.getValue() == "mid")
 		sim = information(img1, img2, a_bins.getValue(), a_radius.getValue(),
 				METRIC_VI, mask);
-	else if(a_method.getValue() == "zcor") { 
+	else if(a_method.getValue() == "zcor") {
 		sim = corr(img1, img2, mask);
 		sim = .5*log((1+sim)/(1-sim));
 	} else if(a_method.getValue() == "cor")

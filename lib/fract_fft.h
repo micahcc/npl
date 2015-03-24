@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file fract_fft.h
  *
@@ -46,7 +38,7 @@ void interp(int64_t isize, fftw_complex* in, int64_t osize, fftw_complex* out);
  * @param sz 		Size of output array
  * @param chirp 	Output array
  * @param origsz 	Original size, decides maximum frequency reached
- * @param upratio 	Ratio of upsampling performed. This may be different than 
+ * @param upratio 	Ratio of upsampling performed. This may be different than
  * 					sz/origsz
  * @param alpha 	Positive term in exp
  * @param beta 		Negative term in exp
@@ -63,14 +55,14 @@ void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
  * \f[
  * F(u) = SUM f(j) exp(-2 PI i a u j / (N+1)
  * \f]
- * where 
+ * where
  * \f$j = [-N/2,N/2], u = [-N/2, N/2]\f$
  *
  * @param isize size of input/output
  * @param in Input array, may be the same as output, length sz
  * @param out Output array, may be the same as input, length sz
  * @param bsz Buffer size
- * @param a Fraction, 1 = fourier transform, 2 = reverse, 
+ * @param a Fraction, 1 = fourier transform, 2 = reverse,
  * 3 = inverse fourier transform, 4 = identity
  * @param buffer Buffer to do computations in, may be null, in which case new
  * memory will be allocated and deallocated during processing. Note that if
@@ -93,7 +85,7 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 void writePlotReIm(std::string file, size_t insz, fftw_complex* in);
 
 /**
- * @brief Writes a 2D plot of the complex array where both absolute value and 
+ * @brief Writes a 2D plot of the complex array where both absolute value and
  * angle * values are plotted together.
  *
  * @param file Filename base

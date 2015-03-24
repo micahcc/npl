@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file partial_corr_test_big.cpp Test how long it takes to run large partial
  * correlations.
@@ -63,7 +55,7 @@ int main(int argc, char** argv)
 	cerr << "Generating " << NSIG << " signals with " << NTIME << " timepoints." << endl;
 	MatrixXd samples = gensigs(NSIG, NTIME);
 	cerr << "Done" << endl;
-	
+
 	VectorXd mu = samples.rowwise().sum()/NTIME;
 
 	cerr << "Computing Correlation Matrix" << endl;
@@ -80,7 +72,7 @@ int main(int argc, char** argv)
 	cerr << "Done." << endl;
 
 	cerr << "Computing Inverse..." << endl;
-	for(size_t cc=0; cc<NSIG; cc++) 
+	for(size_t cc=0; cc<NSIG; cc++)
 		pinv.col(cc) = solver.solve(pinv.col(cc));
 	cerr << "Done" << endl;
 

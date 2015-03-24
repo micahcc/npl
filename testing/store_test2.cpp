@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file store_test2.cpp
  *
@@ -38,7 +30,7 @@ bool operator()(const tuple<int,int,int>& lhs, const tuple<int,int,int>& rhs)
 		return true;
 	if(std::get<1>(lhs) > std::get<1>(rhs))
 		return false;
-	
+
 	if(std::get<2>(lhs) < std::get<2>(rhs))
 		return true;
 	if(std::get<2>(lhs) > std::get<2>(rhs))
@@ -73,7 +65,7 @@ int main()
 				double val = rand()/(double)RAND_MAX;
 				array1.dbl({ii, jj, kk}, val);
 				img1[make_tuple<int,int,int>(ii,jj,kk)] = val;
-				
+
 				if(array1.dbl({ii, jj, kk}) !=
 						img1[make_tuple<int,int,int>(ii,jj,kk)]) {
 					cerr << "Error difference between map and array" << endl;
@@ -85,7 +77,7 @@ int main()
 			}
 		}
 	}
-	
+
 	cerr << "Comparing Set Values..." << endl;
 	for(size_t ii = 0; ii < array1._m_dim[0]; ii++) {
 		for(size_t jj = 0; jj < array1._m_dim[1]; jj++) {
@@ -101,7 +93,7 @@ int main()
 			}
 		}
 	}
-	
+
 	int64_t radius = 2;
 	cerr << "Kernel..." << endl;
 	for(size_t ii = 0; ii < array1._m_dim[0]; ii++) {
@@ -124,7 +116,7 @@ int main()
 			}
 		}
 	}
-	
+
 	cerr << "Kernel..." << endl;
 	for(size_t ii = 0; ii < array1._m_dim[0]; ii++) {
 		for(size_t jj = 0; jj < array1._m_dim[1]; jj++) {

@@ -1,19 +1,11 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @file fft_rotate_test.cpp A test of automatica computation of the rotation 
+ * @file fft_rotate_test.cpp A test of automatica computation of the rotation
  * axis, based on the pseudo-polar fourier transform
  *
  *****************************************************************************/
@@ -129,7 +121,7 @@ int testChirpz(double alpha)
 	auto line_brute2 = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*length);
 	auto line_fft = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*length);
 	auto line_zoom = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*length);
-	
+
 	if(debug) {
 		cerr << "Test Signal:\n";
 		for(size_t ii=0; ii<length; ii++) {
@@ -145,11 +137,11 @@ int testChirpz(double alpha)
 	n = clock();
 	chirpzFT_brute2(length, line, line_brute2, alpha, debug);
 	brute2_time += clock()-n;
-	
+
 	n = clock();
 	chirpzFFT(length, line, line_fft, alpha, debug);
 	fft_time += clock()-n;
-	
+
 	n = clock();
 	chirpzFT_zoom(length, line, line_zoom, alpha);
 	zoom_time += clock()-n;
@@ -164,7 +156,7 @@ int testChirpz(double alpha)
 	for(size_t ii=0; ii<length; ii++) {
 		complex<double> a(line_brute[ii][0], line_brute[ii][1]);
 		complex<double> b(line_fft[ii][0], line_fft[ii][1]);
-		
+
 		if(abs(a.real() - b.real()) > 0.3) {
 			cerr << "Error, absolute difference in chirpzFFT" << endl;
 			cerr << a.real() << " vs " << b.real() << endl;
@@ -175,7 +167,7 @@ int testChirpz(double alpha)
 			cerr << a.imag() << " vs " << b.imag() << endl;
 			return -1;
 		}
-		
+
 	}
 
 	return 0;
