@@ -2467,9 +2467,10 @@ MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 	std::normal_distribution<double> rdist(0, 1);
 
 	int dims = X.cols();
+	int samples = X.rows();
 
 	//randomize weights
-	MatrixXd proj(dims, dims);
+	MatrixXd proj(samples, dims);
 	MatrixXd Wprev(dims, dims);
 	MatrixXd Wtmp(dims, dims);
 	MatrixXd W(dims, dims);
@@ -2477,7 +2478,7 @@ MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 	VectorXd tmp;
 
 	double nonlin = 0;
-	double arma = -1;
+	double arma = -1e-4;
 	Eigen::HouseholderQR<MatrixXd> qr(W.rows(), W.cols());
 	Eigen::SelfAdjointEigenSolver<MatrixXd> eig;
 #ifndef NDEBUG
@@ -2492,13 +2493,13 @@ MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 	qr.compute(W);
 	W = qr.householderQ()*MatrixXd::Identity(W.rows(), W.cols());
 
-	for(size_t ii=0; ii<ITERS && mag >= MAGTHRESH && nonlin > arma; ii++) {
+	for(size_t ii=0; ii<ITERS && mag >= MAGTHRESH && nonlin - arma >= 1e-5; ii++) {
 		Wprev = W;
 
 		//w^tx
 		proj = X*Wprev;
 
-		nonlin = proj.unaryExpr(std::ptr_fun(fastICA_G2)).sum()/(dims*dims);
+		nonlin = proj.unaryExpr(std::ptr_fun(fastICA_G2)).sum()/(dims*samples);
 		arma = arma*(1-ARMAW) + nonlin*ARMAW;
 
 		//- wp SUM(g'(X wp)))/R
@@ -2524,7 +2525,8 @@ MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 		std::cout << "Vp:\n"<<Wprev<< std::endl;
 		std::cout<<"VtVp:\n"<<wtw<<endl;
 #endif// DEBUG
-		std::cout<<"Change("<<mag<<")"<<" Metric("<<nonlin<<"/"<<arma<<")"<<endl;
+		std::cout<<"Change("<<mag<<")"<<" Metric("<<nonlin<<"-"<<arma
+			<<"="<<(nonlin-arma)<<")"<<endl;
 	}
 #ifndef NDEBUG
 	std::cout<<"Stop with W:\n"<<W<<endl;

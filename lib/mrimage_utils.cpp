@@ -614,7 +614,6 @@ int rotateImageShearKern(ptr<MRImage> inout, double rx, double ry, double rz,
 		cerr << "Warning Shear Rotation with non-isotropic voxels "
 			"experimental!" << endl;
 
-
 	const double PI = acos(-1);
 	if(fabs(rx) > PI/4. || fabs(ry) > PI/4. || fabs(rz) > PI/4.) {
 		cerr << "Fast large rotations not yet implemented" << endl;
