@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file fract_fft.cpp
  *
@@ -48,7 +40,7 @@ namespace npl {
  * @param sz 		Size of output array
  * @param chirp 	Output array
  * @param origsz 	Original size, decides maximum frequency reached
- * @param upratio 	Ratio of upsampling performed. This may be different than 
+ * @param upratio 	Ratio of upsampling performed. This may be different than
  * 					sz/origsz
  * @param alpha 	Positive term in exp
  * @param beta 		Negative term in exp
@@ -60,7 +52,7 @@ void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
 	assert(sz%2==1);
 	const double PI = acos(-1);
 	const complex<double> I(0,1);
-	
+
 	auto fwd_plan = fftw_plan_dft_1d((int)sz, chirp, chirp, FFTW_FORWARD,
 				FFTW_MEASURE | FFTW_PRESERVE_INPUT);
 
@@ -70,7 +62,7 @@ void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
 		chirp[ii+sz/2][0] = tmp.real();
 		chirp[ii+sz/2][1] = tmp.imag();
 	}
-	
+
 	if(fft) {
 		fftw_execute(fwd_plan);
 		double norm = sqrt(1./sz);
@@ -116,7 +108,7 @@ void interp(int64_t isize, fftw_complex* in, int64_t osize, fftw_complex* out)
 	// fill/average pad
 	int64_t radius = 3;
 	double ratio = (double)(isize)/(double)osize;
-	
+
 	// copy/center
 	for(size_t oo=0; oo<osize; oo++) {
 		double cii = ratio*oo;
@@ -151,7 +143,7 @@ void frft_limited_brute(int64_t isize, int64_t usize, int64_t uppadsize,
 	assert(a <= 1.5 && a>= 0.5);
 	assert(uppadsize%2 != 0);
 	assert(usize%2 != 0);
-	
+
 	const double PI = acos(-1);
 	const complex<double> I(0,1);
 	double phi = a*PI/2;
@@ -179,9 +171,9 @@ void frft_limited_brute(int64_t isize, int64_t usize, int64_t uppadsize,
 			alpha, beta, false);
 	createChirp(uppadsize, b_chirp, isize, (double)usize/(double)isize,
 			beta, 0, false);
-	
+
 	interp(isize, inout, usize, upsampled);
-	
+
 	// pre-multiply
 	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
 		complex<double> tmp1(ab_chirp[nn+uppadsize/2][0],
@@ -210,7 +202,7 @@ void frft_limited_brute(int64_t isize, int64_t usize, int64_t uppadsize,
 	}
 #endif //DEBUG
 //
-	
+
 	// multiply
 	/*
 	 * convolve
@@ -240,7 +232,7 @@ void frft_limited_brute(int64_t isize, int64_t usize, int64_t uppadsize,
 		writePlot("brute_convolve.tga", tmp);
 	}
 #endif //DEBUG
-	
+
 	// post-multiply
 	for(int64_t ii=-usize/2; ii<=usize/2; ii++) {
 		complex<double> tmp1(ab_chirp[ii+uppadsize/2][0],
@@ -251,7 +243,7 @@ void frft_limited_brute(int64_t isize, int64_t usize, int64_t uppadsize,
 		upsampled[ii+usize/2][0] = tmp1.real();
 		upsampled[ii+usize/2][1] = tmp1.imag();
 	}
-	
+
 	interp(usize, upsampled, isize, inout);
 }
 
@@ -322,7 +314,7 @@ void frft_limited(int64_t isize, int64_t usize, int64_t uppadsize,
 		writePlot("upin.tga", tmp);
 	}
 #endif //DEBUG
-	
+
 	// pre-multiply
 	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
 		complex<double> tmp1(ab_chirp[nn+uppadsize/2][0],
@@ -381,7 +373,7 @@ void frft_limited(int64_t isize, int64_t usize, int64_t uppadsize,
 		writePlot("rotated.tga", tmp);
 	}
 #endif //DEBUG
-	
+
 	// post-multiply
 	for(int64_t ii=-usize/2; ii<=usize/2; ii++) {
 		complex<double> tmp1(ab_chirp[ii+uppadsize/2][0],
@@ -401,7 +393,7 @@ void frft_limited(int64_t isize, int64_t usize, int64_t uppadsize,
 		writePlot("mult.tga", tmp);
 	}
 #endif //DEBUG
-	
+
 	interp(usize, upsampled, isize, inout);
 
 	fftw_destroy_plan(sigbuff_plan_rev);
@@ -456,7 +448,7 @@ void frft_limited(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		current[ii][1] = in[ii][1];
 	}
 
-	if(nonfft) 
+	if(nonfft)
 		frft_limited_brute(isize, usize, uppadsize, current, &buffer[isize], a+1);
 	else
 		frft_limited(isize, usize, uppadsize, current, &buffer[isize], a+1);
@@ -485,7 +477,7 @@ void frft_limited(size_t isize, fftw_complex* in, fftw_complex* out, double a,
  * @param in Input array, may be the same as output, length sz
  * @param out Output array, may be the same as input, length sz
  * @param bsz Buffer size
- * @param a Fraction, 1 = fourier transform, 2 = reverse, 
+ * @param a Fraction, 1 = fourier transform, 2 = reverse,
  * 3 = inverse fourier transform, 4 = identity
  * @param buffer Buffer to do computations in, may be null, in which case new
  * memory will be allocated and deallocated during processing. Note that if
@@ -501,7 +493,7 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	while(a < 0)
 		a += 4;
 	a = fmod(a, 4);
-	
+
 	// there are 3 sizes: isize: the original size of the input array, usize :
 	// the size of the upsampled array, and uppadsize the padded+upsampled
 	// size, we want both uppadsize and usize to be odd, and we want uppadsize
@@ -594,7 +586,7 @@ void fractional_ft(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		else
 			frft_limited(isize, usize, uppadsize, current,
 					&buffer[isize], a-3);
-		
+
 	}
 
 	// copy current to output
@@ -633,9 +625,9 @@ void chirplet_help_brute(int64_t isize, int64_t usize, int64_t uppadsize,
 			0, alpha, false);
 	createChirp(uppadsize, posa_chirp, isize, (double)usize/(double)isize,
 			alpha, 0, false);
-	
+
 	interp(isize, inout, usize, upsampled);
-	
+
 	// pre-multiply
 	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
 		complex<double> tmp1(nega_chirp[nn+uppadsize/2][0],
@@ -664,7 +656,7 @@ void chirplet_help_brute(int64_t isize, int64_t usize, int64_t uppadsize,
 	}
 #endif //DEBUG
 //
-	
+
 	// multiply
 	/*
 	 * convolve
@@ -694,7 +686,7 @@ void chirplet_help_brute(int64_t isize, int64_t usize, int64_t uppadsize,
 		writePlot("brute_convolve.tga", tmp);
 	}
 #endif //DEBUG
-	
+
 	// post-multiply
 	for(int64_t ii=-usize/2; ii<=usize/2; ii++) {
 		complex<double> tmp1(nega_chirp[ii+uppadsize/2][0],
@@ -705,7 +697,7 @@ void chirplet_help_brute(int64_t isize, int64_t usize, int64_t uppadsize,
 		upsampled[ii+usize/2][0] = tmp1.real();
 		upsampled[ii+usize/2][1] = tmp1.imag();
 	}
-	
+
 	interp(usize, upsampled, isize, inout);
 }
 
@@ -765,7 +757,7 @@ void chirplet_help(int64_t isize, int64_t usize, int64_t uppadsize,
 		writePlot("upin.tga", tmp);
 	}
 #endif //DEBUG
-	
+
 	// pre-multiply
 	for(int64_t nn = -usize/2; nn<=usize/2; nn++) {
 		complex<double> tmp1(nega_chirp[nn+uppadsize/2][0],
@@ -826,7 +818,7 @@ void chirplet_help(int64_t isize, int64_t usize, int64_t uppadsize,
 		writePlot("rotated.tga", tmp);
 	}
 #endif //DEBUG
-	
+
 	// post-multiply
 	for(int64_t ii=-usize/2; ii<=usize/2; ii++) {
 		complex<double> tmp1(nega_chirp[ii+uppadsize/2][0],
@@ -846,7 +838,7 @@ void chirplet_help(int64_t isize, int64_t usize, int64_t uppadsize,
 		writePlot("mult.tga", tmp);
 	}
 #endif //DEBUG
-	
+
 	interp(usize, upsampled, isize, inout);
 
 	fftw_destroy_plan(sigbuff_plan_rev);

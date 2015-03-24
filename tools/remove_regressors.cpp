@@ -1,19 +1,11 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @file remove_regressors.cpp Performs regression on each timesereies then 
+ * @file remove_regressors.cpp Performs regression on each timesereies then
  * removes (decorrelates) the  timeseries with the input regressors. This is
  * useful for removing motion parameters.
  *
@@ -38,12 +30,12 @@ using namespace npl;
 /**
  * @brief Removes the effects of X from signal (y). Note that this takes both X
  * and the pseudoinverse of X because the bulk of the computation will be on
- * the pseudoinverse. 
+ * the pseudoinverse.
  *
  * Beta in OLS may be computed with the pseudoinverse (P):
  * B = Py
  * where P is the pseudoinverse:
- * P = VE^{-1}U^* 
+ * P = VE^{-1}U^*
  *
  * @param signal response term (y), will be modified to remove the effects of X
  * @param X Design matrix, or independent values in colums
@@ -104,13 +96,13 @@ int main(int argc, char** argv)
             // add regressor to list
             regressor_list.push_back(std::vector<double>());
             regressor_list.back().resize(tlen);
-         
+
             pit.goChunkBegin();
-            for(size_t tt=0; !pit.eoc(); ++pit, ++tt) 
+            for(size_t tt=0; !pit.eoc(); ++pit, ++tt)
                 regressor_list.back()[tt] = *pit;
         }
     }
-    
+
     // create regressor matrix
     MatrixXd X(tlen, regressor_list.size());
     size_t cc = 0;
@@ -131,14 +123,14 @@ int main(int argc, char** argv)
 
         // copy to signal
         it.goChunkBegin();
-        for(size_t tt=0; !it.eoc(); ++tt, ++it) 
+        for(size_t tt=0; !it.eoc(); ++tt, ++it)
             signal[tt] = *it;
 
         regressOutLS(signal, X, Xinv);
 
         // write out
         it.goChunkBegin();
-        for(size_t tt=0; !it.eoc(); ++tt, ++it) 
+        for(size_t tt=0; !it.eoc(); ++tt, ++it)
             it.set(signal[tt]);
     }
 

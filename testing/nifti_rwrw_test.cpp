@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file nifti_rwrw_test.cpp
  *
@@ -39,7 +31,7 @@ int main()
 
 	// write version 2 image
 	img1->write("rwrw_test1.nii.gz", 2);
-	
+
 	///////////////////////////////////////
 	// read version 2 image (be verbose)
 	auto img2 = readMRImage("rwrw_test1.nii.gz", true);
@@ -52,7 +44,7 @@ int main()
 			return -1;
 		}
 	}
-	
+
 	// compare metadata
 	if(img1->getDirection() != img2->getDirection()) {
 		cerr << "Error, mismatch of direction matrices between version1 "
@@ -75,12 +67,12 @@ int main()
 		cerr << "Error, mismatch of phase encoding info between version1 "
 			"and version2" << endl;
 	}
-	
+
 	if(img1->m_slicedim != img2->m_slicedim) {
 		cerr << "Error, mismatch of slice encoding info between version1 "
 			"and version2" << endl;
 	}
-	
+
 	if(img1->m_slice_duration != img2->m_slice_duration) {
 		if(img1->m_slice_timing.size() != img2->m_slice_timing.size()) {
 			cerr << "Mismatch in slice timing" << endl;
@@ -94,10 +86,10 @@ int main()
 			}
 		}
 	}
-	
+
 	// write version 1 image
 	img2->write("rwrw_test2.nii.gz", 1);
-	
+
 	///////////////////////////////////////
 	// read version 1 image
 	auto img3 = readMRImage("rwrw_test2.nii.gz", true);
@@ -108,7 +100,7 @@ int main()
 			return -1;
 		}
 	}
-	
+
 	// compare metadata
 	if(img1->getDirection() != img3->getDirection()) {
 		cerr << "Error, mismatch of direction matrices between version1 "
@@ -131,12 +123,12 @@ int main()
 		cerr << "Error, mismatch of phase encoding info between version1 "
 			"and version2" << endl;
 	}
-	
+
 	if(img1->m_slicedim != img3->m_slicedim) {
 		cerr << "Error, mismatch of slice encoding info between version1 "
 			"and version2" << endl;
 	}
-	
+
 	if(img1->m_slice_duration != img3->m_slice_duration) {
 		if(img1->m_slice_timing.size() != img3->m_slice_timing.size()) {
 			cerr << "Mismatch in slice timing" << endl;

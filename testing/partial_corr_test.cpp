@@ -1,19 +1,11 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @file partial_corr_test.cpp Compute partial inverse of a matrix, leading 
+ * @file partial_corr_test.cpp Compute partial inverse of a matrix, leading
  * way to partial correlation compute.
  *
  *****************************************************************************/
@@ -97,7 +89,7 @@ int main()
 			cor2(rr, cc) = corv;
 		}
 	}
-	
+
 	cerr << "Slow Cor: " << endl << cor2 << endl;
 	for(size_t rr=0; rr<NSIG; rr++) {
 		for(size_t cc=0; cc<NSIG; cc++) {
@@ -107,14 +99,14 @@ int main()
 			}
 		}
 	}
-	
+
 	// perform decomposition
 	Eigen::LDLT<MatrixXd> solver;
 	cerr << "Done\nComputing..." << endl;
 	solver.compute(cor);
 	MatrixXd pinv = MatrixXd::Identity(NSIG, NSIG);
 
-	for(size_t cc=0; cc<NSIG; cc++) 
+	for(size_t cc=0; cc<NSIG; cc++)
 		pinv.col(cc) = solver.solve(pinv.col(cc));
 	cerr << "Inverse Corr: " << endl << pinv << endl << endl;
 	cerr << "Should be ident: " << endl << (pinv*cor) << endl << endl;

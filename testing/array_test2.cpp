@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file array_test2.cpp
  *
@@ -38,9 +30,9 @@ int main()
 
 	for(ii = 0; ii < testp->elements(); ii++)
 		(*testp)[ii] = ii;
-	
+
 	clock_t t;
-	
+
 	cerr << "Comparing Direct with Slicer" << endl;
 	ii = 0;
 	double total = 0;
@@ -59,12 +51,12 @@ int main()
 	}
 	t = clock()-t;
 	std::cout << "Time: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
-	
+
 	cerr << "Comparing Direct with Slicer (Through Accessor)" << endl;
 	NDView<double> img(testp);
 	ii = 0;
 	t = clock();
-	
+
 	it.setOrder(order);
 	for(it.goBegin(); !it.isEnd(); ++it, ++ii) {
 		if(img[*it] != (*testp)[ii]) {
@@ -78,7 +70,7 @@ int main()
 	}
 	t = clock()-t;
 	std::cout << "Time: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
-	
+
 	cerr << "Comparing Direct with iterator" << endl;
 	ii = 0;
 	t = clock();
@@ -106,7 +98,7 @@ int main()
 					cerr << "iter, initializer list mismatch" << endl;
 					return -1;
 				}
-				
+
 				index[0] = xx;
 				index[1] = yy;
 				index[2] = zz;
@@ -114,18 +106,18 @@ int main()
 					cerr << "iter, vector mismatch" << endl;
 					return -1;
 				}
-				
-				if(*it != (*testp)[index]) {
-					cerr << "iter, array mismatch" << endl;
-					return -1;
-				}
-			
 
 				if(*it != (*testp)[index]) {
 					cerr << "iter, array mismatch" << endl;
 					return -1;
 				}
-				
+
+
+				if(*it != (*testp)[index]) {
+					cerr << "iter, array mismatch" << endl;
+					return -1;
+				}
+
 				if(*it != (*testp)[ii]) {
 					cerr << "iter, flat mismatch" << endl;
 					return -1;
@@ -134,7 +126,7 @@ int main()
 		}
 	}
 	}
-	
+
 	cerr << "Flat Speed: ";
 	total = 0;
 	t = clock();
@@ -148,7 +140,7 @@ int main()
 	}
 	t = clock()-t;
 	std::cout << "Time: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
-	
+
 	cerr << "Vector Index Speed: ";
 	t = clock();
 	for(int64_t xx=0; xx < testp->dim(0); xx++) {
@@ -163,7 +155,7 @@ int main()
 	}
 	t = clock()-t;
 	std::cout << "Time: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
-	
+
 	cerr << "Iterator Speed: ";
 	t = clock();
 	it.goBegin();
@@ -176,7 +168,7 @@ int main()
 	}
 	t = clock()-t;
 	std::cout << "Time: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
-	
+
 	cerr << "Initializer List Speed: ";
 	t = clock();
 	for(int64_t xx=0; xx < testp->dim(0); xx++) {
@@ -189,7 +181,7 @@ int main()
 	t = clock()-t;
 	std::cout << "Time: " << ((double)t)/CLOCKS_PER_SEC << " s.\n";
 
-	
+
 	return 0;
 }
 

@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file chirpz.cpp Functions for performing the chirpz transform
  *
@@ -47,7 +39,7 @@ void interp(int64_t isize, fftw_complex* in, int64_t osize, fftw_complex* out)
 	// fill/average pad
 	int64_t radius = 3;
 	double ratio = (double)(isize)/(double)osize;
-	
+
 	// copy/center
 	for(size_t oo=0; oo<osize; oo++) {
 		double cii = ratio*oo;
@@ -68,10 +60,10 @@ void interp(int64_t isize, fftw_complex* in, int64_t osize, fftw_complex* out)
 /**
  * @brief Fills the input array (chirp) with a chirp of the specified type
  *
- * @param sz 		Size of output array 
+ * @param sz 		Size of output array
  * @param chirp 	Output array
  * @param origsz 	Original size, decides maximum frequency reached
- * @param upratio 	Ratio of upsampling performed. This may be different than 
+ * @param upratio 	Ratio of upsampling performed. This may be different than
  * 					sz/origsz
  * @param alpha 	Positive term in exp
  * @param fft 		Whether to fft the output (put it in frequency domain)
@@ -82,13 +74,13 @@ void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
 //	assert(sz%2==1);
 	const double PI = acos(-1);
 	const complex<double> I(0,1);
-	
+
 	auto fwd_plan = fftw_plan_dft_1d((int)sz, chirp, chirp, FFTW_FORWARD,
 				FFTW_MEASURE | FFTW_PRESERVE_INPUT);
 
 	for(int64_t ii=0; ii<sz; ii++) {
 		double xx = 0;
-		if(center) 
+		if(center)
 			xx = (ii-sz/2.)/upratio;
 		else
 			xx = ii/upratio;
@@ -96,7 +88,7 @@ void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
 		chirp[ii][0] = tmp.real();
 		chirp[ii][1] = tmp.imag();
 	}
-	
+
 	if(fft) {
 		fftw_execute(fwd_plan);
 		double norm = 1./sz;
@@ -110,7 +102,7 @@ void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
 }
 
 /**
- * @brief Performs chirpz transform with a as fractional parameter by N^2 
+ * @brief Performs chirpz transform with a as fractional parameter by N^2
  * algorithm.
  *
  * @param isize Length of input array
@@ -120,7 +112,7 @@ void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
  * @param alpha	Fraction/Alpha To raise exp() term to
  * @param debug Whether to write out debug information (including plots!)
  */
-void chirpzFT_brute2(size_t isize, size_t usize, fftw_complex* inout, 
+void chirpzFT_brute2(size_t isize, size_t usize, fftw_complex* inout,
 		fftw_complex* buffer, double alpha, bool debug)
 {
 	const complex<double> I(0,1);
@@ -132,7 +124,7 @@ void chirpzFT_brute2(size_t isize, size_t usize, fftw_complex* inout,
 		buffer[ii][1] = 0;
 	}
 
-	fftw_complex* upsampled = &buffer[0]; 
+	fftw_complex* upsampled = &buffer[0];
 
 	if(debug) {
 		writePlotReIm("brute2_in.svg", isize, inout);
@@ -145,7 +137,7 @@ void chirpzFT_brute2(size_t isize, size_t usize, fftw_complex* inout,
 	}
 
 	std::vector<complex<double>> workspace(usize);
-	
+
 	// pre-multiply
 	for(int64_t nn = 0; nn<usize; nn++) {
 		complex<double> tmp1(upsampled[nn][0], upsampled[nn][1]);
@@ -182,7 +174,7 @@ void chirpzFT_brute2(size_t isize, size_t usize, fftw_complex* inout,
 	if(debug) {
 		writePlotReIm("brute2_convolve.svg", workspace);
 	}
-	
+
 	for(int64_t nn = 0; nn<usize; nn++) {
 		double ff = (double)nn - usize/2.;
 		double freq = (double)ff*isize/usize; // go to isize frequency, not usize
@@ -196,9 +188,9 @@ void chirpzFT_brute2(size_t isize, size_t usize, fftw_complex* inout,
 	if(debug) {
 		writePlotReIm("brute2_postmult.svg", usize, upsampled);
 	}
-	
+
 	interp(usize, upsampled, isize, inout);
-	
+
 	if(debug) {
 		writePlotReIm("brute2_out.svg", isize, inout);
 	}
@@ -213,7 +205,7 @@ void chirpzFT_brute2(size_t isize, size_t usize, fftw_complex* inout,
  * @param a Fraction of full space to compute
  * @param debug Write out diagnostic plots
  */
-void chirpzFT_brute2(size_t isize, fftw_complex* in, fftw_complex* out, double a, 
+void chirpzFT_brute2(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		bool debug)
 {
 	// there are 3 sizes: isize: the original size of the input array, usize :
@@ -226,7 +218,7 @@ void chirpzFT_brute2(size_t isize, fftw_complex* in, fftw_complex* out, double a
 	size_t bsz = isize+usize;
 	auto buffer = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*bsz);
 	fftw_complex* current = &buffer[0];
-	
+
 	// copy input to buffer, must shift because of chirp being centered
 //	std::rotate_copy(&in[0][0], &in[isize/2][0], &in[isize][0], &current[0][0]);
 	std::copy(&in[0][0], &in[isize][0], &current[0][0]);
@@ -243,7 +235,7 @@ void chirpzFT_brute2(size_t isize, fftw_complex* in, fftw_complex* out, double a
 }
 
 /**
- * @brief Comptues the chirpzFFT transform by interpolating a pre-computed 
+ * @brief Comptues the chirpzFFT transform by interpolating a pre-computed
  * space line. Note 0 <= a <= 1, to choose positive versus negative you must
  * do a forward (negative) or backward (positive) FFT first
  *
@@ -254,14 +246,14 @@ void chirpzFT_brute2(size_t isize, fftw_complex* in, fftw_complex* out, double a
  */
 void zoom(size_t isize, fftw_complex* in, fftw_complex* out, double a)
 {
-	if(in == out) 
+	if(in == out)
 		throw std::invalid_argument("Input/Output cannot be equal");
 	if(a < -1 || a > 1)
 		throw std::invalid_argument("Zoom (a) must satisfy: 0 <= a <= 1");
-	
+
 	// fill/average pad
 	int64_t radius = 4;
-	
+
 	// copy/center
 	for(size_t oo=0; oo<isize; oo++) {
 //		double cii = (oo-((isize-1.)/2.))*a+(isize-1.)/2.;
@@ -289,7 +281,7 @@ void zoom(size_t isize, fftw_complex* in, fftw_complex* out, double a)
  * @param out	Output line
  * @param a		Zoom factor (alpha)
  */
-void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out, 
+void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out,
 		double a)
 {
  	auto buffer = (fftw_complex* )fftw_malloc(sizeof(fftw_complex)*isize);
@@ -306,7 +298,7 @@ void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out,
  * @param buffer	Buffer, should be size isize
  * @param a			Zoom factor (alpha)
  */
-void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out, 
+void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out,
 		fftw_complex* buffer, double a)
 {
 	if(a > 1 || a < -1)
@@ -321,7 +313,7 @@ void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out,
 
 	fftw_execute(plan);
 
-	// normalize 
+	// normalize
 	double norm = 1./isize;
 	for(size_t ii=0; ii<isize; ii++) {
 		buffer[ii][0] *= norm;
@@ -345,7 +337,7 @@ void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out,
  * @param a Fraction of full space to compute
  * @param debug Write out diagnostic plots
  */
-void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a, 
+void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		bool debug)
 {
 	// there are 3 sizes: isize: the original size of the input array, usize :
@@ -363,7 +355,7 @@ void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	auto prechirp = &buffer[isize+uppadsize];
 	auto postchirp = &buffer[isize+2*uppadsize];
 	auto convchirp = &buffer[isize+3*uppadsize];
-	
+
 	createChirp(uppadsize, prechirp, isize, upratio, a, false, false);
 	createChirp(uppadsize, postchirp, isize, upratio, a, true, false);
 	createChirp(uppadsize, convchirp, isize, upratio, -a, true, true);
@@ -371,7 +363,7 @@ void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 	// copy input to buffer
 	std::copy(&in[0][0], &in[isize][0], &current[0][0]);
 
-	chirpzFFT(isize, usize, current, uppadsize, &buffer[isize], 
+	chirpzFFT(isize, usize, current, uppadsize, &buffer[isize],
 			prechirp, convchirp, postchirp, debug);
 
 	// copy current to output
@@ -390,7 +382,7 @@ void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
  * if you are running a large number of inputs with the same alpha
  *
  * @param isize 	Size of input/output
- * @param usize 	Size that we should upsample input to 
+ * @param usize 	Size that we should upsample input to
  * @param inout		Input array, length sz
  * @param uppadsize	Padded+upsampled array size
  * @param buffer	Complex buffer used for upsampling, size = uppadsize
@@ -401,8 +393,8 @@ void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
  * @param postchirp Same as prechirp, but shifted
  * @param debug     Write out diagnostic plots
  */
-void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout, 
-		size_t uppadsize, fftw_complex* buffer, fftw_complex* prechirp, 
+void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
+		size_t uppadsize, fftw_complex* buffer, fftw_complex* prechirp,
 		fftw_complex* convchirp, fftw_complex* postchirp, bool debug)
 {
 	const complex<double> I(0,1);
@@ -433,7 +425,7 @@ void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
 	if(debug) {
 		writePlotReIm("fft_upin.svg", usize, upsampled);
 	}
-	
+
 	// pre-multiply
 	for(int64_t nn = 0; nn<usize; nn++) {
 		complex<double> tmp1(prechirp[nn][0], prechirp[nn][1]);
@@ -465,13 +457,13 @@ void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
 		sigbuff[ii][1] = tmp1.imag();
 	}
 	fftw_execute(sigbuff_plan_rev);
-	
-	normfactor = uppadsize; 
+
+	normfactor = uppadsize;
 	for(size_t ii=0; ii<uppadsize; ii++) {
 		sigbuff[ii][0] *= normfactor;
 		sigbuff[ii][1] *= normfactor;
 	}
-	
+
 	if(debug) {
 		writePlotReIm("fft_convolve.svg", uppadsize, sigbuff);
 	}
@@ -482,9 +474,9 @@ void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
 	if(debug) {
 		writePlotReIm("fft_rotated.svg", uppadsize, sigbuff);
 	}
-	
+
 	for(int64_t nn = 0; nn<usize; nn++) {
-		complex<double> tmp1(postchirp[nn+uppadsize/2-usize/2][0], 
+		complex<double> tmp1(postchirp[nn+uppadsize/2-usize/2][0],
 				postchirp[nn+uppadsize/2-usize/2][1]);
 		complex<double> tmp2(upsampled[nn][0], upsampled[nn][1]);
 		tmp1 *= tmp2;
@@ -496,9 +488,9 @@ void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
 	if(debug) {
 		writePlotReIm("fft_postmult.svg", uppadsize, sigbuff);
 	}
-	
+
 	interp(usize, upsampled, isize, inout);
-	
+
 	if(debug) {
 		writePlotReIm("fft_out.svg", isize, inout);
 	}
@@ -508,7 +500,7 @@ void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
 }
 
 /**
- * @brief Performs chirpz transform with a as fractional parameter by N^2 
+ * @brief Performs chirpz transform with a as fractional parameter by N^2
  * algorithm.
  *
  * @param len	Length of input array
@@ -530,7 +522,7 @@ void chirpzFT_brute(size_t len, fftw_complex* in, fftw_complex* out, double a)
 		for(int64_t jj=0; jj<ilen; jj++) {
 			complex<double> tmp1(in[jj][0], in[jj][1]);
 			complex<double> tmp2 = tmp1*std::exp(-2.*PI*I*a*(double)jj*ff/(double)ilen);
-			
+
 			out[ii][0] += tmp2.real();
 			out[ii][1] += tmp2.imag();
 		}

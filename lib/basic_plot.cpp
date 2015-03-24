@@ -1,19 +1,11 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @file tga_test1.cpp Tests function plotting, 
+ * @file tga_test1.cpp Tests function plotting,
  *
  *****************************************************************************/
 
@@ -46,7 +38,7 @@ void Plotter::clear()
 	xrange[1] = NAN;
 	yrange[0] = NAN;
 	yrange[1] = NAN;
-	
+
 	colors.clear();
 	colors.push_back(StyleT("r"));
 	colors.push_back(StyleT("g"));
@@ -85,16 +77,16 @@ vector<pair<double,double>> computeTicks(double low, double hi, double res)
 
 	if(step == 0)
 		return ticks;
-#ifdef DEBUG	
+#ifdef DEBUG
 	cerr << low << "-" << hi << endl;
-#endif //DEBUG	
+#endif //DEBUG
 	double rounded = ceil((low+step/3.)/step);
 	while(rounded < hi) {
 		double coord = (rounded-low)/res;
 		ticks.push_back(make_pair(coord, rounded));
-#ifdef DEBUG	
+#ifdef DEBUG
 		cerr << coord << "=" << rounded << endl;
-#endif //DEBUG	
+#endif //DEBUG
 		rounded += step;
 	}
 
@@ -126,7 +118,7 @@ void Plotter::computeRange(size_t xres)
 		for(auto& arr : arrs) {
 			auto& xarr = std::get<1>(arr);
 			for(auto& v: xarr) {
-				if(v < xrange[0]) 
+				if(v < xrange[0])
 					xrange[0] = v;
 			}
 		}
@@ -139,13 +131,13 @@ void Plotter::computeRange(size_t xres)
 		for(auto& arr : arrs) {
 			auto& xarr = std::get<1>(arr);
 			for(auto& v: xarr) {
-				if(v > xrange[1]) 
+				if(v > xrange[1])
 					xrange[1] = v;
 			}
 		}
 
 		double pad = (xrange[1]-xrange[0])*.15;
-		if(pad_x) 
+		if(pad_x)
 			xrange[0] -= pad/2;
 		xrange[1] += pad/2;
 	}
@@ -158,11 +150,11 @@ void Plotter::computeRange(size_t xres)
 		for(auto& arr : arrs) {
 			auto& yarr = std::get<2>(arr);
 			for(auto& v: yarr) {
-				if(v < yrange[0]) 
+				if(v < yrange[0])
 					yrange[0] = v;
 			}
 		}
-		
+
 		// from functions, use breaking up x range
 		for(auto& functup: funcs) {
 			auto& func = std::get<1>(functup);
@@ -176,7 +168,7 @@ void Plotter::computeRange(size_t xres)
 		}
 		pad_y = true;
 	}
-	
+
 	if(std::isnan(yrange[1]) || std::isinf(yrange[1])) {
 		// compute minimum
 		yrange[1] = -INFINITY;
@@ -185,11 +177,11 @@ void Plotter::computeRange(size_t xres)
 		for(auto& arr : arrs) {
 			auto& yarr = std::get<2>(arr);
 			for(auto& v: yarr) {
-				if(v > yrange[1]) 
+				if(v > yrange[1])
 					yrange[1] = v;
 			}
 		}
-		
+
 		// from functions, use breaking up x range
 		for(auto& functup: funcs) {
 			auto& func = std::get<1>(functup);
@@ -203,7 +195,7 @@ void Plotter::computeRange(size_t xres)
 		}
 
 		double pad = (yrange[1]-yrange[0])*.15;
-		if(pad_y) 
+		if(pad_y)
 			yrange[0] -= pad/2;
 		yrange[1] += pad/2;
 	}
@@ -227,14 +219,14 @@ int Plotter::writeTGA(size_t xres, size_t yres, std::string fname)
 	o.put(0); //ID
 	o.put(0); //Color Map Type
 	o.put(10); // run length encoded truecolor
-	
+
 	// color map
 	o.put(0);
 	o.put(0);
 	o.put(0);
 	o.put(0);
 	o.put(0);
-	
+
 	//X origin
 	o.put(0);
 	o.put(0);
@@ -246,18 +238,18 @@ int Plotter::writeTGA(size_t xres, size_t yres, std::string fname)
 	//width
 	o.put((xres & 0x00FF));
 	o.put((xres & 0xFF00) / 256);
-	
+
 	//height
 	o.put((yres & 0x00FF));
 	o.put((yres & 0xFF00) / 256);
-	
+
 	//depth
 	o.put(32); /* 8 bit bitmap */
-	
+
 	//descriptor
 	o.put(8); // 8 for RGBA
 
-	// before performing run-length encoding, we need to fill a buffer 
+	// before performing run-length encoding, we need to fill a buffer
 	rgba* buffer = new rgba[xres*yres];
 	for(size_t ii=0; ii<xres*yres; ii++) {
 		buffer[ii][0] = 255;
@@ -287,7 +279,7 @@ int Plotter::writeTGA(size_t xres, size_t yres, std::string fname)
 			double yp = (yarr[ii-1]-yrange[0])/ystep;
 			double yf = (yarr[ii]-yrange[0])/ystep;
 			double dy = yf-yp;
-			
+
 			// we want to take steps less than 1 in the fastest moving direction
 			if(fabs(dx) > fabs(dy)) {
 				dy /= (fabs(dx)+1);
@@ -323,7 +315,7 @@ int Plotter::writeTGA(size_t xres, size_t yres, std::string fname)
 			}
 		}
 	}
-	
+
 	for(auto& func: funcs) {
 		auto& sty = std::get<0>(func);
 		auto& foo = std::get<1>(func);
@@ -344,7 +336,7 @@ int Plotter::writeTGA(size_t xres, size_t yres, std::string fname)
 			yip = yi;
 			int64_t yind = round(yi);
 			int64_t xind = round((xx-xrange[0])/xstep);
-			
+
 			buffer[yind*xres + xind][0] = sty.rgba[0];
 			buffer[yind*xres + xind][1] = sty.rgba[1];
 			buffer[yind*xres + xind][2] = sty.rgba[2];
@@ -354,23 +346,23 @@ int Plotter::writeTGA(size_t xres, size_t yres, std::string fname)
 
 	for(size_t ii=0; ii<xres*yres; ) {
 
-		/* 
+		/*
 		 * Determine Run Length
 		 */
-		
+
 		// find longest run from here
 		size_t runlen = 1;
 		while(ii+runlen<xres*yres && runlen<=128) {
 			if(buffer[ii][0] != buffer[ii+runlen][0] ||
-						buffer[ii][1] != buffer[ii+runlen][1] || 
-						buffer[ii][2] != buffer[ii+runlen][2] || 
+						buffer[ii][1] != buffer[ii+runlen][1] ||
+						buffer[ii][2] != buffer[ii+runlen][2] ||
 						buffer[ii][3] != buffer[ii+runlen][3]) {
 				break;
 			} else {
 				runlen++;
 			}
 		}
-		
+
 		if(runlen > 128)
 			runlen = 128;
 
@@ -385,7 +377,7 @@ int Plotter::writeTGA(size_t xres, size_t yres, std::string fname)
 		} else {
 			// determine how long things are changing for
 			runlen = 1;
-			while(ii+runlen < xres*yres && runlen<=128) { 
+			while(ii+runlen < xres*yres && runlen<=128) {
 				if(buffer[ii+runlen-1][0] == buffer[ii+runlen][0] &&
 						buffer[ii+runlen-1][1] == buffer[ii+runlen][1] &&
 						buffer[ii+runlen-1][2] == buffer[ii+runlen][2] &&
@@ -407,7 +399,7 @@ int Plotter::writeTGA(size_t xres, size_t yres, std::string fname)
 		}
 		ii += runlen;
 	}
-	
+
 	//close the file
 	o.close();
 	return 0;
@@ -420,16 +412,16 @@ int Plotter::writeSVG(size_t xres, size_t yres, std::string fname)
 		return -1;
 	}
 
-	o << "<svg viewBox=\"0 0 " << xres << " " 
+	o << "<svg viewBox=\"0 0 " << xres << " "
 		<< yres << "\" xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\"> "
-		<< endl << "<descr>Hello world</descr>" << endl 
+		<< endl << "<descr>Hello world</descr>" << endl
 		<< "<g transform=\"matrix(1,0,0,-1,0,0) translate(0,-768)\">" << endl;
 
 	computeRange(xres);
 	double xstep = (xrange[1]-xrange[0])/xres;
 	double ystep = (yrange[1]-yrange[0])/yres;
 
-	// arrays 
+	// arrays
 	for(auto& arr: arrs) {
 		auto& sty = std::get<0>(arr);
 		auto& xarr = std::get<1>(arr);
@@ -447,7 +439,7 @@ int Plotter::writeSVG(size_t xres, size_t yres, std::string fname)
 			o << hex << setfill('0') << setw(2) << (int)sty.rgba[ii];
 		o << dec << "\"></polyline>"<< endl;
 	}
-	
+
 	// functions
 	for(auto& func: funcs) {
 		auto& sty = std::get<0>(func);
@@ -491,18 +483,18 @@ int Plotter::writeSVG(size_t xres, size_t yres, std::string fname)
 	// add x labels
 	for(auto& p:xticks) {
 		o << "<text x=\"" << p.first << "\" y=\"" << -10.
-			<< "\" fill=\"black\" transform=\"translate(-10) matrix(1,0,0,-1,0,0)\">" 
+			<< "\" fill=\"black\" transform=\"translate(-10) matrix(1,0,0,-1,0,0)\">"
 			<< setprecision(3) << p.second << "</text>" << endl;
 	}
-	
+
 	// add y labels
 	for(auto& p:yticks) {
-		o << "<text x=\"" << 15 << "\" y=\"-" << p.first-4 
-			<< "\" fill=\"black\" transform=\"matrix(1,0,0,-1,0,0)\">" 
+		o << "<text x=\"" << 15 << "\" y=\"-" << p.first-4
+			<< "\" fill=\"black\" transform=\"matrix(1,0,0,-1,0,0)\">"
 			<< setprecision(3) << p.second << "</text>" << endl;
 	}
-//	
-//	// add x labels 
+//
+//	// add x labels
 //	real = xrange[0];
 //	coord = xres/nticks;
 //	real = coord*xstep + xrange[0];
@@ -510,7 +502,7 @@ int Plotter::writeSVG(size_t xres, size_t yres, std::string fname)
 //	coord = (rounded-xrange[0])/xstep;
 //	while(coord < xres) {
 //		o << "<text x=\"" << coord << "\" y=\"" << -10.
-//			<< "\" fill=\"black\" transform=\"translate(-10) matrix(1,0,0,-1,0,0)\">" 
+//			<< "\" fill=\"black\" transform=\"translate(-10) matrix(1,0,0,-1,0,0)\">"
 //			<< setprecision(3) << rounded << "</text>" << endl;
 //		coord += xres/nticks;
 //		real = coord*xstep + xrange[0];
@@ -524,8 +516,8 @@ int Plotter::writeSVG(size_t xres, size_t yres, std::string fname)
 //	rounded = ceil(real);
 //	coord = (rounded-yrange[0])/ystep;
 //	while(coord < yres) {
-//		o << "<text x=\"" << 15 << "\" y=\"-" << coord-4 
-//			<< "\" fill=\"black\" transform=\"matrix(1,0,0,-1,0,0)\">" 
+//		o << "<text x=\"" << 15 << "\" y=\"-" << coord-4
+//			<< "\" fill=\"black\" transform=\"matrix(1,0,0,-1,0,0)\">"
 //			<< setprecision(3) << rounded << "</text>" << endl;
 //		coord += yres/nticks;
 //		real = coord*ystep + yrange[0];
@@ -629,7 +621,7 @@ void Plotter::addArray(size_t sz, const double* array)
 		tmpx[ii] = ii;
 		tmpy[ii] = array[ii];
 	}
-	
+
 	arrs.push_back(std::make_tuple(*curr_color, tmpx, tmpy));
 
 	curr_color++;
@@ -647,7 +639,7 @@ void Plotter::addArray(size_t sz, const double* xarr, const double* yarr)
 	}
 
 	arrs.push_back(std::make_tuple(*curr_color, tmpx, tmpy));
-	
+
 	curr_color++;
 	if(curr_color == colors.end())
 		curr_color = colors.begin();

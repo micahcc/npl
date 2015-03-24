@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file ndarray_accessor_test1.cpp
  *
@@ -39,7 +31,7 @@ int test1d(std::vector<size_t>& size, size_t bytes, size_t elements)
 
 	if(bytes != arr->bytes())
 		return -1;
-	
+
 	if(elements != arr->elements())
 		return -2;
 
@@ -58,7 +50,7 @@ int test1d(std::vector<size_t>& size, size_t bytes, size_t elements)
 	if(count != size[0]) {
 		return -3;
 	}
-	
+
 	for(index[0] = 0; index[0] < arr->dim(0); index[0]++) {
 		try {
 			double v = arrA[index];
@@ -84,7 +76,7 @@ int test2d(std::vector<size_t>& size, size_t bytes, size_t elements)
 
 	if(bytes != arr->bytes())
 		return -1;
-	
+
 	if(elements != arr->elements())
 		return -2;
 
@@ -104,7 +96,7 @@ int test2d(std::vector<size_t>& size, size_t bytes, size_t elements)
 	if(count != elements) {
 		return -3;
 	}
-	
+
 	for(index[0] = 0; index[0] < arr->dim(0); index[0]++) {
 		for(index[1] = 0; index[1] < arr->dim(1); index[1]++, count++) {
 
@@ -133,7 +125,7 @@ int test3d(std::vector<size_t>& size, size_t bytes, size_t elements)
 
 	if(bytes != arr->bytes())
 		return -1;
-	
+
 	if(elements != arr->elements())
 		return -2;
 
@@ -155,7 +147,7 @@ int test3d(std::vector<size_t>& size, size_t bytes, size_t elements)
 	if(count != elements) {
 		return -3;
 	}
-	
+
 	for(index[0] = 0; index[0] < arr->dim(0); index[0]++) {
 		for(index[1] = 0; index[1] < arr->dim(1); index[1]++) {
 			for(index[2] = 0; index[2] < arr->dim(2); index[2]++) {
@@ -186,7 +178,7 @@ int test5d(std::vector<size_t>& size, size_t bytes, size_t elements)
 
 	if(bytes != arr->bytes())
 		return -1;
-	
+
 	if(elements != arr->elements())
 		return -2;
 
@@ -212,7 +204,7 @@ int test5d(std::vector<size_t>& size, size_t bytes, size_t elements)
 	if(count != elements) {
 		return -3;
 	}
-	
+
 	for(index[0] = 0; index[0] < arr->dim(0); index[0]++) {
 		for(index[1] = 0; index[1] < arr->dim(1); index[1]++) {
 			for(index[2] = 0; index[2] < arr->dim(2); index[2]++) {
@@ -249,7 +241,7 @@ int main()
 		cerr << "Error during 1d long doubletest" << endl;
 		return -1;
 	}
-	
+
 	sz.assign({31,3});
 	if(test2d<float>(sz, 31*3*sizeof(float), 31*3) < 0){
 		cerr << "Error during 2d float test" << endl;
@@ -259,7 +251,7 @@ int main()
 		cerr << "Error during 2d long double test" << endl;
 		return -1;
 	}
-	
+
 	sz.assign({17,9,3});
 	if(test3d<double>(sz, 17*9*3*sizeof(double), 17*9*3) < 0){
 		cerr << "Error during 3d double test" << endl;
@@ -269,7 +261,7 @@ int main()
 		cerr << "Error during 3d long double test" << endl;
 		return -1;
 	}
-	
+
 	sz.assign({7,9,8,10,6});
 	if(test5d<double>(sz, 7*9*8*10*6*sizeof(double), 7*9*8*10*6) < 0){
 		cerr << "Error during 5d double test" << endl;

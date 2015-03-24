@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file matrix.h
  *
@@ -41,7 +33,7 @@ public:
 	 * @return Value at (row,0)
 	 */
 	virtual double& operator[](size_t row) = 0;
-	
+
 	/**
 	 * @brief Returns value at given row/column.
 	 *
@@ -51,7 +43,7 @@ public:
 	 * @return Value at (row,col)
 	 */
 	virtual double& operator()(size_t row, size_t col = 0) = 0;
-	
+
 	/**
 	 * @brief Returns row in column 0.
 	 *
@@ -60,7 +52,7 @@ public:
 	 * @return Value at (row,0)
 	 */
 	virtual const double& operator[](size_t row) const = 0;
-	
+
 	/**
 	 * @brief Returns value at given row/column.
 	 *
@@ -81,7 +73,7 @@ public:
 	 * @param out Output of matrix-vector product
 	 */
 	virtual void mvproduct(const MatrixP* rhs, MatrixP* out) const = 0;
-	
+
 	/**
 	 * @brief Performs matrix-vector product of right hand side (rhs) and
 	 * the current matrix, writing the result in out. RHS and OUT are
@@ -138,7 +130,7 @@ public:
 			}
 		}
 	};
-	
+
 
 	/**
 	 * @brief Constructor, sets the entire matrix to the given constant
@@ -152,7 +144,7 @@ public:
 			}
 		}
 	};
-	
+
 	/**
 	 * @brief Initialize a matrix from array of length l, made up of an array
 	 * at v*. Missing values are assumed to be 0, extra values ignored.
@@ -171,7 +163,7 @@ public:
 			}
 		}
 	};
-	
+
 	/**
 	 * @brief Initialize a matrix from array of length l, made up of an array
 	 * at v*. Missing values are assumed to be 0, extra values ignored.
@@ -190,7 +182,7 @@ public:
 			}
 		}
 	};
-	
+
 	/**
 	 * @brief Initialize matrix with vector, any missing values will be assumed
 	 * zero, extra values are ignored.
@@ -210,7 +202,7 @@ public:
 			}
 		}
 	};
-	
+
 	/**
 	 * @brief Initialize matrix with vector, any missing values will be assumed
 	 * zero, extra values are ignored.
@@ -228,7 +220,7 @@ public:
 			}
 		}
 	};
-	
+
 	/**
 	 * @brief Initialize matrix with vector, any missing values will be assumed
 	 * zero, extra values are ignored.
@@ -344,7 +336,7 @@ public:
 	 * @param out Output of matrix-vector product
 	 */
 	void mvproduct(const MatrixP* rhs, MatrixP* out) const;
-	
+
 	/**
 	 * @brief Performs matrix-vector product of right hand side (rhs) and
 	 * the current matrix, writing the result in out. RHS and OUT are
@@ -355,7 +347,7 @@ public:
 	 * @param out Output of matrix-vector product
 	 */
 	void mvproduct(const MatrixP& rhs, MatrixP& out) const;
-	
+
 //	void mvproduct(const std::vector<double>& rhs,
 //			std::vector<double>& out) const;
 //	void mvproduct(const std::vector<size_t>& rhs,
@@ -570,21 +562,21 @@ Matrix<D1+D2,D1+D2> join(const Matrix<D1,D1>& tl, const Matrix<D1, D2>& tr,
 			out(rr,cc) = tl(rr,cc);
 		}
 	}
-	
+
 	// top right
 	for(size_t rr=0; rr<D1; rr++) {
 		for(size_t cc=0; cc<D2; cc++) {
 			out(rr,cc+D1) = tr(rr,cc);
 		}
 	}
-	
+
 	// bottom left
 	for(size_t rr=0; rr<D2; rr++) {
 		for(size_t cc=0; cc<D1; cc++) {
 			out(rr+D1,cc) = bl(rr,cc);
 		}
 	}
-	
+
 	// bottom right
 	for(size_t rr=0; rr<D2; rr++) {
 		for(size_t cc=0; cc<D2; cc++) {
@@ -606,21 +598,21 @@ void split(const Matrix<D1+D2, D1+D2>& input,
 			tl(rr,cc) = input(rr,cc);
 		}
 	}
-	
+
 	// top right
 	for(size_t rr=0; rr<D1; rr++) {
 		for(size_t cc=0; cc<D2; cc++) {
 			tr(rr,cc)= input(rr, cc+D1);
 		}
 	}
-	
+
 	// bottom left
 	for(size_t rr=0; rr<D2; rr++) {
 		for(size_t cc=0; cc<D1; cc++) {
 			bl(rr,cc) = input(rr+D1,cc);
 		}
 	}
-	
+
 	// bottom right
 	for(size_t rr=0; rr<D2; rr++) {
 		for(size_t cc=0; cc<D2; cc++) {
@@ -664,7 +656,7 @@ double det(const Matrix<DIM, DIM>& trg)
 	Matrix<(DIM+1)/2,DIM/2> C;
 	Matrix<(DIM+1)/2,(DIM+1)/2> D;
 	split(trg, A, B, C, D);
-	
+
 	auto AI = inverse(A);
 	double a = det(A)*det(D-C*AI*B);
 
@@ -771,7 +763,7 @@ Matrix<DIM, DIM> inverse(const Matrix<DIM, DIM>& trg)
 	Matrix<(DIM+1)/2,DIM/2> C;
 	Matrix<(DIM+1)/2,(DIM+1)/2> D;
 	split(trg, A, B, C, D);
-	
+
 	auto AI = inverse(A);
 	auto betaI = inverse(D-C*AI*B);
 
@@ -779,7 +771,7 @@ Matrix<DIM, DIM> inverse(const Matrix<DIM, DIM>& trg)
 	auto tr = -AI*B*betaI;
 	auto bl = -betaI*C*AI;
 	auto br = betaI;
-	
+
 	auto ret = join(tl, tr, bl, br);
 
 	return ret;

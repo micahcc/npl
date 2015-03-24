@@ -1,19 +1,11 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @file shear_test.cpp Test to show that shearing using the fourier transform 
+ * @file shear_test.cpp Test to show that shearing using the fourier transform
  * on each line works as well as manual shearing.
  *
  *****************************************************************************/
@@ -43,7 +35,7 @@ int closeCompare(shared_ptr<const MRImage> a, shared_ptr<const MRImage> b)
 		cerr << "Error image dimensionality differs" << endl;
 		return -1;
 	}
-	
+
 	for(size_t dd=0; dd<a->ndim(); dd++) {
 		if(a->dim(dd) != b->dim(dd)) {
 			cerr << "Image size in the " << dd << " direction differs" << endl;
@@ -87,16 +79,16 @@ shared_ptr<MRImage> manualShearImage(shared_ptr<MRImage> in, size_t dir,
 	ChunkIter<double> it(mshear);
 	std::vector<int64_t> csize(in->ndim(), 1);
 	csize[dir] = 0;
-	it.setChunkSize(csize.size(), csize.data()); 
+	it.setChunkSize(csize.size(), csize.data());
 	for(it.goBegin(); !it.eof(); it.nextChunk()) {
 		it.index(3, index);
-		
+
 		double lineshift = 0;
 		for(size_t ii=0; ii<len; ii++) {
 			if(ii != dir)
 				lineshift += -dist[ii]*(index[ii]-center[ii]);
 		}
-		
+
 		for(; !it.isChunkEnd(); ++it) {
 			it.index(3, index);
 
@@ -138,7 +130,7 @@ int main()
 	}
 	cerr << "Done.\nWriting...";
 	in->write("original.nii.gz");
-	
+
 	double shear[3] = {1, 0.2, .4};
 
 	// manual shear
@@ -149,7 +141,7 @@ int main()
 	cl = clock() - cl;
 	cerr << cl << " Ticks, Done.\nWriting Manual Shear...";
 	kshear->write("kern_shear.nii.gz");
-	
+
 	cerr << "Done.\nShearing with FFT...";
 	auto fshear = dPtrCast<MRImage>(in->copy());
 	cl = clock();
@@ -161,7 +153,7 @@ int main()
 	if(closeCompare(fshear, kshear) != 0)
 		return -1;
 	cerr << "Done.\n";
-	
+
 
 	return 0;
 }

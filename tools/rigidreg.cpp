@@ -1,19 +1,11 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
- *	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @file rigidreg.cpp Basic rigid registration tool. Supports correlation and 
+ * @file rigidreg.cpp Basic rigid registration tool. Supports correlation and
  * information (multimodal) metrics.
  *
  *****************************************************************************/
@@ -61,9 +53,9 @@ try {
 	TCLAP::ValueArg<string> a_fixed("f", "fixed", "Fixed image.", false, "",
 			"*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_apply("a", "apply", "Apply transform. Instead "
-			"of performing rigid registration apply the provided transform", 
+			"of performing rigid registration apply the provided transform",
 			false, "", "*.rtm", cmd);
-	TCLAP::ValueArg<string> a_moving("m", "moving", "Moving image. ", true, 
+	TCLAP::ValueArg<string> a_moving("m", "moving", "Moving image. ", true,
 			"", "*.nii.gz", cmd);
 
 	TCLAP::ValueArg<string> a_metric("M", "metric", "Metric to use. "
@@ -78,7 +70,7 @@ try {
 			"just modify the image's orientation", cmd);
 
 	TCLAP::MultiArg<double> a_sigmas("s", "sigmas", "Smoothing standard "
-			"deviations. These are the steps of the registration.", false, 
+			"deviations. These are the steps of the registration.", false,
 			"sd", cmd);
 
 	TCLAP::ValueArg<int> a_bins("b", "bins", "Bins to use in information "
@@ -97,7 +89,7 @@ try {
 
 	// fixed image
 	cout << "Reading Inputs...";
-	
+
 	// moving image, resample to fixed space
 	ptr<MRImage> in_moving = readMRImage(a_moving.getValue());
 	Rigid3DTrans rigid;
@@ -141,13 +133,13 @@ try {
 			cout << "NPL Rigid" << endl;
 			rigid.ras_coord = true;
 			auto it = vals.begin();
-			for(size_t ii=0; ii<3; it++, ii++) 
+			for(size_t ii=0; ii<3; it++, ii++)
 				rigid.center[ii] = *it;
 
-			for(size_t ii=0; ii<3; ++it, ii++) 
+			for(size_t ii=0; ii<3; ++it, ii++)
 				rigid.rotation[ii] = *it;
 
-			for(size_t ii=0; ii<3; ++it, ii++) 
+			for(size_t ii=0; ii<3; ++it, ii++)
 				rigid.shift[ii] = *it;
 		} else {
 			cerr << "Unknown format of transform! " << a_apply.getValue() << endl;
@@ -179,20 +171,20 @@ try {
 
 		// set up sigmas
 		vector<double> sigmas({3,1.5,0});
-		if(a_sigmas.isSet()) 
+		if(a_sigmas.isSet())
 			sigmas.assign(a_sigmas.begin(), a_sigmas.end());
 
-		/* 
+		/*
 		 * Perform Registration
 		 */
 		if(a_metric.getValue() == "COR") {
 			cout << "Done\nRigidly Registering with correlation..." << endl;
 			rigid = corReg3D(fixed, moving, sigmas);
 		} else {
-			cout << "Done\nRigidly Registering with " << a_metric.getValue() 
+			cout << "Done\nRigidly Registering with " << a_metric.getValue()
 				<< "..." << endl;
 			rigid = informationReg3D(fixed, moving, sigmas, a_bins.getValue(),
-					a_parzen.getValue(), a_metric.getValue()); 
+					a_parzen.getValue(), a_metric.getValue());
 		}
 		cout << "Finished\n.";
 		rigid.invert();
@@ -228,14 +220,14 @@ try {
 		if(a_resample.isSet()) {
 			// Apply Rigid Transform
 			rigid.toIndexCoords(in_moving, true);
-			rotateImageShearKern(in_moving, rigid.rotation[0], 
+			rotateImageShearKern(in_moving, rigid.rotation[0],
 					rigid.rotation[1], rigid.rotation[2]);
-			for(size_t dd=0; dd<3; dd++) 
+			for(size_t dd=0; dd<3; dd++)
 				shiftImageKern(in_moving, dd, rigid.shift[dd]);
 		} else {
 
 			VectorXd origin = rigid.rotMatrix()*
-						(in_moving->getOrigin().head<3>() - rigid.center) + 
+						(in_moving->getOrigin().head<3>() - rigid.center) +
 						rigid.center + rigid.shift;
 			MatrixXd dir = rigid.rotMatrix()*
 						in_moving->getDirection().block<3,3>(0,0);

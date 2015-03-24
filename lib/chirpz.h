@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file chirpz.cpp Functions for performing the chirpz transform
  *
@@ -36,10 +28,10 @@ namespace npl {
  * @param sz 		Size of output array
  * @param chirp 	Output array
  * @param origsz 	Original size, decides maximum frequency reached
- * @param upratio 	Ratio of upsampling performed. This may be different than 
+ * @param upratio 	Ratio of upsampling performed. This may be different than
  * 					sz/origsz
  * @param alpha 	Positive term in exp
- * @param center	Whether to center, or start at 0 
+ * @param center	Whether to center, or start at 0
  * @param fft 		Whether to fft the output (put it in frequency domain)
  */
 void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
@@ -52,7 +44,7 @@ void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
  * if you are running a large number of inputs with the same alpha
  *
  * @param isize 	Size of input/output
- * @param usize 	Size that we should upsample input to 
+ * @param usize 	Size that we should upsample input to
  * @param inout		Input array, length sz
  * @param uppadsize	Padded+upsampled array size
  * @param buffer	Complex buffer used for upsampling, size = uppadsize
@@ -61,10 +53,10 @@ void createChirp(int64_t sz, fftw_complex* chirp, int64_t origsz,
  * @param postchirp	Post-multiply chirp.
  * @param debug	whether to write out diagnostic plots
  */
-void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout, 
+void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
 		size_t uppadsize, fftw_complex* buffer, fftw_complex* prechirp,
 		fftw_complex* convchirp, fftw_complex* postchirp, bool debug = false);
-		
+
 
 /**
  * @brief Comptues the chirpzFFT transform using FFTW for n log n performance.
@@ -73,12 +65,12 @@ void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
  * if you are running a large number of inputs with the same alpha
  *
  * @param isize 	Size of input/output
- * @param usize 	Size that we should upsample input to 
+ * @param usize 	Size that we should upsample input to
  * @param inout		Input array, length sz
  * @param buffer	Complex buffer used for upsampling, size = uppadsize
  * @param debug	whether to write out diagnostic plots
  */
-void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout, 
+void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
 		fftw_complex* buffer, bool debug = false);
 
 /**
@@ -90,11 +82,11 @@ void chirpzFFT(size_t isize, size_t usize, fftw_complex* inout,
  * @param a Ratio of the output frequency spectrum to sample.
  * @param debug	whether to write out diagnostic plots
  */
-void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a, 
+void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		bool debug = false);
 
 /**
- * @brief Performs chirpz transform with a as fractional parameter by N^2 
+ * @brief Performs chirpz transform with a as fractional parameter by N^2
  * algorithm.
  *
  * @param isize Length of input array
@@ -103,11 +95,11 @@ void chirpzFFT(size_t isize, fftw_complex* in, fftw_complex* out, double a,
  * @param a		Fraction/Alpha To raise exp() term to
  * @param debug	Write out debugging information (including plots!)
  */
-void chirpzFT_brute2(size_t isize, fftw_complex* in, fftw_complex* out, double a, 
+void chirpzFT_brute2(size_t isize, fftw_complex* in, fftw_complex* out, double a,
 		bool debug = false);
 
 /**
- * @brief Performs chirpz transform with a as fractional parameter by N^2 
+ * @brief Performs chirpz transform with a as fractional parameter by N^2
  * algorithm.
  *
  * @param len	Length of input array
@@ -127,7 +119,7 @@ void chirpzFT_brute(size_t len, fftw_complex* in, fftw_complex* out, double a);
  * @param out	Output line
  * @param a		Zoom factor (alpha)
  */
-void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out, 
+void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out,
 		double a);
 
 /**
@@ -140,7 +132,7 @@ void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out,
  * @param a			Zoom factor (alpha)
  *
  */
-void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out, 
+void chirpzFT_zoom(size_t isize, fftw_complex* in, fftw_complex* out,
 		fftw_complex* buffer, double a);
 
 /**

@@ -1,19 +1,11 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
- *	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @file rigidreg.cpp Basic rigid registration tool. Supports correlation and 
+ * @file rigidreg.cpp Basic rigid registration tool. Supports correlation and
  * information (multimodal) metrics.
  *
  *****************************************************************************/
@@ -41,7 +33,7 @@ using namespace std;
  * @brief Computes the center of mass of the given image by average the weighted
  * position of points
  *
- * @param fixed Compute center of mass of the specified image 
+ * @param fixed Compute center of mass of the specified image
  *
  * @return A vector which indicates the ND point where the center of mass
  * is located
@@ -55,7 +47,7 @@ VectorXd computeCenterOfMass(ptr<const MRImage> in);
  *
  * \todo make it v = Ru + s, then u = INV(R)*(v - s)
  *
- * @param fixed Image which will be the target of registration. 
+ * @param fixed Image which will be the target of registration.
  * @param center The center of mass of the inmage (computed elsewhere)
  *
  * @return Matrix where each column is an axes in order of decreasing
@@ -83,7 +75,7 @@ int main(int argc, char** argv)
 
 	TCLAP::ValueArg<string> a_fixed("f", "fixed", "Fixed image.", true, "",
 			"*.nii.gz", cmd);
-	TCLAP::ValueArg<string> a_moving("m", "moving", "Moving image. ", true, 
+	TCLAP::ValueArg<string> a_moving("m", "moving", "Moving image. ", true,
 			"", "*.nii.gz", cmd);
 
 	TCLAP::ValueArg<string> a_out("o", "out", "Moving image with new "
@@ -108,9 +100,9 @@ int main(int argc, char** argv)
 	ptr<MRImage> moving = origmoving;
 
 	size_t ndim = std::min(fixed->ndim(), moving->ndim());
-	if(ndim != fixed->ndim()) 
+	if(ndim != fixed->ndim())
 		fixed = dPtrCast<MRImage>(fixed->extractCast(ndim, fixed->dim()));
-	if(ndim != moving->ndim()) 
+	if(ndim != moving->ndim())
 		moving = dPtrCast<MRImage>(moving->extractCast(ndim, moving->dim()));
 	cerr << "Done: " << endl;
 
@@ -146,7 +138,7 @@ int main(int argc, char** argv)
 
 	/*************************************************************************
 	 * set direction in moving image (R) so that the eigenvectors in the
-	 * moving image (M) match those in the fixed image (F). 
+	 * moving image (M) match those in the fixed image (F).
 	 * F = MR
 	 * R => (M^-1F)
 	 * F = M(M^-1F)
@@ -169,7 +161,7 @@ int main(int argc, char** argv)
 
 		cerr << "Pre-reorder:\n" << moving_axe << endl;
 		MatrixXd tmp(ndim, ndim);
-		for(size_t ii=0; ii<ndim; ii++) 
+		for(size_t ii=0; ii<ndim; ii++)
 			tmp.row(corr[ii]) = moving_axe.row(ii);
 		moving_axe = tmp;
 		cerr << "Post-reorder:\n" << moving_axe << endl;
@@ -190,7 +182,7 @@ int main(int argc, char** argv)
  * @brief Computes the center of mass of the given image by average the weighted
  * position of points
  *
- * @param fixed Compute center of mass of the specified image 
+ * @param fixed Compute center of mass of the specified image
  *
  * @return A vector which indicates the ND point where the center of mass
  * is located
@@ -219,7 +211,7 @@ VectorXd computeCenterOfMass(ptr<const MRImage> in)
  *
  * \todo make it v = Ru + s, then u = INV(R)*(v - s)
  *
- * @param fixed Image which will be the target of registration. 
+ * @param fixed Image which will be the target of registration.
  * @param center The center of mass of the inmage (computed elsewhere)
  *
  * @return Matrix where each column is an axes in order of decreasing

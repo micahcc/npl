@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file img_lin_interp_test.cpp Tests the 3D linear interpolator and compares
  * the returned result with a known analytical function
@@ -54,7 +46,7 @@ int main()
 			}
 		}
 	}
-	
+
 	for(index[0] = 0; index[0] < sz[0] ; index[0]++) {
 		for(index[1] = 0; index[1] < sz[1] ; index[1]++) {
 			for(index[2] = 0; index[2] < sz[2] ; index[2]++) {

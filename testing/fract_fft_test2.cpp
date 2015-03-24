@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file fract_fft_test2.cpp
  *
@@ -55,11 +47,11 @@ int main(int argc, char** argv)
 		sz = 127;
 	}
 
-	
+
 	fftw_complex* in = fftw_alloc_complex(sz);
 	fftw_complex* fftout = fftw_alloc_complex(sz);
 	fftw_complex* bruteout = fftw_alloc_complex(sz);
-	
+
 	// fill with rectangle
 	for(size_t ii=0; ii<sz; ii++) {
 		if(ii < sz*3/5 && ii > sz*2/5) {
@@ -89,7 +81,7 @@ int main(int argc, char** argv)
 	}
 	writePlot("fft_phase.tga", phasev);
 	writePlot("fft_abs.tga", absv);
-	
+
 	for(size_t ii=0; ii<sz; ii++) {
 		phasev[ii] = atan2(bruteout[ii][0], bruteout[ii][1]);
 		absv[ii] = sqrt(pow(bruteout[ii][0],2)+pow(bruteout[ii][1],2));

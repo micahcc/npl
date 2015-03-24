@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file matrix_test1.cpp
  *
@@ -47,7 +39,7 @@ int main()
 	cerr << mat3 << " * " << vec << " = " << mat4 << endl;
 
 //	auto mat5 = vec*mat3; //error conflicting types
-	
+
 	Matrix<2,2> mat5;
 	for(size_t rr=0; rr<2; rr++) {
 		for(size_t cc=0; cc<2; cc++) {
@@ -57,7 +49,7 @@ int main()
 
 	auto mat6 = inverse(mat5);
 	cerr << mat5 << "^-1 = " << endl << mat6 << endl;
-	
+
 	auto mat7 = mat1;
 	auto mat1I = inverse(mat1);
 	cerr << mat1 << "^-1 = " << endl << mat1I << endl;

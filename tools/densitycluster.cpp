@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file densitycluster.cpp Clustering based on local density.
  *
@@ -31,7 +23,7 @@
 
 using namespace std;
 using namespace npl;
-	
+
 int main(int argc, char** argv)
 {
 	cerr << "Version: " << __version__ << endl;
@@ -40,7 +32,7 @@ int main(int argc, char** argv)
 	 * Command Line
 	 */
 
-	TCLAP::CmdLine cmd("Segments image(s) based on intensity", ' ', 
+	TCLAP::CmdLine cmd("Segments image(s) based on intensity", ' ',
 			__version__ );
 
 	TCLAP::MultiArg<string> a_in("i", "input", "Input image. If this is 4D "
@@ -58,13 +50,13 @@ int main(int argc, char** argv)
 			"in terms of physical distance. The values are already "
 			"standardized so this would be the number of mm equivalent to "
 			"the entire range of values. So 5 means a 5mm distance is "
-			"equivalent to the difference of min to max values.", 
+			"equivalent to the difference of min to max values.",
 			false, 15, "mm", cmd);
-	TCLAP::ValueArg<double> a_winwidth("W", "kerne-window", 
+	TCLAP::ValueArg<double> a_winwidth("W", "kerne-window",
 			"Window size fo computing density, smaller values are somewhat"
 			"faster and better as long as this is sufficiently large to capture"
 			"several neighboring points.", false, 4, "mm", cmd);
-	TCLAP::ValueArg<double> a_outthresh("T", "cluster-thresh", 
+	TCLAP::ValueArg<double> a_outthresh("T", "cluster-thresh",
 			"Threshold for determining whether something is a 'cluster'. This"
 			"is the number of standard deviations from the mean to go when"
 			"considering points as outliers and therefore deserving of their "
@@ -99,7 +91,7 @@ int main(int argc, char** argv)
 							inimg->ndim()), inimg->dim(), INT32));
 		} else if(nrows != volsize) {
 			cerr << "Input volumes must have same number of pixels" << endl;
-			cerr << "Input: " << *it << " has different number from the rest!" 
+			cerr << "Input: " << *it << " has different number from the rest!"
 				<< endl;
 			return -1;
 		}
@@ -107,7 +99,7 @@ int main(int argc, char** argv)
 		for(size_t tt=0; tt<tlen; tt++, cdim++) {
 			bool use = !a_dims.isSet();
 			for(auto dit = a_dims.begin(); dit != a_dims.end(); ++dit) {
-				if(*dit == cdim) 
+				if(*dit == cdim)
 					use = true;
 			}
 
@@ -139,7 +131,7 @@ int main(int argc, char** argv)
 			maxv = max(maxv, (*it)[jj]);
 		}
 
-		for(size_t jj=0; jj<it->size(); jj++) 
+		for(size_t jj=0; jj<it->size(); jj++)
 			(*it)[jj] = a_valweight.getValue()*((*it)[jj]-minv)/
 				(maxv-minv);
 	}
@@ -149,7 +141,7 @@ int main(int argc, char** argv)
 	Eigen::MatrixXf samples(nrows, insamples.size()+outimg->ndim());
 	cerr << "Creating Samples (" << samples.rows() << "x" << samples.cols()
 		<< ")" << endl;
-	
+
 	// add coordinates
 	vector<double> pt(outimg->ndim());
 	size_t rr = 0;
@@ -180,14 +172,14 @@ int main(int argc, char** argv)
 
 	/*
 	 * Create, Fill Output
-	 */ 
+	 */
 	size_t ii=0;
-	for(FlatIter<int> it(outimg); !it.eof(); ++it, ++ii) 
+	for(FlatIter<int> it(outimg); !it.eof(); ++it, ++ii)
 		it.set(labels[ii]);
 
-	// write 
+	// write
 	outimg->write(a_out.getValue());
-	
+
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
 }

@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file nifti.h
  *
@@ -49,9 +41,9 @@ typedef struct __attribute__((packed))
 
 	int16_t ndim;	// number of dimensions
 	int16_t dim[7];	// size in each of ndim dimensions
-	
+
 	// currently ignored
-	float intent_p1;	
+	float intent_p1;
 	float intent_p2;
 	float intent_p3;
 	int16_t intent_code;
@@ -65,7 +57,7 @@ typedef struct __attribute__((packed))
 
 	float scl_slope;	// y = scl_slope*x + scl_inter
 	float scl_inter;
-	
+
 	// currently ignored
 	int16_t slice_end;
 	char  slice_code;
@@ -147,11 +139,11 @@ enum NIFTI_TYPE {
 	// covered by get/set dbl
 	NIFTI_TYPE_FLOAT32=16,
 	NIFTI_TYPE_FLOAT64=64,
-	
+
 	// covered by get/set cdbl
 	NIFTI_TYPE_COMPLEX64=32,
 	NIFTI_TYPE_COMPLEX128=1792,
-	
+
 	// covered by get/set RGBA
 	NIFTI_TYPE_RGB24=128,
 	NIFTI_TYPE_RGBA32=2304,
@@ -159,10 +151,10 @@ enum NIFTI_TYPE {
 	// NOT SUPPORTED
 	// covered by get/set cquad
 	NIFTI_TYPE_COMPLEX256=2048,
-	
+
 	// covered by get/set quad
 	NIFTI_TYPE_FLOAT128=1536
-	
+
 };
 
 /*---------------------------------------------------------------------------*/
@@ -283,7 +275,7 @@ enum NIFTI_TYPE {
        p1 = degrees of freedom
        R/sqrt(1-R*R) is t-distributed with p1 DOF. */
 
-/*! \defgroup NIFTI1_INTENT_CODES Intent Codes 
+/*! \defgroup NIFTI1_INTENT_CODES Intent Codes
     \brief nifti1 intent codes, to describe intended meaning of dataset contents
     @{
  */
@@ -808,7 +800,7 @@ enum NIFTI_TYPE {
    /* [qs]form_code value:  */      /* x,y,z coordinate system refers to:    */
    /*-----------------------*/      /*---------------------------------------*/
 
-/*! \defgroup NIFTI1_XFORM_CODES Patient Orientation Codes 
+/*! \defgroup NIFTI1_XFORM_CODES Patient Orientation Codes
     \brief nifti1 xform codes to describe the "standard" coordinate system
     @{
  */

@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file pseudopolar_test.cpp Tests the ability of FFT and Zoom based pseudo
  * polar gridded fourier transform to match a brute-force linear interpolation
@@ -24,8 +16,8 @@
 #include <stdexcept>
 #include <random>
 
-#include <Eigen/Geometry> 
-#include <Eigen/Eigenvalues> 
+#include <Eigen/Geometry>
+#include <Eigen/Eigenvalues>
 
 #define DEBUG 1
 
@@ -60,7 +52,7 @@ using Eigen::EigenSolver;
  * @param rz Rotation around z, radians
  * @param in Input image
  *
- * @return 
+ * @return
  */
 shared_ptr<MRImage> bruteForceRotate(Vector3d axis, double theta,
         shared_ptr<const MRImage> in)
@@ -83,7 +75,7 @@ shared_ptr<MRImage> bruteForceRotate(Vector3d axis, double theta,
         cind = m*(ind-center)+center;
 
         // set for each t
-        for(size_t tt = 0; tt<in->tlen(); tt++) 
+        for(size_t tt = 0; tt<in->tlen(); tt++)
             it.set(tt, lin(cind[0], cind[1], cind[2], tt));
     }
 
@@ -97,7 +89,7 @@ double box(double x, double xmin, double xmax)
 
 double boxGen(double x, double y, double z, double xsz, double ysz, double zsz)
 {
-    return (x/xsz > 0.25 && x/xsz < .35) && (y/ysz > 0.55 && y/ysz < .75) && 
+    return (x/xsz > 0.25 && x/xsz < .35) && (y/ysz > 0.55 && y/ysz < .75) &&
         (z/zsz > 0.55 && z/zsz < .59);
 }
 
@@ -106,11 +98,11 @@ double gaussGen(double x, double y, double z, double xsz, double ysz, double zsz
     double v = exp(-pow(xsz/2-x,2)/9)*exp(-pow(ysz/2-y,2)/16)*exp(-pow(zsz/2-z,2)/64);
     if(v > 0.00001)
         return v;
-    else 
+    else
         return 0;
 }
 
-shared_ptr<MRImage> createTestImageRotated(size_t sz1, double rx, double ry, 
+shared_ptr<MRImage> createTestImageRotated(size_t sz1, double rx, double ry,
         double rz)
 {
     // create an image
@@ -143,7 +135,7 @@ shared_ptr<MRImage> createTestImageRotated(size_t sz1, double rx, double ry,
         }
     }
 
-    for(OrderIter<double> sit(in); !sit.eof(); ++sit) 
+    for(OrderIter<double> sit(in); !sit.eof(); ++sit)
         sit.set(sit.get()/sum);
 
     return in;
@@ -156,7 +148,7 @@ shared_ptr<MRImage> createTestImage(size_t sz1)
     size_t sz[] = {sz1, sz1, sz1};
     auto in = createMRImage(sizeof(sz)/sizeof(size_t), sz, COMPLEX128);
 
-    // fill with a shape that is somewhat unique when rotated. 
+    // fill with a shape that is somewhat unique when rotated.
     OrderIter<double> sit(in);
     double sum = 0;
     while(!sit.eof()) {
@@ -167,7 +159,7 @@ shared_ptr<MRImage> createTestImage(size_t sz1)
         ++sit;
     }
 
-    for(sit.goBegin(); !sit.eof(); ++sit) 
+    for(sit.goBegin(); !sit.eof(); ++sit)
         sit.set(sit.get()/sum);
 
     return in;
@@ -202,11 +194,11 @@ Vector3d getAxis(shared_ptr<const MRImage> inimg1, shared_ptr<const MRImage> ini
     for(size_t ii=0; ii<ndim; ii++) {
         size_t tmp = 0;
         for(size_t jj=0; jj<ndim; jj++) {
-            if(jj != ii) 
+            if(jj != ii)
                 pslope[tmp++] = jj;
         }
 
-        cerr << "pseudo radius: " << ii << 
+        cerr << "pseudo radius: " << ii <<
             ", pseudo slope 1: " << pslope[0] << ", pseudo slope 2: " <<
             pslope[1] << endl;
 
@@ -230,8 +222,8 @@ Vector3d getAxis(shared_ptr<const MRImage> inimg1, shared_ptr<const MRImage> ini
 
         OrderIter<double> cit(corimg);
         OrderIter<double> eit(errimg);
-        for(it1.goBegin(), it2.goBegin(), cit.goBegin(), eit.goBegin(); 
-                !it1.eof() && !it2.eof() && !cit.eof() && !eit.eof(); 
+        for(it1.goBegin(), it2.goBegin(), cit.goBegin(), eit.goBegin();
+                !it1.eof() && !it2.eof() && !cit.eof() && !eit.eof();
                 it1.nextChunk(), it2.nextChunk(), ++cit, ++eit) {
 
             // double check the indices
@@ -268,20 +260,20 @@ Vector3d getAxis(shared_ptr<const MRImage> inimg1, shared_ptr<const MRImage> ini
             if(err < minerr) {
                 minerr = err;
                 cerr << "New Min Err: " << err << ", " << ang0 << ","
-                    << ang1 << " or " << index[0] << "," << index[1] << "," 
+                    << ang1 << " or " << index[0] << "," << index[1] << ","
                     << index[2] << endl;
                 mineang0 = ang0;
                 mineang1 = ang1;
             }
 
-            corr = sample_corr(count, sum1, sum2, ssq1, ssq2, corr); 
+            corr = sample_corr(count, sum1, sum2, ssq1, ssq2, corr);
             cit.set(corr);
             eit.set(err);
 
             if(fabs(corr) > maxcor) {
                 maxcor = corr;
                 cerr << "New Max Cor: " << corr << ", " << ang0 << ","
-                    << ang1 << " or " << index[0] << "," << index[1] 
+                    << ang1 << " or " << index[0] << "," << index[1]
                     << "," << index[2] << endl;
                 axis[ii] = 1;
                 bestang0 = ang0;
@@ -295,9 +287,9 @@ Vector3d getAxis(shared_ptr<const MRImage> inimg1, shared_ptr<const MRImage> ini
 
         corimg->write("corimg_"+to_string(ii)+".nii.gz");
         errimg->write("errimg_"+to_string(ii)+".nii.gz");
-        cerr << "pseudo radius: " << ii << 
-            ", pseudo slope 1: " << pslope[0] << ", pseudo slope 2: " 
-            << pslope[1] << " best cor: " << maxcor << " at " << bestang0 
+        cerr << "pseudo radius: " << ii <<
+            ", pseudo slope 1: " << pslope[0] << ", pseudo slope 2: "
+            << pslope[1] << " best cor: " << maxcor << " at " << bestang0
             << ", " << bestang1 << ", best err: " << minerr << " at " <<
             mineang0 << ", " << mineang1 << endl;
         assert(it1.isEnd());
@@ -338,7 +330,7 @@ int testRotationAxis(double x, double y, double z, double theta)
         }
         size_t tmpd = 0;
         for(size_t dd=0; dd<3; dd++) {
-            if(rad != dd) 
+            if(rad != dd)
                 slopes[tmpd++] = dd;
         }
     }
@@ -353,7 +345,7 @@ int testRotationAxis(double x, double y, double z, double theta)
     auto out = dynamic_pointer_cast<MRImage>(in->copy());
     rotateImageShearFFT(out, euler[0], euler[1], euler[2]);
     writeComplex("rotated", out);
-    
+
     rotateImageShearFFT(in, euler[0], euler[1], euler[2]);
     rotateImageShearFFT(in, -euler[0], -euler[1], -euler[2]);
     writeComplex("input", in);
@@ -382,7 +374,7 @@ int main(int argc, char** argv)
         y = atof(argv[2]);
         z = atof(argv[3]);
         theta = atof(argv[4]);
-    } 
+    }
     if(testRotationAxis(x, y, z, theta) != 0)
         return -1;
 

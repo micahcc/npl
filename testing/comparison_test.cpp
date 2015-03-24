@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file comparison_test.cpp Tests various metrics of image comparison
  *
@@ -46,8 +38,8 @@ shared_ptr<MRImage> squareImage()
 	OrderIter<double> sit(in);
 	while(!sit.eof()) {
 		sit.index(3, index);
-		if(index[0] > sz[0]/4 && index[0] < 2*sz[0]/3 && 
-				index[1] > sz[1]/5 && index[1] < sz[1]/2 && 
+		if(index[0] > sz[0]/4 && index[0] < 2*sz[0]/3 &&
+				index[1] > sz[1]/5 && index[1] < sz[1]/2 &&
 				index[2] > sz[2]/3 && index[2] < 2*sz[2]/3) {
 			sit.set(1);
 		} else {
@@ -63,10 +55,10 @@ int main()
 {
     auto origimg = squareImage();
 	auto noisyimg = origimg->copy();
-	for(NDIter<double> it(noisyimg); !it.eof(); ++it) 
+	for(NDIter<double> it(noisyimg); !it.eof(); ++it)
 		it.set(*it + 0.1*rand()/(double)RAND_MAX);
 	double v;
-	
+
 	cerr << "Noisy versus Original" << endl;
 	v = mse(origimg, noisyimg);
 	cerr << "MSE: " << v << endl;
@@ -95,12 +87,12 @@ int main()
 		cerr << "Normalized Mutual information is too small" << endl;
 		return -1;
 	}
-	
+
 	// Negate and compare
 	cerr << "Inverted versus Original" << endl;
-	for(NDIter<double> it(noisyimg); !it.eof(); ++it) 
+	for(NDIter<double> it(noisyimg); !it.eof(); ++it)
 		it.set(-*it);
-	
+
 	v = mse(origimg, noisyimg);
 	cerr << "MSE: " << v << endl;
 	if(v < 0.1) {

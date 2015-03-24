@@ -1,17 +1,9 @@
 /******************************************************************************
  * Copyright 2014 Micah C Chambers (micahc.vt@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * 	http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * NPL is free software: you can redistribute it and/or modify it under the
+ * terms of the BSD 2-Clause License available in LICENSE or at
+ * http://opensource.org/licenses/BSD-2-Clause
  *
  * @file coordinate_test2.cpp
  *
@@ -36,7 +28,7 @@ int main()
 		std::cerr << "Failed to open image!" << std::endl;
 		return -1;
 	}
-	
+
 	std::vector<std::vector<double>> correct({
 			{1.3, 	75, 9, 0},
 			{-28.94, 	71.7735, 195.537, 0},
@@ -54,7 +46,7 @@ int main()
 			{-195.267, 	243.119, 171.537, 537},
 			{-2246.4, 	-1826.35, -388.267, 537},
 			{-2276.64, 	-1829.58, -201.73, 537}});
-	
+
 	std::vector<int64_t> index(img->ndim(), 0);
 	std::vector<double> cindex(img->ndim(), 0);
 	std::vector<double> ras(img->ndim(), 0);
@@ -68,7 +60,7 @@ int main()
 		img->indexToPoint(img->ndim(), index.data(), ras.data());
 		std::cerr << "Mine: " << index << " -> " << ras << endl;
 		std::cerr << "Prev: " << index << " -> " << correct[i] << endl;
-		
+
 		for(size_t dd=0; dd<DIM; dd++) {
 			if(fabs(ras[dd]-correct[i][dd]) > 0.01) {
 				std::cerr << "Difference! " << endl;
@@ -82,7 +74,7 @@ int main()
 		std::cerr << "Back to Point: " << ras << endl;
 		img->pointToIndex(img->ndim(), ras.data(), cindex.data());
 		std::cerr << "Back to Index: " << cindex << endl;
-		
+
 		for(size_t dd=0; dd<DIM; dd++) {
 			if(fabs(index[dd]-cindex[dd]) > 0.00001) {
 				std::cerr << "Difference in cindex/index! " << endl;
