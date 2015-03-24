@@ -69,7 +69,11 @@ int main(int argc, char** argv)
 			"' nplApplyDeform -1 -l -d *.map.nii.gz -i *.atlas.space.nii.gz'"
 			"Note that there may be issue if your input has different "
 			"orientation from the atlas. It is usually better to use physical "
-			"space offset maps (which is why that is the default).",
+			"space offset maps (which is why that is the default). "
+			"By default thre output resolution will match the input map "
+			"resolution. If -r is set then the output image will have the "
+			"same field of view as the deform, but matching pixel spacing to "
+			"the input image.",
 			' ', __version__ );
 
 	TCLAP::ValueArg<string> a_in("i", "input", "Input image.",
@@ -86,6 +90,8 @@ int main(int argc, char** argv)
 	TCLAP::SwitchArg a_onebased("1", "one-based", "One based indexes (rather "
 			"than 0 based). Just subtracts 1 from values in the deformation "
 			"IF -l /--lookup is set.", cmd);
+	TCLAP::SwitchArg a_keepress("r", "keep-res", "Keep resolution, instead of "
+			"taking the resolution of the deformation image", cmd);
 
 	TCLAP::ValueArg<string> a_out("o", "out", "Output image.",
 			true, "", "*.nii.gz", cmd);
@@ -117,13 +123,26 @@ int main(int argc, char** argv)
 		interp.reset(new LinInterp3DView<double>(inimg));
 	else
 		interp.reset(new LanczosInterp3DView<double>(inimg));
+	LinInterp3DView<double> interpdef(defimg);
 
 	ptr<MRImage> outimg;
 	vector<size_t> outsize(inimg->ndim());
-	for(size_t ii=0; ii<inimg->ndim(); ii++)
-		outsize[ii] = defimg->dim(ii);
+
+	// if keeping resolution set FOV to match deform
+	if(a_keepress.isSet()) {
+		for(size_t ii=0; ii<3; ii++)
+			outsize[ii] = defimg->dim(ii)*defimg->spacing(ii)/inimg->spacing(ii);
+	} else {
+		for(size_t ii=0; ii<3; ii++)
+			outsize[ii] = defimg->dim(ii);
+	}
 	if(inimg->ndim() == 4)
 		outsize[3] = inimg->dim(3);
+
+	cerr<<"Output Image Size:"<<endl;
+	for(size_t ii=0; ii<outsize.size(); ii++)
+		cerr<<outsize[ii]<<",";
+	cerr<<endl;
 
 	if(a_interp.getValue() == "nn")
 		outimg = dPtrCast<MRImage>(defimg->createAnother(inimg->ndim(),
@@ -132,25 +151,36 @@ int main(int argc, char** argv)
 		outimg = dPtrCast<MRImage>(defimg->createAnother(inimg->ndim(),
 					outsize.data(), FLOAT32));
 
-	double pt[3];
-	for(Vector3DIter<double> dit(defimg), oit(outimg); !oit.eof(); ++oit, ++dit) {
+	// if keeping resolution set spacing to match input
+	if(a_keepress.isSet()) {
+		for(size_t ii=0; ii<3; ii++)
+			outimg->spacing(ii) = inimg->spacing(ii);
+	}
+	cerr<<"Output Image:\n"<<*outimg<<endl;
+
+	int m1 = a_onebased.isSet();
+	double spt[3];
+	double tpt[3];
+	for(Vector3DIter<double> oit(outimg); !oit.eof(); ++oit) {
+		oit.index(3, spt);
 
 		if(a_indexmap.isSet()) {
 			// Just look at point in input
-			for(size_t dd=0; dd < 3; dd++)
-				pt[dd] = dit[dd] - a_onebased.isSet();
+			tpt[1] = interpdef(spt[0]-m1, spt[1]-m1, spt[2]-m1, 0);
+			tpt[1] = interpdef(spt[0]-m1, spt[1]-m1, spt[2]-m1, 1);
+			tpt[2] = interpdef(spt[0]-m1, spt[1]-m1, spt[2]-m1, 2);
 		} else {
 			// convert index to point add offset, then convert point to in
 			// input image index
-			oit.index(3, pt);
-			outimg->indexToPoint(3, pt, pt);
+			// first interpolate current value in deform
+			outimg->indexToPoint(3, spt, spt);
 			for(size_t dd=0; dd < 3; dd++)
-				pt[dd] += dit[dd];
-			inimg->pointToIndex(3, pt, pt);
+				tpt[dd] = interpdef(spt[dd], spt[1], spt[2], dd);
+			inimg->pointToIndex(3, tpt, tpt);
 		}
 
 		for(size_t tt=0; tt<inimg->tlen(); tt++)
-			oit.set(tt, interp->get(pt[0], pt[1], pt[2], tt));
+			oit.set(tt, interp->get(tpt[0], tpt[1], tpt[2], tt));
 	}
 
 	outimg->write(a_out.getValue());
