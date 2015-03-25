@@ -88,6 +88,10 @@ def build(bld):
             source = 'copyOrientation.cpp',
             use = [npl, 'tclap'])
 
+    bld.program(target = 'nplGenSphere',
+            source = 'gensphere.cpp',
+            use = [npl, 'tclap'])
+
     ## FMRI
     bld.program(target = 'nplSimFMRI',
             install_path='${PREFIX}/tools_incomplete',

@@ -706,6 +706,8 @@ void MatrixReorg::postMult(Eigen::Ref<MatrixXd> out,
 		for(size_t cc=0, bb=0; cc<cols(); bb++) {
 			// Load Block
 			MatMap block(tallMatName(bb));
+			cerr<<"Multiplying "<<block.mat.rows()<<"x"<<block.mat.cols()<<" by "
+				<<in.rows()<<"x"<<in.cols()<<endl;
 
 			// Multiply By Input
 			out.middleRows(cc, m_outcols[bb]) = block.mat.transpose()*in;
