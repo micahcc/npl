@@ -124,6 +124,10 @@ int main(int argc, char * argv[])
 			"separate image to determine their orientation, provide that "
 			"here", false, "", "*.nii.gz", cmd);
 
+	TCLAP::ValueArg<string> a_wmmask("w", "wm", "White matter mask. This is "
+			"needed if you want to remove tracks (or sections of tracks) that "
+			"are not inside the brain", false, "", "*.nii.gz", cmd);
+
 	TCLAP::ValueArg<string> a_labelmap("l", "labelmap", "Input label image to "
 			"calculate connectivity over. Should be grey-matter only (ie "
 			"no white matter).", true, "", "*.nii.gz", cmd);
@@ -144,10 +148,10 @@ int main(int argc, char * argv[])
 			"Adjacency matrix containing average length of fibers between "
 			"pairs of regions.", false, "", "graph", cmd);
 	TCLAP::ValueArg<double> a_lenthresh("T", "thresh",
-			"Length threshold for fibers (ignore any fibers shorter",
+			"Length threshold for fibers (ignore any fibers shorter [5]",
 			false, 5, "mm", cmd);
 	TCLAP::ValueArg<double> a_dist("d", "dist",
-			"Distance from a label that is considered connected to a tract",
+			"Distance from a label that is considered connected to a tract [5]",
 			false, 5, "mm", cmd);
 
 	TCLAP::MultiArg<string> a_scalars("F", "field",
@@ -176,8 +180,6 @@ int main(int argc, char * argv[])
 			labelToVertex[*it] = ii;
 	}
 
-	ptr<MRImage> mask = readMRImage(a_labelmap.getValue());
-
 	// Compute the Attached Labels for each Tract
 	cerr<<"Reading Tracts"<<endl;
 	TrackSet tractData;
@@ -190,9 +192,12 @@ int main(int argc, char * argv[])
 
 	cerr<<"Done"<<endl;
 
-	cerr<<"Cropping Tracks to Masked (label != 0) Region"<<endl;
-	cropTracks(mask, &tractData, a_lenthresh.getValue());
-	cerr<<"Done"<<endl;
+	if(a_wmmask.isSet()) {
+		cerr<<"Cropping Tracks to Masked (label != 0) Region"<<endl;
+		ptr<MRImage> mask = readMRImage(a_wmmask.getValue());
+		cropTracks(mask, &tractData, a_lenthresh.getValue());
+		cerr<<"Done"<<endl;
+	}
 
 	cerr<<"Reading Scalars"<<endl;
 	vector<ptr<MRImage>> simgs;
