@@ -120,6 +120,9 @@ int main(int argc, char * argv[])
 
 	TCLAP::ValueArg<string> a_tracts("t", "tracts", "Input tracts that will "
 			"be tabulated", true, "", "*.trk|*.dfc", cmd);
+	TCLAP::ValueArg<string> a_trackref("r", "tract-ref", "*.dft files need a "
+			"separate image to determine their orientation, provide that "
+			"here", true, "", "*.nii.gz", cmd);
 
 	TCLAP::ValueArg<string> a_labelmap("l", "labelmap", "Input label image to "
 			"calculate connectivity over. Should be grey-matter only (ie "
@@ -177,7 +180,14 @@ int main(int argc, char * argv[])
 
 	// Compute the Attached Labels for each Tract
 	cerr<<"Reading Tracts"<<endl;
-	TrackSet tractData = readTracks(a_tracts.getValue(), a_labelmap.getValue());
+	TrackSet tractData;
+	if(a_trackref.isSet()) {
+		tractData = readTracks(a_tracts.getValue(), a_trackref.getValue());
+	} else {
+		cerr<<"NOTE: Using"<<a_labelmap.getValue()<<" as track reference"<<endl;
+		tractData = readTracks(a_tracts.getValue(), a_labelmap.getValue());
+	}
+
 	cerr<<"Done"<<endl;
 
 	cerr<<"Cropping Tracks to Masked (label != 0) Region"<<endl;
