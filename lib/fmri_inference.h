@@ -145,25 +145,69 @@ VectorXd covSVD(const MatrixReorg& A, double varthresh, double cvarthresh,
 class MatMap
 {
 public:
+	/**
+	 * @brief default constructor no file is opened
+	 */
 	MatMap() : mat(NULL, 0, 0)
 	{
 	};
 
-	MatMap(std::string filename) : mat(NULL, 0, 0)
+	/**
+	 * @brief Open an new file as a memory map. ANY OLD FILE WILL BE DELETED
+	 * The file is always opened for writing and reading. Note the same file
+	 * should not be simultaneously written two by two separate processes.
+	 *
+	 * @param filename File to open
+	 * @param rows Number of rows in matrix file
+	 * @param cols number of columns in matrix file
+	 */
+	MatMap(std::string filename, size_t rows, size_t cols) : mat(NULL, 0, 0)
 	{
-		open(filename);
+		create(filename, rows, cols);
+	};
+
+	/**
+	 * @brief Open an existing file as a memory map. The file must already
+	 * exist. If writeable is true then the file will be opened for reading
+	 * and writing, by default write is off. Note the same file should not
+	 * be simultaneously written two by two separate processes.
+	 *
+	 * @param filename File to open
+	 * @param writeable whether writing is allowed
+	 */
+	MatMap(std::string filename, bool writeable=false) : mat(NULL, 0, 0)
+	{
+		open(filename, writeable);
 	};
 
 	~MatMap() { close(); };
 
-	int open(std::string filename)
+	/**
+	 * @brief Open an existing file as a memory map. The file must already
+	 * exist. If writeable is true then the file will be opened for reading
+	 * and writing, by default write is off. Note the same file should not
+	 * be simultaneously written two by two separate processes.
+	 *
+	 * @param filename File to open
+	 * @param writeable whether writing is allowed
+	 */
+	int open(std::string filename, bool writeable = false)
 	{
-		if(datamap.openExisting(filename, true) < 0)
+		if(datamap.openExisting(filename, writeable, true) < 0)
 			return -1;
 
 		size_t* nrowsptr = (size_t*)datamap.data();
 		size_t* ncolsptr = nrowsptr+1;
 		double* dataptr = (double*)((size_t*)datamap.data()+2);
+
+		if(datamap.size() < 2*sizeof(size_t))
+			throw INVALID_ARGUMENT("Error! Mapped Dataset is less than the "
+					"size of two size_t's");
+		if(datamap.size() != (*nrowsptr)*(*ncolsptr)*sizeof(double)+
+				2*sizeof(size_t))
+			throw INVALID_ARGUMENT("Error! Mismatch in map size ("+
+					std::to_string(datamap.size())+") and size in file ("+
+					std::to_string(*nrowsptr)+", "+std::to_string(*ncolsptr)+")");
 
 		m_rows = *nrowsptr;
 		m_cols = *ncolsptr;
@@ -171,6 +215,15 @@ public:
 		return 0;
 	};
 
+	/**
+	 * @brief Open an new file as a memory map. ANY OLD FILE WILL BE DELETED
+	 * The file is always opened for writing and reading. Note the same file
+	 * should not be simultaneously written two by two separate processes.
+	 *
+	 * @param filename File to open
+	 * @param rows Number of rows in matrix file
+	 * @param cols number of columns in matrix file
+	 */
 	int create(std::string filename, size_t newrows, size_t newcols)
 	{
 		m_rows = newrows;

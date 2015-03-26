@@ -53,7 +53,10 @@ try {
 	TCLAP::ValueArg<string> a_fixed("f", "fixed", "Fixed image.", false, "",
 			"*.nii.gz", cmd);
 	TCLAP::ValueArg<string> a_apply("a", "apply", "Apply transform. Instead "
-			"of performing rigid registration apply the provided transform",
+			"of performing rigid registration apply the provided transform. "
+			"Format matches that of -t x.tfm. Cx Cy Cz Rx Ry Rz Tx Ty Tz "
+			"where C... is the center of rotation R... is the rotation angle "
+			"in radians and T... is the translation in mm.",
 			false, "", "*.rtm", cmd);
 	TCLAP::ValueArg<string> a_moving("m", "moving", "Moving image. ", true,
 			"", "*.nii.gz", cmd);

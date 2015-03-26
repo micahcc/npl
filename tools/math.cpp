@@ -30,11 +30,11 @@ void usage(int status)
 {
     cerr << "Usage: nplMath --out <image> [options] [-a <image>] [-b <image>] ... \"<equation>\"" << endl;
     cerr << "\tMath is performed in the space of the first image on the "
-        "command line which is not necessarily -a. All other images are "
+        "command line (not necessarily -a). All other images are "
         "lanczos resampled to that space (unless --nn/--lin are provided). "
-        "Pixel type is by default the same as this image, but it can be set "
-        "with --short/--double/--float. Any single character can follow a - to "
-        "create a variable for use in the equation. ";
+        "Pixel type is by default the same as -a image, but it can be set "
+        "with --short/--double/--float. Any single character can follow a dash to "
+        "create a variable for use in the equation (e.g. -a img -b img -c img ...)";
     cerr << "Options:\n"<<endl;
     cerr << '\t' << setw(10) << left << "--nn"     << "Nearest neighbor resampling" << endl;
     cerr << '\t' << setw(10) << left << "--lin"    << "Linear resampling" << endl;
@@ -111,10 +111,11 @@ int main(int argc, char** argv)
         cerr << "Error, need at least 1 image" << endl;
         usage(-1);
     }
-	cerr << "Equation: " << endl;
     // parse math
     MathExpression expr(equation);
+#ifdef DEBUG
     expr.randomTest();
+#endif //DEBUG
 
     // load reference image/create output
     ptr<MRImage> out;

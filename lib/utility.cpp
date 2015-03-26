@@ -605,14 +605,16 @@ void convolve(std::vector<double>& signal, double(*foo)(double),
 	}
 }
 
-MemMap::MemMap(std::string fn, size_t bsize, bool createNew) :
+MemMap::MemMap(std::string fn, size_t bsize) :
 	m_size(0), m_fd(0), m_data(NULL)
 {
-	if(createNew) {
-		openNew(fn, bsize);
-	} else {
-		openExisting(fn);
-	}
+	openNew(fn, bsize);
+};
+
+MemMap::MemMap(std::string fn, bool writeable) :
+	m_size(0), m_fd(0), m_data(NULL)
+{
+	openExisting(fn, writeable);
 };
 
 int64_t MemMap::openNew(string fn, size_t bsize)
@@ -650,7 +652,7 @@ int64_t MemMap::openNew(string fn, size_t bsize)
 	return m_size;
 };
 
-int64_t MemMap::openExisting(string fn, bool quiet)
+int64_t MemMap::openExisting(string fn, bool writeable, bool quiet)
 {
 	close();
 
@@ -663,14 +665,22 @@ int64_t MemMap::openExisting(string fn, bool quiet)
 	}
 
 	m_size = st.st_size;;
-	m_fd = ::open(fn.c_str(), O_LARGEFILE|O_RDWR);
+	if(writeable)
+		m_fd = ::open(fn.c_str(), O_LARGEFILE|O_RDWR);
+	else
+		m_fd = ::open(fn.c_str(), O_LARGEFILE|O_RDONLY);
+
 	if(m_fd < 0) {
 		if(!quiet)
 			cerr<<"Error opening existing file: "<<fn<<endl;
 		return -1;
 	}
 
-	m_data = mmap(NULL, m_size, PROT_READ|PROT_WRITE, MAP_SHARED, m_fd, 0);
+	if(writeable)
+		m_data = mmap(NULL, m_size, PROT_READ|PROT_WRITE, MAP_SHARED, m_fd, 0);
+	else
+		m_data = mmap(NULL, m_size, PROT_READ, MAP_SHARED, m_fd, 0);
+
 	return m_size;
 };
 
@@ -678,6 +688,7 @@ void MemMap::close()
 {
 	if(m_size > 0) {
 		munmap(m_data, m_size);
+		fsync(m_fd);
 		::close(m_fd);
 	}
 	m_data = NULL;

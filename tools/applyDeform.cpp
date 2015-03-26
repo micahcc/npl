@@ -116,6 +116,7 @@ int main(int argc, char** argv)
 	else
 		interp.reset(new LanczosInterp3DView<double>(inimg));
 	LinInterp3DView<double> interpdef(defimg);
+	interpdef.m_ras = true;
 
 	ptr<MRImage> outimg;
 	vector<size_t> outsize(inimg->ndim());
@@ -131,16 +132,11 @@ int main(int argc, char** argv)
 	if(inimg->ndim() == 4)
 		outsize[3] = inimg->dim(3);
 
-	cerr<<"Output Image Size:"<<endl;
-	for(size_t ii=0; ii<outsize.size(); ii++)
-		cerr<<outsize[ii]<<",";
-	cerr<<endl;
-
 	if(a_interp.getValue() == "nn")
-		outimg = dPtrCast<MRImage>(defimg->createAnother(inimg->ndim(),
+		outimg = dPtrCast<MRImage>(defimg->createAnother(outsize.size(),
 					outsize.data(), inimg->type()));
 	else
-		outimg = dPtrCast<MRImage>(defimg->createAnother(inimg->ndim(),
+		outimg = dPtrCast<MRImage>(defimg->createAnother(outsize.size(),
 					outsize.data(), FLOAT32));
 
 	// if keeping resolution set spacing to match input
@@ -155,19 +151,18 @@ int main(int argc, char** argv)
 	double tpt[3];
 	for(Vector3DIter<double> oit(outimg); !oit.eof(); ++oit) {
 		oit.index(3, spt);
+		outimg->indexToPoint(3, spt, spt);
 
 		if(a_indexmap.isSet()) {
 			// Just look at point in input
-			tpt[1] = interpdef(spt[0]-m1, spt[1]-m1, spt[2]-m1, 0);
-			tpt[1] = interpdef(spt[0]-m1, spt[1]-m1, spt[2]-m1, 1);
-			tpt[2] = interpdef(spt[0]-m1, spt[1]-m1, spt[2]-m1, 2);
+			for(size_t dd=0; dd<3; dd++)
+				tpt[dd] = interpdef(spt[0], spt[1], spt[2], dd)-m1;
 		} else {
 			// convert index to point add offset, then convert point to in
 			// input image index
 			// first interpolate current value in deform
-			outimg->indexToPoint(3, spt, spt);
 			for(size_t dd=0; dd < 3; dd++)
-				tpt[dd] = interpdef(spt[dd], spt[1], spt[2], dd);
+				tpt[dd] = interpdef(spt[0], spt[1], spt[2], dd);
 			inimg->pointToIndex(3, tpt, tpt);
 		}
 
