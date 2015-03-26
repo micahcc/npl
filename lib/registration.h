@@ -412,6 +412,8 @@ public:
 	 * @param fixed New fixed image
 	 * @param moving Input moving image, should be 4D with each volume containing
 	 * a probability map (not modified)
+	 * @param m_krad radius of kernel during histogram estimation
+	 * @param nbins number of bins to estimate histograms with
 	 * @param dir Direction of distortion (the dimension, must be >= 0)
 	 * @param space Spacing between knots, in physical coordinates
 	 */

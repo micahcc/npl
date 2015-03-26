@@ -47,7 +47,7 @@ double sample_var(const Ref<const VectorXd> vec);
  *
  * @param signal response term (y), will be modified to remove the effects of X
  * @param X Design matrix, or independent values in colums
- * @param Xinv the pseudoinverse of X
+ * @param covInv the pseudoinverse of XtX
  */
 inline
 void regressOutLS(VectorXd& signal, const MatrixXd& X, const MatrixXd& covInv)
@@ -485,6 +485,7 @@ MatrixXd rpiPCA(const Ref<const MatrixXd> X, double varth, int odim);
  * dimension (or feature). The number of columns in the output
  * will be fewer because there will be fewer features.
  * Columns should be zero-mean and uncorrelated with one another.
+ * @param unmix output unmixing matrix, can be null if you don't need it
  *
  * @return 		RxP matrix, where P is the number of independent components
  */
@@ -516,6 +517,7 @@ MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix = NULL);
  * dimension (or feature). The number of columns in the output
  * will be fewer because there will be fewer features.
  * Columns should be zero-mean and uncorrelated with one another.
+ * @param unmix output unmixing matrix, can be null if you don't need it
  *
  * @return 		RxP matrix, where P is the number of independent components
  */
@@ -622,9 +624,7 @@ void expMax1D(const Ref<const VectorXd> data,
  * are relative to the center of the gaussian
  *
  * @param data Data points to fit
- * @param pdfs Probability distribution functions of the form pdf(mu, sd, x)
- * and returning the probability density at x
- * @param mean Output mean of each distribution, value when called will be used
+ * @param mu Output mean of each distribution, value when called will be used
  * for initialization so it should be pre-set and pre-allocated
  * @param sd Output standard deviation of each distribution, value when called
  * will be used for initialization so it should be pre-set and pre-allocated

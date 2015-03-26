@@ -294,33 +294,32 @@ public:
 	void setROI(const std::vector<std::pair<int64_t, int64_t>>& roi);
 
 	/**
-	 * @brief Sets the order of iteration from ++/-- operators
+	 * @brief Sets the order of iteration from increment operators
 	 *
-	 * @param order	vector of priorities, with first element being the fastest
+	 * @param order vector of priorities, with first element being the fastest
 	 * iteration and last the slowest. All other dimensions not used will be
 	 * slower than the last
-	 * @param revorder	Reverse order, in which case the first element of order
-	 * 					will have the slowest iteration, and dimensions not
-	 * 					specified in order will be faster than those included.
+	 * @param revorder Reverse order, in which case the first element of order
+	 * will have the slowest iteration, and dimensions not
+	 * specified in order will be faster than those included.
 	 */
 	void setOrder(const std::vector<size_t>& order, bool revorder = false);
 
 	/**
 	 * @brief Sets the order of iteration from ++/-- operators
 	 *
-	 * @param order	vector of priorities, with first element being the fastest
+	 * @param order vector of priorities, with first element being the fastest
 	 * iteration and last the slowest. All other dimensions not used will be
 	 * slower than the last
-	 * @param revorder	Reverse order, in which case the first element of order
-	 * 					will have the slowest iteration, and dimensions not
-	 * 					specified in order will be faster than those included.
+	 * @param revorder Reverse order, in which case the first element of order
+	 * will have the slowest iteration, and dimensions not
+	 * specified in order will be faster than those included.
 	 */
 	void setOrder(std::initializer_list<size_t> order, bool revorder = false);
 
 	/**
 	 * @brief Sets the order of iteration from ++/-- operators. Order will be
 	 * the default (highest to lowest)
-	 *
 	 */
 	void setOrder();
 
@@ -867,7 +866,7 @@ public:
 	 * @brief Sets the region of interest. During iteration or any motion the
 	 * position will not move outside the specified range
 	 *
-	 * @param roi	pair of [min,max] values in the desired hypercube
+	 * @param roi pair of [min,max] values in the desired hypercube
 	 */
 	void setROI(const std::vector<std::pair<int64_t, int64_t>> roi = {});
 

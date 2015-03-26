@@ -54,6 +54,24 @@ VectorXd onDiskSVD(const MatrixReorg& A,
 		int rank, size_t poweriters, double varthresh, double cvarthresh,
 		MatrixXd* U=NULL, MatrixXd* V=NULL);
 
+/**
+ * @brief Create on disk matrices based on an array of input images. The array
+ * will be concatinated in time tcat time and space scat time, with time as the
+ * faster dimension.
+ *
+ * @param tcat Number of images to concatinate in time (faster moving in inputs)
+ * @param scat Number of images to concatinate in space (slower moving in inputs)
+ * @param masks Array of all image masks, 1 per spatial concatination
+ * @param inputs Input files, should be tcat*scat in size
+ * @param prefix Prefix of output matrices. Will create prefix_tall_0,
+ * prefix_tall_1 ...
+ * @param maxmem Maximum memory per individual tall file, this is used to limit
+ * the loaded memory at a time. There will be more file overhead for smaller
+ * memory (though not much)
+ * @param normts Whether to normalize the timeseries, within each input image
+ * before  writing to flat matrices
+ * @param verbose Print more information during reorganization
+ */
 void gicaCreateMatrices(size_t tcat, size_t scat, vector<std::string> masks,
 		vector<std::string> inputs, std::string prefix, double maxmem, bool normts,
 		bool verbose);
@@ -109,7 +127,7 @@ void gicaReduceFull(std::string inpref, std::string outpref, double varthresh,
  * @param inpref input prefix of reorganized data matrices
  * @param outpref output prefix for U,E,V matrices
  * @param rank number of rows to estimate full matrix
- * @param poweriter number of power iterations to perform do better
+ * @param poweriters number of power iterations to perform do better
  * distringuish between close singular values 2-3 are probably sufficient for
  * most cases
  * @param varthresh threshold for singular values, everything smaller than
@@ -121,9 +139,27 @@ void gicaReduceFull(std::string inpref, std::string outpref, double varthresh,
 void gicaReduceProb(std::string inpref, std::string outpref, double varthresh,
 		double cvarthresh, size_t rank, size_t poweriters, bool verbose);
 
+/**
+ * @brief Perform ICA with each dimension as a separate timeseries. This is
+ * essentially unmixing in space and producing independent timeseries.
+ *
+ * @param reorgpref Prefix of tall input file *_tall_[0-9]*
+ * @param reducepref Prefix input files *Umat, *Vmat *Evec files
+ * @param outpref Output file prefix *_SpaceIC *TimeIC etc
+ * @param verbose Whether to print more debugging information
+ */
 void gicaTemporalICA(std::string reorgpref, std::string reducepref,
 		std::string outpref, bool verbose);
 
+/**
+ * @brief Perform ICA with each dimension as a separate timeseries. This is
+ * essentially unmixing in space and producing independent timeseries.
+ *
+ * @param reorgpref Prefix of tall input file *_tall_[0-9]*
+ * @param reducepref Prefix input files *Umat, *Vmat *Evec files
+ * @param outpref Output file prefix *_SpaceIC *TimeIC etc
+ * @param verbose Whether to print more debugging information
+ */
 void gicaSpatialICA(std::string reorgpref, std::string reducepref,
 		std::string outpref, bool verbose);
 
@@ -199,8 +235,8 @@ public:
 	 * should not be simultaneously written two by two separate processes.
 	 *
 	 * @param filename File to open
-	 * @param rows Number of rows in matrix file
-	 * @param cols number of columns in matrix file
+	 * @param newrows Number of rows in matrix file
+	 * @param newcols number of columns in matrix file
 	 */
 	void create(std::string filename, size_t newrows, size_t newcols);
 
@@ -349,10 +385,10 @@ public:
  * @brief Performs general linear model analysis on a 4D image.
  *
  * @param fmri Input 4D image.
- * @param Input X Regressors
+ * @param X Regressors
  * @param bimg Output betas for each voxel (should have same
- * @param Timg
- * @param pimg
+ * @param Timg Output t-score image
+ * @param pimg Output p-valeu image
  */
 void fmriGLM(ptr<const MRImage> fmri, const MatrixXd& X,
 		ptr<MRImage> bimg, ptr<MRImage> Timg, ptr<MRImage> pimg);
@@ -372,7 +408,7 @@ void fmriBandPass(ptr<MRImage> inimg, double cuton, double cutoff);
  * @brief Regresses out the given variables, creating time series which are
  * uncorrelated with X
  *
- * @param inout Input 4D image
+ * @param inimg Input 4D image
  * @param X matrix of covariates
  *
  */

@@ -43,7 +43,7 @@ MRImageStore<D,T>::MRImageStore(std::initializer_list<size_t> a_args) :
 /**
  * @brief Constructor with vector
  *
- * @param a_args dimensions of input, the length of this initializer list
+ * @param dim dimensions of input, the length of this initializer list
  * may not be fully used if a_args is longer than D. If it is shorter
  * then D then additional dimensions are left as size 1.
  */
@@ -57,6 +57,16 @@ MRImageStore<D,T>::MRImageStore(const std::vector<size_t>& dim) :
 	orientDefault();
 }
 
+/**
+ * @brief Creates a new MRI image image with dimensions set to the sizes in
+ * size array. Len is the length of the size ofray (all other dimensions are
+ * assumed to be 1)
+ *
+ * @tparam D Dimensionality of image
+ * @tparam T Pixel type
+ * @param len Length of size array
+ * @param size Array giving dimensions (# pixels in each direction)
+ */
 template <size_t D,typename T>
 MRImageStore<D,T>::MRImageStore(size_t len, const size_t* size) :
 	NDArrayStore<D,T>(len, size), MRImage()
@@ -67,6 +77,21 @@ MRImageStore<D,T>::MRImageStore(size_t len, const size_t* size) :
 	orientDefault();
 }
 
+
+/**
+ * @brief Creates a new MRI image image with dimensions set to the sizes in
+ * size array. Len is the length of the size ofray (all other dimensions are
+ * assumed to be 1)
+ *
+ * @tparam D Dimensionality of image
+ * @tparam T Pixel type
+ * @param len Length of size array
+ * @param size Array giving dimensions (# pixels in each direction)
+ * @param ptr pointer to existing data array. Note that data will be deleted as
+ * per the deleter function (which might be null if you plan on deleting it
+ * elsewhere)
+ * @param deleter function that will be called when this is destructed
+ */
 template <size_t D,typename T>
 MRImageStore<D,T>::MRImageStore(size_t len, const size_t* size, T* ptr,
 		const std::function<void(void*)>& deleter) :
@@ -78,6 +103,12 @@ MRImageStore<D,T>::MRImageStore(size_t len, const size_t* size, T* ptr,
 	orientDefault();
 }
 
+/**
+ * @brief Creates an empy image
+ *
+ * @tparam D Dimensionality of image
+ * @tparam T Pixel type
+ */
 template <size_t D,typename T>
 MRImageStore<D,T>::MRImageStore() :
 	NDArrayStore<D,T>(), MRImage()
@@ -115,9 +146,9 @@ void MRImage::orientDefault()
 *
 * @tparam D Image dimensionality
 * @tparam T Pixeltype
-* @param orig Input origin
-* @param space Input spacing
-* @param dir Input direction/rotation
+* @param neworigin Input origin
+* @param newspace Input spacing
+* @param newdir Input direction/rotation
 * @param reinit Whether to reinitialize prior to copying
 * @param coord coordinate system this refers to. Eventually this might
 * include more advanced options (scanner,anat etc). For now it is just
@@ -192,7 +223,7 @@ const MatrixXd& MRImage::getDirection() const
 *
 * @tparam D Image dimensionality
 * @tparam T Pixeltype
-* @param dir Input direction/rotation
+* @param newdir Input direction/rotation
 * @param reinit Whether to reinitialize prior to copying
 * @param coord coordinate system this refers to. Eventually this might
 * include more advanced options (scanner,anat etc). For now it is just
@@ -263,9 +294,6 @@ const VectorXd& MRImage::getOrigin() const
  * @param reinit Whether to reset everything to Identity/0 before applying.
  * You may want to do this if theinput matrices/vectors differ in dimension
  * from this image.
- * @param coord coordinate system this refers to. Eventually this might
- * include more advanced options (scanner,anat etc). For now it is just
- * QFORM or SFORM
  */
 void MRImage::setOrigin(const VectorXd& neworigin, bool reinit)
 {
