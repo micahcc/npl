@@ -362,8 +362,7 @@ int MatrixReorg::checkMats()
 	MatMap map;
 	int cols = 0;
 	for(size_t bb=0; cols < m_totalcols; bb++) {
-		if(map.open(tall_name(bb), false))
-			throw RUNTIME_ERROR("Error opening "+tall_name(bb));
+		map.open(tall_name(bb), false);
 		if(m_totalrows != map.rows())
 			throw RUNTIME_ERROR("Error, mismatch in file size ("+
 					to_string(map.rows())+"x"+to_string(map.cols())+" vs "+
@@ -580,8 +579,7 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 					if(cc < 0 || cc >= m_outcols[colbl]) {
 						cc = 0;
 						colbl++;
-						if(datamap.open(tall_name(colbl), true) != 0)
-							throw RUNTIME_ERROR("Error opening "+tall_name(colbl));
+						datamap.open(tall_name(colbl), true);
 						if(m_verbose) cerr<<"Writing to: "<<tall_name(colbl)
 								<<" at row "<<to_string(img_glob_row)<<endl;
 						if(datamap.rows() != m_totalrows ||

@@ -648,6 +648,11 @@ int64_t MemMap::openNew(string fn, size_t bsize)
 	}
 
 	m_data = mmap(NULL, bsize, PROT_READ|PROT_WRITE, MAP_SHARED, m_fd, 0);
+	if(m_data == MAP_FAILED) {
+		std::cerr<<"Error opening memory map of size "<<bsize<<endl;
+		return -1;
+	}
+
 	m_size = bsize;
 	return m_size;
 };
@@ -681,6 +686,10 @@ int64_t MemMap::openExisting(string fn, bool writeable, bool quiet)
 	else
 		m_data = mmap(NULL, m_size, PROT_READ, MAP_SHARED, m_fd, 0);
 
+	if(m_data == MAP_FAILED) {
+		std::cerr<<"Error opening memory map of size "<<m_size<<endl;
+		return -1;
+	}
 	return m_size;
 };
 

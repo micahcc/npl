@@ -191,10 +191,11 @@ public:
 	 * @param filename File to open
 	 * @param writeable whether writing is allowed
 	 */
-	int open(std::string filename, bool writeable = false)
+	void open(std::string filename, bool writeable = false)
 	{
 		if(datamap.openExisting(filename, writeable, true) < 0)
-			return -1;
+			throw INVALID_ARGUMENT("Error opening "+filename+" as "+
+					(writeable ? "rw-":"ro-")+"memmap");
 
 		size_t* nrowsptr = (size_t*)datamap.data();
 		size_t* ncolsptr = nrowsptr+1;
@@ -212,7 +213,6 @@ public:
 		m_rows = *nrowsptr;
 		m_cols = *ncolsptr;
 		new (&this->mat) Eigen::Map<MatrixXd>(dataptr, m_rows, m_cols);
-		return 0;
 	};
 
 	/**
@@ -224,13 +224,13 @@ public:
 	 * @param rows Number of rows in matrix file
 	 * @param cols number of columns in matrix file
 	 */
-	int create(std::string filename, size_t newrows, size_t newcols)
+	void create(std::string filename, size_t newrows, size_t newcols)
 	{
 		m_rows = newrows;
 		m_cols = newcols;
 		if(datamap.openNew(filename, 2*sizeof(size_t)+
 					m_rows*m_cols*sizeof(double)) < 0)
-			return -1;
+			throw INVALID_ARGUMENT("Error creating "+filename+" as rw-memmap");
 
 		size_t* nrowsptr = (size_t*)datamap.data();
 		size_t* ncolsptr = nrowsptr+1;
@@ -239,7 +239,6 @@ public:
 		*nrowsptr = m_rows;
 		*ncolsptr = m_cols;
 		new (&this->mat) Eigen::Map<MatrixXd>(dataptr, m_rows, m_cols);
-		return 0;
 	};
 
 	void close()
