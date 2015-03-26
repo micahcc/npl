@@ -29,6 +29,7 @@
 #include "nplio.h"
 #include "iterators.h"
 #include "statistics.h"
+#include <signal.h>
 
 using namespace std;
 
@@ -262,6 +263,7 @@ VectorXd covSVD(const MatrixReorg& A, double varthresh, double cvarthresh,
 	MatrixXd AAt(A.rows(), A.rows());
 	AAt.setZero();
 	for(size_t cc = 0; cc < A.ntall(); cc++) {
+		cerr<<cc<<"/"<<A.ntall()<<endl;
 		MatMap m(A.tallMatName(cc), false);
 		AAt += m.mat*m.mat.transpose();
 	}
@@ -1652,6 +1654,110 @@ MatrixXd extractLabelICA(ptr<const MRImage> fmri,
 
 	return X;
 }
+
+void openRWBusError(int, siginfo_t* inf, void*)
+{
+	ostringstream oss;
+	oss<<"Bus Error during rw-open at "<<inf->si_addr<<endl;
+	throw RUNTIME_ERROR(oss.str());
+}
+
+void openROBusError(int, siginfo_t* inf, void*)
+{
+	ostringstream oss;
+	oss<<"Bus Error during ro-open at "<<inf->si_addr<<endl;
+	throw RUNTIME_ERROR(oss.str());
+}
+
+void createBusError(int, siginfo_t* inf, void*)
+{
+	ostringstream oss;
+	oss<<"Bus Error during create at "<<inf->si_addr<<endl;
+	throw RUNTIME_ERROR(oss.str());
+}
+
+void externalBusError(int, siginfo_t* inf, void*)
+{
+	ostringstream oss;
+	oss<<"Bus Error outside MatMap at "<<inf->si_addr<<endl;
+	throw RUNTIME_ERROR(oss.str());
+}
+
+
+/**
+ * @brief Open an existing file as a memory map. The file must already
+ * exist. If writeable is true then the file will be opened for reading
+ * and writing, by default write is off. Note the same file should not
+ * be simultaneously written two by two separate processes.
+ *
+ * @param filename File to open
+ * @param writeable whether writing is allowed
+ */
+void MatMap::open(std::string filename, bool writeable)
+{
+	struct sigaction act;
+
+	if(writeable) act.sa_sigaction = openRWBusError;
+	else act.sa_sigaction = openROBusError;
+	sigaction(SIGBUS, &act, NULL);
+	if(datamap.openExisting(filename, writeable, true) < 0)
+		throw INVALID_ARGUMENT("Error opening "+filename+" as "+
+				(writeable ? "rw-":"ro-")+"memmap");
+
+	size_t* nrowsptr = (size_t*)datamap.data();
+	size_t* ncolsptr = nrowsptr+1;
+	double* dataptr = (double*)((size_t*)datamap.data()+2);
+
+	if(datamap.size() < 2*sizeof(size_t))
+		throw INVALID_ARGUMENT("Error! Mapped Dataset is less than the "
+				"size of two size_t's");
+	if(datamap.size() != (*nrowsptr)*(*ncolsptr)*sizeof(double)+
+			2*sizeof(size_t))
+		throw INVALID_ARGUMENT("Error! Mismatch in map size ("+
+				std::to_string(datamap.size())+") and size in file ("+
+				std::to_string(*nrowsptr)+", "+std::to_string(*ncolsptr)+")");
+
+	m_rows = *nrowsptr;
+	m_cols = *ncolsptr;
+	new (&this->mat) Eigen::Map<MatrixXd>(dataptr, m_rows, m_cols);
+
+	act.sa_sigaction = externalBusError;
+	sigaction(SIGBUS, &act, NULL);
+};
+
+/**
+ * @brief Open an new file as a memory map. ANY OLD FILE WILL BE DELETED
+ * The file is always opened for writing and reading. Note the same file
+ * should not be simultaneously written two by two separate processes.
+ *
+ * @param filename File to open
+ * @param rows Number of rows in matrix file
+ * @param cols number of columns in matrix file
+ */
+void MatMap::create(std::string filename, size_t newrows, size_t newcols)
+{
+	struct sigaction act;
+	act.sa_sigaction = createBusError;
+	sigaction(SIGBUS, &act, NULL);
+
+	m_rows = newrows;
+	m_cols = newcols;
+	if(datamap.openNew(filename, 2*sizeof(size_t)+
+				m_rows*m_cols*sizeof(double)) < 0)
+		throw INVALID_ARGUMENT("Error creating "+filename+" as rw-memmap");
+
+	size_t* nrowsptr = (size_t*)datamap.data();
+	size_t* ncolsptr = nrowsptr+1;
+	double* dataptr = (double*)((size_t*)datamap.data()+2);
+
+	*nrowsptr = m_rows;
+	*ncolsptr = m_cols;
+	new (&this->mat) Eigen::Map<MatrixXd>(dataptr, m_rows, m_cols);
+
+	act.sa_sigaction = externalBusError;
+	sigaction(SIGBUS, &act, NULL);
+};
+
 
 } // NPL
 

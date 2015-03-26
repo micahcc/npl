@@ -122,7 +122,7 @@ int main(int argc, char * argv[])
 			"be tabulated", true, "", "*.trk|*.dfc", cmd);
 	TCLAP::ValueArg<string> a_trackref("r", "tract-ref", "*.dft files need a "
 			"separate image to determine their orientation, provide that "
-			"here", true, "", "*.nii.gz", cmd);
+			"here", false, "", "*.nii.gz", cmd);
 
 	TCLAP::ValueArg<string> a_labelmap("l", "labelmap", "Input label image to "
 			"calculate connectivity over. Should be grey-matter only (ie "
@@ -429,7 +429,7 @@ void computePerEdgeScalars(const TrackSet& trackData,
 			udist -= dlen;
 			if(udist < 0) {
 				auto result = labeltree.withindist(pt.size(), pt.data(), treed);
-				for(auto node : result)
+				for(const auto& node : result)
 					conlabels.insert(node->m_data[0]);
 				udist = stepsize;
 			}

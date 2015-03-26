@@ -191,29 +191,7 @@ public:
 	 * @param filename File to open
 	 * @param writeable whether writing is allowed
 	 */
-	void open(std::string filename, bool writeable = false)
-	{
-		if(datamap.openExisting(filename, writeable, true) < 0)
-			throw INVALID_ARGUMENT("Error opening "+filename+" as "+
-					(writeable ? "rw-":"ro-")+"memmap");
-
-		size_t* nrowsptr = (size_t*)datamap.data();
-		size_t* ncolsptr = nrowsptr+1;
-		double* dataptr = (double*)((size_t*)datamap.data()+2);
-
-		if(datamap.size() < 2*sizeof(size_t))
-			throw INVALID_ARGUMENT("Error! Mapped Dataset is less than the "
-					"size of two size_t's");
-		if(datamap.size() != (*nrowsptr)*(*ncolsptr)*sizeof(double)+
-				2*sizeof(size_t))
-			throw INVALID_ARGUMENT("Error! Mismatch in map size ("+
-					std::to_string(datamap.size())+") and size in file ("+
-					std::to_string(*nrowsptr)+", "+std::to_string(*ncolsptr)+")");
-
-		m_rows = *nrowsptr;
-		m_cols = *ncolsptr;
-		new (&this->mat) Eigen::Map<MatrixXd>(dataptr, m_rows, m_cols);
-	};
+	void open(std::string filename, bool writeable = false);
 
 	/**
 	 * @brief Open an new file as a memory map. ANY OLD FILE WILL BE DELETED
@@ -224,22 +202,7 @@ public:
 	 * @param rows Number of rows in matrix file
 	 * @param cols number of columns in matrix file
 	 */
-	void create(std::string filename, size_t newrows, size_t newcols)
-	{
-		m_rows = newrows;
-		m_cols = newcols;
-		if(datamap.openNew(filename, 2*sizeof(size_t)+
-					m_rows*m_cols*sizeof(double)) < 0)
-			throw INVALID_ARGUMENT("Error creating "+filename+" as rw-memmap");
-
-		size_t* nrowsptr = (size_t*)datamap.data();
-		size_t* ncolsptr = nrowsptr+1;
-		double* dataptr = (double*)((size_t*)datamap.data()+2);
-
-		*nrowsptr = m_rows;
-		*ncolsptr = m_cols;
-		new (&this->mat) Eigen::Map<MatrixXd>(dataptr, m_rows, m_cols);
-	};
+	void create(std::string filename, size_t newrows, size_t newcols);
 
 	void close()
 	{
