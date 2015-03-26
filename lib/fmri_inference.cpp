@@ -212,7 +212,7 @@ MatrixXd icsToT(const MatrixReorg& A,
 	MatrixXd out = ics;
 	size_t oc = 0;
 	for(size_t cg = 0; cg < A.tallMatCols().size(); cg++) {
-		MatMap m(A.tallMatName(cg));
+		MatMap m(A.tallMatName(cg), false);
 		if(A.tallMatCols()[cg] != m.cols())
 			throw INVALID_ARGUMENT("Columns mismatch between read data and "
 					"previously written data");
@@ -262,7 +262,7 @@ VectorXd covSVD(const MatrixReorg& A, double varthresh, double cvarthresh,
 	MatrixXd AAt(A.rows(), A.rows());
 	AAt.setZero();
 	for(size_t cc = 0; cc < A.ntall(); cc++) {
-		MatMap m(A.tallMatName(cc));
+		MatMap m(A.tallMatName(cc), false);
 		AAt += m.mat*m.mat.transpose();
 	}
 	cerr<<"Done"<<endl;
@@ -362,7 +362,7 @@ int MatrixReorg::checkMats()
 	MatMap map;
 	int cols = 0;
 	for(size_t bb=0; cols < m_totalcols; bb++) {
-		if(map.open(tall_name(bb)))
+		if(map.open(tall_name(bb), false))
 			throw RUNTIME_ERROR("Error opening "+tall_name(bb));
 		if(m_totalrows != map.rows())
 			throw RUNTIME_ERROR("Error, mismatch in file size ("+
@@ -580,7 +580,7 @@ int MatrixReorg::createMats(size_t timeblocks, size_t spaceblocks,
 					if(cc < 0 || cc >= m_outcols[colbl]) {
 						cc = 0;
 						colbl++;
-						if(datamap.open(tall_name(colbl)) != 0)
+						if(datamap.open(tall_name(colbl), true) != 0)
 							throw RUNTIME_ERROR("Error opening "+tall_name(colbl));
 						if(m_verbose) cerr<<"Writing to: "<<tall_name(colbl)
 								<<" at row "<<to_string(img_glob_row)<<endl;
@@ -651,7 +651,7 @@ void MatrixReorg::preMult(Eigen::Ref<MatrixXd> out,
 		out.setZero();
 		for(size_t cc=0, bb=0; cc<cols(); bb++) {
 			// Load Block
-			MatMap block(tallMatName(bb));
+			MatMap block(tallMatName(bb), false);
 
 			// Multiply By Input
 			out.middleCols(cc, m_outcols[bb]) = in*block.mat;
@@ -667,7 +667,7 @@ void MatrixReorg::preMult(Eigen::Ref<MatrixXd> out,
 		out.setZero();
 		for(size_t cc=0, bb=0; cc<cols(); bb++) {
 			// Load Block
-			MatMap block(tallMatName(bb));
+			MatMap block(tallMatName(bb), false);
 
 			// Multiply By Input
 			out += in.middleCols(cc, m_outcols[bb])*block.mat.transpose();
@@ -689,7 +689,7 @@ void MatrixReorg::postMult(Eigen::Ref<MatrixXd> out,
 		out.setZero();
 		for(size_t cc=0, bb=0; cc<cols(); bb++) {
 			// Load Block
-			MatMap block(tallMatName(bb));
+			MatMap block(tallMatName(bb), false);
 
 			// Multiply By Input
 			out += block.mat*in.middleRows(cc, m_outcols[bb]);
@@ -705,7 +705,7 @@ void MatrixReorg::postMult(Eigen::Ref<MatrixXd> out,
 		out.setZero();
 		for(size_t cc=0, bb=0; cc<cols(); bb++) {
 			// Load Block
-			MatMap block(tallMatName(bb));
+			MatMap block(tallMatName(bb), false);
 			cerr<<"Multiplying "<<block.mat.rows()<<"x"<<block.mat.cols()<<" by "
 				<<in.rows()<<"x"<<in.cols()<<endl;
 
@@ -811,11 +811,11 @@ void gicaTemporalICA(std::string reorgpref, std::string reducepref,
 	VectorXd E;
 	{
 		MatMap reader;
-		reader.open(U_name(reducepref));
+		reader.open(U_name(reducepref), false);
 		U = reader.mat;
-		reader.open(V_name(reducepref));
+		reader.open(V_name(reducepref), false);
 		V = reader.mat;
-		reader.open(E_name(reducepref));
+		reader.open(E_name(reducepref), false);
 		E = reader.mat;
 	}
 
@@ -881,7 +881,7 @@ void gicaTemporalICA(std::string reorgpref, std::string reducepref,
 	size_t matn = 0; // matrix number (tall matrices)
 	size_t maskn = 0; // Mask number
 
-	MatMap tall(A.tallMatName(matn));
+	MatMap tall(A.tallMatName(matn), false);
 	MatrixXd tvalues(A.cols(), ics.cols());
 	cerr<<"Regressing full dataset"<<endl;
 	for(size_t cc=0, tc=0; cc < A.cols(); maskn++) {
@@ -944,11 +944,11 @@ void gicaSpatialICA(std::string reorgpref, std::string reducepref,
 	VectorXd E;
 	{
 		MatMap reader;
-		reader.open(U_name(reducepref));
+		reader.open(U_name(reducepref), false);
 		U = reader.mat;
-		reader.open(V_name(reducepref));
+		reader.open(V_name(reducepref), false);
 		V = reader.mat;
-		reader.open(E_name(reducepref));
+		reader.open(E_name(reducepref), false);
 		E = reader.mat;
 	}
 

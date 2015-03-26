@@ -47,7 +47,7 @@ int main(int argc, char** argv)
     }
 
     size_t mapsize = ndouble*sizeof(double);
-    MemMap datamap(filename, mapsize, true);
+    MemMap datamap(filename, mapsize);
     if(datamap.size() <= 0) {
         cerr << "Memory Map Failed!" << endl;
         return -1;
@@ -69,7 +69,7 @@ int main(int argc, char** argv)
 
     // Test Close then Reopen
     datamap.close();
-    datamap.openExisting(filename);
+    datamap.openExisting(filename, false);
     if(datamap.size() <= 0) {
         cerr << "Error when re-opening!" << endl;
         return -1;

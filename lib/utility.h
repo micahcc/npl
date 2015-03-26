@@ -278,15 +278,23 @@ class MemMap
 public:
 	/**
 	 * @brief Create a new mmap class by opening the specified file
-	 * with the specified size. If createNew is set then a new file will be
-	 * created an existing file will be deleted (if permissions allow it).
+	 * with the specified size. This version ALWAYS CREATES A NEW FILE.
+	 * THIS WILL OVERWRITE THE OLD FILE
 	 *
 	 * @param fn Open the specified file for reading and writing.
-	 * @param bsize Make the file size this number of bytes. If createNew is
-	 * false then this is unused
-	 * @param createNew Create a new file, removing any existing
+	 * @param bsize Make the file size this number of bytes.
 	 */
-	MemMap(std::string fn, size_t bsize, bool createNew);
+	MemMap(std::string fn, size_t bsize);
+
+	/**
+	 * @brief Open an example file as a memory map.
+	 *
+	 * @param fn Open the specified file for reading and writing.
+	 * @param writeable Whether the opened file will be writeable.
+	 * Note that no two processes should have the same file open as writeable
+	 * at a time.
+	 */
+	MemMap(std::string fn, bool writeable=false);
 
 	/**
 	 * @brief Just create the object. Until open() is called the size() will
@@ -297,7 +305,7 @@ public:
 	/**
 	 * @brief Open the specified file with the specified size. If createNew is
 	 * set then a new file will be created an existing file will be deleted (if
-	 * permissions allow it).
+	 * permissions allow it). This is always opened as writeable
 	 *
 	 * @param fn Open the specified file for reading and writing.
 	 * @param bsize Make the file size this number of bytes. If createNew is
@@ -311,11 +319,13 @@ public:
 	 * set then a new file will be created an existing file will be deleted (if
 	 * permissions allow it).
 	 *
-	 * @param fn Open the specified file for reading and writing.
+	 * @param fn Open the specified file for reading.
+	 * @param writeable whether the opened file will be writeable (note that
+	 * no two processes should open the same file as writeable)
 	 * @param quiet Whether to print errors when we can't open a file
 	 * @return size of memory map
 	 */
-	int64_t openExisting(std::string fn, bool quiet = true);
+	int64_t openExisting(std::string fn, bool writeable, bool quiet = true);
 
 	/**
 	 * @brief Return true if a file is currently open
