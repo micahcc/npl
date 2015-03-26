@@ -347,22 +347,29 @@ void Graph<T>::save(std::string filename, GraphStoreT store)
 	gzFile gz;
 	std::string mode = "wb";
 
+#if ZLIB_VERNUM < 0x1252
+	cerr<<"Warning old version of zlib in use, ALL FILES WILL BE "
+		"GZIPPED. Note the file extension will differ from the requested "
+		"to reflect this"<<endl;
+	filename = filename+".gz";
+#endif
+
 	// remove .gz to find the "real" format,
 	std::string nogz;
 	if(filename.size() >= 3 && filename.substr(filename.size()-3, 3) == ".gz") {
 		nogz = filename.substr(0, filename.size()-3);
+		gz = gzopen(filename.c_str(), "wb");
 	} else {
 		// if no .gz, then make encoding "transparent" (plain)
 		nogz = filename;
-		mode += 'T';
+		gz = gzopen(filename.c_str(), "wbT");
 	}
 
 	// go ahead and open
-	gz = gzopen(filename.c_str(), mode.c_str());
 	if(!gz)
 		throw RUNTIME_ERROR("Could not open "+filename+" for writing!");
 
-	if(filename.size() >= 4 && nogz.substr(nogz.size()-4, 4) == ".csv") {
+	if(nogz.size() >= 4 && nogz.substr(nogz.size()-4, 4) == ".csv") {
 		writeCSV(gz, store);
 	} else {
 		writeNPL(gz, store);

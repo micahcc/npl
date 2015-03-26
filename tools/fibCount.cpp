@@ -401,7 +401,7 @@ void computePerEdgeScalars(const TrackSet& trackData,
 	// summing up properties of tracks connecting regions
 	for(size_t tt=0; tt<trackData.size(); tt++) {
 		if(trackData[tt].empty()) continue;
-		cout<<tt<<"\t/\t"<<trackData.size()<<"\r";
+//		cout<<tt<<"\t/\t"<<trackData.size()<<"\r";
 
 		// iterate through points to find all connections made by track and
 		double len = 0;
