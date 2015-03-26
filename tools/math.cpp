@@ -111,10 +111,11 @@ int main(int argc, char** argv)
         cerr << "Error, need at least 1 image" << endl;
         usage(-1);
     }
-	cerr << "Equation: " << endl;
     // parse math
     MathExpression expr(equation);
+#ifdef DEBUG
     expr.randomTest();
+#endif //DEBUG
 
     // load reference image/create output
     ptr<MRImage> out;
