@@ -678,6 +678,7 @@ void MemMap::close()
 {
 	if(m_size > 0) {
 		munmap(m_data, m_size);
+		fsync(m_fd);
 		::close(m_fd);
 	}
 	m_data = NULL;
