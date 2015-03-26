@@ -186,14 +186,18 @@ int main(int argc, char * argv[])
 	if(a_trackref.isSet()) {
 		tractData = readTracks(a_tracts.getValue(), a_trackref.getValue());
 	} else {
-		cerr<<"NOTE: Using"<<a_labelmap.getValue()<<" as track reference"<<endl;
+		cerr<<"NOTE: Using "<<a_labelmap.getValue()<<" as track "
+			"reference. This means the orientation and gridding should be "
+			"identical to the image used to generate the original tracks (if "
+			"you are using DFT)"<<endl;
 		tractData = readTracks(a_tracts.getValue(), a_labelmap.getValue());
 	}
 
 	cerr<<"Done"<<endl;
 
 	if(a_wmmask.isSet()) {
-		cerr<<"Cropping Tracks to Masked (label != 0) Region"<<endl;
+		cerr<<"Note: Cropping Tracks to Masked (label != 0) Region. "
+			<<a_wmmask.getValue()<<"should be a white-matter mask"<<endl;
 		ptr<MRImage> mask = readMRImage(a_wmmask.getValue());
 		cropTracks(mask, &tractData, a_lenthresh.getValue());
 		cerr<<"Done"<<endl;
@@ -442,7 +446,7 @@ void computePerEdgeScalars(const TrackSet& trackData,
 		// assign length, count to pairs
 		for(auto it1 = conlabels.begin(); it1 != conlabels.end(); ++it1) {
 			size_t ii = labelToVertex.at(*it1);
-			auto it2 = it1; ++it2;
+			auto it2 = it1;
 			for(; it2 != conlabels.end(); ++it2) {
 				size_t jj = labelToVertex.at(*it2);
 				// ii->jj
