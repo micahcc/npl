@@ -620,7 +620,7 @@ int64_t MemMap::openNew(string fn, size_t bsize)
 	close();
 
 	// Create an Emptry File
-	m_fd = ::open(fn.c_str(), O_LARGEFILE|O_CREAT|O_TRUNC|O_RDWR, S_IRWXU);
+	m_fd = ::open(fn.c_str(), O_LARGEFILE|O_CREAT|O_TRUNC|O_RDWR|O_SYNC, S_IRWXU);
 	if(m_fd == -1) {
 		std::cerr<<"Error Opening file"<< endl;
 		return -1;
