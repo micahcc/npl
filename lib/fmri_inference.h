@@ -165,12 +165,14 @@ public:
 		size_t* ncolsptr = nrowsptr+1;
 		double* dataptr = (double*)((size_t*)datamap.data()+2);
 
+		if(datamap.size() < 2*sizeof(size_t))
+			throw INVALID_ARGUMENT("Error! Mapped Dataset is less than the "
+					"size of two size_t's");
 		if(datamap.size() != (*nrowsptr)*(*ncolsptr)*sizeof(double)+
-				2*sizeof(size_t)) {
+				2*sizeof(size_t))
 			throw INVALID_ARGUMENT("Error! Mismatch in map size ("+
 					std::to_string(datamap.size())+") and size in file ("+
 					std::to_string(*nrowsptr)+", "+std::to_string(*ncolsptr)+")");
-		}
 
 		m_rows = *nrowsptr;
 		m_cols = *ncolsptr;
