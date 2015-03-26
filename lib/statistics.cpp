@@ -2477,6 +2477,8 @@ MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 	MatrixXd wtw(dims, dims);
 	VectorXd tmp;
 
+	MatrixXd Wbest;
+	double best_nonlin = 0;
 	double nonlin = 0;
 	double arma = -1e-4;
 	Eigen::HouseholderQR<MatrixXd> qr(W.rows(), W.cols());
@@ -2501,6 +2503,10 @@ MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 
 		nonlin = proj.unaryExpr(std::ptr_fun(fastICA_G2)).sum()/(dims*samples);
 		arma = arma*(1-ARMAW) + nonlin*ARMAW;
+		if(nonlin > best_nonlin) {
+			best_nonlin = nonlin;
+			Wbest = Wprev;
+		}
 
 		//- wp SUM(g'(X wp)))/R
 		tmp = proj.unaryExpr(std::ptr_fun(fastICA_dg2)).colwise().sum();
@@ -2532,7 +2538,7 @@ MatrixXd symICA(const Ref<const MatrixXd> Xin, MatrixXd* unmix)
 	std::cout<<"Stop with W:\n"<<W<<endl;
 #endif// NDEBUG
 
-	if(unmix) *unmix = W;
+	if(unmix) *unmix = Wbest;
 	return X*W;
 }
 
