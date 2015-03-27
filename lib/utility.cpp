@@ -701,9 +701,10 @@ int64_t MemMap::openExisting(string fn, bool writeable, bool quiet)
 	if(writeable) {
 		cerr<<"READ|WRITE|SHARED"<<endl;
 		m_data = mmap(NULL, m_size, PROT_READ|PROT_WRITE, MAP_SHARED, m_fd, 0);
-	} else
+	} else {
 		cerr<<"RO|PRIVATE"<<endl;
 		m_data = mmap(NULL, m_size, PROT_READ, MAP_PRIVATE, m_fd, 0);
+	}
 
 	cerr<<"mmap Returned memory: " <<m_data<<endl;
 	if(m_data == MAP_FAILED) {
