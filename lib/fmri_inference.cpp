@@ -263,8 +263,9 @@ VectorXd covSVD(const MatrixReorg& A, double varthresh, double cvarthresh,
 	MatrixXd AAt(A.rows(), A.rows());
 	AAt.setZero();
 	for(size_t cc = 0; cc < A.ntall(); cc++) {
-		cerr<<cc<<"/"<<A.ntall()<<endl;
+		cerr<<(cc+1)<<"/"<<A.ntall();
 		MatMap m(A.tallMatName(cc), false);
+		cerr<<" sz="<<m.mat.rows()<<"x"<<m.mat.cols()<<endl;
 		AAt += m.mat*m.mat.transpose();
 	}
 	cerr<<"Done"<<endl;
@@ -1695,12 +1696,14 @@ void externalBusError(int sig, siginfo_t* inf, void*)
  */
 void MatMap::open(std::string filename, bool writeable)
 {
-	struct sigaction act;
-
-	if(writeable) act.sa_sigaction = openRWBusError;
-	else act.sa_sigaction = openROBusError;
-	sigaction(SIGBUS, &act, NULL);
-	if(datamap.openExisting(filename, writeable, true) < 0)
+//	struct sigaction act;
+//
+//	if(writeable) act.sa_sigaction = openRWBusError;
+//	else act.sa_sigaction = openROBusError;
+//	sigaction(SIGBUS, &act, NULL);
+//	sigaction(SIGSEGV, &act, NULL);
+//	sigaction(SIGABRT, &act, NULL);
+	if(datamap.openExisting(filename, writeable, false) < 0)
 		throw INVALID_ARGUMENT("Error opening "+filename+" as "+
 				(writeable ? "rw-":"ro-")+"memmap");
 
@@ -1721,8 +1724,10 @@ void MatMap::open(std::string filename, bool writeable)
 	m_cols = *ncolsptr;
 	new (&this->mat) Eigen::Map<MatrixXd>(dataptr, m_rows, m_cols);
 
-	act.sa_sigaction = externalBusError;
-	sigaction(SIGBUS, &act, NULL);
+//	act.sa_sigaction = externalBusError;
+//	sigaction(SIGBUS, &act, NULL);
+//	sigaction(SIGSEGV, &act, NULL);
+//	sigaction(SIGABRT, &act, NULL);
 };
 
 /**
@@ -1736,10 +1741,12 @@ void MatMap::open(std::string filename, bool writeable)
  */
 void MatMap::create(std::string filename, size_t newrows, size_t newcols)
 {
-	struct sigaction act;
-	act.sa_sigaction = createBusError;
-	sigaction(SIGBUS, &act, NULL);
-
+//	struct sigaction act;
+//	act.sa_sigaction = createBusError;
+//	sigaction(SIGBUS, &act, NULL);
+//	sigaction(SIGSEGV, &act, NULL);
+//	sigaction(SIGABRT, &act, NULL);
+//
 	m_rows = newrows;
 	m_cols = newcols;
 	if(datamap.openNew(filename, 2*sizeof(size_t)+
@@ -1754,8 +1761,10 @@ void MatMap::create(std::string filename, size_t newrows, size_t newcols)
 	*ncolsptr = m_cols;
 	new (&this->mat) Eigen::Map<MatrixXd>(dataptr, m_rows, m_cols);
 
-	act.sa_sigaction = externalBusError;
-	sigaction(SIGBUS, &act, NULL);
+//	act.sa_sigaction = externalBusError;
+//	sigaction(SIGBUS, &act, NULL);
+//	sigaction(SIGSEGV, &act, NULL);
+//	sigaction(SIGABRT, &act, NULL);
 };
 
 

@@ -622,9 +622,13 @@ int64_t MemMap::openNew(string fn, size_t bsize)
 	close();
 
 	// Create an Emptry File
+	cerr<<"Creating"<<fn<<": "<<bsize<<" bytes,";
 	m_fd = ::open(fn.c_str(), O_LARGEFILE|O_CREAT|O_TRUNC|O_RDWR, S_IRWXU);
 	if(m_fd == -1) {
 		std::cerr<<"Error Opening file"<< endl;
+		m_data = NULL;
+		m_fd = -1;
+		m_size = -1;
 		return -1;
 	}
 
@@ -634,6 +638,8 @@ int64_t MemMap::openNew(string fn, size_t bsize)
 	if (result == -1) {
 		std::cerr << "Error when seeking "<<bsize<<" into file" << endl;
 		::close(m_fd);
+		m_data = NULL;
+		m_fd = -1;
 		m_size = -1;
 		return -1;
 	}
@@ -641,15 +647,22 @@ int64_t MemMap::openNew(string fn, size_t bsize)
 	// Write a byte at the end
 	result = write(m_fd, "", 1);
 	if(result < 0) {
-		std::cerr << "Error when writing file" << endl;
 		::close(m_fd);
+		m_data = NULL;
+		m_fd = -1;
 		m_size = -1;
 		return -1;
 	}
 
+	cerr<<"RW|SHARED"<<endl;
 	m_data = mmap(NULL, bsize, PROT_READ|PROT_WRITE, MAP_SHARED, m_fd, 0);
+	cerr<<"mmap Returned memory: " <<m_data<<endl;
 	if(m_data == MAP_FAILED) {
 		std::cerr<<"Error opening memory map of size "<<bsize<<endl;
+		::close(m_fd);
+		m_data = NULL;
+		m_fd = -1;
+		m_size = -1;
 		return -1;
 	}
 
@@ -676,17 +689,28 @@ int64_t MemMap::openExisting(string fn, bool writeable, bool quiet)
 		m_fd = ::open(fn.c_str(), O_LARGEFILE|O_RDONLY);
 
 	if(m_fd < 0) {
+		m_data = NULL;
+		m_fd = -1;
+		m_size = -1;
 		if(!quiet)
 			cerr<<"Error opening existing file: "<<fn<<endl;
 		return -1;
 	}
 
-	if(writeable)
+	cerr<<"mapping "<<fn<<": "<<m_size<<" bytes,";
+	if(writeable) {
+		cerr<<"READ|WRITE|SHARED"<<endl;
 		m_data = mmap(NULL, m_size, PROT_READ|PROT_WRITE, MAP_SHARED, m_fd, 0);
-	else
-		m_data = mmap(NULL, m_size, PROT_READ, MAP_SHARED, m_fd, 0);
+	} else
+		cerr<<"RO|PRIVATE"<<endl;
+		m_data = mmap(NULL, m_size, PROT_READ, MAP_PRIVATE, m_fd, 0);
 
+	cerr<<"mmap Returned memory: " <<m_data<<endl;
 	if(m_data == MAP_FAILED) {
+		::close(m_fd);
+		m_data = NULL;
+		m_fd = -1;
+		m_size = -1;
 		std::cerr<<"Error opening memory map of size "<<m_size<<endl;
 		return -1;
 	}
