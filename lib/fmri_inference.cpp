@@ -1705,7 +1705,8 @@ void MatMap::open(std::string filename, bool writeable)
 //	sigaction(SIGABRT, &act, NULL);
 	if(datamap.openExisting(filename, writeable, false) < 0)
 		throw INVALID_ARGUMENT("Error opening "+filename+" as "+
-				(writeable ? "rw-":"ro-")+"memmap");
+				(writeable ? "rw-":"ro-")+"memmap. Might be because there is "
+				"not enough remaining memory to map");
 
 	size_t* nrowsptr = (size_t*)datamap.data();
 	size_t* ncolsptr = nrowsptr+1;

@@ -682,7 +682,7 @@ int64_t MemMap::openExisting(string fn, bool writeable, bool quiet)
 		return -1;
 	}
 
-	m_size = st.st_size;;
+	m_size = st.st_size;
 	if(writeable)
 		m_fd = ::open(fn.c_str(), O_LARGEFILE|O_RDWR);
 	else
