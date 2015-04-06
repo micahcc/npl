@@ -186,14 +186,18 @@ int main(int argc, char * argv[])
 	if(a_trackref.isSet()) {
 		tractData = readTracks(a_tracts.getValue(), a_trackref.getValue());
 	} else {
-		cerr<<"NOTE: Using"<<a_labelmap.getValue()<<" as track reference"<<endl;
+		cerr<<"NOTE: Using "<<a_labelmap.getValue()<<" as track "
+			"reference. This means the orientation and gridding should be "
+			"identical to the image used to generate the original tracks (if "
+			"you are using DFT)"<<endl;
 		tractData = readTracks(a_tracts.getValue(), a_labelmap.getValue());
 	}
 
 	cerr<<"Done"<<endl;
 
 	if(a_wmmask.isSet()) {
-		cerr<<"Cropping Tracks to Masked (label != 0) Region"<<endl;
+		cerr<<"Note: Cropping Tracks to Masked (label != 0) Region. "
+			<<a_wmmask.getValue()<<"should be a white-matter mask"<<endl;
 		ptr<MRImage> mask = readMRImage(a_wmmask.getValue());
 		cropTracks(mask, &tractData, a_lenthresh.getValue());
 		cerr<<"Done"<<endl;
@@ -399,7 +403,7 @@ void computePerEdgeScalars(const TrackSet& trackData,
 		Graph<size_t>* cgraph, Graph<double>* lgraph,
 		vector<Graph<double>>* sgraphs)
 {
-	double stepsize = 3;
+	double stepsize = 1;
 	std::array<float, 3> pt, ppt; // points
 	std::unordered_set<int64_t> conlabels; // labels connected by track
 
@@ -416,7 +420,6 @@ void computePerEdgeScalars(const TrackSet& trackData,
 	// summing up properties of tracks connecting regions
 	for(size_t tt=0; tt<trackData.size(); tt++) {
 		if(trackData[tt].empty()) continue;
-//		cout<<tt<<"\t/\t"<<trackData.size()<<"\r";
 
 		// iterate through points to find all connections made by track and
 		double len = 0;
@@ -443,7 +446,7 @@ void computePerEdgeScalars(const TrackSet& trackData,
 		// assign length, count to pairs
 		for(auto it1 = conlabels.begin(); it1 != conlabels.end(); ++it1) {
 			size_t ii = labelToVertex.at(*it1);
-			auto it2 = it1; ++it2;
+			auto it2 = it1;
 			for(; it2 != conlabels.end(); ++it2) {
 				size_t jj = labelToVertex.at(*it2);
 				// ii->jj
@@ -469,364 +472,6 @@ void computePerEdgeScalars(const TrackSet& trackData,
 		}
 	}
 }
-
-///**
-//* @brief Computes graphs of counts, fiber length, variance of fiber length and FA
-//* 			but unlike createGraphs adds connectivity for any region encountered
-//* 			along the fiber.
-//*
-//* @param trackData Input tracts to count over
-//* @param labelTree Labelmap Tree to lookup values from
-//* @param radius distance from fiber to look for connected labels
-//* @param minlength minimum acceptable fiber length
-//* @param labelLookup Label to index lookup
-//* @param ographs Output graphs (0 - count, 1 - length, 2 ... - data scalar image)
-//*
-//* @return
-//*/
-//int createGraphsInclusive(vtkSmartPointer<vtkPolyData> trackData,
-//			vtkSmartPointer<TreeT> labelTree, double radius, double minlength,
-//			const map<int, int>& labelLookup, vector<Graph*>& ographs)
-//{
-//	vtkSmartPointer<vtkIntArray> pointLabels = vtkIntArray::SafeDownCast(
-//				vtkPolyData::SafeDownCast(labelTree->GetDataSet())->
-//				GetPointData()->GetScalars());
-//	vtkSmartPointer<vtkFloatArray> trackStats = vtkFloatArray::SafeDownCast(
-//				trackData->GetCellData()->GetScalars());
-//
-//    vtkIdType npts;
-//    vtkIdType* ids;
-//	vtkSmartPointer<vtkIdList> idlist = vtkSmartPointer<vtkIdList>::New();
-//	int i1, i2; //index 1, index 2, corresponding to label 1 and 2
-//	int l1; //label value
-//	double pt1[3];
-//	double pt2[3];
-//	Graph::iterator itc; //count graph iterator
-//	Graph::iterator its; //count graph iterator
-//	int nlabels = labelLookup.size();
-//	map<int, int>::const_iterator mit;
-//	double tmp;
-//	map<int, int> conlabels; //connected labels, map to indices in graph
-//
-//	//store counts for each metric
-//	vector<Graph*> counts(ographs.size()-1);
-//	for(unsigned int ii = 0 ; ii < ographs.size()-1 ; ii++)
-//		counts[ii] = new Graph(nlabels, false, true);
-//
-//	/* Initialize Graphs */
-//
-//	//allocate
-//	for(unsigned int ii = 0 ; ii < ographs.size() ; ii++)
-//		ographs[ii] = new Graph(nlabels, false, true);
-//
-//	//labels
-//	mit = labelLookup.begin();
-//	for(int ii = 0 ; ii < nlabels; ii++, mit++) {
-//		for(unsigned int jj = 0; jj < ographs.size() ; jj++)
-//			ographs[jj]->setLabel(ii, mit->first);
-//	}
-//
-//	cerr << "initializating traversal" << endl;
-//	/*
-//	 * for each fiber, map the start/end labels
-//	 */
-//	int match_label = 0; //note that GetTraversal Location goes by points
-//	int match_all = 0; //note that GetTraversal Location goes by points
-//	int cellnum = -1; //note that GetTraversal Location goes by points
-//    vtkSmartPointer<vtkCellArray> tracts = tractData->GetLines();
-//    tracts->InitTraversal();
-//    while(tracts->GetNextCell(npts, ids)) {
-//		cellnum++;
-//
-//		//travel down the fiber for looking the matches
-//		//add matches to set
-//		tractData->GetPoint(ids[0], pt1);
-//		conlabels.clear();
-//		for(int ii = 0; ii < npts; ii++) {
-//			tractData->GetPoint(ids[ii], pt2);
-//
-//			idlist->Reset();
-//        	labelTree->FindPointsWithinRadius(radius, pt2, idlist);
-//			for(int jj = 0 ; jj < idlist->GetNumberOfIds(); jj++) {
-//				i1 = idlist->GetId(jj);
-//				l1 = pointLabels->GetValue(i1);
-//				conlabels[l1] = -1;;
-//			}
-//
-//			//copy pt2 into prev point (pt1)
-//			copy(pt2, pt2+3, pt1);
-//		}
-//
-//		//lookup label and convert to an index
-//		//save the index in the conlabels map
-//		for(auto it = conlabels.begin(); it != conlabels.end() ; it++) {
-//			mit = labelLookup.find(it->first);
-//			if(mit == labelLookup.end()) {
-//				cerr << "ERROR WIERD STUFF" << endl;
-//				return -1;
-//			}
-//			it->second = mit->second;
-//		}
-//
-//		if(conlabels.size() > 0)
-//			match_label++;
-//
-//		// skip tracts that aren't long enough
-//		if(tractStats->GetComponent(cellnum, 0) < minlength)
-//			continue;
-//
-//		/*
-//		 * Update the Values, averaging len, and fa
-//		 */
-//
-//		match_all++;
-//
-//		//for each pair of regions on the line, add to the graphs
-//		for(auto it1 = conlabels.begin(); it1 != conlabels.end() ; it1++) {
-//			for(auto it2 = it1; it2 != conlabels.end() ; it2++) {
-//				i1 = it1->second;
-//				i2 = it2->second;
-//
-//				//count graphs
-//				ographs[0]->set(i1, i2, ographs[0]->get(i1, i2)+1);
-//				ographs[0]->set(i2, i1, ographs[0]->get(i2, i1)+1);
-//
-//				for(unsigned int ii = 1 ; ii < ographs.size() ; ii++) {
-//					tmp = tractStats->GetComponent(cellnum, ii-1);
-//					if(!isnan(tmp) && !isinf(tmp)) {
-//						//counts for this metric
-//						counts[ii-1]->set(i1, i2, counts[ii-1]->get(i1, i2)+1);
-//						counts[ii-1]->set(i2, i1, counts[ii-1]->get(i2, i1)+1);
-//
-//						ographs[ii]->set(i1, i2, ographs[ii]->get(i1, i2)+tmp);
-//						ographs[ii]->set(i2, i1, ographs[ii]->get(i2, i1)+tmp);
-//					}
-//				}
-//
-//			}
-//		}
-//    }
-//	cerr << "Done Traversing." << endl;
-//	cerr << match_label<< "/" << cellnum+1 << " Labeled" << endl;
-//	cerr << match_all << "/" << cellnum+1 << " Passed All Requirements" << endl;
-//
-//	//average of scalars
-//	for(unsigned int ii = 1 ; ii < ographs.size() ; ii++) {
-//		its = ographs[ii]->begin();
-//		while(its != ographs[ii]->end()) {
-//			int i1, i2;
-//			its.geti(i1, i2);
-//			int c = counts[ii-1]->get(i1, i2);
-//			if(c != 0)
-//				*its = (*its)/(double)c;
-//			++its;
-//		}
-//	}
-//
-//	//free the temporary count matrices
-//	for(unsigned int ii = 0 ; ii < ographs.size()-1 ; ii++)
-//		delete counts[ii];
-//
-//	return 0;
-//}
-
-///**
-//* @brief Computes graphs of counts, fiber length, variance of fiber length and FA
-//*
-//* @param tractData Input tracts to count over
-//* @param labelTree Labelmap Tree to lookup values from
-//* @param leeway distance from endpoints to look for a label
-//* @param radius distance from fiber to look for connected labels
-//* @param minlength minimum acceptable fiber length
-//* @param labelLookup Label to index lookup
-//* @param ographs Output graphs (0 - count, 1 - length, 2 ... - data scalar image)
-//*
-//* @return
-//*/
-//int createGraphs(vtkSmartPointer<vtkPolyData> tractData,
-//			vtkSmartPointer<TreeT> labelTree,
-//			double leeway, double radius, double minlength,
-//			const map<int, int>& labelLookup, vector<Graph*>& ographs)
-//{
-//	vtkSmartPointer<vtkIntArray> pointLabels = vtkIntArray::SafeDownCast(
-//				vtkPolyData::SafeDownCast(labelTree->GetDataSet())->
-//				GetPointData()->GetScalars());
-//	vtkSmartPointer<vtkFloatArray> tractStats = vtkFloatArray::SafeDownCast(
-//				tractData->GetCellData()->GetScalars());
-//
-//    vtkIdType npts;
-//    vtkIdType* ids;
-//	vtkIdType id;
-//	int l1, l2; //label 1, label 2
-//	int i1, i2; //index 1, index 2, corresponding to label 1 and 2
-//	double pt1[3];
-//	double pt2[3];
-//	double dist = 0;
-//	Graph::iterator itc; //count graph iterator
-//	Graph::iterator its; //count graph iterator
-//	int nlabels = labelLookup.size();
-//	map<int, int>::const_iterator mit;
-//	double tmp;
-//
-//	//used to search for the nearest id along the tracts length
-//	vtkIdType best_id;
-//	double best_dist;
-//	double alongfib;
-//
-//	/* Initialize Graphs */
-//
-//	//store counts for each metric
-//	vector<Graph*> counts(ographs.size()-1);
-//	for(unsigned int ii = 0 ; ii < ographs.size()-1 ; ii++)
-//		counts[ii] = new Graph(nlabels, false, true);
-//
-//	//allocate
-//	for(unsigned int ii = 0 ; ii < ographs.size() ; ii++)
-//		ographs[ii] = new Graph(nlabels, false, true);
-//
-//	//labels
-//	mit = labelLookup.begin();
-//	for(int ii = 0 ; ii < nlabels; ii++, mit++) {
-//		for(unsigned int jj = 0; jj < ographs.size() ; jj++)
-//			ographs[jj]->setLabel(ii, mit->first);
-//	}
-//
-//	cerr << "initializating traversal" << endl;
-//	/*
-//	 * for each fiber, map the start/end labels
-//	 */
-//	int match_label = 0; //note that GetTraversal Location goes by points
-//	int match_all = 0; //note that GetTraversal Location goes by points
-//	int cellnum = -1; //note that GetTraversal Location goes by points
-//    vtkSmartPointer<vtkCellArray> tracts = tractData->GetLines();
-//    tracts->InitTraversal();
-//    while(tracts->GetNextCell(npts, ids)) {
-//		cellnum++;
-//
-//		/*
-//		 * Begining of tract
-//		 */
-//
-//		//travel down the fiber for /leeway/ distance looking the closest match
-//		alongfib = 0;
-//		best_dist = leeway+1;
-//		best_id = -1;
-//		tractData->GetPoint(ids[0], pt1);
-//		for(int ii = 0; alongfib < leeway && ii < npts; ii++) {
-//			tractData->GetPoint(ids[ii], pt2);
-//        	id = labelTree->FindClosestPointWithinRadius(radius, pt2, dist);
-//
-//			//update closest region
-//			if(id >= 0 && dist < best_dist) {
-//				best_dist = dist;
-//				best_id = id;
-//			}
-//
-//			//calculate distance along tract
-//			alongfib += distance(pt1, pt2);
-//
-//			//copy pt2 into prev point (pt1)
-//			copy(pt2, pt2+3, pt1);
-//		}
-//		if(best_id < 0) //if there is no nearby point
-//			continue;
-//
-//		l1 = pointLabels->GetValue(best_id);
-//
-//		//lookup label and convert to an index
-//		mit = labelLookup.find(l1);
-//		if(mit == labelLookup.end()) {
-//			cerr << "ERROR WIERD STUFF" << endl;
-//			return -1;
-//		}
-//		i1 = mit->second;
-//
-//		/*
-//		 * End of tract
-//		 */
-//
-//		//travel down the fiber for /leeway/ distance looking the closest match
-//		alongfib = 0;
-//		best_dist = leeway+1;
-//		best_id = -1;
-//		tractData->GetPoint(ids[npts-1], pt1);
-//		for(int ii = npts-1; alongfib < leeway && ii >= 0; ii--) {
-//			tractData->GetPoint(ids[ii], pt2);
-//        	id = labelTree->FindClosestPointWithinRadius(radius, pt2, dist);
-//
-//			//update closest region
-//			if(id >= 0 && dist < best_dist) {
-//				best_dist = dist;
-//				best_id = id;
-//			}
-//
-//			//calculate distance along tract
-//			alongfib += distance(pt1, pt2);
-//
-//			//copy pt2 into prev point (pt1)
-//			copy(pt2, pt2+3, pt1);
-//		}
-//
-//		if(best_id < 0) //if there is no nearby point
-//			continue;
-//
-//		l2 = pointLabels->GetValue(best_id);
-//
-//		//lookup label and convert to an index
-//		mit = labelLookup.find(l2);
-//		if(mit == labelLookup.end()) {
-//			cerr << "ERROR WIERD STUFF" << endl;
-//			return -1;
-//		}
-//		i2 = mit->second;
-//
-//		match_label++;
-//
-//		// skip tracts that aren't long enough
-//		if(tractStats->GetComponent(cellnum, 0) < minlength)
-//			continue;
-//
-//		/*
-//		 * Update the Values, averaging len, and fa
-//		 */
-//		match_all++;
-//		ographs[0]->set(i1, i2, ographs[0]->get(i1, i2)+1);
-//		ographs[0]->set(i2, i1, ographs[0]->get(i2, i1)+1);
-//
-//		for(unsigned int ii = 1 ; ii < ographs.size() ; ii++) {
-//			tmp = tractStats->GetComponent(cellnum, ii-1);
-//			if(!isnan(tmp) && !isinf(tmp)) {
-//				counts[ii-1]->set(i1, i2, counts[ii-1]->get(i1, i2)+1);
-//				counts[ii-1]->set(i2, i1, counts[ii-1]->get(i2, i1)+1);
-//
-//				ographs[ii]->set(i1, i2, ographs[ii]->get(i1, i2)+tmp);
-//				ographs[ii]->set(i2, i1, ographs[ii]->get(i2, i1)+tmp);
-//			}
-//		}
-//    }
-//	cerr << "Done Traversing." << endl;
-//	cerr << match_label<< "/" << cellnum+1 << " Labeled" << endl;
-//	cerr << match_all << "/" << cellnum+1 << " Passed All Requirements" << endl;
-//
-//	//average of scalars
-//	for(unsigned int ii = 1 ; ii < ographs.size() ; ii++) {
-//		its = ographs[ii]->begin();
-//		while(its != ographs[ii]->end()) {
-//			int i1, i2;
-//			its.geti(i1, i2);
-//			int c = counts[ii-1]->get(i1, i2);
-//			if(c != 0)
-//				*its = (*its)/(double)c;
-//			++its;
-//		}
-//	}
-//
-//	//free the temporary count matrices
-//	for(unsigned int ii = 0 ; ii < ographs.size()-1 ; ii++)
-//		delete counts[ii];
-//
-//	return 0;
-//}
 
 /**
  * @brief Reads a Mesh File and produces a KD-Tree of points, with integer

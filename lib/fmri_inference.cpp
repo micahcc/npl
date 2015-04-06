@@ -1655,31 +1655,31 @@ MatrixXd extractLabelICA(ptr<const MRImage> fmri,
 	return X;
 }
 
-void openRWBusError(int, siginfo_t* inf, void*)
+void openRWBusError(int sig, siginfo_t* inf, void*)
 {
 	ostringstream oss;
-	oss<<"Bus Error during rw-open at "<<inf->si_addr<<endl;
+	oss<<"Signal"<<sig<<" caught during rw-open at "<<inf->si_addr<<endl;
 	throw RUNTIME_ERROR(oss.str());
 }
 
-void openROBusError(int, siginfo_t* inf, void*)
+void openROBusError(int sig, siginfo_t* inf, void*)
 {
 	ostringstream oss;
-	oss<<"Bus Error during ro-open at "<<inf->si_addr<<endl;
+	oss<<"Signal"<<sig<<" caught during ro-open at "<<inf->si_addr<<endl;
 	throw RUNTIME_ERROR(oss.str());
 }
 
-void createBusError(int, siginfo_t* inf, void*)
+void createBusError(int sig, siginfo_t* inf, void*)
 {
 	ostringstream oss;
-	oss<<"Bus Error during create at "<<inf->si_addr<<endl;
+	oss<<"Signal"<<sig<<" caught during create at "<<inf->si_addr<<endl;
 	throw RUNTIME_ERROR(oss.str());
 }
 
-void externalBusError(int, siginfo_t* inf, void*)
+void externalBusError(int sig, siginfo_t* inf, void*)
 {
 	ostringstream oss;
-	oss<<"Bus Error outside MatMap at "<<inf->si_addr<<endl;
+	oss<<"Signal"<<sig<<" caught outside at "<<inf->si_addr<<endl;
 	throw RUNTIME_ERROR(oss.str());
 }
 
