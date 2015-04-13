@@ -6,11 +6,12 @@ def build(bld):
     bld.recurse('optimizers/lib optimizers/testing')
 #    bld.recurse('matrixtools/lib matrixtools/testing')
     bld.recurse('mathparse')
+    bld.recurse('zlib')
 #    if bld.env.STATIC_LINK:
-#        bld.stlib(target='alglib', features='cxx', 
+#        bld.stlib(target='alglib', features='cxx',
 #                source = bld.path.ant_glob('alglib/src/*.cpp'),
 #                export_includes = 'alglib/src')
 #    else:
-#        bld.shlib(target='alglib', features='cxx', 
+#        bld.shlib(target='alglib', features='cxx',
 #                source = bld.path.ant_glob('alglib/src/*.cpp'),
 #                export_includes = 'alglib/src')

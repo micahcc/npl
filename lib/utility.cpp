@@ -9,7 +9,7 @@
  *
  *****************************************************************************/
 
-#define _LARGEFILE64_SOURCE
+//#define _LARGEFILE64_SOURCE
 
 #include <cstdlib>
 

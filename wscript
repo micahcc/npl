@@ -1,5 +1,4 @@
-#!/bin/env python
-from waflib.Utils import subprocess
+#!/bin/env python from waflib.Utils import subprocess
 import os
 from waflib import Options, Node, Build, Configure
 import re
@@ -14,7 +13,7 @@ def configure(conf):
     abspath = os.path.abspath
 
     opts = vars(conf.options)
-    conf.load('compiler_cxx python waf_unit_test')
+    conf.load('compiler_cxx compiler_c python waf_unit_test')
 
     env = conf.env
     conf.env.RPATH = []
@@ -27,7 +26,7 @@ def configure(conf):
         conf.env.RPATH.append('$ORIGIN/../lib')
 
     conf.env.LINKFLAGS = ['-lm']
-    conf.env.DEFINES = []
+    conf.env.DEFINES = ['_LARGEFILE64_SOURCE=1']
     conf.env.CXXFLAGS = ['-Wall', '-Wextra', '-std=c++11', '-Wno-sign-compare']
 
     conf.env.STATIC_LINK = False
@@ -56,15 +55,15 @@ def configure(conf):
     # Library Configuration
     ###############################
     conf.check_cfg(atleast_pkgconfig_version='0.0.0')
-    conf.check_cfg(package='zlib', uselib_store='ZLIB',
-                args=['--cflags', '--libs'])
+#    conf.check_cfg(package='zlib', uselib_store='ZLIB',
+#                args=['--cflags', '--libs'])
     conf.check_cfg(package='fftw3', uselib_store='FFTW',
                 args=['--cflags', '--libs'])
 #    conf.check_cfg(package='eigen3', uselib_store='EIGEN',
 #                args=['--cflags', '--libs'])
 
 def options(ctx):
-    ctx.load('compiler_cxx waf_unit_test')
+    ctx.load('compiler_cxx compiler_c waf_unit_test')
 
     gr = ctx.get_option_group('configure options')
 
