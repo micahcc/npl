@@ -2,8 +2,8 @@
 import os
 
 def build(bld):
-    zlibsrc = [os.path.join('src',c) for c in # adler32.c
-            'compress.c crc32.c deflate.c gzclose.c gzlib.c gzread.c'
+    zlibsrc = [os.path.join('src',c) for c in
+            'adler32.c compress.c crc32.c deflate.c gzclose.c gzlib.c gzread.c'
             ' gzwrite.c inflate.c infback.c inftrees.c inffast.c trees.c '
             'uncompr.c zutil.c'.split()]
 

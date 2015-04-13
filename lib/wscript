@@ -8,7 +8,7 @@ def build(bld):
         'fmri_inference.cpp graph.cpp tracks.cpp',
         export_includes = ['.'],
         install_path = '${PREFIX}/lib',
-        use = 'ZLIB FFTW EIGEN optimizersStatic mathexpressionStatic')
+        use = 'zlib FFTW EIGEN optimizersStatic mathexpressionStatic')
 
     bld.shlib(target = 'nplDyn', source =
         'registration.cpp statistics.cpp utility.cpp ndarray.cpp '
@@ -17,4 +17,4 @@ def build(bld):
         'fmri_inference.cpp graph.cpp tracks.cpp',
         export_includes = ['.'],
         install_path = '${PREFIX}/lib',
-        use = 'ZLIB FFTW EIGEN optimizersDyn mathexpressionDyn')
+        use = 'zlib FFTW EIGEN optimizersDyn mathexpressionDyn')
