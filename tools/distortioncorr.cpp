@@ -67,9 +67,9 @@ int main(int argc, char** argv)
 			"moving space. ", false, "", "*.nii.gz", cmd);
 
 	TCLAP::ValueArg<double> a_jacreg("J", "jacreg", "Jacobian regularizer "
-			"weight", false, 0.00001, "lambda", cmd);
+			"weight", false, 0.15, "lambda", cmd);
 	TCLAP::ValueArg<double> a_tpsreg("T", "tpsreg", "Thin-Plate-Spline (TPS) "
-			"regularizer weight", false, 0.0001, "lambda", cmd);
+			"regularizer weight", false, 0, "lambda", cmd);
 
 	TCLAP::MultiArg<double> a_sigmas("S", "sigmas", "Smoothing standard "
 			"deviations at each step of the registration.", false,
@@ -80,13 +80,13 @@ int main(int argc, char** argv)
 			"the moving image will be used (if set).", false, 200,
 			"n", cmd);
 	TCLAP::ValueArg<double> a_bspace("s", "bspline-space",
-			"Spacing of B-Spline knots." , false, 200, "n", cmd);
+			"Spacing of B-Spline knots." , false, 15, "n", cmd);
 	TCLAP::ValueArg<int> a_bins("b", "bins", "Bins to use in information "
 			"metric to estimate the joint distribution. This is the "
-			"the number of bins in the marginal distribution.", false, 200,
+			"the number of bins in the marginal distribution.", false, 150,
 			"n", cmd);
 	TCLAP::ValueArg<int> a_parzen("r", "radius", "Radius in parzen window "
-			"for bins", false, 5, "n", cmd);
+			"for bins", false, 4, "n", cmd);
 
 	TCLAP::ValueArg<double> a_stopx("x", "minstep", "Minimum step (change in "
 			"parameters, x) to consider taking. If steps drop below this size, "
@@ -117,7 +117,8 @@ int main(int argc, char** argv)
 	cmd.parse(argc, argv);
 
 	// set up sigmas
-	vector<double> sigmas({3,1.5,.5});
+
+	vector<double> sigmas({3, 2.5, 2, 1.5, 1, 0.5, 0.1, 0});
 	if(a_sigmas.isSet())
 		sigmas.assign(a_sigmas.begin(), a_sigmas.end());
 
