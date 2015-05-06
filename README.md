@@ -61,12 +61,14 @@ Group ICA is actually performed by first reducing the data into chunks, then per
 
 There is a good deal going on here. First reorganizing the data into matrices is necessary to limit memory usage. The size of each chunk (in gigabytes) is set by `-M` for `nplGICA_reorg`, and memory should not go above that any of the further processing steps. The prefixes set the location of the outputs from each step; note that all the prefixes can actually be the same. Images can be both spatially and temporally concatenated -- for instance if there are multiple runs of a single subject, where subjects were each performing a known task. Space should be considered as columns and time as rows. Data is entered as a flat array on the command line for `nplGICA_reorg` using multiple `-i` flags, each with different image. Thus multiple fMRI images can be concatenated spatially and temporally as shown:
 
-       Space 0  Space 1
-Time 0|   -i 0 |   -i 1 |
-Time 1|   -i 2 |   -i 3 |
-Time 2|   -i 4 |   -i 5 |
-Time 3|   -i 6 |   -i 7 |
-Time 4|   -i 8 |   -i 9 |
+<table>
+<tr><td></td><td>Space 0</td><td>Space 1</td></tr>
+<tr><td>Time 0</td><td>-i 0</td><td>-i 1</td></tr>
+<tr><td>Time 1</td><td>-i 2</td><td>-i 3</td></tr>
+<tr><td>Time 2</td><td>-i 4</td><td>-i 5</td></tr>
+<tr><td>Time 3</td><td>-i 6</td><td>-i 7</td></tr>
+<tr><td>Time 4</td><td>-i 8</td><td>-i 9</td></tr>
+</table>
 
 This would correspond to the command line:
 
